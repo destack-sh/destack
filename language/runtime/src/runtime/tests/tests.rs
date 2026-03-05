@@ -6,8 +6,8 @@ use destack_workspace::{RuntimeOptions, SchedulerOptions};
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::{Host, HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleState};
+use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
-use crate::platform::{PlatformContext, ResourceId};
 use crate::runtime::Agent;
 use crate::runtime::engine::{
     Engine, EngineContinuation, EngineOutcome, EngineOutput, NativeContinuation,
@@ -379,15 +379,10 @@ fn agent_for_options_with_host_clock_source(
 ) -> (Agent, Host) {
     // construct one runtime agent from explicit options
     let mut agent = if let Some(host_clock_source) = host_clock_source {
-        Agent::new_with_host_clock_source(
-            PlatformContext::new(Vec::new()),
-            options,
-            host_clock_source,
-        )
-        .expect("runtime test agent should build with host clock source")
+        Agent::new_with_host_clock_source(Vec::new(), options, host_clock_source)
+            .expect("runtime test agent should build with host clock source")
     } else {
-        Agent::new(PlatformContext::new(Vec::new()), options)
-            .expect("runtime test agent should build")
+        Agent::new(Vec::new(), options).expect("runtime test agent should build")
     };
 
     // configure scheduler options for deterministic tests

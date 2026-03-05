@@ -9,65 +9,67 @@ use crate::runtime::BindingCallContext;
 
 /// Resolve one opened gamepad-capable unix binding.
 fn resolve_gamepad_binding(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<input_core::UnixInputBinding> {
-    // resolve one opened unix input binding
-    let binding = input_core::resolve_unix_input_binding(context, handle, operation)?;
+    // resolve one opened unix input resolved_binding
+    let resolved_binding = input_core::resolve_unix_input_binding(binding, handle, operation)?;
 
     // validate one gamepad device kind
-    if binding.device_kind != InputDeviceKind::Gamepad {
+    if resolved_binding.device_kind != InputDeviceKind::Gamepad {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
 
     // validate one platform backend with descriptor-backed polling
-    if binding.backend != input_core::UnixInputBackend::Platform || binding.descriptor.is_none() {
+    if resolved_binding.backend != input_core::UnixInputBackend::Platform
+        || resolved_binding.descriptor.is_none()
+    {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
 
-    Ok(binding)
+    Ok(resolved_binding)
 }
 
 /// Read one gamepad snapshot for one opened unix handle.
 fn gamepad_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<InputGamepadState> {
-    // resolve one gamepad-capable binding
-    let binding = resolve_gamepad_binding(context, handle, operation)?;
-    let descriptor = binding
+    // resolve one gamepad-capable resolved_binding
+    let resolved_binding = resolve_gamepad_binding(binding, handle, operation)?;
+    let descriptor = resolved_binding
         .descriptor
         .ok_or_else(|| input_core::input_not_found(operation, handle))?;
 
     // resolve the effective player-index override for this handle
-    let player_index = input_core::gamepad_player_index(context, handle, operation)?;
+    let player_index = input_core::gamepad_player_index(binding, handle, operation)?;
 
     // route by host support
     #[cfg(target_os = "linux")]
     {
-        return input_linux::gamepad_state_snapshot(context, descriptor, player_index, operation);
+        return input_linux::gamepad_state_snapshot(binding, descriptor, player_index, operation);
     }
 
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, descriptor, player_index);
+        let _ = (binding, descriptor, player_index);
         Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
     }
 }
 
 /// Set one gamepad player-index override for one opened unix handle.
 fn gamepad_set_player_index(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     player_index: u8,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // validate one gamepad-capable handle before storing the override
-    let _binding = resolve_gamepad_binding(context, handle, operation)?;
+    let _binding = resolve_gamepad_binding(binding, handle, operation)?;
 
-    input_core::set_gamepad_player_index(context, handle, player_index, operation)
+    input_core::set_gamepad_player_index(binding, handle, player_index, operation)
 }
 
 /// Set one gamepad light color.
@@ -87,14 +89,14 @@ fn gamepad_set_player_index(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_gamepad_set_light(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     red: u8,
     green: u8,
     blue: u8,
 ) -> RuntimeResult<()> {
     // validate one gamepad-capable handle before reporting unsupported light control
-    let _binding = resolve_gamepad_binding(context, handle, "destack.input.gamepad.setLight")?;
+    let _binding = resolve_gamepad_binding(binding, handle, "destack.input.gamepad.setLight")?;
     let _ = (red, green, blue);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -120,12 +122,12 @@ pub(crate) unsafe fn destack_input_gamepad_set_light(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_gamepad_set_player_index(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     playerindex: u8,
 ) -> RuntimeResult<()> {
     gamepad_set_player_index(
-        context,
+        binding,
         handle,
         playerindex,
         "destack.input.gamepad.setPlayerIndex",
@@ -150,7 +152,7 @@ pub(crate) unsafe fn destack_input_gamepad_set_player_index(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_gamepad_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputGamepadState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -160,7 +162,7 @@ pub(crate) unsafe fn destack_input_gamepad_state(
     }
 
     // read one host-backed gamepad snapshot
-    let state = gamepad_state(context, handle, "destack.input.gamepad.state")?;
+    let state = gamepad_state(binding, handle, "destack.input.gamepad.state")?;
 
     // write snapshot output
     unsafe {

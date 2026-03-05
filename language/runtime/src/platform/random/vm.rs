@@ -27,11 +27,11 @@ use destack_vm as vm;
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_secure_bytes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    runtime_random::destack_random_secure_bytes(runtime, context, buffer)
+    runtime_random::destack_random_secure_bytes(binding, context, buffer)
 }
 
 /// Fill a slice with secure random bytes without blocking.
@@ -52,11 +52,11 @@ pub(crate) fn destack_random_secure_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_secure_bytes_try(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    runtime_random::destack_random_secure_bytes_try(runtime, context, buffer)
+    runtime_random::destack_random_secure_bytes_try(binding, context, buffer)
 }
 
 /// Query secure randomness source metadata.
@@ -77,10 +77,10 @@ pub(crate) fn destack_random_secure_bytes_try(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_secure_metadata(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<SecureRandomMetadataVm> {
-    runtime_random::destack_random_secure_metadata(runtime, context)
+    runtime_random::destack_random_secure_metadata(binding, context)
 }
 
 /// Export deterministic stream state.
@@ -101,11 +101,11 @@ pub(crate) fn destack_random_secure_metadata(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_stream_export(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     stream: RandomStream,
 ) -> RuntimeResult<RandomStreamStateVm> {
-    runtime_random::destack_random_stream_export(runtime, context, stream)
+    runtime_random::destack_random_stream_export(binding, context, stream)
 }
 
 /// Fill a slice with deterministic random bytes from the default stream.
@@ -126,11 +126,11 @@ pub(crate) fn destack_random_stream_export(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_fill_bytes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    runtime_random::destack_random_fill_bytes(runtime, context, buffer)
+    runtime_random::destack_random_fill_bytes(binding, context, buffer)
 }
 
 /// Fill a slice with deterministic random bytes from a specific stream.
@@ -151,12 +151,12 @@ pub(crate) fn destack_random_fill_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_fill_bytes_from(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     stream: RandomStream,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    runtime_random::destack_random_fill_bytes_from(runtime, context, stream, buffer)
+    runtime_random::destack_random_fill_bytes_from(binding, context, stream, buffer)
 }
 
 /// Import deterministic stream state.
@@ -177,12 +177,12 @@ pub(crate) fn destack_random_fill_bytes_from(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_stream_import(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     stream: RandomStream,
     state: RandomStreamStateVm,
 ) -> RuntimeResult<()> {
-    runtime_random::destack_random_stream_import(runtime, context, stream, state)
+    runtime_random::destack_random_stream_import(binding, context, stream, state)
 }
 
 /// Allocate a deterministic random stream in one domain.
@@ -203,11 +203,11 @@ pub(crate) fn destack_random_stream_import(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_stream_in(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     domain: RandomStreamDomain,
 ) -> RuntimeResult<RandomStream> {
-    runtime_random::destack_random_stream_in(runtime, context, domain)
+    runtime_random::destack_random_stream_in(binding, context, domain)
 }
 
 /// Advance a deterministic stream by one jump count.
@@ -228,12 +228,12 @@ pub(crate) fn destack_random_stream_in(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_stream_jump(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     stream: RandomStream,
     jump: u64,
 ) -> RuntimeResult<()> {
-    runtime_random::destack_random_stream_jump(runtime, context, stream, jump)
+    runtime_random::destack_random_stream_jump(binding, context, stream, jump)
 }
 
 /// Return a deterministic random uint64 from the default stream.
@@ -254,10 +254,10 @@ pub(crate) fn destack_random_stream_jump(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_next_u64(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
-    runtime_random::destack_random_next_u64(runtime, context)
+    runtime_random::destack_random_next_u64(binding, context)
 }
 
 /// Return a deterministic random uint64 from a specific stream.
@@ -278,11 +278,11 @@ pub(crate) fn destack_random_next_u64(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_next_u64_from(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     stream: RandomStream,
 ) -> RuntimeResult<u64> {
-    runtime_random::destack_random_next_u64_from(runtime, context, stream)
+    runtime_random::destack_random_next_u64_from(binding, context, stream)
 }
 
 /// Split a deterministic stream into one child stream.
@@ -303,11 +303,11 @@ pub(crate) fn destack_random_next_u64_from(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_stream_split(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     parent: RandomStream,
 ) -> RuntimeResult<RandomStream> {
-    runtime_random::destack_random_stream_split(runtime, context, parent)
+    runtime_random::destack_random_stream_split(binding, context, parent)
 }
 
 /// Allocate a deterministic random stream identifier.
@@ -328,8 +328,8 @@ pub(crate) fn destack_random_stream_split(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_random_stream(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<RandomStream> {
-    runtime_random::destack_random_stream(runtime, context)
+    runtime_random::destack_random_stream(binding, context)
 }

@@ -32,13 +32,13 @@ use std::os::unix::io::RawFd;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_shutdown(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     how: SocketShutdown,
 ) -> RuntimeResult<()> {
     // shutdown sockets on unix platforms
     // resolve the socket descriptor
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
 
     // issue the shutdown
     let rc = unsafe { libc::shutdown(fd, shutdown_how(how)) };

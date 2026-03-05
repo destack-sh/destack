@@ -22,26 +22,26 @@ use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// List display backends that are available for the active target.
 pub(crate) unsafe fn destack_display_backend_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<DisplayBackendDescriptor>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let descriptors = display_backend_descriptors(context);
+    let descriptors = display_backend_descriptors(binding);
     unsafe {
-        *out = context.store_slice(descriptors);
+        *out = binding.store_slice(descriptors);
     }
 
     Ok(())
 }
 
 /// Build backend descriptors for the current target.
-fn display_backend_descriptors(context: &BindingCallContext) -> Vec<DisplayBackendDescriptor> {
+fn display_backend_descriptors(binding: &BindingCallContext) -> Vec<DisplayBackendDescriptor> {
     #[cfg(unix)]
     {
-        let descriptors = unix::display_backend_descriptors(context);
+        let descriptors = unix::display_backend_descriptors(binding);
         if !descriptors.is_empty() {
             return descriptors;
         }
@@ -49,7 +49,7 @@ fn display_backend_descriptors(context: &BindingCallContext) -> Vec<DisplayBacke
 
     #[cfg(windows)]
     {
-        let descriptors = windows::display_backend_descriptors(context);
+        let descriptors = windows::display_backend_descriptors(binding);
         if !descriptors.is_empty() {
             return descriptors;
         }
@@ -57,7 +57,7 @@ fn display_backend_descriptors(context: &BindingCallContext) -> Vec<DisplayBacke
 
     vec![DisplayBackendDescriptor {
         backend: DisplayBackend::Null,
-        name: context.store_string("null"),
+        name: binding.store_string("null"),
         available: false,
         priority: 0,
         capability_flags: DisplayBackendCapabilityFlags(0),

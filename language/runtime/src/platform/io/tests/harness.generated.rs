@@ -15,9 +15,8 @@ use crate::platform::io::{
     native as io_native, vm as io_vm,
 };
 use crate::platform::{
-    NativeArray, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
+    NativeArray, NativeSlice, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
 };
-use crate::runtime::NativeSlice;
 use destack_vm as vm;
 
 impl<'call> IoHarnessContext<'call> {

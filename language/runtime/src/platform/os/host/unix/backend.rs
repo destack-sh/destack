@@ -8,7 +8,7 @@ use super::super::core::{HostIdentityOwned, OS_HOST_IDENTITY_OPERATION, cstring_
 
 /// Read one host identity payload from unix APIs.
 pub(crate) fn read_host_identity(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
 ) -> RuntimeResult<HostIdentityOwned> {
     // query host uname payload
     let mut uname = MaybeUninit::<libc::utsname>::zeroed();

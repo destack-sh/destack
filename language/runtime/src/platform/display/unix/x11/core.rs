@@ -160,7 +160,7 @@ impl std::fmt::Debug for X11RuntimeState {
 
 impl X11RuntimeState {
     /// Create one runtime-owned x11 state value.
-    pub(super) fn from_context(_context: &BindingCallContext) -> Self {
+    pub(super) fn from_context(binding: &BindingCallContext) -> Self {
         Self {
             connection: Mutex::new(None),
             monitor_event_registry: Mutex::new(Vec::new()),
@@ -172,12 +172,12 @@ impl X11RuntimeState {
 }
 
 /// Return runtime-owned x11 state for this binding call.
-pub(super) fn runtime_state(context: &BindingCallContext) -> Arc<X11RuntimeState> {
-    context
-        .runtime()
+pub(super) fn runtime_state(binding: &BindingCallContext) -> Arc<X11RuntimeState> {
+    binding
+        .agent()
         .platform_state
         .display
-        .x11_runtime_state(|| X11RuntimeState::from_context(context))
+        .x11_runtime_state(|| X11RuntimeState::from_context(binding))
 }
 
 /// Return one x11 connection snapshot, connecting lazily on first use.
@@ -317,7 +317,7 @@ pub(super) fn connection_state(
 
 /// Return backend descriptor availability and capability flags for x11.
 pub(crate) fn backend_descriptor_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> (bool, DisplayBackendCapabilityFlags) {
     // treat x11 as unavailable when no display endpoint is configured
     if std::env::var_os("DISPLAY").is_none() {
@@ -325,7 +325,7 @@ pub(crate) fn backend_descriptor_state(
     }
 
     // resolve one shared x11 connection for capability probing
-    let runtime_state = runtime_state(context);
+    let runtime_state = runtime_state(binding);
     let connection_state = match connection_state(&runtime_state, "destack.display.backend.list") {
         Ok(value) => value,
         Err(_) => return (false, DisplayBackendCapabilityFlags(0)),
@@ -394,14 +394,10 @@ pub(crate) fn backend_descriptor_state(
 }
 
 /// Resolve one queue capacity from open options and runtime defaults.
-pub(super) fn resolved_queue_capacity(context: &BindingCallContext, requested: u32) -> usize {
+pub(super) fn resolved_queue_capacity(binding: &BindingCallContext, requested: u32) -> usize {
     // use runtime default when request value is zero
     if requested == 0 {
-        let configured = context
-            .runtime()
-            .module_options
-            .display
-            .default_event_queue_capacity;
+        let configured = binding.agent().options.display.default_event_queue_capacity;
         return core_platform::option_u64_to_usize_or_min(
             configured,
             DEFAULT_EVENT_QUEUE_CAPACITY,
@@ -413,13 +409,9 @@ pub(super) fn resolved_queue_capacity(context: &BindingCallContext, requested: u
 }
 
 /// Resolve one wait-slice interval for blocking window-event reads.
-pub(super) fn window_event_wait_slice_ns(context: &BindingCallContext) -> u64 {
+pub(super) fn window_event_wait_slice_ns(binding: &BindingCallContext) -> u64 {
     // use runtime override when present
-    let configured = context
-        .runtime()
-        .module_options
-        .display
-        .window_event_wait_slice_ns;
+    let configured = binding.agent().options.display.window_event_wait_slice_ns;
 
     // enforce one positive wait-slice value
     core_platform::option_u64_or_min(configured, DEFAULT_EVENT_WAIT_SLICE_NS, 1)

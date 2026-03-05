@@ -9,7 +9,7 @@ use super::core::page_size;
 
 /// Lock one memory range into physical memory.
 pub(crate) unsafe fn destack_memory_lock(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -31,7 +31,7 @@ pub(crate) unsafe fn destack_memory_lock(
 
 /// Unlock one memory range.
 pub(crate) unsafe fn destack_memory_unlock(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {

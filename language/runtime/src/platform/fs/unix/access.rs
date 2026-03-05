@@ -33,7 +33,7 @@ use std::path::PathBuf;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_access_bytes(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathBytes,
     mode: AccessMode,
 ) -> RuntimeResult<()> {
@@ -65,13 +65,13 @@ pub(crate) unsafe fn destack_fs_access_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_access_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     mode: AccessMode,
 ) -> RuntimeResult<()> {
     // run the access check by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_access_bytes(context, path, mode)
+        destack_fs_access_bytes(binding, path, mode)
     })
 }
 
@@ -93,7 +93,7 @@ pub(crate) unsafe fn destack_fs_access_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chmod_bytes(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathBytes,
     mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -125,13 +125,13 @@ pub(crate) unsafe fn destack_fs_chmod_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chmod_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     // apply permissions by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_chmod_bytes(context, path, mode)
+        destack_fs_chmod_bytes(binding, path, mode)
     })
 }
 
@@ -153,14 +153,14 @@ pub(crate) unsafe fn destack_fs_chmod_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmodat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     mode: FileMode,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
     // apply permissions relative to the directory on unix platforms
-    let resource = directory_resource(context, dir)?;
+    let resource = directory_resource(binding, dir)?;
     let c_path = resolve_path_bytes_cstring(path, "path")?;
     let rc = unsafe {
         libc::fchmodat(
@@ -195,7 +195,7 @@ pub(crate) unsafe fn destack_fs_fchmodat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmodat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     mode: FileMode,
@@ -203,7 +203,7 @@ pub(crate) unsafe fn destack_fs_fchmodat_utf16(
 ) -> RuntimeResult<()> {
     // apply permissions by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_fchmodat_bytes(context, dir, path, mode, flags)
+        destack_fs_fchmodat_bytes(binding, dir, path, mode, flags)
     })
 }
 
@@ -225,7 +225,7 @@ pub(crate) unsafe fn destack_fs_fchmodat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chown_bytes(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathBytes,
     uid: u32,
     gid: u32,
@@ -258,14 +258,14 @@ pub(crate) unsafe fn destack_fs_chown_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chown_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<()> {
     // apply ownership by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_chown_bytes(context, path, uid, gid)
+        destack_fs_chown_bytes(binding, path, uid, gid)
     })
 }
 
@@ -287,7 +287,7 @@ pub(crate) unsafe fn destack_fs_chown_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchownat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     uid: u32,
@@ -295,7 +295,7 @@ pub(crate) unsafe fn destack_fs_fchownat_bytes(
     flags: AtFlags,
 ) -> RuntimeResult<()> {
     // apply ownership relative to the directory on unix platforms
-    let resource = directory_resource(context, dir)?;
+    let resource = directory_resource(binding, dir)?;
     let c_path = resolve_path_bytes_cstring(path, "path")?;
     let rc = unsafe { libc::fchownat(resource.fd, c_path.as_ptr(), uid, gid, flags.0 as i32) };
     if rc == 0 {
@@ -323,7 +323,7 @@ pub(crate) unsafe fn destack_fs_fchownat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchownat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     uid: u32,
@@ -332,7 +332,7 @@ pub(crate) unsafe fn destack_fs_fchownat_utf16(
 ) -> RuntimeResult<()> {
     // apply ownership by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_fchownat_bytes(context, dir, path, uid, gid, flags)
+        destack_fs_fchownat_bytes(binding, dir, path, uid, gid, flags)
     })
 }
 
@@ -354,15 +354,15 @@ pub(crate) unsafe fn destack_fs_fchownat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_access(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: OsPath,
     mode: AccessMode,
 ) -> RuntimeResult<()> {
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_access_bytes(context, path, mode) },
-        |path| unsafe { destack_fs_access_utf16(context, path, mode) },
+        |path| unsafe { destack_fs_access_bytes(binding, path, mode) },
+        |path| unsafe { destack_fs_access_utf16(binding, path, mode) },
     )
 }
 
@@ -384,15 +384,15 @@ pub(crate) unsafe fn destack_fs_access(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chmod(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: OsPath,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_chmod_bytes(context, path, mode) },
-        |path| unsafe { destack_fs_chmod_utf16(context, path, mode) },
+        |path| unsafe { destack_fs_chmod_bytes(binding, path, mode) },
+        |path| unsafe { destack_fs_chmod_utf16(binding, path, mode) },
     )
 }
 
@@ -414,7 +414,7 @@ pub(crate) unsafe fn destack_fs_chmod(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmodat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: OsPath,
     mode: FileMode,
@@ -423,8 +423,8 @@ pub(crate) unsafe fn destack_fs_fchmodat(
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_fchmodat_bytes(context, dir, path, mode, flags) },
-        |path| unsafe { destack_fs_fchmodat_utf16(context, dir, path, mode, flags) },
+        |path| unsafe { destack_fs_fchmodat_bytes(binding, dir, path, mode, flags) },
+        |path| unsafe { destack_fs_fchmodat_utf16(binding, dir, path, mode, flags) },
     )
 }
 
@@ -446,7 +446,7 @@ pub(crate) unsafe fn destack_fs_fchmodat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chown(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: OsPath,
     uid: u32,
     gid: u32,
@@ -454,8 +454,8 @@ pub(crate) unsafe fn destack_fs_chown(
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_chown_bytes(context, path, uid, gid) },
-        |path| unsafe { destack_fs_chown_utf16(context, path, uid, gid) },
+        |path| unsafe { destack_fs_chown_bytes(binding, path, uid, gid) },
+        |path| unsafe { destack_fs_chown_utf16(binding, path, uid, gid) },
     )
 }
 
@@ -477,7 +477,7 @@ pub(crate) unsafe fn destack_fs_chown(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchownat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: OsPath,
     uid: u32,
@@ -487,8 +487,8 @@ pub(crate) unsafe fn destack_fs_fchownat(
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_fchownat_bytes(context, dir, path, uid, gid, flags) },
-        |path| unsafe { destack_fs_fchownat_utf16(context, dir, path, uid, gid, flags) },
+        |path| unsafe { destack_fs_fchownat_bytes(binding, dir, path, uid, gid, flags) },
+        |path| unsafe { destack_fs_fchownat_utf16(binding, dir, path, uid, gid, flags) },
     )
 }
 
@@ -510,7 +510,7 @@ pub(crate) unsafe fn destack_fs_fchownat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_accessat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: OsPath,
     mode: AccessMode,
@@ -522,7 +522,7 @@ pub(crate) unsafe fn destack_fs_accessat(
         |path| {
             #[cfg(unix)]
             {
-                let directory_fd = directory_descriptor(context, dir)?;
+                let directory_fd = directory_descriptor(binding, dir)?;
                 let path = path_bytes_to_cstring(path, "path")?;
                 let result = unsafe {
                     libc::faccessat(
@@ -543,7 +543,7 @@ pub(crate) unsafe fn destack_fs_accessat(
             }
             #[cfg(not(unix))]
             {
-                let _ = (context, dir, path, mode, flags);
+                let _ = (binding, dir, path, mode, flags);
                 Err(RuntimeError::from(PlatformError::not_supported("destack.fs.accessat")).boxed())
             }
         },

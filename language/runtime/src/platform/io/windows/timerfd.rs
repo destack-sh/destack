@@ -24,7 +24,7 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_close(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.timerfd.close")).boxed())
@@ -48,7 +48,7 @@ pub(crate) unsafe fn destack_io_timer_fd_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_get(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut TimerFdSpec,
     _handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
@@ -73,7 +73,7 @@ pub(crate) unsafe fn destack_io_timer_fd_get(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_open(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut resource::TimerFdHandle,
     _clock: TimerFdClock,
     _flags: TimerFdFlags,
@@ -99,7 +99,7 @@ pub(crate) unsafe fn destack_io_timer_fd_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_read(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut u64,
     _handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
@@ -124,7 +124,7 @@ pub(crate) unsafe fn destack_io_timer_fd_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_set(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _handle: resource::TimerFdHandle,
     _spec: TimerFdSpec,
     _flags: TimerFdSetFlags,

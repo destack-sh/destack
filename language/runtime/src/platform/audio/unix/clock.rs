@@ -23,7 +23,7 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_clock_now(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     domain: AudioClockDomain,
 ) -> RuntimeResult<()> {
@@ -31,7 +31,7 @@ pub(crate) unsafe fn destack_audio_clock_now(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let value = audio_core::clock_now_for_domain(context, domain)?;
+    let value = audio_core::clock_now_for_domain(binding, domain)?;
     unsafe {
         *out = value;
     }
@@ -62,7 +62,7 @@ pub(crate) unsafe fn destack_audio_clock_now(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_clock(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut AudioClockSnapshot,
     handle: resource::AudioStreamHandle,
     domain: AudioStreamClockDomain,
@@ -71,9 +71,9 @@ pub(crate) unsafe fn destack_audio_stream_clock(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let binding =
-        audio_core::resolve_stream_binding(context, handle, "destack.audio.clock.stream")?;
-    let snapshot = audio_core::stream_clock_snapshot(context, &binding, domain)?;
+    let resolved_binding =
+        audio_core::resolve_stream_binding(binding, handle, "destack.audio.clock.stream")?;
+    let snapshot = audio_core::stream_clock_snapshot(binding, &resolved_binding, domain)?;
     unsafe {
         *out = snapshot;
     }

@@ -458,22 +458,22 @@ pub(crate) unsafe fn write_out_value<T>(out: *mut T, value: T) -> RuntimeResult<
 
 /// Write one byte-slice output into one output pointer.
 pub(crate) unsafe fn write_out_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     value: Vec<u8>,
 ) -> RuntimeResult<()> {
-    unsafe { write_out_value(out, context.store_slice(value)) }
+    unsafe { write_out_value(out, binding.store_slice(value)) }
 }
 
 /// Build one cipher output payload from bytes and tag values.
 pub(crate) fn cipher_output(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     bytes: Vec<u8>,
     tag: Vec<u8>,
 ) -> CryptoCipherOutput {
     CryptoCipherOutput {
-        bytes: context.store_slice(bytes),
-        tag: context.store_slice(tag),
+        bytes: binding.store_slice(bytes),
+        tag: binding.store_slice(tag),
     }
 }
 
@@ -492,11 +492,11 @@ pub(crate) fn decode_mut_bytes<'a>(
 
 /// Resolve one key from one handle.
 pub(super) fn resolve_key_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<CryptoKeyResource>>> {
-    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
         if entry.kind != CRYPTO_KEY_RESOURCE_KIND {
             return None;
         }
@@ -515,11 +515,11 @@ pub(super) fn resolve_key_resource(
 
 /// Resolve one store from one handle.
 pub(super) fn resolve_store_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoStoreHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<CryptoStoreResource>>> {
-    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
         if entry.kind != CRYPTO_STORE_RESOURCE_KIND {
             return None;
         }
@@ -538,14 +538,14 @@ pub(super) fn resolve_store_resource(
 
 /// Enforce key storage policy against one store kind.
 pub(super) fn enforce_store_key_policy(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     store: &CryptoStoreResource,
     hardware_backed: bool,
     persistent: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // resolve effective store-key policy support for this lane
-    let support = store_key_policy_support(context, store);
+    let support = store_key_policy_support(binding, store);
 
     // reject stores that do not support key-write operations
     if !support.supports_key_writes {
@@ -577,7 +577,7 @@ struct StoreKeyPolicySupport {
 
 /// Resolve key-policy support for one open store resource.
 fn store_key_policy_support(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     store: &CryptoStoreResource,
 ) -> StoreKeyPolicySupport {
     // derive provider and ephemeral lane support
@@ -598,12 +598,12 @@ fn store_key_policy_support(
     }
 
     // derive host-lane write support from availability and persistence backend state
-    let is_available = crypto_host::host_store_lane_is_available(context, store.kind);
+    let is_available = crypto_host::host_store_lane_is_available(binding, store.kind);
     let supports_persistent = is_available
         && host_store_supports_key_persistence(store.kind)
-        && crypto_host::host_store_persistence_backend_is_available(context, store.kind);
+        && crypto_host::host_store_persistence_backend_is_available(binding, store.kind);
     let supports_hardware_backed =
-        supports_persistent && host_store_supports_hardware_backed_key(context, store.kind);
+        supports_persistent && host_store_supports_hardware_backed_key(binding, store.kind);
 
     StoreKeyPolicySupport {
         supports_key_writes: supports_persistent,
@@ -619,32 +619,32 @@ pub(crate) fn host_store_supports_key_persistence(kind: CryptoStoreKind) -> bool
 
 /// Return whether one host-lane store supports hardware-backed keys.
 pub(super) fn host_store_supports_hardware_backed_key(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
-    crypto_host::host_store_supports_hardware_backed_key(context, kind)
+    crypto_host::host_store_supports_hardware_backed_key(binding, kind)
 }
 
 /// Return whether one host-lane store supports one hardware-backed pair algorithm.
 pub(super) fn host_store_supports_hardware_backed_pair_algorithm(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
 ) -> bool {
-    crypto_host::host_store_supports_hardware_backed_pair_algorithm(context, kind, algorithm)
+    crypto_host::host_store_supports_hardware_backed_pair_algorithm(binding, kind, algorithm)
 }
 
 /// Return whether one host-lane store supports certificate write operations.
 pub(super) fn host_store_supports_certificate_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
-    crypto_host::host_store_supports_certificate_write(context, kind)
+    crypto_host::host_store_supports_certificate_write(binding, kind)
 }
 
 /// Enforce certificate write policy for one store lane.
 pub(super) fn enforce_store_certificate_write_policy(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     store: &CryptoStoreResource,
     operation: &'static str,
 ) -> RuntimeResult<()> {
@@ -652,7 +652,7 @@ pub(super) fn enforce_store_certificate_write_policy(
     if matches!(
         store.kind,
         CryptoStoreKind::System | CryptoStoreKind::User | CryptoStoreKind::Machine
-    ) && !host_store_supports_certificate_write(context, store.kind)
+    ) && !host_store_supports_certificate_write(binding, store.kind)
     {
         return Err(not_supported(operation));
     }
@@ -662,7 +662,7 @@ pub(super) fn enforce_store_certificate_write_policy(
 
 /// Enforce delete policy for one object provenance lane.
 pub(super) fn enforce_object_delete_policy(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     store_provenance: &CryptoStoreProvenanceResource,
     operation: &'static str,
 ) -> RuntimeResult<()> {
@@ -670,7 +670,7 @@ pub(super) fn enforce_object_delete_policy(
     if matches!(
         store_provenance.kind,
         CryptoStoreKind::System | CryptoStoreKind::User | CryptoStoreKind::Machine
-    ) && !host_store_supports_certificate_write(context, store_provenance.kind)
+    ) && !host_store_supports_certificate_write(binding, store_provenance.kind)
     {
         return Err(not_supported(operation));
     }
@@ -723,25 +723,25 @@ pub(super) fn store_provenance_from_store(
 
 /// Convert one internal store provenance payload into one binding descriptor payload.
 pub(super) fn store_provenance_to_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     store_provenance: &CryptoStoreProvenanceResource,
 ) -> CryptoStoreProvenance {
     CryptoStoreProvenance {
         identity: CryptoStoreIdentity {
             kind: store_provenance.kind,
             provider: store_provenance.provider,
-            namespace: context.store_string(&store_provenance.namespace),
+            namespace: binding.store_string(&store_provenance.namespace),
         },
     }
 }
 
 /// Resolve one certificate from one handle.
 pub(super) fn resolve_certificate_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoCertificateHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<CryptoCertificateResource>>> {
-    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
         if entry.kind != CRYPTO_CERTIFICATE_RESOURCE_KIND {
             return None;
         }
@@ -760,11 +760,11 @@ pub(super) fn resolve_certificate_resource(
 
 /// Resolve one digest state from one handle.
 pub(super) fn resolve_digest_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoDigestHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<CryptoDigestResource>>> {
-    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
         if entry.kind != CRYPTO_DIGEST_RESOURCE_KIND {
             return None;
         }
@@ -783,11 +783,11 @@ pub(super) fn resolve_digest_resource(
 
 /// Resolve one mac state from one handle.
 pub(super) fn resolve_mac_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoMacHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<CryptoMacResource>>> {
-    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
         if entry.kind != CRYPTO_MAC_RESOURCE_KIND {
             return None;
         }
@@ -806,11 +806,11 @@ pub(super) fn resolve_mac_resource(
 
 /// Resolve one cipher state from one handle.
 pub(super) fn resolve_cipher_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoCipherHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<CryptoCipherResource>>> {
-    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
         if entry.kind != CRYPTO_CIPHER_RESOURCE_KIND {
             return None;
         }
@@ -829,43 +829,43 @@ pub(super) fn resolve_cipher_resource(
 
 /// Insert one key resource and return its handle.
 pub(super) fn insert_key_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     resource_value: CryptoKeyResource,
 ) -> resource::CryptoKeyHandle {
     let entry = ResourceEntry::new(CRYPTO_KEY_RESOURCE_KIND)
         .with_label(CRYPTO_KEY_LABEL)
         .with_payload(Arc::new(Mutex::new(resource_value)));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     resource::CryptoKeyHandle(resource_id)
 }
 
 /// Insert one certificate resource and return its handle.
 pub(super) fn insert_certificate_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     resource_value: CryptoCertificateResource,
 ) -> resource::CryptoCertificateHandle {
     let entry = ResourceEntry::new(CRYPTO_CERTIFICATE_RESOURCE_KIND)
         .with_label(CRYPTO_CERTIFICATE_LABEL)
         .with_payload(Arc::new(Mutex::new(resource_value)));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     resource::CryptoCertificateHandle(resource_id)
 }
 
 /// Attach one key handle to one store when present.
 pub(super) fn attach_key_to_store(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     store: resource::CryptoStoreHandle,
     key: resource::CryptoKeyHandle,
 ) -> RuntimeResult<()> {
-    let resource = resolve_store_resource(context, store, "destack.crypto.key.attach")?;
+    let resource = resolve_store_resource(binding, store, "destack.crypto.key.attach")?;
     let mut resource = resource.lock();
     if !resource.keys.contains(&key) {
         resource.keys.push(key);
@@ -876,11 +876,11 @@ pub(super) fn attach_key_to_store(
 
 /// Attach one certificate handle to one store when present.
 pub(super) fn attach_certificate_to_store(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     store: resource::CryptoStoreHandle,
     certificate: resource::CryptoCertificateHandle,
 ) -> RuntimeResult<()> {
-    let resource = resolve_store_resource(context, store, "destack.crypto.certificate.attach")?;
+    let resource = resolve_store_resource(binding, store, "destack.crypto.certificate.attach")?;
     let mut resource = resource.lock();
     if !resource.certificates.contains(&certificate) {
         resource.certificates.push(certificate);

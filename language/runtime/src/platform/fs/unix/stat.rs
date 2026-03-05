@@ -33,7 +33,7 @@ use std::path::PathBuf;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lstat_bytes(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut Stat,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -75,7 +75,7 @@ pub(crate) unsafe fn destack_fs_lstat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lstat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Stat,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -86,7 +86,7 @@ pub(crate) unsafe fn destack_fs_lstat_utf16(
 
     // read stat data by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_lstat_bytes(context, out, path)
+        destack_fs_lstat_bytes(binding, out, path)
     })
 }
 
@@ -108,7 +108,7 @@ pub(crate) unsafe fn destack_fs_lstat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_stat_bytes(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut Stat,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -150,7 +150,7 @@ pub(crate) unsafe fn destack_fs_stat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_stat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Stat,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -161,7 +161,7 @@ pub(crate) unsafe fn destack_fs_stat_utf16(
 
     // read stat data by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_stat_bytes(context, out, path)
+        destack_fs_stat_bytes(binding, out, path)
     })
 }
 
@@ -183,7 +183,7 @@ pub(crate) unsafe fn destack_fs_stat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statfs_bytes(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut StatFs,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -219,7 +219,7 @@ pub(crate) unsafe fn destack_fs_statfs_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statfs_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut StatFs,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -230,7 +230,7 @@ pub(crate) unsafe fn destack_fs_statfs_utf16(
 
     // read statfs data by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_statfs_bytes(context, out, path)
+        destack_fs_statfs_bytes(binding, out, path)
     })
 }
 
@@ -252,7 +252,7 @@ pub(crate) unsafe fn destack_fs_statfs_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Stat,
     dir: DirectoryHandle,
     path: PathBytes,
@@ -264,7 +264,7 @@ pub(crate) unsafe fn destack_fs_statat_bytes(
     }
 
     // stat the path on unix platforms
-    let resource = directory_resource(context, dir)?;
+    let resource = directory_resource(binding, dir)?;
     let path = resolve_path_bytes_cstring(path, "path")?;
     let mut stat = std::mem::MaybeUninit::<libc::stat>::uninit();
     let result = unsafe {
@@ -303,7 +303,7 @@ pub(crate) unsafe fn destack_fs_statat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Stat,
     dir: DirectoryHandle,
     path: PathUtf16,
@@ -316,7 +316,7 @@ pub(crate) unsafe fn destack_fs_statat_utf16(
 
     // read stat data by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_statat_bytes(context, out, dir, path, flags)
+        destack_fs_statat_bytes(binding, out, dir, path, flags)
     })
 }
 
@@ -338,15 +338,15 @@ pub(crate) unsafe fn destack_fs_statat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_stat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Stat,
     path: OsPath,
 ) -> RuntimeResult<()> {
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_stat_bytes(context, out, path) },
-        |path| unsafe { destack_fs_stat_utf16(context, out, path) },
+        |path| unsafe { destack_fs_stat_bytes(binding, out, path) },
+        |path| unsafe { destack_fs_stat_utf16(binding, out, path) },
     )
 }
 
@@ -368,7 +368,7 @@ pub(crate) unsafe fn destack_fs_stat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Stat,
     dir: DirectoryHandle,
     path: OsPath,
@@ -377,8 +377,8 @@ pub(crate) unsafe fn destack_fs_statat(
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_statat_bytes(context, out, dir, path, flags) },
-        |path| unsafe { destack_fs_statat_utf16(context, out, dir, path, flags) },
+        |path| unsafe { destack_fs_statat_bytes(binding, out, dir, path, flags) },
+        |path| unsafe { destack_fs_statat_utf16(binding, out, dir, path, flags) },
     )
 }
 
@@ -400,15 +400,15 @@ pub(crate) unsafe fn destack_fs_statat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lstat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Stat,
     path: OsPath,
 ) -> RuntimeResult<()> {
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_lstat_bytes(context, out, path) },
-        |path| unsafe { destack_fs_lstat_utf16(context, out, path) },
+        |path| unsafe { destack_fs_lstat_bytes(binding, out, path) },
+        |path| unsafe { destack_fs_lstat_utf16(binding, out, path) },
     )
 }
 
@@ -430,15 +430,15 @@ pub(crate) unsafe fn destack_fs_lstat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statfs(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut StatFs,
     path: OsPath,
 ) -> RuntimeResult<()> {
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_statfs_bytes(context, out, path) },
-        |path| unsafe { destack_fs_statfs_utf16(context, out, path) },
+        |path| unsafe { destack_fs_statfs_bytes(binding, out, path) },
+        |path| unsafe { destack_fs_statfs_utf16(binding, out, path) },
     )
 }
 
@@ -460,7 +460,7 @@ pub(crate) unsafe fn destack_fs_statfs(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statx(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Statx,
     dir: DirectoryHandle,
     path: OsPath,
@@ -477,7 +477,7 @@ pub(crate) unsafe fn destack_fs_statx(
         |path| {
             #[cfg(unix)]
             {
-                let directory_fd = directory_descriptor(context, dir)?;
+                let directory_fd = directory_descriptor(binding, dir)?;
                 let path = path_bytes_to_cstring(path, "path")?;
                 let mut stat = std::mem::MaybeUninit::<libc::stat>::uninit();
                 let result = unsafe {
@@ -528,7 +528,7 @@ pub(crate) unsafe fn destack_fs_statx(
             }
             #[cfg(not(unix))]
             {
-                let _ = (context, dir, path, flags);
+                let _ = (binding, dir, path, flags);
                 Err(RuntimeError::from(PlatformError::not_supported("destack.fs.statx")).boxed())
             }
         },

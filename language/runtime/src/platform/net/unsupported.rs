@@ -30,12 +30,12 @@ pub(crate) use crate::platform::net::simulation::native::*;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_accept(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketHandle,
     listener: ListenerHandle,
     _flags: AcceptFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, listener);
+    let _ = (binding, out, listener);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.accept")).boxed())
 }
 
@@ -57,10 +57,10 @@ pub(crate) unsafe fn destack_net_accept(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.close")).boxed())
 }
 
@@ -82,12 +82,12 @@ pub(crate) unsafe fn destack_net_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_connect(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketHandle,
     host: NativeStringRef,
     port: u16,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, host, port);
+    let _ = (binding, out, host, port);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.connect")).boxed())
 }
 
@@ -109,13 +109,13 @@ pub(crate) unsafe fn destack_net_connect(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_listen(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut ListenerHandle,
     host: NativeStringRef,
     port: u16,
     backlog: u32,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, host, port, backlog);
+    let _ = (binding, out, host, port, backlog);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.listen")).boxed())
 }
 
@@ -137,12 +137,12 @@ pub(crate) unsafe fn destack_net_listen(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, handle, buffer);
+    let _ = (binding, out, handle, buffer);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.read")).boxed())
 }
 
@@ -164,12 +164,12 @@ pub(crate) unsafe fn destack_net_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, handle, buffer);
+    let _ = (binding, out, handle, buffer);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.write")).boxed())
 }
 
@@ -191,7 +191,7 @@ pub(crate) unsafe fn destack_net_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_recv_msg(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketRecvMessage,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
@@ -201,7 +201,7 @@ pub(crate) unsafe fn destack_net_recv_msg(
     max_control_bytes: u32,
 ) -> RuntimeResult<()> {
     let _ = (
-        context,
+        binding,
         out,
         handle,
         buffer,
@@ -231,13 +231,13 @@ pub(crate) unsafe fn destack_net_recv_msg(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_recv_mmsg(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<u64>,
     handle: SocketHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     recv_flags: SocketMessageFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, handle, buffers, recv_flags);
+    let _ = (binding, out, handle, buffers, recv_flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.recvMmsg")).boxed())
 }
 
@@ -259,13 +259,13 @@ pub(crate) unsafe fn destack_net_recv_mmsg(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_send_msg(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
     message: SocketSendMessage,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, handle, buffer, message);
+    let _ = (binding, out, handle, buffer, message);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.sendMsg")).boxed())
 }
 
@@ -287,13 +287,13 @@ pub(crate) unsafe fn destack_net_send_msg(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_send_mmsg(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     send_flags: SocketMessageFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, handle, buffers, send_flags);
+    let _ = (binding, out, handle, buffers, send_flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.sendMmsg")).boxed())
 }
 
@@ -315,11 +315,11 @@ pub(crate) unsafe fn destack_net_send_mmsg(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_shutdown(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     how: SocketShutdown,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, how);
+    let _ = (binding, handle, how);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.shutdown")).boxed())
 }
 
@@ -341,11 +341,11 @@ pub(crate) unsafe fn destack_net_shutdown(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_nonblocking(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, enabled);
+    let _ = (binding, handle, enabled);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.setNonblocking")).boxed())
 }
 
@@ -367,21 +367,21 @@ pub(crate) unsafe fn destack_net_set_nonblocking(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_local_address(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketAddress,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.localAddress")).boxed())
 }
 
 /// Reject unsupported net localAddressRaw.
 pub(crate) unsafe fn destack_net_local_address_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketAddress,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.localAddressRaw")).boxed())
 }
 
@@ -403,21 +403,21 @@ pub(crate) unsafe fn destack_net_local_address_raw(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_peer_address(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketAddress,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.peerAddress")).boxed())
 }
 
 /// Reject unsupported net peerAddressRaw.
 pub(crate) unsafe fn destack_net_peer_address_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketAddress,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.peerAddressRaw")).boxed())
 }
 
@@ -439,11 +439,11 @@ pub(crate) unsafe fn destack_net_peer_address_raw(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_no_delay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, enabled);
+    let _ = (binding, handle, enabled);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.setNoDelay")).boxed())
 }
 
@@ -465,7 +465,7 @@ pub(crate) unsafe fn destack_net_set_no_delay(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_keep_alive(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
     idle_seconds: u32,
@@ -473,7 +473,7 @@ pub(crate) unsafe fn destack_net_set_keep_alive(
     probe_count: u32,
 ) -> RuntimeResult<()> {
     let _ = (
-        context,
+        binding,
         handle,
         enabled,
         idle_seconds,
@@ -501,11 +501,11 @@ pub(crate) unsafe fn destack_net_set_keep_alive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_reuse_addr(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, enabled);
+    let _ = (binding, handle, enabled);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.setReuseAddr")).boxed())
 }
 
@@ -527,11 +527,11 @@ pub(crate) unsafe fn destack_net_set_reuse_addr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_reuse_port(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, enabled);
+    let _ = (binding, handle, enabled);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.setReusePort")).boxed())
 }
 
@@ -553,21 +553,21 @@ pub(crate) unsafe fn destack_net_set_reuse_port(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_close_listener(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ListenerHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.closeListener")).boxed())
 }
 
 /// Reject unsupported net join multicast.
 pub(crate) unsafe fn destack_net_join_multicast(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     group: NativeStringRef,
     interface_address: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, group, interface_address);
+    let _ = (binding, handle, group, interface_address);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.joinMulticast")).boxed())
 }
 
@@ -589,12 +589,12 @@ pub(crate) unsafe fn destack_net_join_multicast(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_join_multicast_v4(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     group: NativeStringRef,
     interface_address: NativeStringRef,
 ) -> RuntimeResult<()> {
-    unsafe { destack_net_join_multicast(context, handle, group, interface_address) }
+    unsafe { destack_net_join_multicast(binding, handle, group, interface_address) }
 }
 
 /// Join an IPv6 multicast group.
@@ -615,23 +615,23 @@ pub(crate) unsafe fn destack_net_join_multicast_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_join_multicast_v6(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     group: NativeStringRef,
     _interface_index: u32,
 ) -> RuntimeResult<()> {
-    let interface_address = context.store_string("");
-    unsafe { destack_net_join_multicast(context, handle, group, interface_address) }
+    let interface_address = binding.store_string("");
+    unsafe { destack_net_join_multicast(binding, handle, group, interface_address) }
 }
 
 /// Reject unsupported net leave multicast.
 pub(crate) unsafe fn destack_net_leave_multicast(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     group: NativeStringRef,
     interface_address: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, group, interface_address);
+    let _ = (binding, handle, group, interface_address);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.leaveMulticast")).boxed())
 }
 
@@ -653,12 +653,12 @@ pub(crate) unsafe fn destack_net_leave_multicast(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_leave_multicast_v4(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     group: NativeStringRef,
     interface_address: NativeStringRef,
 ) -> RuntimeResult<()> {
-    unsafe { destack_net_leave_multicast(context, handle, group, interface_address) }
+    unsafe { destack_net_leave_multicast(binding, handle, group, interface_address) }
 }
 
 /// Leave an IPv6 multicast group.
@@ -679,13 +679,13 @@ pub(crate) unsafe fn destack_net_leave_multicast_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_leave_multicast_v6(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     group: NativeStringRef,
     _interface_index: u32,
 ) -> RuntimeResult<()> {
-    let interface_address = context.store_string("");
-    unsafe { destack_net_leave_multicast(context, handle, group, interface_address) }
+    let interface_address = binding.store_string("");
+    unsafe { destack_net_leave_multicast(binding, handle, group, interface_address) }
 }
 
 /// Read into multiple buffers.
@@ -706,12 +706,12 @@ pub(crate) unsafe fn destack_net_leave_multicast_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_readv(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, handle, buffers);
+    let _ = (binding, out, handle, buffers);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.readv")).boxed())
 }
 
@@ -733,14 +733,14 @@ pub(crate) unsafe fn destack_net_readv(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_resolve(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<SocketAddress>,
     host: NativeStringRef,
     port: u16,
     family: SocketFamily,
     flags: ResolveFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, host, port, family, flags);
+    let _ = (binding, out, host, port, family, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.resolve")).boxed())
 }
 
@@ -762,11 +762,11 @@ pub(crate) unsafe fn destack_net_resolve(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_reverse_lookup(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, address);
+    let _ = (binding, out, address);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.reverseLookup")).boxed())
 }
 
@@ -788,11 +788,11 @@ pub(crate) unsafe fn destack_net_reverse_lookup(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_broadcast(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, enabled);
+    let _ = (binding, handle, enabled);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.setBroadcast")).boxed())
 }
 
@@ -814,11 +814,11 @@ pub(crate) unsafe fn destack_net_set_broadcast(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_linger(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     linger: Linger,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, linger);
+    let _ = (binding, handle, linger);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.setLinger")).boxed())
 }
 
@@ -840,11 +840,11 @@ pub(crate) unsafe fn destack_net_set_linger(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_multicast_loop(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, enabled);
+    let _ = (binding, handle, enabled);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.setMulticastLoop")).boxed())
 }
 
@@ -866,11 +866,11 @@ pub(crate) unsafe fn destack_net_set_multicast_loop(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_multicast_ttl(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     ttl: u32,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, ttl);
+    let _ = (binding, handle, ttl);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.setMulticastTtl")).boxed())
 }
 
@@ -892,11 +892,11 @@ pub(crate) unsafe fn destack_net_set_multicast_ttl(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_read_timeout(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     timeout_ms: u32,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, timeout_ms);
+    let _ = (binding, handle, timeout_ms);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.setReadTimeout")).boxed())
 }
 
@@ -918,11 +918,11 @@ pub(crate) unsafe fn destack_net_set_read_timeout(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_recv_buffer(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     size: u32,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, size);
+    let _ = (binding, handle, size);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.setRecvBuffer")).boxed())
 }
 
@@ -944,11 +944,11 @@ pub(crate) unsafe fn destack_net_set_recv_buffer(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_send_buffer(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     size: u32,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, size);
+    let _ = (binding, handle, size);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.setSendBuffer")).boxed())
 }
 
@@ -970,11 +970,11 @@ pub(crate) unsafe fn destack_net_set_send_buffer(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_tos(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     tos: u32,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, tos);
+    let _ = (binding, handle, tos);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.setTos")).boxed())
 }
 
@@ -996,11 +996,11 @@ pub(crate) unsafe fn destack_net_set_tos(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_ttl(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     ttl: u32,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, ttl);
+    let _ = (binding, handle, ttl);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.setTtl")).boxed())
 }
 
@@ -1022,11 +1022,11 @@ pub(crate) unsafe fn destack_net_set_ttl(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_write_timeout(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     timeout_ms: u32,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, timeout_ms);
+    let _ = (binding, handle, timeout_ms);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.setWriteTimeout")).boxed())
 }
 
@@ -1048,11 +1048,11 @@ pub(crate) unsafe fn destack_net_set_write_timeout(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_udp_socket(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketHandle,
     family: SocketFamily,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, family);
+    let _ = (binding, out, family);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udpSocket")).boxed())
 }
 
@@ -1074,12 +1074,12 @@ pub(crate) unsafe fn destack_net_udp_socket(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_udp_bind(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     host: NativeStringRef,
     port: u16,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, host, port);
+    let _ = (binding, handle, host, port);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udpBind")).boxed())
 }
 
@@ -1101,12 +1101,12 @@ pub(crate) unsafe fn destack_net_udp_bind(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_udp_connect(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     host: NativeStringRef,
     port: u16,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, host, port);
+    let _ = (binding, handle, host, port);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udpConnect")).boxed())
 }
 
@@ -1128,14 +1128,14 @@ pub(crate) unsafe fn destack_net_udp_connect(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_udp_send_to(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     host: NativeStringRef,
     port: u16,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, handle, host, port, buffer);
+    let _ = (binding, out, handle, host, port, buffer);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udpSendTo")).boxed())
 }
 
@@ -1157,12 +1157,12 @@ pub(crate) unsafe fn destack_net_udp_send_to(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_udp_recv_from(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut UdpReceive,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, handle, buffer);
+    let _ = (binding, out, handle, buffer);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udpRecvFrom")).boxed())
 }
 
@@ -1184,11 +1184,11 @@ pub(crate) unsafe fn destack_net_udp_recv_from(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_connect(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketHandle,
     path: OsPath,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, path);
+    let _ = (binding, out, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsConnect")).boxed())
 }
 
@@ -1210,112 +1210,112 @@ pub(crate) unsafe fn destack_net_uds_connect(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_listen(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut ListenerHandle,
     path: OsPath,
     backlog: u32,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, path, backlog);
+    let _ = (binding, out, path, backlog);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsListen")).boxed())
 }
 
 /// Connect one socket to one raw remote address.
 pub(crate) unsafe fn destack_net_connect_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, address);
+    let _ = (binding, handle, address);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.connect")).boxed())
 }
 
 /// Start one listener on one raw local address.
 pub(crate) unsafe fn destack_net_listen_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut ListenerHandle,
     address: SocketAddress,
     backlog: u32,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, address, backlog);
+    let _ = (binding, out, address, backlog);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.listen")).boxed())
 }
 
 /// Resolve one host query into raw socket addresses.
 pub(crate) unsafe fn destack_net_resolve_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<SocketAddress>,
     host: NativeStringRef,
     port: u16,
     family: SocketFamily,
     flags: ResolveFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, host, port, family, flags);
+    let _ = (binding, out, host, port, family, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.resolve")).boxed())
 }
 
 /// Resolve one raw socket address into host names.
 pub(crate) unsafe fn destack_net_reverse_lookup_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, address);
+    let _ = (binding, out, address);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.reverseLookup")).boxed())
 }
 
 /// Resolve one raw socket address into host and service names.
 pub(crate) unsafe fn destack_net_reverse_lookup_names_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<ReverseLookupName>,
     address: SocketAddress,
     flags: ReverseLookupFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, address, flags);
+    let _ = (binding, out, address, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.reverseLookup")).boxed())
 }
 
 /// Bind one udp socket to one raw local address.
 pub(crate) unsafe fn destack_net_udp_bind_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, address);
+    let _ = (binding, handle, address);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udpBind")).boxed())
 }
 
 /// Connect one udp socket to one raw remote address.
 pub(crate) unsafe fn destack_net_udp_connect_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, address);
+    let _ = (binding, handle, address);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udpConnect")).boxed())
 }
 
 /// Receive one udp datagram with one raw source address.
 pub(crate) unsafe fn destack_net_udp_recv_from_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut UdpReceive,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
     recv_flags: UdpMessageFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, handle, buffer, recv_flags);
+    let _ = (binding, out, handle, buffer, recv_flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udpRecvFrom")).boxed())
 }
 
 /// Send one udp datagram to one raw destination address.
 pub(crate) unsafe fn destack_net_udp_send_to_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     address: SocketAddress,
     buffer: NativeSlice<u8>,
     send_flags: UdpMessageFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, handle, address, buffer, send_flags);
+    let _ = (binding, out, handle, address, buffer, send_flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udpSendTo")).boxed())
 }
 
@@ -1337,11 +1337,11 @@ pub(crate) unsafe fn destack_net_udp_send_to_raw(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_accept(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketHandle,
     listener: ListenerHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, listener);
+    let _ = (binding, out, listener);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsAccept")).boxed())
 }
 
@@ -1363,10 +1363,10 @@ pub(crate) unsafe fn destack_net_uds_accept(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_close_listener(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ListenerHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsCloseListener")).boxed())
 }
 
@@ -1388,11 +1388,11 @@ pub(crate) unsafe fn destack_net_uds_close_listener(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_writev(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
 ) -> RuntimeResult<()> {
-    let _ = (context, out, handle, buffers);
+    let _ = (binding, out, handle, buffers);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.writev")).boxed())
 }

@@ -27,8 +27,9 @@ use crate::platform::error::{
     PlatformSystemSourceWinsock, PlatformSystemSourceWinsockVm, native as error_native,
     vm as error_vm,
 };
-use crate::platform::{PlatformError as HarnessPlatformError, VmArray, error as platform_error};
-use crate::runtime::NativeStringRef;
+use crate::platform::{
+    NativeStringRef, PlatformError as HarnessPlatformError, VmArray, error as platform_error,
+};
 use destack_vm as vm;
 
 impl<'call> ErrorHarnessContext<'call> {

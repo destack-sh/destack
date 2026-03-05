@@ -491,20 +491,20 @@ where
 }
 
 /// Insert one runtime resource that resolves to one host completion handle.
-fn insert_completion_target_with_host_handle(context: &BindingCallContext) -> ResourceId {
+fn insert_completion_target_with_host_handle(binding: &BindingCallContext) -> ResourceId {
     #[cfg(unix)]
     {
-        context.agent().resources.insert(
+        binding.agent().resources.insert(
             ResourceEntry::new(ResourceKind::File).with_fd(0),
-            Some(context.engine()),
+            Some(binding.engine()),
         )
     }
 
     #[cfg(windows)]
     {
-        context.agent().resources.insert(
+        binding.agent().resources.insert(
             ResourceEntry::new(ResourceKind::File).with_handle(1usize as *mut c_void),
-            Some(context.engine()),
+            Some(binding.engine()),
         )
     }
 }

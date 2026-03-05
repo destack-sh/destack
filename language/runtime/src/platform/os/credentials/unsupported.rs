@@ -12,7 +12,7 @@ use super::core::{
 
 /// Read one credential record from unsupported host backends.
 pub(super) fn read_credentials(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _query: &CredentialQueryOwned,
 ) -> RuntimeResult<CredentialRecordOwned> {
     Err(core_platform::not_supported(OS_CREDENTIALS_READ_OPERATION))
@@ -20,7 +20,7 @@ pub(super) fn read_credentials(
 
 /// Write one credential record to unsupported host backends.
 pub(super) fn write_credentials(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _options: &CredentialWriteOptionsOwned,
 ) -> RuntimeResult<()> {
     Err(core_platform::not_supported(OS_CREDENTIALS_WRITE_OPERATION))
@@ -28,7 +28,7 @@ pub(super) fn write_credentials(
 
 /// Delete one credential record from unsupported host backends.
 pub(super) fn delete_credentials(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _service: &str,
     _account: &str,
     _access_group: Option<&str>,
@@ -40,7 +40,7 @@ pub(super) fn delete_credentials(
 
 /// Return whether one credential record exists in unsupported host backends.
 pub(super) fn contains_credentials(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _service: &str,
     _account: &str,
     _access_group: Option<&str>,
@@ -52,7 +52,7 @@ pub(super) fn contains_credentials(
 
 /// Run one host authentication challenge on unsupported host backends.
 pub(super) fn authenticate_credentials(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _options: &CredentialAuthenticationOptionsOwned,
 ) -> RuntimeResult<CredentialAuthenticationResult> {
     Err(core_platform::not_supported(

@@ -1588,7 +1588,7 @@ fn probe_platform_secret_key_support(kind: CryptoStoreKind, algorithm: CryptoKey
 
 /// Return whether one host store lane supports hardware-backed keys.
 pub(crate) fn host_store_supports_hardware_backed_key(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
     // hardware-backed lanes are exposed on persistent user and machine stores
@@ -1611,7 +1611,7 @@ pub(crate) fn host_store_supports_hardware_backed_key(
 
 /// Return whether one host store lane supports one hardware-backed pair algorithm.
 pub(crate) fn host_store_supports_hardware_backed_pair_algorithm(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
 ) -> bool {
@@ -1620,12 +1620,12 @@ pub(crate) fn host_store_supports_hardware_backed_pair_algorithm(
         return false;
     }
 
-    host_store_supports_hardware_backed_key(context, kind)
+    host_store_supports_hardware_backed_key(binding, kind)
 }
 
 /// Return whether one host store lane supports hardware-backed secret keys.
 pub(crate) fn host_store_supports_hardware_backed_secret_key(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
 ) -> bool {
@@ -1639,7 +1639,7 @@ pub(crate) fn host_store_supports_hardware_backed_secret_key(
 
 /// Generate one host-backed hardware key pair.
 pub(crate) fn host_generate_hardware_backed_key_pair(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     named_curve: CryptoNamedCurve,
@@ -1676,7 +1676,7 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
 
 /// Generate one host-backed hardware secret key.
 pub(crate) fn host_generate_hardware_backed_secret_key(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     digest: CryptoDigestAlgorithm,
@@ -1770,7 +1770,7 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
 
 /// Generate one host-managed persistent key pair when available.
 pub(crate) fn host_generate_persistent_key_pair(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     named_curve: CryptoNamedCurve,
@@ -1795,7 +1795,7 @@ pub(crate) fn host_generate_persistent_key_pair(
 
 /// Import one persistent host-managed private key when available.
 pub(crate) fn host_import_persistent_private_key(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     named_curve: CryptoNamedCurve,
@@ -1899,7 +1899,7 @@ pub(crate) fn host_import_persistent_private_key(
 
 /// Sign one payload with one host-managed key.
 pub(crate) fn host_key_sign(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
@@ -2058,7 +2058,7 @@ pub(crate) fn host_key_sign(
 
 /// Decrypt one payload with one host-managed key.
 pub(crate) fn host_key_decrypt(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
@@ -2161,7 +2161,7 @@ pub(crate) fn host_key_decrypt(
 
 /// Delete one host-managed key.
 pub(crate) fn host_key_delete(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     kind: CryptoStoreKind,
     operation: &'static str,
@@ -2201,7 +2201,7 @@ pub(crate) fn host_key_delete(
 
 /// Derive one shared secret with one host-managed private key.
 pub(crate) fn host_key_derive_shared_secret(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
@@ -2317,7 +2317,7 @@ pub(crate) fn host_key_derive_shared_secret(
 
 /// Encrypt one payload with one host-managed secret key.
 pub(crate) fn host_key_cipher_encrypt(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
@@ -2372,7 +2372,7 @@ pub(crate) fn host_key_cipher_encrypt(
 
 /// Decrypt one payload with one host-managed secret key.
 pub(crate) fn host_key_cipher_decrypt(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
@@ -2425,7 +2425,7 @@ pub(crate) fn host_key_cipher_decrypt(
 
 /// Compute one MAC with one host-managed secret key.
 pub(crate) fn host_key_mac_compute(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,

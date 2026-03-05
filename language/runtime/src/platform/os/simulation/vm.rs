@@ -23,7 +23,7 @@ use destack_vm as vm;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_clipboard_clear(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -49,7 +49,7 @@ pub(crate) fn destack_os_clipboard_clear(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_clipboard_has_text(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<bool> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -75,7 +75,7 @@ pub(crate) fn destack_os_clipboard_has_text(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_intent_can_open_url(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     url: vm::StringHandle,
 ) -> RuntimeResult<bool> {
@@ -103,7 +103,7 @@ pub(crate) fn destack_os_intent_can_open_url(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_location_services_enabled(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<bool> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -129,7 +129,7 @@ pub(crate) fn destack_os_location_services_enabled(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_calendar_event_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<CalendarEventVm> {
@@ -157,7 +157,7 @@ pub(crate) fn destack_os_calendar_event_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_notification_category_list(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmArray<NotificationCategoryVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -183,7 +183,7 @@ pub(crate) fn destack_os_notification_category_list(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_category_set(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     categories: VmArray<NotificationCategoryVm>,
 ) -> RuntimeResult<()> {
@@ -211,7 +211,7 @@ pub(crate) fn destack_os_notification_category_set(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_pending_cancel(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -239,7 +239,7 @@ pub(crate) fn destack_os_notification_pending_cancel(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_pending_cancel_all(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -265,7 +265,7 @@ pub(crate) fn destack_os_notification_pending_cancel_all(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_notification_pending_list(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmArray<NotificationScheduledDescriptorVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -291,7 +291,7 @@ pub(crate) fn destack_os_notification_pending_list(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_schedule(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     request: NotificationRequestVm,
 ) -> RuntimeResult<vm::StringHandle> {
@@ -319,7 +319,7 @@ pub(crate) fn destack_os_notification_schedule(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_permission_request_many(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     permissions: VmArray<Permission>,
 ) -> RuntimeResult<VmArray<PermissionEntryVm>> {
@@ -347,7 +347,7 @@ pub(crate) fn destack_os_permission_request_many(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_permission_state_many(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     permissions: VmArray<Permission>,
 ) -> RuntimeResult<VmArray<PermissionEntryVm>> {
@@ -375,7 +375,7 @@ pub(crate) fn destack_os_permission_state_many(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_background_complete(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     executionid: vm::StringHandle,
     argument_result: BackgroundTaskResult,
@@ -404,7 +404,7 @@ pub(crate) fn destack_os_background_complete(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_background_event_close(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BackgroundEventHandle,
 ) -> RuntimeResult<()> {
@@ -432,7 +432,7 @@ pub(crate) fn destack_os_background_event_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_background_event_open(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     options: BackgroundEventOpenOptionsVm,
 ) -> RuntimeResult<resource::BackgroundEventHandle> {
@@ -460,7 +460,7 @@ pub(crate) fn destack_os_background_event_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_background_event_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BackgroundEventHandle,
     timeoutns: u64,
@@ -489,7 +489,7 @@ pub(crate) fn destack_os_background_event_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_background_event_try_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BackgroundEventHandle,
 ) -> RuntimeResult<BackgroundEventVm> {
@@ -517,7 +517,7 @@ pub(crate) fn destack_os_background_event_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_background_list(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmArray<BackgroundTaskDescriptorVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -543,7 +543,7 @@ pub(crate) fn destack_os_background_list(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_background_register(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     options: BackgroundTaskOptionsVm,
 ) -> RuntimeResult<()> {
@@ -571,7 +571,7 @@ pub(crate) fn destack_os_background_register(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_background_status(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<BackgroundStatus> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -597,7 +597,7 @@ pub(crate) fn destack_os_background_status(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_background_trigger_test(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     identifier: vm::StringHandle,
 ) -> RuntimeResult<bool> {
@@ -625,7 +625,7 @@ pub(crate) fn destack_os_background_trigger_test(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_background_unregister(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     identifier: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -653,7 +653,7 @@ pub(crate) fn destack_os_background_unregister(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_calendar_event_create(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     event: CalendarEventDraftVm,
 ) -> RuntimeResult<vm::StringHandle> {
@@ -681,7 +681,7 @@ pub(crate) fn destack_os_calendar_event_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_calendar_event_delete(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -709,7 +709,7 @@ pub(crate) fn destack_os_calendar_event_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_calendar_event_list(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     query: CalendarEventQueryVm,
 ) -> RuntimeResult<VmArray<CalendarEventVm>> {
@@ -737,7 +737,7 @@ pub(crate) fn destack_os_calendar_event_list(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_calendar_event_update(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
     event: CalendarEventDraftVm,
@@ -766,7 +766,7 @@ pub(crate) fn destack_os_calendar_event_update(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_calendar_list(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmArray<CalendarDescriptorVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -792,7 +792,7 @@ pub(crate) fn destack_os_calendar_list(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_clipboard_read_bytes(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     format: ClipboardBinaryFormat,
 ) -> RuntimeResult<VmSlice<u8>> {
@@ -820,7 +820,7 @@ pub(crate) fn destack_os_clipboard_read_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_clipboard_read_text(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::StringHandle> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -847,7 +847,7 @@ pub(crate) fn destack_os_clipboard_read_text(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_clipboard_sequence(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -873,7 +873,7 @@ pub(crate) fn destack_os_clipboard_sequence(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_clipboard_write_bytes(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     format: ClipboardBinaryFormat,
     argument_bytes: VmSlice<u8>,
@@ -902,7 +902,7 @@ pub(crate) fn destack_os_clipboard_write_bytes(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_clipboard_write_text(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     text: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -930,7 +930,7 @@ pub(crate) fn destack_os_clipboard_write_text(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_contact_create(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     contact: ContactDraftVm,
 ) -> RuntimeResult<vm::StringHandle> {
@@ -958,7 +958,7 @@ pub(crate) fn destack_os_contact_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_contact_delete(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -986,7 +986,7 @@ pub(crate) fn destack_os_contact_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_contact_list(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     query: ContactQueryVm,
 ) -> RuntimeResult<ContactPageVm> {
@@ -1014,7 +1014,7 @@ pub(crate) fn destack_os_contact_list(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_contact_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<ContactVm> {
@@ -1042,7 +1042,7 @@ pub(crate) fn destack_os_contact_read(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_contact_search(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     querytext: vm::StringHandle,
     query: ContactQueryVm,
@@ -1071,7 +1071,7 @@ pub(crate) fn destack_os_contact_search(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_contact_update(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
     contact: ContactDraftVm,
@@ -1103,7 +1103,7 @@ pub(crate) fn destack_os_contact_update(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_credentials_authenticate(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     options: CredentialAuthenticationOptionsVm,
 ) -> RuntimeResult<CredentialAuthenticationResultVm> {
@@ -1133,7 +1133,7 @@ pub(crate) fn destack_os_credentials_authenticate(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_credentials_contains(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     service: vm::StringHandle,
     account: vm::StringHandle,
@@ -1165,7 +1165,7 @@ pub(crate) fn destack_os_credentials_contains(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_credentials_delete(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     service: vm::StringHandle,
     account: vm::StringHandle,
@@ -1195,7 +1195,7 @@ pub(crate) fn destack_os_credentials_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_credentials_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     query: CredentialQueryVm,
 ) -> RuntimeResult<CredentialRecordVm> {
@@ -1224,7 +1224,7 @@ pub(crate) fn destack_os_credentials_read(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_credentials_write(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     options: CredentialWriteOptionsVm,
 ) -> RuntimeResult<()> {
@@ -1252,7 +1252,7 @@ pub(crate) fn destack_os_credentials_write(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_document_close(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::DocumentHandle,
 ) -> RuntimeResult<()> {
@@ -1280,7 +1280,7 @@ pub(crate) fn destack_os_document_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_document_flush(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::DocumentHandle,
 ) -> RuntimeResult<()> {
@@ -1308,7 +1308,7 @@ pub(crate) fn destack_os_document_flush(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_document_open(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     uri: vm::StringHandle,
     access: DocumentAccess,
@@ -1337,7 +1337,7 @@ pub(crate) fn destack_os_document_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_document_pick(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     options: DocumentPickOptionsVm,
 ) -> RuntimeResult<VmArray<DocumentDescriptorVm>> {
@@ -1365,7 +1365,7 @@ pub(crate) fn destack_os_document_pick(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_document_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::DocumentHandle,
     maxbytes: u32,
@@ -1395,7 +1395,7 @@ pub(crate) fn destack_os_document_read(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_document_try_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::DocumentHandle,
     maxbytes: u32,
@@ -1424,7 +1424,7 @@ pub(crate) fn destack_os_document_try_read(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_document_write(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::DocumentHandle,
     argument_bytes: VmSlice<u8>,
@@ -1455,7 +1455,7 @@ pub(crate) fn destack_os_document_write(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_host_identity(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<HostIdentityVm> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1482,7 +1482,7 @@ pub(crate) fn destack_os_host_identity(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_boot_time_unix_ns(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1509,7 +1509,7 @@ pub(crate) fn destack_os_boot_time_unix_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_load_average(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<LoadAverageVm> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1536,7 +1536,7 @@ pub(crate) fn destack_os_load_average(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_system_snapshot(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<SystemSnapshotVm> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1563,7 +1563,7 @@ pub(crate) fn destack_os_system_snapshot(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_uptime_ns(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1589,7 +1589,7 @@ pub(crate) fn destack_os_uptime_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_intent_close(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::IntentHandle,
 ) -> RuntimeResult<()> {
@@ -1617,7 +1617,7 @@ pub(crate) fn destack_os_intent_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_intent_open(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     options: IntentOpenOptionsVm,
 ) -> RuntimeResult<resource::IntentHandle> {
@@ -1645,7 +1645,7 @@ pub(crate) fn destack_os_intent_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_intent_open_path(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     path: fs::OsPathVm,
 ) -> RuntimeResult<()> {
@@ -1673,7 +1673,7 @@ pub(crate) fn destack_os_intent_open_path(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_intent_open_url(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     url: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -1701,7 +1701,7 @@ pub(crate) fn destack_os_intent_open_url(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_intent_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::IntentHandle,
     timeoutns: u64,
@@ -1730,7 +1730,7 @@ pub(crate) fn destack_os_intent_read(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_intent_share_paths(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     paths: VmArray<fs::OsPathVm>,
     mimetype: vm::StringHandle,
@@ -1759,7 +1759,7 @@ pub(crate) fn destack_os_intent_share_paths(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_intent_share_text(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     text: vm::StringHandle,
     mimetype: vm::StringHandle,
@@ -1788,7 +1788,7 @@ pub(crate) fn destack_os_intent_share_text(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_intent_try_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::IntentHandle,
 ) -> RuntimeResult<IntentEventVm> {
@@ -1816,7 +1816,7 @@ pub(crate) fn destack_os_intent_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_lifecycle_close(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::LifecycleEventHandle,
 ) -> RuntimeResult<()> {
@@ -1844,7 +1844,7 @@ pub(crate) fn destack_os_lifecycle_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_lifecycle_open(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<resource::LifecycleEventHandle> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1870,7 +1870,7 @@ pub(crate) fn destack_os_lifecycle_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_lifecycle_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::LifecycleEventHandle,
     timeoutns: u64,
@@ -1899,7 +1899,7 @@ pub(crate) fn destack_os_lifecycle_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_lifecycle_state(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<LifecycleState> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1925,7 +1925,7 @@ pub(crate) fn destack_os_lifecycle_state(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_lifecycle_try_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::LifecycleEventHandle,
 ) -> RuntimeResult<LifecycleEventVm> {
@@ -1953,7 +1953,7 @@ pub(crate) fn destack_os_lifecycle_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_location_last_known(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<LocationSampleVm> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1979,7 +1979,7 @@ pub(crate) fn destack_os_location_last_known(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_location_watch_close(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::LocationWatchHandle,
 ) -> RuntimeResult<()> {
@@ -2007,7 +2007,7 @@ pub(crate) fn destack_os_location_watch_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_location_watch_open(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     options: LocationWatchOptionsVm,
 ) -> RuntimeResult<resource::LocationWatchHandle> {
@@ -2035,7 +2035,7 @@ pub(crate) fn destack_os_location_watch_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_location_watch_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::LocationWatchHandle,
     timeoutns: u64,
@@ -2064,7 +2064,7 @@ pub(crate) fn destack_os_location_watch_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_location_watch_try_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::LocationWatchHandle,
 ) -> RuntimeResult<LocationSampleVm> {
@@ -2092,7 +2092,7 @@ pub(crate) fn destack_os_location_watch_try_read(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_media_delete(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     ids: VmArray<vm::StringHandle>,
 ) -> RuntimeResult<u32> {
@@ -2120,7 +2120,7 @@ pub(crate) fn destack_os_media_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_media_import_path(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     path: fs::OsPathVm,
     kind: MediaAssetKind,
@@ -2149,7 +2149,7 @@ pub(crate) fn destack_os_media_import_path(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_media_list(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     query: MediaQueryVm,
 ) -> RuntimeResult<MediaPageVm> {
@@ -2177,7 +2177,7 @@ pub(crate) fn destack_os_media_list(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_media_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<MediaAssetDescriptorVm> {
@@ -2206,7 +2206,7 @@ pub(crate) fn destack_os_media_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_mount_add(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     source: vm::StringHandle,
     target: fs::OsPathVm,
@@ -2239,7 +2239,7 @@ pub(crate) fn destack_os_mount_add(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_mount_list(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmArray<MountEntryVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2266,7 +2266,7 @@ pub(crate) fn destack_os_mount_list(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_mount_remove(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     target: fs::OsPathVm,
     flags: u64,
@@ -2295,7 +2295,7 @@ pub(crate) fn destack_os_mount_remove(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_network_state(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<NetworkStateVm> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2321,7 +2321,7 @@ pub(crate) fn destack_os_network_state(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_network_watch_close(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::NetworkWatchHandle,
 ) -> RuntimeResult<()> {
@@ -2349,7 +2349,7 @@ pub(crate) fn destack_os_network_watch_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_network_watch_open(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<resource::NetworkWatchHandle> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2375,7 +2375,7 @@ pub(crate) fn destack_os_network_watch_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_network_watch_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::NetworkWatchHandle,
     timeoutns: u64,
@@ -2404,7 +2404,7 @@ pub(crate) fn destack_os_network_watch_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_network_watch_try_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::NetworkWatchHandle,
 ) -> RuntimeResult<NetworkEventVm> {
@@ -2432,7 +2432,7 @@ pub(crate) fn destack_os_network_watch_try_read(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_cancel(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -2460,7 +2460,7 @@ pub(crate) fn destack_os_notification_cancel(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_cancel_all(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2486,7 +2486,7 @@ pub(crate) fn destack_os_notification_cancel_all(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_event_close(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::NotificationEventHandle,
 ) -> RuntimeResult<()> {
@@ -2514,7 +2514,7 @@ pub(crate) fn destack_os_notification_event_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_event_open(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     options: NotificationEventOpenOptionsVm,
 ) -> RuntimeResult<resource::NotificationEventHandle> {
@@ -2542,7 +2542,7 @@ pub(crate) fn destack_os_notification_event_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_event_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::NotificationEventHandle,
     timeoutns: u64,
@@ -2571,7 +2571,7 @@ pub(crate) fn destack_os_notification_event_read(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_event_try_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::NotificationEventHandle,
 ) -> RuntimeResult<NotificationEventVm> {
@@ -2599,7 +2599,7 @@ pub(crate) fn destack_os_notification_event_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_notification_permission_state(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<NotificationPermissionState> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2625,7 +2625,7 @@ pub(crate) fn destack_os_notification_permission_state(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_post(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     request: NotificationRequestVm,
 ) -> RuntimeResult<vm::StringHandle> {
@@ -2653,7 +2653,7 @@ pub(crate) fn destack_os_notification_post(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_request_permission(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<NotificationPermissionState> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2679,7 +2679,7 @@ pub(crate) fn destack_os_notification_request_permission(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_permission_open_settings(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2705,7 +2705,7 @@ pub(crate) fn destack_os_permission_open_settings(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_permission_request(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     permission: Permission,
 ) -> RuntimeResult<PermissionState> {
@@ -2733,7 +2733,7 @@ pub(crate) fn destack_os_permission_request(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_permission_state(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     permission: Permission,
 ) -> RuntimeResult<PermissionState> {
@@ -2762,7 +2762,7 @@ pub(crate) fn destack_os_permission_state(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_power_state(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<PowerState> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2789,7 +2789,7 @@ pub(crate) fn destack_os_power_state(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_suspend(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(

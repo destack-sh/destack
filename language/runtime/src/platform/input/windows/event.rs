@@ -73,12 +73,12 @@ fn monitor_not_found(
 
 /// Validate that one monitor handle points to an input-monitor resource.
 fn validate_monitor_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputMonitorHandle,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // validate monitor resource kind
-    let valid = context.agent().resources.with_entry(handle.0, |entry| {
+    let valid = binding.agent().resources.with_entry(handle.0, |entry| {
         entry.kind == ResourceKind::InputMonitor
             && entry.label.as_deref() == Some(INPUT_MONITOR_RESOURCE_LABEL)
             && entry
@@ -124,11 +124,11 @@ fn acquire_monitor_stream(operation: &'static str) -> RuntimeResult<()> {
 
 /// Allocate one sequence number for one monitor handle.
 fn next_monitor_sequence(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputMonitorHandle,
     operation: &'static str,
 ) -> RuntimeResult<u64> {
-    let sequence = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let sequence = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputMonitor {
             return None;
         }
@@ -137,12 +137,12 @@ fn next_monitor_sequence(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<WindowsInputMonitorBinding>())?;
-        let next = binding.next_sequence;
-        binding.next_sequence = binding.next_sequence.saturating_add(1);
+        let next = resolved_binding.next_sequence;
+        resolved_binding.next_sequence = resolved_binding.next_sequence.saturating_add(1);
         Some(next)
     });
 
@@ -265,7 +265,7 @@ fn stable_pointer_buttons_from_console_state(state: u32) -> u32 {
 
 /// Map one INPUT_RECORD into one runtime input event.
 fn map_console_record(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     record: INPUT_RECORD,
     device_id: &str,
     read_mode: InputReadMode,
@@ -308,10 +308,10 @@ fn map_console_record(
                 None
             };
 
-            let mut payload = input_core::empty_event_payload(context);
+            let mut payload = input_core::empty_event_payload(binding);
             if is_text {
                 payload.text = InputTextEventPayload {
-                    text: context.store_string(text.as_deref().unwrap_or("")),
+                    text: binding.store_string(text.as_deref().unwrap_or("")),
                 };
             } else {
                 payload.key = InputKeyEventPayload {
@@ -324,7 +324,7 @@ fn map_console_record(
                 };
             }
             let event =
-                input_core::build_input_event(context, kind, timestamp_ns, 0, device_id, payload);
+                input_core::build_input_event(binding, kind, timestamp_ns, 0, device_id, payload);
 
             Some(ConsoleRecordMapping {
                 event,
@@ -377,7 +377,7 @@ fn map_console_record(
                 (mouse.dwEventFlags, InputEventAction::Move, 0)
             };
 
-            let mut payload = input_core::empty_event_payload(context);
+            let mut payload = input_core::empty_event_payload(binding);
             if kind == InputEventKind::PointerButton {
                 payload.pointer_button = InputPointerButtonEventPayload {
                     action,
@@ -404,7 +404,7 @@ fn map_console_record(
                 };
             }
             let event =
-                input_core::build_input_event(context, kind, timestamp_ns, 0, device_id, payload);
+                input_core::build_input_event(binding, kind, timestamp_ns, 0, device_id, payload);
 
             let mut pending_button_transitions = Vec::new();
             if kind == InputEventKind::PointerButton && transitions.len() > 1 {
@@ -429,14 +429,14 @@ fn map_console_record(
         }
         WINDOW_BUFFER_SIZE_EVENT => {
             let resize = unsafe { record.Event.WindowBufferSizeEvent };
-            let mut payload = input_core::empty_event_payload(context);
+            let mut payload = input_core::empty_event_payload(binding);
             payload.device = InputDeviceEventPayload {
                 action: InputEventAction::Move,
                 backend_code: WINDOW_BUFFER_SIZE_EVENT,
                 backend_value: pack_console_buffer_size(resize.dwSize.X, resize.dwSize.Y),
             };
             let event = input_core::build_input_event(
-                context,
+                binding,
                 InputEventKind::Device,
                 timestamp_ns,
                 0,
@@ -453,14 +453,14 @@ fn map_console_record(
         MENU_EVENT => Some(ConsoleRecordMapping {
             event: {
                 let menu = unsafe { record.Event.MenuEvent };
-                let mut payload = input_core::empty_event_payload(context);
+                let mut payload = input_core::empty_event_payload(binding);
                 payload.device = InputDeviceEventPayload {
                     action: InputEventAction::Move,
                     backend_code: MENU_EVENT,
                     backend_value: menu.dwCommandId as i64,
                 };
                 input_core::build_input_event(
-                    context,
+                    binding,
                     InputEventKind::Device,
                     timestamp_ns,
                     0,
@@ -474,14 +474,14 @@ fn map_console_record(
         FOCUS_EVENT => Some(ConsoleRecordMapping {
             event: {
                 let focus = unsafe { record.Event.FocusEvent };
-                let mut payload = input_core::empty_event_payload(context);
+                let mut payload = input_core::empty_event_payload(binding);
                 payload.device = InputDeviceEventPayload {
                     action: InputEventAction::Move,
                     backend_code: FOCUS_EVENT,
                     backend_value: if focus.bSetFocus != 0 { 1 } else { 0 },
                 };
                 input_core::build_input_event(
-                    context,
+                    binding,
                     InputEventKind::Device,
                     timestamp_ns,
                     0,
@@ -494,14 +494,14 @@ fn map_console_record(
         }),
         event_type => Some(ConsoleRecordMapping {
             event: {
-                let mut payload = input_core::empty_event_payload(context);
+                let mut payload = input_core::empty_event_payload(binding);
                 payload.device = InputDeviceEventPayload {
                     action: InputEventAction::Move,
                     backend_code: event_type,
                     backend_value: 0,
                 };
                 input_core::build_input_event(
-                    context,
+                    binding,
                     InputEventKind::Device,
                     timestamp_ns,
                     0,
@@ -517,11 +517,11 @@ fn map_console_record(
 
 /// Pop one deferred console pointer-button transition for this handle.
 fn pop_pending_console_button_transition(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Option<input_core::PendingConsoleButtonTransition>> {
-    let transition = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let transition = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -530,15 +530,19 @@ fn pop_pending_console_button_transition(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
-        if binding.backend != input_core::WindowsInputBackend::Console {
+        if resolved_binding.backend != input_core::WindowsInputBackend::Console {
             return Some(None);
         }
 
-        Some(binding.pending_console_button_transitions.pop_front())
+        Some(
+            resolved_binding
+                .pending_console_button_transitions
+                .pop_front(),
+        )
     });
 
     match transition {
@@ -550,7 +554,7 @@ fn pop_pending_console_button_transition(
 
 /// Queue deferred console pointer-button transitions for this handle.
 fn push_pending_console_button_transitions(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     transitions: Vec<input_core::PendingConsoleButtonTransition>,
     operation: &'static str,
@@ -559,7 +563,7 @@ fn push_pending_console_button_transitions(
         return Ok(());
     }
 
-    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -568,15 +572,15 @@ fn push_pending_console_button_transitions(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
-        if binding.backend != input_core::WindowsInputBackend::Console {
+        if resolved_binding.backend != input_core::WindowsInputBackend::Console {
             return Some(());
         }
 
-        binding
+        resolved_binding
             .pending_console_button_transitions
             .extend(transitions.iter().copied());
         Some(())
@@ -590,12 +594,12 @@ fn push_pending_console_button_transitions(
 
 /// Persist one console button-state snapshot for one input handle.
 fn set_console_button_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     state: u32,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -604,15 +608,15 @@ fn set_console_button_state(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
-        if binding.backend != input_core::WindowsInputBackend::Console {
+        if resolved_binding.backend != input_core::WindowsInputBackend::Console {
             return Some(());
         }
 
-        binding.console_button_state = state;
+        resolved_binding.console_button_state = state;
         Some(())
     });
 
@@ -624,12 +628,12 @@ fn set_console_button_state(
 
 /// Persist one xinput packet number snapshot for one input handle.
 fn set_xinput_packet_number(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     packet_number: u32,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -638,15 +642,15 @@ fn set_xinput_packet_number(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
-        if binding.backend != input_core::WindowsInputBackend::XInput {
+        if resolved_binding.backend != input_core::WindowsInputBackend::XInput {
             return Some(());
         }
 
-        binding.xinput_packet_number = packet_number;
+        resolved_binding.xinput_packet_number = packet_number;
         Some(())
     });
 
@@ -751,12 +755,12 @@ pub(super) fn read_console_record_from_host(
 
 /// Queue one console record into input and composition demux lanes.
 pub(super) fn queue_console_record_for_demux(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     pending_record: input_core::PendingConsoleRecord,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -765,22 +769,25 @@ pub(super) fn queue_console_record_for_demux(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
-        if binding.backend != input_core::WindowsInputBackend::Console {
+        if resolved_binding.backend != input_core::WindowsInputBackend::Console {
             return Some(());
         }
 
         let timestamp_ns = pending_record.timestamp_ns;
         let composition_code_unit =
             composition_code_unit_from_console_record(&pending_record.record);
-        push_bounded_console_record(&mut binding.pending_console_records, pending_record);
+        push_bounded_console_record(
+            &mut resolved_binding.pending_console_records,
+            pending_record,
+        );
 
         if let Some(code_unit) = composition_code_unit {
             push_bounded_console_composition_event(
-                &mut binding.pending_console_composition_events,
+                &mut resolved_binding.pending_console_composition_events,
                 input_core::PendingConsoleCompositionEvent {
                     timestamp_ns,
                     code_unit,
@@ -799,11 +806,11 @@ pub(super) fn queue_console_record_for_demux(
 
 /// Pop one queued console record for input-event decoding.
 fn pop_pending_console_record(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Option<input_core::PendingConsoleRecord>> {
-    let record = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let record = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -812,15 +819,15 @@ fn pop_pending_console_record(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
-        if binding.backend != input_core::WindowsInputBackend::Console {
+        if resolved_binding.backend != input_core::WindowsInputBackend::Console {
             return Some(None);
         }
 
-        Some(binding.pending_console_records.pop_front())
+        Some(resolved_binding.pending_console_records.pop_front())
     });
 
     match record {
@@ -832,11 +839,11 @@ fn pop_pending_console_record(
 
 /// Pop one queued composition event for one console handle.
 pub(super) fn pop_pending_console_composition_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Option<input_core::PendingConsoleCompositionEvent>> {
-    let event = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let event = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -845,15 +852,19 @@ pub(super) fn pop_pending_console_composition_event(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
-        if binding.backend != input_core::WindowsInputBackend::Console {
+        if resolved_binding.backend != input_core::WindowsInputBackend::Console {
             return Some(None);
         }
 
-        Some(binding.pending_console_composition_events.pop_front())
+        Some(
+            resolved_binding
+                .pending_console_composition_events
+                .pop_front(),
+        )
     });
 
     match event {
@@ -865,7 +876,7 @@ pub(super) fn pop_pending_console_composition_event(
 
 /// Build one composition payload from one queued UTF-16 code unit.
 pub(super) fn build_composition_event_from_pending(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     pending: input_core::PendingConsoleCompositionEvent,
 ) -> InputCompositionEvent {
     let text = String::from_utf16_lossy(&[pending.code_unit]);
@@ -873,9 +884,9 @@ pub(super) fn build_composition_event_from_pending(
     InputCompositionEvent {
         timestamp_ns: pending.timestamp_ns,
         sequence: 0,
-        device_id: context.store_string(input_core::WINDOWS_INPUT_DEVICE_ID),
+        device_id: binding.store_string(input_core::WINDOWS_INPUT_DEVICE_ID),
         action: InputEventAction::Commit,
-        text: context.store_string(&text),
+        text: binding.store_string(&text),
         selection_start: 0,
         selection_end,
     }
@@ -883,19 +894,19 @@ pub(super) fn build_composition_event_from_pending(
 
 /// Read one input event from console or raw queues.
 pub(super) fn read_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     nonblocking: bool,
     operation: &'static str,
 ) -> RuntimeResult<InputEvent> {
     // resolve resource binding and selected backend
-    let resolved = input_core::resolve_input(context, handle, operation)?;
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
 
     // drain deferred console button transitions before reading host records
     if resolved.backend == input_core::WindowsInputBackend::Console
-        && let Some(transition) = pop_pending_console_button_transition(context, handle, operation)?
+        && let Some(transition) = pop_pending_console_button_transition(binding, handle, operation)?
     {
-        let mut payload = input_core::empty_event_payload(context);
+        let mut payload = input_core::empty_event_payload(binding);
         payload.pointer_button = InputPointerButtonEventPayload {
             action: transition.action,
             backend_code: transition.code,
@@ -905,14 +916,14 @@ pub(super) fn read_event(
             modifiers: transition.modifiers,
         };
         let mut event = input_core::build_input_event(
-            context,
+            binding,
             InputEventKind::PointerButton,
             transition.timestamp_ns,
             0,
             input_core::WINDOWS_INPUT_DEVICE_ID,
             payload,
         );
-        event.sequence = input_core::next_sequence(context, handle, operation)?;
+        event.sequence = input_core::next_sequence(binding, handle, operation)?;
         return Ok(event);
     }
 
@@ -928,17 +939,17 @@ pub(super) fn read_event(
                 let event = loop {
                     // decode one already-queued record before reading from host
                     let Some(pending_record) =
-                        pop_pending_console_record(context, handle, operation)?
+                        pop_pending_console_record(binding, handle, operation)?
                     else {
                         let pending_record =
                             read_console_record_from_host(host_handle, nonblocking, operation)?;
-                        queue_console_record_for_demux(context, handle, pending_record, operation)?;
+                        queue_console_record_for_demux(binding, handle, pending_record, operation)?;
                         continue;
                     };
 
                     // convert one queued console record into one runtime event
                     let mapped = map_console_record(
-                        context,
+                        binding,
                         pending_record.record,
                         input_core::WINDOWS_INPUT_DEVICE_ID,
                         resolved.read_mode,
@@ -963,7 +974,7 @@ pub(super) fn read_event(
                     return Err(input_core::input_not_found(operation, handle));
                 };
                 (
-                    raw_input::read_device_event(context, raw_device, nonblocking, operation)?,
+                    raw_input::read_device_event(binding, raw_device, nonblocking, operation)?,
                     None,
                     Vec::new(),
                     None,
@@ -992,14 +1003,14 @@ pub(super) fn read_event(
                 };
 
                 // publish one gamepad-change event keyed by packet-number deltas
-                let mut payload = input_core::empty_event_payload(context);
+                let mut payload = input_core::empty_event_payload(binding);
                 payload.gamepad = InputGamepadEventPayload {
                     action: InputEventAction::Axis,
                     backend_code: user_index as u32,
                     backend_value: next_packet as i64,
                 };
                 let event = input_core::build_input_event(
-                    context,
+                    binding,
                     InputEventKind::Gamepad,
                     input_core::now_timestamp_ns(),
                     0,
@@ -1014,7 +1025,7 @@ pub(super) fn read_event(
     // persist deferred console transitions emitted from one host record
     if resolved.backend == input_core::WindowsInputBackend::Console {
         push_pending_console_button_transitions(
-            context,
+            binding,
             handle,
             pending_button_transitions,
             operation,
@@ -1023,29 +1034,29 @@ pub(super) fn read_event(
 
     // persist updated console button state when one mouse snapshot was observed
     if let Some(next_button_state) = next_button_state {
-        set_console_button_state(context, handle, next_button_state, operation)?;
+        set_console_button_state(binding, handle, next_button_state, operation)?;
     }
 
     // persist updated xinput packet numbers
     if let Some(next_packet) = next_xinput_packet {
-        set_xinput_packet_number(context, handle, next_packet, operation)?;
+        set_xinput_packet_number(binding, handle, next_packet, operation)?;
     }
 
     // stamp one per-handle sequence number
-    event.sequence = input_core::next_sequence(context, handle, operation)?;
+    event.sequence = input_core::next_sequence(binding, handle, operation)?;
 
     Ok(event)
 }
 
 /// Enable or disable exclusive grab mode for console input.
 pub(super) fn set_grab(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     enable: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // resolve handle and enforce console-only grab semantics
-    let resolved = input_core::resolve_input(context, handle, operation)?;
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
 
     if resolved.backend != input_core::WindowsInputBackend::Console {
         return Err(RuntimeError::from(PlatformError::not_supported(
@@ -1115,13 +1126,13 @@ pub(super) fn set_grab(
 
 /// Set read mode for one windows input handle.
 pub(super) fn set_read_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     mode: InputReadMode,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    // mutate binding state and host mode in one resource-table transaction
-    let result = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    // mutate resolved_binding state and host mode in one resource-table transaction
+    let result = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -1131,12 +1142,12 @@ pub(super) fn set_read_mode(
         }
 
         let host_handle = entry.handle().map(|handle| handle as HANDLE);
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
 
-        let update = match binding.backend {
+        let update = match resolved_binding.backend {
             input_core::WindowsInputBackend::Console => {
                 // update console cooked or raw processing flags
                 let Some(host_handle) = host_handle else {
@@ -1205,7 +1216,7 @@ pub(super) fn set_read_mode(
 
         // persist read mode only after host updates succeed
         if update.is_ok() {
-            binding.read_mode = mode;
+            resolved_binding.read_mode = mode;
         }
 
         Some(update)
@@ -1241,7 +1252,7 @@ pub(super) fn set_read_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -1251,7 +1262,7 @@ pub(crate) unsafe fn destack_input_read(
     }
 
     // read one event from the selected input backend
-    let event = read_event(context, handle, false, "destack.input.event.read")?;
+    let event = read_event(binding, handle, false, "destack.input.event.read")?;
 
     // write event payload to output
     unsafe {
@@ -1279,17 +1290,17 @@ pub(crate) unsafe fn destack_input_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
     // validate monitor handle shape
-    validate_monitor_handle(context, handle, "destack.input.event.monitorClose")?;
+    validate_monitor_handle(binding, handle, "destack.input.event.monitorClose")?;
 
     // remove and finalize monitor resource
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(handle.0, Some(context.engine()));
+        .remove_and_finalize(handle.0, Some(binding.engine()));
     if !removed {
         return Err(monitor_not_found(
             "destack.input.event.monitorClose",
@@ -1321,7 +1332,7 @@ pub(crate) unsafe fn destack_input_monitor_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
     // validate output pointer
@@ -1339,10 +1350,10 @@ pub(crate) unsafe fn destack_input_monitor_open(
         .with_payload(WindowsInputMonitorBinding { next_sequence: 1 })
         .with_finalizer(WindowsMonitorFinalizer);
     let handle = resource::InputMonitorHandle(
-        context
+        binding
             .agent()
             .resources
-            .insert(entry, Some(context.engine())),
+            .insert(entry, Some(binding.engine())),
     );
 
     // write handle to output
@@ -1374,7 +1385,7 @@ pub(crate) unsafe fn destack_input_monitor_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
@@ -1382,12 +1393,12 @@ pub(crate) unsafe fn destack_input_monitor_read(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    validate_monitor_handle(context, handle, "destack.input.event.monitorRead")?;
+    validate_monitor_handle(binding, handle, "destack.input.event.monitorRead")?;
 
     // read one monitor event from the raw-input service
     let mut event =
-        raw_input::read_monitor_event(context, false, "destack.input.event.monitorRead")?;
-    event.sequence = next_monitor_sequence(context, handle, "destack.input.event.monitorRead")?;
+        raw_input::read_monitor_event(binding, false, "destack.input.event.monitorRead")?;
+    event.sequence = next_monitor_sequence(binding, handle, "destack.input.event.monitorRead")?;
 
     // write event to output
     unsafe {
@@ -1418,7 +1429,7 @@ pub(crate) unsafe fn destack_input_monitor_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
@@ -1426,12 +1437,12 @@ pub(crate) unsafe fn destack_input_monitor_try_read(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    validate_monitor_handle(context, handle, "destack.input.event.monitorTryRead")?;
+    validate_monitor_handle(binding, handle, "destack.input.event.monitorTryRead")?;
 
     // poll one monitor event from the raw-input service
     let mut event =
-        raw_input::read_monitor_event(context, true, "destack.input.event.monitorTryRead")?;
-    event.sequence = next_monitor_sequence(context, handle, "destack.input.event.monitorTryRead")?;
+        raw_input::read_monitor_event(binding, true, "destack.input.event.monitorTryRead")?;
+    event.sequence = next_monitor_sequence(binding, handle, "destack.input.event.monitorTryRead")?;
 
     // write event to output
     unsafe {
@@ -1462,13 +1473,13 @@ pub(crate) unsafe fn destack_input_monitor_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_set_exclusive_grab(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     enable: bool,
 ) -> RuntimeResult<()> {
     // delegate grab control to shared windows core helpers
     set_grab(
-        context,
+        binding,
         handle,
         enable,
         "destack.input.event.setExclusiveGrab",
@@ -1495,7 +1506,7 @@ pub(crate) unsafe fn destack_input_set_exclusive_grab(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_read_batch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<InputEvent>,
     handle: resource::InputDeviceHandle,
     maxevents: u32,
@@ -1510,12 +1521,12 @@ pub(crate) unsafe fn destack_input_read_batch(
 
     // read at least one event to preserve blocking readBatch semantics
     let mut events = Vec::with_capacity(maxevents);
-    let first = read_event(context, handle, false, "destack.input.event.readBatch")?;
+    let first = read_event(binding, handle, false, "destack.input.event.readBatch")?;
     events.push(first);
 
     // keep polling until queue is drained or the batch is full
     while events.len() < maxevents {
-        match read_event(context, handle, true, "destack.input.event.readBatch") {
+        match read_event(binding, handle, true, "destack.input.event.readBatch") {
             Ok(event) => events.push(event),
             Err(error) => {
                 if is_io_would_block(error.as_ref()) {
@@ -1529,7 +1540,7 @@ pub(crate) unsafe fn destack_input_read_batch(
 
     // write collected events to output array
     unsafe {
-        *out = context.store_array(events);
+        *out = binding.store_array(events);
     }
 
     Ok(())
@@ -1555,12 +1566,12 @@ pub(crate) unsafe fn destack_input_read_batch(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_set_read_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     mode: InputReadMode,
 ) -> RuntimeResult<()> {
     // delegate read-mode selection to shared windows core helpers
-    set_read_mode(context, handle, mode, "destack.input.event.setReadMode")
+    set_read_mode(binding, handle, mode, "destack.input.event.setReadMode")
 }
 
 /// Poll one input event without blocking.
@@ -1586,7 +1597,7 @@ pub(crate) unsafe fn destack_input_set_read_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -1596,7 +1607,7 @@ pub(crate) unsafe fn destack_input_try_read(
     }
 
     // read one event in nonblocking mode
-    let event = read_event(context, handle, true, "destack.input.event.tryRead")?;
+    let event = read_event(binding, handle, true, "destack.input.event.tryRead")?;
 
     // write event payload to output
     unsafe {

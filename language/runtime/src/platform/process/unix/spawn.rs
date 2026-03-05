@@ -75,11 +75,11 @@ enum ResolvedStdioDescriptor {
 
 /// Resolve a file handle into a unix descriptor.
 fn resolve_file_fd(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::FileHandle,
 ) -> RuntimeResult<i32> {
     core_fs::require_resource(
-        context,
+        binding,
         handle.0,
         resource::ResourceKind::File,
         "file",
@@ -187,7 +187,7 @@ fn resolve_fd_actions(actions: &[ProcessFdAction]) -> RuntimeResult<Vec<Resolved
 
 /// Resolve explicit stdio descriptors into child setup payloads.
 fn resolve_spawn_stdio(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     stdio: &[ProcessStdio],
 ) -> RuntimeResult<[ResolvedStdioDescriptor; 3]> {
     if stdio.len() > 3 {
@@ -209,7 +209,7 @@ fn resolve_spawn_stdio(
             ProcessStdio::ProcessStdioNull(_) => ResolvedStdioDescriptor::Null,
             ProcessStdio::ProcessStdioPipe(_) => ResolvedStdioDescriptor::Pipe,
             ProcessStdio::ProcessStdioFile(descriptor_file) => {
-                let file_descriptor = resolve_file_fd(context, descriptor_file.file)?;
+                let file_descriptor = resolve_file_fd(binding, descriptor_file.file)?;
                 if file_descriptor < 0 {
                     return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                         "stdio.file",
@@ -590,7 +590,7 @@ fn execute_spawn_command(
 
 /// Spawn a child process and register its handle payload.
 fn spawn_process(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::ProcessHandle,
     command: String,
     arguments: Vec<String>,
@@ -600,7 +600,7 @@ fn spawn_process(
     actions: &[ProcessFdAction],
 ) -> RuntimeResult<()> {
     let cwd = resolve_spawn_cwd(options)?;
-    let resolved_stdio = resolve_spawn_stdio(context, stdio)?;
+    let resolved_stdio = resolve_spawn_stdio(binding, stdio)?;
     let resolved_actions = resolve_fd_actions(actions)?;
     let (argument_values, argument_pointers) = build_spawn_arguments(&command, &arguments)?;
     let (environment_values, environment_pointers, path_value) =
@@ -678,10 +678,10 @@ fn spawn_process(
     let entry = resource::ResourceEntry::new(resource::ResourceKind::Process)
         .with_label("process.spawn")
         .with_payload(core_process::SpawnedProcess { pid: process_id });
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     unsafe {
         *out = resource::ProcessHandle(resource_id);
@@ -708,7 +708,7 @@ fn spawn_process(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_spawn(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::ProcessHandle,
     command: fs::OsPath,
     arguments: NativeStringSlice,
@@ -722,7 +722,7 @@ pub(crate) unsafe fn destack_process_spawn(
     let arguments = unsafe { decode_native_strings(arguments)? };
     let environment = unsafe { decode_native_strings(environment)? };
     spawn_process(
-        context,
+        binding,
         out,
         command,
         arguments,
@@ -751,7 +751,7 @@ pub(crate) unsafe fn destack_process_spawn(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_spawn_with_actions(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::ProcessHandle,
     command: fs::OsPath,
     arguments: NativeStringSlice,
@@ -769,7 +769,7 @@ pub(crate) unsafe fn destack_process_spawn_with_actions(
     let stdio = unsafe { stdio.as_slice()? };
     let actions = unsafe { actions.as_slice()? };
     spawn_process(
-        context,
+        binding,
         out,
         command,
         arguments,

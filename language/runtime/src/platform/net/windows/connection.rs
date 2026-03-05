@@ -94,7 +94,7 @@ fn local_socket_address(socket: usize) -> RuntimeResult<(SOCKADDR_STORAGE, i32)>
 
 /// Register two sockets as one runtime socket pair.
 fn register_socket_pair(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketPair,
     first_socket: usize,
     second_socket: usize,
@@ -103,19 +103,19 @@ fn register_socket_pair(
     let first_entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(first_socket as _)
         .with_finalizer(SocketFinalizer::new(first_socket));
-    let first_id = context
+    let first_id = binding
         .agent()
         .resources
-        .insert(first_entry, Some(context.engine()));
+        .insert(first_entry, Some(binding.engine()));
 
     // register the second socket
     let second_entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(second_socket as _)
         .with_finalizer(SocketFinalizer::new(second_socket));
-    let second_id = context
+    let second_id = binding
         .agent()
         .resources
-        .insert(second_entry, Some(context.engine()));
+        .insert(second_entry, Some(binding.engine()));
 
     // return both handles
     unsafe {
@@ -128,7 +128,7 @@ fn register_socket_pair(
 
 /// Build a connected stream socket pair over loopback.
 fn socket_pair_stream_loopback(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketPair,
     family: i32,
     protocol: i32,
@@ -224,14 +224,14 @@ fn socket_pair_stream_loopback(
     }
 
     // publish both endpoints
-    register_socket_pair(context, out, client_socket, server_socket);
+    register_socket_pair(binding, out, client_socket, server_socket);
 
     Ok(())
 }
 
 /// Build a connected datagram socket pair over loopback.
 fn socket_pair_dgram_loopback(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketPair,
     family: i32,
     protocol: i32,
@@ -324,7 +324,7 @@ fn socket_pair_dgram_loopback(
     }
 
     // publish both endpoints
-    register_socket_pair(context, out, first_socket, second_socket);
+    register_socket_pair(binding, out, first_socket, second_socket);
 
     Ok(())
 }
@@ -347,7 +347,7 @@ fn socket_pair_dgram_loopback(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_accept(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketHandle,
     listener: ListenerHandle,
     _flags: AcceptFlags,
@@ -361,7 +361,7 @@ pub(crate) unsafe fn destack_net_accept(
     ensure_winsock()?;
 
     // accept the connection
-    let socket = listener_descriptor(context, listener)?;
+    let socket = listener_descriptor(binding, listener)?;
     let client = unsafe { accept(socket, std::ptr::null_mut(), std::ptr::null_mut()) };
     if client == INVALID_SOCKET {
         return Err(last_net_error("accept"));
@@ -371,10 +371,10 @@ pub(crate) unsafe fn destack_net_accept(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(client as _)
         .with_finalizer(SocketFinalizer::new(client));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -399,11 +399,11 @@ pub(crate) unsafe fn destack_net_accept(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
     // remove the resource entry
-    let entry = context.agent().resources.remove(handle.0).ok_or_else(|| {
+    let entry = binding.agent().resources.remove(handle.0).ok_or_else(|| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
             "unknown socket handle",
@@ -435,11 +435,11 @@ pub(crate) unsafe fn destack_net_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_close_listener(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ListenerHandle,
 ) -> RuntimeResult<()> {
     // remove the resource entry
-    let entry = context.agent().resources.remove(handle.0).ok_or_else(|| {
+    let entry = binding.agent().resources.remove(handle.0).ok_or_else(|| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
             "unknown listener handle",
@@ -456,7 +456,7 @@ pub(crate) unsafe fn destack_net_close_listener(
 /// Connect an existing socket to a raw remote address.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_connect_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
@@ -464,7 +464,7 @@ pub(crate) unsafe fn destack_net_connect_raw(
     ensure_winsock()?;
 
     // resolve the socket descriptor
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // connect using the provided raw address
     with_socket_address_raw(address, |sockaddr, length| {
@@ -496,7 +496,7 @@ pub(crate) unsafe fn destack_net_connect_raw(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_bind(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
@@ -504,7 +504,7 @@ pub(crate) unsafe fn destack_net_bind(
     ensure_winsock()?;
 
     // resolve the socket descriptor
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // bind using the provided raw address
     with_socket_address_raw(address, |sockaddr, length| {
@@ -520,7 +520,7 @@ pub(crate) unsafe fn destack_net_bind(
 /// Start listening on a raw local socket address.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_listen_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut ListenerHandle,
     address: SocketAddress,
     backlog: u32,
@@ -599,10 +599,10 @@ pub(crate) unsafe fn destack_net_listen_raw(
     let entry = ResourceEntry::new(ResourceKind::Listener)
         .with_listener(listener as _)
         .with_finalizer(SocketFinalizer::new(listener));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     unsafe {
         *out = ListenerHandle(resource_id);
     }
@@ -629,7 +629,7 @@ pub(crate) unsafe fn destack_net_listen_raw(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_socket(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketHandle,
     family: SocketFamily,
     socket_type: SocketType,
@@ -654,10 +654,10 @@ pub(crate) unsafe fn destack_net_socket(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(socket as _)
         .with_finalizer(SocketFinalizer::new(socket));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -684,7 +684,7 @@ pub(crate) unsafe fn destack_net_socket(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_socket_pair(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketPair,
     family: SocketFamily,
     socket_type: SocketType,
@@ -705,12 +705,12 @@ pub(crate) unsafe fn destack_net_socket_pair(
 
     // emulate stream socket pairs through loopback connect+accept
     if socket_type == SOCK_STREAM {
-        return socket_pair_stream_loopback(context, out, family, protocol);
+        return socket_pair_stream_loopback(binding, out, family, protocol);
     }
 
     // emulate datagram socket pairs through connected loopback sockets
     if socket_type == SOCK_DGRAM {
-        return socket_pair_dgram_loopback(context, out, family, protocol);
+        return socket_pair_dgram_loopback(binding, out, family, protocol);
     }
 
     // reject socket types that are not safely emulatable

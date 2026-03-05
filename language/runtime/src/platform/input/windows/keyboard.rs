@@ -45,12 +45,12 @@ fn resolved_device_id(
 
 /// Read one keyboard state snapshot for one opened Windows input handle.
 pub(super) fn keyboard_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<InputKeyboardState> {
     // resolve one backend binding and validate keyboard capability
-    let resolved = input_core::resolve_input(context, handle, operation)?;
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
     if !is_keyboard_capable_backend(&resolved) {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
@@ -65,17 +65,17 @@ pub(super) fn keyboard_state(
 
     // derive stable metadata fields for this snapshot
     let modifiers = input_core::modifier_bits_from_host();
-    let sequence = input_core::next_sequence(context, handle, operation)?;
+    let sequence = input_core::next_sequence(binding, handle, operation)?;
     let device_id = resolved_device_id(&resolved, operation)?;
 
     // emit one full keyboard-state payload
     Ok(InputKeyboardState {
         timestamp_ns: core_platform::qpc_now_ns().unwrap_or(0),
         sequence,
-        device_id: context.store_string(&device_id),
+        device_id: binding.store_string(&device_id),
         modifiers,
-        pressed_scan_codes: context.store_array(pressed_codes.clone()),
-        pressed_codes: context.store_array(pressed_codes),
+        pressed_scan_codes: binding.store_array(pressed_codes.clone()),
+        pressed_codes: binding.store_array(pressed_codes),
     })
 }
 
@@ -98,7 +98,7 @@ pub(super) fn keyboard_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_keyboard_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputKeyboardState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -108,7 +108,7 @@ pub(crate) unsafe fn destack_input_keyboard_state(
     }
 
     // query one keyboard snapshot from the selected backend
-    let snapshot = keyboard_state(context, handle, "destack.input.keyboard.state")?;
+    let snapshot = keyboard_state(binding, handle, "destack.input.keyboard.state")?;
 
     // write snapshot output
     unsafe {

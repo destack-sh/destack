@@ -19,7 +19,7 @@ use super::host::WasapiMonitorRuntimeState;
 
 /// Runtime-owned audio module state.
 #[derive(Default)]
-pub struct PlatformAudioState {
+pub(crate) struct PlatformAudioState {
     /// Runtime-owned shared audio event state.
     audio_event_runtime_state: OnceLock<Arc<AudioEventRuntimeState>>,
     /// Runtime-owned ASIO monitor state.

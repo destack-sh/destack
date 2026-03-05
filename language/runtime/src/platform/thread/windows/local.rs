@@ -28,7 +28,7 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_create(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut ThreadLocalKey,
 ) -> RuntimeResult<()> {
     // validate output pointer
@@ -44,7 +44,7 @@ pub(crate) unsafe fn destack_thread_local_create(
 
     // allocate one thread-local key resource
     let resource_id = core_thread::insert_thread_resource(
-        context,
+        binding,
         ResourceKind::ThreadLocal,
         "thread.local",
         resource_thread::ThreadLocalResource { key },
@@ -74,12 +74,12 @@ pub(crate) unsafe fn destack_thread_local_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_delete(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: ThreadLocalKey,
 ) -> RuntimeResult<()> {
     // remove the thread-local key resource
     let resource = core_thread::take_thread_resource::<resource_thread::ThreadLocalResource>(
-        context,
+        binding,
         key.0,
         "key",
         "thread local key",
@@ -112,7 +112,7 @@ pub(crate) unsafe fn destack_thread_local_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_get(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     key: ThreadLocalKey,
 ) -> RuntimeResult<()> {
@@ -123,7 +123,7 @@ pub(crate) unsafe fn destack_thread_local_get(
 
     // validate that the key exists
     let resource = core_thread::resolve_thread_resource::<resource_thread::ThreadLocalResource>(
-        context,
+        binding,
         key.0,
         "key",
         "thread local key",
@@ -166,13 +166,13 @@ pub(crate) unsafe fn destack_thread_local_get(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_set(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: ThreadLocalKey,
     argument_value: u64,
 ) -> RuntimeResult<()> {
     // validate that the key exists
     let resource = core_thread::resolve_thread_resource::<resource_thread::ThreadLocalResource>(
-        context,
+        binding,
         key.0,
         "key",
         "thread local key",

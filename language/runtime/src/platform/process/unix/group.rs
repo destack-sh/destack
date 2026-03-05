@@ -373,7 +373,7 @@ fn write_cgroup_control_file(path: &str, file_name: &str, value: &str) -> Runtim
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_cgroup_get_limit(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut ProcessLimit,
     path: NativeStringRef,
     resource: ProcessLimitResource,
@@ -426,7 +426,7 @@ pub(crate) unsafe fn destack_process_cgroup_get_limit(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_cgroup_join(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: NativeStringRef,
 ) -> RuntimeResult<()> {
     let path = unsafe { path.as_str()? };
@@ -465,7 +465,7 @@ pub(crate) unsafe fn destack_process_cgroup_join(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_cgroup_set_limit(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: NativeStringRef,
     resource: ProcessLimitResource,
     limit: ProcessLimit,
@@ -513,7 +513,7 @@ pub(crate) unsafe fn destack_process_cgroup_set_limit(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_job_assign(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     name: NativeStringRef,
     pids: NativeSlice<ProcessId>,
 ) -> RuntimeResult<()> {
@@ -544,7 +544,7 @@ pub(crate) unsafe fn destack_process_job_assign(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_job_set_limit(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     name: NativeStringRef,
     resource: ProcessLimitResource,
     limit: ProcessLimit,

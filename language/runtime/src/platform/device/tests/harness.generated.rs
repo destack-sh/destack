@@ -36,9 +36,9 @@ use crate::platform::device::{
     UsbStringDescriptor, UsbStringDescriptorVm, native as device_native, vm as device_vm,
 };
 use crate::platform::{
-    NativeArray, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
+    VmSlice, fs, resource,
 };
-use crate::runtime::{NativeSlice, NativeStringRef};
 use destack_vm as vm;
 
 impl<'call> DeviceHarnessContext<'call> {

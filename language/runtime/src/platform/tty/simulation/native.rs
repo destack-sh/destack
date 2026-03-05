@@ -31,10 +31,10 @@ use crate::platform::{process, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tty.handle.close")).boxed())
@@ -58,11 +58,11 @@ pub(crate) unsafe fn destack_tty_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_is_terminal_file(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -93,10 +93,10 @@ pub(crate) unsafe fn destack_tty_is_terminal_file(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_stdio_stderr(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -126,10 +126,10 @@ pub(crate) unsafe fn destack_tty_stdio_stderr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_stdio_stdin(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -159,10 +159,10 @@ pub(crate) unsafe fn destack_tty_stdio_stdin(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_stdio_stdout(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -191,12 +191,12 @@ pub(crate) unsafe fn destack_tty_stdio_stdout(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::TtyHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle, buffer);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tty.io.read")).boxed())
@@ -220,12 +220,12 @@ pub(crate) unsafe fn destack_tty_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::TtyHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle, buffer);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tty.io.write")).boxed())
@@ -250,11 +250,11 @@ pub(crate) unsafe fn destack_tty_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_get_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut TtyMode,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tty.mode.getMode")).boxed())
@@ -278,11 +278,11 @@ pub(crate) unsafe fn destack_tty_get_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_set_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     mode: TtyMode,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tty.mode.setMode")).boxed())
@@ -306,11 +306,11 @@ pub(crate) unsafe fn destack_tty_set_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_set_raw_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, enabled);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tty.mode.setRawMode")).boxed())
@@ -334,10 +334,10 @@ pub(crate) unsafe fn destack_tty_set_raw_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_pty_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PtyHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tty.pty.close")).boxed())
@@ -361,13 +361,13 @@ pub(crate) unsafe fn destack_tty_pty_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_pty_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PtyPair,
     rows: u32,
     columns: u32,
     flags: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, rows, columns, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tty.pty.open")).boxed())
@@ -391,11 +391,11 @@ pub(crate) unsafe fn destack_tty_pty_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_get_size(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut TtySize,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tty.size.getSize")).boxed())
@@ -419,11 +419,11 @@ pub(crate) unsafe fn destack_tty_get_size(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_set_size(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     size: TtySize,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, size);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tty.size.setSize")).boxed())
@@ -431,10 +431,10 @@ pub(crate) unsafe fn destack_tty_set_size(
 
 /// Wait for pending output to drain on one terminal handle.
 pub(crate) unsafe fn destack_tty_termios_drain(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tty.termios.drain")).boxed())
@@ -442,11 +442,11 @@ pub(crate) unsafe fn destack_tty_termios_drain(
 
 /// Apply terminal flow-control action.
 pub(crate) unsafe fn destack_tty_termios_flow(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     action: TtyTermiosFlowAction,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, action);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tty.termios.flow")).boxed())
@@ -454,11 +454,11 @@ pub(crate) unsafe fn destack_tty_termios_flow(
 
 /// Flush one terminal queue.
 pub(crate) unsafe fn destack_tty_termios_flush(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     queue: TtyTermiosQueue,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, queue);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tty.termios.flush")).boxed())
@@ -466,11 +466,11 @@ pub(crate) unsafe fn destack_tty_termios_flush(
 
 /// Read full termios attributes for one terminal handle.
 pub(crate) unsafe fn destack_tty_termios_get_attributes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut TtyTermiosAttributes,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -484,11 +484,11 @@ pub(crate) unsafe fn destack_tty_termios_get_attributes(
 
 /// Read controlling-terminal process-group id.
 pub(crate) unsafe fn destack_tty_termios_get_process_group(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut process::ProcessId,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -502,11 +502,11 @@ pub(crate) unsafe fn destack_tty_termios_get_process_group(
 
 /// Send one terminal break condition.
 pub(crate) unsafe fn destack_tty_termios_send_break(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     duration: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, duration);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -517,12 +517,12 @@ pub(crate) unsafe fn destack_tty_termios_send_break(
 
 /// Apply full termios attributes to one terminal handle.
 pub(crate) unsafe fn destack_tty_termios_set_attributes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     attributes: TtyTermiosAttributes,
     action: TtyTermiosSetAction,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, attributes, action);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -533,11 +533,11 @@ pub(crate) unsafe fn destack_tty_termios_set_attributes(
 
 /// Set controlling-terminal process-group id.
 pub(crate) unsafe fn destack_tty_termios_set_process_group(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     processgroupid: process::ProcessId,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, processgroupid);
 
     Err(RuntimeError::from(PlatformError::not_supported(

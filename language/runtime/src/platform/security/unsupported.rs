@@ -30,7 +30,7 @@ use crate::platform::security::{PlatformCapability, SecurityPolicyMode, Security
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_capability_has(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut bool,
     capability: PlatformCapability,
 ) -> RuntimeResult<()> {
@@ -63,7 +63,7 @@ pub(crate) unsafe fn destack_security_capability_has(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_capability_list(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeSlice<PlatformCapability>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -95,7 +95,7 @@ pub(crate) unsafe fn destack_security_capability_list(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_sandbox_seal(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -124,7 +124,7 @@ pub(crate) unsafe fn destack_security_sandbox_seal(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_sandbox_set_capabilities(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::SandboxHandle,
     capabilities: NativeSlice<PlatformCapability>,
 ) -> RuntimeResult<()> {
@@ -154,7 +154,7 @@ pub(crate) unsafe fn destack_security_sandbox_set_capabilities(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_set_write_xor_execute(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     enabled: bool,
 ) -> RuntimeResult<()> {
     let _ = enabled;
@@ -183,7 +183,7 @@ pub(crate) unsafe fn destack_security_set_write_xor_execute(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_policy_get(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeSlice<PlatformCapability>,
     scope: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -213,7 +213,7 @@ pub(crate) unsafe fn destack_security_policy_get(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_policy_get_rules(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeSlice<SecurityPolicyRule>,
     scope: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -246,7 +246,7 @@ pub(crate) unsafe fn destack_security_policy_get_rules(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_policy_set(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     scope: NativeStringRef,
     capabilities: NativeSlice<PlatformCapability>,
 ) -> RuntimeResult<()> {
@@ -273,7 +273,7 @@ pub(crate) unsafe fn destack_security_policy_set(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_policy_set_rules(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     scope: NativeStringRef,
     rules: NativeSlice<SecurityPolicyRule>,
 ) -> RuntimeResult<()> {
@@ -303,7 +303,7 @@ pub(crate) unsafe fn destack_security_policy_set_rules(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_security_sandbox_enter(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut resource::SandboxHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -336,7 +336,7 @@ pub(crate) unsafe fn destack_security_sandbox_enter(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_security_sandbox_exit(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;

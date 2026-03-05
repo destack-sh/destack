@@ -97,21 +97,23 @@ fn send_moveresize_request(
 
 /// Request one user-attention pulse for one window.
 pub(crate) unsafe fn window_request_attention(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window_handle: WindowHandle,
     level: WindowAttentionLevel,
 ) -> RuntimeResult<()> {
-    // resolve runtime and window binding lanes
-    let runtime_state = core::runtime_state(context);
+    // resolve runtime and window resolved_binding lanes
+    let runtime_state = core::runtime_state(binding);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.requestAttention")?;
-    let binding = display_resource::resolve_window_binding(
-        context,
+    let resolved_binding = display_resource::resolve_window_binding(
+        binding,
         window_handle,
         "destack.display.window.requestAttention",
     )?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.requestAttention")?;
+    let resolved_binding = resolved_binding
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    super::ensure_window_thread(&resolved_binding, "destack.display.window.requestAttention")?;
 
     // resolve one attention-state toggle from the requested attention level
     let should_raise = matches!(level, WindowAttentionLevel::Critical);
@@ -119,7 +121,7 @@ pub(crate) unsafe fn window_request_attention(
     // request one attention pulse through EWMH state toggles
     super::set_net_wm_state(
         connection_state.as_ref(),
-        binding.window,
+        resolved_binding.window,
         connection_state.atoms.net_wm_state_demands_attention,
         true,
     )?;
@@ -129,7 +131,7 @@ pub(crate) unsafe fn window_request_attention(
         connection_state
             .connection
             .configure_window(
-                binding.window,
+                resolved_binding.window,
                 &ConfigureWindowAux::new().stack_mode(StackMode::ABOVE),
             )
             .map_err(|error| {
@@ -151,20 +153,22 @@ pub(crate) unsafe fn window_request_attention(
 
 /// Request one redraw for one window.
 pub(crate) unsafe fn window_request_refresh(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window_handle: WindowHandle,
 ) -> RuntimeResult<()> {
-    // resolve one window binding and publish refresh event
-    let binding = display_resource::resolve_window_binding(
-        context,
+    // resolve one window resolved_binding and publish refresh event
+    let resolved_binding = display_resource::resolve_window_binding(
+        binding,
         window_handle,
         "destack.display.window.requestRefresh",
     )?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.requestRefresh")?;
-    drop(binding);
+    let resolved_binding = resolved_binding
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    super::ensure_window_thread(&resolved_binding, "destack.display.window.requestRefresh")?;
+    drop(resolved_binding);
 
-    let runtime_state = core::runtime_state(context);
+    let runtime_state = core::runtime_state(binding);
     event::publish_window_refresh_requested(&runtime_state, window_handle);
 
     Ok(())
@@ -172,24 +176,30 @@ pub(crate) unsafe fn window_request_refresh(
 
 /// Focus one window.
 pub(crate) unsafe fn window_focus(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window_handle: WindowHandle,
 ) -> RuntimeResult<()> {
-    // resolve runtime and binding lanes
-    let runtime_state = core::runtime_state(context);
+    // resolve runtime and resolved_binding lanes
+    let runtime_state = core::runtime_state(binding);
     let connection_state = core::connection_state(&runtime_state, "destack.display.window.focus")?;
-    let binding = display_resource::resolve_window_binding(
-        context,
+    let resolved_binding = display_resource::resolve_window_binding(
+        binding,
         window_handle,
         "destack.display.window.focus",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.focus")?;
+    let mut resolved_binding = resolved_binding
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    super::ensure_window_thread(&resolved_binding, "destack.display.window.focus")?;
 
     // request focus through x11 input focus
     connection_state
         .connection
-        .set_input_focus(InputFocus::PARENT, binding.window, x11rb::CURRENT_TIME)
+        .set_input_focus(
+            InputFocus::PARENT,
+            resolved_binding.window,
+            x11rb::CURRENT_TIME,
+        )
         .map_err(|error| {
             core::io_error(
                 "destack.display.window.focus",
@@ -204,10 +214,10 @@ pub(crate) unsafe fn window_focus(
     })?;
 
     // publish focus event when state changes
-    if !binding.focused {
-        let previous_focused = binding.focused;
-        binding.focused = true;
-        drop(binding);
+    if !resolved_binding.focused {
+        let previous_focused = resolved_binding.focused;
+        resolved_binding.focused = true;
+        drop(resolved_binding);
         event::publish_window_focus_changed(&runtime_state, window_handle, previous_focused, true);
     }
 
@@ -216,25 +226,27 @@ pub(crate) unsafe fn window_focus(
 
 /// Raise one window.
 pub(crate) unsafe fn window_raise(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window_handle: WindowHandle,
 ) -> RuntimeResult<()> {
-    // resolve runtime and binding lanes
-    let runtime_state = core::runtime_state(context);
+    // resolve runtime and resolved_binding lanes
+    let runtime_state = core::runtime_state(binding);
     let connection_state = core::connection_state(&runtime_state, "destack.display.window.raise")?;
-    let binding = display_resource::resolve_window_binding(
-        context,
+    let resolved_binding = display_resource::resolve_window_binding(
+        binding,
         window_handle,
         "destack.display.window.raise",
     )?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.raise")?;
+    let resolved_binding = resolved_binding
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    super::ensure_window_thread(&resolved_binding, "destack.display.window.raise")?;
 
     // raise window to the top of the stacking order
     connection_state
         .connection
         .configure_window(
-            binding.window,
+            resolved_binding.window,
             &ConfigureWindowAux::new().stack_mode(StackMode::ABOVE),
         )
         .map_err(|error| {
@@ -255,20 +267,22 @@ pub(crate) unsafe fn window_raise(
 
 /// Begin one native window move drag.
 pub(crate) unsafe fn window_begin_move_drag(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window_handle: WindowHandle,
 ) -> RuntimeResult<()> {
-    // resolve runtime and window binding lanes
-    let runtime_state = core::runtime_state(context);
+    // resolve runtime and window resolved_binding lanes
+    let runtime_state = core::runtime_state(binding);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.beginMoveDrag")?;
-    let binding = display_resource::resolve_window_binding(
-        context,
+    let resolved_binding = display_resource::resolve_window_binding(
+        binding,
         window_handle,
         "destack.display.window.beginMoveDrag",
     )?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.beginMoveDrag")?;
+    let resolved_binding = resolved_binding
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    super::ensure_window_thread(&resolved_binding, "destack.display.window.beginMoveDrag")?;
 
     // read pointer position and request interactive move on this window
     let (root_x, root_y) = root_pointer_position(
@@ -277,7 +291,7 @@ pub(crate) unsafe fn window_begin_move_drag(
     )?;
     send_moveresize_request(
         connection_state.as_ref(),
-        binding.window,
+        resolved_binding.window,
         root_x,
         root_y,
         MOVERESIZE_DIRECTION_MOVE,
@@ -287,7 +301,7 @@ pub(crate) unsafe fn window_begin_move_drag(
 
 /// Begin one native window resize drag.
 pub(crate) unsafe fn window_begin_resize_drag(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window_handle: WindowHandle,
     edge: WindowResizeEdge,
 ) -> RuntimeResult<()> {
@@ -303,17 +317,19 @@ pub(crate) unsafe fn window_begin_resize_drag(
         WindowResizeEdge::SouthWest => MOVERESIZE_DIRECTION_SOUTH_WEST,
     };
 
-    // resolve runtime and window binding lanes
-    let runtime_state = core::runtime_state(context);
+    // resolve runtime and window resolved_binding lanes
+    let runtime_state = core::runtime_state(binding);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.beginResizeDrag")?;
-    let binding = display_resource::resolve_window_binding(
-        context,
+    let resolved_binding = display_resource::resolve_window_binding(
+        binding,
         window_handle,
         "destack.display.window.beginResizeDrag",
     )?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.beginResizeDrag")?;
+    let resolved_binding = resolved_binding
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    super::ensure_window_thread(&resolved_binding, "destack.display.window.beginResizeDrag")?;
 
     // read pointer position and request interactive resize on this window
     let (root_x, root_y) = root_pointer_position(
@@ -322,7 +338,7 @@ pub(crate) unsafe fn window_begin_resize_drag(
     )?;
     send_moveresize_request(
         connection_state.as_ref(),
-        binding.window,
+        resolved_binding.window,
         root_x,
         root_y,
         direction,

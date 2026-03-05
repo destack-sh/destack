@@ -45,7 +45,7 @@ fn apply_raw_mode(mode: &mut libc::termios, enabled: bool) {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_get_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut TtyMode,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
@@ -53,7 +53,7 @@ pub(crate) unsafe fn destack_tty_get_mode(
     ensure_out(out, "out")?;
 
     // resolve one tty descriptor
-    let descriptor = tty_descriptor(context, handle, "destack.tty.mode.getMode")?;
+    let descriptor = tty_descriptor(binding, handle, "destack.tty.mode.getMode")?;
 
     // query host termios flags
     let mut host_mode = MaybeUninit::<libc::termios>::uninit();
@@ -101,12 +101,12 @@ pub(crate) unsafe fn destack_tty_get_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_set_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     mode: TtyMode,
 ) -> RuntimeResult<()> {
     // resolve one tty descriptor
-    let descriptor = tty_descriptor(context, handle, "destack.tty.mode.setMode")?;
+    let descriptor = tty_descriptor(binding, handle, "destack.tty.mode.setMode")?;
 
     // decode host termios flag widths
     let input_flags = libc::tcflag_t::try_from(mode.input_flags).map_err(|_| {
@@ -187,12 +187,12 @@ pub(crate) unsafe fn destack_tty_set_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_set_raw_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     // resolve one tty descriptor
-    let descriptor = tty_descriptor(context, handle, "destack.tty.mode.setRawMode")?;
+    let descriptor = tty_descriptor(binding, handle, "destack.tty.mode.setRawMode")?;
 
     // query one host termios payload as mutation baseline
     let mut host_mode = MaybeUninit::<libc::termios>::uninit();

@@ -83,15 +83,15 @@ pub(crate) fn host_store_supports_key_persistence(kind: CryptoStoreKind) -> bool
 }
 
 pub(crate) fn host_store_persistence_backend_is_available(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
-    windows_keystore_path(context, kind).is_some()
+    windows_keystore_path(binding, kind).is_some()
 }
 
 /// Return whether one host store lane is currently available.
 pub(crate) fn host_store_lane_is_available(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
     // resolve lane availability through native store probes and snapshot lanes
@@ -99,11 +99,11 @@ pub(crate) fn host_store_lane_is_available(
         CryptoStoreKind::System => has_openable_system_store(CryptoStoreKind::System),
         CryptoStoreKind::User => {
             has_openable_system_store(CryptoStoreKind::User)
-                || windows_keystore_path(context, CryptoStoreKind::User).is_some()
+                || windows_keystore_path(binding, CryptoStoreKind::User).is_some()
         }
         CryptoStoreKind::Machine => {
             has_openable_system_store(CryptoStoreKind::Machine)
-                || windows_keystore_path(context, CryptoStoreKind::Machine).is_some()
+                || windows_keystore_path(binding, CryptoStoreKind::Machine).is_some()
         }
         CryptoStoreKind::Provider | CryptoStoreKind::Ephemeral => false,
     }
@@ -111,7 +111,7 @@ pub(crate) fn host_store_lane_is_available(
 
 /// Open one host store lane and return certificate snapshots.
 pub(crate) fn open_host_store_certificates(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> RuntimeResult<Vec<X509>> {
     // merge certificates from all store collections in this lane
@@ -146,12 +146,12 @@ pub(crate) fn open_host_store_certificates(
 
 /// Load one host-key snapshot blob from Windows crypt32 storage.
 pub(crate) fn load_host_key_snapshot_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     operation: &'static str,
 ) -> RuntimeResult<Option<Vec<u8>>> {
     // resolve one store path for the selected lane
-    let Some(path) = windows_keystore_path(context, kind) else {
+    let Some(path) = windows_keystore_path(binding, kind) else {
         return Ok(None);
     };
 
@@ -178,13 +178,13 @@ pub(crate) fn load_host_key_snapshot_bytes(
 
 /// Store one host-key snapshot blob into Windows crypt32 storage.
 pub(crate) fn store_host_key_snapshot_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     snapshot_bytes: &[u8],
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // resolve one store path for the selected lane
-    let Some(path) = windows_keystore_path(context, kind) else {
+    let Some(path) = windows_keystore_path(binding, kind) else {
         return Err(core_platform::not_supported(operation));
     };
 

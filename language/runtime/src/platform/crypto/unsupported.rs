@@ -45,10 +45,10 @@ pub(crate) fn host_store_supports_key_persistence(kind: CryptoStoreKind) -> bool
 /// Return whether one host lane has a writable persistent-key backend.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_store_persistence_backend_is_available(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
-    let _ = (context, kind);
+    let _ = (binding, kind);
 
     false
 }
@@ -56,10 +56,10 @@ pub(crate) fn host_store_persistence_backend_is_available(
 /// Return whether one host store lane is currently available.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_store_lane_is_available(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
-    let _ = (context, kind);
+    let _ = (binding, kind);
 
     false
 }
@@ -67,10 +67,10 @@ pub(crate) fn host_store_lane_is_available(
 /// Return whether one host store lane supports hardware-backed keys.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_store_supports_hardware_backed_key(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
-    let _ = (context, kind);
+    let _ = (binding, kind);
 
     false
 }
@@ -78,11 +78,11 @@ pub(crate) fn host_store_supports_hardware_backed_key(
 /// Return whether one host store lane supports one hardware-backed pair algorithm.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_store_supports_hardware_backed_pair_algorithm(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
 ) -> bool {
-    let _ = (context, kind, algorithm);
+    let _ = (binding, kind, algorithm);
 
     false
 }
@@ -90,11 +90,11 @@ pub(crate) fn host_store_supports_hardware_backed_pair_algorithm(
 /// Return whether one host store lane supports hardware-backed secret keys.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_store_supports_hardware_backed_secret_key(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
 ) -> bool {
-    let _ = (context, kind, algorithm);
+    let _ = (binding, kind, algorithm);
 
     false
 }
@@ -102,14 +102,14 @@ pub(crate) fn host_store_supports_hardware_backed_secret_key(
 /// Generate one host-backed hardware key pair.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_generate_hardware_backed_key_pair(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     named_curve: CryptoNamedCurve,
     persistent_key_label: &str,
     operation: &'static str,
 ) -> RuntimeResult<crypto_core::HostGeneratedKeyPair> {
-    let _ = (context, kind, algorithm, named_curve, persistent_key_label);
+    let _ = (binding, kind, algorithm, named_curve, persistent_key_label);
 
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
@@ -117,7 +117,7 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
 /// Generate one host-backed hardware secret key.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_generate_hardware_backed_secret_key(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     digest: CryptoDigestAlgorithm,
@@ -127,7 +127,7 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
     operation: &'static str,
 ) -> RuntimeResult<HostKeyMaterial> {
     let _ = (
-        context,
+        binding,
         kind,
         algorithm,
         digest,
@@ -142,7 +142,7 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
 /// Generate one host-managed persistent key pair when available.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_generate_persistent_key_pair(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     named_curve: CryptoNamedCurve,
@@ -153,7 +153,7 @@ pub(crate) fn host_generate_persistent_key_pair(
     operation: &'static str,
 ) -> RuntimeResult<Option<crypto_core::HostGeneratedKeyPair>> {
     let _ = (
-        context,
+        binding,
         kind,
         algorithm,
         named_curve,
@@ -170,7 +170,7 @@ pub(crate) fn host_generate_persistent_key_pair(
 /// Import one persistent host-managed private key when available.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_import_persistent_private_key(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     named_curve: CryptoNamedCurve,
@@ -180,7 +180,7 @@ pub(crate) fn host_import_persistent_private_key(
     operation: &'static str,
 ) -> RuntimeResult<Option<HostKeyMaterial>> {
     let _ = (
-        context,
+        binding,
         kind,
         algorithm,
         named_curve,
@@ -196,7 +196,7 @@ pub(crate) fn host_import_persistent_private_key(
 /// Sign one payload with one host-managed key.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_key_sign(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
@@ -204,7 +204,7 @@ pub(crate) fn host_key_sign(
     payload: &[u8],
     operation: &'static str,
 ) -> RuntimeResult<Vec<u8>> {
-    let _ = (context, key, kind, algorithm, parameters, payload);
+    let _ = (binding, key, kind, algorithm, parameters, payload);
 
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
@@ -212,7 +212,7 @@ pub(crate) fn host_key_sign(
 /// Decrypt one payload with one host-managed key.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_key_decrypt(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
@@ -220,7 +220,7 @@ pub(crate) fn host_key_decrypt(
     payload: &[u8],
     operation: &'static str,
 ) -> RuntimeResult<Vec<u8>> {
-    let _ = (context, key, kind, algorithm, parameters, payload);
+    let _ = (binding, key, kind, algorithm, parameters, payload);
 
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
@@ -228,12 +228,12 @@ pub(crate) fn host_key_decrypt(
 /// Delete one host-managed key.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_key_delete(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     kind: CryptoStoreKind,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let _ = (context, key, kind);
+    let _ = (binding, key, kind);
 
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
@@ -241,7 +241,7 @@ pub(crate) fn host_key_delete(
 /// Derive one shared secret with one host-managed private key.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_key_derive_shared_secret(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
@@ -250,7 +250,7 @@ pub(crate) fn host_key_derive_shared_secret(
     operation: &'static str,
 ) -> RuntimeResult<Vec<u8>> {
     let _ = (
-        context,
+        binding,
         key,
         kind,
         algorithm,
@@ -264,7 +264,7 @@ pub(crate) fn host_key_derive_shared_secret(
 /// Encrypt one payload with one host-managed secret key.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_key_cipher_encrypt(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
@@ -272,7 +272,7 @@ pub(crate) fn host_key_cipher_encrypt(
     payload: &[u8],
     operation: &'static str,
 ) -> RuntimeResult<(Vec<u8>, Vec<u8>)> {
-    let _ = (context, key, kind, algorithm, parameters, payload);
+    let _ = (binding, key, kind, algorithm, parameters, payload);
 
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
@@ -280,7 +280,7 @@ pub(crate) fn host_key_cipher_encrypt(
 /// Decrypt one payload with one host-managed secret key.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_key_cipher_decrypt(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
@@ -288,7 +288,7 @@ pub(crate) fn host_key_cipher_decrypt(
     payload: &[u8],
     operation: &'static str,
 ) -> RuntimeResult<Vec<u8>> {
-    let _ = (context, key, kind, algorithm, parameters, payload);
+    let _ = (binding, key, kind, algorithm, parameters, payload);
 
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
@@ -296,7 +296,7 @@ pub(crate) fn host_key_cipher_decrypt(
 /// Compute one MAC with one host-managed secret key.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_key_mac_compute(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
@@ -304,7 +304,7 @@ pub(crate) fn host_key_mac_compute(
     payload: &[u8],
     operation: &'static str,
 ) -> RuntimeResult<Vec<u8>> {
-    let _ = (context, key, kind, algorithm, parameters, payload);
+    let _ = (binding, key, kind, algorithm, parameters, payload);
 
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
@@ -312,10 +312,10 @@ pub(crate) fn host_key_mac_compute(
 /// Open one host store lane and return certificate snapshots.
 #[cfg(any(unix, windows))]
 pub(crate) fn open_host_store_certificates(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> RuntimeResult<Vec<X509>> {
-    let _ = (context, kind);
+    let _ = (binding, kind);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.store.open")).boxed())
 }
@@ -323,11 +323,11 @@ pub(crate) fn open_host_store_certificates(
 /// Load one backend host-key snapshot payload for one store lane.
 #[cfg(any(unix, windows))]
 pub(crate) fn load_host_key_snapshot_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     operation: &'static str,
 ) -> RuntimeResult<Option<Vec<u8>>> {
-    let _ = (context, kind, operation);
+    let _ = (binding, kind, operation);
 
     Ok(None)
 }
@@ -335,12 +335,12 @@ pub(crate) fn load_host_key_snapshot_bytes(
 /// Store one backend host-key snapshot payload for one store lane.
 #[cfg(any(unix, windows))]
 pub(crate) fn store_host_key_snapshot_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     snapshot_bytes: &[u8],
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let _ = (context, kind, snapshot_bytes);
+    let _ = (binding, kind, snapshot_bytes);
 
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
@@ -348,10 +348,10 @@ pub(crate) fn store_host_key_snapshot_bytes(
 /// Return whether one host store lane supports certificate write operations.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_store_supports_certificate_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
-    let _ = (context, kind);
+    let _ = (binding, kind);
 
     false
 }
@@ -359,12 +359,12 @@ pub(crate) fn host_store_supports_certificate_write(
 /// Import one certificate into one host store lane.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_store_import_certificate(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     certificate: &X509,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let _ = (context, kind, certificate);
+    let _ = (binding, kind, certificate);
 
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
@@ -372,12 +372,12 @@ pub(crate) fn host_store_import_certificate(
 /// Delete one certificate from one host store lane.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_store_delete_certificate(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     certificate: &X509,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let _ = (context, kind, certificate);
+    let _ = (binding, kind, certificate);
 
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
@@ -399,7 +399,7 @@ pub(crate) fn host_store_delete_certificate(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_agreement_derive_key(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     privatekey: resource::CryptoKeyHandle,
     peerpublickey: resource::CryptoKeyHandle,
@@ -408,7 +408,7 @@ pub(crate) unsafe fn destack_crypto_agreement_derive_key(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, privatekey, peerpublickey, request);
+    let _ = (binding, out, privatekey, peerpublickey, request);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.agreement.deriveKey",
@@ -431,7 +431,7 @@ pub(crate) unsafe fn destack_crypto_agreement_derive_key(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_agreement_derive_shared_secret(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     privatekey: resource::CryptoKeyHandle,
     peerpublickey: resource::CryptoKeyHandle,
@@ -440,7 +440,7 @@ pub(crate) unsafe fn destack_crypto_agreement_derive_shared_secret(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, privatekey, peerpublickey, algorithm);
+    let _ = (binding, out, privatekey, peerpublickey, algorithm);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.agreement.deriveSharedSecret",
@@ -466,10 +466,10 @@ pub(crate) unsafe fn destack_crypto_agreement_derive_shared_secret(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_delete(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoCertificateHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.certificate.delete",
@@ -494,14 +494,14 @@ pub(crate) unsafe fn destack_crypto_certificate_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CryptoCertificateDescriptor,
     handle: resource::CryptoCertificateHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.certificate.descriptor",
@@ -526,7 +526,7 @@ pub(crate) unsafe fn destack_crypto_certificate_descriptor(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_export(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoCertificateHandle,
     format: CryptoCertificateFormat,
@@ -534,7 +534,7 @@ pub(crate) unsafe fn destack_crypto_certificate_export(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, format);
+    let _ = (binding, out, handle, format);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.certificate.export",
@@ -560,7 +560,7 @@ pub(crate) unsafe fn destack_crypto_certificate_export(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_import(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::CryptoCertificateHandle,
     store: resource::CryptoStoreHandle,
     format: CryptoCertificateFormat,
@@ -569,7 +569,7 @@ pub(crate) unsafe fn destack_crypto_certificate_import(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, store, format, certificate);
+    let _ = (binding, out, store, format, certificate);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.certificate.import",
@@ -595,14 +595,14 @@ pub(crate) unsafe fn destack_crypto_certificate_import(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_verify(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CryptoCertificateVerifyResult,
     request: CryptoCertificateVerifyRequest,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, request);
+    let _ = (binding, out, request);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.certificate.verify",
@@ -625,10 +625,10 @@ pub(crate) unsafe fn destack_crypto_certificate_verify(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_cipher_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoCipherHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.cipher.close")).boxed())
 }
@@ -648,7 +648,7 @@ pub(crate) unsafe fn destack_crypto_cipher_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_cipher_decrypt(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     key: resource::CryptoKeyHandle,
     parameters: CryptoCipherParameters,
@@ -657,7 +657,7 @@ pub(crate) unsafe fn destack_crypto_cipher_decrypt(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, key, parameters, argument_payload);
+    let _ = (binding, out, key, parameters, argument_payload);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.cipher.decrypt",
@@ -680,7 +680,7 @@ pub(crate) unsafe fn destack_crypto_cipher_decrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_cipher_encrypt(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CryptoCipherOutput,
     key: resource::CryptoKeyHandle,
     parameters: CryptoCipherParameters,
@@ -689,7 +689,7 @@ pub(crate) unsafe fn destack_crypto_cipher_encrypt(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, key, parameters, argument_payload);
+    let _ = (binding, out, key, parameters, argument_payload);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.cipher.encrypt",
@@ -715,7 +715,7 @@ pub(crate) unsafe fn destack_crypto_cipher_encrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_cipher_finish(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CryptoCipherOutput,
     handle: resource::CryptoCipherHandle,
     finalpayload: NativeSlice<u8>,
@@ -723,7 +723,7 @@ pub(crate) unsafe fn destack_crypto_cipher_finish(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, finalpayload);
+    let _ = (binding, out, handle, finalpayload);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.cipher.finish")).boxed())
 }
@@ -743,7 +743,7 @@ pub(crate) unsafe fn destack_crypto_cipher_finish(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_cipher_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::CryptoCipherHandle,
     key: resource::CryptoKeyHandle,
     direction: CryptoCipherDirection,
@@ -752,7 +752,7 @@ pub(crate) unsafe fn destack_crypto_cipher_open(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, key, direction, parameters);
+    let _ = (binding, out, key, direction, parameters);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.cipher.open")).boxed())
 }
@@ -772,11 +772,11 @@ pub(crate) unsafe fn destack_crypto_cipher_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_cipher_reset(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoCipherHandle,
     parameters: CryptoCipherParameters,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, parameters);
+    let _ = (binding, handle, parameters);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.cipher.reset")).boxed())
 }
@@ -796,7 +796,7 @@ pub(crate) unsafe fn destack_crypto_cipher_reset(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_cipher_update(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoCipherHandle,
     argument_payload: NativeSlice<u8>,
@@ -804,7 +804,7 @@ pub(crate) unsafe fn destack_crypto_cipher_update(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, argument_payload);
+    let _ = (binding, out, handle, argument_payload);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.cipher.update")).boxed())
 }
@@ -824,11 +824,11 @@ pub(crate) unsafe fn destack_crypto_cipher_update(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_cipher_update_additional_data(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoCipherHandle,
     additionaldata: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, additionaldata);
+    let _ = (binding, handle, additionaldata);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.cipher.updateAdditionalData",
@@ -851,10 +851,10 @@ pub(crate) unsafe fn destack_crypto_cipher_update_additional_data(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_digest_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoDigestHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.digest.close")).boxed())
 }
@@ -874,7 +874,7 @@ pub(crate) unsafe fn destack_crypto_digest_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_digest_compute(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     algorithm: CryptoDigestAlgorithm,
     argument_payload: NativeSlice<u8>,
@@ -882,7 +882,7 @@ pub(crate) unsafe fn destack_crypto_digest_compute(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, algorithm, argument_payload);
+    let _ = (binding, out, algorithm, argument_payload);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.digest.compute",
@@ -905,14 +905,14 @@ pub(crate) unsafe fn destack_crypto_digest_compute(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_digest_finish(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoDigestHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.digest.finish")).boxed())
 }
@@ -932,14 +932,14 @@ pub(crate) unsafe fn destack_crypto_digest_finish(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_digest_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::CryptoDigestHandle,
     algorithm: CryptoDigestAlgorithm,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, algorithm);
+    let _ = (binding, out, algorithm);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.digest.open")).boxed())
 }
@@ -959,10 +959,10 @@ pub(crate) unsafe fn destack_crypto_digest_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_digest_reset(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoDigestHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.digest.reset")).boxed())
 }
@@ -982,11 +982,11 @@ pub(crate) unsafe fn destack_crypto_digest_reset(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_digest_update(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoDigestHandle,
     argument_payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, argument_payload);
+    let _ = (binding, handle, argument_payload);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.digest.update")).boxed())
 }
@@ -1006,14 +1006,14 @@ pub(crate) unsafe fn destack_crypto_digest_update(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_kdf_argon2id(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     request: CryptoArgon2idRequest,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, request);
+    let _ = (binding, out, request);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.kdf.argon2id")).boxed())
 }
@@ -1033,14 +1033,14 @@ pub(crate) unsafe fn destack_crypto_kdf_argon2id(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_kdf_hkdf(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     request: CryptoHkdfRequest,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, request);
+    let _ = (binding, out, request);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.kdf.hkdf")).boxed())
 }
@@ -1060,14 +1060,14 @@ pub(crate) unsafe fn destack_crypto_kdf_hkdf(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_kdf_pbkdf2(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     request: CryptoPbkdf2Request,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, request);
+    let _ = (binding, out, request);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.kdf.pbkdf2")).boxed())
 }
@@ -1087,14 +1087,14 @@ pub(crate) unsafe fn destack_crypto_kdf_pbkdf2(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_kdf_scrypt(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     request: CryptoScryptRequest,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, request);
+    let _ = (binding, out, request);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.kdf.scrypt")).boxed())
 }
@@ -1117,7 +1117,7 @@ pub(crate) unsafe fn destack_crypto_kdf_scrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_decrypt(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoAsymmetricEncryptionParameters,
@@ -1126,7 +1126,7 @@ pub(crate) unsafe fn destack_crypto_key_decrypt(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, parameters, argument_payload);
+    let _ = (binding, out, handle, parameters, argument_payload);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.decrypt")).boxed())
 }
@@ -1149,10 +1149,10 @@ pub(crate) unsafe fn destack_crypto_key_decrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_delete(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.delete")).boxed())
 }
@@ -1174,14 +1174,14 @@ pub(crate) unsafe fn destack_crypto_key_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CryptoKeyDescriptor,
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.key.descriptor",
@@ -1207,7 +1207,7 @@ pub(crate) unsafe fn destack_crypto_key_descriptor(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_encrypt(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoAsymmetricEncryptionParameters,
@@ -1216,7 +1216,7 @@ pub(crate) unsafe fn destack_crypto_key_encrypt(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, parameters, argument_payload);
+    let _ = (binding, out, handle, parameters, argument_payload);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.encrypt")).boxed())
 }
@@ -1241,7 +1241,7 @@ pub(crate) unsafe fn destack_crypto_key_encrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_export_private(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     request: CryptoPrivateKeyExportRequest,
@@ -1249,7 +1249,7 @@ pub(crate) unsafe fn destack_crypto_key_export_private(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, request);
+    let _ = (binding, out, handle, request);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.key.exportPrivate",
@@ -1274,7 +1274,7 @@ pub(crate) unsafe fn destack_crypto_key_export_private(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_export_public(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
@@ -1282,7 +1282,7 @@ pub(crate) unsafe fn destack_crypto_key_export_public(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, format);
+    let _ = (binding, out, handle, format);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.key.exportPublic",
@@ -1308,7 +1308,7 @@ pub(crate) unsafe fn destack_crypto_key_export_public(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_export_secret(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
@@ -1316,7 +1316,7 @@ pub(crate) unsafe fn destack_crypto_key_export_secret(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, format);
+    let _ = (binding, out, handle, format);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.key.exportSecret",
@@ -1342,7 +1342,7 @@ pub(crate) unsafe fn destack_crypto_key_export_secret(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_generate_pair(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CryptoKeyPair,
     store: resource::CryptoStoreHandle,
     request: CryptoKeyGenerationRequest,
@@ -1350,7 +1350,7 @@ pub(crate) unsafe fn destack_crypto_key_generate_pair(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, store, request);
+    let _ = (binding, out, store, request);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.key.generatePair",
@@ -1377,7 +1377,7 @@ pub(crate) unsafe fn destack_crypto_key_generate_pair(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_generate_secret(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::CryptoKeyHandle,
     store: resource::CryptoStoreHandle,
     request: CryptoKeyGenerationRequest,
@@ -1385,7 +1385,7 @@ pub(crate) unsafe fn destack_crypto_key_generate_secret(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, store, request);
+    let _ = (binding, out, store, request);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.key.generateSecret",
@@ -1412,7 +1412,7 @@ pub(crate) unsafe fn destack_crypto_key_generate_secret(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_import(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::CryptoKeyHandle,
     store: resource::CryptoStoreHandle,
     request: CryptoKeyImportRequest,
@@ -1420,7 +1420,7 @@ pub(crate) unsafe fn destack_crypto_key_import(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, store, request);
+    let _ = (binding, out, store, request);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.import")).boxed())
 }
@@ -1443,7 +1443,7 @@ pub(crate) unsafe fn destack_crypto_key_import(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_sign(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoSignatureParameters,
@@ -1452,7 +1452,7 @@ pub(crate) unsafe fn destack_crypto_key_sign(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, parameters, argument_payload);
+    let _ = (binding, out, handle, parameters, argument_payload);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.sign")).boxed())
 }
@@ -1475,7 +1475,7 @@ pub(crate) unsafe fn destack_crypto_key_sign(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_unwrap(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::CryptoKeyHandle,
     store: resource::CryptoStoreHandle,
     wrappingkey: resource::CryptoKeyHandle,
@@ -1487,7 +1487,7 @@ pub(crate) unsafe fn destack_crypto_key_unwrap(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (
-        context,
+        binding,
         out,
         store,
         wrappingkey,
@@ -1517,7 +1517,7 @@ pub(crate) unsafe fn destack_crypto_key_unwrap(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_verify(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoSignatureParameters,
@@ -1528,7 +1528,7 @@ pub(crate) unsafe fn destack_crypto_key_verify(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (
-        context,
+        binding,
         out,
         handle,
         parameters,
@@ -1558,7 +1558,7 @@ pub(crate) unsafe fn destack_crypto_key_verify(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_wrap(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     wrappingkey: resource::CryptoKeyHandle,
     keytowrap: resource::CryptoKeyHandle,
@@ -1568,7 +1568,7 @@ pub(crate) unsafe fn destack_crypto_key_wrap(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, wrappingkey, keytowrap, format, parameters);
+    let _ = (binding, out, wrappingkey, keytowrap, format, parameters);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.wrap")).boxed())
 }
@@ -1588,10 +1588,10 @@ pub(crate) unsafe fn destack_crypto_key_wrap(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_mac_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoMacHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.mac.close")).boxed())
 }
@@ -1611,7 +1611,7 @@ pub(crate) unsafe fn destack_crypto_mac_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_mac_compute(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     key: resource::CryptoKeyHandle,
     parameters: CryptoMacParameters,
@@ -1620,7 +1620,7 @@ pub(crate) unsafe fn destack_crypto_mac_compute(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, key, parameters, argument_payload);
+    let _ = (binding, out, key, parameters, argument_payload);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.mac.compute")).boxed())
 }
@@ -1640,14 +1640,14 @@ pub(crate) unsafe fn destack_crypto_mac_compute(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_mac_finish(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoMacHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.mac.finish")).boxed())
 }
@@ -1667,7 +1667,7 @@ pub(crate) unsafe fn destack_crypto_mac_finish(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_mac_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::CryptoMacHandle,
     key: resource::CryptoKeyHandle,
     parameters: CryptoMacParameters,
@@ -1675,7 +1675,7 @@ pub(crate) unsafe fn destack_crypto_mac_open(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, key, parameters);
+    let _ = (binding, out, key, parameters);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.mac.open")).boxed())
 }
@@ -1695,10 +1695,10 @@ pub(crate) unsafe fn destack_crypto_mac_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_mac_reset(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoMacHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.mac.reset")).boxed())
 }
@@ -1718,11 +1718,11 @@ pub(crate) unsafe fn destack_crypto_mac_reset(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_mac_update(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoMacHandle,
     argument_payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, argument_payload);
+    let _ = (binding, handle, argument_payload);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.mac.update")).boxed())
 }
@@ -1742,7 +1742,7 @@ pub(crate) unsafe fn destack_crypto_mac_update(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_mac_verify(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     key: resource::CryptoKeyHandle,
     parameters: CryptoMacParameters,
@@ -1752,7 +1752,7 @@ pub(crate) unsafe fn destack_crypto_mac_verify(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, key, parameters, argument_payload, tag);
+    let _ = (binding, out, key, parameters, argument_payload, tag);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.mac.verify")).boxed())
 }
@@ -1775,13 +1775,13 @@ pub(crate) unsafe fn destack_crypto_mac_verify(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_agreement_algorithms(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoKeyAgreementAlgorithm>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (binding, out);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.probe.agreementAlgorithms",
@@ -1807,13 +1807,13 @@ pub(crate) unsafe fn destack_crypto_probe_agreement_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_cipher_algorithms(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoCipherAlgorithm>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (binding, out);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.probe.cipherAlgorithms",
@@ -1839,13 +1839,13 @@ pub(crate) unsafe fn destack_crypto_probe_cipher_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_digest_algorithms(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoDigestAlgorithm>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (binding, out);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.probe.digestAlgorithms",
@@ -1871,13 +1871,13 @@ pub(crate) unsafe fn destack_crypto_probe_digest_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_kdf_algorithms(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoKdfAlgorithm>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (binding, out);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.probe.kdfAlgorithms",
@@ -1903,13 +1903,13 @@ pub(crate) unsafe fn destack_crypto_probe_kdf_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_key_algorithms(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoKeyAlgorithm>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (binding, out);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.probe.keyAlgorithms",
@@ -1935,13 +1935,13 @@ pub(crate) unsafe fn destack_crypto_probe_key_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_key_wrap_algorithms(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoKeyWrapAlgorithm>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (binding, out);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.probe.keyWrapAlgorithms",
@@ -1967,13 +1967,13 @@ pub(crate) unsafe fn destack_crypto_probe_key_wrap_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_key_formats(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoKeyFormat>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (binding, out);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.probe.keyFormats",
@@ -1999,13 +1999,13 @@ pub(crate) unsafe fn destack_crypto_probe_key_formats(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_key_residencies(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoKeyResidency>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (binding, out);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.probe.keyResidencies",
@@ -2031,13 +2031,13 @@ pub(crate) unsafe fn destack_crypto_probe_key_residencies(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_mac_algorithms(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoMacAlgorithm>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (binding, out);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.probe.macAlgorithms",
@@ -2063,13 +2063,13 @@ pub(crate) unsafe fn destack_crypto_probe_mac_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_named_curves(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoNamedCurve>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (binding, out);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.probe.namedCurves",
@@ -2095,13 +2095,13 @@ pub(crate) unsafe fn destack_crypto_probe_named_curves(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_signature_algorithms(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoSignatureAlgorithm>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (binding, out);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.probe.signatureAlgorithms",
@@ -2124,14 +2124,14 @@ pub(crate) unsafe fn destack_crypto_probe_signature_algorithms(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_random_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     length: u32,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, length);
+    let _ = (binding, out, length);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.random.bytes")).boxed())
 }
@@ -2151,10 +2151,10 @@ pub(crate) unsafe fn destack_crypto_random_bytes(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_random_fill(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (context, buffer);
+    let _ = (binding, buffer);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.random.fill")).boxed())
 }
@@ -2178,10 +2178,10 @@ pub(crate) unsafe fn destack_crypto_random_fill(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoStoreHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.store.close")).boxed())
 }
@@ -2205,7 +2205,7 @@ pub(crate) unsafe fn destack_crypto_store_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_list_certificates(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CryptoCertificateListPage,
     handle: resource::CryptoStoreHandle,
     query: CryptoCertificateQuery,
@@ -2213,7 +2213,7 @@ pub(crate) unsafe fn destack_crypto_store_list_certificates(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, query);
+    let _ = (binding, out, handle, query);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.store.listCertificates",
@@ -2240,7 +2240,7 @@ pub(crate) unsafe fn destack_crypto_store_list_certificates(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_list_keys(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CryptoKeyListPage,
     handle: resource::CryptoStoreHandle,
     query: CryptoKeyQuery,
@@ -2248,7 +2248,7 @@ pub(crate) unsafe fn destack_crypto_store_list_keys(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, query);
+    let _ = (binding, out, handle, query);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.store.listKeys",
@@ -2273,7 +2273,7 @@ pub(crate) unsafe fn destack_crypto_store_list_keys(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_store_probe_capability(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CryptoStoreCapability,
     kind: CryptoStoreKind,
     provider: CryptoStoreProvider,
@@ -2281,7 +2281,7 @@ pub(crate) unsafe fn destack_crypto_store_probe_capability(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, kind, provider);
+    let _ = (binding, out, kind, provider);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.store.probeCapability",
@@ -2306,13 +2306,13 @@ pub(crate) unsafe fn destack_crypto_store_probe_capability(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_store_probe_kinds(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<CryptoStoreKind>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (binding, out);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.store.probeKinds",
@@ -2342,14 +2342,14 @@ pub(crate) unsafe fn destack_crypto_store_probe_kinds(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::CryptoStoreHandle,
     options: CryptoStoreOptions,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, options);
+    let _ = (binding, out, options);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.store.open")).boxed())
 }

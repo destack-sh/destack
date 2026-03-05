@@ -96,7 +96,7 @@ pub(crate) fn backend_not_supported(
 }
 
 /// List windows display backend descriptors.
-pub(crate) fn backend_descriptors(context: &BindingCallContext) -> Vec<DisplayBackendDescriptor> {
+pub(crate) fn backend_descriptors(binding: &BindingCallContext) -> Vec<DisplayBackendDescriptor> {
     // allocate descriptor list for preferred backend order
     let mut descriptors = Vec::with_capacity(preferred_host_backends().len());
 
@@ -105,7 +105,7 @@ pub(crate) fn backend_descriptors(context: &BindingCallContext) -> Vec<DisplayBa
         let priority = u16::MAX.saturating_sub(index as u16);
         descriptors.push(DisplayBackendDescriptor {
             backend,
-            name: context.store_string(backend_name(backend)),
+            name: binding.store_string(backend_name(backend)),
             available: backend_available(backend),
             priority,
             capability_flags: backend_capabilities(backend),

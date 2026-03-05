@@ -26,13 +26,13 @@ use crate::platform::crypto::core::write_out_value;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_key_algorithms(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoKeyAlgorithm>,
 ) -> RuntimeResult<()> {
     unsafe {
         write_out_value(
             out,
-            context.store_slice(crypto_core::probe_key_algorithms()),
+            binding.store_slice(crypto_core::probe_key_algorithms()),
         )
     }
 }
@@ -55,13 +55,13 @@ pub(crate) unsafe fn destack_crypto_probe_key_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_key_wrap_algorithms(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoKeyWrapAlgorithm>,
 ) -> RuntimeResult<()> {
     unsafe {
         write_out_value(
             out,
-            context.store_slice(crypto_core::probe_key_wrap_algorithms()),
+            binding.store_slice(crypto_core::probe_key_wrap_algorithms()),
         )
     }
 }
@@ -84,10 +84,10 @@ pub(crate) unsafe fn destack_crypto_probe_key_wrap_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_key_formats(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoKeyFormat>,
 ) -> RuntimeResult<()> {
-    unsafe { write_out_value(out, context.store_slice(crypto_core::probe_key_formats())) }
+    unsafe { write_out_value(out, binding.store_slice(crypto_core::probe_key_formats())) }
 }
 
 /// List supported key residencies.
@@ -108,13 +108,13 @@ pub(crate) unsafe fn destack_crypto_probe_key_formats(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_key_residencies(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoKeyResidency>,
 ) -> RuntimeResult<()> {
     unsafe {
         write_out_value(
             out,
-            context.store_slice(crypto_core::probe_key_residencies(context)),
+            binding.store_slice(crypto_core::probe_key_residencies(binding)),
         )
     }
 }
@@ -137,13 +137,13 @@ pub(crate) unsafe fn destack_crypto_probe_key_residencies(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_digest_algorithms(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoDigestAlgorithm>,
 ) -> RuntimeResult<()> {
     unsafe {
         write_out_value(
             out,
-            context.store_slice(crypto_core::probe_digest_algorithms()),
+            binding.store_slice(crypto_core::probe_digest_algorithms()),
         )
     }
 }
@@ -166,13 +166,13 @@ pub(crate) unsafe fn destack_crypto_probe_digest_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_signature_algorithms(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoSignatureAlgorithm>,
 ) -> RuntimeResult<()> {
     unsafe {
         write_out_value(
             out,
-            context.store_slice(crypto_core::probe_signature_algorithms()),
+            binding.store_slice(crypto_core::probe_signature_algorithms()),
         )
     }
 }
@@ -195,13 +195,13 @@ pub(crate) unsafe fn destack_crypto_probe_signature_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_cipher_algorithms(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoCipherAlgorithm>,
 ) -> RuntimeResult<()> {
     unsafe {
         write_out_value(
             out,
-            context.store_slice(crypto_core::probe_cipher_algorithms()),
+            binding.store_slice(crypto_core::probe_cipher_algorithms()),
         )
     }
 }
@@ -224,13 +224,13 @@ pub(crate) unsafe fn destack_crypto_probe_cipher_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_mac_algorithms(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoMacAlgorithm>,
 ) -> RuntimeResult<()> {
     unsafe {
         write_out_value(
             out,
-            context.store_slice(crypto_core::probe_mac_algorithms()),
+            binding.store_slice(crypto_core::probe_mac_algorithms()),
         )
     }
 }
@@ -253,13 +253,13 @@ pub(crate) unsafe fn destack_crypto_probe_mac_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_kdf_algorithms(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoKdfAlgorithm>,
 ) -> RuntimeResult<()> {
     unsafe {
         write_out_value(
             out,
-            context.store_slice(crypto_core::probe_kdf_algorithms()),
+            binding.store_slice(crypto_core::probe_kdf_algorithms()),
         )
     }
 }
@@ -282,13 +282,13 @@ pub(crate) unsafe fn destack_crypto_probe_kdf_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_agreement_algorithms(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoKeyAgreementAlgorithm>,
 ) -> RuntimeResult<()> {
     unsafe {
         write_out_value(
             out,
-            context.store_slice(crypto_core::probe_agreement_algorithms()),
+            binding.store_slice(crypto_core::probe_agreement_algorithms()),
         )
     }
 }
@@ -311,8 +311,8 @@ pub(crate) unsafe fn destack_crypto_probe_agreement_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_probe_named_curves(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CryptoNamedCurve>,
 ) -> RuntimeResult<()> {
-    unsafe { write_out_value(out, context.store_slice(crypto_core::probe_named_curves())) }
+    unsafe { write_out_value(out, binding.store_slice(crypto_core::probe_named_curves())) }
 }

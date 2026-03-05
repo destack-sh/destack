@@ -15,10 +15,9 @@ use crate::platform::io::{
     UringParametersVm,
 };
 use crate::platform::{
-    NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
+    NativeArray, NativeSlice, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
     abi as platform_abi,
 };
-use crate::runtime::NativeSlice;
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
     BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
@@ -2335,7 +2334,7 @@ pub const IO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for io bindings.
 #[inline]
 fn destack_io_completion_cancel_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::CompletionHandle,
@@ -2343,16 +2342,16 @@ fn destack_io_completion_cancel_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_COMPLETION_CANCEL,
-        context.replay_payload_for(IO_COMPLETION_CANCEL)?,
+        binding.replay_payload_for(IO_COMPLETION_CANCEL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_completion_cancel(context, out, handle, target)
+                platform_native::destack_io_completion_cancel(binding, out, handle, target)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_completion_cancel(
-                    context, out, handle, target,
+                    binding, out, handle, target,
                 )
             },
         },
@@ -2399,21 +2398,21 @@ fn destack_io_completion_cancel_replay(
 
 #[inline]
 fn destack_io_completion_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_COMPLETION_CLOSE,
-        context.replay_payload_for(IO_COMPLETION_CLOSE)?,
+        binding.replay_payload_for(IO_COMPLETION_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_completion_close(context, handle)
+                platform_native::destack_io_completion_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_completion_close(context, handle)
+                platform_simulation_native::destack_io_completion_close(binding, handle)
             },
         },
         |result| {
@@ -2447,7 +2446,7 @@ fn destack_io_completion_close_replay(
 
 #[inline]
 fn destack_io_completion_enter_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::CompletionHandle,
@@ -2457,13 +2456,13 @@ fn destack_io_completion_enter_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mincomplete, &timeoutns, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_COMPLETION_ENTER,
-        context.replay_payload_for(IO_COMPLETION_ENTER)?,
+        binding.replay_payload_for(IO_COMPLETION_ENTER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_completion_enter(
-                    context,
+                    binding,
                     out,
                     handle,
                     mincomplete,
@@ -2473,7 +2472,7 @@ fn destack_io_completion_enter_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_completion_enter(
-                    context,
+                    binding,
                     out,
                     handle,
                     mincomplete,
@@ -2525,22 +2524,22 @@ fn destack_io_completion_enter_replay(
 
 #[inline]
 fn destack_io_completion_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::CompletionHandle,
     entries: u32,
 ) -> RuntimeResult<()> {
     let _ = &entries;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_COMPLETION_OPEN,
-        context.replay_payload_for(IO_COMPLETION_OPEN)?,
+        binding.replay_payload_for(IO_COMPLETION_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_completion_open(context, out, entries)
+                platform_native::destack_io_completion_open(binding, out, entries)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_completion_open(context, out, entries)
+                platform_simulation_native::destack_io_completion_open(binding, out, entries)
             },
         },
         |result| {
@@ -2586,22 +2585,22 @@ fn destack_io_completion_open_replay(
 
 #[inline]
 fn destack_io_completion_submit_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
     operation: CompletionOperation,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &operation);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_COMPLETION_SUBMIT,
-        context.replay_payload_for(IO_COMPLETION_SUBMIT)?,
+        binding.replay_payload_for(IO_COMPLETION_SUBMIT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_completion_submit(context, handle, operation)
+                platform_native::destack_io_completion_submit(binding, handle, operation)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_completion_submit(context, handle, operation)
+                platform_simulation_native::destack_io_completion_submit(binding, handle, operation)
             },
         },
         |result| {
@@ -2635,7 +2634,7 @@ fn destack_io_completion_submit_replay(
 
 #[inline]
 fn destack_io_completion_submit_batch_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::CompletionHandle,
@@ -2650,13 +2649,13 @@ fn destack_io_completion_submit_batch_replay(
         &operationwordstride,
     );
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_COMPLETION_SUBMIT_BATCH,
-        context.replay_payload_for(IO_COMPLETION_SUBMIT_BATCH)?,
+        binding.replay_payload_for(IO_COMPLETION_SUBMIT_BATCH)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_completion_submit_batch(
-                    context,
+                    binding,
                     out,
                     handle,
                     operationwords,
@@ -2666,7 +2665,7 @@ fn destack_io_completion_submit_batch_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_completion_submit_batch(
-                    context,
+                    binding,
                     out,
                     handle,
                     operationwords,
@@ -2718,7 +2717,7 @@ fn destack_io_completion_submit_batch_replay(
 
 #[inline]
 fn destack_io_completion_wait_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<CompletionEvent>,
     handle: resource::CompletionHandle,
@@ -2727,18 +2726,18 @@ fn destack_io_completion_wait_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns, &maxevents);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_COMPLETION_WAIT,
-        context.replay_payload_for(IO_COMPLETION_WAIT)?,
+        binding.replay_payload_for(IO_COMPLETION_WAIT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_completion_wait(
-                    context, out, handle, timeoutns, maxevents,
+                    binding, out, handle, timeoutns, maxevents,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_completion_wait(
-                    context, out, handle, timeoutns, maxevents,
+                    binding, out, handle, timeoutns, maxevents,
                 )
             },
         },
@@ -2796,7 +2795,7 @@ fn destack_io_completion_wait_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -2810,7 +2809,7 @@ fn destack_io_completion_wait_replay(
 
 #[inline]
 fn destack_io_control_fcntl_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut i64,
     handle: resource::ResourceId,
@@ -2820,18 +2819,18 @@ fn destack_io_control_fcntl_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &command, &argument, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_CONTROL_FCNTL,
-        context.replay_payload_for(IO_CONTROL_FCNTL)?,
+        binding.replay_payload_for(IO_CONTROL_FCNTL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_control_fcntl(
-                    context, out, handle, command, argument, flags,
+                    binding, out, handle, command, argument, flags,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_control_fcntl(
-                    context, out, handle, command, argument, flags,
+                    binding, out, handle, command, argument, flags,
                 )
             },
         },
@@ -2878,7 +2877,7 @@ fn destack_io_control_fcntl_replay(
 
 #[inline]
 fn destack_io_control_ioctl_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut DescriptorResult,
     handle: resource::ResourceId,
@@ -2886,15 +2885,15 @@ fn destack_io_control_ioctl_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &request);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_CONTROL_IOCTL,
-        context.replay_payload_for(IO_CONTROL_IOCTL)?,
+        binding.replay_payload_for(IO_CONTROL_IOCTL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_control_ioctl(context, out, handle, request)
+                platform_native::destack_io_control_ioctl(binding, out, handle, request)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_control_ioctl(context, out, handle, request)
+                platform_simulation_native::destack_io_control_ioctl(binding, out, handle, request)
             },
         },
         |result| {
@@ -2944,7 +2943,7 @@ fn destack_io_control_ioctl_replay(
                         let value_native_output_item_native = value_native_output_item;
                         value_native_output_values.push(value_native_output_item_native);
                     }
-                    let value_native_output = context.store_slice(value_native_output_values);
+                    let value_native_output = binding.store_slice(value_native_output_values);
                     let value_native = DescriptorResult {
                         return_value: value_native_return_value,
                         output: value_native_output,
@@ -2962,21 +2961,21 @@ fn destack_io_control_ioctl_replay(
 
 #[inline]
 fn destack_io_device_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::DeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_DEVICE_CLOSE,
-        context.replay_payload_for(IO_DEVICE_CLOSE)?,
+        binding.replay_payload_for(IO_DEVICE_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_device_close(context, handle)
+                platform_native::destack_io_device_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_device_close(context, handle)
+                platform_simulation_native::destack_io_device_close(binding, handle)
             },
         },
         |result| {
@@ -3010,7 +3009,7 @@ fn destack_io_device_close_replay(
 
 #[inline]
 fn destack_io_device_control_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut DescriptorResult,
     handle: resource::DeviceHandle,
@@ -3018,15 +3017,15 @@ fn destack_io_device_control_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &request);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_DEVICE_CONTROL,
-        context.replay_payload_for(IO_DEVICE_CONTROL)?,
+        binding.replay_payload_for(IO_DEVICE_CONTROL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_device_control(context, out, handle, request)
+                platform_native::destack_io_device_control(binding, out, handle, request)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_device_control(context, out, handle, request)
+                platform_simulation_native::destack_io_device_control(binding, out, handle, request)
             },
         },
         |result| {
@@ -3076,7 +3075,7 @@ fn destack_io_device_control_replay(
                         let value_native_output_item_native = value_native_output_item;
                         value_native_output_values.push(value_native_output_item_native);
                     }
-                    let value_native_output = context.store_slice(value_native_output_values);
+                    let value_native_output = binding.store_slice(value_native_output_values);
                     let value_native = DescriptorResult {
                         return_value: value_native_return_value,
                         output: value_native_output,
@@ -3094,7 +3093,7 @@ fn destack_io_device_control_replay(
 
 #[inline]
 fn destack_io_device_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::DeviceHandle,
     path: fs::OsPath,
@@ -3103,15 +3102,15 @@ fn destack_io_device_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &flags, &mode);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_DEVICE_OPEN,
-        context.replay_payload_for(IO_DEVICE_OPEN)?,
+        binding.replay_payload_for(IO_DEVICE_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_device_open(context, out, path, flags, mode)
+                platform_native::destack_io_device_open(binding, out, path, flags, mode)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_device_open(context, out, path, flags, mode)
+                platform_simulation_native::destack_io_device_open(binding, out, path, flags, mode)
             },
         },
         |result| {
@@ -3157,7 +3156,7 @@ fn destack_io_device_open_replay(
 
 #[inline]
 fn destack_io_device_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::DeviceHandle,
@@ -3165,15 +3164,15 @@ fn destack_io_device_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_DEVICE_READ,
-        context.replay_payload_for(IO_DEVICE_READ)?,
+        binding.replay_payload_for(IO_DEVICE_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_device_read(context, out, handle, buffer)
+                platform_native::destack_io_device_read(binding, out, handle, buffer)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_device_read(context, out, handle, buffer)
+                platform_simulation_native::destack_io_device_read(binding, out, handle, buffer)
             },
         },
         |result| {
@@ -3219,7 +3218,7 @@ fn destack_io_device_read_replay(
 
 #[inline]
 fn destack_io_device_write_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::DeviceHandle,
@@ -3227,15 +3226,15 @@ fn destack_io_device_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_DEVICE_WRITE,
-        context.replay_payload_for(IO_DEVICE_WRITE)?,
+        binding.replay_payload_for(IO_DEVICE_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_device_write(context, out, handle, buffer)
+                platform_native::destack_io_device_write(binding, out, handle, buffer)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_device_write(context, out, handle, buffer)
+                platform_simulation_native::destack_io_device_write(binding, out, handle, buffer)
             },
         },
         |result| {
@@ -3281,7 +3280,7 @@ fn destack_io_device_write_replay(
 
 #[inline]
 fn destack_io_event_attach_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     token: EventToken,
     target: resource::ResourceId,
@@ -3289,15 +3288,15 @@ fn destack_io_event_attach_replay(
 ) -> RuntimeResult<()> {
     let _ = (&token, &target, &key);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_EVENT_ATTACH,
-        context.replay_payload_for(IO_EVENT_ATTACH)?,
+        binding.replay_payload_for(IO_EVENT_ATTACH)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_event_attach(context, token, target, key)
+                platform_native::destack_io_event_attach(binding, token, target, key)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_event_attach(context, token, target, key)
+                platform_simulation_native::destack_io_event_attach(binding, token, target, key)
             },
         },
         |result| {
@@ -3331,21 +3330,21 @@ fn destack_io_event_attach_replay(
 
 #[inline]
 fn destack_io_event_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     token: EventToken,
 ) -> RuntimeResult<()> {
     let _ = &token;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_EVENT_CLOSE,
-        context.replay_payload_for(IO_EVENT_CLOSE)?,
+        binding.replay_payload_for(IO_EVENT_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_event_close(context, token)
+                platform_native::destack_io_event_close(binding, token)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_event_close(context, token)
+                platform_simulation_native::destack_io_event_close(binding, token)
             },
         },
         |result| {
@@ -3379,22 +3378,22 @@ fn destack_io_event_close_replay(
 
 #[inline]
 fn destack_io_event_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut EventToken,
     initial: u64,
 ) -> RuntimeResult<()> {
     let _ = &initial;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_EVENT_OPEN,
-        context.replay_payload_for(IO_EVENT_OPEN)?,
+        binding.replay_payload_for(IO_EVENT_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_event_open(context, out, initial)
+                platform_native::destack_io_event_open(binding, out, initial)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_event_open(context, out, initial)
+                platform_simulation_native::destack_io_event_open(binding, out, initial)
             },
         },
         |result| {
@@ -3440,22 +3439,22 @@ fn destack_io_event_open_replay(
 
 #[inline]
 fn destack_io_event_signal_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     token: EventToken,
     argument_value: u64,
 ) -> RuntimeResult<()> {
     let _ = (&token, &argument_value);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_EVENT_SIGNAL,
-        context.replay_payload_for(IO_EVENT_SIGNAL)?,
+        binding.replay_payload_for(IO_EVENT_SIGNAL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_event_signal(context, token, argument_value)
+                platform_native::destack_io_event_signal(binding, token, argument_value)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_event_signal(context, token, argument_value)
+                platform_simulation_native::destack_io_event_signal(binding, token, argument_value)
             },
         },
         |result| {
@@ -3489,21 +3488,21 @@ fn destack_io_event_signal_replay(
 
 #[inline]
 fn destack_io_poll_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::PollHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_POLL_CLOSE,
-        context.replay_payload_for(IO_POLL_CLOSE)?,
+        binding.replay_payload_for(IO_POLL_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_poll_close(context, handle)
+                platform_native::destack_io_poll_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_poll_close(context, handle)
+                platform_simulation_native::destack_io_poll_close(binding, handle)
             },
         },
         |result| {
@@ -3537,22 +3536,22 @@ fn destack_io_poll_close_replay(
 
 #[inline]
 fn destack_io_poll_deregister_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::PollHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_POLL_DEREGISTER,
-        context.replay_payload_for(IO_POLL_DEREGISTER)?,
+        binding.replay_payload_for(IO_POLL_DEREGISTER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_poll_deregister(context, handle, target)
+                platform_native::destack_io_poll_deregister(binding, handle, target)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_poll_deregister(context, handle, target)
+                platform_simulation_native::destack_io_poll_deregister(binding, handle, target)
             },
         },
         |result| {
@@ -3586,22 +3585,22 @@ fn destack_io_poll_deregister_replay(
 
 #[inline]
 fn destack_io_poll_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::PollHandle,
     backend: PollBackend,
 ) -> RuntimeResult<()> {
     let _ = &backend;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_POLL_OPEN,
-        context.replay_payload_for(IO_POLL_OPEN)?,
+        binding.replay_payload_for(IO_POLL_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_poll_open(context, out, backend)
+                platform_native::destack_io_poll_open(binding, out, backend)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_poll_open(context, out, backend)
+                platform_simulation_native::destack_io_poll_open(binding, out, backend)
             },
         },
         |result| {
@@ -3647,7 +3646,7 @@ fn destack_io_poll_open_replay(
 
 #[inline]
 fn destack_io_poll_register_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::PollHandle,
     target: resource::ResourceId,
@@ -3656,16 +3655,16 @@ fn destack_io_poll_register_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target, &key, &interest);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_POLL_REGISTER,
-        context.replay_payload_for(IO_POLL_REGISTER)?,
+        binding.replay_payload_for(IO_POLL_REGISTER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_poll_register(context, handle, target, key, interest)
+                platform_native::destack_io_poll_register(binding, handle, target, key, interest)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_poll_register(
-                    context, handle, target, key, interest,
+                    binding, handle, target, key, interest,
                 )
             },
         },
@@ -3700,7 +3699,7 @@ fn destack_io_poll_register_replay(
 
 #[inline]
 fn destack_io_poll_update_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::PollHandle,
     target: resource::ResourceId,
@@ -3709,16 +3708,16 @@ fn destack_io_poll_update_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target, &key, &interest);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_POLL_UPDATE,
-        context.replay_payload_for(IO_POLL_UPDATE)?,
+        binding.replay_payload_for(IO_POLL_UPDATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_poll_update(context, handle, target, key, interest)
+                platform_native::destack_io_poll_update(binding, handle, target, key, interest)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_poll_update(
-                    context, handle, target, key, interest,
+                    binding, handle, target, key, interest,
                 )
             },
         },
@@ -3753,7 +3752,7 @@ fn destack_io_poll_update_replay(
 
 #[inline]
 fn destack_io_poll_wait_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<PollEvent>,
     handle: resource::PollHandle,
@@ -3762,16 +3761,16 @@ fn destack_io_poll_wait_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns, &maxevents);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_POLL_WAIT,
-        context.replay_payload_for(IO_POLL_WAIT)?,
+        binding.replay_payload_for(IO_POLL_WAIT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_poll_wait(context, out, handle, timeoutns, maxevents)
+                platform_native::destack_io_poll_wait(binding, out, handle, timeoutns, maxevents)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_poll_wait(
-                    context, out, handle, timeoutns, maxevents,
+                    binding, out, handle, timeoutns, maxevents,
                 )
             },
         },
@@ -3829,7 +3828,7 @@ fn destack_io_poll_wait_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -3843,21 +3842,21 @@ fn destack_io_poll_wait_replay(
 
 #[inline]
 fn destack_io_timerfd_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_TIMERFD_CLOSE,
-        context.replay_payload_for(IO_TIMERFD_CLOSE)?,
+        binding.replay_payload_for(IO_TIMERFD_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_timer_fd_close(context, handle)
+                platform_native::destack_io_timer_fd_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_timer_fd_close(context, handle)
+                platform_simulation_native::destack_io_timer_fd_close(binding, handle)
             },
         },
         |result| {
@@ -3891,22 +3890,22 @@ fn destack_io_timerfd_close_replay(
 
 #[inline]
 fn destack_io_timerfd_get_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut TimerFdSpec,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_TIMERFD_GET,
-        context.replay_payload_for(IO_TIMERFD_GET)?,
+        binding.replay_payload_for(IO_TIMERFD_GET)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_timer_fd_get(context, out, handle)
+                platform_native::destack_io_timer_fd_get(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_timer_fd_get(context, out, handle)
+                platform_simulation_native::destack_io_timer_fd_get(binding, out, handle)
             },
         },
         |result| {
@@ -3962,7 +3961,7 @@ fn destack_io_timerfd_get_replay(
 
 #[inline]
 fn destack_io_timerfd_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::TimerFdHandle,
     clock: TimerFdClock,
@@ -3970,15 +3969,15 @@ fn destack_io_timerfd_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&clock, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_TIMERFD_OPEN,
-        context.replay_payload_for(IO_TIMERFD_OPEN)?,
+        binding.replay_payload_for(IO_TIMERFD_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_timer_fd_open(context, out, clock, flags)
+                platform_native::destack_io_timer_fd_open(binding, out, clock, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_timer_fd_open(context, out, clock, flags)
+                platform_simulation_native::destack_io_timer_fd_open(binding, out, clock, flags)
             },
         },
         |result| {
@@ -4024,22 +4023,22 @@ fn destack_io_timerfd_open_replay(
 
 #[inline]
 fn destack_io_timerfd_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_TIMERFD_READ,
-        context.replay_payload_for(IO_TIMERFD_READ)?,
+        binding.replay_payload_for(IO_TIMERFD_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_timer_fd_read(context, out, handle)
+                platform_native::destack_io_timer_fd_read(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_timer_fd_read(context, out, handle)
+                platform_simulation_native::destack_io_timer_fd_read(binding, out, handle)
             },
         },
         |result| {
@@ -4085,7 +4084,7 @@ fn destack_io_timerfd_read_replay(
 
 #[inline]
 fn destack_io_timerfd_set_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::TimerFdHandle,
     spec: TimerFdSpec,
@@ -4093,15 +4092,15 @@ fn destack_io_timerfd_set_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &spec, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_TIMERFD_SET,
-        context.replay_payload_for(IO_TIMERFD_SET)?,
+        binding.replay_payload_for(IO_TIMERFD_SET)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_timer_fd_set(context, handle, spec, flags)
+                platform_native::destack_io_timer_fd_set(binding, handle, spec, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_timer_fd_set(context, handle, spec, flags)
+                platform_simulation_native::destack_io_timer_fd_set(binding, handle, spec, flags)
             },
         },
         |result| {
@@ -4135,21 +4134,21 @@ fn destack_io_timerfd_set_replay(
 
 #[inline]
 fn destack_io_uring_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_URING_CLOSE,
-        context.replay_payload_for(IO_URING_CLOSE)?,
+        binding.replay_payload_for(IO_URING_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_uring_close(context, handle)
+                platform_native::destack_io_uring_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_uring_close(context, handle)
+                platform_simulation_native::destack_io_uring_close(binding, handle)
             },
         },
         |result| {
@@ -4183,22 +4182,22 @@ fn destack_io_uring_close_replay(
 
 #[inline]
 fn destack_io_uring_features_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut UringFeatures,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_URING_FEATURES,
-        context.replay_payload_for(IO_URING_FEATURES)?,
+        binding.replay_payload_for(IO_URING_FEATURES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_uring_features(context, out, handle)
+                platform_native::destack_io_uring_features(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_uring_features(context, out, handle)
+                platform_simulation_native::destack_io_uring_features(binding, out, handle)
             },
         },
         |result| {
@@ -4266,22 +4265,22 @@ fn destack_io_uring_features_replay(
 
 #[inline]
 fn destack_io_uring_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::UringHandle,
     parameters: UringParameters,
 ) -> RuntimeResult<()> {
     let _ = &parameters;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_URING_OPEN,
-        context.replay_payload_for(IO_URING_OPEN)?,
+        binding.replay_payload_for(IO_URING_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_uring_open(context, out, parameters)
+                platform_native::destack_io_uring_open(binding, out, parameters)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_uring_open(context, out, parameters)
+                platform_simulation_native::destack_io_uring_open(binding, out, parameters)
             },
         },
         |result| {
@@ -4327,7 +4326,7 @@ fn destack_io_uring_open_replay(
 
 #[inline]
 fn destack_io_uring_register_buffers_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::UringHandle,
     addresses: NativeSlice<u64>,
@@ -4335,18 +4334,18 @@ fn destack_io_uring_register_buffers_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &addresses, &lengths);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_URING_REGISTER_BUFFERS,
-        context.replay_payload_for(IO_URING_REGISTER_BUFFERS)?,
+        binding.replay_payload_for(IO_URING_REGISTER_BUFFERS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_io_uring_register_buffers(
-                    context, handle, addresses, lengths,
+                    binding, handle, addresses, lengths,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_io_uring_register_buffers(
-                    context, handle, addresses, lengths,
+                    binding, handle, addresses, lengths,
                 )
             },
         },
@@ -4381,22 +4380,22 @@ fn destack_io_uring_register_buffers_replay(
 
 #[inline]
 fn destack_io_uring_register_files_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::UringHandle,
     files: NativeSlice<resource::ResourceId>,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &files);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_URING_REGISTER_FILES,
-        context.replay_payload_for(IO_URING_REGISTER_FILES)?,
+        binding.replay_payload_for(IO_URING_REGISTER_FILES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_uring_register_files(context, handle, files)
+                platform_native::destack_io_uring_register_files(binding, handle, files)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_uring_register_files(context, handle, files)
+                platform_simulation_native::destack_io_uring_register_files(binding, handle, files)
             },
         },
         |result| {
@@ -4430,21 +4429,21 @@ fn destack_io_uring_register_files_replay(
 
 #[inline]
 fn destack_io_uring_unregister_buffers_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_URING_UNREGISTER_BUFFERS,
-        context.replay_payload_for(IO_URING_UNREGISTER_BUFFERS)?,
+        binding.replay_payload_for(IO_URING_UNREGISTER_BUFFERS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_uring_unregister_buffers(context, handle)
+                platform_native::destack_io_uring_unregister_buffers(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_uring_unregister_buffers(context, handle)
+                platform_simulation_native::destack_io_uring_unregister_buffers(binding, handle)
             },
         },
         |result| {
@@ -4478,21 +4477,21 @@ fn destack_io_uring_unregister_buffers_replay(
 
 #[inline]
 fn destack_io_uring_unregister_files_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         IO_URING_UNREGISTER_FILES,
-        context.replay_payload_for(IO_URING_UNREGISTER_FILES)?,
+        binding.replay_payload_for(IO_URING_UNREGISTER_FILES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_uring_unregister_files(context, handle)
+                platform_native::destack_io_uring_unregister_files(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_io_uring_unregister_files(context, handle)
+                platform_simulation_native::destack_io_uring_unregister_files(binding, handle)
             },
         },
         |result| {
@@ -5121,22 +5120,22 @@ pub unsafe extern "C" fn destack_io_uring_unregister_files(
 /// VM replay implementations for io bindings.
 #[inline]
 fn destack_io_completion_cancel_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_COMPLETION_CANCEL,
-        runtime.replay_payload_for(IO_COMPLETION_CANCEL)?,
+        binding.replay_payload_for(IO_COMPLETION_CANCEL)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_io_completion_cancel(runtime, context, handle, target)
+                platform_vm::destack_io_completion_cancel(binding, context, handle, target)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_io_completion_cancel(
-                runtime, context, handle, target,
+                binding, context, handle, target,
             ),
         },
         |context, result| {
@@ -5178,21 +5177,21 @@ fn destack_io_completion_cancel_vm_replay(
 
 #[inline]
 fn destack_io_completion_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_COMPLETION_CLOSE,
-        runtime.replay_payload_for(IO_COMPLETION_CLOSE)?,
+        binding.replay_payload_for(IO_COMPLETION_CLOSE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_io_completion_close(runtime, context, handle)
+                platform_vm::destack_io_completion_close(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_completion_close(runtime, context, handle)
+                platform_simulation_vm::destack_io_completion_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -5230,7 +5229,7 @@ fn destack_io_completion_close_vm_replay(
 
 #[inline]
 fn destack_io_completion_enter_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
@@ -5238,13 +5237,13 @@ fn destack_io_completion_enter_vm_replay(
     timeoutns: u64,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_COMPLETION_ENTER,
-        runtime.replay_payload_for(IO_COMPLETION_ENTER)?,
+        binding.replay_payload_for(IO_COMPLETION_ENTER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_io_completion_enter(
-                runtime,
+                binding,
                 context,
                 handle,
                 mincomplete,
@@ -5252,7 +5251,7 @@ fn destack_io_completion_enter_vm_replay(
                 flags,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_io_completion_enter(
-                runtime,
+                binding,
                 context,
                 handle,
                 mincomplete,
@@ -5299,21 +5298,21 @@ fn destack_io_completion_enter_vm_replay(
 
 #[inline]
 fn destack_io_completion_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     entries: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_COMPLETION_OPEN,
-        runtime.replay_payload_for(IO_COMPLETION_OPEN)?,
+        binding.replay_payload_for(IO_COMPLETION_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_io_completion_open(runtime, context, entries)
+                platform_vm::destack_io_completion_open(binding, context, entries)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_completion_open(runtime, context, entries)
+                platform_simulation_vm::destack_io_completion_open(binding, context, entries)
             }
         },
         |context, result| {
@@ -5355,22 +5354,22 @@ fn destack_io_completion_open_vm_replay(
 
 #[inline]
 fn destack_io_completion_submit_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
     operation: CompletionOperationVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_COMPLETION_SUBMIT,
-        runtime.replay_payload_for(IO_COMPLETION_SUBMIT)?,
+        binding.replay_payload_for(IO_COMPLETION_SUBMIT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_io_completion_submit(runtime, context, handle, operation)
+                platform_vm::destack_io_completion_submit(binding, context, handle, operation)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_io_completion_submit(
-                runtime, context, handle, operation,
+                binding, context, handle, operation,
             ),
         },
         |context, result| {
@@ -5408,7 +5407,7 @@ fn destack_io_completion_submit_vm_replay(
 
 #[inline]
 fn destack_io_completion_submit_batch_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
@@ -5416,13 +5415,13 @@ fn destack_io_completion_submit_batch_vm_replay(
     operationcount: u32,
     operationwordstride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_COMPLETION_SUBMIT_BATCH,
-        runtime.replay_payload_for(IO_COMPLETION_SUBMIT_BATCH)?,
+        binding.replay_payload_for(IO_COMPLETION_SUBMIT_BATCH)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_io_completion_submit_batch(
-                runtime,
+                binding,
                 context,
                 handle,
                 operationwords,
@@ -5430,7 +5429,7 @@ fn destack_io_completion_submit_batch_vm_replay(
                 operationwordstride,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_io_completion_submit_batch(
-                runtime,
+                binding,
                 context,
                 handle,
                 operationwords,
@@ -5477,23 +5476,23 @@ fn destack_io_completion_submit_batch_vm_replay(
 
 #[inline]
 fn destack_io_completion_wait_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
     timeoutns: u64,
     maxevents: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_COMPLETION_WAIT,
-        runtime.replay_payload_for(IO_COMPLETION_WAIT)?,
+        binding.replay_payload_for(IO_COMPLETION_WAIT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_io_completion_wait(
-                runtime, context, handle, timeoutns, maxevents,
+                binding, context, handle, timeoutns, maxevents,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_io_completion_wait(
-                runtime, context, handle, timeoutns, maxevents,
+                binding, context, handle, timeoutns, maxevents,
             ),
         },
         |context, result| {
@@ -5602,7 +5601,7 @@ fn destack_io_completion_wait_vm_replay(
 
 #[inline]
 fn destack_io_control_fcntl_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::ResourceId,
@@ -5610,16 +5609,16 @@ fn destack_io_control_fcntl_vm_replay(
     argument: u64,
     flags: DescriptorControlFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_CONTROL_FCNTL,
-        runtime.replay_payload_for(IO_CONTROL_FCNTL)?,
+        binding.replay_payload_for(IO_CONTROL_FCNTL)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_io_control_fcntl(
-                runtime, context, handle, command, argument, flags,
+                binding, context, handle, command, argument, flags,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_io_control_fcntl(
-                runtime, context, handle, command, argument, flags,
+                binding, context, handle, command, argument, flags,
             ),
         },
         |context, result| {
@@ -5661,22 +5660,22 @@ fn destack_io_control_fcntl_vm_replay(
 
 #[inline]
 fn destack_io_control_ioctl_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::ResourceId,
     request: DescriptorRequestVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_CONTROL_IOCTL,
-        runtime.replay_payload_for(IO_CONTROL_IOCTL)?,
+        binding.replay_payload_for(IO_CONTROL_IOCTL)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_io_control_ioctl(runtime, context, handle, request)
+                platform_vm::destack_io_control_ioctl(binding, context, handle, request)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_control_ioctl(runtime, context, handle, request)
+                platform_simulation_vm::destack_io_control_ioctl(binding, context, handle, request)
             }
         },
         |context, result| {
@@ -5728,19 +5727,19 @@ fn destack_io_control_ioctl_vm_replay(
 
 #[inline]
 fn destack_io_device_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_DEVICE_CLOSE,
-        runtime.replay_payload_for(IO_DEVICE_CLOSE)?,
+        binding.replay_payload_for(IO_DEVICE_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_io_device_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_io_device_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_device_close(runtime, context, handle)
+                platform_simulation_vm::destack_io_device_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -5778,22 +5777,22 @@ fn destack_io_device_close_vm_replay(
 
 #[inline]
 fn destack_io_device_control_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DeviceHandle,
     request: DescriptorRequestVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_DEVICE_CONTROL,
-        runtime.replay_payload_for(IO_DEVICE_CONTROL)?,
+        binding.replay_payload_for(IO_DEVICE_CONTROL)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_io_device_control(runtime, context, handle, request)
+                platform_vm::destack_io_device_control(binding, context, handle, request)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_device_control(runtime, context, handle, request)
+                platform_simulation_vm::destack_io_device_control(binding, context, handle, request)
             }
         },
         |context, result| {
@@ -5845,23 +5844,23 @@ fn destack_io_device_control_vm_replay(
 
 #[inline]
 fn destack_io_device_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: fs::OsPathVm,
     flags: u32,
     mode: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_DEVICE_OPEN,
-        runtime.replay_payload_for(IO_DEVICE_OPEN)?,
+        binding.replay_payload_for(IO_DEVICE_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_io_device_open(runtime, context, path, flags, mode)
+                platform_vm::destack_io_device_open(binding, context, path, flags, mode)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_device_open(runtime, context, path, flags, mode)
+                platform_simulation_vm::destack_io_device_open(binding, context, path, flags, mode)
             }
         },
         |context, result| {
@@ -5903,22 +5902,22 @@ fn destack_io_device_open_vm_replay(
 
 #[inline]
 fn destack_io_device_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DeviceHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_DEVICE_READ,
-        runtime.replay_payload_for(IO_DEVICE_READ)?,
+        binding.replay_payload_for(IO_DEVICE_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_io_device_read(runtime, context, handle, buffer)
+                platform_vm::destack_io_device_read(binding, context, handle, buffer)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_device_read(runtime, context, handle, buffer)
+                platform_simulation_vm::destack_io_device_read(binding, context, handle, buffer)
             }
         },
         |context, result| {
@@ -5960,22 +5959,22 @@ fn destack_io_device_read_vm_replay(
 
 #[inline]
 fn destack_io_device_write_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DeviceHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_DEVICE_WRITE,
-        runtime.replay_payload_for(IO_DEVICE_WRITE)?,
+        binding.replay_payload_for(IO_DEVICE_WRITE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_io_device_write(runtime, context, handle, buffer)
+                platform_vm::destack_io_device_write(binding, context, handle, buffer)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_device_write(runtime, context, handle, buffer)
+                platform_simulation_vm::destack_io_device_write(binding, context, handle, buffer)
             }
         },
         |context, result| {
@@ -6017,23 +6016,23 @@ fn destack_io_device_write_vm_replay(
 
 #[inline]
 fn destack_io_event_attach_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     token: EventToken,
     target: resource::ResourceId,
     key: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_EVENT_ATTACH,
-        runtime.replay_payload_for(IO_EVENT_ATTACH)?,
+        binding.replay_payload_for(IO_EVENT_ATTACH)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_io_event_attach(runtime, context, token, target, key)
+                platform_vm::destack_io_event_attach(binding, context, token, target, key)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_io_event_attach(
-                runtime, context, token, target, key,
+                binding, context, token, target, key,
             ),
         },
         |context, result| {
@@ -6071,19 +6070,19 @@ fn destack_io_event_attach_vm_replay(
 
 #[inline]
 fn destack_io_event_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     token: EventToken,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_EVENT_CLOSE,
-        runtime.replay_payload_for(IO_EVENT_CLOSE)?,
+        binding.replay_payload_for(IO_EVENT_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_io_event_close(runtime, context, token),
+            RuntimeWorld::Host => platform_vm::destack_io_event_close(binding, context, token),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_event_close(runtime, context, token)
+                platform_simulation_vm::destack_io_event_close(binding, context, token)
             }
         },
         |context, result| {
@@ -6121,19 +6120,19 @@ fn destack_io_event_close_vm_replay(
 
 #[inline]
 fn destack_io_event_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     initial: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_EVENT_OPEN,
-        runtime.replay_payload_for(IO_EVENT_OPEN)?,
+        binding.replay_payload_for(IO_EVENT_OPEN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_io_event_open(runtime, context, initial),
+            RuntimeWorld::Host => platform_vm::destack_io_event_open(binding, context, initial),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_event_open(runtime, context, initial)
+                platform_simulation_vm::destack_io_event_open(binding, context, initial)
             }
         },
         |context, result| {
@@ -6175,22 +6174,22 @@ fn destack_io_event_open_vm_replay(
 
 #[inline]
 fn destack_io_event_signal_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     token: EventToken,
     argument_value: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_EVENT_SIGNAL,
-        runtime.replay_payload_for(IO_EVENT_SIGNAL)?,
+        binding.replay_payload_for(IO_EVENT_SIGNAL)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_io_event_signal(runtime, context, token, argument_value)
+                platform_vm::destack_io_event_signal(binding, context, token, argument_value)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_io_event_signal(
-                runtime,
+                binding,
                 context,
                 token,
                 argument_value,
@@ -6231,19 +6230,19 @@ fn destack_io_event_signal_vm_replay(
 
 #[inline]
 fn destack_io_poll_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::PollHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_POLL_CLOSE,
-        runtime.replay_payload_for(IO_POLL_CLOSE)?,
+        binding.replay_payload_for(IO_POLL_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_io_poll_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_io_poll_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_poll_close(runtime, context, handle)
+                platform_simulation_vm::destack_io_poll_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -6281,22 +6280,22 @@ fn destack_io_poll_close_vm_replay(
 
 #[inline]
 fn destack_io_poll_deregister_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::PollHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_POLL_DEREGISTER,
-        runtime.replay_payload_for(IO_POLL_DEREGISTER)?,
+        binding.replay_payload_for(IO_POLL_DEREGISTER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_io_poll_deregister(runtime, context, handle, target)
+                platform_vm::destack_io_poll_deregister(binding, context, handle, target)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_poll_deregister(runtime, context, handle, target)
+                platform_simulation_vm::destack_io_poll_deregister(binding, context, handle, target)
             }
         },
         |context, result| {
@@ -6334,19 +6333,19 @@ fn destack_io_poll_deregister_vm_replay(
 
 #[inline]
 fn destack_io_poll_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     backend: PollBackend,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_POLL_OPEN,
-        runtime.replay_payload_for(IO_POLL_OPEN)?,
+        binding.replay_payload_for(IO_POLL_OPEN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_io_poll_open(runtime, context, backend),
+            RuntimeWorld::Host => platform_vm::destack_io_poll_open(binding, context, backend),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_poll_open(runtime, context, backend)
+                platform_simulation_vm::destack_io_poll_open(binding, context, backend)
             }
         },
         |context, result| {
@@ -6388,7 +6387,7 @@ fn destack_io_poll_open_vm_replay(
 
 #[inline]
 fn destack_io_poll_register_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::PollHandle,
@@ -6396,16 +6395,16 @@ fn destack_io_poll_register_vm_replay(
     key: u64,
     interest: PollInterest,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_POLL_REGISTER,
-        runtime.replay_payload_for(IO_POLL_REGISTER)?,
+        binding.replay_payload_for(IO_POLL_REGISTER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_io_poll_register(
-                runtime, context, handle, target, key, interest,
+                binding, context, handle, target, key, interest,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_io_poll_register(
-                runtime, context, handle, target, key, interest,
+                binding, context, handle, target, key, interest,
             ),
         },
         |context, result| {
@@ -6443,7 +6442,7 @@ fn destack_io_poll_register_vm_replay(
 
 #[inline]
 fn destack_io_poll_update_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::PollHandle,
@@ -6451,16 +6450,16 @@ fn destack_io_poll_update_vm_replay(
     key: u64,
     interest: PollInterest,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_POLL_UPDATE,
-        runtime.replay_payload_for(IO_POLL_UPDATE)?,
+        binding.replay_payload_for(IO_POLL_UPDATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_io_poll_update(runtime, context, handle, target, key, interest)
+                platform_vm::destack_io_poll_update(binding, context, handle, target, key, interest)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_io_poll_update(
-                runtime, context, handle, target, key, interest,
+                binding, context, handle, target, key, interest,
             ),
         },
         |context, result| {
@@ -6498,23 +6497,23 @@ fn destack_io_poll_update_vm_replay(
 
 #[inline]
 fn destack_io_poll_wait_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::PollHandle,
     timeoutns: u64,
     maxevents: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_POLL_WAIT,
-        runtime.replay_payload_for(IO_POLL_WAIT)?,
+        binding.replay_payload_for(IO_POLL_WAIT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_io_poll_wait(runtime, context, handle, timeoutns, maxevents)
+                platform_vm::destack_io_poll_wait(binding, context, handle, timeoutns, maxevents)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_io_poll_wait(
-                runtime, context, handle, timeoutns, maxevents,
+                binding, context, handle, timeoutns, maxevents,
             ),
         },
         |context, result| {
@@ -6625,19 +6624,19 @@ fn destack_io_poll_wait_vm_replay(
 
 #[inline]
 fn destack_io_timerfd_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_TIMERFD_CLOSE,
-        runtime.replay_payload_for(IO_TIMERFD_CLOSE)?,
+        binding.replay_payload_for(IO_TIMERFD_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_io_timer_fd_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_io_timer_fd_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_timer_fd_close(runtime, context, handle)
+                platform_simulation_vm::destack_io_timer_fd_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -6675,19 +6674,19 @@ fn destack_io_timerfd_close_vm_replay(
 
 #[inline]
 fn destack_io_timerfd_get_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_TIMERFD_GET,
-        runtime.replay_payload_for(IO_TIMERFD_GET)?,
+        binding.replay_payload_for(IO_TIMERFD_GET)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_io_timer_fd_get(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_io_timer_fd_get(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_timer_fd_get(runtime, context, handle)
+                platform_simulation_vm::destack_io_timer_fd_get(binding, context, handle)
             }
         },
         |context, result| {
@@ -6739,22 +6738,22 @@ fn destack_io_timerfd_get_vm_replay(
 
 #[inline]
 fn destack_io_timerfd_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     clock: TimerFdClock,
     flags: TimerFdFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_TIMERFD_OPEN,
-        runtime.replay_payload_for(IO_TIMERFD_OPEN)?,
+        binding.replay_payload_for(IO_TIMERFD_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_io_timer_fd_open(runtime, context, clock, flags)
+                platform_vm::destack_io_timer_fd_open(binding, context, clock, flags)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_timer_fd_open(runtime, context, clock, flags)
+                platform_simulation_vm::destack_io_timer_fd_open(binding, context, clock, flags)
             }
         },
         |context, result| {
@@ -6796,19 +6795,19 @@ fn destack_io_timerfd_open_vm_replay(
 
 #[inline]
 fn destack_io_timerfd_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_TIMERFD_READ,
-        runtime.replay_payload_for(IO_TIMERFD_READ)?,
+        binding.replay_payload_for(IO_TIMERFD_READ)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_io_timer_fd_read(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_io_timer_fd_read(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_timer_fd_read(runtime, context, handle)
+                platform_simulation_vm::destack_io_timer_fd_read(binding, context, handle)
             }
         },
         |context, result| {
@@ -6850,23 +6849,23 @@ fn destack_io_timerfd_read_vm_replay(
 
 #[inline]
 fn destack_io_timerfd_set_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TimerFdHandle,
     spec: TimerFdSpecVm,
     flags: TimerFdSetFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_TIMERFD_SET,
-        runtime.replay_payload_for(IO_TIMERFD_SET)?,
+        binding.replay_payload_for(IO_TIMERFD_SET)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_io_timer_fd_set(runtime, context, handle, spec, flags)
+                platform_vm::destack_io_timer_fd_set(binding, context, handle, spec, flags)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_io_timer_fd_set(
-                runtime, context, handle, spec, flags,
+                binding, context, handle, spec, flags,
             ),
         },
         |context, result| {
@@ -6904,19 +6903,19 @@ fn destack_io_timerfd_set_vm_replay(
 
 #[inline]
 fn destack_io_uring_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_URING_CLOSE,
-        runtime.replay_payload_for(IO_URING_CLOSE)?,
+        binding.replay_payload_for(IO_URING_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_io_uring_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_io_uring_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_uring_close(runtime, context, handle)
+                platform_simulation_vm::destack_io_uring_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -6954,19 +6953,19 @@ fn destack_io_uring_close_vm_replay(
 
 #[inline]
 fn destack_io_uring_features_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_URING_FEATURES,
-        runtime.replay_payload_for(IO_URING_FEATURES)?,
+        binding.replay_payload_for(IO_URING_FEATURES)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_io_uring_features(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_io_uring_features(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_uring_features(runtime, context, handle)
+                platform_simulation_vm::destack_io_uring_features(binding, context, handle)
             }
         },
         |context, result| {
@@ -7030,19 +7029,19 @@ fn destack_io_uring_features_vm_replay(
 
 #[inline]
 fn destack_io_uring_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     parameters: UringParametersVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_URING_OPEN,
-        runtime.replay_payload_for(IO_URING_OPEN)?,
+        binding.replay_payload_for(IO_URING_OPEN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_io_uring_open(runtime, context, parameters),
+            RuntimeWorld::Host => platform_vm::destack_io_uring_open(binding, context, parameters),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_uring_open(runtime, context, parameters)
+                platform_simulation_vm::destack_io_uring_open(binding, context, parameters)
             }
         },
         |context, result| {
@@ -7084,23 +7083,23 @@ fn destack_io_uring_open_vm_replay(
 
 #[inline]
 fn destack_io_uring_register_buffers_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UringHandle,
     addresses: VmSlice<u64>,
     lengths: VmSlice<u32>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_URING_REGISTER_BUFFERS,
-        runtime.replay_payload_for(IO_URING_REGISTER_BUFFERS)?,
+        binding.replay_payload_for(IO_URING_REGISTER_BUFFERS)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_io_uring_register_buffers(
-                runtime, context, handle, addresses, lengths,
+                binding, context, handle, addresses, lengths,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_io_uring_register_buffers(
-                runtime, context, handle, addresses, lengths,
+                binding, context, handle, addresses, lengths,
             ),
         },
         |context, result| {
@@ -7138,22 +7137,22 @@ fn destack_io_uring_register_buffers_vm_replay(
 
 #[inline]
 fn destack_io_uring_register_files_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UringHandle,
     files: VmSlice<resource::ResourceId>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_URING_REGISTER_FILES,
-        runtime.replay_payload_for(IO_URING_REGISTER_FILES)?,
+        binding.replay_payload_for(IO_URING_REGISTER_FILES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_io_uring_register_files(runtime, context, handle, files)
+                platform_vm::destack_io_uring_register_files(binding, context, handle, files)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_io_uring_register_files(
-                runtime, context, handle, files,
+                binding, context, handle, files,
             ),
         },
         |context, result| {
@@ -7191,22 +7190,22 @@ fn destack_io_uring_register_files_vm_replay(
 
 #[inline]
 fn destack_io_uring_unregister_buffers_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_URING_UNREGISTER_BUFFERS,
-        runtime.replay_payload_for(IO_URING_UNREGISTER_BUFFERS)?,
+        binding.replay_payload_for(IO_URING_UNREGISTER_BUFFERS)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_io_uring_unregister_buffers(runtime, context, handle)
+                platform_vm::destack_io_uring_unregister_buffers(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_io_uring_unregister_buffers(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -7245,21 +7244,21 @@ fn destack_io_uring_unregister_buffers_vm_replay(
 
 #[inline]
 fn destack_io_uring_unregister_files_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         IO_URING_UNREGISTER_FILES,
-        runtime.replay_payload_for(IO_URING_UNREGISTER_FILES)?,
+        binding.replay_payload_for(IO_URING_UNREGISTER_FILES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_io_uring_unregister_files(runtime, context, handle)
+                platform_vm::destack_io_uring_unregister_files(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_io_uring_unregister_files(runtime, context, handle)
+                platform_simulation_vm::destack_io_uring_unregister_files(binding, context, handle)
             }
         },
         |context, result| {
@@ -7303,14 +7302,14 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_COMPLETION_CANCEL,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, target) = decode_destack_io_completion_cancel_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(IO_COMPLETION_CANCEL)?;
-                    destack_io_completion_cancel_vm_replay(runtime, context, world, handle, target)
+                        binding.on_before_binding_resolve_world(IO_COMPLETION_CANCEL)?;
+                    destack_io_completion_cancel_vm_replay(binding, context, world, handle, target)
                 })
                 .map_err(Into::into)
             }
@@ -7322,14 +7321,14 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_COMPLETION_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_io_completion_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(IO_COMPLETION_CLOSE)?;
-                    destack_io_completion_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(IO_COMPLETION_CLOSE)?;
+                    destack_io_completion_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -7341,16 +7340,16 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_COMPLETION_ENTER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, mincomplete, timeoutns, flags) =
                         decode_destack_io_completion_enter_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(IO_COMPLETION_ENTER)?;
+                        binding.on_before_binding_resolve_world(IO_COMPLETION_ENTER)?;
                     destack_io_completion_enter_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -7369,14 +7368,14 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_COMPLETION_OPEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (entries,) = decode_destack_io_completion_open_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(IO_COMPLETION_OPEN)?;
-                    destack_io_completion_open_vm_replay(runtime, context, world, entries)
+                        binding.on_before_binding_resolve_world(IO_COMPLETION_OPEN)?;
+                    destack_io_completion_open_vm_replay(binding, context, world, entries)
                 })
                 .map_err(Into::into)
             }
@@ -7388,16 +7387,16 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_COMPLETION_SUBMIT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, operation) =
                         decode_destack_io_completion_submit_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(IO_COMPLETION_SUBMIT)?;
+                        binding.on_before_binding_resolve_world(IO_COMPLETION_SUBMIT)?;
                     destack_io_completion_submit_vm_replay(
-                        runtime, context, world, handle, operation,
+                        binding, context, world, handle, operation,
                     )
                 })
                 .map_err(Into::into)
@@ -7410,16 +7409,16 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_COMPLETION_SUBMIT_BATCH,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, operationwords, operationcount, operationwordstride) =
                         decode_destack_io_completion_submit_batch_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(IO_COMPLETION_SUBMIT_BATCH)?;
+                        binding.on_before_binding_resolve_world(IO_COMPLETION_SUBMIT_BATCH)?;
                     destack_io_completion_submit_batch_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -7438,16 +7437,16 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_COMPLETION_WAIT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, timeoutns, maxevents) =
                         decode_destack_io_completion_wait_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(IO_COMPLETION_WAIT)?;
+                        binding.on_before_binding_resolve_world(IO_COMPLETION_WAIT)?;
                     destack_io_completion_wait_vm_replay(
-                        runtime, context, world, handle, timeoutns, maxevents,
+                        binding, context, world, handle, timeoutns, maxevents,
                     )
                 })
                 .map_err(Into::into)
@@ -7456,16 +7455,16 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_CONTROL_FCNTL, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, command, argument, flags) =
                     decode_destack_io_control_fcntl_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_CONTROL_FCNTL)?;
+                    binding.on_before_binding_resolve_world(IO_CONTROL_FCNTL)?;
                 destack_io_control_fcntl_vm_replay(
-                    runtime, context, world, handle, command, argument, flags,
+                    binding, context, world, handle, command, argument, flags,
                 )
             })
             .map_err(Into::into)
@@ -7473,28 +7472,28 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_CONTROL_IOCTL, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, request) = decode_destack_io_control_ioctl_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_CONTROL_IOCTL)?;
-                destack_io_control_ioctl_vm_replay(runtime, context, world, handle, request)
+                    binding.on_before_binding_resolve_world(IO_CONTROL_IOCTL)?;
+                destack_io_control_ioctl_vm_replay(binding, context, world, handle, request)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, IO_DEVICE_CLOSE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_io_device_close_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_DEVICE_CLOSE)?;
-                destack_io_device_close_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(IO_DEVICE_CLOSE)?;
+                destack_io_device_close_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
@@ -7505,14 +7504,14 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_DEVICE_CONTROL,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, request) = decode_destack_io_device_control_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(IO_DEVICE_CONTROL)?;
-                    destack_io_device_control_vm_replay(runtime, context, world, handle, request)
+                        binding.on_before_binding_resolve_world(IO_DEVICE_CONTROL)?;
+                    destack_io_device_control_vm_replay(binding, context, world, handle, request)
                 })
                 .map_err(Into::into)
             }
@@ -7520,112 +7519,112 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_DEVICE_OPEN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path, flags, mode) = decode_destack_io_device_open_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_DEVICE_OPEN)?;
-                destack_io_device_open_vm_replay(runtime, context, world, path, flags, mode)
+                    binding.on_before_binding_resolve_world(IO_DEVICE_OPEN)?;
+                destack_io_device_open_vm_replay(binding, context, world, path, flags, mode)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, IO_DEVICE_READ, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, buffer) = decode_destack_io_device_read_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_DEVICE_READ)?;
-                destack_io_device_read_vm_replay(runtime, context, world, handle, buffer)
+                    binding.on_before_binding_resolve_world(IO_DEVICE_READ)?;
+                destack_io_device_read_vm_replay(binding, context, world, handle, buffer)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, IO_DEVICE_WRITE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, buffer) = decode_destack_io_device_write_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_DEVICE_WRITE)?;
-                destack_io_device_write_vm_replay(runtime, context, world, handle, buffer)
+                    binding.on_before_binding_resolve_world(IO_DEVICE_WRITE)?;
+                destack_io_device_write_vm_replay(binding, context, world, handle, buffer)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, IO_EVENT_ATTACH, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (token, target, key) = decode_destack_io_event_attach_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_EVENT_ATTACH)?;
-                destack_io_event_attach_vm_replay(runtime, context, world, token, target, key)
+                    binding.on_before_binding_resolve_world(IO_EVENT_ATTACH)?;
+                destack_io_event_attach_vm_replay(binding, context, world, token, target, key)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, IO_EVENT_CLOSE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (token,) = decode_destack_io_event_close_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_EVENT_CLOSE)?;
-                destack_io_event_close_vm_replay(runtime, context, world, token)
+                    binding.on_before_binding_resolve_world(IO_EVENT_CLOSE)?;
+                destack_io_event_close_vm_replay(binding, context, world, token)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, IO_EVENT_OPEN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (initial,) = decode_destack_io_event_open_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_EVENT_OPEN)?;
-                destack_io_event_open_vm_replay(runtime, context, world, initial)
+                    binding.on_before_binding_resolve_world(IO_EVENT_OPEN)?;
+                destack_io_event_open_vm_replay(binding, context, world, initial)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, IO_EVENT_SIGNAL, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (token, argument_value) = decode_destack_io_event_signal_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_EVENT_SIGNAL)?;
-                destack_io_event_signal_vm_replay(runtime, context, world, token, argument_value)
+                    binding.on_before_binding_resolve_world(IO_EVENT_SIGNAL)?;
+                destack_io_event_signal_vm_replay(binding, context, world, token, argument_value)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, IO_POLL_CLOSE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_io_poll_close_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_POLL_CLOSE)?;
-                destack_io_poll_close_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(IO_POLL_CLOSE)?;
+                destack_io_poll_close_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
@@ -7636,14 +7635,14 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_POLL_DEREGISTER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, target) = decode_destack_io_poll_deregister_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(IO_POLL_DEREGISTER)?;
-                    destack_io_poll_deregister_vm_replay(runtime, context, world, handle, target)
+                        binding.on_before_binding_resolve_world(IO_POLL_DEREGISTER)?;
+                    destack_io_poll_deregister_vm_replay(binding, context, world, handle, target)
                 })
                 .map_err(Into::into)
             }
@@ -7651,30 +7650,30 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_POLL_OPEN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (backend,) = decode_destack_io_poll_open_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_POLL_OPEN)?;
-                destack_io_poll_open_vm_replay(runtime, context, world, backend)
+                    binding.on_before_binding_resolve_world(IO_POLL_OPEN)?;
+                destack_io_poll_open_vm_replay(binding, context, world, backend)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, IO_POLL_REGISTER, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, target, key, interest) =
                     decode_destack_io_poll_register_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_POLL_REGISTER)?;
+                    binding.on_before_binding_resolve_world(IO_POLL_REGISTER)?;
                 destack_io_poll_register_vm_replay(
-                    runtime, context, world, handle, target, key, interest,
+                    binding, context, world, handle, target, key, interest,
                 )
             })
             .map_err(Into::into)
@@ -7682,16 +7681,16 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_POLL_UPDATE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, target, key, interest) =
                     decode_destack_io_poll_update_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_POLL_UPDATE)?;
+                    binding.on_before_binding_resolve_world(IO_POLL_UPDATE)?;
                 destack_io_poll_update_vm_replay(
-                    runtime, context, world, handle, target, key, interest,
+                    binding, context, world, handle, target, key, interest,
                 )
             })
             .map_err(Into::into)
@@ -7699,16 +7698,16 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_POLL_WAIT, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, timeoutns, maxevents) =
                     decode_destack_io_poll_wait_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_POLL_WAIT)?;
+                    binding.on_before_binding_resolve_world(IO_POLL_WAIT)?;
                 destack_io_poll_wait_vm_replay(
-                    runtime, context, world, handle, timeoutns, maxevents,
+                    binding, context, world, handle, timeoutns, maxevents,
                 )
             })
             .map_err(Into::into)
@@ -7716,84 +7715,84 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_TIMERFD_CLOSE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_io_timerfd_close_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_TIMERFD_CLOSE)?;
-                destack_io_timerfd_close_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(IO_TIMERFD_CLOSE)?;
+                destack_io_timerfd_close_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, IO_TIMERFD_GET, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_io_timerfd_get_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_TIMERFD_GET)?;
-                destack_io_timerfd_get_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(IO_TIMERFD_GET)?;
+                destack_io_timerfd_get_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, IO_TIMERFD_OPEN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (clock, flags) = decode_destack_io_timerfd_open_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_TIMERFD_OPEN)?;
-                destack_io_timerfd_open_vm_replay(runtime, context, world, clock, flags)
+                    binding.on_before_binding_resolve_world(IO_TIMERFD_OPEN)?;
+                destack_io_timerfd_open_vm_replay(binding, context, world, clock, flags)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, IO_TIMERFD_READ, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_io_timerfd_read_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_TIMERFD_READ)?;
-                destack_io_timerfd_read_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(IO_TIMERFD_READ)?;
+                destack_io_timerfd_read_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, IO_TIMERFD_SET, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, spec, flags) = decode_destack_io_timerfd_set_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_TIMERFD_SET)?;
-                destack_io_timerfd_set_vm_replay(runtime, context, world, handle, spec, flags)
+                    binding.on_before_binding_resolve_world(IO_TIMERFD_SET)?;
+                destack_io_timerfd_set_vm_replay(binding, context, world, handle, spec, flags)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, IO_URING_CLOSE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_io_uring_close_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_URING_CLOSE)?;
-                destack_io_uring_close_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(IO_URING_CLOSE)?;
+                destack_io_uring_close_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
@@ -7804,14 +7803,14 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_URING_FEATURES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_io_uring_features_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(IO_URING_FEATURES)?;
-                    destack_io_uring_features_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(IO_URING_FEATURES)?;
+                    destack_io_uring_features_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -7819,14 +7818,14 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, IO_URING_OPEN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (parameters,) = decode_destack_io_uring_open_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(IO_URING_OPEN)?;
-                destack_io_uring_open_vm_replay(runtime, context, world, parameters)
+                    binding.on_before_binding_resolve_world(IO_URING_OPEN)?;
+                destack_io_uring_open_vm_replay(binding, context, world, parameters)
             })
             .map_err(Into::into)
         });
@@ -7837,16 +7836,16 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_URING_REGISTER_BUFFERS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, addresses, lengths) =
                         decode_destack_io_uring_register_buffers_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(IO_URING_REGISTER_BUFFERS)?;
+                        binding.on_before_binding_resolve_world(IO_URING_REGISTER_BUFFERS)?;
                     destack_io_uring_register_buffers_vm_replay(
-                        runtime, context, world, handle, addresses, lengths,
+                        binding, context, world, handle, addresses, lengths,
                     )
                 })
                 .map_err(Into::into)
@@ -7859,16 +7858,16 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_URING_REGISTER_FILES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, files) =
                         decode_destack_io_uring_register_files_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(IO_URING_REGISTER_FILES)?;
+                        binding.on_before_binding_resolve_world(IO_URING_REGISTER_FILES)?;
                     destack_io_uring_register_files_vm_replay(
-                        runtime, context, world, handle, files,
+                        binding, context, world, handle, files,
                     )
                 })
                 .map_err(Into::into)
@@ -7881,14 +7880,14 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_URING_UNREGISTER_BUFFERS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_io_uring_unregister_buffers_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(IO_URING_UNREGISTER_BUFFERS)?;
-                    destack_io_uring_unregister_buffers_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(IO_URING_UNREGISTER_BUFFERS)?;
+                    destack_io_uring_unregister_buffers_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -7900,14 +7899,14 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             IO_URING_UNREGISTER_FILES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_io_uring_unregister_files_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(IO_URING_UNREGISTER_FILES)?;
-                    destack_io_uring_unregister_files_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(IO_URING_UNREGISTER_FILES)?;
+                    destack_io_uring_unregister_files_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }

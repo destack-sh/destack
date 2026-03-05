@@ -35,7 +35,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_umask(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u32,
     mask: u32,
 ) -> RuntimeResult<()> {

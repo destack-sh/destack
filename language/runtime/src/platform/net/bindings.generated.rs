@@ -27,14 +27,13 @@ use crate::platform::net::{
     UdpSourceMembershipV6, UdpSourceMembershipV6Vm, UdsAddress, UdsAddressVm,
 };
 use crate::platform::{
-    NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
-    abi as platform_abi,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec,
+    VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
     BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
-use crate::runtime::{NativeSlice, NativeStringRef};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
@@ -6885,22 +6884,22 @@ pub const NET_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for net bindings.
 #[inline]
 fn destack_net_address_local_address_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut SocketAddress,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_ADDRESS_LOCAL_ADDRESS,
-        context.replay_payload_for(NET_ADDRESS_LOCAL_ADDRESS)?,
+        binding.replay_payload_for(NET_ADDRESS_LOCAL_ADDRESS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_local_address(context, out, handle)
+                platform_native::destack_net_local_address(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_local_address(context, out, handle)
+                platform_simulation_native::destack_net_local_address(binding, out, handle)
             },
         },
         |result| {
@@ -6952,7 +6951,7 @@ fn destack_net_address_local_address_replay(
                         let value_native_bytes_item_native = value_native_bytes_item;
                         value_native_bytes_values.push(value_native_bytes_item_native);
                     }
-                    let value_native_bytes = context.store_array(value_native_bytes_values);
+                    let value_native_bytes = binding.store_array(value_native_bytes_values);
                     let value_native = SocketAddress {
                         family: value_native_family,
                         length: value_native_length,
@@ -6971,22 +6970,22 @@ fn destack_net_address_local_address_replay(
 
 #[inline]
 fn destack_net_address_peer_address_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut SocketAddress,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_ADDRESS_PEER_ADDRESS,
-        context.replay_payload_for(NET_ADDRESS_PEER_ADDRESS)?,
+        binding.replay_payload_for(NET_ADDRESS_PEER_ADDRESS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_peer_address(context, out, handle)
+                platform_native::destack_net_peer_address(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_peer_address(context, out, handle)
+                platform_simulation_native::destack_net_peer_address(binding, out, handle)
             },
         },
         |result| {
@@ -7038,7 +7037,7 @@ fn destack_net_address_peer_address_replay(
                         let value_native_bytes_item_native = value_native_bytes_item;
                         value_native_bytes_values.push(value_native_bytes_item_native);
                     }
-                    let value_native_bytes = context.store_array(value_native_bytes_values);
+                    let value_native_bytes = binding.store_array(value_native_bytes_values);
                     let value_native = SocketAddress {
                         family: value_native_family,
                         length: value_native_length,
@@ -7057,22 +7056,22 @@ fn destack_net_address_peer_address_replay(
 
 #[inline]
 fn destack_net_interface_interface_index_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = &name;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_INTERFACE_INTERFACE_INDEX,
-        context.replay_payload_for(NET_INTERFACE_INTERFACE_INDEX)?,
+        binding.replay_payload_for(NET_INTERFACE_INTERFACE_INDEX)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_interface_index(context, out, name)
+                platform_native::destack_net_interface_index(binding, out, name)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_interface_index(context, out, name)
+                platform_simulation_native::destack_net_interface_index(binding, out, name)
             },
         },
         |result| {
@@ -7118,22 +7117,22 @@ fn destack_net_interface_interface_index_replay(
 
 #[inline]
 fn destack_net_interface_interface_name_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeStringRef,
     index: u32,
 ) -> RuntimeResult<()> {
     let _ = &index;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_INTERFACE_INTERFACE_NAME,
-        context.replay_payload_for(NET_INTERFACE_INTERFACE_NAME)?,
+        binding.replay_payload_for(NET_INTERFACE_INTERFACE_NAME)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_interface_name(context, out, index)
+                platform_native::destack_net_interface_name(binding, out, index)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_interface_name(context, out, index)
+                platform_simulation_native::destack_net_interface_name(binding, out, index)
             },
         },
         |result| {
@@ -7165,7 +7164,7 @@ fn destack_net_interface_interface_name_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native = context.store_string(&value);
+                    let value_native = binding.store_string(&value);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -7179,16 +7178,16 @@ fn destack_net_interface_interface_name_replay(
 
 #[inline]
 fn destack_net_interface_list_interfaces_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<NetInterface>,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_INTERFACE_LIST_INTERFACES,
-        context.replay_payload_for(NET_INTERFACE_LIST_INTERFACES)?,
+        binding.replay_payload_for(NET_INTERFACE_LIST_INTERFACES)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_net_list_interfaces(context, out) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_net_list_interfaces(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_net_list_interfaces(binding, out) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_net_list_interfaces(binding, out) },
         },
         |result| {
             if let Ok(()) = result {
@@ -7265,7 +7264,7 @@ fn destack_net_interface_list_interfaces_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
-                        let value_native_item_native_name = context.store_string(&value_native_item.name);
+                        let value_native_item_native_name = binding.store_string(&value_native_item.name);
                         let value_native_item_native_index = value_native_item.index;
                         let value_native_item_native_flags = value_native_item.flags;
                         let value_native_item_native_mtu = value_native_item.mtu;
@@ -7274,7 +7273,7 @@ fn destack_net_interface_list_interfaces_replay(
                             let value_native_item_native_mac_address_item_native = value_native_item_native_mac_address_item;
                             value_native_item_native_mac_address_values.push(value_native_item_native_mac_address_item_native);
                         }
-                        let value_native_item_native_mac_address = context.store_array(value_native_item_native_mac_address_values);
+                        let value_native_item_native_mac_address = binding.store_array(value_native_item_native_mac_address_values);
                         let mut value_native_item_native_addresses_values = Vec::with_capacity(value_native_item.addresses.len());
                         for value_native_item_native_addresses_item in value_native_item.addresses {
                             let value_native_item_native_addresses_item_native_family = value_native_item_native_addresses_item.family;
@@ -7284,7 +7283,7 @@ fn destack_net_interface_list_interfaces_replay(
                                 let value_native_item_native_addresses_item_native_bytes_item_native = value_native_item_native_addresses_item_native_bytes_item;
                                 value_native_item_native_addresses_item_native_bytes_values.push(value_native_item_native_addresses_item_native_bytes_item_native);
                             }
-                            let value_native_item_native_addresses_item_native_bytes = context.store_array(value_native_item_native_addresses_item_native_bytes_values);
+                            let value_native_item_native_addresses_item_native_bytes = binding.store_array(value_native_item_native_addresses_item_native_bytes_values);
                             let value_native_item_native_addresses_item_native = SocketAddress {
                                 family: value_native_item_native_addresses_item_native_family,
                                 length: value_native_item_native_addresses_item_native_length,
@@ -7292,7 +7291,7 @@ fn destack_net_interface_list_interfaces_replay(
                             };
                             value_native_item_native_addresses_values.push(value_native_item_native_addresses_item_native);
                         }
-                        let value_native_item_native_addresses = context.store_array(value_native_item_native_addresses_values);
+                        let value_native_item_native_addresses = binding.store_array(value_native_item_native_addresses_values);
                         let value_native_item_native = NetInterface {
                             name: value_native_item_native_name,
                             index: value_native_item_native_index,
@@ -7303,7 +7302,7 @@ fn destack_net_interface_list_interfaces_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
@@ -7315,7 +7314,7 @@ fn destack_net_interface_list_interfaces_replay(
 
 #[inline]
 fn destack_net_listener_accept_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::SocketHandle,
     listener: resource::ListenerHandle,
@@ -7323,15 +7322,15 @@ fn destack_net_listener_accept_replay(
 ) -> RuntimeResult<()> {
     let _ = (&listener, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_LISTENER_ACCEPT,
-        context.replay_payload_for(NET_LISTENER_ACCEPT)?,
+        binding.replay_payload_for(NET_LISTENER_ACCEPT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_accept(context, out, listener, flags)
+                platform_native::destack_net_accept(binding, out, listener, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_accept(context, out, listener, flags)
+                platform_simulation_native::destack_net_accept(binding, out, listener, flags)
             },
         },
         |result| {
@@ -7377,22 +7376,22 @@ fn destack_net_listener_accept_replay(
 
 #[inline]
 fn destack_net_listener_bind_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &address);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_LISTENER_BIND,
-        context.replay_payload_for(NET_LISTENER_BIND)?,
+        binding.replay_payload_for(NET_LISTENER_BIND)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_bind(context, handle, address)
+                platform_native::destack_net_bind(binding, handle, address)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_bind(context, handle, address)
+                platform_simulation_native::destack_net_bind(binding, handle, address)
             },
         },
         |result| {
@@ -7426,21 +7425,21 @@ fn destack_net_listener_bind_replay(
 
 #[inline]
 fn destack_net_listener_close_listener_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::ListenerHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_LISTENER_CLOSE_LISTENER,
-        context.replay_payload_for(NET_LISTENER_CLOSE_LISTENER)?,
+        binding.replay_payload_for(NET_LISTENER_CLOSE_LISTENER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_close_listener(context, handle)
+                platform_native::destack_net_close_listener(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_close_listener(context, handle)
+                platform_simulation_native::destack_net_close_listener(binding, handle)
             },
         },
         |result| {
@@ -7474,7 +7473,7 @@ fn destack_net_listener_close_listener_replay(
 
 #[inline]
 fn destack_net_listener_listen_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::ListenerHandle,
     address: SocketAddress,
@@ -7482,15 +7481,15 @@ fn destack_net_listener_listen_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &backlog);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_LISTENER_LISTEN,
-        context.replay_payload_for(NET_LISTENER_LISTEN)?,
+        binding.replay_payload_for(NET_LISTENER_LISTEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_listen(context, out, address, backlog)
+                platform_native::destack_net_listen(binding, out, address, backlog)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_listen(context, out, address, backlog)
+                platform_simulation_native::destack_net_listen(binding, out, address, backlog)
             },
         },
         |result| {
@@ -7536,22 +7535,22 @@ fn destack_net_listener_listen_replay(
 
 #[inline]
 fn destack_net_options_get_broadcast_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut bool,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_GET_BROADCAST,
-        context.replay_payload_for(NET_OPTIONS_GET_BROADCAST)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_BROADCAST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_get_broadcast(context, out, handle)
+                platform_native::destack_net_get_broadcast(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_get_broadcast(context, out, handle)
+                platform_simulation_native::destack_net_get_broadcast(binding, out, handle)
             },
         },
         |result| {
@@ -7597,22 +7596,22 @@ fn destack_net_options_get_broadcast_replay(
 
 #[inline]
 fn destack_net_options_get_linger_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut Linger,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_GET_LINGER,
-        context.replay_payload_for(NET_OPTIONS_GET_LINGER)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_LINGER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_get_linger(context, out, handle)
+                platform_native::destack_net_get_linger(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_get_linger(context, out, handle)
+                platform_simulation_native::destack_net_get_linger(binding, out, handle)
             },
         },
         |result| {
@@ -7668,22 +7667,22 @@ fn destack_net_options_get_linger_replay(
 
 #[inline]
 fn destack_net_options_get_only_v6_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut bool,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_GET_ONLY_V6,
-        context.replay_payload_for(NET_OPTIONS_GET_ONLY_V6)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_ONLY_V6)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_get_only_v6(context, out, handle)
+                platform_native::destack_net_get_only_v6(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_get_only_v6(context, out, handle)
+                platform_simulation_native::destack_net_get_only_v6(binding, out, handle)
             },
         },
         |result| {
@@ -7729,22 +7728,22 @@ fn destack_net_options_get_only_v6_replay(
 
 #[inline]
 fn destack_net_options_get_packet_mark_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_GET_PACKET_MARK,
-        context.replay_payload_for(NET_OPTIONS_GET_PACKET_MARK)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_PACKET_MARK)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_get_packet_mark(context, out, handle)
+                platform_native::destack_net_get_packet_mark(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_get_packet_mark(context, out, handle)
+                platform_simulation_native::destack_net_get_packet_mark(binding, out, handle)
             },
         },
         |result| {
@@ -7790,22 +7789,22 @@ fn destack_net_options_get_packet_mark_replay(
 
 #[inline]
 fn destack_net_options_get_read_timeout_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_GET_READ_TIMEOUT,
-        context.replay_payload_for(NET_OPTIONS_GET_READ_TIMEOUT)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_READ_TIMEOUT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_get_read_timeout(context, out, handle)
+                platform_native::destack_net_get_read_timeout(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_get_read_timeout(context, out, handle)
+                platform_simulation_native::destack_net_get_read_timeout(binding, out, handle)
             },
         },
         |result| {
@@ -7851,22 +7850,22 @@ fn destack_net_options_get_read_timeout_replay(
 
 #[inline]
 fn destack_net_options_get_recv_buffer_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_GET_RECV_BUFFER,
-        context.replay_payload_for(NET_OPTIONS_GET_RECV_BUFFER)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_RECV_BUFFER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_get_recv_buffer(context, out, handle)
+                platform_native::destack_net_get_recv_buffer(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_get_recv_buffer(context, out, handle)
+                platform_simulation_native::destack_net_get_recv_buffer(binding, out, handle)
             },
         },
         |result| {
@@ -7912,22 +7911,22 @@ fn destack_net_options_get_recv_buffer_replay(
 
 #[inline]
 fn destack_net_options_get_send_buffer_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_GET_SEND_BUFFER,
-        context.replay_payload_for(NET_OPTIONS_GET_SEND_BUFFER)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_SEND_BUFFER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_get_send_buffer(context, out, handle)
+                platform_native::destack_net_get_send_buffer(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_get_send_buffer(context, out, handle)
+                platform_simulation_native::destack_net_get_send_buffer(binding, out, handle)
             },
         },
         |result| {
@@ -7973,7 +7972,7 @@ fn destack_net_options_get_send_buffer_replay(
 
 #[inline]
 fn destack_net_options_get_sock_opt_raw_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<u8>,
     handle: resource::SocketHandle,
@@ -7983,18 +7982,18 @@ fn destack_net_options_get_sock_opt_raw_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &level, &name, &maxbytes);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_GET_SOCK_OPT_RAW,
-        context.replay_payload_for(NET_OPTIONS_GET_SOCK_OPT_RAW)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_SOCK_OPT_RAW)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_get_sock_opt_raw(
-                    context, out, handle, level, name, maxbytes,
+                    binding, out, handle, level, name, maxbytes,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_get_sock_opt_raw(
-                    context, out, handle, level, name, maxbytes,
+                    binding, out, handle, level, name, maxbytes,
                 )
             },
         },
@@ -8038,7 +8037,7 @@ fn destack_net_options_get_sock_opt_raw_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -8052,22 +8051,22 @@ fn destack_net_options_get_sock_opt_raw_replay(
 
 #[inline]
 fn destack_net_options_get_timestamping_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut SocketTimestampingMode,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_GET_TIMESTAMPING,
-        context.replay_payload_for(NET_OPTIONS_GET_TIMESTAMPING)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_TIMESTAMPING)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_get_timestamping(context, out, handle)
+                platform_native::destack_net_get_timestamping(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_get_timestamping(context, out, handle)
+                platform_simulation_native::destack_net_get_timestamping(binding, out, handle)
             },
         },
         |result| {
@@ -8113,22 +8112,22 @@ fn destack_net_options_get_timestamping_replay(
 
 #[inline]
 fn destack_net_options_get_tos_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_GET_TOS,
-        context.replay_payload_for(NET_OPTIONS_GET_TOS)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_TOS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_get_tos(context, out, handle)
+                platform_native::destack_net_get_tos(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_get_tos(context, out, handle)
+                platform_simulation_native::destack_net_get_tos(binding, out, handle)
             },
         },
         |result| {
@@ -8174,22 +8173,22 @@ fn destack_net_options_get_tos_replay(
 
 #[inline]
 fn destack_net_options_get_ttl_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_GET_TTL,
-        context.replay_payload_for(NET_OPTIONS_GET_TTL)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_TTL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_get_ttl(context, out, handle)
+                platform_native::destack_net_get_ttl(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_get_ttl(context, out, handle)
+                platform_simulation_native::destack_net_get_ttl(binding, out, handle)
             },
         },
         |result| {
@@ -8235,22 +8234,22 @@ fn destack_net_options_get_ttl_replay(
 
 #[inline]
 fn destack_net_options_get_write_timeout_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_GET_WRITE_TIMEOUT,
-        context.replay_payload_for(NET_OPTIONS_GET_WRITE_TIMEOUT)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_WRITE_TIMEOUT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_get_write_timeout(context, out, handle)
+                platform_native::destack_net_get_write_timeout(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_get_write_timeout(context, out, handle)
+                platform_simulation_native::destack_net_get_write_timeout(binding, out, handle)
             },
         },
         |result| {
@@ -8296,22 +8295,22 @@ fn destack_net_options_get_write_timeout_replay(
 
 #[inline]
 fn destack_net_options_set_broadcast_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_SET_BROADCAST,
-        context.replay_payload_for(NET_OPTIONS_SET_BROADCAST)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_BROADCAST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_broadcast(context, handle, enabled)
+                platform_native::destack_net_set_broadcast(binding, handle, enabled)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_set_broadcast(context, handle, enabled)
+                platform_simulation_native::destack_net_set_broadcast(binding, handle, enabled)
             },
         },
         |result| {
@@ -8345,22 +8344,22 @@ fn destack_net_options_set_broadcast_replay(
 
 #[inline]
 fn destack_net_options_set_linger_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     linger: Linger,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &linger);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_SET_LINGER,
-        context.replay_payload_for(NET_OPTIONS_SET_LINGER)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_LINGER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_linger(context, handle, linger)
+                platform_native::destack_net_set_linger(binding, handle, linger)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_set_linger(context, handle, linger)
+                platform_simulation_native::destack_net_set_linger(binding, handle, linger)
             },
         },
         |result| {
@@ -8394,22 +8393,22 @@ fn destack_net_options_set_linger_replay(
 
 #[inline]
 fn destack_net_options_set_only_v6_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_SET_ONLY_V6,
-        context.replay_payload_for(NET_OPTIONS_SET_ONLY_V6)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_ONLY_V6)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_only_v6(context, handle, enabled)
+                platform_native::destack_net_set_only_v6(binding, handle, enabled)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_set_only_v6(context, handle, enabled)
+                platform_simulation_native::destack_net_set_only_v6(binding, handle, enabled)
             },
         },
         |result| {
@@ -8443,22 +8442,22 @@ fn destack_net_options_set_only_v6_replay(
 
 #[inline]
 fn destack_net_options_set_packet_mark_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     mark: u32,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mark);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_SET_PACKET_MARK,
-        context.replay_payload_for(NET_OPTIONS_SET_PACKET_MARK)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_PACKET_MARK)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_packet_mark(context, handle, mark)
+                platform_native::destack_net_set_packet_mark(binding, handle, mark)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_set_packet_mark(context, handle, mark)
+                platform_simulation_native::destack_net_set_packet_mark(binding, handle, mark)
             },
         },
         |result| {
@@ -8492,22 +8491,22 @@ fn destack_net_options_set_packet_mark_replay(
 
 #[inline]
 fn destack_net_options_set_read_timeout_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     timeoutms: u32,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutms);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_SET_READ_TIMEOUT,
-        context.replay_payload_for(NET_OPTIONS_SET_READ_TIMEOUT)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_READ_TIMEOUT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_read_timeout(context, handle, timeoutms)
+                platform_native::destack_net_set_read_timeout(binding, handle, timeoutms)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_set_read_timeout(context, handle, timeoutms)
+                platform_simulation_native::destack_net_set_read_timeout(binding, handle, timeoutms)
             },
         },
         |result| {
@@ -8541,22 +8540,22 @@ fn destack_net_options_set_read_timeout_replay(
 
 #[inline]
 fn destack_net_options_set_recv_buffer_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     size: u32,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &size);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_SET_RECV_BUFFER,
-        context.replay_payload_for(NET_OPTIONS_SET_RECV_BUFFER)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_RECV_BUFFER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_recv_buffer(context, handle, size)
+                platform_native::destack_net_set_recv_buffer(binding, handle, size)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_set_recv_buffer(context, handle, size)
+                platform_simulation_native::destack_net_set_recv_buffer(binding, handle, size)
             },
         },
         |result| {
@@ -8590,22 +8589,22 @@ fn destack_net_options_set_recv_buffer_replay(
 
 #[inline]
 fn destack_net_options_set_send_buffer_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     size: u32,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &size);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_SET_SEND_BUFFER,
-        context.replay_payload_for(NET_OPTIONS_SET_SEND_BUFFER)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_SEND_BUFFER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_send_buffer(context, handle, size)
+                platform_native::destack_net_set_send_buffer(binding, handle, size)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_set_send_buffer(context, handle, size)
+                platform_simulation_native::destack_net_set_send_buffer(binding, handle, size)
             },
         },
         |result| {
@@ -8639,7 +8638,7 @@ fn destack_net_options_set_send_buffer_replay(
 
 #[inline]
 fn destack_net_options_set_sock_opt_raw_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     level: SocketOptionLevel,
@@ -8648,13 +8647,13 @@ fn destack_net_options_set_sock_opt_raw_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &level, &name, &argument_value);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_SET_SOCK_OPT_RAW,
-        context.replay_payload_for(NET_OPTIONS_SET_SOCK_OPT_RAW)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_SOCK_OPT_RAW)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_set_sock_opt_raw(
-                    context,
+                    binding,
                     handle,
                     level,
                     name,
@@ -8663,7 +8662,7 @@ fn destack_net_options_set_sock_opt_raw_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_set_sock_opt_raw(
-                    context,
+                    binding,
                     handle,
                     level,
                     name,
@@ -8702,22 +8701,22 @@ fn destack_net_options_set_sock_opt_raw_replay(
 
 #[inline]
 fn destack_net_options_set_timestamping_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     mode: SocketTimestampingMode,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mode);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_SET_TIMESTAMPING,
-        context.replay_payload_for(NET_OPTIONS_SET_TIMESTAMPING)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_TIMESTAMPING)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_timestamping(context, handle, mode)
+                platform_native::destack_net_set_timestamping(binding, handle, mode)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_set_timestamping(context, handle, mode)
+                platform_simulation_native::destack_net_set_timestamping(binding, handle, mode)
             },
         },
         |result| {
@@ -8751,22 +8750,22 @@ fn destack_net_options_set_timestamping_replay(
 
 #[inline]
 fn destack_net_options_set_tos_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     tos: u32,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &tos);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_SET_TOS,
-        context.replay_payload_for(NET_OPTIONS_SET_TOS)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_TOS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_tos(context, handle, tos)
+                platform_native::destack_net_set_tos(binding, handle, tos)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_set_tos(context, handle, tos)
+                platform_simulation_native::destack_net_set_tos(binding, handle, tos)
             },
         },
         |result| {
@@ -8800,22 +8799,22 @@ fn destack_net_options_set_tos_replay(
 
 #[inline]
 fn destack_net_options_set_ttl_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     ttl: u32,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &ttl);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_SET_TTL,
-        context.replay_payload_for(NET_OPTIONS_SET_TTL)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_TTL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_ttl(context, handle, ttl)
+                platform_native::destack_net_set_ttl(binding, handle, ttl)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_set_ttl(context, handle, ttl)
+                platform_simulation_native::destack_net_set_ttl(binding, handle, ttl)
             },
         },
         |result| {
@@ -8849,23 +8848,23 @@ fn destack_net_options_set_ttl_replay(
 
 #[inline]
 fn destack_net_options_set_write_timeout_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     timeoutms: u32,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutms);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_OPTIONS_SET_WRITE_TIMEOUT,
-        context.replay_payload_for(NET_OPTIONS_SET_WRITE_TIMEOUT)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_WRITE_TIMEOUT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_write_timeout(context, handle, timeoutms)
+                platform_native::destack_net_set_write_timeout(binding, handle, timeoutms)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_set_write_timeout(
-                    context, handle, timeoutms,
+                    binding, handle, timeoutms,
                 )
             },
         },
@@ -8900,19 +8899,19 @@ fn destack_net_options_set_write_timeout_replay(
 
 #[inline]
 fn destack_net_raw_packet_backend_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<PacketBackendDescriptor>,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_RAW_PACKET_BACKEND_LIST,
-        context.replay_payload_for(NET_RAW_PACKET_BACKEND_LIST)?,
+        binding.replay_payload_for(NET_RAW_PACKET_BACKEND_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_packet_backend_list(context, out)
+                platform_native::destack_net_packet_backend_list(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_packet_backend_list(context, out)
+                platform_simulation_native::destack_net_packet_backend_list(binding, out)
             },
         },
         |result| {
@@ -8967,7 +8966,7 @@ fn destack_net_raw_packet_backend_list_replay(
                     for value_native_item in value {
                         let value_native_item_native_backend = value_native_item.backend;
                         let value_native_item_native_name =
-                            context.store_string(&value_native_item.name);
+                            binding.store_string(&value_native_item.name);
                         let value_native_item_native_available = value_native_item.available;
                         let value_native_item_native_priority = value_native_item.priority;
                         let value_native_item_native_capability_flags =
@@ -8981,7 +8980,7 @@ fn destack_net_raw_packet_backend_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -8995,21 +8994,21 @@ fn destack_net_raw_packet_backend_list_replay(
 
 #[inline]
 fn destack_net_raw_packet_clear_fanout_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_RAW_PACKET_CLEAR_FANOUT,
-        context.replay_payload_for(NET_RAW_PACKET_CLEAR_FANOUT)?,
+        binding.replay_payload_for(NET_RAW_PACKET_CLEAR_FANOUT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_packet_clear_fanout(context, handle)
+                platform_native::destack_net_packet_clear_fanout(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_packet_clear_fanout(context, handle)
+                platform_simulation_native::destack_net_packet_clear_fanout(binding, handle)
             },
         },
         |result| {
@@ -9043,21 +9042,21 @@ fn destack_net_raw_packet_clear_fanout_replay(
 
 #[inline]
 fn destack_net_raw_packet_clear_filter_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_RAW_PACKET_CLEAR_FILTER,
-        context.replay_payload_for(NET_RAW_PACKET_CLEAR_FILTER)?,
+        binding.replay_payload_for(NET_RAW_PACKET_CLEAR_FILTER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_packet_clear_filter(context, handle)
+                platform_native::destack_net_packet_clear_filter(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_packet_clear_filter(context, handle)
+                platform_simulation_native::destack_net_packet_clear_filter(binding, handle)
             },
         },
         |result| {
@@ -9091,21 +9090,21 @@ fn destack_net_raw_packet_clear_filter_replay(
 
 #[inline]
 fn destack_net_raw_packet_clear_ring_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_RAW_PACKET_CLEAR_RING,
-        context.replay_payload_for(NET_RAW_PACKET_CLEAR_RING)?,
+        binding.replay_payload_for(NET_RAW_PACKET_CLEAR_RING)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_packet_clear_ring(context, handle)
+                platform_native::destack_net_packet_clear_ring(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_packet_clear_ring(context, handle)
+                platform_simulation_native::destack_net_packet_clear_ring(binding, handle)
             },
         },
         |result| {
@@ -9139,22 +9138,22 @@ fn destack_net_raw_packet_clear_ring_replay(
 
 #[inline]
 fn destack_net_raw_packet_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::SocketHandle,
     options: PacketCaptureOptions,
 ) -> RuntimeResult<()> {
     let _ = &options;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_RAW_PACKET_OPEN,
-        context.replay_payload_for(NET_RAW_PACKET_OPEN)?,
+        binding.replay_payload_for(NET_RAW_PACKET_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_packet_open(context, out, options)
+                platform_native::destack_net_packet_open(binding, out, options)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_packet_open(context, out, options)
+                platform_simulation_native::destack_net_packet_open(binding, out, options)
             },
         },
         |result| {
@@ -9200,7 +9199,7 @@ fn destack_net_raw_packet_open_replay(
 
 #[inline]
 fn destack_net_raw_packet_receive_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut PacketCaptureRecord,
     handle: resource::SocketHandle,
@@ -9208,16 +9207,16 @@ fn destack_net_raw_packet_receive_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &argument_payload);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_RAW_PACKET_RECEIVE,
-        context.replay_payload_for(NET_RAW_PACKET_RECEIVE)?,
+        binding.replay_payload_for(NET_RAW_PACKET_RECEIVE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_packet_receive(context, out, handle, argument_payload)
+                platform_native::destack_net_packet_receive(binding, out, handle, argument_payload)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_packet_receive(
-                    context,
+                    binding,
                     out,
                     handle,
                     argument_payload,
@@ -9285,7 +9284,7 @@ fn destack_net_raw_packet_receive_replay(
 
 #[inline]
 fn destack_net_raw_packet_send_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::SocketHandle,
@@ -9293,16 +9292,16 @@ fn destack_net_raw_packet_send_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &argument_payload);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_RAW_PACKET_SEND,
-        context.replay_payload_for(NET_RAW_PACKET_SEND)?,
+        binding.replay_payload_for(NET_RAW_PACKET_SEND)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_packet_send(context, out, handle, argument_payload)
+                platform_native::destack_net_packet_send(binding, out, handle, argument_payload)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_packet_send(
-                    context,
+                    binding,
                     out,
                     handle,
                     argument_payload,
@@ -9352,22 +9351,22 @@ fn destack_net_raw_packet_send_replay(
 
 #[inline]
 fn destack_net_raw_packet_set_fanout_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     options: PacketFanoutOptions,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_RAW_PACKET_SET_FANOUT,
-        context.replay_payload_for(NET_RAW_PACKET_SET_FANOUT)?,
+        binding.replay_payload_for(NET_RAW_PACKET_SET_FANOUT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_packet_set_fanout(context, handle, options)
+                platform_native::destack_net_packet_set_fanout(binding, handle, options)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_packet_set_fanout(context, handle, options)
+                platform_simulation_native::destack_net_packet_set_fanout(binding, handle, options)
             },
         },
         |result| {
@@ -9401,23 +9400,23 @@ fn destack_net_raw_packet_set_fanout_replay(
 
 #[inline]
 fn destack_net_raw_packet_set_filter_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     filterprogram: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &filterprogram);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_RAW_PACKET_SET_FILTER,
-        context.replay_payload_for(NET_RAW_PACKET_SET_FILTER)?,
+        binding.replay_payload_for(NET_RAW_PACKET_SET_FILTER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_packet_set_filter(context, handle, filterprogram)
+                platform_native::destack_net_packet_set_filter(binding, handle, filterprogram)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_packet_set_filter(
-                    context,
+                    binding,
                     handle,
                     filterprogram,
                 )
@@ -9454,22 +9453,22 @@ fn destack_net_raw_packet_set_filter_replay(
 
 #[inline]
 fn destack_net_raw_packet_set_rx_ring_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     options: PacketRingOptions,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_RAW_PACKET_SET_RX_RING,
-        context.replay_payload_for(NET_RAW_PACKET_SET_RX_RING)?,
+        binding.replay_payload_for(NET_RAW_PACKET_SET_RX_RING)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_packet_set_rx_ring(context, handle, options)
+                platform_native::destack_net_packet_set_rx_ring(binding, handle, options)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_packet_set_rx_ring(context, handle, options)
+                platform_simulation_native::destack_net_packet_set_rx_ring(binding, handle, options)
             },
         },
         |result| {
@@ -9503,23 +9502,23 @@ fn destack_net_raw_packet_set_rx_ring_replay(
 
 #[inline]
 fn destack_net_raw_packet_set_timestamp_mode_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     mode: PacketTimestampMode,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mode);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_RAW_PACKET_SET_TIMESTAMP_MODE,
-        context.replay_payload_for(NET_RAW_PACKET_SET_TIMESTAMP_MODE)?,
+        binding.replay_payload_for(NET_RAW_PACKET_SET_TIMESTAMP_MODE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_packet_set_timestamp_mode(context, handle, mode)
+                platform_native::destack_net_packet_set_timestamp_mode(binding, handle, mode)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_packet_set_timestamp_mode(
-                    context, handle, mode,
+                    binding, handle, mode,
                 )
             },
         },
@@ -9554,22 +9553,22 @@ fn destack_net_raw_packet_set_timestamp_mode_replay(
 
 #[inline]
 fn destack_net_raw_packet_set_tx_ring_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     options: PacketRingOptions,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_RAW_PACKET_SET_TX_RING,
-        context.replay_payload_for(NET_RAW_PACKET_SET_TX_RING)?,
+        binding.replay_payload_for(NET_RAW_PACKET_SET_TX_RING)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_packet_set_tx_ring(context, handle, options)
+                platform_native::destack_net_packet_set_tx_ring(binding, handle, options)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_packet_set_tx_ring(context, handle, options)
+                platform_simulation_native::destack_net_packet_set_tx_ring(binding, handle, options)
             },
         },
         |result| {
@@ -9603,22 +9602,22 @@ fn destack_net_raw_packet_set_tx_ring_replay(
 
 #[inline]
 fn destack_net_raw_packet_stats_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut PacketCaptureStats,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_RAW_PACKET_STATS,
-        context.replay_payload_for(NET_RAW_PACKET_STATS)?,
+        binding.replay_payload_for(NET_RAW_PACKET_STATS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_packet_stats(context, out, handle)
+                platform_native::destack_net_packet_stats(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_packet_stats(context, out, handle)
+                platform_simulation_native::destack_net_packet_stats(binding, out, handle)
             },
         },
         |result| {
@@ -9679,23 +9678,23 @@ fn destack_net_raw_packet_stats_replay(
 
 #[inline]
 fn destack_net_raw_set_header_included_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_RAW_SET_HEADER_INCLUDED,
-        context.replay_payload_for(NET_RAW_SET_HEADER_INCLUDED)?,
+        binding.replay_payload_for(NET_RAW_SET_HEADER_INCLUDED)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_raw_set_header_included(context, handle, enabled)
+                platform_native::destack_net_raw_set_header_included(binding, handle, enabled)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_raw_set_header_included(
-                    context, handle, enabled,
+                    binding, handle, enabled,
                 )
             },
         },
@@ -9730,7 +9729,7 @@ fn destack_net_raw_set_header_included_replay(
 
 #[inline]
 fn destack_net_raw_socket_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::SocketHandle,
     family: SocketFamily,
@@ -9738,15 +9737,15 @@ fn destack_net_raw_socket_replay(
 ) -> RuntimeResult<()> {
     let _ = (&family, &protocol);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_RAW_SOCKET,
-        context.replay_payload_for(NET_RAW_SOCKET)?,
+        binding.replay_payload_for(NET_RAW_SOCKET)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_raw_socket(context, out, family, protocol)
+                platform_native::destack_net_raw_socket(binding, out, family, protocol)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_raw_socket(context, out, family, protocol)
+                platform_simulation_native::destack_net_raw_socket(binding, out, family, protocol)
             },
         },
         |result| {
@@ -9792,22 +9791,22 @@ fn destack_net_raw_socket_replay(
 
 #[inline]
 fn destack_net_resolve_lookup_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<SocketAddress>,
     query: ResolveQuery,
 ) -> RuntimeResult<()> {
     let _ = &query;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_RESOLVE_LOOKUP,
-        context.replay_payload_for(NET_RESOLVE_LOOKUP)?,
+        binding.replay_payload_for(NET_RESOLVE_LOOKUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_resolve(context, out, query)
+                platform_native::destack_net_resolve(binding, out, query)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_resolve(context, out, query)
+                platform_simulation_native::destack_net_resolve(binding, out, query)
             },
         },
         |result| {
@@ -9878,7 +9877,7 @@ fn destack_net_resolve_lookup_replay(
                                 .push(value_native_item_native_bytes_item_native);
                         }
                         let value_native_item_native_bytes =
-                            context.store_array(value_native_item_native_bytes_values);
+                            binding.store_array(value_native_item_native_bytes_values);
                         let value_native_item_native = SocketAddress {
                             family: value_native_item_native_family,
                             length: value_native_item_native_length,
@@ -9886,7 +9885,7 @@ fn destack_net_resolve_lookup_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -9900,7 +9899,7 @@ fn destack_net_resolve_lookup_replay(
 
 #[inline]
 fn destack_net_resolve_reverse_lookup_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<ReverseLookupName>,
     address: SocketAddress,
@@ -9908,15 +9907,15 @@ fn destack_net_resolve_reverse_lookup_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_RESOLVE_REVERSE_LOOKUP,
-        context.replay_payload_for(NET_RESOLVE_REVERSE_LOOKUP)?,
+        binding.replay_payload_for(NET_RESOLVE_REVERSE_LOOKUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_reverse_lookup(context, out, address, flags)
+                platform_native::destack_net_reverse_lookup(binding, out, address, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_reverse_lookup(context, out, address, flags)
+                platform_simulation_native::destack_net_reverse_lookup(binding, out, address, flags)
             },
         },
         |result| {
@@ -9964,16 +9963,16 @@ fn destack_net_resolve_reverse_lookup_replay(
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
                         let value_native_item_native_host =
-                            context.store_string(&value_native_item.host);
+                            binding.store_string(&value_native_item.host);
                         let value_native_item_native_service =
-                            context.store_string(&value_native_item.service);
+                            binding.store_string(&value_native_item.service);
                         let value_native_item_native = ReverseLookupName {
                             host: value_native_item_native_host,
                             service: value_native_item_native_service,
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -9987,22 +9986,22 @@ fn destack_net_resolve_reverse_lookup_replay(
 
 #[inline]
 fn destack_net_reuse_get_reuse_addr_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut bool,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_REUSE_GET_REUSE_ADDR,
-        context.replay_payload_for(NET_REUSE_GET_REUSE_ADDR)?,
+        binding.replay_payload_for(NET_REUSE_GET_REUSE_ADDR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_get_reuse_addr(context, out, handle)
+                platform_native::destack_net_get_reuse_addr(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_get_reuse_addr(context, out, handle)
+                platform_simulation_native::destack_net_get_reuse_addr(binding, out, handle)
             },
         },
         |result| {
@@ -10048,22 +10047,22 @@ fn destack_net_reuse_get_reuse_addr_replay(
 
 #[inline]
 fn destack_net_reuse_get_reuse_port_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut bool,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_REUSE_GET_REUSE_PORT,
-        context.replay_payload_for(NET_REUSE_GET_REUSE_PORT)?,
+        binding.replay_payload_for(NET_REUSE_GET_REUSE_PORT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_get_reuse_port(context, out, handle)
+                platform_native::destack_net_get_reuse_port(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_get_reuse_port(context, out, handle)
+                platform_simulation_native::destack_net_get_reuse_port(binding, out, handle)
             },
         },
         |result| {
@@ -10109,22 +10108,22 @@ fn destack_net_reuse_get_reuse_port_replay(
 
 #[inline]
 fn destack_net_reuse_set_reuse_addr_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_REUSE_SET_REUSE_ADDR,
-        context.replay_payload_for(NET_REUSE_SET_REUSE_ADDR)?,
+        binding.replay_payload_for(NET_REUSE_SET_REUSE_ADDR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_reuse_addr(context, handle, enabled)
+                platform_native::destack_net_set_reuse_addr(binding, handle, enabled)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_set_reuse_addr(context, handle, enabled)
+                platform_simulation_native::destack_net_set_reuse_addr(binding, handle, enabled)
             },
         },
         |result| {
@@ -10158,22 +10157,22 @@ fn destack_net_reuse_set_reuse_addr_replay(
 
 #[inline]
 fn destack_net_reuse_set_reuse_port_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_REUSE_SET_REUSE_PORT,
-        context.replay_payload_for(NET_REUSE_SET_REUSE_PORT)?,
+        binding.replay_payload_for(NET_REUSE_SET_REUSE_PORT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_reuse_port(context, handle, enabled)
+                platform_native::destack_net_set_reuse_port(binding, handle, enabled)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_set_reuse_port(context, handle, enabled)
+                platform_simulation_native::destack_net_set_reuse_port(binding, handle, enabled)
             },
         },
         |result| {
@@ -10207,19 +10206,19 @@ fn destack_net_reuse_set_reuse_port_replay(
 
 #[inline]
 fn destack_net_route_route_add_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     route: RouteEntry,
 ) -> RuntimeResult<()> {
     let _ = &route;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_ROUTE_ROUTE_ADD,
-        context.replay_payload_for(NET_ROUTE_ROUTE_ADD)?,
+        binding.replay_payload_for(NET_ROUTE_ROUTE_ADD)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_net_route_add(context, route) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_net_route_add(binding, route) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_route_add(context, route)
+                platform_simulation_native::destack_net_route_add(binding, route)
             },
         },
         |result| {
@@ -10253,21 +10252,21 @@ fn destack_net_route_route_add_replay(
 
 #[inline]
 fn destack_net_route_route_delete_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     route: RouteEntry,
 ) -> RuntimeResult<()> {
     let _ = &route;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_ROUTE_ROUTE_DELETE,
-        context.replay_payload_for(NET_ROUTE_ROUTE_DELETE)?,
+        binding.replay_payload_for(NET_ROUTE_ROUTE_DELETE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_route_delete(context, route)
+                platform_native::destack_net_route_delete(binding, route)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_route_delete(context, route)
+                platform_simulation_native::destack_net_route_delete(binding, route)
             },
         },
         |result| {
@@ -10301,22 +10300,22 @@ fn destack_net_route_route_delete_replay(
 
 #[inline]
 fn destack_net_route_route_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<RouteEntry>,
     family: SocketFamily,
 ) -> RuntimeResult<()> {
     let _ = &family;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_ROUTE_ROUTE_LIST,
-        context.replay_payload_for(NET_ROUTE_ROUTE_LIST)?,
+        binding.replay_payload_for(NET_ROUTE_ROUTE_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_route_list(context, out, family)
+                platform_native::destack_net_route_list(binding, out, family)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_route_list(context, out, family)
+                platform_simulation_native::destack_net_route_list(binding, out, family)
             },
         },
         |result| {
@@ -10434,7 +10433,7 @@ fn destack_net_route_route_list_replay(
                                 .push(value_native_item_native_destination_bytes_item_native);
                         }
                         let value_native_item_native_destination_bytes =
-                            context.store_array(value_native_item_native_destination_bytes_values);
+                            binding.store_array(value_native_item_native_destination_bytes_values);
                         let value_native_item_native_destination = SocketAddress {
                             family: value_native_item_native_destination_family,
                             length: value_native_item_native_destination_length,
@@ -10457,7 +10456,7 @@ fn destack_net_route_route_list_replay(
                                 .push(value_native_item_native_gateway_bytes_item_native);
                         }
                         let value_native_item_native_gateway_bytes =
-                            context.store_array(value_native_item_native_gateway_bytes_values);
+                            binding.store_array(value_native_item_native_gateway_bytes_values);
                         let value_native_item_native_gateway = SocketAddress {
                             family: value_native_item_native_gateway_family,
                             length: value_native_item_native_gateway_length,
@@ -10478,7 +10477,7 @@ fn destack_net_route_route_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -10492,19 +10491,19 @@ fn destack_net_route_route_list_replay(
 
 #[inline]
 fn destack_net_socket_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_SOCKET_CLOSE,
-        context.replay_payload_for(NET_SOCKET_CLOSE)?,
+        binding.replay_payload_for(NET_SOCKET_CLOSE)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_net_close(context, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_net_close(binding, handle) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_close(context, handle)
+                platform_simulation_native::destack_net_close(binding, handle)
             },
         },
         |result| {
@@ -10538,22 +10537,22 @@ fn destack_net_socket_close_replay(
 
 #[inline]
 fn destack_net_socket_connect_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &address);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_SOCKET_CONNECT,
-        context.replay_payload_for(NET_SOCKET_CONNECT)?,
+        binding.replay_payload_for(NET_SOCKET_CONNECT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_connect(context, handle, address)
+                platform_native::destack_net_connect(binding, handle, address)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_connect(context, handle, address)
+                platform_simulation_native::destack_net_connect(binding, handle, address)
             },
         },
         |result| {
@@ -10587,7 +10586,7 @@ fn destack_net_socket_connect_replay(
 
 #[inline]
 fn destack_net_socket_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::SocketHandle,
     family: SocketFamily,
@@ -10596,16 +10595,16 @@ fn destack_net_socket_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&family, &sockettype, &protocol);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_SOCKET_OPEN,
-        context.replay_payload_for(NET_SOCKET_OPEN)?,
+        binding.replay_payload_for(NET_SOCKET_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_socket(context, out, family, sockettype, protocol)
+                platform_native::destack_net_socket(binding, out, family, sockettype, protocol)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_socket(
-                    context, out, family, sockettype, protocol,
+                    binding, out, family, sockettype, protocol,
                 )
             },
         },
@@ -10652,7 +10651,7 @@ fn destack_net_socket_open_replay(
 
 #[inline]
 fn destack_net_socket_open_pair_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut SocketPair,
     family: SocketFamily,
@@ -10661,16 +10660,16 @@ fn destack_net_socket_open_pair_replay(
 ) -> RuntimeResult<()> {
     let _ = (&family, &sockettype, &protocol);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_SOCKET_OPEN_PAIR,
-        context.replay_payload_for(NET_SOCKET_OPEN_PAIR)?,
+        binding.replay_payload_for(NET_SOCKET_OPEN_PAIR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_socket_pair(context, out, family, sockettype, protocol)
+                platform_native::destack_net_socket_pair(binding, out, family, sockettype, protocol)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_socket_pair(
-                    context, out, family, sockettype, protocol,
+                    binding, out, family, sockettype, protocol,
                 )
             },
         },
@@ -10727,7 +10726,7 @@ fn destack_net_socket_open_pair_replay(
 
 #[inline]
 fn destack_net_socket_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::SocketHandle,
@@ -10735,15 +10734,15 @@ fn destack_net_socket_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_SOCKET_READ,
-        context.replay_payload_for(NET_SOCKET_READ)?,
+        binding.replay_payload_for(NET_SOCKET_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_read(context, out, handle, buffer)
+                platform_native::destack_net_read(binding, out, handle, buffer)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_read(context, out, handle, buffer)
+                platform_simulation_native::destack_net_read(binding, out, handle, buffer)
             },
         },
         |result| {
@@ -10789,7 +10788,7 @@ fn destack_net_socket_read_replay(
 
 #[inline]
 fn destack_net_socket_readv_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::SocketHandle,
@@ -10797,15 +10796,15 @@ fn destack_net_socket_readv_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_SOCKET_READV,
-        context.replay_payload_for(NET_SOCKET_READV)?,
+        binding.replay_payload_for(NET_SOCKET_READV)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_readv(context, out, handle, buffers)
+                platform_native::destack_net_readv(binding, out, handle, buffers)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_readv(context, out, handle, buffers)
+                platform_simulation_native::destack_net_readv(binding, out, handle, buffers)
             },
         },
         |result| {
@@ -10851,7 +10850,7 @@ fn destack_net_socket_readv_replay(
 
 #[inline]
 fn destack_net_socket_recv_from_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut SocketRecvFrom,
     handle: resource::SocketHandle,
@@ -10860,16 +10859,16 @@ fn destack_net_socket_recv_from_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &recvflags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_SOCKET_RECV_FROM,
-        context.replay_payload_for(NET_SOCKET_RECV_FROM)?,
+        binding.replay_payload_for(NET_SOCKET_RECV_FROM)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_recv_from(context, out, handle, buffer, recvflags)
+                platform_native::destack_net_recv_from(binding, out, handle, buffer, recvflags)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_recv_from(
-                    context, out, handle, buffer, recvflags,
+                    binding, out, handle, buffer, recvflags,
                 )
             },
         },
@@ -10938,7 +10937,7 @@ fn destack_net_socket_recv_from_replay(
                             .push(value_native_address_bytes_item_native);
                     }
                     let value_native_address_bytes =
-                        context.store_array(value_native_address_bytes_values);
+                        binding.store_array(value_native_address_bytes_values);
                     let value_native_address = SocketAddress {
                         family: value_native_address_family,
                         length: value_native_address_length,
@@ -10963,7 +10962,7 @@ fn destack_net_socket_recv_from_replay(
 
 #[inline]
 fn destack_net_socket_recv_mmsg_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<SocketRecvMessage>,
     handle: resource::SocketHandle,
@@ -10980,13 +10979,13 @@ fn destack_net_socket_recv_mmsg_replay(
         &maxcontrolbytes,
     );
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_SOCKET_RECV_MMSG,
-        context.replay_payload_for(NET_SOCKET_RECV_MMSG)?,
+        binding.replay_payload_for(NET_SOCKET_RECV_MMSG)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_recv_mmsg(
-                    context,
+                    binding,
                     out,
                     handle,
                     requests,
@@ -10997,7 +10996,7 @@ fn destack_net_socket_recv_mmsg_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_recv_mmsg(
-                    context,
+                    binding,
                     out,
                     handle,
                     requests,
@@ -11148,7 +11147,7 @@ fn destack_net_socket_recv_mmsg_replay(
                                 value_native_item_native_address_inner_bytes_values
                                     .push(value_native_item_native_address_inner_bytes_item_native);
                             }
-                            let value_native_item_native_address_inner_bytes = context
+                            let value_native_item_native_address_inner_bytes = binding
                                 .store_array(value_native_item_native_address_inner_bytes_values);
                             let value_native_item_native_address_inner = SocketAddress {
                                 family: value_native_item_native_address_inner_family,
@@ -11174,7 +11173,7 @@ fn destack_net_socket_recv_mmsg_replay(
                                 .push(value_native_item_native_control_inner_item_native);
                         }
                         let value_native_item_native_control_inner =
-                            context.store_array(value_native_item_native_control_inner_values);
+                            binding.store_array(value_native_item_native_control_inner_values);
                         let value_native_item_native_control =
                             platform_net::SocketControlBufferAbi::<platform_abi::NativeAbi>(
                                 value_native_item_native_control_inner,
@@ -11188,7 +11187,7 @@ fn destack_net_socket_recv_mmsg_replay(
                                 .push(value_native_item_native_fds_item_native);
                         }
                         let value_native_item_native_fds =
-                            context.store_array(value_native_item_native_fds_values);
+                            binding.store_array(value_native_item_native_fds_values);
                         let value_native_item_native_credentials = if let Some(value) =
                             value_native_item.credentials
                         {
@@ -11216,7 +11215,7 @@ fn destack_net_socket_recv_mmsg_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -11230,7 +11229,7 @@ fn destack_net_socket_recv_mmsg_replay(
 
 #[inline]
 fn destack_net_socket_recv_msg_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut SocketRecvMessage,
     handle: resource::SocketHandle,
@@ -11249,13 +11248,13 @@ fn destack_net_socket_recv_msg_replay(
         &maxcontrolbytes,
     );
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_SOCKET_RECV_MSG,
-        context.replay_payload_for(NET_SOCKET_RECV_MSG)?,
+        binding.replay_payload_for(NET_SOCKET_RECV_MSG)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_recv_msg(
-                    context,
+                    binding,
                     out,
                     handle,
                     buffer,
@@ -11267,7 +11266,7 @@ fn destack_net_socket_recv_msg_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_recv_msg(
-                    context,
+                    binding,
                     out,
                     handle,
                     buffer,
@@ -11387,7 +11386,7 @@ fn destack_net_socket_recv_msg_replay(
                                 .push(value_native_address_inner_bytes_item_native);
                         }
                         let value_native_address_inner_bytes =
-                            context.store_array(value_native_address_inner_bytes_values);
+                            binding.store_array(value_native_address_inner_bytes_values);
                         let value_native_address_inner = SocketAddress {
                             family: value_native_address_inner_family,
                             length: value_native_address_inner_length,
@@ -11409,7 +11408,7 @@ fn destack_net_socket_recv_msg_replay(
                             .push(value_native_control_inner_item_native);
                     }
                     let value_native_control_inner =
-                        context.store_array(value_native_control_inner_values);
+                        binding.store_array(value_native_control_inner_values);
                     let value_native_control = platform_net::SocketControlBufferAbi::<
                         platform_abi::NativeAbi,
                     >(value_native_control_inner);
@@ -11418,7 +11417,7 @@ fn destack_net_socket_recv_msg_replay(
                         let value_native_fds_item_native = value_native_fds_item;
                         value_native_fds_values.push(value_native_fds_item_native);
                     }
-                    let value_native_fds = context.store_array(value_native_fds_values);
+                    let value_native_fds = binding.store_array(value_native_fds_values);
                     let value_native_credentials = if let Some(value) = value.credentials {
                         let value_native_credentials_inner_pid = value.pid;
                         let value_native_credentials_inner_uid = value.uid;
@@ -11455,7 +11454,7 @@ fn destack_net_socket_recv_msg_replay(
 
 #[inline]
 fn destack_net_socket_send_mmsg_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::SocketHandle,
@@ -11463,15 +11462,15 @@ fn destack_net_socket_send_mmsg_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &messages);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_SOCKET_SEND_MMSG,
-        context.replay_payload_for(NET_SOCKET_SEND_MMSG)?,
+        binding.replay_payload_for(NET_SOCKET_SEND_MMSG)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_send_mmsg(context, out, handle, messages)
+                platform_native::destack_net_send_mmsg(binding, out, handle, messages)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_send_mmsg(context, out, handle, messages)
+                platform_simulation_native::destack_net_send_mmsg(binding, out, handle, messages)
             },
         },
         |result| {
@@ -11517,7 +11516,7 @@ fn destack_net_socket_send_mmsg_replay(
 
 #[inline]
 fn destack_net_socket_send_msg_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::SocketHandle,
@@ -11526,16 +11525,16 @@ fn destack_net_socket_send_msg_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &message);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_SOCKET_SEND_MSG,
-        context.replay_payload_for(NET_SOCKET_SEND_MSG)?,
+        binding.replay_payload_for(NET_SOCKET_SEND_MSG)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_send_msg(context, out, handle, buffer, message)
+                platform_native::destack_net_send_msg(binding, out, handle, buffer, message)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_send_msg(
-                    context, out, handle, buffer, message,
+                    binding, out, handle, buffer, message,
                 )
             },
         },
@@ -11582,7 +11581,7 @@ fn destack_net_socket_send_msg_replay(
 
 #[inline]
 fn destack_net_socket_send_to_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::SocketHandle,
@@ -11591,16 +11590,16 @@ fn destack_net_socket_send_to_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &message);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_SOCKET_SEND_TO,
-        context.replay_payload_for(NET_SOCKET_SEND_TO)?,
+        binding.replay_payload_for(NET_SOCKET_SEND_TO)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_send_to(context, out, handle, buffer, message)
+                platform_native::destack_net_send_to(binding, out, handle, buffer, message)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_send_to(
-                    context, out, handle, buffer, message,
+                    binding, out, handle, buffer, message,
                 )
             },
         },
@@ -11647,22 +11646,22 @@ fn destack_net_socket_send_to_replay(
 
 #[inline]
 fn destack_net_socket_set_nonblocking_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_SOCKET_SET_NONBLOCKING,
-        context.replay_payload_for(NET_SOCKET_SET_NONBLOCKING)?,
+        binding.replay_payload_for(NET_SOCKET_SET_NONBLOCKING)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_nonblocking(context, handle, enabled)
+                platform_native::destack_net_set_nonblocking(binding, handle, enabled)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_set_nonblocking(context, handle, enabled)
+                platform_simulation_native::destack_net_set_nonblocking(binding, handle, enabled)
             },
         },
         |result| {
@@ -11696,22 +11695,22 @@ fn destack_net_socket_set_nonblocking_replay(
 
 #[inline]
 fn destack_net_socket_shutdown_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     how: SocketShutdown,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &how);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_SOCKET_SHUTDOWN,
-        context.replay_payload_for(NET_SOCKET_SHUTDOWN)?,
+        binding.replay_payload_for(NET_SOCKET_SHUTDOWN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_shutdown(context, handle, how)
+                platform_native::destack_net_shutdown(binding, handle, how)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_shutdown(context, handle, how)
+                platform_simulation_native::destack_net_shutdown(binding, handle, how)
             },
         },
         |result| {
@@ -11745,7 +11744,7 @@ fn destack_net_socket_shutdown_replay(
 
 #[inline]
 fn destack_net_socket_write_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::SocketHandle,
@@ -11753,15 +11752,15 @@ fn destack_net_socket_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_SOCKET_WRITE,
-        context.replay_payload_for(NET_SOCKET_WRITE)?,
+        binding.replay_payload_for(NET_SOCKET_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_write(context, out, handle, buffer)
+                platform_native::destack_net_write(binding, out, handle, buffer)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_write(context, out, handle, buffer)
+                platform_simulation_native::destack_net_write(binding, out, handle, buffer)
             },
         },
         |result| {
@@ -11807,7 +11806,7 @@ fn destack_net_socket_write_replay(
 
 #[inline]
 fn destack_net_socket_writev_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::SocketHandle,
@@ -11815,15 +11814,15 @@ fn destack_net_socket_writev_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_SOCKET_WRITEV,
-        context.replay_payload_for(NET_SOCKET_WRITEV)?,
+        binding.replay_payload_for(NET_SOCKET_WRITEV)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_writev(context, out, handle, buffers)
+                platform_native::destack_net_writev(binding, out, handle, buffers)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_writev(context, out, handle, buffers)
+                platform_simulation_native::destack_net_writev(binding, out, handle, buffers)
             },
         },
         |result| {
@@ -11869,22 +11868,22 @@ fn destack_net_socket_writev_replay(
 
 #[inline]
 fn destack_net_tcp_get_keep_alive_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut KeepAliveConfig,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_TCP_GET_KEEP_ALIVE,
-        context.replay_payload_for(NET_TCP_GET_KEEP_ALIVE)?,
+        binding.replay_payload_for(NET_TCP_GET_KEEP_ALIVE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_get_keep_alive(context, out, handle)
+                platform_native::destack_net_get_keep_alive(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_get_keep_alive(context, out, handle)
+                platform_simulation_native::destack_net_get_keep_alive(binding, out, handle)
             },
         },
         |result| {
@@ -11948,22 +11947,22 @@ fn destack_net_tcp_get_keep_alive_replay(
 
 #[inline]
 fn destack_net_tcp_get_no_delay_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut bool,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_TCP_GET_NO_DELAY,
-        context.replay_payload_for(NET_TCP_GET_NO_DELAY)?,
+        binding.replay_payload_for(NET_TCP_GET_NO_DELAY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_get_no_delay(context, out, handle)
+                platform_native::destack_net_get_no_delay(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_get_no_delay(context, out, handle)
+                platform_simulation_native::destack_net_get_no_delay(binding, out, handle)
             },
         },
         |result| {
@@ -12009,22 +12008,22 @@ fn destack_net_tcp_get_no_delay_replay(
 
 #[inline]
 fn destack_net_tcp_set_keep_alive_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     config: KeepAliveConfig,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &config);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_TCP_SET_KEEP_ALIVE,
-        context.replay_payload_for(NET_TCP_SET_KEEP_ALIVE)?,
+        binding.replay_payload_for(NET_TCP_SET_KEEP_ALIVE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_keep_alive(context, handle, config)
+                platform_native::destack_net_set_keep_alive(binding, handle, config)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_set_keep_alive(context, handle, config)
+                platform_simulation_native::destack_net_set_keep_alive(binding, handle, config)
             },
         },
         |result| {
@@ -12058,22 +12057,22 @@ fn destack_net_tcp_set_keep_alive_replay(
 
 #[inline]
 fn destack_net_tcp_set_no_delay_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_TCP_SET_NO_DELAY,
-        context.replay_payload_for(NET_TCP_SET_NO_DELAY)?,
+        binding.replay_payload_for(NET_TCP_SET_NO_DELAY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_no_delay(context, handle, enabled)
+                platform_native::destack_net_set_no_delay(binding, handle, enabled)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_set_no_delay(context, handle, enabled)
+                platform_simulation_native::destack_net_set_no_delay(binding, handle, enabled)
             },
         },
         |result| {
@@ -12107,22 +12106,22 @@ fn destack_net_tcp_set_no_delay_replay(
 
 #[inline]
 fn destack_net_udp_bind_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &address);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_BIND,
-        context.replay_payload_for(NET_UDP_BIND)?,
+        binding.replay_payload_for(NET_UDP_BIND)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_udp_bind(context, handle, address)
+                platform_native::destack_net_udp_bind(binding, handle, address)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_udp_bind(context, handle, address)
+                platform_simulation_native::destack_net_udp_bind(binding, handle, address)
             },
         },
         |result| {
@@ -12156,22 +12155,22 @@ fn destack_net_udp_bind_replay(
 
 #[inline]
 fn destack_net_udp_connect_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &address);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_CONNECT,
-        context.replay_payload_for(NET_UDP_CONNECT)?,
+        binding.replay_payload_for(NET_UDP_CONNECT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_udp_connect(context, handle, address)
+                platform_native::destack_net_udp_connect(binding, handle, address)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_udp_connect(context, handle, address)
+                platform_simulation_native::destack_net_udp_connect(binding, handle, address)
             },
         },
         |result| {
@@ -12205,23 +12204,23 @@ fn destack_net_udp_connect_replay(
 
 #[inline]
 fn destack_net_udp_get_multicast_interface_v4_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeStringRef,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_GET_MULTICAST_INTERFACE_V4,
-        context.replay_payload_for(NET_UDP_GET_MULTICAST_INTERFACE_V4)?,
+        binding.replay_payload_for(NET_UDP_GET_MULTICAST_INTERFACE_V4)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_get_multicast_interface_v4(context, out, handle)
+                platform_native::destack_net_get_multicast_interface_v4(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_get_multicast_interface_v4(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -12254,7 +12253,7 @@ fn destack_net_udp_get_multicast_interface_v4_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native = context.store_string(&value);
+                    let value_native = binding.store_string(&value);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -12268,23 +12267,23 @@ fn destack_net_udp_get_multicast_interface_v4_replay(
 
 #[inline]
 fn destack_net_udp_get_multicast_interface_v6_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_GET_MULTICAST_INTERFACE_V6,
-        context.replay_payload_for(NET_UDP_GET_MULTICAST_INTERFACE_V6)?,
+        binding.replay_payload_for(NET_UDP_GET_MULTICAST_INTERFACE_V6)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_get_multicast_interface_v6(context, out, handle)
+                platform_native::destack_net_get_multicast_interface_v6(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_get_multicast_interface_v6(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -12331,22 +12330,22 @@ fn destack_net_udp_get_multicast_interface_v6_replay(
 
 #[inline]
 fn destack_net_udp_get_multicast_loop_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut bool,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_GET_MULTICAST_LOOP,
-        context.replay_payload_for(NET_UDP_GET_MULTICAST_LOOP)?,
+        binding.replay_payload_for(NET_UDP_GET_MULTICAST_LOOP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_get_multicast_loop(context, out, handle)
+                platform_native::destack_net_get_multicast_loop(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_get_multicast_loop(context, out, handle)
+                platform_simulation_native::destack_net_get_multicast_loop(binding, out, handle)
             },
         },
         |result| {
@@ -12392,22 +12391,22 @@ fn destack_net_udp_get_multicast_loop_replay(
 
 #[inline]
 fn destack_net_udp_get_multicast_ttl_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_GET_MULTICAST_TTL,
-        context.replay_payload_for(NET_UDP_GET_MULTICAST_TTL)?,
+        binding.replay_payload_for(NET_UDP_GET_MULTICAST_TTL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_get_multicast_ttl(context, out, handle)
+                platform_native::destack_net_get_multicast_ttl(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_get_multicast_ttl(context, out, handle)
+                platform_simulation_native::destack_net_get_multicast_ttl(binding, out, handle)
             },
         },
         |result| {
@@ -12453,23 +12452,23 @@ fn destack_net_udp_get_multicast_ttl_replay(
 
 #[inline]
 fn destack_net_udp_join_multicast_source_v4_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV4,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &membership);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_JOIN_MULTICAST_SOURCE_V4,
-        context.replay_payload_for(NET_UDP_JOIN_MULTICAST_SOURCE_V4)?,
+        binding.replay_payload_for(NET_UDP_JOIN_MULTICAST_SOURCE_V4)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_join_multicast_source_v4(context, handle, membership)
+                platform_native::destack_net_join_multicast_source_v4(binding, handle, membership)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_join_multicast_source_v4(
-                    context, handle, membership,
+                    binding, handle, membership,
                 )
             },
         },
@@ -12504,23 +12503,23 @@ fn destack_net_udp_join_multicast_source_v4_replay(
 
 #[inline]
 fn destack_net_udp_join_multicast_source_v6_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV6,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &membership);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_JOIN_MULTICAST_SOURCE_V6,
-        context.replay_payload_for(NET_UDP_JOIN_MULTICAST_SOURCE_V6)?,
+        binding.replay_payload_for(NET_UDP_JOIN_MULTICAST_SOURCE_V6)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_join_multicast_source_v6(context, handle, membership)
+                platform_native::destack_net_join_multicast_source_v6(binding, handle, membership)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_join_multicast_source_v6(
-                    context, handle, membership,
+                    binding, handle, membership,
                 )
             },
         },
@@ -12555,7 +12554,7 @@ fn destack_net_udp_join_multicast_source_v6_replay(
 
 #[inline]
 fn destack_net_udp_join_multicast_v4_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     group: NativeStringRef,
@@ -12563,13 +12562,13 @@ fn destack_net_udp_join_multicast_v4_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &group, &interfaceaddress);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_JOIN_MULTICAST_V4,
-        context.replay_payload_for(NET_UDP_JOIN_MULTICAST_V4)?,
+        binding.replay_payload_for(NET_UDP_JOIN_MULTICAST_V4)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_join_multicast_v4(
-                    context,
+                    binding,
                     handle,
                     group,
                     interfaceaddress,
@@ -12577,7 +12576,7 @@ fn destack_net_udp_join_multicast_v4_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_join_multicast_v4(
-                    context,
+                    binding,
                     handle,
                     group,
                     interfaceaddress,
@@ -12615,7 +12614,7 @@ fn destack_net_udp_join_multicast_v4_replay(
 
 #[inline]
 fn destack_net_udp_join_multicast_v6_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     group: NativeStringRef,
@@ -12623,13 +12622,13 @@ fn destack_net_udp_join_multicast_v6_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &group, &interfaceindex);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_JOIN_MULTICAST_V6,
-        context.replay_payload_for(NET_UDP_JOIN_MULTICAST_V6)?,
+        binding.replay_payload_for(NET_UDP_JOIN_MULTICAST_V6)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_join_multicast_v6(
-                    context,
+                    binding,
                     handle,
                     group,
                     interfaceindex,
@@ -12637,7 +12636,7 @@ fn destack_net_udp_join_multicast_v6_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_join_multicast_v6(
-                    context,
+                    binding,
                     handle,
                     group,
                     interfaceindex,
@@ -12675,23 +12674,23 @@ fn destack_net_udp_join_multicast_v6_replay(
 
 #[inline]
 fn destack_net_udp_leave_multicast_source_v4_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV4,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &membership);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_LEAVE_MULTICAST_SOURCE_V4,
-        context.replay_payload_for(NET_UDP_LEAVE_MULTICAST_SOURCE_V4)?,
+        binding.replay_payload_for(NET_UDP_LEAVE_MULTICAST_SOURCE_V4)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_leave_multicast_source_v4(context, handle, membership)
+                platform_native::destack_net_leave_multicast_source_v4(binding, handle, membership)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_leave_multicast_source_v4(
-                    context, handle, membership,
+                    binding, handle, membership,
                 )
             },
         },
@@ -12726,23 +12725,23 @@ fn destack_net_udp_leave_multicast_source_v4_replay(
 
 #[inline]
 fn destack_net_udp_leave_multicast_source_v6_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV6,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &membership);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_LEAVE_MULTICAST_SOURCE_V6,
-        context.replay_payload_for(NET_UDP_LEAVE_MULTICAST_SOURCE_V6)?,
+        binding.replay_payload_for(NET_UDP_LEAVE_MULTICAST_SOURCE_V6)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_leave_multicast_source_v6(context, handle, membership)
+                platform_native::destack_net_leave_multicast_source_v6(binding, handle, membership)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_leave_multicast_source_v6(
-                    context, handle, membership,
+                    binding, handle, membership,
                 )
             },
         },
@@ -12777,7 +12776,7 @@ fn destack_net_udp_leave_multicast_source_v6_replay(
 
 #[inline]
 fn destack_net_udp_leave_multicast_v4_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     group: NativeStringRef,
@@ -12785,13 +12784,13 @@ fn destack_net_udp_leave_multicast_v4_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &group, &interfaceaddress);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_LEAVE_MULTICAST_V4,
-        context.replay_payload_for(NET_UDP_LEAVE_MULTICAST_V4)?,
+        binding.replay_payload_for(NET_UDP_LEAVE_MULTICAST_V4)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_leave_multicast_v4(
-                    context,
+                    binding,
                     handle,
                     group,
                     interfaceaddress,
@@ -12799,7 +12798,7 @@ fn destack_net_udp_leave_multicast_v4_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_leave_multicast_v4(
-                    context,
+                    binding,
                     handle,
                     group,
                     interfaceaddress,
@@ -12837,7 +12836,7 @@ fn destack_net_udp_leave_multicast_v4_replay(
 
 #[inline]
 fn destack_net_udp_leave_multicast_v6_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     group: NativeStringRef,
@@ -12845,13 +12844,13 @@ fn destack_net_udp_leave_multicast_v6_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &group, &interfaceindex);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_LEAVE_MULTICAST_V6,
-        context.replay_payload_for(NET_UDP_LEAVE_MULTICAST_V6)?,
+        binding.replay_payload_for(NET_UDP_LEAVE_MULTICAST_V6)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_leave_multicast_v6(
-                    context,
+                    binding,
                     handle,
                     group,
                     interfaceindex,
@@ -12859,7 +12858,7 @@ fn destack_net_udp_leave_multicast_v6_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_leave_multicast_v6(
-                    context,
+                    binding,
                     handle,
                     group,
                     interfaceindex,
@@ -12897,7 +12896,7 @@ fn destack_net_udp_leave_multicast_v6_replay(
 
 #[inline]
 fn destack_net_udp_recv_from_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut UdpReceive,
     handle: resource::SocketHandle,
@@ -12906,16 +12905,16 @@ fn destack_net_udp_recv_from_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &recvflags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_RECV_FROM,
-        context.replay_payload_for(NET_UDP_RECV_FROM)?,
+        binding.replay_payload_for(NET_UDP_RECV_FROM)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_udp_recv_from(context, out, handle, buffer, recvflags)
+                platform_native::destack_net_udp_recv_from(binding, out, handle, buffer, recvflags)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_udp_recv_from(
-                    context, out, handle, buffer, recvflags,
+                    binding, out, handle, buffer, recvflags,
                 )
             },
         },
@@ -12983,7 +12982,7 @@ fn destack_net_udp_recv_from_replay(
                             .push(value_native_address_bytes_item_native);
                     }
                     let value_native_address_bytes =
-                        context.store_array(value_native_address_bytes_values);
+                        binding.store_array(value_native_address_bytes_values);
                     let value_native_address = SocketAddress {
                         family: value_native_address_family,
                         length: value_native_address_length,
@@ -13009,7 +13008,7 @@ fn destack_net_udp_recv_from_replay(
 
 #[inline]
 fn destack_net_udp_send_to_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::SocketHandle,
@@ -13019,18 +13018,18 @@ fn destack_net_udp_send_to_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &address, &buffer, &sendflags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_SEND_TO,
-        context.replay_payload_for(NET_UDP_SEND_TO)?,
+        binding.replay_payload_for(NET_UDP_SEND_TO)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_udp_send_to(
-                    context, out, handle, address, buffer, sendflags,
+                    binding, out, handle, address, buffer, sendflags,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_udp_send_to(
-                    context, out, handle, address, buffer, sendflags,
+                    binding, out, handle, address, buffer, sendflags,
                 )
             },
         },
@@ -13077,27 +13076,27 @@ fn destack_net_udp_send_to_replay(
 
 #[inline]
 fn destack_net_udp_set_multicast_interface_v4_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     interfaceaddress: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &interfaceaddress);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_SET_MULTICAST_INTERFACE_V4,
-        context.replay_payload_for(NET_UDP_SET_MULTICAST_INTERFACE_V4)?,
+        binding.replay_payload_for(NET_UDP_SET_MULTICAST_INTERFACE_V4)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_set_multicast_interface_v4(
-                    context,
+                    binding,
                     handle,
                     interfaceaddress,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_set_multicast_interface_v4(
-                    context,
+                    binding,
                     handle,
                     interfaceaddress,
                 )
@@ -13134,27 +13133,27 @@ fn destack_net_udp_set_multicast_interface_v4_replay(
 
 #[inline]
 fn destack_net_udp_set_multicast_interface_v6_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     interfaceindex: u32,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &interfaceindex);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_SET_MULTICAST_INTERFACE_V6,
-        context.replay_payload_for(NET_UDP_SET_MULTICAST_INTERFACE_V6)?,
+        binding.replay_payload_for(NET_UDP_SET_MULTICAST_INTERFACE_V6)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_net_set_multicast_interface_v6(
-                    context,
+                    binding,
                     handle,
                     interfaceindex,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_net_set_multicast_interface_v6(
-                    context,
+                    binding,
                     handle,
                     interfaceindex,
                 )
@@ -13191,22 +13190,22 @@ fn destack_net_udp_set_multicast_interface_v6_replay(
 
 #[inline]
 fn destack_net_udp_set_multicast_loop_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_SET_MULTICAST_LOOP,
-        context.replay_payload_for(NET_UDP_SET_MULTICAST_LOOP)?,
+        binding.replay_payload_for(NET_UDP_SET_MULTICAST_LOOP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_multicast_loop(context, handle, enabled)
+                platform_native::destack_net_set_multicast_loop(binding, handle, enabled)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_set_multicast_loop(context, handle, enabled)
+                platform_simulation_native::destack_net_set_multicast_loop(binding, handle, enabled)
             },
         },
         |result| {
@@ -13240,22 +13239,22 @@ fn destack_net_udp_set_multicast_loop_replay(
 
 #[inline]
 fn destack_net_udp_set_multicast_ttl_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     ttl: u32,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &ttl);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_SET_MULTICAST_TTL,
-        context.replay_payload_for(NET_UDP_SET_MULTICAST_TTL)?,
+        binding.replay_payload_for(NET_UDP_SET_MULTICAST_TTL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_multicast_ttl(context, handle, ttl)
+                platform_native::destack_net_set_multicast_ttl(binding, handle, ttl)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_set_multicast_ttl(context, handle, ttl)
+                platform_simulation_native::destack_net_set_multicast_ttl(binding, handle, ttl)
             },
         },
         |result| {
@@ -13289,22 +13288,22 @@ fn destack_net_udp_set_multicast_ttl_replay(
 
 #[inline]
 fn destack_net_udp_socket_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::SocketHandle,
     family: SocketFamily,
 ) -> RuntimeResult<()> {
     let _ = &family;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDP_SOCKET,
-        context.replay_payload_for(NET_UDP_SOCKET)?,
+        binding.replay_payload_for(NET_UDP_SOCKET)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_udp_socket(context, out, family)
+                platform_native::destack_net_udp_socket(binding, out, family)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_udp_socket(context, out, family)
+                platform_simulation_native::destack_net_udp_socket(binding, out, family)
             },
         },
         |result| {
@@ -13350,22 +13349,22 @@ fn destack_net_udp_socket_replay(
 
 #[inline]
 fn destack_net_uds_uds_accept_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::SocketHandle,
     listener: resource::ListenerHandle,
 ) -> RuntimeResult<()> {
     let _ = &listener;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDS_UDS_ACCEPT,
-        context.replay_payload_for(NET_UDS_UDS_ACCEPT)?,
+        binding.replay_payload_for(NET_UDS_UDS_ACCEPT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_uds_accept(context, out, listener)
+                platform_native::destack_net_uds_accept(binding, out, listener)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_uds_accept(context, out, listener)
+                platform_simulation_native::destack_net_uds_accept(binding, out, listener)
             },
         },
         |result| {
@@ -13411,21 +13410,21 @@ fn destack_net_uds_uds_accept_replay(
 
 #[inline]
 fn destack_net_uds_uds_close_listener_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::ListenerHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDS_UDS_CLOSE_LISTENER,
-        context.replay_payload_for(NET_UDS_UDS_CLOSE_LISTENER)?,
+        binding.replay_payload_for(NET_UDS_UDS_CLOSE_LISTENER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_uds_close_listener(context, handle)
+                platform_native::destack_net_uds_close_listener(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_uds_close_listener(context, handle)
+                platform_simulation_native::destack_net_uds_close_listener(binding, handle)
             },
         },
         |result| {
@@ -13459,22 +13458,22 @@ fn destack_net_uds_uds_close_listener_replay(
 
 #[inline]
 fn destack_net_uds_uds_connect_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::SocketHandle,
     address: UdsAddress,
 ) -> RuntimeResult<()> {
     let _ = &address;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDS_UDS_CONNECT,
-        context.replay_payload_for(NET_UDS_UDS_CONNECT)?,
+        binding.replay_payload_for(NET_UDS_UDS_CONNECT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_uds_connect(context, out, address)
+                platform_native::destack_net_uds_connect(binding, out, address)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_uds_connect(context, out, address)
+                platform_simulation_native::destack_net_uds_connect(binding, out, address)
             },
         },
         |result| {
@@ -13520,7 +13519,7 @@ fn destack_net_uds_uds_connect_replay(
 
 #[inline]
 fn destack_net_uds_uds_listen_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::ListenerHandle,
     address: UdsAddress,
@@ -13528,15 +13527,15 @@ fn destack_net_uds_uds_listen_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &backlog);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDS_UDS_LISTEN,
-        context.replay_payload_for(NET_UDS_UDS_LISTEN)?,
+        binding.replay_payload_for(NET_UDS_UDS_LISTEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_uds_listen(context, out, address, backlog)
+                platform_native::destack_net_uds_listen(binding, out, address, backlog)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_uds_listen(context, out, address, backlog)
+                platform_simulation_native::destack_net_uds_listen(binding, out, address, backlog)
             },
         },
         |result| {
@@ -13582,22 +13581,22 @@ fn destack_net_uds_uds_listen_replay(
 
 #[inline]
 fn destack_net_uds_uds_socket_pair_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut SocketPair,
     sockettype: SocketType,
 ) -> RuntimeResult<()> {
     let _ = &sockettype;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         NET_UDS_UDS_SOCKET_PAIR,
-        context.replay_payload_for(NET_UDS_UDS_SOCKET_PAIR)?,
+        binding.replay_payload_for(NET_UDS_UDS_SOCKET_PAIR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_uds_socket_pair(context, out, sockettype)
+                platform_native::destack_net_uds_socket_pair(binding, out, sockettype)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_uds_socket_pair(context, out, sockettype)
+                platform_simulation_native::destack_net_uds_socket_pair(binding, out, sockettype)
             },
         },
         |result| {
@@ -15333,19 +15332,19 @@ pub unsafe extern "C" fn destack_net_uds_uds_socket_pair(
 /// VM replay implementations for net bindings.
 #[inline]
 fn destack_net_address_local_address_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_ADDRESS_LOCAL_ADDRESS,
-        runtime.replay_payload_for(NET_ADDRESS_LOCAL_ADDRESS)?,
+        binding.replay_payload_for(NET_ADDRESS_LOCAL_ADDRESS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_local_address(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_net_local_address(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_local_address(runtime, context, handle)
+                platform_simulation_vm::destack_net_local_address(binding, context, handle)
             }
         },
         |context, result| {
@@ -15401,19 +15400,19 @@ fn destack_net_address_local_address_vm_replay(
 
 #[inline]
 fn destack_net_address_peer_address_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_ADDRESS_PEER_ADDRESS,
-        runtime.replay_payload_for(NET_ADDRESS_PEER_ADDRESS)?,
+        binding.replay_payload_for(NET_ADDRESS_PEER_ADDRESS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_peer_address(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_net_peer_address(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_peer_address(runtime, context, handle)
+                platform_simulation_vm::destack_net_peer_address(binding, context, handle)
             }
         },
         |context, result| {
@@ -15469,19 +15468,19 @@ fn destack_net_address_peer_address_vm_replay(
 
 #[inline]
 fn destack_net_interface_interface_index_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_INTERFACE_INTERFACE_INDEX,
-        runtime.replay_payload_for(NET_INTERFACE_INTERFACE_INDEX)?,
+        binding.replay_payload_for(NET_INTERFACE_INTERFACE_INDEX)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_interface_index(runtime, context, name),
+            RuntimeWorld::Host => platform_vm::destack_net_interface_index(binding, context, name),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_interface_index(runtime, context, name)
+                platform_simulation_vm::destack_net_interface_index(binding, context, name)
             }
         },
         |context, result| {
@@ -15523,19 +15522,19 @@ fn destack_net_interface_interface_index_vm_replay(
 
 #[inline]
 fn destack_net_interface_interface_name_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     index: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_INTERFACE_INTERFACE_NAME,
-        runtime.replay_payload_for(NET_INTERFACE_INTERFACE_NAME)?,
+        binding.replay_payload_for(NET_INTERFACE_INTERFACE_NAME)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_interface_name(runtime, context, index),
+            RuntimeWorld::Host => platform_vm::destack_net_interface_name(binding, context, index),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_interface_name(runtime, context, index)
+                platform_simulation_vm::destack_net_interface_name(binding, context, index)
             }
         },
         |context, result| {
@@ -15583,18 +15582,18 @@ fn destack_net_interface_interface_name_vm_replay(
 
 #[inline]
 fn destack_net_interface_list_interfaces_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_INTERFACE_LIST_INTERFACES,
-        runtime.replay_payload_for(NET_INTERFACE_LIST_INTERFACES)?,
+        binding.replay_payload_for(NET_INTERFACE_LIST_INTERFACES)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_list_interfaces(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_net_list_interfaces(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_list_interfaces(runtime, context)
+                platform_simulation_vm::destack_net_list_interfaces(binding, context)
             }
         },
         |context, result| {
@@ -15866,22 +15865,22 @@ fn destack_net_interface_list_interfaces_vm_replay(
 
 #[inline]
 fn destack_net_listener_accept_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     listener: resource::ListenerHandle,
     flags: AcceptFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_LISTENER_ACCEPT,
-        runtime.replay_payload_for(NET_LISTENER_ACCEPT)?,
+        binding.replay_payload_for(NET_LISTENER_ACCEPT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_accept(runtime, context, listener, flags)
+                platform_vm::destack_net_accept(binding, context, listener, flags)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_accept(runtime, context, listener, flags)
+                platform_simulation_vm::destack_net_accept(binding, context, listener, flags)
             }
         },
         |context, result| {
@@ -15923,20 +15922,20 @@ fn destack_net_listener_accept_vm_replay(
 
 #[inline]
 fn destack_net_listener_bind_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_LISTENER_BIND,
-        runtime.replay_payload_for(NET_LISTENER_BIND)?,
+        binding.replay_payload_for(NET_LISTENER_BIND)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_bind(runtime, context, handle, address),
+            RuntimeWorld::Host => platform_vm::destack_net_bind(binding, context, handle, address),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_bind(runtime, context, handle, address)
+                platform_simulation_vm::destack_net_bind(binding, context, handle, address)
             }
         },
         |context, result| {
@@ -15974,19 +15973,19 @@ fn destack_net_listener_bind_vm_replay(
 
 #[inline]
 fn destack_net_listener_close_listener_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::ListenerHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_LISTENER_CLOSE_LISTENER,
-        runtime.replay_payload_for(NET_LISTENER_CLOSE_LISTENER)?,
+        binding.replay_payload_for(NET_LISTENER_CLOSE_LISTENER)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_close_listener(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_net_close_listener(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_close_listener(runtime, context, handle)
+                platform_simulation_vm::destack_net_close_listener(binding, context, handle)
             }
         },
         |context, result| {
@@ -16024,22 +16023,22 @@ fn destack_net_listener_close_listener_vm_replay(
 
 #[inline]
 fn destack_net_listener_listen_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     address: SocketAddressVm,
     backlog: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_LISTENER_LISTEN,
-        runtime.replay_payload_for(NET_LISTENER_LISTEN)?,
+        binding.replay_payload_for(NET_LISTENER_LISTEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_listen(runtime, context, address, backlog)
+                platform_vm::destack_net_listen(binding, context, address, backlog)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_listen(runtime, context, address, backlog)
+                platform_simulation_vm::destack_net_listen(binding, context, address, backlog)
             }
         },
         |context, result| {
@@ -16081,19 +16080,19 @@ fn destack_net_listener_listen_vm_replay(
 
 #[inline]
 fn destack_net_options_get_broadcast_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_GET_BROADCAST,
-        runtime.replay_payload_for(NET_OPTIONS_GET_BROADCAST)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_BROADCAST)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_get_broadcast(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_net_get_broadcast(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_get_broadcast(runtime, context, handle)
+                platform_simulation_vm::destack_net_get_broadcast(binding, context, handle)
             }
         },
         |context, result| {
@@ -16135,19 +16134,19 @@ fn destack_net_options_get_broadcast_vm_replay(
 
 #[inline]
 fn destack_net_options_get_linger_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_GET_LINGER,
-        runtime.replay_payload_for(NET_OPTIONS_GET_LINGER)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_LINGER)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_get_linger(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_net_get_linger(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_get_linger(runtime, context, handle)
+                platform_simulation_vm::destack_net_get_linger(binding, context, handle)
             }
         },
         |context, result| {
@@ -16199,19 +16198,19 @@ fn destack_net_options_get_linger_vm_replay(
 
 #[inline]
 fn destack_net_options_get_only_v6_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_GET_ONLY_V6,
-        runtime.replay_payload_for(NET_OPTIONS_GET_ONLY_V6)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_ONLY_V6)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_get_only_v6(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_net_get_only_v6(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_get_only_v6(runtime, context, handle)
+                platform_simulation_vm::destack_net_get_only_v6(binding, context, handle)
             }
         },
         |context, result| {
@@ -16253,21 +16252,21 @@ fn destack_net_options_get_only_v6_vm_replay(
 
 #[inline]
 fn destack_net_options_get_packet_mark_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_GET_PACKET_MARK,
-        runtime.replay_payload_for(NET_OPTIONS_GET_PACKET_MARK)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_PACKET_MARK)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_get_packet_mark(runtime, context, handle)
+                platform_vm::destack_net_get_packet_mark(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_get_packet_mark(runtime, context, handle)
+                platform_simulation_vm::destack_net_get_packet_mark(binding, context, handle)
             }
         },
         |context, result| {
@@ -16309,21 +16308,21 @@ fn destack_net_options_get_packet_mark_vm_replay(
 
 #[inline]
 fn destack_net_options_get_read_timeout_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_GET_READ_TIMEOUT,
-        runtime.replay_payload_for(NET_OPTIONS_GET_READ_TIMEOUT)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_READ_TIMEOUT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_get_read_timeout(runtime, context, handle)
+                platform_vm::destack_net_get_read_timeout(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_get_read_timeout(runtime, context, handle)
+                platform_simulation_vm::destack_net_get_read_timeout(binding, context, handle)
             }
         },
         |context, result| {
@@ -16365,21 +16364,21 @@ fn destack_net_options_get_read_timeout_vm_replay(
 
 #[inline]
 fn destack_net_options_get_recv_buffer_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_GET_RECV_BUFFER,
-        runtime.replay_payload_for(NET_OPTIONS_GET_RECV_BUFFER)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_RECV_BUFFER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_get_recv_buffer(runtime, context, handle)
+                platform_vm::destack_net_get_recv_buffer(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_get_recv_buffer(runtime, context, handle)
+                platform_simulation_vm::destack_net_get_recv_buffer(binding, context, handle)
             }
         },
         |context, result| {
@@ -16421,21 +16420,21 @@ fn destack_net_options_get_recv_buffer_vm_replay(
 
 #[inline]
 fn destack_net_options_get_send_buffer_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_GET_SEND_BUFFER,
-        runtime.replay_payload_for(NET_OPTIONS_GET_SEND_BUFFER)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_SEND_BUFFER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_get_send_buffer(runtime, context, handle)
+                platform_vm::destack_net_get_send_buffer(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_get_send_buffer(runtime, context, handle)
+                platform_simulation_vm::destack_net_get_send_buffer(binding, context, handle)
             }
         },
         |context, result| {
@@ -16477,7 +16476,7 @@ fn destack_net_options_get_send_buffer_vm_replay(
 
 #[inline]
 fn destack_net_options_get_sock_opt_raw_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
@@ -16485,16 +16484,16 @@ fn destack_net_options_get_sock_opt_raw_vm_replay(
     name: SocketOptionName,
     maxbytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_GET_SOCK_OPT_RAW,
-        runtime.replay_payload_for(NET_OPTIONS_GET_SOCK_OPT_RAW)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_SOCK_OPT_RAW)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_net_get_sock_opt_raw(
-                runtime, context, handle, level, name, maxbytes,
+                binding, context, handle, level, name, maxbytes,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_get_sock_opt_raw(
-                runtime, context, handle, level, name, maxbytes,
+                binding, context, handle, level, name, maxbytes,
             ),
         },
         |context, result| {
@@ -16536,21 +16535,21 @@ fn destack_net_options_get_sock_opt_raw_vm_replay(
 
 #[inline]
 fn destack_net_options_get_timestamping_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_GET_TIMESTAMPING,
-        runtime.replay_payload_for(NET_OPTIONS_GET_TIMESTAMPING)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_TIMESTAMPING)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_get_timestamping(runtime, context, handle)
+                platform_vm::destack_net_get_timestamping(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_get_timestamping(runtime, context, handle)
+                platform_simulation_vm::destack_net_get_timestamping(binding, context, handle)
             }
         },
         |context, result| {
@@ -16592,19 +16591,19 @@ fn destack_net_options_get_timestamping_vm_replay(
 
 #[inline]
 fn destack_net_options_get_tos_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_GET_TOS,
-        runtime.replay_payload_for(NET_OPTIONS_GET_TOS)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_TOS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_get_tos(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_net_get_tos(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_get_tos(runtime, context, handle)
+                platform_simulation_vm::destack_net_get_tos(binding, context, handle)
             }
         },
         |context, result| {
@@ -16646,19 +16645,19 @@ fn destack_net_options_get_tos_vm_replay(
 
 #[inline]
 fn destack_net_options_get_ttl_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_GET_TTL,
-        runtime.replay_payload_for(NET_OPTIONS_GET_TTL)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_TTL)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_get_ttl(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_net_get_ttl(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_get_ttl(runtime, context, handle)
+                platform_simulation_vm::destack_net_get_ttl(binding, context, handle)
             }
         },
         |context, result| {
@@ -16700,21 +16699,21 @@ fn destack_net_options_get_ttl_vm_replay(
 
 #[inline]
 fn destack_net_options_get_write_timeout_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_GET_WRITE_TIMEOUT,
-        runtime.replay_payload_for(NET_OPTIONS_GET_WRITE_TIMEOUT)?,
+        binding.replay_payload_for(NET_OPTIONS_GET_WRITE_TIMEOUT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_get_write_timeout(runtime, context, handle)
+                platform_vm::destack_net_get_write_timeout(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_get_write_timeout(runtime, context, handle)
+                platform_simulation_vm::destack_net_get_write_timeout(binding, context, handle)
             }
         },
         |context, result| {
@@ -16756,22 +16755,22 @@ fn destack_net_options_get_write_timeout_vm_replay(
 
 #[inline]
 fn destack_net_options_set_broadcast_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_SET_BROADCAST,
-        runtime.replay_payload_for(NET_OPTIONS_SET_BROADCAST)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_BROADCAST)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_set_broadcast(runtime, context, handle, enabled)
+                platform_vm::destack_net_set_broadcast(binding, context, handle, enabled)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_set_broadcast(runtime, context, handle, enabled)
+                platform_simulation_vm::destack_net_set_broadcast(binding, context, handle, enabled)
             }
         },
         |context, result| {
@@ -16809,22 +16808,22 @@ fn destack_net_options_set_broadcast_vm_replay(
 
 #[inline]
 fn destack_net_options_set_linger_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     linger: LingerVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_SET_LINGER,
-        runtime.replay_payload_for(NET_OPTIONS_SET_LINGER)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_LINGER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_set_linger(runtime, context, handle, linger)
+                platform_vm::destack_net_set_linger(binding, context, handle, linger)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_set_linger(runtime, context, handle, linger)
+                platform_simulation_vm::destack_net_set_linger(binding, context, handle, linger)
             }
         },
         |context, result| {
@@ -16862,22 +16861,22 @@ fn destack_net_options_set_linger_vm_replay(
 
 #[inline]
 fn destack_net_options_set_only_v6_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_SET_ONLY_V6,
-        runtime.replay_payload_for(NET_OPTIONS_SET_ONLY_V6)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_ONLY_V6)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_set_only_v6(runtime, context, handle, enabled)
+                platform_vm::destack_net_set_only_v6(binding, context, handle, enabled)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_set_only_v6(runtime, context, handle, enabled)
+                platform_simulation_vm::destack_net_set_only_v6(binding, context, handle, enabled)
             }
         },
         |context, result| {
@@ -16915,22 +16914,22 @@ fn destack_net_options_set_only_v6_vm_replay(
 
 #[inline]
 fn destack_net_options_set_packet_mark_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     mark: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_SET_PACKET_MARK,
-        runtime.replay_payload_for(NET_OPTIONS_SET_PACKET_MARK)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_PACKET_MARK)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_set_packet_mark(runtime, context, handle, mark)
+                platform_vm::destack_net_set_packet_mark(binding, context, handle, mark)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_set_packet_mark(runtime, context, handle, mark)
+                platform_simulation_vm::destack_net_set_packet_mark(binding, context, handle, mark)
             }
         },
         |context, result| {
@@ -16968,22 +16967,22 @@ fn destack_net_options_set_packet_mark_vm_replay(
 
 #[inline]
 fn destack_net_options_set_read_timeout_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     timeoutms: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_SET_READ_TIMEOUT,
-        runtime.replay_payload_for(NET_OPTIONS_SET_READ_TIMEOUT)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_READ_TIMEOUT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_set_read_timeout(runtime, context, handle, timeoutms)
+                platform_vm::destack_net_set_read_timeout(binding, context, handle, timeoutms)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_set_read_timeout(
-                runtime, context, handle, timeoutms,
+                binding, context, handle, timeoutms,
             ),
         },
         |context, result| {
@@ -17021,22 +17020,22 @@ fn destack_net_options_set_read_timeout_vm_replay(
 
 #[inline]
 fn destack_net_options_set_recv_buffer_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     size: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_SET_RECV_BUFFER,
-        runtime.replay_payload_for(NET_OPTIONS_SET_RECV_BUFFER)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_RECV_BUFFER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_set_recv_buffer(runtime, context, handle, size)
+                platform_vm::destack_net_set_recv_buffer(binding, context, handle, size)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_set_recv_buffer(runtime, context, handle, size)
+                platform_simulation_vm::destack_net_set_recv_buffer(binding, context, handle, size)
             }
         },
         |context, result| {
@@ -17074,22 +17073,22 @@ fn destack_net_options_set_recv_buffer_vm_replay(
 
 #[inline]
 fn destack_net_options_set_send_buffer_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     size: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_SET_SEND_BUFFER,
-        runtime.replay_payload_for(NET_OPTIONS_SET_SEND_BUFFER)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_SEND_BUFFER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_set_send_buffer(runtime, context, handle, size)
+                platform_vm::destack_net_set_send_buffer(binding, context, handle, size)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_set_send_buffer(runtime, context, handle, size)
+                platform_simulation_vm::destack_net_set_send_buffer(binding, context, handle, size)
             }
         },
         |context, result| {
@@ -17127,7 +17126,7 @@ fn destack_net_options_set_send_buffer_vm_replay(
 
 #[inline]
 fn destack_net_options_set_sock_opt_raw_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
@@ -17135,13 +17134,13 @@ fn destack_net_options_set_sock_opt_raw_vm_replay(
     name: SocketOptionName,
     argument_value: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_SET_SOCK_OPT_RAW,
-        runtime.replay_payload_for(NET_OPTIONS_SET_SOCK_OPT_RAW)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_SOCK_OPT_RAW)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_net_set_sock_opt_raw(
-                runtime,
+                binding,
                 context,
                 handle,
                 level,
@@ -17149,7 +17148,7 @@ fn destack_net_options_set_sock_opt_raw_vm_replay(
                 argument_value,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_set_sock_opt_raw(
-                runtime,
+                binding,
                 context,
                 handle,
                 level,
@@ -17192,22 +17191,22 @@ fn destack_net_options_set_sock_opt_raw_vm_replay(
 
 #[inline]
 fn destack_net_options_set_timestamping_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     mode: SocketTimestampingMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_SET_TIMESTAMPING,
-        runtime.replay_payload_for(NET_OPTIONS_SET_TIMESTAMPING)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_TIMESTAMPING)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_set_timestamping(runtime, context, handle, mode)
+                platform_vm::destack_net_set_timestamping(binding, context, handle, mode)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_set_timestamping(runtime, context, handle, mode)
+                platform_simulation_vm::destack_net_set_timestamping(binding, context, handle, mode)
             }
         },
         |context, result| {
@@ -17245,20 +17244,20 @@ fn destack_net_options_set_timestamping_vm_replay(
 
 #[inline]
 fn destack_net_options_set_tos_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     tos: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_SET_TOS,
-        runtime.replay_payload_for(NET_OPTIONS_SET_TOS)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_TOS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_set_tos(runtime, context, handle, tos),
+            RuntimeWorld::Host => platform_vm::destack_net_set_tos(binding, context, handle, tos),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_set_tos(runtime, context, handle, tos)
+                platform_simulation_vm::destack_net_set_tos(binding, context, handle, tos)
             }
         },
         |context, result| {
@@ -17296,20 +17295,20 @@ fn destack_net_options_set_tos_vm_replay(
 
 #[inline]
 fn destack_net_options_set_ttl_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     ttl: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_SET_TTL,
-        runtime.replay_payload_for(NET_OPTIONS_SET_TTL)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_TTL)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_set_ttl(runtime, context, handle, ttl),
+            RuntimeWorld::Host => platform_vm::destack_net_set_ttl(binding, context, handle, ttl),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_set_ttl(runtime, context, handle, ttl)
+                platform_simulation_vm::destack_net_set_ttl(binding, context, handle, ttl)
             }
         },
         |context, result| {
@@ -17347,22 +17346,22 @@ fn destack_net_options_set_ttl_vm_replay(
 
 #[inline]
 fn destack_net_options_set_write_timeout_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     timeoutms: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_OPTIONS_SET_WRITE_TIMEOUT,
-        runtime.replay_payload_for(NET_OPTIONS_SET_WRITE_TIMEOUT)?,
+        binding.replay_payload_for(NET_OPTIONS_SET_WRITE_TIMEOUT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_set_write_timeout(runtime, context, handle, timeoutms)
+                platform_vm::destack_net_set_write_timeout(binding, context, handle, timeoutms)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_set_write_timeout(
-                runtime, context, handle, timeoutms,
+                binding, context, handle, timeoutms,
             ),
         },
         |context, result| {
@@ -17400,18 +17399,18 @@ fn destack_net_options_set_write_timeout_vm_replay(
 
 #[inline]
 fn destack_net_raw_packet_backend_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_RAW_PACKET_BACKEND_LIST,
-        runtime.replay_payload_for(NET_RAW_PACKET_BACKEND_LIST)?,
+        binding.replay_payload_for(NET_RAW_PACKET_BACKEND_LIST)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_packet_backend_list(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_net_packet_backend_list(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_packet_backend_list(runtime, context)
+                platform_simulation_vm::destack_net_packet_backend_list(binding, context)
             }
         },
         |context, result| {
@@ -17570,21 +17569,21 @@ fn destack_net_raw_packet_backend_list_vm_replay(
 
 #[inline]
 fn destack_net_raw_packet_clear_fanout_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_RAW_PACKET_CLEAR_FANOUT,
-        runtime.replay_payload_for(NET_RAW_PACKET_CLEAR_FANOUT)?,
+        binding.replay_payload_for(NET_RAW_PACKET_CLEAR_FANOUT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_packet_clear_fanout(runtime, context, handle)
+                platform_vm::destack_net_packet_clear_fanout(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_packet_clear_fanout(runtime, context, handle)
+                platform_simulation_vm::destack_net_packet_clear_fanout(binding, context, handle)
             }
         },
         |context, result| {
@@ -17622,21 +17621,21 @@ fn destack_net_raw_packet_clear_fanout_vm_replay(
 
 #[inline]
 fn destack_net_raw_packet_clear_filter_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_RAW_PACKET_CLEAR_FILTER,
-        runtime.replay_payload_for(NET_RAW_PACKET_CLEAR_FILTER)?,
+        binding.replay_payload_for(NET_RAW_PACKET_CLEAR_FILTER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_packet_clear_filter(runtime, context, handle)
+                platform_vm::destack_net_packet_clear_filter(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_packet_clear_filter(runtime, context, handle)
+                platform_simulation_vm::destack_net_packet_clear_filter(binding, context, handle)
             }
         },
         |context, result| {
@@ -17674,21 +17673,21 @@ fn destack_net_raw_packet_clear_filter_vm_replay(
 
 #[inline]
 fn destack_net_raw_packet_clear_ring_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_RAW_PACKET_CLEAR_RING,
-        runtime.replay_payload_for(NET_RAW_PACKET_CLEAR_RING)?,
+        binding.replay_payload_for(NET_RAW_PACKET_CLEAR_RING)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_packet_clear_ring(runtime, context, handle)
+                platform_vm::destack_net_packet_clear_ring(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_packet_clear_ring(runtime, context, handle)
+                platform_simulation_vm::destack_net_packet_clear_ring(binding, context, handle)
             }
         },
         |context, result| {
@@ -17726,19 +17725,19 @@ fn destack_net_raw_packet_clear_ring_vm_replay(
 
 #[inline]
 fn destack_net_raw_packet_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     options: PacketCaptureOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_RAW_PACKET_OPEN,
-        runtime.replay_payload_for(NET_RAW_PACKET_OPEN)?,
+        binding.replay_payload_for(NET_RAW_PACKET_OPEN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_packet_open(runtime, context, options),
+            RuntimeWorld::Host => platform_vm::destack_net_packet_open(binding, context, options),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_packet_open(runtime, context, options)
+                platform_simulation_vm::destack_net_packet_open(binding, context, options)
             }
         },
         |context, result| {
@@ -17780,22 +17779,22 @@ fn destack_net_raw_packet_open_vm_replay(
 
 #[inline]
 fn destack_net_raw_packet_receive_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_RAW_PACKET_RECEIVE,
-        runtime.replay_payload_for(NET_RAW_PACKET_RECEIVE)?,
+        binding.replay_payload_for(NET_RAW_PACKET_RECEIVE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_packet_receive(runtime, context, handle, argument_payload)
+                platform_vm::destack_net_packet_receive(binding, context, handle, argument_payload)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_packet_receive(
-                runtime,
+                binding,
                 context,
                 handle,
                 argument_payload,
@@ -17858,22 +17857,22 @@ fn destack_net_raw_packet_receive_vm_replay(
 
 #[inline]
 fn destack_net_raw_packet_send_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_RAW_PACKET_SEND,
-        runtime.replay_payload_for(NET_RAW_PACKET_SEND)?,
+        binding.replay_payload_for(NET_RAW_PACKET_SEND)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_packet_send(runtime, context, handle, argument_payload)
+                platform_vm::destack_net_packet_send(binding, context, handle, argument_payload)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_packet_send(
-                runtime,
+                binding,
                 context,
                 handle,
                 argument_payload,
@@ -17918,22 +17917,22 @@ fn destack_net_raw_packet_send_vm_replay(
 
 #[inline]
 fn destack_net_raw_packet_set_fanout_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     options: PacketFanoutOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_RAW_PACKET_SET_FANOUT,
-        runtime.replay_payload_for(NET_RAW_PACKET_SET_FANOUT)?,
+        binding.replay_payload_for(NET_RAW_PACKET_SET_FANOUT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_packet_set_fanout(runtime, context, handle, options)
+                platform_vm::destack_net_packet_set_fanout(binding, context, handle, options)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_packet_set_fanout(
-                runtime, context, handle, options,
+                binding, context, handle, options,
             ),
         },
         |context, result| {
@@ -17971,22 +17970,22 @@ fn destack_net_raw_packet_set_fanout_vm_replay(
 
 #[inline]
 fn destack_net_raw_packet_set_filter_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     filterprogram: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_RAW_PACKET_SET_FILTER,
-        runtime.replay_payload_for(NET_RAW_PACKET_SET_FILTER)?,
+        binding.replay_payload_for(NET_RAW_PACKET_SET_FILTER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_packet_set_filter(runtime, context, handle, filterprogram)
+                platform_vm::destack_net_packet_set_filter(binding, context, handle, filterprogram)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_packet_set_filter(
-                runtime,
+                binding,
                 context,
                 handle,
                 filterprogram,
@@ -18027,22 +18026,22 @@ fn destack_net_raw_packet_set_filter_vm_replay(
 
 #[inline]
 fn destack_net_raw_packet_set_rx_ring_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     options: PacketRingOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_RAW_PACKET_SET_RX_RING,
-        runtime.replay_payload_for(NET_RAW_PACKET_SET_RX_RING)?,
+        binding.replay_payload_for(NET_RAW_PACKET_SET_RX_RING)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_packet_set_rx_ring(runtime, context, handle, options)
+                platform_vm::destack_net_packet_set_rx_ring(binding, context, handle, options)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_packet_set_rx_ring(
-                runtime, context, handle, options,
+                binding, context, handle, options,
             ),
         },
         |context, result| {
@@ -18080,23 +18079,23 @@ fn destack_net_raw_packet_set_rx_ring_vm_replay(
 
 #[inline]
 fn destack_net_raw_packet_set_timestamp_mode_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     mode: PacketTimestampMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_RAW_PACKET_SET_TIMESTAMP_MODE,
-        runtime.replay_payload_for(NET_RAW_PACKET_SET_TIMESTAMP_MODE)?,
+        binding.replay_payload_for(NET_RAW_PACKET_SET_TIMESTAMP_MODE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_packet_set_timestamp_mode(runtime, context, handle, mode)
+                platform_vm::destack_net_packet_set_timestamp_mode(binding, context, handle, mode)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_net_packet_set_timestamp_mode(
-                    runtime, context, handle, mode,
+                    binding, context, handle, mode,
                 )
             }
         },
@@ -18135,22 +18134,22 @@ fn destack_net_raw_packet_set_timestamp_mode_vm_replay(
 
 #[inline]
 fn destack_net_raw_packet_set_tx_ring_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     options: PacketRingOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_RAW_PACKET_SET_TX_RING,
-        runtime.replay_payload_for(NET_RAW_PACKET_SET_TX_RING)?,
+        binding.replay_payload_for(NET_RAW_PACKET_SET_TX_RING)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_packet_set_tx_ring(runtime, context, handle, options)
+                platform_vm::destack_net_packet_set_tx_ring(binding, context, handle, options)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_packet_set_tx_ring(
-                runtime, context, handle, options,
+                binding, context, handle, options,
             ),
         },
         |context, result| {
@@ -18188,19 +18187,19 @@ fn destack_net_raw_packet_set_tx_ring_vm_replay(
 
 #[inline]
 fn destack_net_raw_packet_stats_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_RAW_PACKET_STATS,
-        runtime.replay_payload_for(NET_RAW_PACKET_STATS)?,
+        binding.replay_payload_for(NET_RAW_PACKET_STATS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_packet_stats(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_net_packet_stats(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_packet_stats(runtime, context, handle)
+                platform_simulation_vm::destack_net_packet_stats(binding, context, handle)
             }
         },
         |context, result| {
@@ -18257,23 +18256,23 @@ fn destack_net_raw_packet_stats_vm_replay(
 
 #[inline]
 fn destack_net_raw_set_header_included_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_RAW_SET_HEADER_INCLUDED,
-        runtime.replay_payload_for(NET_RAW_SET_HEADER_INCLUDED)?,
+        binding.replay_payload_for(NET_RAW_SET_HEADER_INCLUDED)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_raw_set_header_included(runtime, context, handle, enabled)
+                platform_vm::destack_net_raw_set_header_included(binding, context, handle, enabled)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_net_raw_set_header_included(
-                    runtime, context, handle, enabled,
+                    binding, context, handle, enabled,
                 )
             }
         },
@@ -18312,22 +18311,22 @@ fn destack_net_raw_set_header_included_vm_replay(
 
 #[inline]
 fn destack_net_raw_socket_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     family: SocketFamily,
     protocol: i32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_RAW_SOCKET,
-        runtime.replay_payload_for(NET_RAW_SOCKET)?,
+        binding.replay_payload_for(NET_RAW_SOCKET)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_raw_socket(runtime, context, family, protocol)
+                platform_vm::destack_net_raw_socket(binding, context, family, protocol)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_raw_socket(runtime, context, family, protocol)
+                platform_simulation_vm::destack_net_raw_socket(binding, context, family, protocol)
             }
         },
         |context, result| {
@@ -18369,19 +18368,19 @@ fn destack_net_raw_socket_vm_replay(
 
 #[inline]
 fn destack_net_resolve_lookup_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     query: ResolveQueryVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_RESOLVE_LOOKUP,
-        runtime.replay_payload_for(NET_RESOLVE_LOOKUP)?,
+        binding.replay_payload_for(NET_RESOLVE_LOOKUP)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_resolve(runtime, context, query),
+            RuntimeWorld::Host => platform_vm::destack_net_resolve(binding, context, query),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_resolve(runtime, context, query)
+                platform_simulation_vm::destack_net_resolve(binding, context, query)
             }
         },
         |context, result| {
@@ -18496,22 +18495,22 @@ fn destack_net_resolve_lookup_vm_replay(
 
 #[inline]
 fn destack_net_resolve_reverse_lookup_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     address: SocketAddressVm,
     flags: ReverseLookupFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_RESOLVE_REVERSE_LOOKUP,
-        runtime.replay_payload_for(NET_RESOLVE_REVERSE_LOOKUP)?,
+        binding.replay_payload_for(NET_RESOLVE_REVERSE_LOOKUP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_reverse_lookup(runtime, context, address, flags)
+                platform_vm::destack_net_reverse_lookup(binding, context, address, flags)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_reverse_lookup(runtime, context, address, flags)
+                platform_simulation_vm::destack_net_reverse_lookup(binding, context, address, flags)
             }
         },
         |context, result| {
@@ -18630,19 +18629,19 @@ fn destack_net_resolve_reverse_lookup_vm_replay(
 
 #[inline]
 fn destack_net_reuse_get_reuse_addr_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_REUSE_GET_REUSE_ADDR,
-        runtime.replay_payload_for(NET_REUSE_GET_REUSE_ADDR)?,
+        binding.replay_payload_for(NET_REUSE_GET_REUSE_ADDR)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_get_reuse_addr(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_net_get_reuse_addr(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_get_reuse_addr(runtime, context, handle)
+                platform_simulation_vm::destack_net_get_reuse_addr(binding, context, handle)
             }
         },
         |context, result| {
@@ -18684,19 +18683,19 @@ fn destack_net_reuse_get_reuse_addr_vm_replay(
 
 #[inline]
 fn destack_net_reuse_get_reuse_port_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_REUSE_GET_REUSE_PORT,
-        runtime.replay_payload_for(NET_REUSE_GET_REUSE_PORT)?,
+        binding.replay_payload_for(NET_REUSE_GET_REUSE_PORT)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_get_reuse_port(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_net_get_reuse_port(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_get_reuse_port(runtime, context, handle)
+                platform_simulation_vm::destack_net_get_reuse_port(binding, context, handle)
             }
         },
         |context, result| {
@@ -18738,22 +18737,22 @@ fn destack_net_reuse_get_reuse_port_vm_replay(
 
 #[inline]
 fn destack_net_reuse_set_reuse_addr_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_REUSE_SET_REUSE_ADDR,
-        runtime.replay_payload_for(NET_REUSE_SET_REUSE_ADDR)?,
+        binding.replay_payload_for(NET_REUSE_SET_REUSE_ADDR)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_set_reuse_addr(runtime, context, handle, enabled)
+                platform_vm::destack_net_set_reuse_addr(binding, context, handle, enabled)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_set_reuse_addr(
-                runtime, context, handle, enabled,
+                binding, context, handle, enabled,
             ),
         },
         |context, result| {
@@ -18791,22 +18790,22 @@ fn destack_net_reuse_set_reuse_addr_vm_replay(
 
 #[inline]
 fn destack_net_reuse_set_reuse_port_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_REUSE_SET_REUSE_PORT,
-        runtime.replay_payload_for(NET_REUSE_SET_REUSE_PORT)?,
+        binding.replay_payload_for(NET_REUSE_SET_REUSE_PORT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_set_reuse_port(runtime, context, handle, enabled)
+                platform_vm::destack_net_set_reuse_port(binding, context, handle, enabled)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_set_reuse_port(
-                runtime, context, handle, enabled,
+                binding, context, handle, enabled,
             ),
         },
         |context, result| {
@@ -18844,19 +18843,19 @@ fn destack_net_reuse_set_reuse_port_vm_replay(
 
 #[inline]
 fn destack_net_route_route_add_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     route: RouteEntryVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_ROUTE_ROUTE_ADD,
-        runtime.replay_payload_for(NET_ROUTE_ROUTE_ADD)?,
+        binding.replay_payload_for(NET_ROUTE_ROUTE_ADD)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_route_add(runtime, context, route),
+            RuntimeWorld::Host => platform_vm::destack_net_route_add(binding, context, route),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_route_add(runtime, context, route)
+                platform_simulation_vm::destack_net_route_add(binding, context, route)
             }
         },
         |context, result| {
@@ -18894,19 +18893,19 @@ fn destack_net_route_route_add_vm_replay(
 
 #[inline]
 fn destack_net_route_route_delete_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     route: RouteEntryVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_ROUTE_ROUTE_DELETE,
-        runtime.replay_payload_for(NET_ROUTE_ROUTE_DELETE)?,
+        binding.replay_payload_for(NET_ROUTE_ROUTE_DELETE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_route_delete(runtime, context, route),
+            RuntimeWorld::Host => platform_vm::destack_net_route_delete(binding, context, route),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_route_delete(runtime, context, route)
+                platform_simulation_vm::destack_net_route_delete(binding, context, route)
             }
         },
         |context, result| {
@@ -18944,19 +18943,19 @@ fn destack_net_route_route_delete_vm_replay(
 
 #[inline]
 fn destack_net_route_route_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     family: SocketFamily,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_ROUTE_ROUTE_LIST,
-        runtime.replay_payload_for(NET_ROUTE_ROUTE_LIST)?,
+        binding.replay_payload_for(NET_ROUTE_ROUTE_LIST)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_route_list(runtime, context, family),
+            RuntimeWorld::Host => platform_vm::destack_net_route_list(binding, context, family),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_route_list(runtime, context, family)
+                platform_simulation_vm::destack_net_route_list(binding, context, family)
             }
         },
         |context, result| {
@@ -19284,19 +19283,19 @@ fn destack_net_route_route_list_vm_replay(
 
 #[inline]
 fn destack_net_socket_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_SOCKET_CLOSE,
-        runtime.replay_payload_for(NET_SOCKET_CLOSE)?,
+        binding.replay_payload_for(NET_SOCKET_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_net_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_close(runtime, context, handle)
+                platform_simulation_vm::destack_net_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -19334,22 +19333,22 @@ fn destack_net_socket_close_vm_replay(
 
 #[inline]
 fn destack_net_socket_connect_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_SOCKET_CONNECT,
-        runtime.replay_payload_for(NET_SOCKET_CONNECT)?,
+        binding.replay_payload_for(NET_SOCKET_CONNECT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_connect(runtime, context, handle, address)
+                platform_vm::destack_net_connect(binding, context, handle, address)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_connect(runtime, context, handle, address)
+                platform_simulation_vm::destack_net_connect(binding, context, handle, address)
             }
         },
         |context, result| {
@@ -19387,23 +19386,23 @@ fn destack_net_socket_connect_vm_replay(
 
 #[inline]
 fn destack_net_socket_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     family: SocketFamily,
     sockettype: SocketType,
     protocol: SocketProtocol,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_SOCKET_OPEN,
-        runtime.replay_payload_for(NET_SOCKET_OPEN)?,
+        binding.replay_payload_for(NET_SOCKET_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_socket(runtime, context, family, sockettype, protocol)
+                platform_vm::destack_net_socket(binding, context, family, sockettype, protocol)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_socket(
-                runtime, context, family, sockettype, protocol,
+                binding, context, family, sockettype, protocol,
             ),
         },
         |context, result| {
@@ -19445,23 +19444,23 @@ fn destack_net_socket_open_vm_replay(
 
 #[inline]
 fn destack_net_socket_open_pair_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     family: SocketFamily,
     sockettype: SocketType,
     protocol: SocketProtocol,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_SOCKET_OPEN_PAIR,
-        runtime.replay_payload_for(NET_SOCKET_OPEN_PAIR)?,
+        binding.replay_payload_for(NET_SOCKET_OPEN_PAIR)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_socket_pair(runtime, context, family, sockettype, protocol)
+                platform_vm::destack_net_socket_pair(binding, context, family, sockettype, protocol)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_socket_pair(
-                runtime, context, family, sockettype, protocol,
+                binding, context, family, sockettype, protocol,
             ),
         },
         |context, result| {
@@ -19513,20 +19512,20 @@ fn destack_net_socket_open_pair_vm_replay(
 
 #[inline]
 fn destack_net_socket_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_SOCKET_READ,
-        runtime.replay_payload_for(NET_SOCKET_READ)?,
+        binding.replay_payload_for(NET_SOCKET_READ)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_read(runtime, context, handle, buffer),
+            RuntimeWorld::Host => platform_vm::destack_net_read(binding, context, handle, buffer),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_read(runtime, context, handle, buffer)
+                platform_simulation_vm::destack_net_read(binding, context, handle, buffer)
             }
         },
         |context, result| {
@@ -19568,20 +19567,20 @@ fn destack_net_socket_read_vm_replay(
 
 #[inline]
 fn destack_net_socket_readv_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_SOCKET_READV,
-        runtime.replay_payload_for(NET_SOCKET_READV)?,
+        binding.replay_payload_for(NET_SOCKET_READV)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_readv(runtime, context, handle, buffers),
+            RuntimeWorld::Host => platform_vm::destack_net_readv(binding, context, handle, buffers),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_readv(runtime, context, handle, buffers)
+                platform_simulation_vm::destack_net_readv(binding, context, handle, buffers)
             }
         },
         |context, result| {
@@ -19623,23 +19622,23 @@ fn destack_net_socket_readv_vm_replay(
 
 #[inline]
 fn destack_net_socket_recv_from_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
     recvflags: SocketMessageFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_SOCKET_RECV_FROM,
-        runtime.replay_payload_for(NET_SOCKET_RECV_FROM)?,
+        binding.replay_payload_for(NET_SOCKET_RECV_FROM)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_recv_from(runtime, context, handle, buffer, recvflags)
+                platform_vm::destack_net_recv_from(binding, context, handle, buffer, recvflags)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_recv_from(
-                runtime, context, handle, buffer, recvflags,
+                binding, context, handle, buffer, recvflags,
             ),
         },
         |context, result| {
@@ -19711,7 +19710,7 @@ fn destack_net_socket_recv_from_vm_replay(
 
 #[inline]
 fn destack_net_socket_recv_mmsg_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
@@ -19720,13 +19719,13 @@ fn destack_net_socket_recv_mmsg_vm_replay(
     wantcredentials: bool,
     maxcontrolbytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_SOCKET_RECV_MMSG,
-        runtime.replay_payload_for(NET_SOCKET_RECV_MMSG)?,
+        binding.replay_payload_for(NET_SOCKET_RECV_MMSG)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_net_recv_mmsg(
-                runtime,
+                binding,
                 context,
                 handle,
                 requests,
@@ -19735,7 +19734,7 @@ fn destack_net_socket_recv_mmsg_vm_replay(
                 maxcontrolbytes,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_recv_mmsg(
-                runtime,
+                binding,
                 context,
                 handle,
                 requests,
@@ -20126,7 +20125,7 @@ fn destack_net_socket_recv_mmsg_vm_replay(
 
 #[inline]
 fn destack_net_socket_recv_msg_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
@@ -20136,13 +20135,13 @@ fn destack_net_socket_recv_msg_vm_replay(
     wantcredentials: bool,
     maxcontrolbytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_SOCKET_RECV_MSG,
-        runtime.replay_payload_for(NET_SOCKET_RECV_MSG)?,
+        binding.replay_payload_for(NET_SOCKET_RECV_MSG)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_net_recv_msg(
-                runtime,
+                binding,
                 context,
                 handle,
                 buffer,
@@ -20152,7 +20151,7 @@ fn destack_net_socket_recv_msg_vm_replay(
                 maxcontrolbytes,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_recv_msg(
-                runtime,
+                binding,
                 context,
                 handle,
                 buffer,
@@ -20309,22 +20308,22 @@ fn destack_net_socket_recv_msg_vm_replay(
 
 #[inline]
 fn destack_net_socket_send_mmsg_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     messages: VmSlice<SocketSendBatchEntryVm>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_SOCKET_SEND_MMSG,
-        runtime.replay_payload_for(NET_SOCKET_SEND_MMSG)?,
+        binding.replay_payload_for(NET_SOCKET_SEND_MMSG)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_send_mmsg(runtime, context, handle, messages)
+                platform_vm::destack_net_send_mmsg(binding, context, handle, messages)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_send_mmsg(runtime, context, handle, messages)
+                platform_simulation_vm::destack_net_send_mmsg(binding, context, handle, messages)
             }
         },
         |context, result| {
@@ -20366,23 +20365,23 @@ fn destack_net_socket_send_mmsg_vm_replay(
 
 #[inline]
 fn destack_net_socket_send_msg_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
     message: SocketSendMessageVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_SOCKET_SEND_MSG,
-        runtime.replay_payload_for(NET_SOCKET_SEND_MSG)?,
+        binding.replay_payload_for(NET_SOCKET_SEND_MSG)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_send_msg(runtime, context, handle, buffer, message)
+                platform_vm::destack_net_send_msg(binding, context, handle, buffer, message)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_send_msg(
-                runtime, context, handle, buffer, message,
+                binding, context, handle, buffer, message,
             ),
         },
         |context, result| {
@@ -20424,23 +20423,23 @@ fn destack_net_socket_send_msg_vm_replay(
 
 #[inline]
 fn destack_net_socket_send_to_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
     message: SocketSendToVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_SOCKET_SEND_TO,
-        runtime.replay_payload_for(NET_SOCKET_SEND_TO)?,
+        binding.replay_payload_for(NET_SOCKET_SEND_TO)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_send_to(runtime, context, handle, buffer, message)
+                platform_vm::destack_net_send_to(binding, context, handle, buffer, message)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_send_to(
-                runtime, context, handle, buffer, message,
+                binding, context, handle, buffer, message,
             ),
         },
         |context, result| {
@@ -20482,22 +20481,22 @@ fn destack_net_socket_send_to_vm_replay(
 
 #[inline]
 fn destack_net_socket_set_nonblocking_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_SOCKET_SET_NONBLOCKING,
-        runtime.replay_payload_for(NET_SOCKET_SET_NONBLOCKING)?,
+        binding.replay_payload_for(NET_SOCKET_SET_NONBLOCKING)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_set_nonblocking(runtime, context, handle, enabled)
+                platform_vm::destack_net_set_nonblocking(binding, context, handle, enabled)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_set_nonblocking(
-                runtime, context, handle, enabled,
+                binding, context, handle, enabled,
             ),
         },
         |context, result| {
@@ -20535,20 +20534,20 @@ fn destack_net_socket_set_nonblocking_vm_replay(
 
 #[inline]
 fn destack_net_socket_shutdown_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     how: SocketShutdown,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_SOCKET_SHUTDOWN,
-        runtime.replay_payload_for(NET_SOCKET_SHUTDOWN)?,
+        binding.replay_payload_for(NET_SOCKET_SHUTDOWN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_shutdown(runtime, context, handle, how),
+            RuntimeWorld::Host => platform_vm::destack_net_shutdown(binding, context, handle, how),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_shutdown(runtime, context, handle, how)
+                platform_simulation_vm::destack_net_shutdown(binding, context, handle, how)
             }
         },
         |context, result| {
@@ -20586,20 +20585,20 @@ fn destack_net_socket_shutdown_vm_replay(
 
 #[inline]
 fn destack_net_socket_write_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_SOCKET_WRITE,
-        runtime.replay_payload_for(NET_SOCKET_WRITE)?,
+        binding.replay_payload_for(NET_SOCKET_WRITE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_write(runtime, context, handle, buffer),
+            RuntimeWorld::Host => platform_vm::destack_net_write(binding, context, handle, buffer),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_write(runtime, context, handle, buffer)
+                platform_simulation_vm::destack_net_write(binding, context, handle, buffer)
             }
         },
         |context, result| {
@@ -20641,22 +20640,22 @@ fn destack_net_socket_write_vm_replay(
 
 #[inline]
 fn destack_net_socket_writev_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_SOCKET_WRITEV,
-        runtime.replay_payload_for(NET_SOCKET_WRITEV)?,
+        binding.replay_payload_for(NET_SOCKET_WRITEV)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_writev(runtime, context, handle, buffers)
+                platform_vm::destack_net_writev(binding, context, handle, buffers)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_writev(runtime, context, handle, buffers)
+                platform_simulation_vm::destack_net_writev(binding, context, handle, buffers)
             }
         },
         |context, result| {
@@ -20698,19 +20697,19 @@ fn destack_net_socket_writev_vm_replay(
 
 #[inline]
 fn destack_net_tcp_get_keep_alive_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_TCP_GET_KEEP_ALIVE,
-        runtime.replay_payload_for(NET_TCP_GET_KEEP_ALIVE)?,
+        binding.replay_payload_for(NET_TCP_GET_KEEP_ALIVE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_get_keep_alive(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_net_get_keep_alive(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_get_keep_alive(runtime, context, handle)
+                platform_simulation_vm::destack_net_get_keep_alive(binding, context, handle)
             }
         },
         |context, result| {
@@ -20770,19 +20769,19 @@ fn destack_net_tcp_get_keep_alive_vm_replay(
 
 #[inline]
 fn destack_net_tcp_get_no_delay_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_TCP_GET_NO_DELAY,
-        runtime.replay_payload_for(NET_TCP_GET_NO_DELAY)?,
+        binding.replay_payload_for(NET_TCP_GET_NO_DELAY)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_get_no_delay(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_net_get_no_delay(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_get_no_delay(runtime, context, handle)
+                platform_simulation_vm::destack_net_get_no_delay(binding, context, handle)
             }
         },
         |context, result| {
@@ -20824,22 +20823,22 @@ fn destack_net_tcp_get_no_delay_vm_replay(
 
 #[inline]
 fn destack_net_tcp_set_keep_alive_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     config: KeepAliveConfigVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_TCP_SET_KEEP_ALIVE,
-        runtime.replay_payload_for(NET_TCP_SET_KEEP_ALIVE)?,
+        binding.replay_payload_for(NET_TCP_SET_KEEP_ALIVE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_set_keep_alive(runtime, context, handle, config)
+                platform_vm::destack_net_set_keep_alive(binding, context, handle, config)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_set_keep_alive(runtime, context, handle, config)
+                platform_simulation_vm::destack_net_set_keep_alive(binding, context, handle, config)
             }
         },
         |context, result| {
@@ -20877,22 +20876,22 @@ fn destack_net_tcp_set_keep_alive_vm_replay(
 
 #[inline]
 fn destack_net_tcp_set_no_delay_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_TCP_SET_NO_DELAY,
-        runtime.replay_payload_for(NET_TCP_SET_NO_DELAY)?,
+        binding.replay_payload_for(NET_TCP_SET_NO_DELAY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_set_no_delay(runtime, context, handle, enabled)
+                platform_vm::destack_net_set_no_delay(binding, context, handle, enabled)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_set_no_delay(runtime, context, handle, enabled)
+                platform_simulation_vm::destack_net_set_no_delay(binding, context, handle, enabled)
             }
         },
         |context, result| {
@@ -20930,22 +20929,22 @@ fn destack_net_tcp_set_no_delay_vm_replay(
 
 #[inline]
 fn destack_net_udp_bind_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_BIND,
-        runtime.replay_payload_for(NET_UDP_BIND)?,
+        binding.replay_payload_for(NET_UDP_BIND)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_udp_bind(runtime, context, handle, address)
+                platform_vm::destack_net_udp_bind(binding, context, handle, address)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_udp_bind(runtime, context, handle, address)
+                platform_simulation_vm::destack_net_udp_bind(binding, context, handle, address)
             }
         },
         |context, result| {
@@ -20983,22 +20982,22 @@ fn destack_net_udp_bind_vm_replay(
 
 #[inline]
 fn destack_net_udp_connect_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_CONNECT,
-        runtime.replay_payload_for(NET_UDP_CONNECT)?,
+        binding.replay_payload_for(NET_UDP_CONNECT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_udp_connect(runtime, context, handle, address)
+                platform_vm::destack_net_udp_connect(binding, context, handle, address)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_udp_connect(runtime, context, handle, address)
+                platform_simulation_vm::destack_net_udp_connect(binding, context, handle, address)
             }
         },
         |context, result| {
@@ -21036,22 +21035,22 @@ fn destack_net_udp_connect_vm_replay(
 
 #[inline]
 fn destack_net_udp_get_multicast_interface_v4_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_GET_MULTICAST_INTERFACE_V4,
-        runtime.replay_payload_for(NET_UDP_GET_MULTICAST_INTERFACE_V4)?,
+        binding.replay_payload_for(NET_UDP_GET_MULTICAST_INTERFACE_V4)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_get_multicast_interface_v4(runtime, context, handle)
+                platform_vm::destack_net_get_multicast_interface_v4(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_net_get_multicast_interface_v4(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -21100,22 +21099,22 @@ fn destack_net_udp_get_multicast_interface_v4_vm_replay(
 
 #[inline]
 fn destack_net_udp_get_multicast_interface_v6_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_GET_MULTICAST_INTERFACE_V6,
-        runtime.replay_payload_for(NET_UDP_GET_MULTICAST_INTERFACE_V6)?,
+        binding.replay_payload_for(NET_UDP_GET_MULTICAST_INTERFACE_V6)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_get_multicast_interface_v6(runtime, context, handle)
+                platform_vm::destack_net_get_multicast_interface_v6(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_net_get_multicast_interface_v6(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -21158,21 +21157,21 @@ fn destack_net_udp_get_multicast_interface_v6_vm_replay(
 
 #[inline]
 fn destack_net_udp_get_multicast_loop_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_GET_MULTICAST_LOOP,
-        runtime.replay_payload_for(NET_UDP_GET_MULTICAST_LOOP)?,
+        binding.replay_payload_for(NET_UDP_GET_MULTICAST_LOOP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_get_multicast_loop(runtime, context, handle)
+                platform_vm::destack_net_get_multicast_loop(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_get_multicast_loop(runtime, context, handle)
+                platform_simulation_vm::destack_net_get_multicast_loop(binding, context, handle)
             }
         },
         |context, result| {
@@ -21214,21 +21213,21 @@ fn destack_net_udp_get_multicast_loop_vm_replay(
 
 #[inline]
 fn destack_net_udp_get_multicast_ttl_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_GET_MULTICAST_TTL,
-        runtime.replay_payload_for(NET_UDP_GET_MULTICAST_TTL)?,
+        binding.replay_payload_for(NET_UDP_GET_MULTICAST_TTL)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_get_multicast_ttl(runtime, context, handle)
+                platform_vm::destack_net_get_multicast_ttl(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_get_multicast_ttl(runtime, context, handle)
+                platform_simulation_vm::destack_net_get_multicast_ttl(binding, context, handle)
             }
         },
         |context, result| {
@@ -21270,23 +21269,23 @@ fn destack_net_udp_get_multicast_ttl_vm_replay(
 
 #[inline]
 fn destack_net_udp_join_multicast_source_v4_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV4Vm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_JOIN_MULTICAST_SOURCE_V4,
-        runtime.replay_payload_for(NET_UDP_JOIN_MULTICAST_SOURCE_V4)?,
+        binding.replay_payload_for(NET_UDP_JOIN_MULTICAST_SOURCE_V4)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_net_join_multicast_source_v4(
-                runtime, context, handle, membership,
+                binding, context, handle, membership,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_net_join_multicast_source_v4(
-                    runtime, context, handle, membership,
+                    binding, context, handle, membership,
                 )
             }
         },
@@ -21325,23 +21324,23 @@ fn destack_net_udp_join_multicast_source_v4_vm_replay(
 
 #[inline]
 fn destack_net_udp_join_multicast_source_v6_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV6Vm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_JOIN_MULTICAST_SOURCE_V6,
-        runtime.replay_payload_for(NET_UDP_JOIN_MULTICAST_SOURCE_V6)?,
+        binding.replay_payload_for(NET_UDP_JOIN_MULTICAST_SOURCE_V6)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_net_join_multicast_source_v6(
-                runtime, context, handle, membership,
+                binding, context, handle, membership,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_net_join_multicast_source_v6(
-                    runtime, context, handle, membership,
+                    binding, context, handle, membership,
                 )
             }
         },
@@ -21380,27 +21379,27 @@ fn destack_net_udp_join_multicast_source_v6_vm_replay(
 
 #[inline]
 fn destack_net_udp_join_multicast_v4_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     group: vm::StringHandle,
     interfaceaddress: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_JOIN_MULTICAST_V4,
-        runtime.replay_payload_for(NET_UDP_JOIN_MULTICAST_V4)?,
+        binding.replay_payload_for(NET_UDP_JOIN_MULTICAST_V4)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_net_join_multicast_v4(
-                runtime,
+                binding,
                 context,
                 handle,
                 group,
                 interfaceaddress,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_join_multicast_v4(
-                runtime,
+                binding,
                 context,
                 handle,
                 group,
@@ -21442,27 +21441,27 @@ fn destack_net_udp_join_multicast_v4_vm_replay(
 
 #[inline]
 fn destack_net_udp_join_multicast_v6_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     group: vm::StringHandle,
     interfaceindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_JOIN_MULTICAST_V6,
-        runtime.replay_payload_for(NET_UDP_JOIN_MULTICAST_V6)?,
+        binding.replay_payload_for(NET_UDP_JOIN_MULTICAST_V6)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_net_join_multicast_v6(
-                runtime,
+                binding,
                 context,
                 handle,
                 group,
                 interfaceindex,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_join_multicast_v6(
-                runtime,
+                binding,
                 context,
                 handle,
                 group,
@@ -21504,23 +21503,23 @@ fn destack_net_udp_join_multicast_v6_vm_replay(
 
 #[inline]
 fn destack_net_udp_leave_multicast_source_v4_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV4Vm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_LEAVE_MULTICAST_SOURCE_V4,
-        runtime.replay_payload_for(NET_UDP_LEAVE_MULTICAST_SOURCE_V4)?,
+        binding.replay_payload_for(NET_UDP_LEAVE_MULTICAST_SOURCE_V4)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_net_leave_multicast_source_v4(
-                runtime, context, handle, membership,
+                binding, context, handle, membership,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_net_leave_multicast_source_v4(
-                    runtime, context, handle, membership,
+                    binding, context, handle, membership,
                 )
             }
         },
@@ -21559,23 +21558,23 @@ fn destack_net_udp_leave_multicast_source_v4_vm_replay(
 
 #[inline]
 fn destack_net_udp_leave_multicast_source_v6_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV6Vm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_LEAVE_MULTICAST_SOURCE_V6,
-        runtime.replay_payload_for(NET_UDP_LEAVE_MULTICAST_SOURCE_V6)?,
+        binding.replay_payload_for(NET_UDP_LEAVE_MULTICAST_SOURCE_V6)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_net_leave_multicast_source_v6(
-                runtime, context, handle, membership,
+                binding, context, handle, membership,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_net_leave_multicast_source_v6(
-                    runtime, context, handle, membership,
+                    binding, context, handle, membership,
                 )
             }
         },
@@ -21614,27 +21613,27 @@ fn destack_net_udp_leave_multicast_source_v6_vm_replay(
 
 #[inline]
 fn destack_net_udp_leave_multicast_v4_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     group: vm::StringHandle,
     interfaceaddress: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_LEAVE_MULTICAST_V4,
-        runtime.replay_payload_for(NET_UDP_LEAVE_MULTICAST_V4)?,
+        binding.replay_payload_for(NET_UDP_LEAVE_MULTICAST_V4)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_net_leave_multicast_v4(
-                runtime,
+                binding,
                 context,
                 handle,
                 group,
                 interfaceaddress,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_leave_multicast_v4(
-                runtime,
+                binding,
                 context,
                 handle,
                 group,
@@ -21676,27 +21675,27 @@ fn destack_net_udp_leave_multicast_v4_vm_replay(
 
 #[inline]
 fn destack_net_udp_leave_multicast_v6_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     group: vm::StringHandle,
     interfaceindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_LEAVE_MULTICAST_V6,
-        runtime.replay_payload_for(NET_UDP_LEAVE_MULTICAST_V6)?,
+        binding.replay_payload_for(NET_UDP_LEAVE_MULTICAST_V6)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_net_leave_multicast_v6(
-                runtime,
+                binding,
                 context,
                 handle,
                 group,
                 interfaceindex,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_leave_multicast_v6(
-                runtime,
+                binding,
                 context,
                 handle,
                 group,
@@ -21738,23 +21737,23 @@ fn destack_net_udp_leave_multicast_v6_vm_replay(
 
 #[inline]
 fn destack_net_udp_recv_from_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
     recvflags: UdpMessageFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_RECV_FROM,
-        runtime.replay_payload_for(NET_UDP_RECV_FROM)?,
+        binding.replay_payload_for(NET_UDP_RECV_FROM)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_udp_recv_from(runtime, context, handle, buffer, recvflags)
+                platform_vm::destack_net_udp_recv_from(binding, context, handle, buffer, recvflags)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_udp_recv_from(
-                runtime, context, handle, buffer, recvflags,
+                binding, context, handle, buffer, recvflags,
             ),
         },
         |context, result| {
@@ -21826,7 +21825,7 @@ fn destack_net_udp_recv_from_vm_replay(
 
 #[inline]
 fn destack_net_udp_send_to_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
@@ -21834,16 +21833,16 @@ fn destack_net_udp_send_to_vm_replay(
     buffer: VmSlice<u8>,
     sendflags: UdpMessageFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_SEND_TO,
-        runtime.replay_payload_for(NET_UDP_SEND_TO)?,
+        binding.replay_payload_for(NET_UDP_SEND_TO)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_net_udp_send_to(
-                runtime, context, handle, address, buffer, sendflags,
+                binding, context, handle, address, buffer, sendflags,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_udp_send_to(
-                runtime, context, handle, address, buffer, sendflags,
+                binding, context, handle, address, buffer, sendflags,
             ),
         },
         |context, result| {
@@ -21885,26 +21884,26 @@ fn destack_net_udp_send_to_vm_replay(
 
 #[inline]
 fn destack_net_udp_set_multicast_interface_v4_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     interfaceaddress: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_SET_MULTICAST_INTERFACE_V4,
-        runtime.replay_payload_for(NET_UDP_SET_MULTICAST_INTERFACE_V4)?,
+        binding.replay_payload_for(NET_UDP_SET_MULTICAST_INTERFACE_V4)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_net_set_multicast_interface_v4(
-                runtime,
+                binding,
                 context,
                 handle,
                 interfaceaddress,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_net_set_multicast_interface_v4(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     interfaceaddress,
@@ -21946,26 +21945,26 @@ fn destack_net_udp_set_multicast_interface_v4_vm_replay(
 
 #[inline]
 fn destack_net_udp_set_multicast_interface_v6_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     interfaceindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_SET_MULTICAST_INTERFACE_V6,
-        runtime.replay_payload_for(NET_UDP_SET_MULTICAST_INTERFACE_V6)?,
+        binding.replay_payload_for(NET_UDP_SET_MULTICAST_INTERFACE_V6)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_net_set_multicast_interface_v6(
-                runtime,
+                binding,
                 context,
                 handle,
                 interfaceindex,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_net_set_multicast_interface_v6(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     interfaceindex,
@@ -22007,22 +22006,22 @@ fn destack_net_udp_set_multicast_interface_v6_vm_replay(
 
 #[inline]
 fn destack_net_udp_set_multicast_loop_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_SET_MULTICAST_LOOP,
-        runtime.replay_payload_for(NET_UDP_SET_MULTICAST_LOOP)?,
+        binding.replay_payload_for(NET_UDP_SET_MULTICAST_LOOP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_set_multicast_loop(runtime, context, handle, enabled)
+                platform_vm::destack_net_set_multicast_loop(binding, context, handle, enabled)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_net_set_multicast_loop(
-                runtime, context, handle, enabled,
+                binding, context, handle, enabled,
             ),
         },
         |context, result| {
@@ -22060,22 +22059,22 @@ fn destack_net_udp_set_multicast_loop_vm_replay(
 
 #[inline]
 fn destack_net_udp_set_multicast_ttl_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
     ttl: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_SET_MULTICAST_TTL,
-        runtime.replay_payload_for(NET_UDP_SET_MULTICAST_TTL)?,
+        binding.replay_payload_for(NET_UDP_SET_MULTICAST_TTL)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_set_multicast_ttl(runtime, context, handle, ttl)
+                platform_vm::destack_net_set_multicast_ttl(binding, context, handle, ttl)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_set_multicast_ttl(runtime, context, handle, ttl)
+                platform_simulation_vm::destack_net_set_multicast_ttl(binding, context, handle, ttl)
             }
         },
         |context, result| {
@@ -22113,19 +22112,19 @@ fn destack_net_udp_set_multicast_ttl_vm_replay(
 
 #[inline]
 fn destack_net_udp_socket_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     family: SocketFamily,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDP_SOCKET,
-        runtime.replay_payload_for(NET_UDP_SOCKET)?,
+        binding.replay_payload_for(NET_UDP_SOCKET)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_udp_socket(runtime, context, family),
+            RuntimeWorld::Host => platform_vm::destack_net_udp_socket(binding, context, family),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_udp_socket(runtime, context, family)
+                platform_simulation_vm::destack_net_udp_socket(binding, context, family)
             }
         },
         |context, result| {
@@ -22167,19 +22166,19 @@ fn destack_net_udp_socket_vm_replay(
 
 #[inline]
 fn destack_net_uds_uds_accept_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     listener: resource::ListenerHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDS_UDS_ACCEPT,
-        runtime.replay_payload_for(NET_UDS_UDS_ACCEPT)?,
+        binding.replay_payload_for(NET_UDS_UDS_ACCEPT)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_uds_accept(runtime, context, listener),
+            RuntimeWorld::Host => platform_vm::destack_net_uds_accept(binding, context, listener),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_uds_accept(runtime, context, listener)
+                platform_simulation_vm::destack_net_uds_accept(binding, context, listener)
             }
         },
         |context, result| {
@@ -22221,21 +22220,21 @@ fn destack_net_uds_uds_accept_vm_replay(
 
 #[inline]
 fn destack_net_uds_uds_close_listener_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::ListenerHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDS_UDS_CLOSE_LISTENER,
-        runtime.replay_payload_for(NET_UDS_UDS_CLOSE_LISTENER)?,
+        binding.replay_payload_for(NET_UDS_UDS_CLOSE_LISTENER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_uds_close_listener(runtime, context, handle)
+                platform_vm::destack_net_uds_close_listener(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_uds_close_listener(runtime, context, handle)
+                platform_simulation_vm::destack_net_uds_close_listener(binding, context, handle)
             }
         },
         |context, result| {
@@ -22273,19 +22272,19 @@ fn destack_net_uds_uds_close_listener_vm_replay(
 
 #[inline]
 fn destack_net_uds_uds_connect_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     address: UdsAddressVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDS_UDS_CONNECT,
-        runtime.replay_payload_for(NET_UDS_UDS_CONNECT)?,
+        binding.replay_payload_for(NET_UDS_UDS_CONNECT)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_net_uds_connect(runtime, context, address),
+            RuntimeWorld::Host => platform_vm::destack_net_uds_connect(binding, context, address),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_uds_connect(runtime, context, address)
+                platform_simulation_vm::destack_net_uds_connect(binding, context, address)
             }
         },
         |context, result| {
@@ -22327,22 +22326,22 @@ fn destack_net_uds_uds_connect_vm_replay(
 
 #[inline]
 fn destack_net_uds_uds_listen_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     address: UdsAddressVm,
     backlog: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDS_UDS_LISTEN,
-        runtime.replay_payload_for(NET_UDS_UDS_LISTEN)?,
+        binding.replay_payload_for(NET_UDS_UDS_LISTEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_uds_listen(runtime, context, address, backlog)
+                platform_vm::destack_net_uds_listen(binding, context, address, backlog)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_uds_listen(runtime, context, address, backlog)
+                platform_simulation_vm::destack_net_uds_listen(binding, context, address, backlog)
             }
         },
         |context, result| {
@@ -22384,21 +22383,21 @@ fn destack_net_uds_uds_listen_vm_replay(
 
 #[inline]
 fn destack_net_uds_uds_socket_pair_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     sockettype: SocketType,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         NET_UDS_UDS_SOCKET_PAIR,
-        runtime.replay_payload_for(NET_UDS_UDS_SOCKET_PAIR)?,
+        binding.replay_payload_for(NET_UDS_UDS_SOCKET_PAIR)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_net_uds_socket_pair(runtime, context, sockettype)
+                platform_vm::destack_net_uds_socket_pair(binding, context, sockettype)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_net_uds_socket_pair(runtime, context, sockettype)
+                platform_simulation_vm::destack_net_uds_socket_pair(binding, context, sockettype)
             }
         },
         |context, result| {
@@ -22456,14 +22455,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_ADDRESS_LOCAL_ADDRESS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_address_local_address_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_ADDRESS_LOCAL_ADDRESS)?;
-                    destack_net_address_local_address_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_ADDRESS_LOCAL_ADDRESS)?;
+                    destack_net_address_local_address_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22475,14 +22474,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_ADDRESS_PEER_ADDRESS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_address_peer_address_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_ADDRESS_PEER_ADDRESS)?;
-                    destack_net_address_peer_address_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_ADDRESS_PEER_ADDRESS)?;
+                    destack_net_address_peer_address_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22494,14 +22493,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_INTERFACE_INTERFACE_INDEX,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (name,) = decode_destack_net_interface_interface_index_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_INTERFACE_INTERFACE_INDEX)?;
-                    destack_net_interface_interface_index_vm_replay(runtime, context, world, name)
+                        binding.on_before_binding_resolve_world(NET_INTERFACE_INTERFACE_INDEX)?;
+                    destack_net_interface_interface_index_vm_replay(binding, context, world, name)
                 })
                 .map_err(Into::into)
             }
@@ -22513,14 +22512,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_INTERFACE_INTERFACE_NAME,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (index,) = decode_destack_net_interface_interface_name_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_INTERFACE_INTERFACE_NAME)?;
-                    destack_net_interface_interface_name_vm_replay(runtime, context, world, index)
+                        binding.on_before_binding_resolve_world(NET_INTERFACE_INTERFACE_NAME)?;
+                    destack_net_interface_interface_name_vm_replay(binding, context, world, index)
                 })
                 .map_err(Into::into)
             }
@@ -22532,11 +22531,11 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_INTERFACE_LIST_INTERFACES,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_INTERFACE_LIST_INTERFACES)?;
-                    destack_net_interface_list_interfaces_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(NET_INTERFACE_LIST_INTERFACES)?;
+                    destack_net_interface_list_interfaces_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -22548,14 +22547,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_LISTENER_ACCEPT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (listener, flags) = decode_destack_net_listener_accept_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_LISTENER_ACCEPT)?;
-                    destack_net_listener_accept_vm_replay(runtime, context, world, listener, flags)
+                        binding.on_before_binding_resolve_world(NET_LISTENER_ACCEPT)?;
+                    destack_net_listener_accept_vm_replay(binding, context, world, listener, flags)
                 })
                 .map_err(Into::into)
             }
@@ -22567,14 +22566,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_LISTENER_BIND,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, address) = decode_destack_net_listener_bind_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_LISTENER_BIND)?;
-                    destack_net_listener_bind_vm_replay(runtime, context, world, handle, address)
+                        binding.on_before_binding_resolve_world(NET_LISTENER_BIND)?;
+                    destack_net_listener_bind_vm_replay(binding, context, world, handle, address)
                 })
                 .map_err(Into::into)
             }
@@ -22586,14 +22585,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_LISTENER_CLOSE_LISTENER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_listener_close_listener_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_LISTENER_CLOSE_LISTENER)?;
-                    destack_net_listener_close_listener_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_LISTENER_CLOSE_LISTENER)?;
+                    destack_net_listener_close_listener_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22605,15 +22604,15 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_LISTENER_LISTEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (address, backlog) =
                         decode_destack_net_listener_listen_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_LISTENER_LISTEN)?;
-                    destack_net_listener_listen_vm_replay(runtime, context, world, address, backlog)
+                        binding.on_before_binding_resolve_world(NET_LISTENER_LISTEN)?;
+                    destack_net_listener_listen_vm_replay(binding, context, world, address, backlog)
                 })
                 .map_err(Into::into)
             }
@@ -22625,14 +22624,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_GET_BROADCAST,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_options_get_broadcast_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_GET_BROADCAST)?;
-                    destack_net_options_get_broadcast_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_GET_BROADCAST)?;
+                    destack_net_options_get_broadcast_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22644,14 +22643,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_GET_LINGER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_options_get_linger_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_GET_LINGER)?;
-                    destack_net_options_get_linger_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_GET_LINGER)?;
+                    destack_net_options_get_linger_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22663,14 +22662,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_GET_ONLY_V6,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_options_get_only_v6_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_GET_ONLY_V6)?;
-                    destack_net_options_get_only_v6_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_GET_ONLY_V6)?;
+                    destack_net_options_get_only_v6_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22682,14 +22681,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_GET_PACKET_MARK,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_options_get_packet_mark_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_GET_PACKET_MARK)?;
-                    destack_net_options_get_packet_mark_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_GET_PACKET_MARK)?;
+                    destack_net_options_get_packet_mark_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22701,15 +22700,15 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_GET_READ_TIMEOUT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_net_options_get_read_timeout_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_GET_READ_TIMEOUT)?;
-                    destack_net_options_get_read_timeout_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_GET_READ_TIMEOUT)?;
+                    destack_net_options_get_read_timeout_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22721,14 +22720,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_GET_RECV_BUFFER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_options_get_recv_buffer_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_GET_RECV_BUFFER)?;
-                    destack_net_options_get_recv_buffer_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_GET_RECV_BUFFER)?;
+                    destack_net_options_get_recv_buffer_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22740,14 +22739,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_GET_SEND_BUFFER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_options_get_send_buffer_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_GET_SEND_BUFFER)?;
-                    destack_net_options_get_send_buffer_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_GET_SEND_BUFFER)?;
+                    destack_net_options_get_send_buffer_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22759,16 +22758,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_GET_SOCK_OPT_RAW,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, level, name, maxbytes) =
                         decode_destack_net_options_get_sock_opt_raw_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_GET_SOCK_OPT_RAW)?;
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_GET_SOCK_OPT_RAW)?;
                     destack_net_options_get_sock_opt_raw_vm_replay(
-                        runtime, context, world, handle, level, name, maxbytes,
+                        binding, context, world, handle, level, name, maxbytes,
                     )
                 })
                 .map_err(Into::into)
@@ -22781,15 +22780,15 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_GET_TIMESTAMPING,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_net_options_get_timestamping_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_GET_TIMESTAMPING)?;
-                    destack_net_options_get_timestamping_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_GET_TIMESTAMPING)?;
+                    destack_net_options_get_timestamping_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22801,14 +22800,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_GET_TOS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_options_get_tos_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_GET_TOS)?;
-                    destack_net_options_get_tos_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_GET_TOS)?;
+                    destack_net_options_get_tos_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22820,14 +22819,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_GET_TTL,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_options_get_ttl_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_GET_TTL)?;
-                    destack_net_options_get_ttl_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_GET_TTL)?;
+                    destack_net_options_get_ttl_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22839,15 +22838,15 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_GET_WRITE_TIMEOUT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_net_options_get_write_timeout_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_GET_WRITE_TIMEOUT)?;
-                    destack_net_options_get_write_timeout_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_GET_WRITE_TIMEOUT)?;
+                    destack_net_options_get_write_timeout_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22859,16 +22858,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_SET_BROADCAST,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, enabled) =
                         decode_destack_net_options_set_broadcast_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_SET_BROADCAST)?;
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_SET_BROADCAST)?;
                     destack_net_options_set_broadcast_vm_replay(
-                        runtime, context, world, handle, enabled,
+                        binding, context, world, handle, enabled,
                     )
                 })
                 .map_err(Into::into)
@@ -22881,16 +22880,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_SET_LINGER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, linger) =
                         decode_destack_net_options_set_linger_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_SET_LINGER)?;
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_SET_LINGER)?;
                     destack_net_options_set_linger_vm_replay(
-                        runtime, context, world, handle, linger,
+                        binding, context, world, handle, linger,
                     )
                 })
                 .map_err(Into::into)
@@ -22903,16 +22902,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_SET_ONLY_V6,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, enabled) =
                         decode_destack_net_options_set_only_v6_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_SET_ONLY_V6)?;
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_SET_ONLY_V6)?;
                     destack_net_options_set_only_v6_vm_replay(
-                        runtime, context, world, handle, enabled,
+                        binding, context, world, handle, enabled,
                     )
                 })
                 .map_err(Into::into)
@@ -22925,16 +22924,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_SET_PACKET_MARK,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, mark) =
                         decode_destack_net_options_set_packet_mark_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_SET_PACKET_MARK)?;
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_SET_PACKET_MARK)?;
                     destack_net_options_set_packet_mark_vm_replay(
-                        runtime, context, world, handle, mark,
+                        binding, context, world, handle, mark,
                     )
                 })
                 .map_err(Into::into)
@@ -22947,16 +22946,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_SET_READ_TIMEOUT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, timeoutms) =
                         decode_destack_net_options_set_read_timeout_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_SET_READ_TIMEOUT)?;
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_SET_READ_TIMEOUT)?;
                     destack_net_options_set_read_timeout_vm_replay(
-                        runtime, context, world, handle, timeoutms,
+                        binding, context, world, handle, timeoutms,
                     )
                 })
                 .map_err(Into::into)
@@ -22969,16 +22968,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_SET_RECV_BUFFER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, size) =
                         decode_destack_net_options_set_recv_buffer_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_SET_RECV_BUFFER)?;
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_SET_RECV_BUFFER)?;
                     destack_net_options_set_recv_buffer_vm_replay(
-                        runtime, context, world, handle, size,
+                        binding, context, world, handle, size,
                     )
                 })
                 .map_err(Into::into)
@@ -22991,16 +22990,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_SET_SEND_BUFFER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, size) =
                         decode_destack_net_options_set_send_buffer_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_SET_SEND_BUFFER)?;
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_SET_SEND_BUFFER)?;
                     destack_net_options_set_send_buffer_vm_replay(
-                        runtime, context, world, handle, size,
+                        binding, context, world, handle, size,
                     )
                 })
                 .map_err(Into::into)
@@ -23013,16 +23012,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_SET_SOCK_OPT_RAW,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, level, name, argument_value) =
                         decode_destack_net_options_set_sock_opt_raw_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_SET_SOCK_OPT_RAW)?;
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_SET_SOCK_OPT_RAW)?;
                     destack_net_options_set_sock_opt_raw_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -23041,16 +23040,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_SET_TIMESTAMPING,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, mode) =
                         decode_destack_net_options_set_timestamping_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_SET_TIMESTAMPING)?;
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_SET_TIMESTAMPING)?;
                     destack_net_options_set_timestamping_vm_replay(
-                        runtime, context, world, handle, mode,
+                        binding, context, world, handle, mode,
                     )
                 })
                 .map_err(Into::into)
@@ -23063,14 +23062,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_SET_TOS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, tos) = decode_destack_net_options_set_tos_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_SET_TOS)?;
-                    destack_net_options_set_tos_vm_replay(runtime, context, world, handle, tos)
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_SET_TOS)?;
+                    destack_net_options_set_tos_vm_replay(binding, context, world, handle, tos)
                 })
                 .map_err(Into::into)
             }
@@ -23082,14 +23081,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_SET_TTL,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, ttl) = decode_destack_net_options_set_ttl_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_SET_TTL)?;
-                    destack_net_options_set_ttl_vm_replay(runtime, context, world, handle, ttl)
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_SET_TTL)?;
+                    destack_net_options_set_ttl_vm_replay(binding, context, world, handle, ttl)
                 })
                 .map_err(Into::into)
             }
@@ -23101,16 +23100,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_OPTIONS_SET_WRITE_TIMEOUT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, timeoutms) =
                         decode_destack_net_options_set_write_timeout_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_OPTIONS_SET_WRITE_TIMEOUT)?;
+                        binding.on_before_binding_resolve_world(NET_OPTIONS_SET_WRITE_TIMEOUT)?;
                     destack_net_options_set_write_timeout_vm_replay(
-                        runtime, context, world, handle, timeoutms,
+                        binding, context, world, handle, timeoutms,
                     )
                 })
                 .map_err(Into::into)
@@ -23123,11 +23122,11 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_RAW_PACKET_BACKEND_LIST,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_RAW_PACKET_BACKEND_LIST)?;
-                    destack_net_raw_packet_backend_list_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(NET_RAW_PACKET_BACKEND_LIST)?;
+                    destack_net_raw_packet_backend_list_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -23139,14 +23138,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_RAW_PACKET_CLEAR_FANOUT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_raw_packet_clear_fanout_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_RAW_PACKET_CLEAR_FANOUT)?;
-                    destack_net_raw_packet_clear_fanout_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_RAW_PACKET_CLEAR_FANOUT)?;
+                    destack_net_raw_packet_clear_fanout_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23158,14 +23157,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_RAW_PACKET_CLEAR_FILTER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_raw_packet_clear_filter_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_RAW_PACKET_CLEAR_FILTER)?;
-                    destack_net_raw_packet_clear_filter_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_RAW_PACKET_CLEAR_FILTER)?;
+                    destack_net_raw_packet_clear_filter_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23177,14 +23176,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_RAW_PACKET_CLEAR_RING,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_raw_packet_clear_ring_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_RAW_PACKET_CLEAR_RING)?;
-                    destack_net_raw_packet_clear_ring_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_RAW_PACKET_CLEAR_RING)?;
+                    destack_net_raw_packet_clear_ring_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23196,14 +23195,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_RAW_PACKET_OPEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (options,) = decode_destack_net_raw_packet_open_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_RAW_PACKET_OPEN)?;
-                    destack_net_raw_packet_open_vm_replay(runtime, context, world, options)
+                        binding.on_before_binding_resolve_world(NET_RAW_PACKET_OPEN)?;
+                    destack_net_raw_packet_open_vm_replay(binding, context, world, options)
                 })
                 .map_err(Into::into)
             }
@@ -23215,16 +23214,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_RAW_PACKET_RECEIVE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, argument_payload) =
                         decode_destack_net_raw_packet_receive_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_RAW_PACKET_RECEIVE)?;
+                        binding.on_before_binding_resolve_world(NET_RAW_PACKET_RECEIVE)?;
                     destack_net_raw_packet_receive_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -23241,16 +23240,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_RAW_PACKET_SEND,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, argument_payload) =
                         decode_destack_net_raw_packet_send_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_RAW_PACKET_SEND)?;
+                        binding.on_before_binding_resolve_world(NET_RAW_PACKET_SEND)?;
                     destack_net_raw_packet_send_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -23267,16 +23266,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_RAW_PACKET_SET_FANOUT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, options) =
                         decode_destack_net_raw_packet_set_fanout_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_RAW_PACKET_SET_FANOUT)?;
+                        binding.on_before_binding_resolve_world(NET_RAW_PACKET_SET_FANOUT)?;
                     destack_net_raw_packet_set_fanout_vm_replay(
-                        runtime, context, world, handle, options,
+                        binding, context, world, handle, options,
                     )
                 })
                 .map_err(Into::into)
@@ -23289,16 +23288,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_RAW_PACKET_SET_FILTER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, filterprogram) =
                         decode_destack_net_raw_packet_set_filter_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_RAW_PACKET_SET_FILTER)?;
+                        binding.on_before_binding_resolve_world(NET_RAW_PACKET_SET_FILTER)?;
                     destack_net_raw_packet_set_filter_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -23315,16 +23314,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_RAW_PACKET_SET_RX_RING,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, options) =
                         decode_destack_net_raw_packet_set_rx_ring_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_RAW_PACKET_SET_RX_RING)?;
+                        binding.on_before_binding_resolve_world(NET_RAW_PACKET_SET_RX_RING)?;
                     destack_net_raw_packet_set_rx_ring_vm_replay(
-                        runtime, context, world, handle, options,
+                        binding, context, world, handle, options,
                     )
                 })
                 .map_err(Into::into)
@@ -23337,16 +23336,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_RAW_PACKET_SET_TIMESTAMP_MODE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, mode) =
                         decode_destack_net_raw_packet_set_timestamp_mode_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(NET_RAW_PACKET_SET_TIMESTAMP_MODE)?;
                     destack_net_raw_packet_set_timestamp_mode_vm_replay(
-                        runtime, context, world, handle, mode,
+                        binding, context, world, handle, mode,
                     )
                 })
                 .map_err(Into::into)
@@ -23359,16 +23358,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_RAW_PACKET_SET_TX_RING,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, options) =
                         decode_destack_net_raw_packet_set_tx_ring_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_RAW_PACKET_SET_TX_RING)?;
+                        binding.on_before_binding_resolve_world(NET_RAW_PACKET_SET_TX_RING)?;
                     destack_net_raw_packet_set_tx_ring_vm_replay(
-                        runtime, context, world, handle, options,
+                        binding, context, world, handle, options,
                     )
                 })
                 .map_err(Into::into)
@@ -23381,14 +23380,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_RAW_PACKET_STATS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_raw_packet_stats_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_RAW_PACKET_STATS)?;
-                    destack_net_raw_packet_stats_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_RAW_PACKET_STATS)?;
+                    destack_net_raw_packet_stats_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23400,16 +23399,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_RAW_SET_HEADER_INCLUDED,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, enabled) =
                         decode_destack_net_raw_set_header_included_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_RAW_SET_HEADER_INCLUDED)?;
+                        binding.on_before_binding_resolve_world(NET_RAW_SET_HEADER_INCLUDED)?;
                     destack_net_raw_set_header_included_vm_replay(
-                        runtime, context, world, handle, enabled,
+                        binding, context, world, handle, enabled,
                     )
                 })
                 .map_err(Into::into)
@@ -23418,14 +23417,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, NET_RAW_SOCKET, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (family, protocol) = decode_destack_net_raw_socket_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(NET_RAW_SOCKET)?;
-                destack_net_raw_socket_vm_replay(runtime, context, world, family, protocol)
+                    binding.on_before_binding_resolve_world(NET_RAW_SOCKET)?;
+                destack_net_raw_socket_vm_replay(binding, context, world, family, protocol)
             })
             .map_err(Into::into)
         });
@@ -23436,14 +23435,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_RESOLVE_LOOKUP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (query,) = decode_destack_net_resolve_lookup_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_RESOLVE_LOOKUP)?;
-                    destack_net_resolve_lookup_vm_replay(runtime, context, world, query)
+                        binding.on_before_binding_resolve_world(NET_RESOLVE_LOOKUP)?;
+                    destack_net_resolve_lookup_vm_replay(binding, context, world, query)
                 })
                 .map_err(Into::into)
             }
@@ -23455,16 +23454,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_RESOLVE_REVERSE_LOOKUP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (address, flags) =
                         decode_destack_net_resolve_reverse_lookup_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_RESOLVE_REVERSE_LOOKUP)?;
+                        binding.on_before_binding_resolve_world(NET_RESOLVE_REVERSE_LOOKUP)?;
                     destack_net_resolve_reverse_lookup_vm_replay(
-                        runtime, context, world, address, flags,
+                        binding, context, world, address, flags,
                     )
                 })
                 .map_err(Into::into)
@@ -23477,14 +23476,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_REUSE_GET_REUSE_ADDR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_reuse_get_reuse_addr_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_REUSE_GET_REUSE_ADDR)?;
-                    destack_net_reuse_get_reuse_addr_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_REUSE_GET_REUSE_ADDR)?;
+                    destack_net_reuse_get_reuse_addr_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23496,14 +23495,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_REUSE_GET_REUSE_PORT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_reuse_get_reuse_port_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_REUSE_GET_REUSE_PORT)?;
-                    destack_net_reuse_get_reuse_port_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_REUSE_GET_REUSE_PORT)?;
+                    destack_net_reuse_get_reuse_port_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23515,16 +23514,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_REUSE_SET_REUSE_ADDR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, enabled) =
                         decode_destack_net_reuse_set_reuse_addr_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_REUSE_SET_REUSE_ADDR)?;
+                        binding.on_before_binding_resolve_world(NET_REUSE_SET_REUSE_ADDR)?;
                     destack_net_reuse_set_reuse_addr_vm_replay(
-                        runtime, context, world, handle, enabled,
+                        binding, context, world, handle, enabled,
                     )
                 })
                 .map_err(Into::into)
@@ -23537,16 +23536,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_REUSE_SET_REUSE_PORT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, enabled) =
                         decode_destack_net_reuse_set_reuse_port_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_REUSE_SET_REUSE_PORT)?;
+                        binding.on_before_binding_resolve_world(NET_REUSE_SET_REUSE_PORT)?;
                     destack_net_reuse_set_reuse_port_vm_replay(
-                        runtime, context, world, handle, enabled,
+                        binding, context, world, handle, enabled,
                     )
                 })
                 .map_err(Into::into)
@@ -23559,14 +23558,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_ROUTE_ROUTE_ADD,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (route,) = decode_destack_net_route_route_add_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_ROUTE_ROUTE_ADD)?;
-                    destack_net_route_route_add_vm_replay(runtime, context, world, route)
+                        binding.on_before_binding_resolve_world(NET_ROUTE_ROUTE_ADD)?;
+                    destack_net_route_route_add_vm_replay(binding, context, world, route)
                 })
                 .map_err(Into::into)
             }
@@ -23578,14 +23577,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_ROUTE_ROUTE_DELETE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (route,) = decode_destack_net_route_route_delete_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_ROUTE_ROUTE_DELETE)?;
-                    destack_net_route_route_delete_vm_replay(runtime, context, world, route)
+                        binding.on_before_binding_resolve_world(NET_ROUTE_ROUTE_DELETE)?;
+                    destack_net_route_route_delete_vm_replay(binding, context, world, route)
                 })
                 .map_err(Into::into)
             }
@@ -23597,14 +23596,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_ROUTE_ROUTE_LIST,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (family,) = decode_destack_net_route_route_list_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_ROUTE_ROUTE_LIST)?;
-                    destack_net_route_route_list_vm_replay(runtime, context, world, family)
+                        binding.on_before_binding_resolve_world(NET_ROUTE_ROUTE_LIST)?;
+                    destack_net_route_route_list_vm_replay(binding, context, world, family)
                 })
                 .map_err(Into::into)
             }
@@ -23612,14 +23611,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, NET_SOCKET_CLOSE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_net_socket_close_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(NET_SOCKET_CLOSE)?;
-                destack_net_socket_close_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(NET_SOCKET_CLOSE)?;
+                destack_net_socket_close_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
@@ -23630,14 +23629,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_SOCKET_CONNECT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, address) = decode_destack_net_socket_connect_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_SOCKET_CONNECT)?;
-                    destack_net_socket_connect_vm_replay(runtime, context, world, handle, address)
+                        binding.on_before_binding_resolve_world(NET_SOCKET_CONNECT)?;
+                    destack_net_socket_connect_vm_replay(binding, context, world, handle, address)
                 })
                 .map_err(Into::into)
             }
@@ -23645,16 +23644,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, NET_SOCKET_OPEN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (family, sockettype, protocol) =
                     decode_destack_net_socket_open_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(NET_SOCKET_OPEN)?;
+                    binding.on_before_binding_resolve_world(NET_SOCKET_OPEN)?;
                 destack_net_socket_open_vm_replay(
-                    runtime, context, world, family, sockettype, protocol,
+                    binding, context, world, family, sockettype, protocol,
                 )
             })
             .map_err(Into::into)
@@ -23666,16 +23665,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_SOCKET_OPEN_PAIR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (family, sockettype, protocol) =
                         decode_destack_net_socket_open_pair_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_SOCKET_OPEN_PAIR)?;
+                        binding.on_before_binding_resolve_world(NET_SOCKET_OPEN_PAIR)?;
                     destack_net_socket_open_pair_vm_replay(
-                        runtime, context, world, family, sockettype, protocol,
+                        binding, context, world, family, sockettype, protocol,
                     )
                 })
                 .map_err(Into::into)
@@ -23684,28 +23683,28 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, NET_SOCKET_READ, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, buffer) = decode_destack_net_socket_read_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(NET_SOCKET_READ)?;
-                destack_net_socket_read_vm_replay(runtime, context, world, handle, buffer)
+                    binding.on_before_binding_resolve_world(NET_SOCKET_READ)?;
+                destack_net_socket_read_vm_replay(binding, context, world, handle, buffer)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, NET_SOCKET_READV, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, buffers) = decode_destack_net_socket_readv_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(NET_SOCKET_READV)?;
-                destack_net_socket_readv_vm_replay(runtime, context, world, handle, buffers)
+                    binding.on_before_binding_resolve_world(NET_SOCKET_READV)?;
+                destack_net_socket_readv_vm_replay(binding, context, world, handle, buffers)
             })
             .map_err(Into::into)
         });
@@ -23716,16 +23715,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_SOCKET_RECV_FROM,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffer, recvflags) =
                         decode_destack_net_socket_recv_from_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_SOCKET_RECV_FROM)?;
+                        binding.on_before_binding_resolve_world(NET_SOCKET_RECV_FROM)?;
                     destack_net_socket_recv_from_vm_replay(
-                        runtime, context, world, handle, buffer, recvflags,
+                        binding, context, world, handle, buffer, recvflags,
                     )
                 })
                 .map_err(Into::into)
@@ -23738,16 +23737,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_SOCKET_RECV_MMSG,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, requests, maxfds, wantcredentials, maxcontrolbytes) =
                         decode_destack_net_socket_recv_mmsg_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_SOCKET_RECV_MMSG)?;
+                        binding.on_before_binding_resolve_world(NET_SOCKET_RECV_MMSG)?;
                     destack_net_socket_recv_mmsg_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -23767,16 +23766,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_SOCKET_RECV_MSG,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffer, recvflags, maxfds, wantcredentials, maxcontrolbytes) =
                         decode_destack_net_socket_recv_msg_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_SOCKET_RECV_MSG)?;
+                        binding.on_before_binding_resolve_world(NET_SOCKET_RECV_MSG)?;
                     destack_net_socket_recv_msg_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -23797,16 +23796,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_SOCKET_SEND_MMSG,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, messages) =
                         decode_destack_net_socket_send_mmsg_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_SOCKET_SEND_MMSG)?;
+                        binding.on_before_binding_resolve_world(NET_SOCKET_SEND_MMSG)?;
                     destack_net_socket_send_mmsg_vm_replay(
-                        runtime, context, world, handle, messages,
+                        binding, context, world, handle, messages,
                     )
                 })
                 .map_err(Into::into)
@@ -23819,16 +23818,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_SOCKET_SEND_MSG,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffer, message) =
                         decode_destack_net_socket_send_msg_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_SOCKET_SEND_MSG)?;
+                        binding.on_before_binding_resolve_world(NET_SOCKET_SEND_MSG)?;
                     destack_net_socket_send_msg_vm_replay(
-                        runtime, context, world, handle, buffer, message,
+                        binding, context, world, handle, buffer, message,
                     )
                 })
                 .map_err(Into::into)
@@ -23841,16 +23840,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_SOCKET_SEND_TO,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffer, message) =
                         decode_destack_net_socket_send_to_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_SOCKET_SEND_TO)?;
+                        binding.on_before_binding_resolve_world(NET_SOCKET_SEND_TO)?;
                     destack_net_socket_send_to_vm_replay(
-                        runtime, context, world, handle, buffer, message,
+                        binding, context, world, handle, buffer, message,
                     )
                 })
                 .map_err(Into::into)
@@ -23863,16 +23862,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_SOCKET_SET_NONBLOCKING,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, enabled) =
                         decode_destack_net_socket_set_nonblocking_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_SOCKET_SET_NONBLOCKING)?;
+                        binding.on_before_binding_resolve_world(NET_SOCKET_SET_NONBLOCKING)?;
                     destack_net_socket_set_nonblocking_vm_replay(
-                        runtime, context, world, handle, enabled,
+                        binding, context, world, handle, enabled,
                     )
                 })
                 .map_err(Into::into)
@@ -23885,14 +23884,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_SOCKET_SHUTDOWN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, how) = decode_destack_net_socket_shutdown_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_SOCKET_SHUTDOWN)?;
-                    destack_net_socket_shutdown_vm_replay(runtime, context, world, handle, how)
+                        binding.on_before_binding_resolve_world(NET_SOCKET_SHUTDOWN)?;
+                    destack_net_socket_shutdown_vm_replay(binding, context, world, handle, how)
                 })
                 .map_err(Into::into)
             }
@@ -23900,14 +23899,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, NET_SOCKET_WRITE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, buffer) = decode_destack_net_socket_write_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(NET_SOCKET_WRITE)?;
-                destack_net_socket_write_vm_replay(runtime, context, world, handle, buffer)
+                    binding.on_before_binding_resolve_world(NET_SOCKET_WRITE)?;
+                destack_net_socket_write_vm_replay(binding, context, world, handle, buffer)
             })
             .map_err(Into::into)
         });
@@ -23918,14 +23917,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_SOCKET_WRITEV,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffers) = decode_destack_net_socket_writev_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_SOCKET_WRITEV)?;
-                    destack_net_socket_writev_vm_replay(runtime, context, world, handle, buffers)
+                        binding.on_before_binding_resolve_world(NET_SOCKET_WRITEV)?;
+                    destack_net_socket_writev_vm_replay(binding, context, world, handle, buffers)
                 })
                 .map_err(Into::into)
             }
@@ -23937,14 +23936,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_TCP_GET_KEEP_ALIVE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_tcp_get_keep_alive_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_TCP_GET_KEEP_ALIVE)?;
-                    destack_net_tcp_get_keep_alive_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_TCP_GET_KEEP_ALIVE)?;
+                    destack_net_tcp_get_keep_alive_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23956,14 +23955,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_TCP_GET_NO_DELAY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_tcp_get_no_delay_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_TCP_GET_NO_DELAY)?;
-                    destack_net_tcp_get_no_delay_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_TCP_GET_NO_DELAY)?;
+                    destack_net_tcp_get_no_delay_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23975,16 +23974,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_TCP_SET_KEEP_ALIVE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, config) =
                         decode_destack_net_tcp_set_keep_alive_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_TCP_SET_KEEP_ALIVE)?;
+                        binding.on_before_binding_resolve_world(NET_TCP_SET_KEEP_ALIVE)?;
                     destack_net_tcp_set_keep_alive_vm_replay(
-                        runtime, context, world, handle, config,
+                        binding, context, world, handle, config,
                     )
                 })
                 .map_err(Into::into)
@@ -23997,15 +23996,15 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_TCP_SET_NO_DELAY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, enabled) =
                         decode_destack_net_tcp_set_no_delay_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_TCP_SET_NO_DELAY)?;
-                    destack_net_tcp_set_no_delay_vm_replay(runtime, context, world, handle, enabled)
+                        binding.on_before_binding_resolve_world(NET_TCP_SET_NO_DELAY)?;
+                    destack_net_tcp_set_no_delay_vm_replay(binding, context, world, handle, enabled)
                 })
                 .map_err(Into::into)
             }
@@ -24013,28 +24012,28 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, NET_UDP_BIND, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, address) = decode_destack_net_udp_bind_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(NET_UDP_BIND)?;
-                destack_net_udp_bind_vm_replay(runtime, context, world, handle, address)
+                    binding.on_before_binding_resolve_world(NET_UDP_BIND)?;
+                destack_net_udp_bind_vm_replay(binding, context, world, handle, address)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, NET_UDP_CONNECT, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, address) = decode_destack_net_udp_connect_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(NET_UDP_CONNECT)?;
-                destack_net_udp_connect_vm_replay(runtime, context, world, handle, address)
+                    binding.on_before_binding_resolve_world(NET_UDP_CONNECT)?;
+                destack_net_udp_connect_vm_replay(binding, context, world, handle, address)
             })
             .map_err(Into::into)
         });
@@ -24045,16 +24044,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDP_GET_MULTICAST_INTERFACE_V4,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_net_udp_get_multicast_interface_v4_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(NET_UDP_GET_MULTICAST_INTERFACE_V4)?;
                     destack_net_udp_get_multicast_interface_v4_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -24067,16 +24066,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDP_GET_MULTICAST_INTERFACE_V6,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_net_udp_get_multicast_interface_v6_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(NET_UDP_GET_MULTICAST_INTERFACE_V6)?;
                     destack_net_udp_get_multicast_interface_v6_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -24089,14 +24088,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDP_GET_MULTICAST_LOOP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_udp_get_multicast_loop_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_UDP_GET_MULTICAST_LOOP)?;
-                    destack_net_udp_get_multicast_loop_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_UDP_GET_MULTICAST_LOOP)?;
+                    destack_net_udp_get_multicast_loop_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -24108,14 +24107,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDP_GET_MULTICAST_TTL,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_udp_get_multicast_ttl_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_UDP_GET_MULTICAST_TTL)?;
-                    destack_net_udp_get_multicast_ttl_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_UDP_GET_MULTICAST_TTL)?;
+                    destack_net_udp_get_multicast_ttl_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -24127,16 +24126,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDP_JOIN_MULTICAST_SOURCE_V4,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, membership) =
                         decode_destack_net_udp_join_multicast_source_v4_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(NET_UDP_JOIN_MULTICAST_SOURCE_V4)?;
                     destack_net_udp_join_multicast_source_v4_vm_replay(
-                        runtime, context, world, handle, membership,
+                        binding, context, world, handle, membership,
                     )
                 })
                 .map_err(Into::into)
@@ -24149,16 +24148,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDP_JOIN_MULTICAST_SOURCE_V6,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, membership) =
                         decode_destack_net_udp_join_multicast_source_v6_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(NET_UDP_JOIN_MULTICAST_SOURCE_V6)?;
                     destack_net_udp_join_multicast_source_v6_vm_replay(
-                        runtime, context, world, handle, membership,
+                        binding, context, world, handle, membership,
                     )
                 })
                 .map_err(Into::into)
@@ -24171,16 +24170,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDP_JOIN_MULTICAST_V4,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, group, interfaceaddress) =
                         decode_destack_net_udp_join_multicast_v4_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_UDP_JOIN_MULTICAST_V4)?;
+                        binding.on_before_binding_resolve_world(NET_UDP_JOIN_MULTICAST_V4)?;
                     destack_net_udp_join_multicast_v4_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -24198,16 +24197,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDP_JOIN_MULTICAST_V6,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, group, interfaceindex) =
                         decode_destack_net_udp_join_multicast_v6_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_UDP_JOIN_MULTICAST_V6)?;
+                        binding.on_before_binding_resolve_world(NET_UDP_JOIN_MULTICAST_V6)?;
                     destack_net_udp_join_multicast_v6_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -24225,16 +24224,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDP_LEAVE_MULTICAST_SOURCE_V4,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, membership) =
                         decode_destack_net_udp_leave_multicast_source_v4_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(NET_UDP_LEAVE_MULTICAST_SOURCE_V4)?;
                     destack_net_udp_leave_multicast_source_v4_vm_replay(
-                        runtime, context, world, handle, membership,
+                        binding, context, world, handle, membership,
                     )
                 })
                 .map_err(Into::into)
@@ -24247,16 +24246,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDP_LEAVE_MULTICAST_SOURCE_V6,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, membership) =
                         decode_destack_net_udp_leave_multicast_source_v6_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(NET_UDP_LEAVE_MULTICAST_SOURCE_V6)?;
                     destack_net_udp_leave_multicast_source_v6_vm_replay(
-                        runtime, context, world, handle, membership,
+                        binding, context, world, handle, membership,
                     )
                 })
                 .map_err(Into::into)
@@ -24269,16 +24268,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDP_LEAVE_MULTICAST_V4,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, group, interfaceaddress) =
                         decode_destack_net_udp_leave_multicast_v4_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_UDP_LEAVE_MULTICAST_V4)?;
+                        binding.on_before_binding_resolve_world(NET_UDP_LEAVE_MULTICAST_V4)?;
                     destack_net_udp_leave_multicast_v4_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -24296,16 +24295,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDP_LEAVE_MULTICAST_V6,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, group, interfaceindex) =
                         decode_destack_net_udp_leave_multicast_v6_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_UDP_LEAVE_MULTICAST_V6)?;
+                        binding.on_before_binding_resolve_world(NET_UDP_LEAVE_MULTICAST_V6)?;
                     destack_net_udp_leave_multicast_v6_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -24323,16 +24322,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDP_RECV_FROM,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffer, recvflags) =
                         decode_destack_net_udp_recv_from_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_UDP_RECV_FROM)?;
+                        binding.on_before_binding_resolve_world(NET_UDP_RECV_FROM)?;
                     destack_net_udp_recv_from_vm_replay(
-                        runtime, context, world, handle, buffer, recvflags,
+                        binding, context, world, handle, buffer, recvflags,
                     )
                 })
                 .map_err(Into::into)
@@ -24341,16 +24340,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, NET_UDP_SEND_TO, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, address, buffer, sendflags) =
                     decode_destack_net_udp_send_to_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(NET_UDP_SEND_TO)?;
+                    binding.on_before_binding_resolve_world(NET_UDP_SEND_TO)?;
                 destack_net_udp_send_to_vm_replay(
-                    runtime, context, world, handle, address, buffer, sendflags,
+                    binding, context, world, handle, address, buffer, sendflags,
                 )
             })
             .map_err(Into::into)
@@ -24362,16 +24361,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDP_SET_MULTICAST_INTERFACE_V4,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, interfaceaddress) =
                         decode_destack_net_udp_set_multicast_interface_v4_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(NET_UDP_SET_MULTICAST_INTERFACE_V4)?;
                     destack_net_udp_set_multicast_interface_v4_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -24388,16 +24387,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDP_SET_MULTICAST_INTERFACE_V6,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, interfaceindex) =
                         decode_destack_net_udp_set_multicast_interface_v6_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(NET_UDP_SET_MULTICAST_INTERFACE_V6)?;
                     destack_net_udp_set_multicast_interface_v6_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -24414,16 +24413,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDP_SET_MULTICAST_LOOP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, enabled) =
                         decode_destack_net_udp_set_multicast_loop_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_UDP_SET_MULTICAST_LOOP)?;
+                        binding.on_before_binding_resolve_world(NET_UDP_SET_MULTICAST_LOOP)?;
                     destack_net_udp_set_multicast_loop_vm_replay(
-                        runtime, context, world, handle, enabled,
+                        binding, context, world, handle, enabled,
                     )
                 })
                 .map_err(Into::into)
@@ -24436,16 +24435,16 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDP_SET_MULTICAST_TTL,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, ttl) =
                         decode_destack_net_udp_set_multicast_ttl_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_UDP_SET_MULTICAST_TTL)?;
+                        binding.on_before_binding_resolve_world(NET_UDP_SET_MULTICAST_TTL)?;
                     destack_net_udp_set_multicast_ttl_vm_replay(
-                        runtime, context, world, handle, ttl,
+                        binding, context, world, handle, ttl,
                     )
                 })
                 .map_err(Into::into)
@@ -24454,14 +24453,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, NET_UDP_SOCKET, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (family,) = decode_destack_net_udp_socket_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(NET_UDP_SOCKET)?;
-                destack_net_udp_socket_vm_replay(runtime, context, world, family)
+                    binding.on_before_binding_resolve_world(NET_UDP_SOCKET)?;
+                destack_net_udp_socket_vm_replay(binding, context, world, family)
             })
             .map_err(Into::into)
         });
@@ -24472,14 +24471,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDS_UDS_ACCEPT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (listener,) = decode_destack_net_uds_uds_accept_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_UDS_UDS_ACCEPT)?;
-                    destack_net_uds_uds_accept_vm_replay(runtime, context, world, listener)
+                        binding.on_before_binding_resolve_world(NET_UDS_UDS_ACCEPT)?;
+                    destack_net_uds_uds_accept_vm_replay(binding, context, world, listener)
                 })
                 .map_err(Into::into)
             }
@@ -24491,14 +24490,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDS_UDS_CLOSE_LISTENER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_net_uds_uds_close_listener_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_UDS_UDS_CLOSE_LISTENER)?;
-                    destack_net_uds_uds_close_listener_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(NET_UDS_UDS_CLOSE_LISTENER)?;
+                    destack_net_uds_uds_close_listener_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -24510,14 +24509,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDS_UDS_CONNECT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (address,) = decode_destack_net_uds_uds_connect_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_UDS_UDS_CONNECT)?;
-                    destack_net_uds_uds_connect_vm_replay(runtime, context, world, address)
+                        binding.on_before_binding_resolve_world(NET_UDS_UDS_CONNECT)?;
+                    destack_net_uds_uds_connect_vm_replay(binding, context, world, address)
                 })
                 .map_err(Into::into)
             }
@@ -24529,14 +24528,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDS_UDS_LISTEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (address, backlog) = decode_destack_net_uds_uds_listen_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_UDS_UDS_LISTEN)?;
-                    destack_net_uds_uds_listen_vm_replay(runtime, context, world, address, backlog)
+                        binding.on_before_binding_resolve_world(NET_UDS_UDS_LISTEN)?;
+                    destack_net_uds_uds_listen_vm_replay(binding, context, world, address, backlog)
                 })
                 .map_err(Into::into)
             }
@@ -24548,14 +24547,14 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             NET_UDS_UDS_SOCKET_PAIR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (sockettype,) = decode_destack_net_uds_uds_socket_pair_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(NET_UDS_UDS_SOCKET_PAIR)?;
-                    destack_net_uds_uds_socket_pair_vm_replay(runtime, context, world, sockettype)
+                        binding.on_before_binding_resolve_world(NET_UDS_UDS_SOCKET_PAIR)?;
+                    destack_net_uds_uds_socket_pair_vm_replay(binding, context, world, sockettype)
                 })
                 .map_err(Into::into)
             }

@@ -29,7 +29,7 @@ use crate::platform::resource;
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_debug_break_now(_context: &BindingCallContext) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_debug_break_now(_binding: &BindingCallContext) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.debug.core.breakNow")).boxed())
 }
 
@@ -51,7 +51,7 @@ pub(crate) unsafe fn destack_debug_break_now(_context: &BindingCallContext) -> R
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_mark(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     label: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = label;
@@ -77,7 +77,7 @@ pub(crate) unsafe fn destack_debug_mark(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_inspector_endpoint(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut InspectorEndpoint,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<()> {
@@ -110,7 +110,7 @@ pub(crate) unsafe fn destack_debug_inspector_endpoint(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_inspector_start(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut resource::InspectorHandle,
     host: NativeStringRef,
     port: u16,
@@ -144,7 +144,7 @@ pub(crate) unsafe fn destack_debug_inspector_start(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_inspector_stop(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -170,7 +170,7 @@ pub(crate) unsafe fn destack_debug_inspector_stop(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_profile_snapshot(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<()> {
@@ -203,7 +203,7 @@ pub(crate) unsafe fn destack_debug_profile_snapshot(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_profile_start(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut resource::ProfileHandle,
     kind: ProfileKind,
 ) -> RuntimeResult<()> {
@@ -233,7 +233,7 @@ pub(crate) unsafe fn destack_debug_profile_start(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_profile_stop(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -259,7 +259,7 @@ pub(crate) unsafe fn destack_debug_profile_stop(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_trace_emit(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     category: NativeStringRef,
     name: NativeStringRef,
     payloadjson: NativeStringRef,
@@ -287,7 +287,7 @@ pub(crate) unsafe fn destack_debug_trace_emit(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_trace_start(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut resource::TraceHandle,
     level: TraceLevel,
     destination: NativeStringRef,
@@ -318,7 +318,7 @@ pub(crate) unsafe fn destack_debug_trace_start(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_debug_trace_stop(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::TraceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;

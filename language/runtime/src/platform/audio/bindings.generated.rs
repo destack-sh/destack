@@ -61,14 +61,13 @@ use crate::platform::audio::{
     MidiPortDescriptor, MidiPortDescriptorReplayRecord, MidiPortDescriptorVm, MidiPortDirection,
 };
 use crate::platform::{
-    NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
-    abi as platform_abi,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec,
+    VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
     BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
-use crate::runtime::{NativeSlice, NativeStringRef};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
@@ -4289,19 +4288,19 @@ pub const AUDIO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for audio bindings.
 #[inline]
 fn destack_audio_backend_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<AudioBackendDescriptor>,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_BACKEND_LIST,
-        context.replay_payload_for(AUDIO_BACKEND_LIST)?,
+        binding.replay_payload_for(AUDIO_BACKEND_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_backend_list(context, out)
+                platform_native::destack_audio_backend_list(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_backend_list(context, out)
+                platform_simulation_native::destack_audio_backend_list(binding, out)
             },
         },
         |result| {
@@ -4380,7 +4379,7 @@ fn destack_audio_backend_list_replay(
                     for value_native_item in value {
                         let value_native_item_native_backend = value_native_item.backend;
                         let value_native_item_native_name =
-                            context.store_string(&value_native_item.name);
+                            binding.store_string(&value_native_item.name);
                         let value_native_item_native_available = value_native_item.available;
                         let value_native_item_native_priority = value_native_item.priority;
                         let value_native_item_native_capability_flags =
@@ -4417,7 +4416,7 @@ fn destack_audio_backend_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -4431,22 +4430,22 @@ fn destack_audio_backend_list_replay(
 
 #[inline]
 fn destack_audio_clock_now_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     domain: AudioClockDomain,
 ) -> RuntimeResult<()> {
     let _ = &domain;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_CLOCK_NOW,
-        context.replay_payload_for(AUDIO_CLOCK_NOW)?,
+        binding.replay_payload_for(AUDIO_CLOCK_NOW)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_clock_now(context, out, domain)
+                platform_native::destack_audio_clock_now(binding, out, domain)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_clock_now(context, out, domain)
+                platform_simulation_native::destack_audio_clock_now(binding, out, domain)
             },
         },
         |result| {
@@ -4492,7 +4491,7 @@ fn destack_audio_clock_now_replay(
 
 #[inline]
 fn destack_audio_clock_stream_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut AudioClockSnapshot,
     handle: resource::AudioStreamHandle,
@@ -4500,15 +4499,15 @@ fn destack_audio_clock_stream_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &domain);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_CLOCK_STREAM,
-        context.replay_payload_for(AUDIO_CLOCK_STREAM)?,
+        binding.replay_payload_for(AUDIO_CLOCK_STREAM)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_clock(context, out, handle, domain)
+                platform_native::destack_audio_stream_clock(binding, out, handle, domain)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_stream_clock(context, out, handle, domain)
+                platform_simulation_native::destack_audio_stream_clock(binding, out, handle, domain)
             },
         },
         |result| {
@@ -4645,21 +4644,21 @@ fn destack_audio_clock_stream_replay(
 
 #[inline]
 fn destack_audio_device_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_DEVICE_CLOSE,
-        context.replay_payload_for(AUDIO_DEVICE_CLOSE)?,
+        binding.replay_payload_for(AUDIO_DEVICE_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_device_close(context, handle)
+                platform_native::destack_audio_device_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_device_close(context, handle)
+                platform_simulation_native::destack_audio_device_close(binding, handle)
             },
         },
         |result| {
@@ -4693,7 +4692,7 @@ fn destack_audio_device_close_replay(
 
 #[inline]
 fn destack_audio_device_default_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeStringRef,
     direction: AudioDeviceDirection,
@@ -4702,13 +4701,13 @@ fn destack_audio_device_default_replay(
 ) -> RuntimeResult<()> {
     let _ = (&direction, &backend, &backendpolicy);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_DEVICE_DEFAULT,
-        context.replay_payload_for(AUDIO_DEVICE_DEFAULT)?,
+        binding.replay_payload_for(AUDIO_DEVICE_DEFAULT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_device_default(
-                    context,
+                    binding,
                     out,
                     direction,
                     backend,
@@ -4717,7 +4716,7 @@ fn destack_audio_device_default_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_device_default(
-                    context,
+                    binding,
                     out,
                     direction,
                     backend,
@@ -4754,7 +4753,7 @@ fn destack_audio_device_default_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native = context.store_string(&value);
+                    let value_native = binding.store_string(&value);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -4768,22 +4767,22 @@ fn destack_audio_device_default_replay(
 
 #[inline]
 fn destack_audio_device_descriptor_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut AudioDeviceDescriptor,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_DEVICE_DESCRIPTOR,
-        context.replay_payload_for(AUDIO_DEVICE_DESCRIPTOR)?,
+        binding.replay_payload_for(AUDIO_DEVICE_DESCRIPTOR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_device_descriptor(context, out, handle)
+                platform_native::destack_audio_device_descriptor(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_device_descriptor(context, out, handle)
+                platform_simulation_native::destack_audio_device_descriptor(binding, out, handle)
             },
         },
         |result| {
@@ -4884,10 +4883,10 @@ fn destack_audio_device_descriptor_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_id = context.store_string(&value.id);
-                    let value_native_group_id = context.store_string(&value.group_id);
-                    let value_native_name = context.store_string(&value.name);
-                    let value_native_transport = context.store_string(&value.transport);
+                    let value_native_id = binding.store_string(&value.id);
+                    let value_native_group_id = binding.store_string(&value.group_id);
+                    let value_native_name = binding.store_string(&value.name);
+                    let value_native_transport = binding.store_string(&value.transport);
                     let value_native_backend = value.backend;
                     let value_native_direction = value.direction;
                     let value_native_connected = value.connected;
@@ -4965,22 +4964,22 @@ fn destack_audio_device_descriptor_replay(
 
 #[inline]
 fn destack_audio_device_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<AudioDeviceDescriptor>,
     request: AudioDeviceListRequest,
 ) -> RuntimeResult<()> {
     let _ = &request;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_DEVICE_LIST,
-        context.replay_payload_for(AUDIO_DEVICE_LIST)?,
+        binding.replay_payload_for(AUDIO_DEVICE_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_device_list(context, out, request)
+                platform_native::destack_audio_device_list(binding, out, request)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_device_list(context, out, request)
+                platform_simulation_native::destack_audio_device_list(binding, out, request)
             },
         },
         |result| {
@@ -5116,13 +5115,13 @@ fn destack_audio_device_list_replay(
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
                         let value_native_item_native_id =
-                            context.store_string(&value_native_item.id);
+                            binding.store_string(&value_native_item.id);
                         let value_native_item_native_group_id =
-                            context.store_string(&value_native_item.group_id);
+                            binding.store_string(&value_native_item.group_id);
                         let value_native_item_native_name =
-                            context.store_string(&value_native_item.name);
+                            binding.store_string(&value_native_item.name);
                         let value_native_item_native_transport =
-                            context.store_string(&value_native_item.transport);
+                            binding.store_string(&value_native_item.transport);
                         let value_native_item_native_backend = value_native_item.backend;
                         let value_native_item_native_direction = value_native_item.direction;
                         let value_native_item_native_connected = value_native_item.connected;
@@ -5207,7 +5206,7 @@ fn destack_audio_device_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -5221,7 +5220,7 @@ fn destack_audio_device_list_replay(
 
 #[inline]
 fn destack_audio_device_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::AudioDeviceHandle,
     id: NativeStringRef,
@@ -5229,15 +5228,15 @@ fn destack_audio_device_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&id, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_DEVICE_OPEN,
-        context.replay_payload_for(AUDIO_DEVICE_OPEN)?,
+        binding.replay_payload_for(AUDIO_DEVICE_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_device_open(context, out, id, options)
+                platform_native::destack_audio_device_open(binding, out, id, options)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_device_open(context, out, id, options)
+                platform_simulation_native::destack_audio_device_open(binding, out, id, options)
             },
         },
         |result| {
@@ -5283,23 +5282,23 @@ fn destack_audio_device_open_replay(
 
 #[inline]
 fn destack_audio_device_rescan_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     backend: AudioBackend,
     backendpolicy: AudioBackendSelectionPolicy,
 ) -> RuntimeResult<()> {
     let _ = (&backend, &backendpolicy);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_DEVICE_RESCAN,
-        context.replay_payload_for(AUDIO_DEVICE_RESCAN)?,
+        binding.replay_payload_for(AUDIO_DEVICE_RESCAN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_device_rescan(context, backend, backendpolicy)
+                platform_native::destack_audio_device_rescan(binding, backend, backendpolicy)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_device_rescan(
-                    context,
+                    binding,
                     backend,
                     backendpolicy,
                 )
@@ -5336,21 +5335,21 @@ fn destack_audio_device_rescan_replay(
 
 #[inline]
 fn destack_audio_event_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_EVENT_CLOSE,
-        context.replay_payload_for(AUDIO_EVENT_CLOSE)?,
+        binding.replay_payload_for(AUDIO_EVENT_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_event_close(context, handle)
+                platform_native::destack_audio_event_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_event_close(context, handle)
+                platform_simulation_native::destack_audio_event_close(binding, handle)
             },
         },
         |result| {
@@ -5384,22 +5383,22 @@ fn destack_audio_event_close_replay(
 
 #[inline]
 fn destack_audio_event_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::AudioEventHandle,
     options: AudioEventSubscriptionOptions,
 ) -> RuntimeResult<()> {
     let _ = &options;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_EVENT_OPEN,
-        context.replay_payload_for(AUDIO_EVENT_OPEN)?,
+        binding.replay_payload_for(AUDIO_EVENT_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_event_open(context, out, options)
+                platform_native::destack_audio_event_open(binding, out, options)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_event_open(context, out, options)
+                platform_simulation_native::destack_audio_event_open(binding, out, options)
             },
         },
         |result| {
@@ -5445,7 +5444,7 @@ fn destack_audio_event_open_replay(
 
 #[inline]
 fn destack_audio_event_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut AudioEvent,
     handle: resource::AudioEventHandle,
@@ -5453,12 +5452,12 @@ fn destack_audio_event_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_EVENT_READ,
-        context.replay_payload_for(AUDIO_EVENT_READ)?,
+        binding.replay_payload_for(AUDIO_EVENT_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_audio_event_read(context, out, handle, timeoutns) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_audio_event_read(context, out, handle, timeoutns) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_audio_event_read(binding, out, handle, timeoutns) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_audio_event_read(binding, out, handle, timeoutns) },
         },
         |result| {
             if let Ok(()) = result {
@@ -5962,7 +5961,7 @@ fn destack_audio_event_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         AudioEventReplayRecord::AudioBackendDisconnectedEvent(value) => {
-                            let value_native_audio_backend_disconnected_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_backend_disconnected_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -5994,7 +5993,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioBackendDisconnectedEvent(value_native_audio_backend_disconnected_event)
                         }
                         AudioEventReplayRecord::AudioBackendResetEvent(value) => {
-                            let value_native_audio_backend_reset_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_backend_reset_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6026,7 +6025,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioBackendResetEvent(value_native_audio_backend_reset_event)
                         }
                         AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
-                            let value_native_audio_default_capture_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_default_capture_changed_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6042,7 +6041,7 @@ fn destack_audio_event_read_replay(
                                 flags: value_native_audio_default_capture_changed_event_metadata_flags,
                             };
                             let value_native_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_default_capture_changed_event_payload_device_id_inner = context.store_string(&value);
+                                let value_native_audio_default_capture_changed_event_payload_device_id_inner = binding.store_string(&value);
                                 Some(value_native_audio_default_capture_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -6058,7 +6057,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioDefaultCaptureChangedEvent(value_native_audio_default_capture_changed_event)
                         }
                         AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
-                            let value_native_audio_default_loopback_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_default_loopback_changed_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6074,7 +6073,7 @@ fn destack_audio_event_read_replay(
                                 flags: value_native_audio_default_loopback_changed_event_metadata_flags,
                             };
                             let value_native_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_default_loopback_changed_event_payload_device_id_inner = context.store_string(&value);
+                                let value_native_audio_default_loopback_changed_event_payload_device_id_inner = binding.store_string(&value);
                                 Some(value_native_audio_default_loopback_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -6090,7 +6089,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioDefaultLoopbackChangedEvent(value_native_audio_default_loopback_changed_event)
                         }
                         AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
-                            let value_native_audio_default_playback_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_default_playback_changed_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6106,7 +6105,7 @@ fn destack_audio_event_read_replay(
                                 flags: value_native_audio_default_playback_changed_event_metadata_flags,
                             };
                             let value_native_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_default_playback_changed_event_payload_device_id_inner = context.store_string(&value);
+                                let value_native_audio_default_playback_changed_event_payload_device_id_inner = binding.store_string(&value);
                                 Some(value_native_audio_default_playback_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -6122,7 +6121,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioDefaultPlaybackChangedEvent(value_native_audio_default_playback_changed_event)
                         }
                         AudioEventReplayRecord::AudioDeviceAddedEvent(value) => {
-                            let value_native_audio_device_added_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_device_added_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_device_added_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6138,7 +6137,7 @@ fn destack_audio_event_read_replay(
                                 flags: value_native_audio_device_added_event_metadata_flags,
                             };
                             let value_native_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_device_added_event_payload_device_id_inner = context.store_string(&value);
+                                let value_native_audio_device_added_event_payload_device_id_inner = binding.store_string(&value);
                                 Some(value_native_audio_device_added_event_payload_device_id_inner)
                             } else {
                                 None
@@ -6154,7 +6153,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioDeviceAddedEvent(value_native_audio_device_added_event)
                         }
                         AudioEventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
-                            let value_native_audio_device_format_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_device_format_changed_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6170,7 +6169,7 @@ fn destack_audio_event_read_replay(
                                 flags: value_native_audio_device_format_changed_event_metadata_flags,
                             };
                             let value_native_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_device_format_changed_event_payload_device_id_inner = context.store_string(&value);
+                                let value_native_audio_device_format_changed_event_payload_device_id_inner = binding.store_string(&value);
                                 Some(value_native_audio_device_format_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -6186,7 +6185,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioDeviceFormatChangedEvent(value_native_audio_device_format_changed_event)
                         }
                         AudioEventReplayRecord::AudioDeviceRemovedEvent(value) => {
-                            let value_native_audio_device_removed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_device_removed_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6202,7 +6201,7 @@ fn destack_audio_event_read_replay(
                                 flags: value_native_audio_device_removed_event_metadata_flags,
                             };
                             let value_native_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_device_removed_event_payload_device_id_inner = context.store_string(&value);
+                                let value_native_audio_device_removed_event_payload_device_id_inner = binding.store_string(&value);
                                 Some(value_native_audio_device_removed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -6218,7 +6217,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioDeviceRemovedEvent(value_native_audio_device_removed_event)
                         }
                         AudioEventReplayRecord::AudioDeviceReroutedEvent(value) => {
-                            let value_native_audio_device_rerouted_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_device_rerouted_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6234,7 +6233,7 @@ fn destack_audio_event_read_replay(
                                 flags: value_native_audio_device_rerouted_event_metadata_flags,
                             };
                             let value_native_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_device_rerouted_event_payload_device_id_inner = context.store_string(&value);
+                                let value_native_audio_device_rerouted_event_payload_device_id_inner = binding.store_string(&value);
                                 Some(value_native_audio_device_rerouted_event_payload_device_id_inner)
                             } else {
                                 None
@@ -6250,7 +6249,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioDeviceReroutedEvent(value_native_audio_device_rerouted_event)
                         }
                         AudioEventReplayRecord::AudioInterruptionBeganEvent(value) => {
-                            let value_native_audio_interruption_began_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_interruption_began_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6282,7 +6281,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioInterruptionBeganEvent(value_native_audio_interruption_began_event)
                         }
                         AudioEventReplayRecord::AudioInterruptionEndedEvent(value) => {
-                            let value_native_audio_interruption_ended_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_interruption_ended_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6314,7 +6313,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioInterruptionEndedEvent(value_native_audio_interruption_ended_event)
                         }
                         AudioEventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
-                            let value_native_audio_stream_device_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_stream_device_changed_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6337,7 +6336,7 @@ fn destack_audio_event_read_replay(
                             };
                             let value_native_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
                             let value_native_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_stream_device_changed_event_payload_device_id_inner = context.store_string(&value);
+                                let value_native_audio_stream_device_changed_event_payload_device_id_inner = binding.store_string(&value);
                                 Some(value_native_audio_stream_device_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -6355,7 +6354,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioStreamDeviceChangedEvent(value_native_audio_stream_device_changed_event)
                         }
                         AudioEventReplayRecord::AudioStreamStateChangedEvent(value) => {
-                            let value_native_audio_stream_state_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_stream_state_changed_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6389,7 +6388,7 @@ fn destack_audio_event_read_replay(
                             AudioEvent::AudioStreamStateChangedEvent(value_native_audio_stream_state_changed_event)
                         }
                         AudioEventReplayRecord::AudioStreamXRunEvent(value) => {
-                            let value_native_audio_stream_x_run_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_stream_x_run_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -6413,7 +6412,7 @@ fn destack_audio_event_read_replay(
                             let value_native_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
                             let value_native_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
                             let value_native_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_stream_x_run_event_payload_device_id_inner = context.store_string(&value);
+                                let value_native_audio_stream_x_run_event_payload_device_id_inner = binding.store_string(&value);
                                 Some(value_native_audio_stream_x_run_event_payload_device_id_inner)
                             } else {
                                 None
@@ -6443,7 +6442,7 @@ fn destack_audio_event_read_replay(
 
 #[inline]
 fn destack_audio_event_read_batch_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<AudioEvent>,
     handle: resource::AudioEventHandle,
@@ -6452,12 +6451,12 @@ fn destack_audio_event_read_batch_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxevents, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_EVENT_READ_BATCH,
-        context.replay_payload_for(AUDIO_EVENT_READ_BATCH)?,
+        binding.replay_payload_for(AUDIO_EVENT_READ_BATCH)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_audio_event_read_batch(context, out, handle, maxevents, timeoutns) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_audio_event_read_batch(context, out, handle, maxevents, timeoutns) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_audio_event_read_batch(binding, out, handle, maxevents, timeoutns) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_audio_event_read_batch(binding, out, handle, maxevents, timeoutns) },
         },
         |result| {
             if let Ok(()) = result {
@@ -6969,7 +6968,7 @@ fn destack_audio_event_read_batch_replay(
                     for value_native_item in value {
                         let value_native_item_native = match value_native_item {
                             AudioEventReplayRecord::AudioBackendDisconnectedEvent(value) => {
-                                let value_native_item_native_audio_backend_disconnected_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_backend_disconnected_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7001,7 +7000,7 @@ fn destack_audio_event_read_batch_replay(
                                 AudioEvent::AudioBackendDisconnectedEvent(value_native_item_native_audio_backend_disconnected_event)
                             }
                             AudioEventReplayRecord::AudioBackendResetEvent(value) => {
-                                let value_native_item_native_audio_backend_reset_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_backend_reset_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7033,7 +7032,7 @@ fn destack_audio_event_read_batch_replay(
                                 AudioEvent::AudioBackendResetEvent(value_native_item_native_audio_backend_reset_event)
                             }
                             AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
-                                let value_native_item_native_audio_default_capture_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_default_capture_changed_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7049,7 +7048,7 @@ fn destack_audio_event_read_batch_replay(
                                     flags: value_native_item_native_audio_default_capture_changed_event_metadata_flags,
                                 };
                                 let value_native_item_native_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_item_native_audio_default_capture_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    let value_native_item_native_audio_default_capture_changed_event_payload_device_id_inner = binding.store_string(&value);
                                     Some(value_native_item_native_audio_default_capture_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -7065,7 +7064,7 @@ fn destack_audio_event_read_batch_replay(
                                 AudioEvent::AudioDefaultCaptureChangedEvent(value_native_item_native_audio_default_capture_changed_event)
                             }
                             AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
-                                let value_native_item_native_audio_default_loopback_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_default_loopback_changed_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7081,7 +7080,7 @@ fn destack_audio_event_read_batch_replay(
                                     flags: value_native_item_native_audio_default_loopback_changed_event_metadata_flags,
                                 };
                                 let value_native_item_native_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_item_native_audio_default_loopback_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    let value_native_item_native_audio_default_loopback_changed_event_payload_device_id_inner = binding.store_string(&value);
                                     Some(value_native_item_native_audio_default_loopback_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -7097,7 +7096,7 @@ fn destack_audio_event_read_batch_replay(
                                 AudioEvent::AudioDefaultLoopbackChangedEvent(value_native_item_native_audio_default_loopback_changed_event)
                             }
                             AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
-                                let value_native_item_native_audio_default_playback_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_default_playback_changed_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7113,7 +7112,7 @@ fn destack_audio_event_read_batch_replay(
                                     flags: value_native_item_native_audio_default_playback_changed_event_metadata_flags,
                                 };
                                 let value_native_item_native_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_item_native_audio_default_playback_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    let value_native_item_native_audio_default_playback_changed_event_payload_device_id_inner = binding.store_string(&value);
                                     Some(value_native_item_native_audio_default_playback_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -7129,7 +7128,7 @@ fn destack_audio_event_read_batch_replay(
                                 AudioEvent::AudioDefaultPlaybackChangedEvent(value_native_item_native_audio_default_playback_changed_event)
                             }
                             AudioEventReplayRecord::AudioDeviceAddedEvent(value) => {
-                                let value_native_item_native_audio_device_added_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_device_added_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_device_added_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7145,7 +7144,7 @@ fn destack_audio_event_read_batch_replay(
                                     flags: value_native_item_native_audio_device_added_event_metadata_flags,
                                 };
                                 let value_native_item_native_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_item_native_audio_device_added_event_payload_device_id_inner = context.store_string(&value);
+                                    let value_native_item_native_audio_device_added_event_payload_device_id_inner = binding.store_string(&value);
                                     Some(value_native_item_native_audio_device_added_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -7161,7 +7160,7 @@ fn destack_audio_event_read_batch_replay(
                                 AudioEvent::AudioDeviceAddedEvent(value_native_item_native_audio_device_added_event)
                             }
                             AudioEventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
-                                let value_native_item_native_audio_device_format_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_device_format_changed_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7177,7 +7176,7 @@ fn destack_audio_event_read_batch_replay(
                                     flags: value_native_item_native_audio_device_format_changed_event_metadata_flags,
                                 };
                                 let value_native_item_native_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_item_native_audio_device_format_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    let value_native_item_native_audio_device_format_changed_event_payload_device_id_inner = binding.store_string(&value);
                                     Some(value_native_item_native_audio_device_format_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -7193,7 +7192,7 @@ fn destack_audio_event_read_batch_replay(
                                 AudioEvent::AudioDeviceFormatChangedEvent(value_native_item_native_audio_device_format_changed_event)
                             }
                             AudioEventReplayRecord::AudioDeviceRemovedEvent(value) => {
-                                let value_native_item_native_audio_device_removed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_device_removed_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7209,7 +7208,7 @@ fn destack_audio_event_read_batch_replay(
                                     flags: value_native_item_native_audio_device_removed_event_metadata_flags,
                                 };
                                 let value_native_item_native_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_item_native_audio_device_removed_event_payload_device_id_inner = context.store_string(&value);
+                                    let value_native_item_native_audio_device_removed_event_payload_device_id_inner = binding.store_string(&value);
                                     Some(value_native_item_native_audio_device_removed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -7225,7 +7224,7 @@ fn destack_audio_event_read_batch_replay(
                                 AudioEvent::AudioDeviceRemovedEvent(value_native_item_native_audio_device_removed_event)
                             }
                             AudioEventReplayRecord::AudioDeviceReroutedEvent(value) => {
-                                let value_native_item_native_audio_device_rerouted_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_device_rerouted_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7241,7 +7240,7 @@ fn destack_audio_event_read_batch_replay(
                                     flags: value_native_item_native_audio_device_rerouted_event_metadata_flags,
                                 };
                                 let value_native_item_native_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_item_native_audio_device_rerouted_event_payload_device_id_inner = context.store_string(&value);
+                                    let value_native_item_native_audio_device_rerouted_event_payload_device_id_inner = binding.store_string(&value);
                                     Some(value_native_item_native_audio_device_rerouted_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -7257,7 +7256,7 @@ fn destack_audio_event_read_batch_replay(
                                 AudioEvent::AudioDeviceReroutedEvent(value_native_item_native_audio_device_rerouted_event)
                             }
                             AudioEventReplayRecord::AudioInterruptionBeganEvent(value) => {
-                                let value_native_item_native_audio_interruption_began_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_interruption_began_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7289,7 +7288,7 @@ fn destack_audio_event_read_batch_replay(
                                 AudioEvent::AudioInterruptionBeganEvent(value_native_item_native_audio_interruption_began_event)
                             }
                             AudioEventReplayRecord::AudioInterruptionEndedEvent(value) => {
-                                let value_native_item_native_audio_interruption_ended_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_interruption_ended_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7321,7 +7320,7 @@ fn destack_audio_event_read_batch_replay(
                                 AudioEvent::AudioInterruptionEndedEvent(value_native_item_native_audio_interruption_ended_event)
                             }
                             AudioEventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
-                                let value_native_item_native_audio_stream_device_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_stream_device_changed_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7344,7 +7343,7 @@ fn destack_audio_event_read_batch_replay(
                                 };
                                 let value_native_item_native_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
                                 let value_native_item_native_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_item_native_audio_stream_device_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    let value_native_item_native_audio_stream_device_changed_event_payload_device_id_inner = binding.store_string(&value);
                                     Some(value_native_item_native_audio_stream_device_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -7362,7 +7361,7 @@ fn destack_audio_event_read_batch_replay(
                                 AudioEvent::AudioStreamDeviceChangedEvent(value_native_item_native_audio_stream_device_changed_event)
                             }
                             AudioEventReplayRecord::AudioStreamStateChangedEvent(value) => {
-                                let value_native_item_native_audio_stream_state_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_stream_state_changed_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7396,7 +7395,7 @@ fn destack_audio_event_read_batch_replay(
                                 AudioEvent::AudioStreamStateChangedEvent(value_native_item_native_audio_stream_state_changed_event)
                             }
                             AudioEventReplayRecord::AudioStreamXRunEvent(value) => {
-                                let value_native_item_native_audio_stream_x_run_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_stream_x_run_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7420,7 +7419,7 @@ fn destack_audio_event_read_batch_replay(
                                 let value_native_item_native_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
                                 let value_native_item_native_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
                                 let value_native_item_native_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_item_native_audio_stream_x_run_event_payload_device_id_inner = context.store_string(&value);
+                                    let value_native_item_native_audio_stream_x_run_event_payload_device_id_inner = binding.store_string(&value);
                                     Some(value_native_item_native_audio_stream_x_run_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -7441,7 +7440,7 @@ fn destack_audio_event_read_batch_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
@@ -7453,19 +7452,19 @@ fn destack_audio_event_read_batch_replay(
 
 #[inline]
 fn destack_audio_event_try_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut AudioEvent,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_EVENT_TRY_READ,
-        context.replay_payload_for(AUDIO_EVENT_TRY_READ)?,
+        binding.replay_payload_for(AUDIO_EVENT_TRY_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_audio_event_try_read(context, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_audio_event_try_read(context, out, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_audio_event_try_read(binding, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_audio_event_try_read(binding, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
@@ -7969,7 +7968,7 @@ fn destack_audio_event_try_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         AudioEventReplayRecord::AudioBackendDisconnectedEvent(value) => {
-                            let value_native_audio_backend_disconnected_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_backend_disconnected_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8001,7 +8000,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioBackendDisconnectedEvent(value_native_audio_backend_disconnected_event)
                         }
                         AudioEventReplayRecord::AudioBackendResetEvent(value) => {
-                            let value_native_audio_backend_reset_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_backend_reset_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8033,7 +8032,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioBackendResetEvent(value_native_audio_backend_reset_event)
                         }
                         AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
-                            let value_native_audio_default_capture_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_default_capture_changed_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8049,7 +8048,7 @@ fn destack_audio_event_try_read_replay(
                                 flags: value_native_audio_default_capture_changed_event_metadata_flags,
                             };
                             let value_native_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_default_capture_changed_event_payload_device_id_inner = context.store_string(&value);
+                                let value_native_audio_default_capture_changed_event_payload_device_id_inner = binding.store_string(&value);
                                 Some(value_native_audio_default_capture_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -8065,7 +8064,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioDefaultCaptureChangedEvent(value_native_audio_default_capture_changed_event)
                         }
                         AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
-                            let value_native_audio_default_loopback_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_default_loopback_changed_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8081,7 +8080,7 @@ fn destack_audio_event_try_read_replay(
                                 flags: value_native_audio_default_loopback_changed_event_metadata_flags,
                             };
                             let value_native_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_default_loopback_changed_event_payload_device_id_inner = context.store_string(&value);
+                                let value_native_audio_default_loopback_changed_event_payload_device_id_inner = binding.store_string(&value);
                                 Some(value_native_audio_default_loopback_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -8097,7 +8096,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioDefaultLoopbackChangedEvent(value_native_audio_default_loopback_changed_event)
                         }
                         AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
-                            let value_native_audio_default_playback_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_default_playback_changed_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8113,7 +8112,7 @@ fn destack_audio_event_try_read_replay(
                                 flags: value_native_audio_default_playback_changed_event_metadata_flags,
                             };
                             let value_native_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_default_playback_changed_event_payload_device_id_inner = context.store_string(&value);
+                                let value_native_audio_default_playback_changed_event_payload_device_id_inner = binding.store_string(&value);
                                 Some(value_native_audio_default_playback_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -8129,7 +8128,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioDefaultPlaybackChangedEvent(value_native_audio_default_playback_changed_event)
                         }
                         AudioEventReplayRecord::AudioDeviceAddedEvent(value) => {
-                            let value_native_audio_device_added_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_device_added_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_device_added_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8145,7 +8144,7 @@ fn destack_audio_event_try_read_replay(
                                 flags: value_native_audio_device_added_event_metadata_flags,
                             };
                             let value_native_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_device_added_event_payload_device_id_inner = context.store_string(&value);
+                                let value_native_audio_device_added_event_payload_device_id_inner = binding.store_string(&value);
                                 Some(value_native_audio_device_added_event_payload_device_id_inner)
                             } else {
                                 None
@@ -8161,7 +8160,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioDeviceAddedEvent(value_native_audio_device_added_event)
                         }
                         AudioEventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
-                            let value_native_audio_device_format_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_device_format_changed_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8177,7 +8176,7 @@ fn destack_audio_event_try_read_replay(
                                 flags: value_native_audio_device_format_changed_event_metadata_flags,
                             };
                             let value_native_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_device_format_changed_event_payload_device_id_inner = context.store_string(&value);
+                                let value_native_audio_device_format_changed_event_payload_device_id_inner = binding.store_string(&value);
                                 Some(value_native_audio_device_format_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -8193,7 +8192,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioDeviceFormatChangedEvent(value_native_audio_device_format_changed_event)
                         }
                         AudioEventReplayRecord::AudioDeviceRemovedEvent(value) => {
-                            let value_native_audio_device_removed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_device_removed_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8209,7 +8208,7 @@ fn destack_audio_event_try_read_replay(
                                 flags: value_native_audio_device_removed_event_metadata_flags,
                             };
                             let value_native_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_device_removed_event_payload_device_id_inner = context.store_string(&value);
+                                let value_native_audio_device_removed_event_payload_device_id_inner = binding.store_string(&value);
                                 Some(value_native_audio_device_removed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -8225,7 +8224,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioDeviceRemovedEvent(value_native_audio_device_removed_event)
                         }
                         AudioEventReplayRecord::AudioDeviceReroutedEvent(value) => {
-                            let value_native_audio_device_rerouted_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_device_rerouted_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8241,7 +8240,7 @@ fn destack_audio_event_try_read_replay(
                                 flags: value_native_audio_device_rerouted_event_metadata_flags,
                             };
                             let value_native_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_device_rerouted_event_payload_device_id_inner = context.store_string(&value);
+                                let value_native_audio_device_rerouted_event_payload_device_id_inner = binding.store_string(&value);
                                 Some(value_native_audio_device_rerouted_event_payload_device_id_inner)
                             } else {
                                 None
@@ -8257,7 +8256,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioDeviceReroutedEvent(value_native_audio_device_rerouted_event)
                         }
                         AudioEventReplayRecord::AudioInterruptionBeganEvent(value) => {
-                            let value_native_audio_interruption_began_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_interruption_began_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8289,7 +8288,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioInterruptionBeganEvent(value_native_audio_interruption_began_event)
                         }
                         AudioEventReplayRecord::AudioInterruptionEndedEvent(value) => {
-                            let value_native_audio_interruption_ended_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_interruption_ended_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8321,7 +8320,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioInterruptionEndedEvent(value_native_audio_interruption_ended_event)
                         }
                         AudioEventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
-                            let value_native_audio_stream_device_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_stream_device_changed_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8344,7 +8343,7 @@ fn destack_audio_event_try_read_replay(
                             };
                             let value_native_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
                             let value_native_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_stream_device_changed_event_payload_device_id_inner = context.store_string(&value);
+                                let value_native_audio_stream_device_changed_event_payload_device_id_inner = binding.store_string(&value);
                                 Some(value_native_audio_stream_device_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -8362,7 +8361,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioStreamDeviceChangedEvent(value_native_audio_stream_device_changed_event)
                         }
                         AudioEventReplayRecord::AudioStreamStateChangedEvent(value) => {
-                            let value_native_audio_stream_state_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_stream_state_changed_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8396,7 +8395,7 @@ fn destack_audio_event_try_read_replay(
                             AudioEvent::AudioStreamStateChangedEvent(value_native_audio_stream_state_changed_event)
                         }
                         AudioEventReplayRecord::AudioStreamXRunEvent(value) => {
-                            let value_native_audio_stream_x_run_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_stream_x_run_event_kind = binding.store_string(&value.kind);
                             let value_native_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
                             let value_native_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8420,7 +8419,7 @@ fn destack_audio_event_try_read_replay(
                             let value_native_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
                             let value_native_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
                             let value_native_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_stream_x_run_event_payload_device_id_inner = context.store_string(&value);
+                                let value_native_audio_stream_x_run_event_payload_device_id_inner = binding.store_string(&value);
                                 Some(value_native_audio_stream_x_run_event_payload_device_id_inner)
                             } else {
                                 None
@@ -8450,7 +8449,7 @@ fn destack_audio_event_try_read_replay(
 
 #[inline]
 fn destack_audio_event_try_read_batch_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<AudioEvent>,
     handle: resource::AudioEventHandle,
@@ -8458,12 +8457,12 @@ fn destack_audio_event_try_read_batch_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxevents);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_EVENT_TRY_READ_BATCH,
-        context.replay_payload_for(AUDIO_EVENT_TRY_READ_BATCH)?,
+        binding.replay_payload_for(AUDIO_EVENT_TRY_READ_BATCH)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_audio_event_try_read_batch(context, out, handle, maxevents) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_audio_event_try_read_batch(context, out, handle, maxevents) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_audio_event_try_read_batch(binding, out, handle, maxevents) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_audio_event_try_read_batch(binding, out, handle, maxevents) },
         },
         |result| {
             if let Ok(()) = result {
@@ -8975,7 +8974,7 @@ fn destack_audio_event_try_read_batch_replay(
                     for value_native_item in value {
                         let value_native_item_native = match value_native_item {
                             AudioEventReplayRecord::AudioBackendDisconnectedEvent(value) => {
-                                let value_native_item_native_audio_backend_disconnected_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_backend_disconnected_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9007,7 +9006,7 @@ fn destack_audio_event_try_read_batch_replay(
                                 AudioEvent::AudioBackendDisconnectedEvent(value_native_item_native_audio_backend_disconnected_event)
                             }
                             AudioEventReplayRecord::AudioBackendResetEvent(value) => {
-                                let value_native_item_native_audio_backend_reset_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_backend_reset_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9039,7 +9038,7 @@ fn destack_audio_event_try_read_batch_replay(
                                 AudioEvent::AudioBackendResetEvent(value_native_item_native_audio_backend_reset_event)
                             }
                             AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
-                                let value_native_item_native_audio_default_capture_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_default_capture_changed_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9055,7 +9054,7 @@ fn destack_audio_event_try_read_batch_replay(
                                     flags: value_native_item_native_audio_default_capture_changed_event_metadata_flags,
                                 };
                                 let value_native_item_native_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_item_native_audio_default_capture_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    let value_native_item_native_audio_default_capture_changed_event_payload_device_id_inner = binding.store_string(&value);
                                     Some(value_native_item_native_audio_default_capture_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -9071,7 +9070,7 @@ fn destack_audio_event_try_read_batch_replay(
                                 AudioEvent::AudioDefaultCaptureChangedEvent(value_native_item_native_audio_default_capture_changed_event)
                             }
                             AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
-                                let value_native_item_native_audio_default_loopback_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_default_loopback_changed_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9087,7 +9086,7 @@ fn destack_audio_event_try_read_batch_replay(
                                     flags: value_native_item_native_audio_default_loopback_changed_event_metadata_flags,
                                 };
                                 let value_native_item_native_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_item_native_audio_default_loopback_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    let value_native_item_native_audio_default_loopback_changed_event_payload_device_id_inner = binding.store_string(&value);
                                     Some(value_native_item_native_audio_default_loopback_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -9103,7 +9102,7 @@ fn destack_audio_event_try_read_batch_replay(
                                 AudioEvent::AudioDefaultLoopbackChangedEvent(value_native_item_native_audio_default_loopback_changed_event)
                             }
                             AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
-                                let value_native_item_native_audio_default_playback_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_default_playback_changed_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9119,7 +9118,7 @@ fn destack_audio_event_try_read_batch_replay(
                                     flags: value_native_item_native_audio_default_playback_changed_event_metadata_flags,
                                 };
                                 let value_native_item_native_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_item_native_audio_default_playback_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    let value_native_item_native_audio_default_playback_changed_event_payload_device_id_inner = binding.store_string(&value);
                                     Some(value_native_item_native_audio_default_playback_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -9135,7 +9134,7 @@ fn destack_audio_event_try_read_batch_replay(
                                 AudioEvent::AudioDefaultPlaybackChangedEvent(value_native_item_native_audio_default_playback_changed_event)
                             }
                             AudioEventReplayRecord::AudioDeviceAddedEvent(value) => {
-                                let value_native_item_native_audio_device_added_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_device_added_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_device_added_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9151,7 +9150,7 @@ fn destack_audio_event_try_read_batch_replay(
                                     flags: value_native_item_native_audio_device_added_event_metadata_flags,
                                 };
                                 let value_native_item_native_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_item_native_audio_device_added_event_payload_device_id_inner = context.store_string(&value);
+                                    let value_native_item_native_audio_device_added_event_payload_device_id_inner = binding.store_string(&value);
                                     Some(value_native_item_native_audio_device_added_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -9167,7 +9166,7 @@ fn destack_audio_event_try_read_batch_replay(
                                 AudioEvent::AudioDeviceAddedEvent(value_native_item_native_audio_device_added_event)
                             }
                             AudioEventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
-                                let value_native_item_native_audio_device_format_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_device_format_changed_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9183,7 +9182,7 @@ fn destack_audio_event_try_read_batch_replay(
                                     flags: value_native_item_native_audio_device_format_changed_event_metadata_flags,
                                 };
                                 let value_native_item_native_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_item_native_audio_device_format_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    let value_native_item_native_audio_device_format_changed_event_payload_device_id_inner = binding.store_string(&value);
                                     Some(value_native_item_native_audio_device_format_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -9199,7 +9198,7 @@ fn destack_audio_event_try_read_batch_replay(
                                 AudioEvent::AudioDeviceFormatChangedEvent(value_native_item_native_audio_device_format_changed_event)
                             }
                             AudioEventReplayRecord::AudioDeviceRemovedEvent(value) => {
-                                let value_native_item_native_audio_device_removed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_device_removed_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9215,7 +9214,7 @@ fn destack_audio_event_try_read_batch_replay(
                                     flags: value_native_item_native_audio_device_removed_event_metadata_flags,
                                 };
                                 let value_native_item_native_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_item_native_audio_device_removed_event_payload_device_id_inner = context.store_string(&value);
+                                    let value_native_item_native_audio_device_removed_event_payload_device_id_inner = binding.store_string(&value);
                                     Some(value_native_item_native_audio_device_removed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -9231,7 +9230,7 @@ fn destack_audio_event_try_read_batch_replay(
                                 AudioEvent::AudioDeviceRemovedEvent(value_native_item_native_audio_device_removed_event)
                             }
                             AudioEventReplayRecord::AudioDeviceReroutedEvent(value) => {
-                                let value_native_item_native_audio_device_rerouted_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_device_rerouted_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9247,7 +9246,7 @@ fn destack_audio_event_try_read_batch_replay(
                                     flags: value_native_item_native_audio_device_rerouted_event_metadata_flags,
                                 };
                                 let value_native_item_native_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_item_native_audio_device_rerouted_event_payload_device_id_inner = context.store_string(&value);
+                                    let value_native_item_native_audio_device_rerouted_event_payload_device_id_inner = binding.store_string(&value);
                                     Some(value_native_item_native_audio_device_rerouted_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -9263,7 +9262,7 @@ fn destack_audio_event_try_read_batch_replay(
                                 AudioEvent::AudioDeviceReroutedEvent(value_native_item_native_audio_device_rerouted_event)
                             }
                             AudioEventReplayRecord::AudioInterruptionBeganEvent(value) => {
-                                let value_native_item_native_audio_interruption_began_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_interruption_began_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9295,7 +9294,7 @@ fn destack_audio_event_try_read_batch_replay(
                                 AudioEvent::AudioInterruptionBeganEvent(value_native_item_native_audio_interruption_began_event)
                             }
                             AudioEventReplayRecord::AudioInterruptionEndedEvent(value) => {
-                                let value_native_item_native_audio_interruption_ended_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_interruption_ended_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9327,7 +9326,7 @@ fn destack_audio_event_try_read_batch_replay(
                                 AudioEvent::AudioInterruptionEndedEvent(value_native_item_native_audio_interruption_ended_event)
                             }
                             AudioEventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
-                                let value_native_item_native_audio_stream_device_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_stream_device_changed_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9350,7 +9349,7 @@ fn destack_audio_event_try_read_batch_replay(
                                 };
                                 let value_native_item_native_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
                                 let value_native_item_native_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_item_native_audio_stream_device_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    let value_native_item_native_audio_stream_device_changed_event_payload_device_id_inner = binding.store_string(&value);
                                     Some(value_native_item_native_audio_stream_device_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -9368,7 +9367,7 @@ fn destack_audio_event_try_read_batch_replay(
                                 AudioEvent::AudioStreamDeviceChangedEvent(value_native_item_native_audio_stream_device_changed_event)
                             }
                             AudioEventReplayRecord::AudioStreamStateChangedEvent(value) => {
-                                let value_native_item_native_audio_stream_state_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_stream_state_changed_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9402,7 +9401,7 @@ fn destack_audio_event_try_read_batch_replay(
                                 AudioEvent::AudioStreamStateChangedEvent(value_native_item_native_audio_stream_state_changed_event)
                             }
                             AudioEventReplayRecord::AudioStreamXRunEvent(value) => {
-                                let value_native_item_native_audio_stream_x_run_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_stream_x_run_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9426,7 +9425,7 @@ fn destack_audio_event_try_read_batch_replay(
                                 let value_native_item_native_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
                                 let value_native_item_native_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
                                 let value_native_item_native_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_item_native_audio_stream_x_run_event_payload_device_id_inner = context.store_string(&value);
+                                    let value_native_item_native_audio_stream_x_run_event_payload_device_id_inner = binding.store_string(&value);
                                     Some(value_native_item_native_audio_stream_x_run_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -9447,7 +9446,7 @@ fn destack_audio_event_try_read_batch_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
@@ -9459,21 +9458,21 @@ fn destack_audio_event_try_read_batch_replay(
 
 #[inline]
 fn destack_audio_midi_flush_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::MidiPortHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_MIDI_FLUSH,
-        context.replay_payload_for(AUDIO_MIDI_FLUSH)?,
+        binding.replay_payload_for(AUDIO_MIDI_FLUSH)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_midi_flush(context, handle)
+                platform_native::destack_audio_midi_flush(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_midi_flush(context, handle)
+                platform_simulation_native::destack_audio_midi_flush(binding, handle)
             },
         },
         |result| {
@@ -9507,21 +9506,21 @@ fn destack_audio_midi_flush_replay(
 
 #[inline]
 fn destack_audio_midi_port_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::MidiPortHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_MIDI_PORT_CLOSE,
-        context.replay_payload_for(AUDIO_MIDI_PORT_CLOSE)?,
+        binding.replay_payload_for(AUDIO_MIDI_PORT_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_midi_port_close(context, handle)
+                platform_native::destack_audio_midi_port_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_midi_port_close(context, handle)
+                platform_simulation_native::destack_audio_midi_port_close(binding, handle)
             },
         },
         |result| {
@@ -9555,22 +9554,22 @@ fn destack_audio_midi_port_close_replay(
 
 #[inline]
 fn destack_audio_midi_port_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<MidiPortDescriptor>,
     direction: MidiPortDirection,
 ) -> RuntimeResult<()> {
     let _ = &direction;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_MIDI_PORT_LIST,
-        context.replay_payload_for(AUDIO_MIDI_PORT_LIST)?,
+        binding.replay_payload_for(AUDIO_MIDI_PORT_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_midi_port_list(context, out, direction)
+                platform_native::destack_audio_midi_port_list(binding, out, direction)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_midi_port_list(context, out, direction)
+                platform_simulation_native::destack_audio_midi_port_list(binding, out, direction)
             },
         },
         |result| {
@@ -9628,13 +9627,13 @@ fn destack_audio_midi_port_list_replay(
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
                         let value_native_item_native_id =
-                            context.store_string(&value_native_item.id);
+                            binding.store_string(&value_native_item.id);
                         let value_native_item_native_name =
-                            context.store_string(&value_native_item.name);
+                            binding.store_string(&value_native_item.name);
                         let value_native_item_native_manufacturer =
-                            context.store_string(&value_native_item.manufacturer);
+                            binding.store_string(&value_native_item.manufacturer);
                         let value_native_item_native_version =
-                            context.store_string(&value_native_item.version);
+                            binding.store_string(&value_native_item.version);
                         let value_native_item_native_direction = value_native_item.direction;
                         let value_native_item_native_is_virtual = value_native_item.is_virtual;
                         let value_native_item_native = MidiPortDescriptor {
@@ -9647,7 +9646,7 @@ fn destack_audio_midi_port_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -9661,7 +9660,7 @@ fn destack_audio_midi_port_list_replay(
 
 #[inline]
 fn destack_audio_midi_port_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::MidiPortHandle,
     id: NativeStringRef,
@@ -9669,16 +9668,16 @@ fn destack_audio_midi_port_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&id, &direction);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_MIDI_PORT_OPEN,
-        context.replay_payload_for(AUDIO_MIDI_PORT_OPEN)?,
+        binding.replay_payload_for(AUDIO_MIDI_PORT_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_midi_port_open(context, out, id, direction)
+                platform_native::destack_audio_midi_port_open(binding, out, id, direction)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_midi_port_open(
-                    context, out, id, direction,
+                    binding, out, id, direction,
                 )
             },
         },
@@ -9725,7 +9724,7 @@ fn destack_audio_midi_port_open_replay(
 
 #[inline]
 fn destack_audio_midi_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<MidiMessage>,
     handle: resource::MidiPortHandle,
@@ -9734,13 +9733,13 @@ fn destack_audio_midi_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxmessages, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_MIDI_READ,
-        context.replay_payload_for(AUDIO_MIDI_READ)?,
+        binding.replay_payload_for(AUDIO_MIDI_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_midi_read(
-                    context,
+                    binding,
                     out,
                     handle,
                     maxmessages,
@@ -9749,7 +9748,7 @@ fn destack_audio_midi_read_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_midi_read(
-                    context,
+                    binding,
                     out,
                     handle,
                     maxmessages,
@@ -9818,7 +9817,7 @@ fn destack_audio_midi_read_replay(
                     for value_native_item in value {
                         let value_native_item_native_timestamp_ns = value_native_item.timestamp_ns;
                         let value_native_item_native_source_id =
-                            context.store_string(&value_native_item.source_id);
+                            binding.store_string(&value_native_item.source_id);
                         let mut value_native_item_native_data_values =
                             Vec::with_capacity(value_native_item.data.len());
                         for value_native_item_native_data_item in value_native_item.data {
@@ -9828,7 +9827,7 @@ fn destack_audio_midi_read_replay(
                                 .push(value_native_item_native_data_item_native);
                         }
                         let value_native_item_native_data =
-                            context.store_slice(value_native_item_native_data_values);
+                            binding.store_slice(value_native_item_native_data_values);
                         let value_native_item_native = MidiMessage {
                             timestamp_ns: value_native_item_native_timestamp_ns,
                             source_id: value_native_item_native_source_id,
@@ -9836,7 +9835,7 @@ fn destack_audio_midi_read_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -9850,7 +9849,7 @@ fn destack_audio_midi_read_replay(
 
 #[inline]
 fn destack_audio_midi_try_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<MidiMessage>,
     handle: resource::MidiPortHandle,
@@ -9858,16 +9857,16 @@ fn destack_audio_midi_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxmessages);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_MIDI_TRY_READ,
-        context.replay_payload_for(AUDIO_MIDI_TRY_READ)?,
+        binding.replay_payload_for(AUDIO_MIDI_TRY_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_midi_try_read(context, out, handle, maxmessages)
+                platform_native::destack_audio_midi_try_read(binding, out, handle, maxmessages)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_midi_try_read(
-                    context,
+                    binding,
                     out,
                     handle,
                     maxmessages,
@@ -9935,7 +9934,7 @@ fn destack_audio_midi_try_read_replay(
                     for value_native_item in value {
                         let value_native_item_native_timestamp_ns = value_native_item.timestamp_ns;
                         let value_native_item_native_source_id =
-                            context.store_string(&value_native_item.source_id);
+                            binding.store_string(&value_native_item.source_id);
                         let mut value_native_item_native_data_values =
                             Vec::with_capacity(value_native_item.data.len());
                         for value_native_item_native_data_item in value_native_item.data {
@@ -9945,7 +9944,7 @@ fn destack_audio_midi_try_read_replay(
                                 .push(value_native_item_native_data_item_native);
                         }
                         let value_native_item_native_data =
-                            context.store_slice(value_native_item_native_data_values);
+                            binding.store_slice(value_native_item_native_data_values);
                         let value_native_item_native = MidiMessage {
                             timestamp_ns: value_native_item_native_timestamp_ns,
                             source_id: value_native_item_native_source_id,
@@ -9953,7 +9952,7 @@ fn destack_audio_midi_try_read_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -9967,7 +9966,7 @@ fn destack_audio_midi_try_read_replay(
 
 #[inline]
 fn destack_audio_midi_write_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::MidiPortHandle,
@@ -9975,15 +9974,15 @@ fn destack_audio_midi_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &messages);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_MIDI_WRITE,
-        context.replay_payload_for(AUDIO_MIDI_WRITE)?,
+        binding.replay_payload_for(AUDIO_MIDI_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_midi_write(context, out, handle, messages)
+                platform_native::destack_audio_midi_write(binding, out, handle, messages)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_midi_write(context, out, handle, messages)
+                platform_simulation_native::destack_audio_midi_write(binding, out, handle, messages)
             },
         },
         |result| {
@@ -10029,21 +10028,21 @@ fn destack_audio_midi_write_replay(
 
 #[inline]
 fn destack_audio_stream_abort_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_ABORT,
-        context.replay_payload_for(AUDIO_STREAM_ABORT)?,
+        binding.replay_payload_for(AUDIO_STREAM_ABORT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_abort(context, handle)
+                platform_native::destack_audio_stream_abort(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_stream_abort(context, handle)
+                platform_simulation_native::destack_audio_stream_abort(binding, handle)
             },
         },
         |result| {
@@ -10077,22 +10076,22 @@ fn destack_audio_stream_abort_replay(
 
 #[inline]
 fn destack_audio_stream_availability_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut AudioStreamAvailability,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_AVAILABILITY,
-        context.replay_payload_for(AUDIO_STREAM_AVAILABILITY)?,
+        binding.replay_payload_for(AUDIO_STREAM_AVAILABILITY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_availability(context, out, handle)
+                platform_native::destack_audio_stream_availability(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_stream_availability(context, out, handle)
+                platform_simulation_native::destack_audio_stream_availability(binding, out, handle)
             },
         },
         |result| {
@@ -10160,21 +10159,21 @@ fn destack_audio_stream_availability_replay(
 
 #[inline]
 fn destack_audio_stream_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_CLOSE,
-        context.replay_payload_for(AUDIO_STREAM_CLOSE)?,
+        binding.replay_payload_for(AUDIO_STREAM_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_close(context, handle)
+                platform_native::destack_audio_stream_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_stream_close(context, handle)
+                platform_simulation_native::destack_audio_stream_close(binding, handle)
             },
         },
         |result| {
@@ -10208,22 +10207,22 @@ fn destack_audio_stream_close_replay(
 
 #[inline]
 fn destack_audio_stream_descriptor_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut AudioStreamDescriptor,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_DESCRIPTOR,
-        context.replay_payload_for(AUDIO_STREAM_DESCRIPTOR)?,
+        binding.replay_payload_for(AUDIO_STREAM_DESCRIPTOR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_descriptor(context, out, handle)
+                platform_native::destack_audio_stream_descriptor(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_stream_descriptor(context, out, handle)
+                platform_simulation_native::destack_audio_stream_descriptor(binding, out, handle)
             },
         },
         |result| {
@@ -10307,8 +10306,8 @@ fn destack_audio_stream_descriptor_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_backend = value.backend;
-                    let value_native_backend_id = context.store_string(&value.backend_id);
-                    let value_native_device_id = context.store_string(&value.device_id);
+                    let value_native_backend_id = binding.store_string(&value.backend_id);
+                    let value_native_device_id = binding.store_string(&value.device_id);
                     let value_native_sample_rate = value.sample_rate;
                     let value_native_channels = value.channels;
                     let value_native_channel_layout = value.channel_layout;
@@ -10368,22 +10367,22 @@ fn destack_audio_stream_descriptor_replay(
 
 #[inline]
 fn destack_audio_stream_drain_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_DRAIN,
-        context.replay_payload_for(AUDIO_STREAM_DRAIN)?,
+        binding.replay_payload_for(AUDIO_STREAM_DRAIN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_drain(context, handle, timeoutns)
+                platform_native::destack_audio_stream_drain(binding, handle, timeoutns)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_stream_drain(context, handle, timeoutns)
+                platform_simulation_native::destack_audio_stream_drain(binding, handle, timeoutns)
             },
         },
         |result| {
@@ -10417,21 +10416,21 @@ fn destack_audio_stream_drain_replay(
 
 #[inline]
 fn destack_audio_stream_flush_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_FLUSH,
-        context.replay_payload_for(AUDIO_STREAM_FLUSH)?,
+        binding.replay_payload_for(AUDIO_STREAM_FLUSH)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_flush(context, handle)
+                platform_native::destack_audio_stream_flush(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_stream_flush(context, handle)
+                platform_simulation_native::destack_audio_stream_flush(binding, handle)
             },
         },
         |result| {
@@ -10465,7 +10464,7 @@ fn destack_audio_stream_flush_replay(
 
 #[inline]
 fn destack_audio_stream_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::AudioStreamHandle,
     device: resource::AudioDeviceHandle,
@@ -10474,16 +10473,16 @@ fn destack_audio_stream_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &config, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_OPEN,
-        context.replay_payload_for(AUDIO_STREAM_OPEN)?,
+        binding.replay_payload_for(AUDIO_STREAM_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_open(context, out, device, config, options)
+                platform_native::destack_audio_stream_open(binding, out, device, config, options)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_open(
-                    context, out, device, config, options,
+                    binding, out, device, config, options,
                 )
             },
         },
@@ -10530,22 +10529,22 @@ fn destack_audio_stream_open_replay(
 
 #[inline]
 fn destack_audio_stream_pause_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     pause: bool,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &pause);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_PAUSE,
-        context.replay_payload_for(AUDIO_STREAM_PAUSE)?,
+        binding.replay_payload_for(AUDIO_STREAM_PAUSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_pause(context, handle, pause)
+                platform_native::destack_audio_stream_pause(binding, handle, pause)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_stream_pause(context, handle, pause)
+                platform_simulation_native::destack_audio_stream_pause(binding, handle, pause)
             },
         },
         |result| {
@@ -10579,7 +10578,7 @@ fn destack_audio_stream_pause_replay(
 
 #[inline]
 fn destack_audio_stream_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     handle: resource::AudioStreamHandle,
@@ -10587,16 +10586,16 @@ fn destack_audio_stream_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxbytes);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_READ,
-        context.replay_payload_for(AUDIO_STREAM_READ)?,
+        binding.replay_payload_for(AUDIO_STREAM_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_read(context, out, handle, maxbytes)
+                platform_native::destack_audio_stream_read(binding, out, handle, maxbytes)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_read(
-                    context, out, handle, maxbytes,
+                    binding, out, handle, maxbytes,
                 )
             },
         },
@@ -10640,7 +10639,7 @@ fn destack_audio_stream_read_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -10654,7 +10653,7 @@ fn destack_audio_stream_read_replay(
 
 #[inline]
 fn destack_audio_stream_readv_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::AudioStreamHandle,
@@ -10662,16 +10661,16 @@ fn destack_audio_stream_readv_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_READV,
-        context.replay_payload_for(AUDIO_STREAM_READV)?,
+        binding.replay_payload_for(AUDIO_STREAM_READV)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_readv(context, out, handle, buffers)
+                platform_native::destack_audio_stream_readv(binding, out, handle, buffers)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_readv(
-                    context, out, handle, buffers,
+                    binding, out, handle, buffers,
                 )
             },
         },
@@ -10718,22 +10717,22 @@ fn destack_audio_stream_readv_replay(
 
 #[inline]
 fn destack_audio_stream_set_mute_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     muted: bool,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &muted);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_SET_MUTE,
-        context.replay_payload_for(AUDIO_STREAM_SET_MUTE)?,
+        binding.replay_payload_for(AUDIO_STREAM_SET_MUTE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_set_mute(context, handle, muted)
+                platform_native::destack_audio_stream_set_mute(binding, handle, muted)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_stream_set_mute(context, handle, muted)
+                platform_simulation_native::destack_audio_stream_set_mute(binding, handle, muted)
             },
         },
         |result| {
@@ -10767,22 +10766,22 @@ fn destack_audio_stream_set_mute_replay(
 
 #[inline]
 fn destack_audio_stream_set_name_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_SET_NAME,
-        context.replay_payload_for(AUDIO_STREAM_SET_NAME)?,
+        binding.replay_payload_for(AUDIO_STREAM_SET_NAME)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_set_name(context, handle, name)
+                platform_native::destack_audio_stream_set_name(binding, handle, name)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_stream_set_name(context, handle, name)
+                platform_simulation_native::destack_audio_stream_set_name(binding, handle, name)
             },
         },
         |result| {
@@ -10816,23 +10815,23 @@ fn destack_audio_stream_set_name_replay(
 
 #[inline]
 fn destack_audio_stream_set_volume_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     lineargain: f64,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &lineargain);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_SET_VOLUME,
-        context.replay_payload_for(AUDIO_STREAM_SET_VOLUME)?,
+        binding.replay_payload_for(AUDIO_STREAM_SET_VOLUME)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_set_volume(context, handle, lineargain)
+                platform_native::destack_audio_stream_set_volume(binding, handle, lineargain)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_set_volume(
-                    context, handle, lineargain,
+                    binding, handle, lineargain,
                 )
             },
         },
@@ -10867,21 +10866,21 @@ fn destack_audio_stream_set_volume_replay(
 
 #[inline]
 fn destack_audio_stream_start_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_START,
-        context.replay_payload_for(AUDIO_STREAM_START)?,
+        binding.replay_payload_for(AUDIO_STREAM_START)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_start(context, handle)
+                platform_native::destack_audio_stream_start(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_stream_start(context, handle)
+                platform_simulation_native::destack_audio_stream_start(binding, handle)
             },
         },
         |result| {
@@ -10915,22 +10914,22 @@ fn destack_audio_stream_start_replay(
 
 #[inline]
 fn destack_audio_stream_state_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut AudioStreamState,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_STATE,
-        context.replay_payload_for(AUDIO_STREAM_STATE)?,
+        binding.replay_payload_for(AUDIO_STREAM_STATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_state(context, out, handle)
+                platform_native::destack_audio_stream_state(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_stream_state(context, out, handle)
+                platform_simulation_native::destack_audio_stream_state(binding, out, handle)
             },
         },
         |result| {
@@ -11034,21 +11033,21 @@ fn destack_audio_stream_state_replay(
 
 #[inline]
 fn destack_audio_stream_stop_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_STOP,
-        context.replay_payload_for(AUDIO_STREAM_STOP)?,
+        binding.replay_payload_for(AUDIO_STREAM_STOP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_stop(context, handle)
+                platform_native::destack_audio_stream_stop(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_stream_stop(context, handle)
+                platform_simulation_native::destack_audio_stream_stop(binding, handle)
             },
         },
         |result| {
@@ -11082,7 +11081,7 @@ fn destack_audio_stream_stop_replay(
 
 #[inline]
 fn destack_audio_stream_support_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut AudioStreamSupport,
     device: resource::AudioDeviceHandle,
@@ -11091,16 +11090,16 @@ fn destack_audio_stream_support_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &config, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_SUPPORT,
-        context.replay_payload_for(AUDIO_STREAM_SUPPORT)?,
+        binding.replay_payload_for(AUDIO_STREAM_SUPPORT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_support(context, out, device, config, options)
+                platform_native::destack_audio_stream_support(binding, out, device, config, options)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_support(
-                    context, out, device, config, options,
+                    binding, out, device, config, options,
                 )
             },
         },
@@ -11211,9 +11210,9 @@ fn destack_audio_stream_support_replay(
                     let value_native_supported = value.supported;
                     let value_native_descriptor_backend = value.descriptor.backend;
                     let value_native_descriptor_backend_id =
-                        context.store_string(&value.descriptor.backend_id);
+                        binding.store_string(&value.descriptor.backend_id);
                     let value_native_descriptor_device_id =
-                        context.store_string(&value.descriptor.device_id);
+                        binding.store_string(&value.descriptor.device_id);
                     let value_native_descriptor_sample_rate = value.descriptor.sample_rate;
                     let value_native_descriptor_channels = value.descriptor.channels;
                     let value_native_descriptor_channel_layout = value.descriptor.channel_layout;
@@ -11287,22 +11286,22 @@ fn destack_audio_stream_support_replay(
 
 #[inline]
 fn destack_audio_stream_timing_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut AudioStreamTiming,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_TIMING,
-        context.replay_payload_for(AUDIO_STREAM_TIMING)?,
+        binding.replay_payload_for(AUDIO_STREAM_TIMING)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_timing(context, out, handle)
+                platform_native::destack_audio_stream_timing(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_stream_timing(context, out, handle)
+                platform_simulation_native::destack_audio_stream_timing(binding, out, handle)
             },
         },
         |result| {
@@ -11433,7 +11432,7 @@ fn destack_audio_stream_timing_replay(
 
 #[inline]
 fn destack_audio_stream_try_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     handle: resource::AudioStreamHandle,
@@ -11441,16 +11440,16 @@ fn destack_audio_stream_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxbytes);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_TRY_READ,
-        context.replay_payload_for(AUDIO_STREAM_TRY_READ)?,
+        binding.replay_payload_for(AUDIO_STREAM_TRY_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_try_read(context, out, handle, maxbytes)
+                platform_native::destack_audio_stream_try_read(binding, out, handle, maxbytes)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_try_read(
-                    context, out, handle, maxbytes,
+                    binding, out, handle, maxbytes,
                 )
             },
         },
@@ -11494,7 +11493,7 @@ fn destack_audio_stream_try_read_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -11508,7 +11507,7 @@ fn destack_audio_stream_try_read_replay(
 
 #[inline]
 fn destack_audio_stream_try_readv_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::AudioStreamHandle,
@@ -11516,16 +11515,16 @@ fn destack_audio_stream_try_readv_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_TRY_READV,
-        context.replay_payload_for(AUDIO_STREAM_TRY_READV)?,
+        binding.replay_payload_for(AUDIO_STREAM_TRY_READV)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_try_readv(context, out, handle, buffers)
+                platform_native::destack_audio_stream_try_readv(binding, out, handle, buffers)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_try_readv(
-                    context, out, handle, buffers,
+                    binding, out, handle, buffers,
                 )
             },
         },
@@ -11572,7 +11571,7 @@ fn destack_audio_stream_try_readv_replay(
 
 #[inline]
 fn destack_audio_stream_try_write_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::AudioStreamHandle,
@@ -11580,16 +11579,16 @@ fn destack_audio_stream_try_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &data);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_TRY_WRITE,
-        context.replay_payload_for(AUDIO_STREAM_TRY_WRITE)?,
+        binding.replay_payload_for(AUDIO_STREAM_TRY_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_try_write(context, out, handle, data)
+                platform_native::destack_audio_stream_try_write(binding, out, handle, data)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_try_write(
-                    context, out, handle, data,
+                    binding, out, handle, data,
                 )
             },
         },
@@ -11636,7 +11635,7 @@ fn destack_audio_stream_try_write_replay(
 
 #[inline]
 fn destack_audio_stream_try_writev_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::AudioStreamHandle,
@@ -11644,16 +11643,16 @@ fn destack_audio_stream_try_writev_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_TRY_WRITEV,
-        context.replay_payload_for(AUDIO_STREAM_TRY_WRITEV)?,
+        binding.replay_payload_for(AUDIO_STREAM_TRY_WRITEV)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_try_writev(context, out, handle, buffers)
+                platform_native::destack_audio_stream_try_writev(binding, out, handle, buffers)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_try_writev(
-                    context, out, handle, buffers,
+                    binding, out, handle, buffers,
                 )
             },
         },
@@ -11700,7 +11699,7 @@ fn destack_audio_stream_try_writev_replay(
 
 #[inline]
 fn destack_audio_stream_write_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::AudioStreamHandle,
@@ -11708,15 +11707,15 @@ fn destack_audio_stream_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &data);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_WRITE,
-        context.replay_payload_for(AUDIO_STREAM_WRITE)?,
+        binding.replay_payload_for(AUDIO_STREAM_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_write(context, out, handle, data)
+                platform_native::destack_audio_stream_write(binding, out, handle, data)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_stream_write(context, out, handle, data)
+                platform_simulation_native::destack_audio_stream_write(binding, out, handle, data)
             },
         },
         |result| {
@@ -11762,7 +11761,7 @@ fn destack_audio_stream_write_replay(
 
 #[inline]
 fn destack_audio_stream_write_at_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::AudioStreamHandle,
@@ -11771,13 +11770,13 @@ fn destack_audio_stream_write_at_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &data, &presentationtimens);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_WRITE_AT,
-        context.replay_payload_for(AUDIO_STREAM_WRITE_AT)?,
+        binding.replay_payload_for(AUDIO_STREAM_WRITE_AT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_stream_write_at(
-                    context,
+                    binding,
                     out,
                     handle,
                     data,
@@ -11786,7 +11785,7 @@ fn destack_audio_stream_write_at_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_write_at(
-                    context,
+                    binding,
                     out,
                     handle,
                     data,
@@ -11837,7 +11836,7 @@ fn destack_audio_stream_write_at_replay(
 
 #[inline]
 fn destack_audio_stream_write_atv_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::AudioStreamHandle,
@@ -11846,13 +11845,13 @@ fn destack_audio_stream_write_atv_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers, &presentationtimens);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_WRITE_ATV,
-        context.replay_payload_for(AUDIO_STREAM_WRITE_ATV)?,
+        binding.replay_payload_for(AUDIO_STREAM_WRITE_ATV)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_audio_stream_write_atv(
-                    context,
+                    binding,
                     out,
                     handle,
                     buffers,
@@ -11861,7 +11860,7 @@ fn destack_audio_stream_write_atv_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_write_atv(
-                    context,
+                    binding,
                     out,
                     handle,
                     buffers,
@@ -11912,7 +11911,7 @@ fn destack_audio_stream_write_atv_replay(
 
 #[inline]
 fn destack_audio_stream_writev_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::AudioStreamHandle,
@@ -11920,16 +11919,16 @@ fn destack_audio_stream_writev_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         AUDIO_STREAM_WRITEV,
-        context.replay_payload_for(AUDIO_STREAM_WRITEV)?,
+        binding.replay_payload_for(AUDIO_STREAM_WRITEV)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_writev(context, out, handle, buffers)
+                platform_native::destack_audio_stream_writev(binding, out, handle, buffers)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_audio_stream_writev(
-                    context, out, handle, buffers,
+                    binding, out, handle, buffers,
                 )
             },
         },
@@ -12775,18 +12774,18 @@ pub unsafe extern "C" fn destack_audio_stream_writev(
 /// VM replay implementations for audio bindings.
 #[inline]
 fn destack_audio_backend_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_BACKEND_LIST,
-        runtime.replay_payload_for(AUDIO_BACKEND_LIST)?,
+        binding.replay_payload_for(AUDIO_BACKEND_LIST)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_audio_backend_list(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_audio_backend_list(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_backend_list(runtime, context)
+                platform_simulation_vm::destack_audio_backend_list(binding, context)
             }
         },
         |context, result| {
@@ -13088,19 +13087,19 @@ fn destack_audio_backend_list_vm_replay(
 
 #[inline]
 fn destack_audio_clock_now_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     domain: AudioClockDomain,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_CLOCK_NOW,
-        runtime.replay_payload_for(AUDIO_CLOCK_NOW)?,
+        binding.replay_payload_for(AUDIO_CLOCK_NOW)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_audio_clock_now(runtime, context, domain),
+            RuntimeWorld::Host => platform_vm::destack_audio_clock_now(binding, context, domain),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_clock_now(runtime, context, domain)
+                platform_simulation_vm::destack_audio_clock_now(binding, context, domain)
             }
         },
         |context, result| {
@@ -13142,22 +13141,22 @@ fn destack_audio_clock_now_vm_replay(
 
 #[inline]
 fn destack_audio_clock_stream_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     domain: AudioStreamClockDomain,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_CLOCK_STREAM,
-        runtime.replay_payload_for(AUDIO_CLOCK_STREAM)?,
+        binding.replay_payload_for(AUDIO_CLOCK_STREAM)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_clock(runtime, context, handle, domain)
+                platform_vm::destack_audio_stream_clock(binding, context, handle, domain)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_stream_clock(runtime, context, handle, domain)
+                platform_simulation_vm::destack_audio_stream_clock(binding, context, handle, domain)
             }
         },
         |context, result| {
@@ -13290,19 +13289,19 @@ fn destack_audio_clock_stream_vm_replay(
 
 #[inline]
 fn destack_audio_device_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_DEVICE_CLOSE,
-        runtime.replay_payload_for(AUDIO_DEVICE_CLOSE)?,
+        binding.replay_payload_for(AUDIO_DEVICE_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_audio_device_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_audio_device_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_device_close(runtime, context, handle)
+                platform_simulation_vm::destack_audio_device_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -13340,27 +13339,27 @@ fn destack_audio_device_close_vm_replay(
 
 #[inline]
 fn destack_audio_device_default_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     direction: AudioDeviceDirection,
     backend: AudioBackend,
     backendpolicy: AudioBackendSelectionPolicy,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_DEVICE_DEFAULT,
-        runtime.replay_payload_for(AUDIO_DEVICE_DEFAULT)?,
+        binding.replay_payload_for(AUDIO_DEVICE_DEFAULT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_audio_device_default(
-                runtime,
+                binding,
                 context,
                 direction,
                 backend,
                 backendpolicy,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_device_default(
-                runtime,
+                binding,
                 context,
                 direction,
                 backend,
@@ -13412,21 +13411,21 @@ fn destack_audio_device_default_vm_replay(
 
 #[inline]
 fn destack_audio_device_descriptor_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_DEVICE_DESCRIPTOR,
-        runtime.replay_payload_for(AUDIO_DEVICE_DESCRIPTOR)?,
+        binding.replay_payload_for(AUDIO_DEVICE_DESCRIPTOR)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_device_descriptor(runtime, context, handle)
+                platform_vm::destack_audio_device_descriptor(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_device_descriptor(runtime, context, handle)
+                platform_simulation_vm::destack_audio_device_descriptor(binding, context, handle)
             }
         },
         |context, result| {
@@ -13625,19 +13624,19 @@ fn destack_audio_device_descriptor_vm_replay(
 
 #[inline]
 fn destack_audio_device_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     request: AudioDeviceListRequestVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_DEVICE_LIST,
-        runtime.replay_payload_for(AUDIO_DEVICE_LIST)?,
+        binding.replay_payload_for(AUDIO_DEVICE_LIST)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_audio_device_list(runtime, context, request),
+            RuntimeWorld::Host => platform_vm::destack_audio_device_list(binding, context, request),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_device_list(runtime, context, request)
+                platform_simulation_vm::destack_audio_device_list(binding, context, request)
             }
         },
         |context, result| {
@@ -14244,22 +14243,22 @@ fn destack_audio_device_list_vm_replay(
 
 #[inline]
 fn destack_audio_device_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     id: vm::StringHandle,
     options: AudioDeviceOpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_DEVICE_OPEN,
-        runtime.replay_payload_for(AUDIO_DEVICE_OPEN)?,
+        binding.replay_payload_for(AUDIO_DEVICE_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_device_open(runtime, context, id, options)
+                platform_vm::destack_audio_device_open(binding, context, id, options)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_device_open(runtime, context, id, options)
+                platform_simulation_vm::destack_audio_device_open(binding, context, id, options)
             }
         },
         |context, result| {
@@ -14301,22 +14300,22 @@ fn destack_audio_device_open_vm_replay(
 
 #[inline]
 fn destack_audio_device_rescan_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     backend: AudioBackend,
     backendpolicy: AudioBackendSelectionPolicy,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_DEVICE_RESCAN,
-        runtime.replay_payload_for(AUDIO_DEVICE_RESCAN)?,
+        binding.replay_payload_for(AUDIO_DEVICE_RESCAN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_device_rescan(runtime, context, backend, backendpolicy)
+                platform_vm::destack_audio_device_rescan(binding, context, backend, backendpolicy)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_device_rescan(
-                runtime,
+                binding,
                 context,
                 backend,
                 backendpolicy,
@@ -14357,19 +14356,19 @@ fn destack_audio_device_rescan_vm_replay(
 
 #[inline]
 fn destack_audio_event_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_EVENT_CLOSE,
-        runtime.replay_payload_for(AUDIO_EVENT_CLOSE)?,
+        binding.replay_payload_for(AUDIO_EVENT_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_audio_event_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_audio_event_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_event_close(runtime, context, handle)
+                platform_simulation_vm::destack_audio_event_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -14407,19 +14406,19 @@ fn destack_audio_event_close_vm_replay(
 
 #[inline]
 fn destack_audio_event_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     options: AudioEventSubscriptionOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_EVENT_OPEN,
-        runtime.replay_payload_for(AUDIO_EVENT_OPEN)?,
+        binding.replay_payload_for(AUDIO_EVENT_OPEN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_audio_event_open(runtime, context, options),
+            RuntimeWorld::Host => platform_vm::destack_audio_event_open(binding, context, options),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_event_open(runtime, context, options)
+                platform_simulation_vm::destack_audio_event_open(binding, context, options)
             }
         },
         |context, result| {
@@ -14461,20 +14460,20 @@ fn destack_audio_event_open_vm_replay(
 
 #[inline]
 fn destack_audio_event_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_EVENT_READ,
-        runtime.replay_payload_for(AUDIO_EVENT_READ)?,
+        binding.replay_payload_for(AUDIO_EVENT_READ)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_audio_event_read(runtime, context, handle, timeoutns),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_event_read(runtime, context, handle, timeoutns),
+                RuntimeWorld::Host => platform_vm::destack_audio_event_read(binding, context, handle, timeoutns),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_event_read(binding, context, handle, timeoutns),
             }
         },
         |context, result| {
@@ -15552,21 +15551,21 @@ fn destack_audio_event_read_vm_replay(
 
 #[inline]
 fn destack_audio_event_read_batch_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioEventHandle,
     maxevents: u32,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_EVENT_READ_BATCH,
-        runtime.replay_payload_for(AUDIO_EVENT_READ_BATCH)?,
+        binding.replay_payload_for(AUDIO_EVENT_READ_BATCH)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_audio_event_read_batch(runtime, context, handle, maxevents, timeoutns),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_event_read_batch(runtime, context, handle, maxevents, timeoutns),
+                RuntimeWorld::Host => platform_vm::destack_audio_event_read_batch(binding, context, handle, maxevents, timeoutns),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_event_read_batch(binding, context, handle, maxevents, timeoutns),
             }
         },
         |context, result| {
@@ -16658,19 +16657,19 @@ fn destack_audio_event_read_batch_vm_replay(
 
 #[inline]
 fn destack_audio_event_try_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_EVENT_TRY_READ,
-        runtime.replay_payload_for(AUDIO_EVENT_TRY_READ)?,
+        binding.replay_payload_for(AUDIO_EVENT_TRY_READ)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_audio_event_try_read(runtime, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_event_try_read(runtime, context, handle),
+                RuntimeWorld::Host => platform_vm::destack_audio_event_try_read(binding, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_event_try_read(binding, context, handle),
             }
         },
         |context, result| {
@@ -17748,20 +17747,20 @@ fn destack_audio_event_try_read_vm_replay(
 
 #[inline]
 fn destack_audio_event_try_read_batch_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioEventHandle,
     maxevents: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_EVENT_TRY_READ_BATCH,
-        runtime.replay_payload_for(AUDIO_EVENT_TRY_READ_BATCH)?,
+        binding.replay_payload_for(AUDIO_EVENT_TRY_READ_BATCH)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_audio_event_try_read_batch(runtime, context, handle, maxevents),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_event_try_read_batch(runtime, context, handle, maxevents),
+                RuntimeWorld::Host => platform_vm::destack_audio_event_try_read_batch(binding, context, handle, maxevents),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_event_try_read_batch(binding, context, handle, maxevents),
             }
         },
         |context, result| {
@@ -18853,19 +18852,19 @@ fn destack_audio_event_try_read_batch_vm_replay(
 
 #[inline]
 fn destack_audio_midi_flush_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::MidiPortHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_MIDI_FLUSH,
-        runtime.replay_payload_for(AUDIO_MIDI_FLUSH)?,
+        binding.replay_payload_for(AUDIO_MIDI_FLUSH)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_audio_midi_flush(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_audio_midi_flush(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_midi_flush(runtime, context, handle)
+                platform_simulation_vm::destack_audio_midi_flush(binding, context, handle)
             }
         },
         |context, result| {
@@ -18903,21 +18902,21 @@ fn destack_audio_midi_flush_vm_replay(
 
 #[inline]
 fn destack_audio_midi_port_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::MidiPortHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_MIDI_PORT_CLOSE,
-        runtime.replay_payload_for(AUDIO_MIDI_PORT_CLOSE)?,
+        binding.replay_payload_for(AUDIO_MIDI_PORT_CLOSE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_midi_port_close(runtime, context, handle)
+                platform_vm::destack_audio_midi_port_close(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_midi_port_close(runtime, context, handle)
+                platform_simulation_vm::destack_audio_midi_port_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -18955,21 +18954,21 @@ fn destack_audio_midi_port_close_vm_replay(
 
 #[inline]
 fn destack_audio_midi_port_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     direction: MidiPortDirection,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_MIDI_PORT_LIST,
-        runtime.replay_payload_for(AUDIO_MIDI_PORT_LIST)?,
+        binding.replay_payload_for(AUDIO_MIDI_PORT_LIST)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_midi_port_list(runtime, context, direction)
+                platform_vm::destack_audio_midi_port_list(binding, context, direction)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_midi_port_list(runtime, context, direction)
+                platform_simulation_vm::destack_audio_midi_port_list(binding, context, direction)
             }
         },
         |context, result| {
@@ -19160,22 +19159,22 @@ fn destack_audio_midi_port_list_vm_replay(
 
 #[inline]
 fn destack_audio_midi_port_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     id: vm::StringHandle,
     direction: MidiPortDirection,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_MIDI_PORT_OPEN,
-        runtime.replay_payload_for(AUDIO_MIDI_PORT_OPEN)?,
+        binding.replay_payload_for(AUDIO_MIDI_PORT_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_midi_port_open(runtime, context, id, direction)
+                platform_vm::destack_audio_midi_port_open(binding, context, id, direction)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_midi_port_open(
-                runtime, context, id, direction,
+                binding, context, id, direction,
             ),
         },
         |context, result| {
@@ -19217,27 +19216,27 @@ fn destack_audio_midi_port_open_vm_replay(
 
 #[inline]
 fn destack_audio_midi_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::MidiPortHandle,
     maxmessages: u32,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_MIDI_READ,
-        runtime.replay_payload_for(AUDIO_MIDI_READ)?,
+        binding.replay_payload_for(AUDIO_MIDI_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_audio_midi_read(
-                runtime,
+                binding,
                 context,
                 handle,
                 maxmessages,
                 timeoutns,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_midi_read(
-                runtime,
+                binding,
                 context,
                 handle,
                 maxmessages,
@@ -19370,22 +19369,22 @@ fn destack_audio_midi_read_vm_replay(
 
 #[inline]
 fn destack_audio_midi_try_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::MidiPortHandle,
     maxmessages: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_MIDI_TRY_READ,
-        runtime.replay_payload_for(AUDIO_MIDI_TRY_READ)?,
+        binding.replay_payload_for(AUDIO_MIDI_TRY_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_midi_try_read(runtime, context, handle, maxmessages)
+                platform_vm::destack_audio_midi_try_read(binding, context, handle, maxmessages)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_midi_try_read(
-                runtime,
+                binding,
                 context,
                 handle,
                 maxmessages,
@@ -19517,22 +19516,22 @@ fn destack_audio_midi_try_read_vm_replay(
 
 #[inline]
 fn destack_audio_midi_write_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::MidiPortHandle,
     messages: VmArray<MidiMessageVm>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_MIDI_WRITE,
-        runtime.replay_payload_for(AUDIO_MIDI_WRITE)?,
+        binding.replay_payload_for(AUDIO_MIDI_WRITE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_midi_write(runtime, context, handle, messages)
+                platform_vm::destack_audio_midi_write(binding, context, handle, messages)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_midi_write(runtime, context, handle, messages)
+                platform_simulation_vm::destack_audio_midi_write(binding, context, handle, messages)
             }
         },
         |context, result| {
@@ -19574,19 +19573,19 @@ fn destack_audio_midi_write_vm_replay(
 
 #[inline]
 fn destack_audio_stream_abort_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_ABORT,
-        runtime.replay_payload_for(AUDIO_STREAM_ABORT)?,
+        binding.replay_payload_for(AUDIO_STREAM_ABORT)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_audio_stream_abort(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_audio_stream_abort(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_stream_abort(runtime, context, handle)
+                platform_simulation_vm::destack_audio_stream_abort(binding, context, handle)
             }
         },
         |context, result| {
@@ -19624,21 +19623,21 @@ fn destack_audio_stream_abort_vm_replay(
 
 #[inline]
 fn destack_audio_stream_availability_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_AVAILABILITY,
-        runtime.replay_payload_for(AUDIO_STREAM_AVAILABILITY)?,
+        binding.replay_payload_for(AUDIO_STREAM_AVAILABILITY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_availability(runtime, context, handle)
+                platform_vm::destack_audio_stream_availability(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_stream_availability(runtime, context, handle)
+                platform_simulation_vm::destack_audio_stream_availability(binding, context, handle)
             }
         },
         |context, result| {
@@ -19702,19 +19701,19 @@ fn destack_audio_stream_availability_vm_replay(
 
 #[inline]
 fn destack_audio_stream_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_CLOSE,
-        runtime.replay_payload_for(AUDIO_STREAM_CLOSE)?,
+        binding.replay_payload_for(AUDIO_STREAM_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_audio_stream_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_audio_stream_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_stream_close(runtime, context, handle)
+                platform_simulation_vm::destack_audio_stream_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -19752,21 +19751,21 @@ fn destack_audio_stream_close_vm_replay(
 
 #[inline]
 fn destack_audio_stream_descriptor_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_DESCRIPTOR,
-        runtime.replay_payload_for(AUDIO_STREAM_DESCRIPTOR)?,
+        binding.replay_payload_for(AUDIO_STREAM_DESCRIPTOR)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_descriptor(runtime, context, handle)
+                platform_vm::destack_audio_stream_descriptor(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_stream_descriptor(runtime, context, handle)
+                platform_simulation_vm::destack_audio_stream_descriptor(binding, context, handle)
             }
         },
         |context, result| {
@@ -19917,22 +19916,22 @@ fn destack_audio_stream_descriptor_vm_replay(
 
 #[inline]
 fn destack_audio_stream_drain_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_DRAIN,
-        runtime.replay_payload_for(AUDIO_STREAM_DRAIN)?,
+        binding.replay_payload_for(AUDIO_STREAM_DRAIN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_drain(runtime, context, handle, timeoutns)
+                platform_vm::destack_audio_stream_drain(binding, context, handle, timeoutns)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_drain(
-                runtime, context, handle, timeoutns,
+                binding, context, handle, timeoutns,
             ),
         },
         |context, result| {
@@ -19970,19 +19969,19 @@ fn destack_audio_stream_drain_vm_replay(
 
 #[inline]
 fn destack_audio_stream_flush_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_FLUSH,
-        runtime.replay_payload_for(AUDIO_STREAM_FLUSH)?,
+        binding.replay_payload_for(AUDIO_STREAM_FLUSH)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_audio_stream_flush(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_audio_stream_flush(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_stream_flush(runtime, context, handle)
+                platform_simulation_vm::destack_audio_stream_flush(binding, context, handle)
             }
         },
         |context, result| {
@@ -20020,23 +20019,23 @@ fn destack_audio_stream_flush_vm_replay(
 
 #[inline]
 fn destack_audio_stream_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::AudioDeviceHandle,
     config: AudioStreamConfigVm,
     options: AudioStreamOpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_OPEN,
-        runtime.replay_payload_for(AUDIO_STREAM_OPEN)?,
+        binding.replay_payload_for(AUDIO_STREAM_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_open(runtime, context, device, config, options)
+                platform_vm::destack_audio_stream_open(binding, context, device, config, options)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_open(
-                runtime, context, device, config, options,
+                binding, context, device, config, options,
             ),
         },
         |context, result| {
@@ -20078,22 +20077,22 @@ fn destack_audio_stream_open_vm_replay(
 
 #[inline]
 fn destack_audio_stream_pause_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     pause: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_PAUSE,
-        runtime.replay_payload_for(AUDIO_STREAM_PAUSE)?,
+        binding.replay_payload_for(AUDIO_STREAM_PAUSE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_pause(runtime, context, handle, pause)
+                platform_vm::destack_audio_stream_pause(binding, context, handle, pause)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_stream_pause(runtime, context, handle, pause)
+                platform_simulation_vm::destack_audio_stream_pause(binding, context, handle, pause)
             }
         },
         |context, result| {
@@ -20131,22 +20130,22 @@ fn destack_audio_stream_pause_vm_replay(
 
 #[inline]
 fn destack_audio_stream_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     maxbytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_READ,
-        runtime.replay_payload_for(AUDIO_STREAM_READ)?,
+        binding.replay_payload_for(AUDIO_STREAM_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_read(runtime, context, handle, maxbytes)
+                platform_vm::destack_audio_stream_read(binding, context, handle, maxbytes)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_read(
-                runtime, context, handle, maxbytes,
+                binding, context, handle, maxbytes,
             ),
         },
         |context, result| {
@@ -20188,22 +20187,22 @@ fn destack_audio_stream_read_vm_replay(
 
 #[inline]
 fn destack_audio_stream_readv_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_READV,
-        runtime.replay_payload_for(AUDIO_STREAM_READV)?,
+        binding.replay_payload_for(AUDIO_STREAM_READV)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_readv(runtime, context, handle, buffers)
+                platform_vm::destack_audio_stream_readv(binding, context, handle, buffers)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_readv(
-                runtime, context, handle, buffers,
+                binding, context, handle, buffers,
             ),
         },
         |context, result| {
@@ -20245,22 +20244,22 @@ fn destack_audio_stream_readv_vm_replay(
 
 #[inline]
 fn destack_audio_stream_set_mute_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     muted: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_SET_MUTE,
-        runtime.replay_payload_for(AUDIO_STREAM_SET_MUTE)?,
+        binding.replay_payload_for(AUDIO_STREAM_SET_MUTE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_set_mute(runtime, context, handle, muted)
+                platform_vm::destack_audio_stream_set_mute(binding, context, handle, muted)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_set_mute(
-                runtime, context, handle, muted,
+                binding, context, handle, muted,
             ),
         },
         |context, result| {
@@ -20298,22 +20297,22 @@ fn destack_audio_stream_set_mute_vm_replay(
 
 #[inline]
 fn destack_audio_stream_set_name_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_SET_NAME,
-        runtime.replay_payload_for(AUDIO_STREAM_SET_NAME)?,
+        binding.replay_payload_for(AUDIO_STREAM_SET_NAME)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_set_name(runtime, context, handle, name)
+                platform_vm::destack_audio_stream_set_name(binding, context, handle, name)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_set_name(
-                runtime, context, handle, name,
+                binding, context, handle, name,
             ),
         },
         |context, result| {
@@ -20351,22 +20350,22 @@ fn destack_audio_stream_set_name_vm_replay(
 
 #[inline]
 fn destack_audio_stream_set_volume_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     lineargain: f64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_SET_VOLUME,
-        runtime.replay_payload_for(AUDIO_STREAM_SET_VOLUME)?,
+        binding.replay_payload_for(AUDIO_STREAM_SET_VOLUME)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_set_volume(runtime, context, handle, lineargain)
+                platform_vm::destack_audio_stream_set_volume(binding, context, handle, lineargain)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_set_volume(
-                runtime, context, handle, lineargain,
+                binding, context, handle, lineargain,
             ),
         },
         |context, result| {
@@ -20404,19 +20403,19 @@ fn destack_audio_stream_set_volume_vm_replay(
 
 #[inline]
 fn destack_audio_stream_start_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_START,
-        runtime.replay_payload_for(AUDIO_STREAM_START)?,
+        binding.replay_payload_for(AUDIO_STREAM_START)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_audio_stream_start(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_audio_stream_start(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_stream_start(runtime, context, handle)
+                platform_simulation_vm::destack_audio_stream_start(binding, context, handle)
             }
         },
         |context, result| {
@@ -20454,19 +20453,19 @@ fn destack_audio_stream_start_vm_replay(
 
 #[inline]
 fn destack_audio_stream_state_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_STATE,
-        runtime.replay_payload_for(AUDIO_STREAM_STATE)?,
+        binding.replay_payload_for(AUDIO_STREAM_STATE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_audio_stream_state(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_audio_stream_state(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_stream_state(runtime, context, handle)
+                platform_simulation_vm::destack_audio_stream_state(binding, context, handle)
             }
         },
         |context, result| {
@@ -20566,19 +20565,19 @@ fn destack_audio_stream_state_vm_replay(
 
 #[inline]
 fn destack_audio_stream_stop_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_STOP,
-        runtime.replay_payload_for(AUDIO_STREAM_STOP)?,
+        binding.replay_payload_for(AUDIO_STREAM_STOP)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_audio_stream_stop(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_audio_stream_stop(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_stream_stop(runtime, context, handle)
+                platform_simulation_vm::destack_audio_stream_stop(binding, context, handle)
             }
         },
         |context, result| {
@@ -20616,23 +20615,23 @@ fn destack_audio_stream_stop_vm_replay(
 
 #[inline]
 fn destack_audio_stream_support_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::AudioDeviceHandle,
     config: AudioStreamConfigVm,
     options: AudioStreamOpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_SUPPORT,
-        runtime.replay_payload_for(AUDIO_STREAM_SUPPORT)?,
+        binding.replay_payload_for(AUDIO_STREAM_SUPPORT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_support(runtime, context, device, config, options)
+                platform_vm::destack_audio_stream_support(binding, context, device, config, options)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_support(
-                runtime, context, device, config, options,
+                binding, context, device, config, options,
             ),
         },
         |context, result| {
@@ -20828,21 +20827,21 @@ fn destack_audio_stream_support_vm_replay(
 
 #[inline]
 fn destack_audio_stream_timing_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_TIMING,
-        runtime.replay_payload_for(AUDIO_STREAM_TIMING)?,
+        binding.replay_payload_for(AUDIO_STREAM_TIMING)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_timing(runtime, context, handle)
+                platform_vm::destack_audio_stream_timing(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_stream_timing(runtime, context, handle)
+                platform_simulation_vm::destack_audio_stream_timing(binding, context, handle)
             }
         },
         |context, result| {
@@ -20967,22 +20966,22 @@ fn destack_audio_stream_timing_vm_replay(
 
 #[inline]
 fn destack_audio_stream_try_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     maxbytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_TRY_READ,
-        runtime.replay_payload_for(AUDIO_STREAM_TRY_READ)?,
+        binding.replay_payload_for(AUDIO_STREAM_TRY_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_try_read(runtime, context, handle, maxbytes)
+                platform_vm::destack_audio_stream_try_read(binding, context, handle, maxbytes)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_try_read(
-                runtime, context, handle, maxbytes,
+                binding, context, handle, maxbytes,
             ),
         },
         |context, result| {
@@ -21024,22 +21023,22 @@ fn destack_audio_stream_try_read_vm_replay(
 
 #[inline]
 fn destack_audio_stream_try_readv_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_TRY_READV,
-        runtime.replay_payload_for(AUDIO_STREAM_TRY_READV)?,
+        binding.replay_payload_for(AUDIO_STREAM_TRY_READV)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_try_readv(runtime, context, handle, buffers)
+                platform_vm::destack_audio_stream_try_readv(binding, context, handle, buffers)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_try_readv(
-                runtime, context, handle, buffers,
+                binding, context, handle, buffers,
             ),
         },
         |context, result| {
@@ -21081,22 +21080,22 @@ fn destack_audio_stream_try_readv_vm_replay(
 
 #[inline]
 fn destack_audio_stream_try_write_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     data: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_TRY_WRITE,
-        runtime.replay_payload_for(AUDIO_STREAM_TRY_WRITE)?,
+        binding.replay_payload_for(AUDIO_STREAM_TRY_WRITE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_try_write(runtime, context, handle, data)
+                platform_vm::destack_audio_stream_try_write(binding, context, handle, data)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_try_write(
-                runtime, context, handle, data,
+                binding, context, handle, data,
             ),
         },
         |context, result| {
@@ -21138,22 +21137,22 @@ fn destack_audio_stream_try_write_vm_replay(
 
 #[inline]
 fn destack_audio_stream_try_writev_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_TRY_WRITEV,
-        runtime.replay_payload_for(AUDIO_STREAM_TRY_WRITEV)?,
+        binding.replay_payload_for(AUDIO_STREAM_TRY_WRITEV)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_try_writev(runtime, context, handle, buffers)
+                platform_vm::destack_audio_stream_try_writev(binding, context, handle, buffers)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_try_writev(
-                runtime, context, handle, buffers,
+                binding, context, handle, buffers,
             ),
         },
         |context, result| {
@@ -21195,22 +21194,22 @@ fn destack_audio_stream_try_writev_vm_replay(
 
 #[inline]
 fn destack_audio_stream_write_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     data: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_WRITE,
-        runtime.replay_payload_for(AUDIO_STREAM_WRITE)?,
+        binding.replay_payload_for(AUDIO_STREAM_WRITE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_write(runtime, context, handle, data)
+                platform_vm::destack_audio_stream_write(binding, context, handle, data)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_stream_write(runtime, context, handle, data)
+                platform_simulation_vm::destack_audio_stream_write(binding, context, handle, data)
             }
         },
         |context, result| {
@@ -21252,27 +21251,27 @@ fn destack_audio_stream_write_vm_replay(
 
 #[inline]
 fn destack_audio_stream_write_at_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     data: VmSlice<u8>,
     presentationtimens: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_WRITE_AT,
-        runtime.replay_payload_for(AUDIO_STREAM_WRITE_AT)?,
+        binding.replay_payload_for(AUDIO_STREAM_WRITE_AT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_audio_stream_write_at(
-                runtime,
+                binding,
                 context,
                 handle,
                 data,
                 presentationtimens,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_write_at(
-                runtime,
+                binding,
                 context,
                 handle,
                 data,
@@ -21318,27 +21317,27 @@ fn destack_audio_stream_write_at_vm_replay(
 
 #[inline]
 fn destack_audio_stream_write_atv_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     buffers: VmSlice<VmSlice<u8>>,
     presentationtimens: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_WRITE_ATV,
-        runtime.replay_payload_for(AUDIO_STREAM_WRITE_ATV)?,
+        binding.replay_payload_for(AUDIO_STREAM_WRITE_ATV)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_audio_stream_write_atv(
-                runtime,
+                binding,
                 context,
                 handle,
                 buffers,
                 presentationtimens,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_write_atv(
-                runtime,
+                binding,
                 context,
                 handle,
                 buffers,
@@ -21384,22 +21383,22 @@ fn destack_audio_stream_write_atv_vm_replay(
 
 #[inline]
 fn destack_audio_stream_writev_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         AUDIO_STREAM_WRITEV,
-        runtime.replay_payload_for(AUDIO_STREAM_WRITEV)?,
+        binding.replay_payload_for(AUDIO_STREAM_WRITEV)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_writev(runtime, context, handle, buffers)
+                platform_vm::destack_audio_stream_writev(binding, context, handle, buffers)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_writev(
-                runtime, context, handle, buffers,
+                binding, context, handle, buffers,
             ),
         },
         |context, result| {
@@ -21447,11 +21446,11 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_BACKEND_LIST,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_BACKEND_LIST)?;
-                    destack_audio_backend_list_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(AUDIO_BACKEND_LIST)?;
+                    destack_audio_backend_list_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -21459,14 +21458,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
     }
     {
         binding!(registry, isolate, AUDIO_CLOCK_NOW, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (domain,) = decode_destack_audio_clock_now_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(AUDIO_CLOCK_NOW)?;
-                destack_audio_clock_now_vm_replay(runtime, context, world, domain)
+                    binding.on_before_binding_resolve_world(AUDIO_CLOCK_NOW)?;
+                destack_audio_clock_now_vm_replay(binding, context, world, domain)
             })
             .map_err(Into::into)
         });
@@ -21477,14 +21476,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_CLOCK_STREAM,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, domain) = decode_destack_audio_clock_stream_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_CLOCK_STREAM)?;
-                    destack_audio_clock_stream_vm_replay(runtime, context, world, handle, domain)
+                        binding.on_before_binding_resolve_world(AUDIO_CLOCK_STREAM)?;
+                    destack_audio_clock_stream_vm_replay(binding, context, world, handle, domain)
                 })
                 .map_err(Into::into)
             }
@@ -21496,14 +21495,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_DEVICE_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_audio_device_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_DEVICE_CLOSE)?;
-                    destack_audio_device_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(AUDIO_DEVICE_CLOSE)?;
+                    destack_audio_device_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -21515,16 +21514,16 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_DEVICE_DEFAULT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (direction, backend, backendpolicy) =
                         decode_destack_audio_device_default_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_DEVICE_DEFAULT)?;
+                        binding.on_before_binding_resolve_world(AUDIO_DEVICE_DEFAULT)?;
                     destack_audio_device_default_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         direction,
@@ -21542,14 +21541,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_DEVICE_DESCRIPTOR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_audio_device_descriptor_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_DEVICE_DESCRIPTOR)?;
-                    destack_audio_device_descriptor_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(AUDIO_DEVICE_DESCRIPTOR)?;
+                    destack_audio_device_descriptor_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -21561,14 +21560,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_DEVICE_LIST,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (request,) = decode_destack_audio_device_list_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_DEVICE_LIST)?;
-                    destack_audio_device_list_vm_replay(runtime, context, world, request)
+                        binding.on_before_binding_resolve_world(AUDIO_DEVICE_LIST)?;
+                    destack_audio_device_list_vm_replay(binding, context, world, request)
                 })
                 .map_err(Into::into)
             }
@@ -21580,14 +21579,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_DEVICE_OPEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (id, options) = decode_destack_audio_device_open_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_DEVICE_OPEN)?;
-                    destack_audio_device_open_vm_replay(runtime, context, world, id, options)
+                        binding.on_before_binding_resolve_world(AUDIO_DEVICE_OPEN)?;
+                    destack_audio_device_open_vm_replay(binding, context, world, id, options)
                 })
                 .map_err(Into::into)
             }
@@ -21599,16 +21598,16 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_DEVICE_RESCAN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (backend, backendpolicy) =
                         decode_destack_audio_device_rescan_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_DEVICE_RESCAN)?;
+                        binding.on_before_binding_resolve_world(AUDIO_DEVICE_RESCAN)?;
                     destack_audio_device_rescan_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         backend,
@@ -21625,14 +21624,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_EVENT_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_audio_event_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_EVENT_CLOSE)?;
-                    destack_audio_event_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(AUDIO_EVENT_CLOSE)?;
+                    destack_audio_event_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -21640,28 +21639,28 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
     }
     {
         binding!(registry, isolate, AUDIO_EVENT_OPEN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (options,) = decode_destack_audio_event_open_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(AUDIO_EVENT_OPEN)?;
-                destack_audio_event_open_vm_replay(runtime, context, world, options)
+                    binding.on_before_binding_resolve_world(AUDIO_EVENT_OPEN)?;
+                destack_audio_event_open_vm_replay(binding, context, world, options)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, AUDIO_EVENT_READ, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, timeoutns) = decode_destack_audio_event_read_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(AUDIO_EVENT_READ)?;
-                destack_audio_event_read_vm_replay(runtime, context, world, handle, timeoutns)
+                    binding.on_before_binding_resolve_world(AUDIO_EVENT_READ)?;
+                destack_audio_event_read_vm_replay(binding, context, world, handle, timeoutns)
             })
             .map_err(Into::into)
         });
@@ -21672,16 +21671,16 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_EVENT_READ_BATCH,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, maxevents, timeoutns) =
                         decode_destack_audio_event_read_batch_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_EVENT_READ_BATCH)?;
+                        binding.on_before_binding_resolve_world(AUDIO_EVENT_READ_BATCH)?;
                     destack_audio_event_read_batch_vm_replay(
-                        runtime, context, world, handle, maxevents, timeoutns,
+                        binding, context, world, handle, maxevents, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -21694,14 +21693,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_EVENT_TRY_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_audio_event_try_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_EVENT_TRY_READ)?;
-                    destack_audio_event_try_read_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(AUDIO_EVENT_TRY_READ)?;
+                    destack_audio_event_try_read_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -21713,16 +21712,16 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_EVENT_TRY_READ_BATCH,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, maxevents) =
                         decode_destack_audio_event_try_read_batch_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_EVENT_TRY_READ_BATCH)?;
+                        binding.on_before_binding_resolve_world(AUDIO_EVENT_TRY_READ_BATCH)?;
                     destack_audio_event_try_read_batch_vm_replay(
-                        runtime, context, world, handle, maxevents,
+                        binding, context, world, handle, maxevents,
                     )
                 })
                 .map_err(Into::into)
@@ -21731,14 +21730,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
     }
     {
         binding!(registry, isolate, AUDIO_MIDI_FLUSH, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_audio_midi_flush_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(AUDIO_MIDI_FLUSH)?;
-                destack_audio_midi_flush_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(AUDIO_MIDI_FLUSH)?;
+                destack_audio_midi_flush_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
@@ -21749,14 +21748,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_MIDI_PORT_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_audio_midi_port_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_MIDI_PORT_CLOSE)?;
-                    destack_audio_midi_port_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(AUDIO_MIDI_PORT_CLOSE)?;
+                    destack_audio_midi_port_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -21768,14 +21767,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_MIDI_PORT_LIST,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (direction,) = decode_destack_audio_midi_port_list_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_MIDI_PORT_LIST)?;
-                    destack_audio_midi_port_list_vm_replay(runtime, context, world, direction)
+                        binding.on_before_binding_resolve_world(AUDIO_MIDI_PORT_LIST)?;
+                    destack_audio_midi_port_list_vm_replay(binding, context, world, direction)
                 })
                 .map_err(Into::into)
             }
@@ -21787,14 +21786,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_MIDI_PORT_OPEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (id, direction) = decode_destack_audio_midi_port_open_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_MIDI_PORT_OPEN)?;
-                    destack_audio_midi_port_open_vm_replay(runtime, context, world, id, direction)
+                        binding.on_before_binding_resolve_world(AUDIO_MIDI_PORT_OPEN)?;
+                    destack_audio_midi_port_open_vm_replay(binding, context, world, id, direction)
                 })
                 .map_err(Into::into)
             }
@@ -21802,16 +21801,16 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
     }
     {
         binding!(registry, isolate, AUDIO_MIDI_READ, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, maxmessages, timeoutns) =
                     decode_destack_audio_midi_read_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(AUDIO_MIDI_READ)?;
+                    binding.on_before_binding_resolve_world(AUDIO_MIDI_READ)?;
                 destack_audio_midi_read_vm_replay(
-                    runtime,
+                    binding,
                     context,
                     world,
                     handle,
@@ -21828,16 +21827,16 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_MIDI_TRY_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, maxmessages) =
                         decode_destack_audio_midi_try_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_MIDI_TRY_READ)?;
+                        binding.on_before_binding_resolve_world(AUDIO_MIDI_TRY_READ)?;
                     destack_audio_midi_try_read_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -21850,14 +21849,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
     }
     {
         binding!(registry, isolate, AUDIO_MIDI_WRITE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, messages) = decode_destack_audio_midi_write_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(AUDIO_MIDI_WRITE)?;
-                destack_audio_midi_write_vm_replay(runtime, context, world, handle, messages)
+                    binding.on_before_binding_resolve_world(AUDIO_MIDI_WRITE)?;
+                destack_audio_midi_write_vm_replay(binding, context, world, handle, messages)
             })
             .map_err(Into::into)
         });
@@ -21868,14 +21867,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_ABORT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_audio_stream_abort_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_ABORT)?;
-                    destack_audio_stream_abort_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_ABORT)?;
+                    destack_audio_stream_abort_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -21887,14 +21886,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_AVAILABILITY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_audio_stream_availability_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_AVAILABILITY)?;
-                    destack_audio_stream_availability_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_AVAILABILITY)?;
+                    destack_audio_stream_availability_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -21906,14 +21905,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_audio_stream_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_CLOSE)?;
-                    destack_audio_stream_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_CLOSE)?;
+                    destack_audio_stream_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -21925,14 +21924,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_DESCRIPTOR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_audio_stream_descriptor_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_DESCRIPTOR)?;
-                    destack_audio_stream_descriptor_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_DESCRIPTOR)?;
+                    destack_audio_stream_descriptor_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -21944,15 +21943,15 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_DRAIN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_audio_stream_drain_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_DRAIN)?;
-                    destack_audio_stream_drain_vm_replay(runtime, context, world, handle, timeoutns)
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_DRAIN)?;
+                    destack_audio_stream_drain_vm_replay(binding, context, world, handle, timeoutns)
                 })
                 .map_err(Into::into)
             }
@@ -21964,14 +21963,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_FLUSH,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_audio_stream_flush_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_FLUSH)?;
-                    destack_audio_stream_flush_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_FLUSH)?;
+                    destack_audio_stream_flush_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -21983,16 +21982,16 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_OPEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, config, options) =
                         decode_destack_audio_stream_open_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_OPEN)?;
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_OPEN)?;
                     destack_audio_stream_open_vm_replay(
-                        runtime, context, world, device, config, options,
+                        binding, context, world, device, config, options,
                     )
                 })
                 .map_err(Into::into)
@@ -22005,14 +22004,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_PAUSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, pause) = decode_destack_audio_stream_pause_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_PAUSE)?;
-                    destack_audio_stream_pause_vm_replay(runtime, context, world, handle, pause)
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_PAUSE)?;
+                    destack_audio_stream_pause_vm_replay(binding, context, world, handle, pause)
                 })
                 .map_err(Into::into)
             }
@@ -22024,14 +22023,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, maxbytes) = decode_destack_audio_stream_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_READ)?;
-                    destack_audio_stream_read_vm_replay(runtime, context, world, handle, maxbytes)
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_READ)?;
+                    destack_audio_stream_read_vm_replay(binding, context, world, handle, maxbytes)
                 })
                 .map_err(Into::into)
             }
@@ -22043,14 +22042,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_READV,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffers) = decode_destack_audio_stream_readv_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_READV)?;
-                    destack_audio_stream_readv_vm_replay(runtime, context, world, handle, buffers)
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_READV)?;
+                    destack_audio_stream_readv_vm_replay(binding, context, world, handle, buffers)
                 })
                 .map_err(Into::into)
             }
@@ -22062,14 +22061,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_SET_MUTE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, muted) = decode_destack_audio_stream_set_mute_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_SET_MUTE)?;
-                    destack_audio_stream_set_mute_vm_replay(runtime, context, world, handle, muted)
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_SET_MUTE)?;
+                    destack_audio_stream_set_mute_vm_replay(binding, context, world, handle, muted)
                 })
                 .map_err(Into::into)
             }
@@ -22081,14 +22080,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_SET_NAME,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, name) = decode_destack_audio_stream_set_name_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_SET_NAME)?;
-                    destack_audio_stream_set_name_vm_replay(runtime, context, world, handle, name)
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_SET_NAME)?;
+                    destack_audio_stream_set_name_vm_replay(binding, context, world, handle, name)
                 })
                 .map_err(Into::into)
             }
@@ -22100,16 +22099,16 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_SET_VOLUME,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, lineargain) =
                         decode_destack_audio_stream_set_volume_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_SET_VOLUME)?;
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_SET_VOLUME)?;
                     destack_audio_stream_set_volume_vm_replay(
-                        runtime, context, world, handle, lineargain,
+                        binding, context, world, handle, lineargain,
                     )
                 })
                 .map_err(Into::into)
@@ -22122,14 +22121,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_START,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_audio_stream_start_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_START)?;
-                    destack_audio_stream_start_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_START)?;
+                    destack_audio_stream_start_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22141,14 +22140,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_STATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_audio_stream_state_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_STATE)?;
-                    destack_audio_stream_state_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_STATE)?;
+                    destack_audio_stream_state_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22160,14 +22159,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_STOP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_audio_stream_stop_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_STOP)?;
-                    destack_audio_stream_stop_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_STOP)?;
+                    destack_audio_stream_stop_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22179,16 +22178,16 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_SUPPORT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, config, options) =
                         decode_destack_audio_stream_support_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_SUPPORT)?;
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_SUPPORT)?;
                     destack_audio_stream_support_vm_replay(
-                        runtime, context, world, device, config, options,
+                        binding, context, world, device, config, options,
                     )
                 })
                 .map_err(Into::into)
@@ -22201,14 +22200,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_TIMING,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_audio_stream_timing_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_TIMING)?;
-                    destack_audio_stream_timing_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_TIMING)?;
+                    destack_audio_stream_timing_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22220,16 +22219,16 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_TRY_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, maxbytes) =
                         decode_destack_audio_stream_try_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_TRY_READ)?;
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_TRY_READ)?;
                     destack_audio_stream_try_read_vm_replay(
-                        runtime, context, world, handle, maxbytes,
+                        binding, context, world, handle, maxbytes,
                     )
                 })
                 .map_err(Into::into)
@@ -22242,16 +22241,16 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_TRY_READV,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffers) =
                         decode_destack_audio_stream_try_readv_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_TRY_READV)?;
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_TRY_READV)?;
                     destack_audio_stream_try_readv_vm_replay(
-                        runtime, context, world, handle, buffers,
+                        binding, context, world, handle, buffers,
                     )
                 })
                 .map_err(Into::into)
@@ -22264,14 +22263,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_TRY_WRITE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, data) = decode_destack_audio_stream_try_write_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_TRY_WRITE)?;
-                    destack_audio_stream_try_write_vm_replay(runtime, context, world, handle, data)
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_TRY_WRITE)?;
+                    destack_audio_stream_try_write_vm_replay(binding, context, world, handle, data)
                 })
                 .map_err(Into::into)
             }
@@ -22283,16 +22282,16 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_TRY_WRITEV,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffers) =
                         decode_destack_audio_stream_try_writev_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_TRY_WRITEV)?;
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_TRY_WRITEV)?;
                     destack_audio_stream_try_writev_vm_replay(
-                        runtime, context, world, handle, buffers,
+                        binding, context, world, handle, buffers,
                     )
                 })
                 .map_err(Into::into)
@@ -22305,14 +22304,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_WRITE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, data) = decode_destack_audio_stream_write_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_WRITE)?;
-                    destack_audio_stream_write_vm_replay(runtime, context, world, handle, data)
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_WRITE)?;
+                    destack_audio_stream_write_vm_replay(binding, context, world, handle, data)
                 })
                 .map_err(Into::into)
             }
@@ -22324,16 +22323,16 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_WRITE_AT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, data, presentationtimens) =
                         decode_destack_audio_stream_write_at_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_WRITE_AT)?;
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_WRITE_AT)?;
                     destack_audio_stream_write_at_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -22351,16 +22350,16 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_WRITE_ATV,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffers, presentationtimens) =
                         decode_destack_audio_stream_write_atv_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_WRITE_ATV)?;
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_WRITE_ATV)?;
                     destack_audio_stream_write_atv_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -22378,14 +22377,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             AUDIO_STREAM_WRITEV,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffers) = decode_destack_audio_stream_writev_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_WRITEV)?;
-                    destack_audio_stream_writev_vm_replay(runtime, context, world, handle, buffers)
+                        binding.on_before_binding_resolve_world(AUDIO_STREAM_WRITEV)?;
+                    destack_audio_stream_writev_vm_replay(binding, context, world, handle, buffers)
                 })
                 .map_err(Into::into)
             }

@@ -11,13 +11,13 @@ use crate::platform::tls::{
     TlsRole, TlsSessionResumptionMode, TlsSessionResumptionState, TlsVersion,
 };
 use crate::platform::{
-    PlatformError, RuntimeStatus, VmAggregateCodec, VmSlice, abi as platform_abi,
+    NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, RuntimeStatus,
+    VmAggregateCodec, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
     BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
-use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
@@ -1218,21 +1218,21 @@ pub const TLS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for tls bindings.
 #[inline]
 fn destack_tls_context_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TLS_CONTEXT_CLOSE,
-        context.replay_payload_for(TLS_CONTEXT_CLOSE)?,
+        binding.replay_payload_for(TLS_CONTEXT_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tls_context_close(context, handle)
+                platform_native::destack_tls_context_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tls_context_close(context, handle)
+                platform_simulation_native::destack_tls_context_close(binding, handle)
             },
         },
         |result| {
@@ -1266,22 +1266,22 @@ fn destack_tls_context_close_replay(
 
 #[inline]
 fn destack_tls_context_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::TlsContextHandle,
     options: TlsContextOptions,
 ) -> RuntimeResult<()> {
     let _ = &options;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TLS_CONTEXT_OPEN,
-        context.replay_payload_for(TLS_CONTEXT_OPEN)?,
+        binding.replay_payload_for(TLS_CONTEXT_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tls_context_open(context, out, options)
+                platform_native::destack_tls_context_open(binding, out, options)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tls_context_open(context, out, options)
+                platform_simulation_native::destack_tls_context_open(binding, out, options)
             },
         },
         |result| {
@@ -1327,21 +1327,21 @@ fn destack_tls_context_open_replay(
 
 #[inline]
 fn destack_tls_session_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TLS_SESSION_CLOSE,
-        context.replay_payload_for(TLS_SESSION_CLOSE)?,
+        binding.replay_payload_for(TLS_SESSION_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tls_session_close(context, handle)
+                platform_native::destack_tls_session_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tls_session_close(context, handle)
+                platform_simulation_native::destack_tls_session_close(binding, handle)
             },
         },
         |result| {
@@ -1375,22 +1375,22 @@ fn destack_tls_session_close_replay(
 
 #[inline]
 fn destack_tls_session_handshake_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut TlsHandshakeStatus,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TLS_SESSION_HANDSHAKE,
-        context.replay_payload_for(TLS_SESSION_HANDSHAKE)?,
+        binding.replay_payload_for(TLS_SESSION_HANDSHAKE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tls_session_handshake(context, out, handle)
+                platform_native::destack_tls_session_handshake(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tls_session_handshake(context, out, handle)
+                platform_simulation_native::destack_tls_session_handshake(binding, out, handle)
             },
         },
         |result| {
@@ -1436,23 +1436,23 @@ fn destack_tls_session_handshake_replay(
 
 #[inline]
 fn destack_tls_session_negotiated_alpn_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TLS_SESSION_NEGOTIATED_ALPN,
-        context.replay_payload_for(TLS_SESSION_NEGOTIATED_ALPN)?,
+        binding.replay_payload_for(TLS_SESSION_NEGOTIATED_ALPN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tls_session_negotiated_alpn(context, out, handle)
+                platform_native::destack_tls_session_negotiated_alpn(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_tls_session_negotiated_alpn(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -1496,7 +1496,7 @@ fn destack_tls_session_negotiated_alpn_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -1510,7 +1510,7 @@ fn destack_tls_session_negotiated_alpn_replay(
 
 #[inline]
 fn destack_tls_session_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::TlsSessionHandle,
     argument_context: resource::TlsContextHandle,
@@ -1519,13 +1519,13 @@ fn destack_tls_session_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&argument_context, &socket, &servername);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TLS_SESSION_OPEN,
-        context.replay_payload_for(TLS_SESSION_OPEN)?,
+        binding.replay_payload_for(TLS_SESSION_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_tls_session_open(
-                    context,
+                    binding,
                     out,
                     argument_context,
                     socket,
@@ -1534,7 +1534,7 @@ fn destack_tls_session_open_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_tls_session_open(
-                    context,
+                    binding,
                     out,
                     argument_context,
                     socket,
@@ -1585,23 +1585,23 @@ fn destack_tls_session_open_replay(
 
 #[inline]
 fn destack_tls_session_resumption_state_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut TlsSessionResumptionState,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TLS_SESSION_RESUMPTION_STATE,
-        context.replay_payload_for(TLS_SESSION_RESUMPTION_STATE)?,
+        binding.replay_payload_for(TLS_SESSION_RESUMPTION_STATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tls_session_resumption_state(context, out, handle)
+                platform_native::destack_tls_session_resumption_state(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_tls_session_resumption_state(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -1648,21 +1648,21 @@ fn destack_tls_session_resumption_state_replay(
 
 #[inline]
 fn destack_tls_session_shutdown_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TLS_SESSION_SHUTDOWN,
-        context.replay_payload_for(TLS_SESSION_SHUTDOWN)?,
+        binding.replay_payload_for(TLS_SESSION_SHUTDOWN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tls_session_shutdown(context, handle)
+                platform_native::destack_tls_session_shutdown(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tls_session_shutdown(context, handle)
+                platform_simulation_native::destack_tls_session_shutdown(binding, handle)
             },
         },
         |result| {
@@ -2176,19 +2176,19 @@ pub unsafe extern "C" fn destack_tls_session_write(
 /// VM replay implementations for tls bindings.
 #[inline]
 fn destack_tls_context_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TLS_CONTEXT_CLOSE,
-        runtime.replay_payload_for(TLS_CONTEXT_CLOSE)?,
+        binding.replay_payload_for(TLS_CONTEXT_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_tls_context_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_tls_context_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tls_context_close(runtime, context, handle)
+                platform_simulation_vm::destack_tls_context_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -2226,19 +2226,19 @@ fn destack_tls_context_close_vm_replay(
 
 #[inline]
 fn destack_tls_context_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     options: TlsContextOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TLS_CONTEXT_OPEN,
-        runtime.replay_payload_for(TLS_CONTEXT_OPEN)?,
+        binding.replay_payload_for(TLS_CONTEXT_OPEN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_tls_context_open(runtime, context, options),
+            RuntimeWorld::Host => platform_vm::destack_tls_context_open(binding, context, options),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tls_context_open(runtime, context, options)
+                platform_simulation_vm::destack_tls_context_open(binding, context, options)
             }
         },
         |context, result| {
@@ -2280,19 +2280,19 @@ fn destack_tls_context_open_vm_replay(
 
 #[inline]
 fn destack_tls_session_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TLS_SESSION_CLOSE,
-        runtime.replay_payload_for(TLS_SESSION_CLOSE)?,
+        binding.replay_payload_for(TLS_SESSION_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_tls_session_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_tls_session_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tls_session_close(runtime, context, handle)
+                platform_simulation_vm::destack_tls_session_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -2330,21 +2330,21 @@ fn destack_tls_session_close_vm_replay(
 
 #[inline]
 fn destack_tls_session_handshake_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TLS_SESSION_HANDSHAKE,
-        runtime.replay_payload_for(TLS_SESSION_HANDSHAKE)?,
+        binding.replay_payload_for(TLS_SESSION_HANDSHAKE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_tls_session_handshake(runtime, context, handle)
+                platform_vm::destack_tls_session_handshake(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tls_session_handshake(runtime, context, handle)
+                platform_simulation_vm::destack_tls_session_handshake(binding, context, handle)
             }
         },
         |context, result| {
@@ -2386,22 +2386,22 @@ fn destack_tls_session_handshake_vm_replay(
 
 #[inline]
 fn destack_tls_session_negotiated_alpn_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TLS_SESSION_NEGOTIATED_ALPN,
-        runtime.replay_payload_for(TLS_SESSION_NEGOTIATED_ALPN)?,
+        binding.replay_payload_for(TLS_SESSION_NEGOTIATED_ALPN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_tls_session_negotiated_alpn(runtime, context, handle)
+                platform_vm::destack_tls_session_negotiated_alpn(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_tls_session_negotiated_alpn(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -2444,27 +2444,27 @@ fn destack_tls_session_negotiated_alpn_vm_replay(
 
 #[inline]
 fn destack_tls_session_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     argument_context: resource::TlsContextHandle,
     socket: resource::SocketHandle,
     servername: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TLS_SESSION_OPEN,
-        runtime.replay_payload_for(TLS_SESSION_OPEN)?,
+        binding.replay_payload_for(TLS_SESSION_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_tls_session_open(
-                runtime,
+                binding,
                 context,
                 argument_context,
                 socket,
                 servername,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_tls_session_open(
-                runtime,
+                binding,
                 context,
                 argument_context,
                 socket,
@@ -2510,22 +2510,22 @@ fn destack_tls_session_open_vm_replay(
 
 #[inline]
 fn destack_tls_session_resumption_state_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TLS_SESSION_RESUMPTION_STATE,
-        runtime.replay_payload_for(TLS_SESSION_RESUMPTION_STATE)?,
+        binding.replay_payload_for(TLS_SESSION_RESUMPTION_STATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_tls_session_resumption_state(runtime, context, handle)
+                platform_vm::destack_tls_session_resumption_state(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_tls_session_resumption_state(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -2568,21 +2568,21 @@ fn destack_tls_session_resumption_state_vm_replay(
 
 #[inline]
 fn destack_tls_session_shutdown_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TLS_SESSION_SHUTDOWN,
-        runtime.replay_payload_for(TLS_SESSION_SHUTDOWN)?,
+        binding.replay_payload_for(TLS_SESSION_SHUTDOWN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_tls_session_shutdown(runtime, context, handle)
+                platform_vm::destack_tls_session_shutdown(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tls_session_shutdown(runtime, context, handle)
+                platform_simulation_vm::destack_tls_session_shutdown(binding, context, handle)
             }
         },
         |context, result| {
@@ -2626,14 +2626,14 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TLS_CONTEXT_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_tls_context_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TLS_CONTEXT_CLOSE)?;
-                    destack_tls_context_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(TLS_CONTEXT_CLOSE)?;
+                    destack_tls_context_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -2641,14 +2641,14 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, TLS_CONTEXT_OPEN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (options,) = decode_destack_tls_context_open_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(TLS_CONTEXT_OPEN)?;
-                destack_tls_context_open_vm_replay(runtime, context, world, options)
+                    binding.on_before_binding_resolve_world(TLS_CONTEXT_OPEN)?;
+                destack_tls_context_open_vm_replay(binding, context, world, options)
             })
             .map_err(Into::into)
         });
@@ -2659,24 +2659,24 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TLS_CONTEXT_SET_CIPHER_SUITES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, suites) =
                         decode_destack_tls_context_set_cipher_suites_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(TLS_CONTEXT_SET_CIPHER_SUITES)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_tls_context_set_cipher_suites(
-                                    runtime, context, handle, suites,
+                                    binding, context, handle, suites,
                                 )
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_tls_context_set_cipher_suites(
-                                    runtime, context, handle, suites,
+                                    binding, context, handle, suites,
                                 )
                             }
                         }
@@ -2693,7 +2693,7 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TLS_CONTEXT_SET_GROUPS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, groups) =
                         decode_destack_tls_context_set_groups_args(context, args)?;
@@ -2701,14 +2701,14 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(TLS_CONTEXT_SET_GROUPS)?;
+                            binding.on_before_binding_resolve_world(TLS_CONTEXT_SET_GROUPS)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_tls_context_set_groups(
-                                runtime, context, handle, groups,
+                                binding, context, handle, groups,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_tls_context_set_groups(
-                                    runtime, context, handle, groups,
+                                    binding, context, handle, groups,
                                 )
                             }
                         }
@@ -2725,16 +2725,16 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                 // decode args
                 let (handle, mode) = decode_destack_tls_context_set_hostname_verification_mode_args(context, args)?;
 
                 // execute binding
                 let result = {
-                        let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE)?;
+                        let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE)?;
                         match world {
-                            RuntimeWorld::Host => platform_vm::destack_tls_context_set_hostname_verification_mode(runtime, context, handle, mode),
-                            RuntimeWorld::Simulation => platform_simulation_vm::destack_tls_context_set_hostname_verification_mode(runtime, context, handle, mode),
+                            RuntimeWorld::Host => platform_vm::destack_tls_context_set_hostname_verification_mode(binding, context, handle, mode),
+                            RuntimeWorld::Simulation => platform_simulation_vm::destack_tls_context_set_hostname_verification_mode(binding, context, handle, mode),
                         }
                     };
                 encode_destack_tls_context_set_hostname_verification_mode_result(context, result)
@@ -2749,19 +2749,19 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TLS_CONTEXT_SET_IDENTITY_PEM,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, certificatechainpem, privatekeypem) =
                         decode_destack_tls_context_set_identity_pem_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(TLS_CONTEXT_SET_IDENTITY_PEM)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_tls_context_set_identity_pem(
-                                    runtime,
+                                    binding,
                                     context,
                                     handle,
                                     certificatechainpem,
@@ -2770,7 +2770,7 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_tls_context_set_identity_pem(
-                                    runtime,
+                                    binding,
                                     context,
                                     handle,
                                     certificatechainpem,
@@ -2791,24 +2791,24 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TLS_CONTEXT_SET_KEYLOG_ENABLED,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, enabled) =
                         decode_destack_tls_context_set_keylog_enabled_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(TLS_CONTEXT_SET_KEYLOG_ENABLED)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_tls_context_set_keylog_enabled(
-                                    runtime, context, handle, enabled,
+                                    binding, context, handle, enabled,
                                 )
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_tls_context_set_keylog_enabled(
-                                    runtime, context, handle, enabled,
+                                    binding, context, handle, enabled,
                                 )
                             }
                         }
@@ -2825,24 +2825,24 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TLS_CONTEXT_SET_SESSION_RESUMPTION,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, mode) =
                         decode_destack_tls_context_set_session_resumption_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(TLS_CONTEXT_SET_SESSION_RESUMPTION)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_tls_context_set_session_resumption(
-                                    runtime, context, handle, mode,
+                                    binding, context, handle, mode,
                                 )
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_tls_context_set_session_resumption(
-                                    runtime, context, handle, mode,
+                                    binding, context, handle, mode,
                                 )
                             }
                         }
@@ -2859,16 +2859,16 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                 // decode args
                 let (handle, algorithms) = decode_destack_tls_context_set_signature_algorithms_args(context, args)?;
 
                 // execute binding
                 let result = {
-                        let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS)?;
+                        let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS)?;
                         match world {
-                            RuntimeWorld::Host => platform_vm::destack_tls_context_set_signature_algorithms(runtime, context, handle, algorithms),
-                            RuntimeWorld::Simulation => platform_simulation_vm::destack_tls_context_set_signature_algorithms(runtime, context, handle, algorithms),
+                            RuntimeWorld::Host => platform_vm::destack_tls_context_set_signature_algorithms(binding, context, handle, algorithms),
+                            RuntimeWorld::Simulation => platform_simulation_vm::destack_tls_context_set_signature_algorithms(binding, context, handle, algorithms),
                         }
                     };
                 encode_destack_tls_context_set_signature_algorithms_result(context, result)
@@ -2883,19 +2883,19 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TLS_CONTEXT_SET_TRUST_ANCHORS_PEM,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, trustanchorspem) =
                         decode_destack_tls_context_set_trust_anchors_pem_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(TLS_CONTEXT_SET_TRUST_ANCHORS_PEM)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_tls_context_set_trust_anchors_pem(
-                                    runtime,
+                                    binding,
                                     context,
                                     handle,
                                     trustanchorspem,
@@ -2903,7 +2903,7 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_tls_context_set_trust_anchors_pem(
-                                    runtime,
+                                    binding,
                                     context,
                                     handle,
                                     trustanchorspem,
@@ -2923,14 +2923,14 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TLS_SESSION_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_tls_session_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TLS_SESSION_CLOSE)?;
-                    destack_tls_session_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(TLS_SESSION_CLOSE)?;
+                    destack_tls_session_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -2942,19 +2942,19 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TLS_SESSION_EXPORT_KEYING_MATERIAL,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, label, argument_context, outputlength) =
                         decode_destack_tls_session_export_keying_material_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(TLS_SESSION_EXPORT_KEYING_MATERIAL)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_tls_session_export_keying_material(
-                                    runtime,
+                                    binding,
                                     context,
                                     handle,
                                     label,
@@ -2964,7 +2964,7 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_tls_session_export_keying_material(
-                                    runtime,
+                                    binding,
                                     context,
                                     handle,
                                     label,
@@ -2986,14 +2986,14 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TLS_SESSION_HANDSHAKE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_tls_session_handshake_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TLS_SESSION_HANDSHAKE)?;
-                    destack_tls_session_handshake_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(TLS_SESSION_HANDSHAKE)?;
+                    destack_tls_session_handshake_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -3005,14 +3005,14 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TLS_SESSION_NEGOTIATED_ALPN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_tls_session_negotiated_alpn_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TLS_SESSION_NEGOTIATED_ALPN)?;
-                    destack_tls_session_negotiated_alpn_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(TLS_SESSION_NEGOTIATED_ALPN)?;
+                    destack_tls_session_negotiated_alpn_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -3020,16 +3020,16 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, TLS_SESSION_OPEN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (argument_context, socket, servername) =
                     decode_destack_tls_session_open_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(TLS_SESSION_OPEN)?;
+                    binding.on_before_binding_resolve_world(TLS_SESSION_OPEN)?;
                 destack_tls_session_open_vm_replay(
-                    runtime,
+                    binding,
                     context,
                     world,
                     argument_context,
@@ -3046,24 +3046,24 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TLS_SESSION_PEER_CERTIFICATES_PEM,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_tls_session_peer_certificates_pem_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(TLS_SESSION_PEER_CERTIFICATES_PEM)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_tls_session_peer_certificates_pem(
-                                    runtime, context, handle,
+                                    binding, context, handle,
                                 )
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_tls_session_peer_certificates_pem(
-                                    runtime, context, handle,
+                                    binding, context, handle,
                                 )
                             }
                         }
@@ -3076,21 +3076,21 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, TLS_SESSION_READ, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, buffer) = decode_destack_tls_session_read_args(context, args)?;
 
                 // execute binding
                 let result = {
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TLS_SESSION_READ)?;
+                        binding.on_before_binding_resolve_world(TLS_SESSION_READ)?;
                     match world {
                         RuntimeWorld::Host => {
-                            platform_vm::destack_tls_session_read(runtime, context, handle, buffer)
+                            platform_vm::destack_tls_session_read(binding, context, handle, buffer)
                         }
                         RuntimeWorld::Simulation => {
                             platform_simulation_vm::destack_tls_session_read(
-                                runtime, context, handle, buffer,
+                                binding, context, handle, buffer,
                             )
                         }
                     }
@@ -3106,15 +3106,15 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TLS_SESSION_RESUMPTION_STATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_tls_session_resumption_state_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TLS_SESSION_RESUMPTION_STATE)?;
-                    destack_tls_session_resumption_state_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(TLS_SESSION_RESUMPTION_STATE)?;
+                    destack_tls_session_resumption_state_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -3126,14 +3126,14 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TLS_SESSION_SHUTDOWN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_tls_session_shutdown_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TLS_SESSION_SHUTDOWN)?;
-                    destack_tls_session_shutdown_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(TLS_SESSION_SHUTDOWN)?;
+                    destack_tls_session_shutdown_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -3145,21 +3145,21 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TLS_SESSION_WRITE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffer) = decode_destack_tls_session_write_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(TLS_SESSION_WRITE)?;
+                            binding.on_before_binding_resolve_world(TLS_SESSION_WRITE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_tls_session_write(
-                                runtime, context, handle, buffer,
+                                binding, context, handle, buffer,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_tls_session_write(
-                                    runtime, context, handle, buffer,
+                                    binding, context, handle, buffer,
                                 )
                             }
                         }

@@ -289,11 +289,11 @@ pub(in super::super::super) fn publish_window_text_dropped(
 }
 /// Refresh one cached monitor topology snapshot from host state.
 pub(in super::super::super) fn refresh_monitor_topology_cache(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> RuntimeResult<()> {
     // enumerate snapshots and replace cached topology atomically
-    let snapshots = monitor::enumerate_monitor_snapshots(context)?;
-    let runtime_state = core::runtime_state(context);
+    let snapshots = monitor::enumerate_monitor_snapshots(binding)?;
+    let runtime_state = core::runtime_state(binding);
     let mut topology_snapshot = runtime_state
         .monitor_topology_snapshot
         .lock()
@@ -305,11 +305,11 @@ pub(in super::super::super) fn refresh_monitor_topology_cache(
 
 /// Publish monitor topology deltas observed since the last cached snapshot.
 pub(in super::super::super) fn publish_monitor_topology_deltas(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> RuntimeResult<()> {
     // enumerate next monitor topology snapshot
-    let next_snapshots = monitor::enumerate_monitor_snapshots(context)?;
-    let runtime_state = core::runtime_state(context);
+    let next_snapshots = monitor::enumerate_monitor_snapshots(binding)?;
+    let runtime_state = core::runtime_state(binding);
 
     // compute delta records and replace cached snapshot
     let records = {
@@ -337,10 +337,10 @@ pub(in super::super::super) fn publish_monitor_topology_deltas(
 
 /// Seed one monitor-event stream with current monitor snapshot events.
 pub(in super::super::super) fn seed_monitor_event_stream(
-    context: &BindingCallContext,
+    binding_2: &BindingCallContext,
     binding: &Arc<MonitorEventBinding>,
 ) -> RuntimeResult<Vec<MonitorSnapshot>> {
-    let snapshots = monitor::enumerate_monitor_snapshots(context)?;
+    let snapshots = monitor::enumerate_monitor_snapshots(binding_2)?;
     let mut primary_id = None;
 
     // iterate this sequence

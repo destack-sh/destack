@@ -42,20 +42,20 @@ pub(crate) struct WasapiMonitorRuntimeState {
 }
 
 /// Return runtime-owned WASAPI monitor state.
-fn wasapi_monitor_runtime_state(context: &BindingCallContext) -> Arc<WasapiMonitorRuntimeState> {
-    let runtime_state = context
-        .runtime()
+fn wasapi_monitor_runtime_state(binding: &BindingCallContext) -> Arc<WasapiMonitorRuntimeState> {
+    let runtime_state = binding
+        .agent()
         .platform_state
         .audio
         .wasapi_monitor_runtime_state(WasapiMonitorRuntimeState::default);
-    register_runtime_finalizer(context, &runtime_state);
+    register_runtime_finalizer(binding, &runtime_state);
 
     runtime_state
 }
 
 /// Register one runtime finalizer for WASAPI monitor teardown.
 fn register_runtime_finalizer(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     runtime_state: &Arc<WasapiMonitorRuntimeState>,
 ) {
     if runtime_state
@@ -66,7 +66,7 @@ fn register_runtime_finalizer(
     }
 
     let runtime_state = Arc::clone(runtime_state);
-    context.runtime().finalizers.register(move || {
+    binding.agent().finalizers.register(move || {
         let monitor = runtime_state
             .monitor
             .lock()
@@ -100,8 +100,8 @@ pub(crate) fn native_device_events_supported() -> bool {
 }
 
 /// Start one WASAPI native device-event monitor.
-pub(crate) fn start_native_device_event_monitor(context: &BindingCallContext) -> RuntimeResult<()> {
-    let runtime_state = wasapi_monitor_runtime_state(context);
+pub(crate) fn start_native_device_event_monitor(binding: &BindingCallContext) -> RuntimeResult<()> {
+    let runtime_state = wasapi_monitor_runtime_state(binding);
     let mut monitor_slot = runtime_state
         .monitor
         .lock()
@@ -112,7 +112,7 @@ pub(crate) fn start_native_device_event_monitor(context: &BindingCallContext) ->
     }
 
     let stop = Arc::new(AtomicBool::new(false));
-    let runtime_state = audio_core::audio_event_runtime_state(context);
+    let runtime_state = audio_core::audio_event_runtime_state(binding);
     let stop_signal = Arc::clone(&stop);
     let callback_runtime_state = Arc::clone(&runtime_state);
     let poll_interval_ns = audio_core::resolved_event_monitor_poll_interval_ns(50_000_000);
@@ -146,8 +146,8 @@ pub(crate) fn start_native_device_event_monitor(context: &BindingCallContext) ->
 }
 
 /// Stop one WASAPI native device-event monitor.
-pub(crate) fn stop_native_device_event_monitor(_context: &BindingCallContext) {
-    let runtime_state = wasapi_monitor_runtime_state(_context);
+pub(crate) fn stop_native_device_event_monitor(binding: &BindingCallContext) {
+    let runtime_state = wasapi_monitor_runtime_state(binding);
     let monitor = {
         let mut monitor_slot = runtime_state
             .monitor

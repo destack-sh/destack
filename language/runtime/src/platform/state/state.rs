@@ -1,29 +1,36 @@
 use crate::platform::audio::PlatformAudioState;
-use crate::platform::crypto::PlatformCryptoState;
+#[cfg(any(windows, target_os = "linux"))]
 use crate::platform::display::PlatformDisplayState;
+#[cfg(windows)]
 use crate::platform::fs::PlatformFsState;
+#[cfg(windows)]
 use crate::platform::input::PlatformInputState;
-use crate::platform::io::PlatformIoState;
 use crate::platform::net::PlatformNetState;
+#[cfg(any(target_os = "linux", windows))]
 use crate::platform::os::PlatformOsState;
 
 /// Runtime-owned platform module state slots.
 #[derive(Debug, Default)]
-pub struct PlatformState {
+pub(crate) struct PlatformState {
     /// Audio module state.
     pub audio: PlatformAudioState,
-    /// Crypto module state.
-    pub crypto: PlatformCryptoState,
+
     /// Display module state.
+    #[cfg(any(windows, target_os = "linux"))]
     pub display: PlatformDisplayState,
+
     /// Filesystem module state.
+    #[cfg(windows)]
     pub fs: PlatformFsState,
+
     /// Input module state.
+    #[cfg(windows)]
     pub input: PlatformInputState,
-    /// I/O module state.
-    pub io: PlatformIoState,
+
     /// Network module state.
     pub net: PlatformNetState,
+
     /// OS module state.
+    #[cfg(any(target_os = "linux", windows))]
     pub os: PlatformOsState,
 }

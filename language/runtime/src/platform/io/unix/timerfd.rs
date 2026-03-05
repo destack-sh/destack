@@ -100,10 +100,10 @@ fn timespec_to_nanos(value: libc::timespec, field: &str) -> RuntimeResult<u64> {
 
 /// Resolve one timerfd handle into one unix file descriptor.
 fn timerfd_fd(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<RawFd> {
-    let fd = context
+    let fd = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -120,14 +120,14 @@ fn timerfd_fd(
 
 /// Close one timerfd descriptor and release one table entry.
 fn close_timerfd(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
     // remove one timerfd entry from the resource table
-    let entry = context
+    let entry = binding
         .agent()
         .resources
-        .remove(handle.0, Some(context.engine()))
+        .remove(handle.0, Some(binding.engine()))
         .ok_or_else(invalid_timerfd_handle_error)?;
     if entry.kind != ResourceKind::TimerFd {
         return Err(invalid_timerfd_handle_error());
@@ -206,7 +206,7 @@ fn validate_set_flags(flags: TimerFdSetFlags) -> RuntimeResult<i32> {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
     // reject timerfd operations on unsupported unix targets
@@ -216,7 +216,7 @@ pub(crate) unsafe fn destack_io_timer_fd_close(
         );
     }
 
-    close_timerfd(context, handle)
+    close_timerfd(binding, handle)
 }
 
 /// Read the active timerfd schedule.
@@ -237,7 +237,7 @@ pub(crate) unsafe fn destack_io_timer_fd_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_get(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut TimerFdSpec,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
@@ -256,7 +256,7 @@ pub(crate) unsafe fn destack_io_timer_fd_get(
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
         // resolve one host timerfd descriptor
-        let fd = timerfd_fd(context, handle)?;
+        let fd = timerfd_fd(binding, handle)?;
 
         // read one host timerfd schedule
         let mut host_spec = MaybeUninit::<libc::itimerspec>::zeroed();
@@ -280,7 +280,7 @@ pub(crate) unsafe fn destack_io_timer_fd_get(
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
-        let _ = (context, handle);
+        let _ = (binding, handle);
         Err(RuntimeError::from(PlatformError::not_supported("destack.io.timerfd.get")).boxed())
     }
 }
@@ -303,7 +303,7 @@ pub(crate) unsafe fn destack_io_timer_fd_get(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::TimerFdHandle,
     clock: TimerFdClock,
     flags: TimerFdFlags,
@@ -336,10 +336,10 @@ pub(crate) unsafe fn destack_io_timer_fd_open(
         let entry = ResourceEntry::new(ResourceKind::TimerFd)
             .with_label("io.timerfd")
             .with_fd(fd);
-        let resource_id = context
+        let resource_id = binding
             .agent()
             .resources
-            .insert(entry, Some(context.engine()));
+            .insert(entry, Some(binding.engine()));
         let handle = resource::TimerFdHandle(resource_id);
 
         // write one output handle
@@ -352,7 +352,7 @@ pub(crate) unsafe fn destack_io_timer_fd_open(
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
-        let _ = (context, clock, flags);
+        let _ = (binding, clock, flags);
         Err(RuntimeError::from(PlatformError::not_supported("destack.io.timerfd.open")).boxed())
     }
 }
@@ -375,7 +375,7 @@ pub(crate) unsafe fn destack_io_timer_fd_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
@@ -394,7 +394,7 @@ pub(crate) unsafe fn destack_io_timer_fd_read(
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
         // resolve one host timerfd descriptor
-        let fd = timerfd_fd(context, handle)?;
+        let fd = timerfd_fd(binding, handle)?;
 
         // read one expiration counter from the descriptor
         let mut expirations = 0_u64;
@@ -435,7 +435,7 @@ pub(crate) unsafe fn destack_io_timer_fd_read(
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
-        let _ = (context, handle);
+        let _ = (binding, handle);
         Err(RuntimeError::from(PlatformError::not_supported("destack.io.timerfd.read")).boxed())
     }
 }
@@ -458,7 +458,7 @@ pub(crate) unsafe fn destack_io_timer_fd_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_set(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TimerFdHandle,
     spec: TimerFdSpec,
     flags: TimerFdSetFlags,
@@ -473,7 +473,7 @@ pub(crate) unsafe fn destack_io_timer_fd_set(
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
         // resolve one host timerfd descriptor and set flags
-        let fd = timerfd_fd(context, handle)?;
+        let fd = timerfd_fd(binding, handle)?;
         let flags = validate_set_flags(flags)?;
 
         // build one host timerfd schedule payload
@@ -493,7 +493,7 @@ pub(crate) unsafe fn destack_io_timer_fd_set(
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
-        let _ = (context, handle, spec, flags);
+        let _ = (binding, handle, spec, flags);
         Err(RuntimeError::from(PlatformError::not_supported("destack.io.timerfd.set")).boxed())
     }
 }

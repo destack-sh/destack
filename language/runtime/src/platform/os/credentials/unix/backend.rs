@@ -9,46 +9,46 @@ use super::super::core::{
 
 /// Read one credential record from the unix backend.
 pub(crate) fn read_credentials(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     query: &CredentialQueryOwned,
 ) -> RuntimeResult<CredentialRecordOwned> {
-    platform_backend::read_credentials(context, query)
+    platform_backend::read_credentials(binding, query)
 }
 
 /// Write one credential record through the unix backend.
 pub(crate) fn write_credentials(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     options: &CredentialWriteOptionsOwned,
 ) -> RuntimeResult<()> {
-    platform_backend::write_credentials(context, options)
+    platform_backend::write_credentials(binding, options)
 }
 
 /// Delete one credential record through the unix backend.
 pub(crate) fn delete_credentials(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     service: &str,
     account: &str,
     access_group: Option<&str>,
 ) -> RuntimeResult<()> {
-    platform_backend::delete_credentials(context, service, account, access_group)
+    platform_backend::delete_credentials(binding, service, account, access_group)
 }
 
 /// Return whether one credential record exists in the unix backend.
 pub(crate) fn contains_credentials(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     service: &str,
     account: &str,
     access_group: Option<&str>,
 ) -> RuntimeResult<bool> {
-    platform_backend::contains_credentials(context, service, account, access_group)
+    platform_backend::contains_credentials(binding, service, account, access_group)
 }
 
 /// Run one host authentication challenge on unix.
 pub(crate) fn authenticate_credentials(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     options: &CredentialAuthenticationOptionsOwned,
 ) -> RuntimeResult<CredentialAuthenticationResult> {
-    platform_backend::authenticate_credentials(context, options)
+    platform_backend::authenticate_credentials(binding, options)
 }
 
 #[cfg(target_os = "android")]

@@ -56,9 +56,9 @@ const MOTIF_HINTS_DECORATIONS_FLAG: u32 = 1 << 1;
 const XDND_ACCEPTED: u32 = 1;
 
 /// Drain pending x11 events and publish runtime event deltas.
-pub(in super::super) fn pump_window_messages(context: &BindingCallContext) -> RuntimeResult<()> {
+pub(in super::super) fn pump_window_messages(binding: &BindingCallContext) -> RuntimeResult<()> {
     // resolve runtime and connection state
-    let runtime_state = core::runtime_state(context);
+    let runtime_state = core::runtime_state(binding);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.eventRead")?;
 
@@ -78,7 +78,7 @@ pub(in super::super) fn pump_window_messages(context: &BindingCallContext) -> Ru
         };
 
         // dispatch one x11 event into runtime state updates
-        handle_x11_event(context, &runtime_state, connection_state.as_ref(), event);
+        handle_x11_event(binding, &runtime_state, connection_state.as_ref(), event);
     }
 
     Ok(())
@@ -86,7 +86,7 @@ pub(in super::super) fn pump_window_messages(context: &BindingCallContext) -> Ru
 
 /// Handle one x11 event and publish runtime display events.
 fn handle_x11_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     runtime_state: &Arc<core::X11RuntimeState>,
     connection_state: &core::X11ConnectionState,
     event_value: Event,
@@ -112,16 +112,18 @@ fn handle_x11_event(
         return;
     };
 
-    // resolve one mutable binding and publish state deltas
-    let binding = match display_resource::resolve_window_binding(
-        context,
+    // resolve one mutable resolved_binding and publish state deltas
+    let resolved_binding = match display_resource::resolve_window_binding(
+        binding,
         window_handle,
         "destack.display.window.eventRead",
     ) {
-        Ok(binding) => binding,
+        Ok(resolved_binding) => resolved_binding,
         Err(_) => return,
     };
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    let mut resolved_binding = resolved_binding
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
 
     // process one client-message event
     if let Event::ClientMessage(value) = event_value {
@@ -129,10 +131,10 @@ fn handle_x11_event(
         if value.type_ == connection_state.atoms.wm_protocols
             && value.format == 32
             && value.data.as_data32()[0] == connection_state.atoms.wm_delete_window
-            && !binding.close_requested_emitted
+            && !resolved_binding.close_requested_emitted
         {
-            binding.close_requested_emitted = true;
-            drop(binding);
+            resolved_binding.close_requested_emitted = true;
+            drop(resolved_binding);
             event::publish_window_close_requested(runtime_state, window_handle);
             return;
         }
@@ -140,14 +142,14 @@ fn handle_x11_event(
         // process one xdnd enter message
         if value.type_ == connection_state.atoms.xdnd_enter {
             // evaluate this condition
-            if let Err(error) = handle_xdnd_enter(connection_state, &mut binding, &value) {
-                context.warn(
+            if let Err(error) = handle_xdnd_enter(connection_state, &mut resolved_binding, &value) {
+                binding.warn(
                     "display",
                     "destack.display.window.eventRead",
                     format!("xdnd enter handling failed: {error}"),
                     None,
                 );
-                clear_xdnd_state(&mut binding);
+                clear_xdnd_state(&mut resolved_binding);
             }
             return;
         }
@@ -155,14 +157,16 @@ fn handle_x11_event(
         // process one xdnd position message
         if value.type_ == connection_state.atoms.xdnd_position {
             // evaluate this condition
-            if let Err(error) = handle_xdnd_position(connection_state, &mut binding, &value) {
-                context.warn(
+            if let Err(error) =
+                handle_xdnd_position(connection_state, &mut resolved_binding, &value)
+            {
+                binding.warn(
                     "display",
                     "destack.display.window.eventRead",
                     format!("xdnd position handling failed: {error}"),
                     None,
                 );
-                clear_xdnd_state(&mut binding);
+                clear_xdnd_state(&mut resolved_binding);
             }
             return;
         }
@@ -174,23 +178,23 @@ fn handle_x11_event(
                 runtime_state,
                 window_handle,
                 connection_state,
-                &mut binding,
+                &mut resolved_binding,
                 &value,
             ) {
-                context.warn(
+                binding.warn(
                     "display",
                     "destack.display.window.eventRead",
                     format!("xdnd drop handling failed: {error}"),
                     None,
                 );
-                clear_xdnd_state(&mut binding);
+                clear_xdnd_state(&mut resolved_binding);
             }
             return;
         }
 
         // process one xdnd leave message
         if value.type_ == connection_state.atoms.xdnd_leave {
-            handle_xdnd_leave(runtime_state, window_handle, &mut binding);
+            handle_xdnd_leave(runtime_state, window_handle, &mut resolved_binding);
         }
         return;
     }
@@ -202,16 +206,16 @@ fn handle_x11_event(
             runtime_state,
             window_handle,
             connection_state,
-            &mut binding,
+            &mut resolved_binding,
             &value,
         ) {
-            context.warn(
+            binding.warn(
                 "display",
                 "destack.display.window.eventRead",
                 format!("xdnd selection handling failed: {error}"),
                 None,
             );
-            clear_xdnd_state(&mut binding);
+            clear_xdnd_state(&mut resolved_binding);
         }
         return;
     }
@@ -219,12 +223,12 @@ fn handle_x11_event(
     // process one window-destroy event
     if let Event::DestroyNotify(_) = event_value {
         // evaluate this condition
-        if !binding.destroyed_emitted {
-            binding.destroyed_emitted = true;
-            binding.visibility = WindowVisibility::Hidden;
-            binding.focused = false;
+        if !resolved_binding.destroyed_emitted {
+            resolved_binding.destroyed_emitted = true;
+            resolved_binding.visibility = WindowVisibility::Hidden;
+            resolved_binding.focused = false;
             event::unregister_xid(runtime_state, xid);
-            drop(binding);
+            drop(resolved_binding);
             event::publish_window_destroyed(runtime_state, window_handle);
         }
         return;
@@ -232,7 +236,7 @@ fn handle_x11_event(
 
     // process one expose event
     if let Event::Expose(_) = event_value {
-        drop(binding);
+        drop(resolved_binding);
         event::publish_window_refresh_requested(runtime_state, window_handle);
         return;
     }
@@ -240,10 +244,10 @@ fn handle_x11_event(
     // process one focus-gained event
     if let Event::FocusIn(_) = event_value {
         // evaluate this condition
-        if !binding.focused {
-            let previous_focused = binding.focused;
-            binding.focused = true;
-            drop(binding);
+        if !resolved_binding.focused {
+            let previous_focused = resolved_binding.focused;
+            resolved_binding.focused = true;
+            drop(resolved_binding);
             event::publish_window_focus_changed(
                 runtime_state,
                 window_handle,
@@ -257,10 +261,10 @@ fn handle_x11_event(
     // process one focus-lost event
     if let Event::FocusOut(_) = event_value {
         // evaluate this condition
-        if binding.focused {
-            let previous_focused = binding.focused;
-            binding.focused = false;
-            drop(binding);
+        if resolved_binding.focused {
+            let previous_focused = resolved_binding.focused;
+            resolved_binding.focused = false;
+            drop(resolved_binding);
             event::publish_window_focus_changed(
                 runtime_state,
                 window_handle,
@@ -274,10 +278,10 @@ fn handle_x11_event(
     // process one map-notify event
     if let Event::MapNotify(_) = event_value {
         // evaluate this condition
-        if binding.visibility == WindowVisibility::Hidden {
-            let previous_visibility = binding.visibility;
-            binding.visibility = WindowVisibility::Visible;
-            drop(binding);
+        if resolved_binding.visibility == WindowVisibility::Hidden {
+            let previous_visibility = resolved_binding.visibility;
+            resolved_binding.visibility = WindowVisibility::Visible;
+            drop(resolved_binding);
             event::publish_window_visibility_changed(
                 runtime_state,
                 window_handle,
@@ -291,12 +295,12 @@ fn handle_x11_event(
     // process one unmap-notify event
     if let Event::UnmapNotify(_) = event_value {
         // evaluate this condition
-        if binding.visibility != WindowVisibility::Hidden
-            && binding.visibility != WindowVisibility::Minimized
+        if resolved_binding.visibility != WindowVisibility::Hidden
+            && resolved_binding.visibility != WindowVisibility::Minimized
         {
-            let previous_visibility = binding.visibility;
-            binding.visibility = WindowVisibility::Hidden;
-            drop(binding);
+            let previous_visibility = resolved_binding.visibility;
+            resolved_binding.visibility = WindowVisibility::Hidden;
+            drop(resolved_binding);
             event::publish_window_visibility_changed(
                 runtime_state,
                 window_handle,
@@ -317,9 +321,9 @@ fn handle_x11_event(
             y: i32::from(value.y),
         };
         // evaluate this condition
-        if binding.position != current_position {
-            let previous_position = binding.position;
-            binding.position = current_position;
+        if resolved_binding.position != current_position {
+            let previous_position = resolved_binding.position;
+            resolved_binding.position = current_position;
             publish_position = Some((previous_position, current_position));
         }
 
@@ -332,11 +336,11 @@ fn handle_x11_event(
             height: value.height as f64,
         };
         // evaluate this condition
-        if binding.size_physical != current_size_physical {
-            let previous_size_logical = binding.size_logical;
-            let previous_size_physical = binding.size_physical;
-            binding.size_logical = current_size_logical;
-            binding.size_physical = current_size_physical;
+        if resolved_binding.size_physical != current_size_physical {
+            let previous_size_logical = resolved_binding.size_logical;
+            let previous_size_physical = resolved_binding.size_physical;
+            resolved_binding.size_logical = current_size_logical;
+            resolved_binding.size_physical = current_size_physical;
             publish_size = Some((
                 previous_size_logical,
                 previous_size_physical,
@@ -345,7 +349,7 @@ fn handle_x11_event(
             ));
         }
 
-        drop(binding);
+        drop(resolved_binding);
         // evaluate this condition
         if let Some((previous_position, current_position)) = publish_position {
             event::publish_window_position_changed(

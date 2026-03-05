@@ -23,10 +23,10 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_break_now(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<()> {
-    debug_vm::destack_debug_break_now(runtime, context)
+    debug_vm::destack_debug_break_now(binding, context)
 }
 
 /// Mark a debug timeline point.
@@ -47,11 +47,11 @@ pub(crate) fn destack_debug_break_now(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_mark(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     label: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    debug_vm::destack_debug_mark(runtime, context, label)
+    debug_vm::destack_debug_mark(binding, context, label)
 }
 
 /// Read inspector endpoint metadata.
@@ -72,11 +72,11 @@ pub(crate) fn destack_debug_mark(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_inspector_endpoint(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<InspectorEndpointVm> {
-    debug_vm::destack_debug_inspector_endpoint(runtime, context, handle)
+    debug_vm::destack_debug_inspector_endpoint(binding, context, handle)
 }
 
 /// Start an inspector session.
@@ -97,12 +97,12 @@ pub(crate) fn destack_debug_inspector_endpoint(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_inspector_start(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     host: vm::StringHandle,
     port: u16,
 ) -> RuntimeResult<resource::InspectorHandle> {
-    debug_vm::destack_debug_inspector_start(runtime, context, host, port)
+    debug_vm::destack_debug_inspector_start(binding, context, host, port)
 }
 
 /// Stop an inspector session.
@@ -123,11 +123,11 @@ pub(crate) fn destack_debug_inspector_start(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_inspector_stop(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<()> {
-    debug_vm::destack_debug_inspector_stop(runtime, context, handle)
+    debug_vm::destack_debug_inspector_stop(binding, context, handle)
 }
 
 /// Capture a profiling snapshot.
@@ -148,11 +148,11 @@ pub(crate) fn destack_debug_inspector_stop(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_profile_snapshot(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<VmArray<u8>> {
-    debug_vm::destack_debug_profile_snapshot(runtime, context, handle)
+    debug_vm::destack_debug_profile_snapshot(binding, context, handle)
 }
 
 /// Start a profiling session.
@@ -173,11 +173,11 @@ pub(crate) fn destack_debug_profile_snapshot(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_profile_start(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     kind: ProfileKind,
 ) -> RuntimeResult<resource::ProfileHandle> {
-    debug_vm::destack_debug_profile_start(runtime, context, kind)
+    debug_vm::destack_debug_profile_start(binding, context, kind)
 }
 
 /// Stop a profiling session.
@@ -198,11 +198,11 @@ pub(crate) fn destack_debug_profile_start(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_profile_stop(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<()> {
-    debug_vm::destack_debug_profile_stop(runtime, context, handle)
+    debug_vm::destack_debug_profile_stop(binding, context, handle)
 }
 
 /// Emit one trace event.
@@ -223,13 +223,13 @@ pub(crate) fn destack_debug_profile_stop(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_trace_emit(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     category: vm::StringHandle,
     name: vm::StringHandle,
     payloadjson: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    debug_vm::destack_debug_trace_emit(runtime, context, category, name, payloadjson)
+    debug_vm::destack_debug_trace_emit(binding, context, category, name, payloadjson)
 }
 
 /// Start a runtime trace stream.
@@ -250,12 +250,12 @@ pub(crate) fn destack_debug_trace_emit(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_trace_start(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     level: TraceLevel,
     destination: vm::StringHandle,
 ) -> RuntimeResult<resource::TraceHandle> {
-    debug_vm::destack_debug_trace_start(runtime, context, level, destination)
+    debug_vm::destack_debug_trace_start(binding, context, level, destination)
 }
 
 /// Stop a runtime trace stream.
@@ -276,9 +276,9 @@ pub(crate) fn destack_debug_trace_start(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_trace_stop(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TraceHandle,
 ) -> RuntimeResult<()> {
-    debug_vm::destack_debug_trace_stop(runtime, context, handle)
+    debug_vm::destack_debug_trace_stop(binding, context, handle)
 }

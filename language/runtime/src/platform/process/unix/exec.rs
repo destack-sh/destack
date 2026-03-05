@@ -35,10 +35,10 @@ unsafe fn decode_native_strings(slice: NativeStringSlice) -> RuntimeResult<Vec<S
 
 /// Resolve a directory handle into a unix descriptor.
 fn resolve_directory_fd(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<i32> {
-    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
         if entry.kind != resource::ResourceKind::Directory {
             return None;
         }
@@ -56,10 +56,10 @@ fn resolve_directory_fd(
 
 /// Resolve a file handle into a unix descriptor.
 fn resolve_file_fd(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::FileHandle,
 ) -> RuntimeResult<i32> {
-    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
         if entry.kind != resource::ResourceKind::File {
             return None;
         }
@@ -92,7 +92,7 @@ fn resolve_file_fd(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_exec(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     command: fs::OsPath,
     arguments: NativeStringSlice,
     environment: NativeStringSlice,
@@ -140,14 +140,14 @@ pub(crate) unsafe fn destack_process_exec(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_execat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     directory: resource::DirectoryHandle,
     path: fs::OsPath,
     arguments: NativeStringSlice,
     environment: NativeStringSlice,
     flags: ExecAtFlags,
 ) -> RuntimeResult<()> {
-    let directory_fd = resolve_directory_fd(context, directory)?;
+    let directory_fd = resolve_directory_fd(binding, directory)?;
     let path = core_fs::os_path_to_utf8_string(path, "path")?;
     let arguments = unsafe { decode_native_strings(arguments)? };
     let environment = unsafe { decode_native_strings(environment)? };
@@ -215,12 +215,12 @@ pub(crate) unsafe fn destack_process_execat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_fexec(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     executable: resource::FileHandle,
     arguments: NativeStringSlice,
     environment: NativeStringSlice,
 ) -> RuntimeResult<()> {
-    let executable_fd = resolve_file_fd(context, executable)?;
+    let executable_fd = resolve_file_fd(binding, executable)?;
     let arguments = unsafe { decode_native_strings(arguments)? };
     let environment = unsafe { decode_native_strings(environment)? };
 

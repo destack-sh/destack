@@ -7,12 +7,12 @@ use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// Resolve one opened raw-hid-capable device descriptor.
 fn resolve_raw_hid_device(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<raw_input::RawInputDeviceDescriptor> {
     // resolve one opened raw-input descriptor for this handle
-    let device = input_core::raw_device(context, handle, operation)?;
+    let device = input_core::raw_device(binding, handle, operation)?;
 
     // reject non-hid devices for raw-hid operations
     if !device.supports_raw_hid {
@@ -39,7 +39,7 @@ fn resolve_raw_hid_device(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_get_feature(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::InputDeviceHandle,
     reportid: u8,
@@ -54,7 +54,7 @@ pub(crate) unsafe fn destack_input_raw_hid_get_feature(
     input_validation::validate_raw_hid_max_bytes(maxbytes)?;
 
     // resolve one raw-hid-capable device
-    let device = resolve_raw_hid_device(context, handle, "destack.input.rawhid.getFeature")?;
+    let device = resolve_raw_hid_device(binding, handle, "destack.input.rawhid.getFeature")?;
 
     // read one feature report from hid backend APIs
     let report = raw_input::get_feature_report(
@@ -66,7 +66,7 @@ pub(crate) unsafe fn destack_input_raw_hid_get_feature(
 
     // write report bytes into runtime-managed slice storage
     unsafe {
-        *out = context.store_slice(report);
+        *out = binding.store_slice(report);
     }
 
     Ok(())
@@ -90,7 +90,7 @@ pub(crate) unsafe fn destack_input_raw_hid_get_feature(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputRawHidReport,
     handle: resource::InputDeviceHandle,
     maxbytes: u32,
@@ -105,11 +105,11 @@ pub(crate) unsafe fn destack_input_raw_hid_read(
     input_validation::validate_raw_hid_max_bytes(maxbytes)?;
 
     // resolve one raw-hid-capable device
-    let device = resolve_raw_hid_device(context, handle, "destack.input.rawhid.read")?;
+    let device = resolve_raw_hid_device(binding, handle, "destack.input.rawhid.read")?;
 
     // read one report with bounded timeout semantics
     let report = raw_input::read_raw_hid_report_with_timeout(
-        context,
+        binding,
         &device,
         maxbytes,
         timeoutns,
@@ -141,13 +141,13 @@ pub(crate) unsafe fn destack_input_raw_hid_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_set_feature(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     reportid: u8,
     data: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // resolve one raw-hid-capable device
-    let device = resolve_raw_hid_device(context, handle, "destack.input.rawhid.setFeature")?;
+    let device = resolve_raw_hid_device(binding, handle, "destack.input.rawhid.setFeature")?;
 
     // validate feature payload shape
     let payload = unsafe { data.as_slice()? };
@@ -181,7 +181,7 @@ pub(crate) unsafe fn destack_input_raw_hid_set_feature(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputRawHidReport,
     handle: resource::InputDeviceHandle,
     maxbytes: u32,
@@ -195,11 +195,11 @@ pub(crate) unsafe fn destack_input_raw_hid_try_read(
     input_validation::validate_raw_hid_max_bytes(maxbytes)?;
 
     // resolve one raw-hid-capable device
-    let device = resolve_raw_hid_device(context, handle, "destack.input.rawhid.tryRead")?;
+    let device = resolve_raw_hid_device(binding, handle, "destack.input.rawhid.tryRead")?;
 
     // poll one queued hid report without blocking
     let report = raw_input::read_raw_hid_report(
-        context,
+        binding,
         &device,
         maxbytes,
         true,
@@ -232,7 +232,7 @@ pub(crate) unsafe fn destack_input_raw_hid_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: resource::InputDeviceHandle,
     reportid: u8,
@@ -244,7 +244,7 @@ pub(crate) unsafe fn destack_input_raw_hid_write(
     }
 
     // resolve one raw-hid-capable device
-    let device = resolve_raw_hid_device(context, handle, "destack.input.rawhid.write")?;
+    let device = resolve_raw_hid_device(binding, handle, "destack.input.rawhid.write")?;
 
     // validate capability support and payload shape
     let payload = unsafe { data.as_slice()? };

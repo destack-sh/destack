@@ -191,11 +191,11 @@ pub(super) fn conpty_error_from_hresult(
 
 /// Resolve one tty handle into one typed worker binding.
 pub(super) fn tty_binding(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     operation: &'static str,
 ) -> RuntimeResult<Option<Arc<WindowsTtyBinding>>> {
-    let resolved = context
+    let resolved = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -208,7 +208,7 @@ pub(super) fn tty_binding(
         .flatten();
 
     if resolved.is_none() {
-        let kind = context
+        let kind = binding
             .agent()
             .resources
             .with_entry(handle.0, |entry| entry.kind);
@@ -224,11 +224,11 @@ pub(super) fn tty_binding(
 
 /// Resolve one tty handle into one raw windows handle.
 pub(super) fn tty_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     operation: &'static str,
 ) -> RuntimeResult<HANDLE> {
-    let resolved = context
+    let resolved = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -265,7 +265,7 @@ pub(super) fn validate_console_dimension(value: u32, field: &str) -> RuntimeResu
 
 /// Register one windows pseudo-terminal pair in the resource table.
 pub(super) fn register_pty_pair(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     pseudo_console: HPCON,
     read_handle: HANDLE,
     write_handle: HANDLE,
@@ -277,7 +277,7 @@ pub(super) fn register_pty_pair(
         control_flags: 0,
         local_flags: 0,
     };
-    let binding = Arc::new(WindowsTtyBinding {
+    let resolved_binding = Arc::new(WindowsTtyBinding {
         read_handle,
         write_handle,
         pseudo_console: Some(pseudo_console),
@@ -288,22 +288,22 @@ pub(super) fn register_pty_pair(
     let controller_entry = ResourceEntry::new(ResourceKind::Pty)
         .with_label(PTY_RESOURCE_LABEL)
         .with_finalizer(WindowsPseudoConsoleFinalizer { pseudo_console });
-    let controller_id = context
+    let controller_id = binding
         .agent()
         .resources
-        .insert(controller_entry, Some(context.engine()));
+        .insert(controller_entry, Some(binding.engine()));
 
     let worker_entry = ResourceEntry::new(ResourceKind::Tty)
         .with_label(TTY_RESOURCE_LABEL)
-        .with_payload(binding)
+        .with_payload(resolved_binding)
         .with_finalizer(WindowsPipePairFinalizer {
             read_handle,
             write_handle,
         });
-    let worker_id = context
+    let worker_id = binding
         .agent()
         .resources
-        .insert(worker_entry, Some(context.engine()));
+        .insert(worker_entry, Some(binding.engine()));
 
     PtyPair {
         controller: resource::PtyHandle(controller_id),

@@ -29,14 +29,14 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_device_stream_capability_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CameraStreamCapability>,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.device.streamCapabilityList",
@@ -61,14 +61,14 @@ pub(crate) unsafe fn destack_device_camera_device_stream_capability_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_stream_exposure_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CameraExposureMode,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.exposureMode",
@@ -93,11 +93,11 @@ pub(crate) unsafe fn destack_device_camera_stream_exposure_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_stream_set_exposure_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CameraStreamHandle,
     mode: CameraExposureMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, mode);
+    let _ = (binding, handle, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.setExposureMode",
@@ -122,11 +122,11 @@ pub(crate) unsafe fn destack_device_camera_stream_set_exposure_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_stream_set_stabilization_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CameraStreamHandle,
     mode: CameraStabilizationMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, mode);
+    let _ = (binding, handle, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.setStabilizationMode",
@@ -151,11 +151,11 @@ pub(crate) unsafe fn destack_device_camera_stream_set_stabilization_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_stream_set_torch_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CameraStreamHandle,
     mode: CameraTorchMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, mode);
+    let _ = (binding, handle, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.setTorchMode",
@@ -180,14 +180,14 @@ pub(crate) unsafe fn destack_device_camera_stream_set_torch_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_stream_stabilization_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CameraStabilizationMode,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.stabilizationMode",
@@ -212,14 +212,14 @@ pub(crate) unsafe fn destack_device_camera_stream_stabilization_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_stream_torch_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CameraTorchMode,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.torchMode",
@@ -244,7 +244,7 @@ pub(crate) unsafe fn destack_device_camera_stream_torch_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_string_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut UsbStringDescriptor,
     handle: resource::UsbDeviceHandle,
     languageid: u16,
@@ -252,7 +252,7 @@ pub(crate) unsafe fn destack_device_usb_string_descriptor(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, languageid);
+    let _ = (binding, out, handle, languageid);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.stringDescriptor",
@@ -277,14 +277,14 @@ pub(crate) unsafe fn destack_device_usb_string_descriptor(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_string_language_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u16>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.stringLanguageList",
@@ -309,11 +309,11 @@ pub(crate) unsafe fn destack_device_usb_string_language_list(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_device_usb_transfer_cancel(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, endpointaddress);
+    let _ = (binding, handle, endpointaddress);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.transferCancel",
@@ -338,10 +338,10 @@ pub(crate) unsafe fn destack_device_usb_transfer_cancel(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_device_usb_transfer_cancel_all(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.transferCancelAll",
@@ -366,10 +366,10 @@ pub(crate) unsafe fn destack_device_usb_transfer_cancel_all(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_watch_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UsbWatchHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.watchClose",
@@ -394,13 +394,13 @@ pub(crate) unsafe fn destack_device_usb_watch_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_watch_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::UsbWatchHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (binding, out);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.usb.watchOpen")).boxed())
 }
@@ -422,7 +422,7 @@ pub(crate) unsafe fn destack_device_usb_watch_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_watch_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut UsbHotplugEvent,
     handle: resource::UsbWatchHandle,
     timeoutns: u64,
@@ -430,7 +430,7 @@ pub(crate) unsafe fn destack_device_usb_watch_read(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, timeoutns);
+    let _ = (binding, out, handle, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.usb.watchRead")).boxed())
 }
@@ -452,14 +452,14 @@ pub(crate) unsafe fn destack_device_usb_watch_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_watch_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut UsbHotplugEvent,
     handle: resource::UsbWatchHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.watchTryRead",
@@ -484,11 +484,11 @@ pub(crate) unsafe fn destack_device_usb_watch_try_read(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_device_bluetooth_pair(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::BluetoothDeviceHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, timeoutns);
+    let _ = (binding, handle, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.session.pair",
@@ -513,7 +513,7 @@ pub(crate) unsafe fn destack_device_bluetooth_pair(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_read_rssi(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut i32,
     handle: resource::BluetoothDeviceHandle,
     timeoutns: u64,
@@ -521,7 +521,7 @@ pub(crate) unsafe fn destack_device_bluetooth_read_rssi(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, timeoutns);
+    let _ = (binding, out, handle, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.session.rssi",
@@ -546,11 +546,11 @@ pub(crate) unsafe fn destack_device_bluetooth_read_rssi(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_device_bluetooth_unpair(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     adapterid: NativeStringRef,
     deviceid: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (context, adapterid, deviceid);
+    let _ = (binding, adapterid, deviceid);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.session.unpair",
@@ -575,14 +575,14 @@ pub(crate) unsafe fn destack_device_bluetooth_unpair(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_device_stream_config_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CameraStreamConfig>,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.device.streamConfigList",
@@ -607,7 +607,7 @@ pub(crate) unsafe fn destack_device_camera_device_stream_config_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_stream_control_range(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CameraControlRange,
     handle: resource::CameraStreamHandle,
     control: CameraControl,
@@ -615,7 +615,7 @@ pub(crate) unsafe fn destack_device_camera_stream_control_range(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, control);
+    let _ = (binding, out, handle, control);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.controlRange",
@@ -640,7 +640,7 @@ pub(crate) unsafe fn destack_device_camera_stream_control_range(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_stream_get_control(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut f64,
     handle: resource::CameraStreamHandle,
     control: CameraControl,
@@ -648,7 +648,7 @@ pub(crate) unsafe fn destack_device_camera_stream_get_control(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, control);
+    let _ = (binding, out, handle, control);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.getControl",
@@ -673,10 +673,10 @@ pub(crate) unsafe fn destack_device_camera_stream_get_control(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_serial_discard_input(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.serial.discardInput",
@@ -701,10 +701,10 @@ pub(crate) unsafe fn destack_device_serial_discard_input(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_serial_discard_output(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.serial.discardOutput",
@@ -729,7 +729,7 @@ pub(crate) unsafe fn destack_device_serial_discard_output(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_serial_read_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SerialEvent,
     handle: resource::SerialPortHandle,
     timeoutns: u64,
@@ -737,7 +737,7 @@ pub(crate) unsafe fn destack_device_serial_read_event(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, timeoutns);
+    let _ = (binding, out, handle, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.serial.readEvent",
@@ -762,11 +762,11 @@ pub(crate) unsafe fn destack_device_serial_read_event(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_serial_set_break(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SerialPortHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, enabled);
+    let _ = (binding, handle, enabled);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.serial.setBreak",
@@ -791,11 +791,11 @@ pub(crate) unsafe fn destack_device_serial_set_break(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_clear_halt(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, endpointaddress);
+    let _ = (binding, handle, endpointaddress);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.usb.clearHalt")).boxed())
 }
@@ -817,7 +817,7 @@ pub(crate) unsafe fn destack_device_usb_clear_halt(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_kernel_driver_active(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
@@ -825,7 +825,7 @@ pub(crate) unsafe fn destack_device_usb_kernel_driver_active(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, interfacenumber);
+    let _ = (binding, out, handle, interfacenumber);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.kernelDriverActive",
@@ -850,11 +850,11 @@ pub(crate) unsafe fn destack_device_usb_kernel_driver_active(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_device_usb_kernel_driver_attach(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, interfacenumber);
+    let _ = (binding, handle, interfacenumber);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.kernelDriverAttach",
@@ -879,11 +879,11 @@ pub(crate) unsafe fn destack_device_usb_kernel_driver_attach(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_device_usb_kernel_driver_detach(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, interfacenumber);
+    let _ = (binding, handle, interfacenumber);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.kernelDriverDetach",
@@ -908,10 +908,10 @@ pub(crate) unsafe fn destack_device_usb_kernel_driver_detach(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_device_usb_reset(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.usb.reset")).boxed())
 }
@@ -933,12 +933,12 @@ pub(crate) unsafe fn destack_device_usb_reset(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_set_interface_alternate_setting(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
     alternatesetting: u8,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, interfacenumber, alternatesetting);
+    let _ = (binding, handle, interfacenumber, alternatesetting);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.setInterfaceAlternateSetting",
@@ -963,13 +963,13 @@ pub(crate) unsafe fn destack_device_usb_set_interface_alternate_setting(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_adapter_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<BluetoothAdapterDescriptor>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (binding, out);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.adapterList",
@@ -994,7 +994,7 @@ pub(crate) unsafe fn destack_device_bluetooth_adapter_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_gatt_characteristic_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<BluetoothGattCharacteristicDescriptor>,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: NativeStringRef,
@@ -1002,7 +1002,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_characteristic_list(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, serviceuuid);
+    let _ = (binding, out, handle, serviceuuid);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.gatt.characteristicList",
@@ -1027,7 +1027,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_characteristic_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_gatt_descriptor_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<BluetoothGattDescriptorDescriptor>,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: NativeStringRef,
@@ -1036,7 +1036,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_descriptor_list(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, serviceuuid, characteristicuuid);
+    let _ = (binding, out, handle, serviceuuid, characteristicuuid);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.gatt.descriptorList",
@@ -1061,14 +1061,14 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_descriptor_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_gatt_mtu(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u16,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.gatt.mtu",
@@ -1093,7 +1093,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_mtu(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_gatt_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: NativeStringRef,
@@ -1104,7 +1104,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_read(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (
-        context,
+        binding,
         out,
         handle,
         serviceuuid,
@@ -1135,7 +1135,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_gatt_read_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: NativeStringRef,
@@ -1147,7 +1147,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_read_descriptor(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (
-        context,
+        binding,
         out,
         handle,
         serviceuuid,
@@ -1179,7 +1179,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_read_descriptor(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_gatt_read_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut BluetoothGattValueEvent,
     handle: resource::BluetoothSubscriptionHandle,
     timeoutns: u64,
@@ -1187,7 +1187,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_read_event(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, timeoutns);
+    let _ = (binding, out, handle, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.gatt.readEvent",
@@ -1212,7 +1212,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_read_event(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_gatt_request_mtu(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u16,
     handle: resource::BluetoothDeviceHandle,
     mtu: u16,
@@ -1221,7 +1221,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_request_mtu(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, mtu, timeoutns);
+    let _ = (binding, out, handle, mtu, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.gatt.requestMtu",
@@ -1246,14 +1246,14 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_request_mtu(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_gatt_service_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<BluetoothGattServiceDescriptor>,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.gatt.serviceList",
@@ -1278,7 +1278,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_service_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_gatt_subscribe(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::BluetoothSubscriptionHandle,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: NativeStringRef,
@@ -1287,7 +1287,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_subscribe(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, serviceuuid, characteristicuuid);
+    let _ = (binding, out, handle, serviceuuid, characteristicuuid);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.gatt.subscribe",
@@ -1312,14 +1312,14 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_subscribe(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_gatt_try_read_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut BluetoothGattValueEvent,
     handle: resource::BluetoothSubscriptionHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.gatt.tryReadEvent",
@@ -1344,10 +1344,10 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_try_read_event(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_gatt_unsubscribe(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::BluetoothSubscriptionHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.gatt.unsubscribe",
@@ -1372,7 +1372,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_unsubscribe(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_gatt_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: NativeStringRef,
     characteristicuuid: NativeStringRef,
@@ -1381,7 +1381,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_write(
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     let _ = (
-        context,
+        binding,
         handle,
         serviceuuid,
         characteristicuuid,
@@ -1413,7 +1413,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_gatt_write_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: NativeStringRef,
     characteristicuuid: NativeStringRef,
@@ -1422,7 +1422,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_write_descriptor(
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     let _ = (
-        context,
+        binding,
         handle,
         serviceuuid,
         characteristicuuid,
@@ -1454,10 +1454,10 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_write_descriptor(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_scan_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::BluetoothScanHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.scan.close",
@@ -1482,7 +1482,7 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_scan_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::BluetoothScanHandle,
     adapterid: NativeStringRef,
     filter: BluetoothScanFilter,
@@ -1490,7 +1490,7 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_open(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, adapterid, filter);
+    let _ = (binding, out, adapterid, filter);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.scan.open",
@@ -1515,7 +1515,7 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_scan_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut BluetoothDeviceDescriptor,
     handle: resource::BluetoothScanHandle,
     timeoutns: u64,
@@ -1523,7 +1523,7 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_read(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, timeoutns);
+    let _ = (binding, out, handle, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.scan.read",
@@ -1548,14 +1548,14 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_scan_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut BluetoothDeviceDescriptor,
     handle: resource::BluetoothScanHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.scan.tryRead",
@@ -1580,10 +1580,10 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.session.close",
@@ -1608,7 +1608,7 @@ pub(crate) unsafe fn destack_device_bluetooth_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::BluetoothDeviceHandle,
     adapterid: NativeStringRef,
     deviceid: NativeStringRef,
@@ -1616,7 +1616,7 @@ pub(crate) unsafe fn destack_device_bluetooth_open(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, adapterid, deviceid);
+    let _ = (binding, out, adapterid, deviceid);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.session.open",
@@ -1641,10 +1641,10 @@ pub(crate) unsafe fn destack_device_bluetooth_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_device_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.device.close",
@@ -1669,13 +1669,13 @@ pub(crate) unsafe fn destack_device_camera_device_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_device_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<CameraDeviceDescriptor>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (binding, out);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.device.list",
@@ -1700,14 +1700,14 @@ pub(crate) unsafe fn destack_device_camera_device_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_device_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::CameraDeviceHandle,
     id: NativeStringRef,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, id);
+    let _ = (binding, out, id);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.device.open",
@@ -1732,10 +1732,10 @@ pub(crate) unsafe fn destack_device_camera_device_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_stream_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.close",
@@ -1760,7 +1760,7 @@ pub(crate) unsafe fn destack_device_camera_stream_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_stream_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::CameraStreamHandle,
     device: resource::CameraDeviceHandle,
     config: CameraStreamConfig,
@@ -1768,7 +1768,7 @@ pub(crate) unsafe fn destack_device_camera_stream_open(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, device, config);
+    let _ = (binding, out, device, config);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.open",
@@ -1793,7 +1793,7 @@ pub(crate) unsafe fn destack_device_camera_stream_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_stream_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CameraFrame,
     handle: resource::CameraStreamHandle,
     timeoutns: u64,
@@ -1801,7 +1801,7 @@ pub(crate) unsafe fn destack_device_camera_stream_read(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, timeoutns);
+    let _ = (binding, out, handle, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.read",
@@ -1826,12 +1826,12 @@ pub(crate) unsafe fn destack_device_camera_stream_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_stream_set_control(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CameraStreamHandle,
     control: CameraControl,
     argument_value: f64,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, control, argument_value);
+    let _ = (binding, handle, control, argument_value);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.setControl",
@@ -1856,10 +1856,10 @@ pub(crate) unsafe fn destack_device_camera_stream_set_control(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_stream_start(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.start",
@@ -1884,10 +1884,10 @@ pub(crate) unsafe fn destack_device_camera_stream_start(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_stream_stop(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.stop",
@@ -1912,14 +1912,14 @@ pub(crate) unsafe fn destack_device_camera_stream_stop(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_camera_stream_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CameraFrame,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.tryRead",
@@ -1944,10 +1944,10 @@ pub(crate) unsafe fn destack_device_camera_stream_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_serial_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.serial.close")).boxed())
 }
@@ -1969,11 +1969,11 @@ pub(crate) unsafe fn destack_device_serial_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_serial_configure(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SerialPortHandle,
     config: SerialPortConfig,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, config);
+    let _ = (binding, handle, config);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.serial.configure",
@@ -1998,10 +1998,10 @@ pub(crate) unsafe fn destack_device_serial_configure(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_serial_flush(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.serial.flush")).boxed())
 }
@@ -2024,13 +2024,13 @@ pub(crate) unsafe fn destack_device_serial_flush(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_serial_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<SerialPortDescriptor>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (binding, out);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.serial.list")).boxed())
 }
@@ -2052,7 +2052,7 @@ pub(crate) unsafe fn destack_device_serial_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_serial_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::SerialPortHandle,
     id: NativeStringRef,
     config: SerialPortConfig,
@@ -2060,7 +2060,7 @@ pub(crate) unsafe fn destack_device_serial_open(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, id, config);
+    let _ = (binding, out, id, config);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.serial.open")).boxed())
 }
@@ -2082,7 +2082,7 @@ pub(crate) unsafe fn destack_device_serial_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_serial_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::SerialPortHandle,
     maxbytes: u32,
@@ -2091,7 +2091,7 @@ pub(crate) unsafe fn destack_device_serial_read(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, maxbytes, timeoutns);
+    let _ = (binding, out, handle, maxbytes, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.serial.read")).boxed())
 }
@@ -2113,12 +2113,12 @@ pub(crate) unsafe fn destack_device_serial_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_serial_set_control_lines(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SerialPortHandle,
     dtr: bool,
     rts: bool,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, dtr, rts);
+    let _ = (binding, handle, dtr, rts);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.serial.setControlLines",
@@ -2143,14 +2143,14 @@ pub(crate) unsafe fn destack_device_serial_set_control_lines(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_serial_signal_bits(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.serial.signalBits",
@@ -2175,14 +2175,14 @@ pub(crate) unsafe fn destack_device_serial_signal_bits(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_serial_try_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SerialEvent,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.serial.tryEvent",
@@ -2207,7 +2207,7 @@ pub(crate) unsafe fn destack_device_serial_try_event(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_serial_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::SerialPortHandle,
     maxbytes: u32,
@@ -2215,7 +2215,7 @@ pub(crate) unsafe fn destack_device_serial_try_read(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, maxbytes);
+    let _ = (binding, out, handle, maxbytes);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.serial.tryRead",
@@ -2240,7 +2240,7 @@ pub(crate) unsafe fn destack_device_serial_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_serial_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: resource::SerialPortHandle,
     data: NativeSlice<u8>,
@@ -2249,7 +2249,7 @@ pub(crate) unsafe fn destack_device_serial_write(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, data, timeoutns);
+    let _ = (binding, out, handle, data, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.serial.write")).boxed())
 }
@@ -2271,7 +2271,7 @@ pub(crate) unsafe fn destack_device_serial_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_bulk_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -2281,7 +2281,7 @@ pub(crate) unsafe fn destack_device_usb_bulk_read(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, endpointaddress, maxbytes, timeoutns);
+    let _ = (binding, out, handle, endpointaddress, maxbytes, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.usb.bulkRead")).boxed())
 }
@@ -2303,7 +2303,7 @@ pub(crate) unsafe fn destack_device_usb_bulk_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_bulk_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -2314,7 +2314,7 @@ pub(crate) unsafe fn destack_device_usb_bulk_write(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (
-        context,
+        binding,
         out,
         handle,
         endpointaddress,
@@ -2342,11 +2342,11 @@ pub(crate) unsafe fn destack_device_usb_bulk_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_claim_interface(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, interfacenumber);
+    let _ = (binding, handle, interfacenumber);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.claimInterface",
@@ -2371,10 +2371,10 @@ pub(crate) unsafe fn destack_device_usb_claim_interface(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.usb.close")).boxed())
 }
@@ -2396,14 +2396,14 @@ pub(crate) unsafe fn destack_device_usb_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_configuration_get(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u8,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.configurationGet",
@@ -2428,14 +2428,14 @@ pub(crate) unsafe fn destack_device_usb_configuration_get(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_configuration_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<UsbConfigurationDescriptor>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.configurationList",
@@ -2460,11 +2460,11 @@ pub(crate) unsafe fn destack_device_usb_configuration_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_configuration_set(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UsbDeviceHandle,
     configurationvalue: u8,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, configurationvalue);
+    let _ = (binding, handle, configurationvalue);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.configurationSet",
@@ -2489,7 +2489,7 @@ pub(crate) unsafe fn destack_device_usb_configuration_set(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_control_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::UsbDeviceHandle,
     setup: UsbControlSetup,
@@ -2498,7 +2498,7 @@ pub(crate) unsafe fn destack_device_usb_control_read(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, setup, timeoutns);
+    let _ = (binding, out, handle, setup, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.controlRead",
@@ -2523,7 +2523,7 @@ pub(crate) unsafe fn destack_device_usb_control_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_control_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: resource::UsbDeviceHandle,
     setup: UsbControlSetup,
@@ -2533,7 +2533,7 @@ pub(crate) unsafe fn destack_device_usb_control_write(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, setup, argument_bytes, timeoutns);
+    let _ = (binding, out, handle, setup, argument_bytes, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.controlWrite",
@@ -2558,14 +2558,14 @@ pub(crate) unsafe fn destack_device_usb_control_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut UsbDeviceDescriptor,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.descriptor",
@@ -2590,7 +2590,7 @@ pub(crate) unsafe fn destack_device_usb_descriptor(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_interrupt_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -2600,7 +2600,7 @@ pub(crate) unsafe fn destack_device_usb_interrupt_read(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, endpointaddress, maxbytes, timeoutns);
+    let _ = (binding, out, handle, endpointaddress, maxbytes, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.interruptRead",
@@ -2625,7 +2625,7 @@ pub(crate) unsafe fn destack_device_usb_interrupt_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_interrupt_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -2636,7 +2636,7 @@ pub(crate) unsafe fn destack_device_usb_interrupt_write(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (
-        context,
+        binding,
         out,
         handle,
         endpointaddress,
@@ -2667,7 +2667,7 @@ pub(crate) unsafe fn destack_device_usb_interrupt_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_isochronous_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut UsbIsochronousTransferResult,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -2678,7 +2678,7 @@ pub(crate) unsafe fn destack_device_usb_isochronous_read(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (
-        context,
+        binding,
         out,
         handle,
         endpointaddress,
@@ -2709,7 +2709,7 @@ pub(crate) unsafe fn destack_device_usb_isochronous_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_isochronous_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut UsbIsochronousTransferResult,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -2721,7 +2721,7 @@ pub(crate) unsafe fn destack_device_usb_isochronous_write(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (
-        context,
+        binding,
         out,
         handle,
         endpointaddress,
@@ -2753,13 +2753,13 @@ pub(crate) unsafe fn destack_device_usb_isochronous_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<UsbDeviceDescriptor>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (binding, out);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.usb.list")).boxed())
 }
@@ -2781,14 +2781,14 @@ pub(crate) unsafe fn destack_device_usb_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::UsbDeviceHandle,
     id: NativeStringRef,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, id);
+    let _ = (binding, out, id);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.usb.open")).boxed())
 }
@@ -2810,11 +2810,11 @@ pub(crate) unsafe fn destack_device_usb_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_release_interface(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, interfacenumber);
+    let _ = (binding, handle, interfacenumber);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.releaseInterface",

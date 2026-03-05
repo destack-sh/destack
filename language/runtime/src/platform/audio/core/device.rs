@@ -417,14 +417,14 @@ pub(crate) fn supports_device_open_direction(
 
 /// Return one descriptor snapshot for one open device handle.
 pub(crate) fn descriptor_from_info(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     info: &HostDeviceDescriptor,
 ) -> AudioDeviceDescriptor {
     AudioDeviceDescriptor {
-        id: context.store_string(&info.id),
-        group_id: context.store_string(&info.group_id),
-        name: context.store_string(&info.name),
-        transport: context.store_string(&info.transport),
+        id: binding.store_string(&info.id),
+        group_id: binding.store_string(&info.group_id),
+        name: binding.store_string(&info.name),
+        transport: binding.store_string(&info.transport),
         backend: info.backend,
         direction: info.direction,
         connected: info.connected,
@@ -460,12 +460,12 @@ pub(crate) fn descriptor_from_info(
 
 /// Return one descriptor snapshot for one open device handle.
 pub(crate) fn descriptor_from_binding(
-    context: &BindingCallContext,
+    binding_2: &BindingCallContext,
     binding: &AudioDeviceBinding,
 ) -> AudioDeviceDescriptor {
     let mut info = binding.info.clone();
     info.direction = binding.opened_direction;
-    descriptor_from_info(context, &info)
+    descriptor_from_info(binding_2, &info)
 }
 
 /// Build one stream-device descriptor using the handle open direction.

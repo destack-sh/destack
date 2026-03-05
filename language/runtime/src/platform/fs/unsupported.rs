@@ -32,11 +32,11 @@ pub(crate) use crate::platform::fs::simulation::native::*;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_access_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
     mode: AccessMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, mode);
+    let _ = (binding, path, mode);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.accessBytes")).boxed())
 }
 
@@ -58,11 +58,11 @@ pub(crate) unsafe fn destack_fs_access_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_access_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     mode: AccessMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, mode);
+    let _ = (binding, path, mode);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.accessUtf16")).boxed())
 }
 
@@ -84,11 +84,11 @@ pub(crate) unsafe fn destack_fs_access_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chmod_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, mode);
+    let _ = (binding, path, mode);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.chmodBytes")).boxed())
 }
 
@@ -110,11 +110,11 @@ pub(crate) unsafe fn destack_fs_chmod_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chmod_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, mode);
+    let _ = (binding, path, mode);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.chmodUtf16")).boxed())
 }
 
@@ -136,13 +136,13 @@ pub(crate) unsafe fn destack_fs_chmod_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmodat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     mode: FileMode,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, dir, path, mode, flags);
+    let _ = (binding, dir, path, mode, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fchmodatBytes")).boxed())
 }
 
@@ -164,13 +164,13 @@ pub(crate) unsafe fn destack_fs_fchmodat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmodat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     mode: FileMode,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, dir, path, mode, flags);
+    let _ = (binding, dir, path, mode, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fchmodatUtf16")).boxed())
 }
 
@@ -192,12 +192,12 @@ pub(crate) unsafe fn destack_fs_fchmodat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chown_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, uid, gid);
+    let _ = (binding, path, uid, gid);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.chownBytes")).boxed())
 }
 
@@ -219,12 +219,12 @@ pub(crate) unsafe fn destack_fs_chown_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chown_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, uid, gid);
+    let _ = (binding, path, uid, gid);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.chownUtf16")).boxed())
 }
 
@@ -246,14 +246,14 @@ pub(crate) unsafe fn destack_fs_chown_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchownat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     uid: u32,
     gid: u32,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, dir, path, uid, gid, flags);
+    let _ = (binding, dir, path, uid, gid, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fchownatBytes")).boxed())
 }
 
@@ -275,14 +275,14 @@ pub(crate) unsafe fn destack_fs_fchownat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchownat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     uid: u32,
     gid: u32,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, dir, path, uid, gid, flags);
+    let _ = (binding, dir, path, uid, gid, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fchownatUtf16")).boxed())
 }
 
@@ -304,10 +304,10 @@ pub(crate) unsafe fn destack_fs_fchownat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.close")).boxed())
 }
 
@@ -329,10 +329,10 @@ pub(crate) unsafe fn destack_fs_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_closedir(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.closedir")).boxed())
 }
 
@@ -354,12 +354,12 @@ pub(crate) unsafe fn destack_fs_closedir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     from: PathBytes,
     to: PathBytes,
     flags: CopyFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, from, to, flags);
+    let _ = (binding, from, to, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.copyfileBytes")).boxed())
 }
 
@@ -381,12 +381,12 @@ pub(crate) unsafe fn destack_fs_copyfile_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     from: PathUtf16,
     to: PathUtf16,
     flags: CopyFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, from, to, flags);
+    let _ = (binding, from, to, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.copyfileUtf16")).boxed())
 }
 
@@ -408,11 +408,11 @@ pub(crate) unsafe fn destack_fs_copyfile_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmod(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, mode);
+    let _ = (binding, handle, mode);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fchmod")).boxed())
 }
 
@@ -434,12 +434,12 @@ pub(crate) unsafe fn destack_fs_fchmod(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchown(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, uid, gid);
+    let _ = (binding, handle, uid, gid);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fchown")).boxed())
 }
 
@@ -461,10 +461,10 @@ pub(crate) unsafe fn destack_fs_fchown(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fdatasync(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fdatasync")).boxed())
 }
 
@@ -486,11 +486,11 @@ pub(crate) unsafe fn destack_fs_fdatasync(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fstat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut Stat,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fstat")).boxed())
 }
 
@@ -512,11 +512,11 @@ pub(crate) unsafe fn destack_fs_fstat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fstatfs(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut StatFs,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fstatfs")).boxed())
 }
 
@@ -538,10 +538,10 @@ pub(crate) unsafe fn destack_fs_fstatfs(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fsync(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fsync")).boxed())
 }
 
@@ -563,11 +563,11 @@ pub(crate) unsafe fn destack_fs_fsync(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_ftruncate(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     size: FileOffset,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, size);
+    let _ = (binding, handle, size);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.ftruncate")).boxed())
 }
 
@@ -589,12 +589,12 @@ pub(crate) unsafe fn destack_fs_ftruncate(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_futimes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, atimens, mtimens);
+    let _ = (binding, handle, atimens, mtimens);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.futimes")).boxed())
 }
 
@@ -616,11 +616,11 @@ pub(crate) unsafe fn destack_fs_futimes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_link_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     existingpath: PathBytes,
     newpath: PathBytes,
 ) -> RuntimeResult<()> {
-    let _ = (context, existingpath, newpath);
+    let _ = (binding, existingpath, newpath);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.linkBytes")).boxed())
 }
 
@@ -642,11 +642,11 @@ pub(crate) unsafe fn destack_fs_link_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_link_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     existingpath: PathUtf16,
     newpath: PathUtf16,
 ) -> RuntimeResult<()> {
-    let _ = (context, existingpath, newpath);
+    let _ = (binding, existingpath, newpath);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.linkUtf16")).boxed())
 }
 
@@ -668,11 +668,11 @@ pub(crate) unsafe fn destack_fs_link_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lstat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut Stat,
     path: PathBytes,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lstatBytes")).boxed())
 }
 
@@ -694,11 +694,11 @@ pub(crate) unsafe fn destack_fs_lstat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lstat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut Stat,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lstatUtf16")).boxed())
 }
 
@@ -720,12 +720,12 @@ pub(crate) unsafe fn destack_fs_lstat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lutimes_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, atimens, mtimens);
+    let _ = (binding, path, atimens, mtimens);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lutimesBytes")).boxed())
 }
 
@@ -747,12 +747,12 @@ pub(crate) unsafe fn destack_fs_lutimes_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lutimes_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, atimens, mtimens);
+    let _ = (binding, path, atimens, mtimens);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lutimesUtf16")).boxed())
 }
 
@@ -774,14 +774,14 @@ pub(crate) unsafe fn destack_fs_lutimes_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimensat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     atimens: u64,
     mtimens: u64,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, dir, path, atimens, mtimens, flags);
+    let _ = (binding, dir, path, atimens, mtimens, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.utimensatBytes")).boxed())
 }
 
@@ -803,14 +803,14 @@ pub(crate) unsafe fn destack_fs_utimensat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimensat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     atimens: u64,
     mtimens: u64,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, dir, path, atimens, mtimens, flags);
+    let _ = (binding, dir, path, atimens, mtimens, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.utimensatUtf16")).boxed())
 }
 
@@ -832,11 +832,11 @@ pub(crate) unsafe fn destack_fs_utimensat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdtemp_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut PathBytes,
     template: PathBytes,
 ) -> RuntimeResult<()> {
-    let _ = (context, template);
+    let _ = (binding, template);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mkdtempBytes")).boxed())
 }
 
@@ -858,11 +858,11 @@ pub(crate) unsafe fn destack_fs_mkdtemp_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdtemp_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut PathUtf16,
     template: PathUtf16,
 ) -> RuntimeResult<()> {
-    let _ = (context, template);
+    let _ = (binding, template);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mkdtempUtf16")).boxed())
 }
 
@@ -884,13 +884,13 @@ pub(crate) unsafe fn destack_fs_mkdtemp_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_open_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut FileHandle,
     path: PathBytes,
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, flags, mode);
+    let _ = (binding, path, flags, mode);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.openBytes")).boxed())
 }
 
@@ -912,13 +912,13 @@ pub(crate) unsafe fn destack_fs_open_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_open_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut FileHandle,
     path: PathUtf16,
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, flags, mode);
+    let _ = (binding, path, flags, mode);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.openUtf16")).boxed())
 }
 
@@ -940,11 +940,11 @@ pub(crate) unsafe fn destack_fs_open_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_opendir_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut DirectoryHandle,
     path: PathBytes,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.opendirBytes")).boxed())
 }
 
@@ -966,11 +966,11 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_opendir_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut DirectoryHandle,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.opendirUtf16")).boxed())
 }
 
@@ -992,12 +992,12 @@ pub(crate) unsafe fn destack_fs_opendir_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, buffer);
+    let _ = (binding, handle, buffer);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.read")).boxed())
 }
 
@@ -1019,11 +1019,11 @@ pub(crate) unsafe fn destack_fs_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readdir(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut NativeArray<Dirent>,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.readdir")).boxed())
 }
 
@@ -1045,11 +1045,11 @@ pub(crate) unsafe fn destack_fs_readdir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlink_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut PathBytes,
     path: PathBytes,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.readlinkBytes")).boxed())
 }
 
@@ -1071,11 +1071,11 @@ pub(crate) unsafe fn destack_fs_readlink_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlink_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut PathUtf16,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.readlinkUtf16")).boxed())
 }
 
@@ -1097,12 +1097,12 @@ pub(crate) unsafe fn destack_fs_readlink_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readv(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, buffers);
+    let _ = (binding, handle, buffers);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.readv")).boxed())
 }
 
@@ -1124,11 +1124,11 @@ pub(crate) unsafe fn destack_fs_readv(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_realpath_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut PathBytes,
     path: PathBytes,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.realpathBytes")).boxed())
 }
 
@@ -1150,11 +1150,11 @@ pub(crate) unsafe fn destack_fs_realpath_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_realpath_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut PathUtf16,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.realpathUtf16")).boxed())
 }
 
@@ -1176,11 +1176,11 @@ pub(crate) unsafe fn destack_fs_realpath_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rename_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     from: PathBytes,
     to: PathBytes,
 ) -> RuntimeResult<()> {
-    let _ = (context, from, to);
+    let _ = (binding, from, to);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.renameBytes")).boxed())
 }
 
@@ -1202,11 +1202,11 @@ pub(crate) unsafe fn destack_fs_rename_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rename_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     from: PathUtf16,
     to: PathUtf16,
 ) -> RuntimeResult<()> {
-    let _ = (context, from, to);
+    let _ = (binding, from, to);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.renameUtf16")).boxed())
 }
 
@@ -1228,10 +1228,10 @@ pub(crate) unsafe fn destack_fs_rename_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rmdir_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.rmdirBytes")).boxed())
 }
 
@@ -1253,10 +1253,10 @@ pub(crate) unsafe fn destack_fs_rmdir_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rmdir_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.rmdirUtf16")).boxed())
 }
 
@@ -1278,11 +1278,11 @@ pub(crate) unsafe fn destack_fs_rmdir_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_stat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut Stat,
     path: PathBytes,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.statBytes")).boxed())
 }
 
@@ -1304,11 +1304,11 @@ pub(crate) unsafe fn destack_fs_stat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_stat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut Stat,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.statUtf16")).boxed())
 }
 
@@ -1330,11 +1330,11 @@ pub(crate) unsafe fn destack_fs_stat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statfs_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut StatFs,
     path: PathBytes,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.statfsBytes")).boxed())
 }
 
@@ -1356,11 +1356,11 @@ pub(crate) unsafe fn destack_fs_statfs_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statfs_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut StatFs,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.statfsUtf16")).boxed())
 }
 
@@ -1382,12 +1382,12 @@ pub(crate) unsafe fn destack_fs_statfs_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlink_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     target: PathBytes,
     path: PathBytes,
     kind: SymlinkType,
 ) -> RuntimeResult<()> {
-    let _ = (context, target, path, kind);
+    let _ = (binding, target, path, kind);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.symlinkBytes")).boxed())
 }
 
@@ -1409,12 +1409,12 @@ pub(crate) unsafe fn destack_fs_symlink_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlink_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     target: PathUtf16,
     path: PathUtf16,
     kind: SymlinkType,
 ) -> RuntimeResult<()> {
-    let _ = (context, target, path, kind);
+    let _ = (binding, target, path, kind);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.symlinkUtf16")).boxed())
 }
 
@@ -1436,11 +1436,11 @@ pub(crate) unsafe fn destack_fs_symlink_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
     size: FileOffset,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, size);
+    let _ = (binding, path, size);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.truncateBytes")).boxed())
 }
 
@@ -1462,11 +1462,11 @@ pub(crate) unsafe fn destack_fs_truncate_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     size: FileOffset,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, size);
+    let _ = (binding, path, size);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.truncateUtf16")).boxed())
 }
 
@@ -1488,10 +1488,10 @@ pub(crate) unsafe fn destack_fs_truncate_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlink_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.unlinkBytes")).boxed())
 }
 
@@ -1513,10 +1513,10 @@ pub(crate) unsafe fn destack_fs_unlink_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlink_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.unlinkUtf16")).boxed())
 }
 
@@ -1538,12 +1538,12 @@ pub(crate) unsafe fn destack_fs_unlink_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimes_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, atimens, mtimens);
+    let _ = (binding, path, atimens, mtimens);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.utimesBytes")).boxed())
 }
 
@@ -1565,12 +1565,12 @@ pub(crate) unsafe fn destack_fs_utimes_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimes_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, atimens, mtimens);
+    let _ = (binding, path, atimens, mtimens);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.utimesUtf16")).boxed())
 }
 
@@ -1592,12 +1592,12 @@ pub(crate) unsafe fn destack_fs_utimes_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, buffer);
+    let _ = (binding, handle, buffer);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.write")).boxed())
 }
 
@@ -1619,12 +1619,12 @@ pub(crate) unsafe fn destack_fs_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_writev(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, buffers);
+    let _ = (binding, handle, buffers);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.writev")).boxed())
 }
 
@@ -1646,14 +1646,14 @@ pub(crate) unsafe fn destack_fs_writev(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut FileHandle,
     dir: DirectoryHandle,
     path: PathBytes,
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, dir, path, flags, mode);
+    let _ = (binding, dir, path, flags, mode);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.openatBytes")).boxed())
 }
 
@@ -1675,14 +1675,14 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut FileHandle,
     dir: DirectoryHandle,
     path: PathUtf16,
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, dir, path, flags, mode);
+    let _ = (binding, dir, path, flags, mode);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.openatUtf16")).boxed())
 }
 
@@ -1704,13 +1704,13 @@ pub(crate) unsafe fn destack_fs_openat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat2_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut FileHandle,
     dir: DirectoryHandle,
     path: PathBytes,
     how: OpenOptions,
 ) -> RuntimeResult<()> {
-    let _ = (context, dir, path, how);
+    let _ = (binding, dir, path, how);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.openat2Bytes")).boxed())
 }
 
@@ -1732,13 +1732,13 @@ pub(crate) unsafe fn destack_fs_openat2_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat2_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut FileHandle,
     dir: DirectoryHandle,
     path: PathUtf16,
     how: OpenOptions,
 ) -> RuntimeResult<()> {
-    let _ = (context, dir, path, how);
+    let _ = (binding, dir, path, how);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.openat2Utf16")).boxed())
 }
 
@@ -1760,11 +1760,11 @@ pub(crate) unsafe fn destack_fs_openat2_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdir_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, mode);
+    let _ = (binding, path, mode);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mkdirBytes")).boxed())
 }
 
@@ -1786,11 +1786,11 @@ pub(crate) unsafe fn destack_fs_mkdir_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdir_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, mode);
+    let _ = (binding, path, mode);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mkdirUtf16")).boxed())
 }
 
@@ -1812,12 +1812,12 @@ pub(crate) unsafe fn destack_fs_mkdir_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdirat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, dir, path, mode);
+    let _ = (binding, dir, path, mode);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mkdiratBytes")).boxed())
 }
 
@@ -1839,12 +1839,12 @@ pub(crate) unsafe fn destack_fs_mkdirat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdirat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, dir, path, mode);
+    let _ = (binding, dir, path, mode);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mkdiratUtf16")).boxed())
 }
 
@@ -1866,13 +1866,13 @@ pub(crate) unsafe fn destack_fs_mkdirat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: PathBytes,
     to_dir: DirectoryHandle,
     to: PathBytes,
 ) -> RuntimeResult<()> {
-    let _ = (context, from_dir, from, to_dir, to);
+    let _ = (binding, from_dir, from, to_dir, to);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.renameatBytes")).boxed())
 }
 
@@ -1894,13 +1894,13 @@ pub(crate) unsafe fn destack_fs_renameat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: PathUtf16,
     to_dir: DirectoryHandle,
     to: PathUtf16,
 ) -> RuntimeResult<()> {
-    let _ = (context, from_dir, from, to_dir, to);
+    let _ = (binding, from_dir, from, to_dir, to);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.renameatUtf16")).boxed())
 }
 
@@ -1922,14 +1922,14 @@ pub(crate) unsafe fn destack_fs_renameat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat2_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: PathBytes,
     to_dir: DirectoryHandle,
     to: PathBytes,
     flags: RenameFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, from_dir, from, to_dir, to, flags);
+    let _ = (binding, from_dir, from, to_dir, to, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.renameat2Bytes")).boxed())
 }
 
@@ -1951,14 +1951,14 @@ pub(crate) unsafe fn destack_fs_renameat2_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat2_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: PathUtf16,
     to_dir: DirectoryHandle,
     to: PathUtf16,
     flags: RenameFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, from_dir, from, to_dir, to, flags);
+    let _ = (binding, from_dir, from, to_dir, to, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.renameat2Utf16")).boxed())
 }
 
@@ -1980,12 +1980,12 @@ pub(crate) unsafe fn destack_fs_renameat2_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlinkat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, dir, path, flags);
+    let _ = (binding, dir, path, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.unlinkatBytes")).boxed())
 }
 
@@ -2007,12 +2007,12 @@ pub(crate) unsafe fn destack_fs_unlinkat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlinkat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, dir, path, flags);
+    let _ = (binding, dir, path, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.unlinkatUtf16")).boxed())
 }
 
@@ -2034,7 +2034,7 @@ pub(crate) unsafe fn destack_fs_unlinkat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_linkat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     existing_dir: DirectoryHandle,
     existing_path: PathBytes,
     new_dir: DirectoryHandle,
@@ -2042,7 +2042,7 @@ pub(crate) unsafe fn destack_fs_linkat_bytes(
     flags: AtFlags,
 ) -> RuntimeResult<()> {
     let _ = (
-        context,
+        binding,
         existing_dir,
         existing_path,
         new_dir,
@@ -2070,7 +2070,7 @@ pub(crate) unsafe fn destack_fs_linkat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_linkat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     existing_dir: DirectoryHandle,
     existing_path: PathUtf16,
     new_dir: DirectoryHandle,
@@ -2078,7 +2078,7 @@ pub(crate) unsafe fn destack_fs_linkat_utf16(
     flags: AtFlags,
 ) -> RuntimeResult<()> {
     let _ = (
-        context,
+        binding,
         existing_dir,
         existing_path,
         new_dir,
@@ -2106,13 +2106,13 @@ pub(crate) unsafe fn destack_fs_linkat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlinkat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     target: PathBytes,
     dir: DirectoryHandle,
     path: PathBytes,
     kind: SymlinkType,
 ) -> RuntimeResult<()> {
-    let _ = (context, target, dir, path, kind);
+    let _ = (binding, target, dir, path, kind);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.symlinkatBytes")).boxed())
 }
 
@@ -2134,13 +2134,13 @@ pub(crate) unsafe fn destack_fs_symlinkat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlinkat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     target: PathUtf16,
     dir: DirectoryHandle,
     path: PathUtf16,
     kind: SymlinkType,
 ) -> RuntimeResult<()> {
-    let _ = (context, target, dir, path, kind);
+    let _ = (binding, target, dir, path, kind);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.symlinkatUtf16")).boxed())
 }
 
@@ -2162,12 +2162,12 @@ pub(crate) unsafe fn destack_fs_symlinkat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlinkat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut PathBytes,
     dir: DirectoryHandle,
     path: PathBytes,
 ) -> RuntimeResult<()> {
-    let _ = (context, dir, path);
+    let _ = (binding, dir, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.readlinkatBytes")).boxed())
 }
 
@@ -2189,12 +2189,12 @@ pub(crate) unsafe fn destack_fs_readlinkat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlinkat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut PathUtf16,
     dir: DirectoryHandle,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
-    let _ = (context, dir, path);
+    let _ = (binding, dir, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.readlinkatUtf16")).boxed())
 }
 
@@ -2216,13 +2216,13 @@ pub(crate) unsafe fn destack_fs_readlinkat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut Stat,
     dir: DirectoryHandle,
     path: PathBytes,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, dir, path, flags);
+    let _ = (binding, dir, path, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.statatBytes")).boxed())
 }
 
@@ -2244,13 +2244,13 @@ pub(crate) unsafe fn destack_fs_statat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut Stat,
     dir: DirectoryHandle,
     path: PathUtf16,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, dir, path, flags);
+    let _ = (binding, dir, path, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.statatUtf16")).boxed())
 }
 
@@ -2272,11 +2272,11 @@ pub(crate) unsafe fn destack_fs_statat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lock(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     flags: FileLockFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, flags);
+    let _ = (binding, handle, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lock")).boxed())
 }
 
@@ -2298,7 +2298,7 @@ pub(crate) unsafe fn destack_fs_lock(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copy_file_range(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut u64,
     src: FileHandle,
     src_offset: FileOffset,
@@ -2306,7 +2306,7 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
     dst_offset: FileOffset,
     length: FileSize,
 ) -> RuntimeResult<()> {
-    let _ = (context, src, src_offset, dst, dst_offset, length);
+    let _ = (binding, src, src_offset, dst, dst_offset, length);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.copyFileRange")).boxed())
 }
 
@@ -2328,11 +2328,11 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dup(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut FileHandle,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dup")).boxed())
 }
 
@@ -2354,12 +2354,12 @@ pub(crate) unsafe fn destack_fs_dup(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dup2(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut FileHandle,
     handle: FileHandle,
     target: FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, target);
+    let _ = (binding, handle, target);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dup2")).boxed())
 }
 
@@ -2381,13 +2381,13 @@ pub(crate) unsafe fn destack_fs_dup2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dup3(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut FileHandle,
     handle: FileHandle,
     target: FileHandle,
     flags: OpenFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, target, flags);
+    let _ = (binding, handle, target, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dup3")).boxed())
 }
 
@@ -2409,13 +2409,13 @@ pub(crate) unsafe fn destack_fs_dup3(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fadvise(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     offset: FileOffset,
     length: FileSize,
     advice: FileAdvice,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, offset, length, advice);
+    let _ = (binding, handle, offset, length, advice);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fadvise")).boxed())
 }
 
@@ -2437,13 +2437,13 @@ pub(crate) unsafe fn destack_fs_fadvise(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fallocate(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     offset: FileOffset,
     length: FileSize,
     flags: AllocFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, offset, length, flags);
+    let _ = (binding, handle, offset, length, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fallocate")).boxed())
 }
 
@@ -2465,11 +2465,11 @@ pub(crate) unsafe fn destack_fs_fallocate(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_madvise(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     mapping: NativeSlice<u8>,
     advice: MmapAdvice,
 ) -> RuntimeResult<()> {
-    let _ = (context, mapping, advice);
+    let _ = (binding, mapping, advice);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.madvise")).boxed())
 }
 
@@ -2491,13 +2491,13 @@ pub(crate) unsafe fn destack_fs_madvise(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mmap_anonymous(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut NativeSlice<u8>,
     length: FileSize,
     prot: MmapProt,
     flags: MmapFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, length, prot, flags);
+    let _ = (binding, length, prot, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mmapAnonymous")).boxed())
 }
 
@@ -2519,7 +2519,7 @@ pub(crate) unsafe fn destack_fs_mmap_anonymous(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mmap_file(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut NativeSlice<u8>,
     handle: FileHandle,
     offset: FileOffset,
@@ -2527,7 +2527,7 @@ pub(crate) unsafe fn destack_fs_mmap_file(
     prot: MmapProt,
     flags: MmapFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, offset, length, prot, flags);
+    let _ = (binding, handle, offset, length, prot, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mmapFile")).boxed())
 }
 
@@ -2549,11 +2549,11 @@ pub(crate) unsafe fn destack_fs_mmap_file(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mprotect(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     mapping: NativeSlice<u8>,
     prot: MmapProt,
 ) -> RuntimeResult<()> {
-    let _ = (context, mapping, prot);
+    let _ = (binding, mapping, prot);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mprotect")).boxed())
 }
 
@@ -2575,11 +2575,11 @@ pub(crate) unsafe fn destack_fs_mprotect(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_msync(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     mapping: NativeSlice<u8>,
     flags: MmapSyncFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, mapping, flags);
+    let _ = (binding, mapping, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.msync")).boxed())
 }
 
@@ -2601,10 +2601,10 @@ pub(crate) unsafe fn destack_fs_msync(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_munmap(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     mapping: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (context, mapping);
+    let _ = (binding, mapping);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.munmap")).boxed())
 }
 
@@ -2626,13 +2626,13 @@ pub(crate) unsafe fn destack_fs_munmap(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pread(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffer: NativeSlice<u8>,
     offset: FileOffset,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, buffer, offset);
+    let _ = (binding, handle, buffer, offset);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.pread")).boxed())
 }
 
@@ -2654,13 +2654,13 @@ pub(crate) unsafe fn destack_fs_pread(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_preadv(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, buffers, offset);
+    let _ = (binding, handle, buffers, offset);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.preadv")).boxed())
 }
 
@@ -2682,14 +2682,14 @@ pub(crate) unsafe fn destack_fs_preadv(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_preadv2(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
     flags: ReadWriteFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, buffers, offset, flags);
+    let _ = (binding, handle, buffers, offset, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.preadv2")).boxed())
 }
 
@@ -2711,13 +2711,13 @@ pub(crate) unsafe fn destack_fs_preadv2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pwrite(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffer: NativeSlice<u8>,
     offset: FileOffset,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, buffer, offset);
+    let _ = (binding, handle, buffer, offset);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.pwrite")).boxed())
 }
 
@@ -2739,13 +2739,13 @@ pub(crate) unsafe fn destack_fs_pwrite(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pwritev(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, buffers, offset);
+    let _ = (binding, handle, buffers, offset);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.pwritev")).boxed())
 }
 
@@ -2767,14 +2767,14 @@ pub(crate) unsafe fn destack_fs_pwritev(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pwritev2(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
     flags: ReadWriteFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, buffers, offset, flags);
+    let _ = (binding, handle, buffers, offset, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.pwritev2")).boxed())
 }
 
@@ -2796,13 +2796,13 @@ pub(crate) unsafe fn destack_fs_pwritev2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_seek(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut FileOffset,
     handle: FileHandle,
     offset: FileOffset,
     whence: SeekWhence,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, offset, whence);
+    let _ = (binding, handle, offset, whence);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.seek")).boxed())
 }
 
@@ -2824,14 +2824,14 @@ pub(crate) unsafe fn destack_fs_seek(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_sendfile(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut u64,
     socket: SocketHandle,
     file: FileHandle,
     offset: FileOffset,
     length: FileSize,
 ) -> RuntimeResult<()> {
-    let _ = (context, socket, file, offset, length);
+    let _ = (binding, socket, file, offset, length);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.sendfile")).boxed())
 }
 
@@ -2853,7 +2853,7 @@ pub(crate) unsafe fn destack_fs_sendfile(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_splice(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut u64,
     source: ResourceId,
     sourcecursor: SpliceCursor,
@@ -2863,7 +2863,7 @@ pub(crate) unsafe fn destack_fs_splice(
     flags: SpliceFlags,
 ) -> RuntimeResult<()> {
     let _ = (
-        context,
+        binding,
         source,
         sourcecursor,
         target,
@@ -2892,14 +2892,14 @@ pub(crate) unsafe fn destack_fs_splice(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_tee(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut u64,
     sourcepipe: PipeHandle,
     targetpipe: PipeHandle,
     length: FileSize,
     flags: SpliceFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, sourcepipe, targetpipe, length, flags);
+    let _ = (binding, sourcepipe, targetpipe, length, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.tee")).boxed())
 }
 
@@ -2921,13 +2921,13 @@ pub(crate) unsafe fn destack_fs_tee(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_vmsplice(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut u64,
     pipe: PipeHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     flags: SpliceFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, pipe, buffers, flags);
+    let _ = (binding, pipe, buffers, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.vmsplice")).boxed())
 }
 
@@ -2949,13 +2949,13 @@ pub(crate) unsafe fn destack_fs_vmsplice(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_sync_file_range(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     offset: FileOffset,
     length: FileSize,
     flags: SyncFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, offset, length, flags);
+    let _ = (binding, handle, offset, length, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.syncFileRange")).boxed())
 }
 
@@ -2977,12 +2977,12 @@ pub(crate) unsafe fn destack_fs_sync_file_range(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_getxattr_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut NativeArray<u8>,
     path: PathBytes,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, name);
+    let _ = (binding, path, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.getxattrBytes")).boxed())
 }
 
@@ -3004,12 +3004,12 @@ pub(crate) unsafe fn destack_fs_getxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_getxattr_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut NativeArray<u8>,
     path: PathUtf16,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, name);
+    let _ = (binding, path, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.getxattrUtf16")).boxed())
 }
 
@@ -3031,12 +3031,12 @@ pub(crate) unsafe fn destack_fs_getxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut NativeArray<u8>,
     path: PathBytes,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, name);
+    let _ = (binding, path, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lgetxattrBytes")).boxed())
 }
 
@@ -3058,12 +3058,12 @@ pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lgetxattr_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut NativeArray<u8>,
     path: PathUtf16,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, name);
+    let _ = (binding, path, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lgetxattrUtf16")).boxed())
 }
 
@@ -3085,12 +3085,12 @@ pub(crate) unsafe fn destack_fs_lgetxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fgetxattr_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut NativeArray<u8>,
     handle: FileHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, name);
+    let _ = (binding, handle, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fgetxattr")).boxed())
 }
 
@@ -3112,13 +3112,13 @@ pub(crate) unsafe fn destack_fs_fgetxattr_handle(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_setxattr_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
     name: NativeStringRef,
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, name, value, flags);
+    let _ = (binding, path, name, value, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.setxattrBytes")).boxed())
 }
 
@@ -3140,13 +3140,13 @@ pub(crate) unsafe fn destack_fs_setxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_setxattr_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     name: NativeStringRef,
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, name, value, flags);
+    let _ = (binding, path, name, value, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.setxattrUtf16")).boxed())
 }
 
@@ -3168,13 +3168,13 @@ pub(crate) unsafe fn destack_fs_setxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
     name: NativeStringRef,
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, name, value, flags);
+    let _ = (binding, path, name, value, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lsetxattrBytes")).boxed())
 }
 
@@ -3196,13 +3196,13 @@ pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lsetxattr_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     name: NativeStringRef,
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, name, value, flags);
+    let _ = (binding, path, name, value, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lsetxattrUtf16")).boxed())
 }
 
@@ -3224,13 +3224,13 @@ pub(crate) unsafe fn destack_fs_lsetxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fsetxattr_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     name: NativeStringRef,
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, name, value, flags);
+    let _ = (binding, handle, name, value, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fsetxattr")).boxed())
 }
 
@@ -3252,11 +3252,11 @@ pub(crate) unsafe fn destack_fs_fsetxattr_handle(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_listxattr_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut NativeArray<NativeStringRef>,
     path: PathBytes,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.listxattrBytes")).boxed())
 }
 
@@ -3278,11 +3278,11 @@ pub(crate) unsafe fn destack_fs_listxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_listxattr_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut NativeArray<NativeStringRef>,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.listxattrUtf16")).boxed())
 }
 
@@ -3304,11 +3304,11 @@ pub(crate) unsafe fn destack_fs_listxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_llistxattr_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut NativeArray<NativeStringRef>,
     path: PathBytes,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.llistxattrBytes")).boxed())
 }
 
@@ -3330,11 +3330,11 @@ pub(crate) unsafe fn destack_fs_llistxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_llistxattr_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut NativeArray<NativeStringRef>,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
-    let _ = (context, path);
+    let _ = (binding, path);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.llistxattrUtf16")).boxed())
 }
 
@@ -3356,11 +3356,11 @@ pub(crate) unsafe fn destack_fs_llistxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_flistxattr_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut NativeArray<NativeStringRef>,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.flistxattr")).boxed())
 }
 
@@ -3382,11 +3382,11 @@ pub(crate) unsafe fn destack_fs_flistxattr_handle(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_removexattr_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, name);
+    let _ = (binding, path, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.removexattrBytes")).boxed())
 }
 
@@ -3408,11 +3408,11 @@ pub(crate) unsafe fn destack_fs_removexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_removexattr_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, name);
+    let _ = (binding, path, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.removexattrUtf16")).boxed())
 }
 
@@ -3434,11 +3434,11 @@ pub(crate) unsafe fn destack_fs_removexattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, name);
+    let _ = (binding, path, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lremovexattrBytes")).boxed())
 }
 
@@ -3460,11 +3460,11 @@ pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lremovexattr_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (context, path, name);
+    let _ = (binding, path, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lremovexattrUtf16")).boxed())
 }
 
@@ -3486,10 +3486,10 @@ pub(crate) unsafe fn destack_fs_lremovexattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fremovexattr_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, name);
+    let _ = (binding, handle, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fremovexattr")).boxed())
 }

@@ -31,11 +31,11 @@ use crate::platform::crypto::core::write_out_value;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::CryptoStoreHandle,
     options: CryptoStoreOptions,
 ) -> RuntimeResult<()> {
-    let handle = crypto_core::store_open(context, options)?;
+    let handle = crypto_core::store_open(binding, options)?;
     unsafe { write_out_value(out, handle) }
 }
 
@@ -58,10 +58,10 @@ pub(crate) unsafe fn destack_crypto_store_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoStoreHandle,
 ) -> RuntimeResult<()> {
-    crypto_core::store_close(context, handle)
+    crypto_core::store_close(binding, handle)
 }
 
 /// List keys from one store.
@@ -83,12 +83,12 @@ pub(crate) unsafe fn destack_crypto_store_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_list_keys(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CryptoKeyListPage,
     handle: resource::CryptoStoreHandle,
     query: CryptoKeyQuery,
 ) -> RuntimeResult<()> {
-    let page = crypto_core::store_list_keys(context, handle, query)?;
+    let page = crypto_core::store_list_keys(binding, handle, query)?;
     unsafe { write_out_value(out, page) }
 }
 
@@ -111,12 +111,12 @@ pub(crate) unsafe fn destack_crypto_store_list_keys(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_list_certificates(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CryptoCertificateListPage,
     handle: resource::CryptoStoreHandle,
     query: CryptoCertificateQuery,
 ) -> RuntimeResult<()> {
-    let page = crypto_core::store_list_certificates(context, handle, query)?;
+    let page = crypto_core::store_list_certificates(binding, handle, query)?;
     unsafe { write_out_value(out, page) }
 }
 
@@ -137,12 +137,12 @@ pub(crate) unsafe fn destack_crypto_store_list_certificates(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_store_probe_capability(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CryptoStoreCapability,
     kind: CryptoStoreKind,
     provider: CryptoStoreProvider,
 ) -> RuntimeResult<()> {
-    let capability = crypto_core::store_probe_capability(context, kind, provider)?;
+    let capability = crypto_core::store_probe_capability(binding, kind, provider)?;
     unsafe { write_out_value(out, capability) }
 }
 
@@ -163,9 +163,9 @@ pub(crate) unsafe fn destack_crypto_store_probe_capability(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_crypto_store_probe_kinds(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<CryptoStoreKind>,
 ) -> RuntimeResult<()> {
-    let kinds = crypto_core::store_probe_kinds(context)?;
-    unsafe { write_out_value(out, context.store_array(kinds)) }
+    let kinds = crypto_core::store_probe_kinds(binding)?;
+    unsafe { write_out_value(out, binding.store_array(kinds)) }
 }

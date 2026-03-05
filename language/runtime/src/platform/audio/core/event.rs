@@ -53,21 +53,21 @@ pub(crate) struct AudioEventRuntimeState {
 
 /// Return runtime-owned state for audio event routing.
 pub(crate) fn audio_event_runtime_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> Arc<AudioEventRuntimeState> {
-    let runtime_state = context
-        .runtime()
+    let runtime_state = binding
+        .agent()
         .platform_state
         .audio
         .audio_event_runtime_state(AudioEventRuntimeState::default);
-    register_runtime_finalizer(context, &runtime_state);
+    register_runtime_finalizer(binding, &runtime_state);
 
     runtime_state
 }
 
 /// Register one runtime teardown finalizer for audio event routing state.
 fn register_runtime_finalizer(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     runtime_state: &Arc<AudioEventRuntimeState>,
 ) {
     if runtime_state
@@ -78,7 +78,7 @@ fn register_runtime_finalizer(
     }
 
     let runtime_state = Arc::clone(runtime_state);
-    context.runtime().finalizers.register(move || {
+    binding.agent().finalizers.register(move || {
         shutdown_runtime_state(&runtime_state);
     });
 }
@@ -224,16 +224,16 @@ fn has_native_device_subscription(
             continue;
         };
 
-        let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-        if binding.options.backend != backend {
+        let event_binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+        if event_binding.options.backend != backend {
             continue;
         }
 
-        if binding.options.delivery_mode != AudioEventDeliveryMode::NativeOnly {
+        if event_binding.options.delivery_mode != AudioEventDeliveryMode::NativeOnly {
             continue;
         }
 
-        if !tracks_device_events(&binding) {
+        if !tracks_device_events(&event_binding) {
             continue;
         }
 
@@ -323,18 +323,18 @@ fn run_native_only_device_monitor(
 
 /// Refresh one backend device-monitor worker based on active native-only subscriptions.
 pub(crate) fn refresh_backend_device_monitor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     backend: AudioBackend,
 ) -> RuntimeResult<()> {
-    let runtime_state = audio_event_runtime_state(context);
+    let runtime_state = audio_event_runtime_state(binding);
 
     if host::backend_native_device_events_supported(backend) {
         let has_native_bindings =
             !active_native_device_publish_bindings(&runtime_state, backend).is_empty();
         if has_native_bindings {
-            host::start_backend_native_device_events(context, backend)?;
+            host::start_backend_native_device_events(binding, backend)?;
         } else {
-            host::stop_backend_native_device_events(context, backend);
+            host::stop_backend_native_device_events(binding, backend);
         }
     }
 
@@ -354,7 +354,7 @@ pub(crate) fn refresh_backend_device_monitor(
         let stop_signal = Arc::clone(&stop);
         let worker_runtime_state = Arc::clone(&runtime_state);
         let poll_interval_ns = resolved_event_monitor_poll_interval_ns(
-            resolved_default_event_poll_interval_ns(context),
+            resolved_default_event_poll_interval_ns(binding),
         );
         let sleep_interval = Duration::from_nanos(poll_interval_ns);
         let handle = thread::spawn(move || {
@@ -403,10 +403,10 @@ pub(crate) fn publish_device_snapshot_native(
 
 /// Register one opened event binding for native event delivery.
 pub(crate) fn register_event_binding(
-    context: &BindingCallContext,
+    binding_2: &BindingCallContext,
     binding: &Arc<Mutex<AudioEventBinding>>,
 ) {
-    let runtime_state = audio_event_runtime_state(context);
+    let runtime_state = audio_event_runtime_state(binding_2);
     let mut registry = event_binding_registry(&runtime_state)
         .lock()
         .unwrap_or_else(|error| error.into_inner());
@@ -415,10 +415,10 @@ pub(crate) fn register_event_binding(
 
 /// Unregister one closed event binding from native event delivery.
 pub(crate) fn unregister_event_binding(
-    context: &BindingCallContext,
+    binding_2: &BindingCallContext,
     binding: &Arc<Mutex<AudioEventBinding>>,
 ) {
-    let runtime_state = audio_event_runtime_state(context);
+    let runtime_state = audio_event_runtime_state(binding_2);
     let binding_identity = Arc::as_ptr(binding) as usize;
     let mut registry = event_binding_registry(&runtime_state)
         .lock()
@@ -435,11 +435,11 @@ pub(crate) fn unregister_event_binding(
 
 /// Register one opened stream binding for native event delivery.
 pub(crate) fn register_stream_binding_handle(
-    context: &BindingCallContext,
+    binding_2: &BindingCallContext,
     binding: &Arc<AudioStreamBinding>,
     handle: resource::AudioStreamHandle,
 ) {
-    let runtime_state = audio_event_runtime_state(context);
+    let runtime_state = audio_event_runtime_state(binding_2);
     binding
         .stream_handle_raw
         .store(handle.0.0, Ordering::Release);
@@ -640,7 +640,7 @@ fn monitor_snapshot(backend: AudioBackend) -> RuntimeResult<MonitorSnapshot> {
 
 /// Normalize one event subscription options payload.
 pub(crate) fn normalize_event_subscription_options(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     mut options: AudioEventSubscriptionOptions,
     operation: &'static str,
 ) -> RuntimeResult<AudioEventSubscriptionOptions> {
@@ -697,7 +697,7 @@ pub(crate) fn normalize_event_subscription_options(
 
     // ensure the stream target exists and matches the selected backend
     if let Some(stream_handle) = options.stream {
-        let stream = resolve_stream_binding(context, stream_handle, operation)?;
+        let stream = resolve_stream_binding(binding, stream_handle, operation)?;
         if stream.device.backend != backend {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "options.backend",
@@ -712,10 +712,10 @@ pub(crate) fn normalize_event_subscription_options(
 
     // normalize queue and polling values
     if options.queue_capacity == 0 {
-        options.queue_capacity = resolved_default_event_queue_capacity(context);
+        options.queue_capacity = resolved_default_event_queue_capacity(binding);
     }
     if options.poll_interval_ns == 0 {
-        options.poll_interval_ns = resolved_default_event_poll_interval_ns(context);
+        options.poll_interval_ns = resolved_default_event_poll_interval_ns(binding);
     }
     options.poll_interval_ns = options
         .poll_interval_ns
@@ -726,7 +726,7 @@ pub(crate) fn normalize_event_subscription_options(
 
 /// Build one event binding with seeded baseline state.
 pub(crate) fn build_event_binding(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     options: AudioEventSubscriptionOptions,
 ) -> RuntimeResult<AudioEventBinding> {
     let snapshot = monitor_snapshot(options.backend)?;
@@ -737,7 +737,7 @@ pub(crate) fn build_event_binding(
 
     // seed stream baseline so first refresh only reports true deltas
     if let Some(stream_handle) = options.stream {
-        let stream = resolve_stream_binding(context, stream_handle, "destack.audio.event.open")?;
+        let stream = resolve_stream_binding(binding, stream_handle, "destack.audio.event.open")?;
         let state = stream_state_snapshot(&stream);
         previous_stream_state = Some(state.state);
         previous_stream_device_id = Some(stream.device.id.clone());
@@ -978,7 +978,7 @@ fn refresh_device_events_from_snapshot(
 
 /// Refresh pending events for one monitor binding.
 pub(crate) fn refresh_event_queue(
-    context: &BindingCallContext,
+    binding_2: &BindingCallContext,
     binding: &mut AudioEventBinding,
 ) -> RuntimeResult<()> {
     let now = host_monotonic_nanos();
@@ -1000,7 +1000,7 @@ pub(crate) fn refresh_event_queue(
             .stream
             .expect("stream tracking requires stream");
         let stream_result =
-            resolve_stream_binding(context, stream_handle, "destack.audio.event.read");
+            resolve_stream_binding(binding_2, stream_handle, "destack.audio.event.read");
 
         match stream_result {
             Ok(stream) => {
@@ -1135,22 +1135,22 @@ pub(crate) fn refresh_event_queue(
 
 /// Refresh one event queue according to selected delivery mode.
 pub(crate) fn refresh_event_queue_for_delivery_mode(
-    context: &BindingCallContext,
+    binding_2: &BindingCallContext,
     binding: &mut AudioEventBinding,
 ) -> RuntimeResult<()> {
     if binding.options.delivery_mode == AudioEventDeliveryMode::NativeOnly {
         return Ok(());
     }
 
-    refresh_event_queue(context, binding)
+    refresh_event_queue(binding_2, binding)
 }
 
 /// Force one immediate refresh pass for device subscriptions on one backend.
 pub(crate) fn refresh_device_subscriptions_for_rescan(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     backend: AudioBackend,
 ) -> RuntimeResult<()> {
-    let runtime_state = audio_event_runtime_state(context);
+    let runtime_state = audio_event_runtime_state(binding);
     let active_bindings = {
         let mut registry = event_binding_registry(&runtime_state)
             .lock()
@@ -1177,7 +1177,7 @@ pub(crate) fn refresh_device_subscriptions_for_rescan(
         }
 
         active_binding.last_refresh_ns = 0;
-        refresh_event_queue(context, &mut active_binding)?;
+        refresh_event_queue(binding, &mut active_binding)?;
     }
 
     Ok(())
@@ -1196,7 +1196,7 @@ fn event_subscription_enabled(
 }
 
 /// Convert one stored event record into an ABI event payload.
-pub(crate) fn abi_event(context: &BindingCallContext, event: AudioEventRecord) -> AudioEvent {
+pub(crate) fn abi_event(binding: &BindingCallContext, event: AudioEventRecord) -> AudioEvent {
     let metadata = AudioEventMetadata {
         timestamp_ns: event.timestamp_ns,
         sequence: event.sequence,
@@ -1208,13 +1208,13 @@ pub(crate) fn abi_event(context: &BindingCallContext, event: AudioEventRecord) -
     let device_id = if event.device_id.is_empty() {
         None
     } else {
-        Some(context.store_string(&event.device_id))
+        Some(binding.store_string(&event.device_id))
     };
 
     match event.kind {
         AudioEventKind::BackendDisconnected => {
             AudioEvent::AudioBackendDisconnectedEvent(AudioBackendDisconnectedEvent {
-                kind: context.store_string("backendDisconnected"),
+                kind: binding.store_string("backendDisconnected"),
                 metadata,
                 payload: AudioBackendDisconnectedPayload {
                     stream: event.stream,
@@ -1223,7 +1223,7 @@ pub(crate) fn abi_event(context: &BindingCallContext, event: AudioEventRecord) -
         }
         AudioEventKind::BackendReset => {
             AudioEvent::AudioBackendResetEvent(AudioBackendResetEvent {
-                kind: context.store_string("backendReset"),
+                kind: binding.store_string("backendReset"),
                 metadata,
                 payload: AudioBackendResetPayload {
                     stream: event.stream,
@@ -1232,54 +1232,54 @@ pub(crate) fn abi_event(context: &BindingCallContext, event: AudioEventRecord) -
         }
         AudioEventKind::DefaultCaptureChanged => {
             AudioEvent::AudioDefaultCaptureChangedEvent(AudioDefaultCaptureChangedEvent {
-                kind: context.store_string("defaultCaptureChanged"),
+                kind: binding.store_string("defaultCaptureChanged"),
                 metadata,
                 payload: AudioDefaultCaptureChangedPayload { device_id },
             })
         }
         AudioEventKind::DefaultLoopbackChanged => {
             AudioEvent::AudioDefaultLoopbackChangedEvent(AudioDefaultLoopbackChangedEvent {
-                kind: context.store_string("defaultLoopbackChanged"),
+                kind: binding.store_string("defaultLoopbackChanged"),
                 metadata,
                 payload: AudioDefaultLoopbackChangedPayload { device_id },
             })
         }
         AudioEventKind::DefaultPlaybackChanged => {
             AudioEvent::AudioDefaultPlaybackChangedEvent(AudioDefaultPlaybackChangedEvent {
-                kind: context.store_string("defaultPlaybackChanged"),
+                kind: binding.store_string("defaultPlaybackChanged"),
                 metadata,
                 payload: AudioDefaultPlaybackChangedPayload { device_id },
             })
         }
         AudioEventKind::DeviceAdded => AudioEvent::AudioDeviceAddedEvent(AudioDeviceAddedEvent {
-            kind: context.store_string("deviceAdded"),
+            kind: binding.store_string("deviceAdded"),
             metadata,
             payload: AudioDeviceAddedPayload { device_id },
         }),
         AudioEventKind::DeviceFormatChanged => {
             AudioEvent::AudioDeviceFormatChangedEvent(AudioDeviceFormatChangedEvent {
-                kind: context.store_string("deviceFormatChanged"),
+                kind: binding.store_string("deviceFormatChanged"),
                 metadata,
                 payload: AudioDeviceFormatChangedPayload { device_id },
             })
         }
         AudioEventKind::DeviceRemoved => {
             AudioEvent::AudioDeviceRemovedEvent(AudioDeviceRemovedEvent {
-                kind: context.store_string("deviceRemoved"),
+                kind: binding.store_string("deviceRemoved"),
                 metadata,
                 payload: AudioDeviceRemovedPayload { device_id },
             })
         }
         AudioEventKind::DeviceRerouted => {
             AudioEvent::AudioDeviceReroutedEvent(AudioDeviceReroutedEvent {
-                kind: context.store_string("deviceRerouted"),
+                kind: binding.store_string("deviceRerouted"),
                 metadata,
                 payload: AudioDeviceReroutedPayload { device_id },
             })
         }
         AudioEventKind::InterruptionBegan => {
             AudioEvent::AudioInterruptionBeganEvent(AudioInterruptionBeganEvent {
-                kind: context.store_string("interruptionBegan"),
+                kind: binding.store_string("interruptionBegan"),
                 metadata,
                 payload: AudioInterruptionBeganPayload {
                     stream: event.stream,
@@ -1288,7 +1288,7 @@ pub(crate) fn abi_event(context: &BindingCallContext, event: AudioEventRecord) -
         }
         AudioEventKind::InterruptionEnded => {
             AudioEvent::AudioInterruptionEndedEvent(AudioInterruptionEndedEvent {
-                kind: context.store_string("interruptionEnded"),
+                kind: binding.store_string("interruptionEnded"),
                 metadata,
                 payload: AudioInterruptionEndedPayload {
                     stream: event.stream,
@@ -1297,7 +1297,7 @@ pub(crate) fn abi_event(context: &BindingCallContext, event: AudioEventRecord) -
         }
         AudioEventKind::StreamDeviceChanged => {
             AudioEvent::AudioStreamDeviceChangedEvent(AudioStreamDeviceChangedEvent {
-                kind: context.store_string("streamDeviceChanged"),
+                kind: binding.store_string("streamDeviceChanged"),
                 metadata,
                 payload: AudioStreamDeviceChangedPayload {
                     stream: event.stream,
@@ -1308,7 +1308,7 @@ pub(crate) fn abi_event(context: &BindingCallContext, event: AudioEventRecord) -
         }
         AudioEventKind::StreamStateChanged => {
             AudioEvent::AudioStreamStateChangedEvent(AudioStreamStateChangedEvent {
-                kind: context.store_string("streamStateChanged"),
+                kind: binding.store_string("streamStateChanged"),
                 metadata,
                 payload: AudioStreamStateChangedPayload {
                     stream: event.stream,
@@ -1317,7 +1317,7 @@ pub(crate) fn abi_event(context: &BindingCallContext, event: AudioEventRecord) -
             })
         }
         AudioEventKind::StreamXRun => AudioEvent::AudioStreamXRunEvent(AudioStreamXRunEvent {
-            kind: context.store_string("streamXRun"),
+            kind: binding.store_string("streamXRun"),
             metadata,
             payload: AudioStreamXRunPayload {
                 stream: event.stream,
@@ -1384,31 +1384,31 @@ mod tests {
 
     #[test]
     fn test_event_overflow_policy_error_reports_io_busy() {
-        let mut binding = test_binding(AudioEventOverflowPolicy::Error, 1);
-        push_event_record(&mut binding, test_record());
-        push_event_record(&mut binding, test_record());
+        let mut event_binding = test_binding(AudioEventOverflowPolicy::Error, 1);
+        push_event_record(&mut event_binding, test_record());
+        push_event_record(&mut event_binding, test_record());
 
-        let error = take_event_overflow_error(&mut binding, "destack.audio.event.tryRead")
+        let error = take_event_overflow_error(&mut event_binding, "destack.audio.event.tryRead")
             .expect_err("overflow policy error should report queued overflow");
         let code = error.platform_error().map(|platform| platform.code);
         assert_eq!(code, Some(PlatformErrorCode::IoBusy));
 
-        take_event_overflow_error(&mut binding, "destack.audio.event.tryRead")
+        take_event_overflow_error(&mut event_binding, "destack.audio.event.tryRead")
             .expect("overflow error should be cleared after one report");
     }
 
     #[test]
     fn test_event_overflow_drop_oldest_keeps_monotonic_sequence_and_drop_count() {
-        let mut binding = test_binding(AudioEventOverflowPolicy::DropOldest, 2);
+        let mut event_binding = test_binding(AudioEventOverflowPolicy::DropOldest, 2);
         for _ in 0..5 {
-            push_event_record(&mut binding, test_record());
+            push_event_record(&mut event_binding, test_record());
         }
 
-        assert_eq!(binding.pending.len(), 2);
-        assert_eq!(binding.dropped_count, 3);
-        assert!(!binding.overflow_error_pending);
+        assert_eq!(event_binding.pending.len(), 2);
+        assert_eq!(event_binding.dropped_count, 3);
+        assert!(!event_binding.overflow_error_pending);
 
-        let events = binding.pending.iter().collect::<Vec<_>>();
+        let events = event_binding.pending.iter().collect::<Vec<_>>();
         assert_eq!(events[0].sequence, 4);
         assert_eq!(events[1].sequence, 5);
         assert_eq!(events[0].dropped_count, 2);
@@ -1419,17 +1419,17 @@ mod tests {
 
     #[test]
     fn test_event_overflow_drop_newest_preserves_existing_queue_order() {
-        let mut binding = test_binding(AudioEventOverflowPolicy::DropNewest, 2);
+        let mut event_binding = test_binding(AudioEventOverflowPolicy::DropNewest, 2);
         for _ in 0..5 {
-            push_event_record(&mut binding, test_record());
+            push_event_record(&mut event_binding, test_record());
         }
 
-        assert_eq!(binding.pending.len(), 2);
-        assert_eq!(binding.dropped_count, 3);
-        assert!(!binding.overflow_error_pending);
-        assert_eq!(binding.next_sequence, 3);
+        assert_eq!(event_binding.pending.len(), 2);
+        assert_eq!(event_binding.dropped_count, 3);
+        assert!(!event_binding.overflow_error_pending);
+        assert_eq!(event_binding.next_sequence, 3);
 
-        let events = binding.pending.iter().collect::<Vec<_>>();
+        let events = event_binding.pending.iter().collect::<Vec<_>>();
         assert_eq!(events[0].sequence, 1);
         assert_eq!(events[1].sequence, 2);
         assert_eq!(events[0].dropped_count, 0);
@@ -1438,29 +1438,30 @@ mod tests {
 
     #[test]
     fn test_event_overflow_error_keeps_existing_queue_and_latches_once() {
-        let mut binding = test_binding(AudioEventOverflowPolicy::Error, 2);
+        let mut event_binding = test_binding(AudioEventOverflowPolicy::Error, 2);
         for _ in 0..3 {
-            push_event_record(&mut binding, test_record());
+            push_event_record(&mut event_binding, test_record());
         }
 
-        assert_eq!(binding.pending.len(), 2);
+        assert_eq!(event_binding.pending.len(), 2);
         assert_eq!(binding.dropped_count, 1);
-        assert!(binding.overflow_error_pending);
+        assert!(event_binding.overflow_error_pending);
 
-        let events = binding.pending.iter().collect::<Vec<_>>();
+        let events = event_binding.pending.iter().collect::<Vec<_>>();
         assert_eq!(events[0].sequence, 1);
         assert_eq!(events[1].sequence, 2);
         assert_eq!(events[0].dropped_count, 0);
         assert_eq!(events[1].dropped_count, 0);
 
-        let first_error = take_event_overflow_error(&mut binding, "destack.audio.event.tryRead");
+        let first_error =
+            take_event_overflow_error(&mut event_binding, "destack.audio.event.tryRead");
         let first_error = first_error.expect_err("overflow policy should latch one ioBusy report");
         assert_eq!(
             first_error.platform_error().map(|platform| platform.code),
             Some(PlatformErrorCode::IoBusy),
         );
 
-        take_event_overflow_error(&mut binding, "destack.audio.event.tryRead")
+        take_event_overflow_error(&mut event_binding, "destack.audio.event.tryRead")
             .expect("overflow latch should clear after one report");
     }
 

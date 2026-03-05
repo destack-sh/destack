@@ -41,10 +41,10 @@ use crate::platform::resource;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_monitor_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.close",
@@ -70,7 +70,7 @@ pub(crate) unsafe fn destack_display_monitor_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_monitor_closest_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
     requested: DisplayMode,
@@ -78,7 +78,7 @@ pub(crate) unsafe fn destack_display_monitor_closest_mode(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, requested);
+    let _ = (binding, out, handle, requested);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.closestMode",
@@ -103,14 +103,14 @@ pub(crate) unsafe fn destack_display_monitor_closest_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_monitor_current_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.currentMode",
@@ -135,14 +135,14 @@ pub(crate) unsafe fn destack_display_monitor_current_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_monitor_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayDescriptor,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.descriptor",
@@ -168,14 +168,14 @@ pub(crate) unsafe fn destack_display_monitor_descriptor(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_monitor_desktop_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.desktopMode",
@@ -200,10 +200,10 @@ pub(crate) unsafe fn destack_display_monitor_desktop_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_monitor_event_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.eventClose",
@@ -230,14 +230,14 @@ pub(crate) unsafe fn destack_display_monitor_event_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_monitor_event_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::DisplayEventHandle,
     options: DisplayMonitorEventOpenOptions,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, options);
+    let _ = (binding, out, options);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.eventOpen",
@@ -262,7 +262,7 @@ pub(crate) unsafe fn destack_display_monitor_event_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_monitor_event_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayMonitorEvent,
     handle: resource::DisplayEventHandle,
     timeoutns: u64,
@@ -270,7 +270,7 @@ pub(crate) unsafe fn destack_display_monitor_event_read(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, timeoutns);
+    let _ = (binding, out, handle, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.eventRead",
@@ -295,7 +295,7 @@ pub(crate) unsafe fn destack_display_monitor_event_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_monitor_event_read_batch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<DisplayMonitorEvent>,
     handle: resource::DisplayEventHandle,
     maxevents: u32,
@@ -304,7 +304,7 @@ pub(crate) unsafe fn destack_display_monitor_event_read_batch(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, maxevents, timeoutns);
+    let _ = (binding, out, handle, maxevents, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.eventReadBatch",
@@ -330,14 +330,14 @@ pub(crate) unsafe fn destack_display_monitor_event_read_batch(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_monitor_event_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayMonitorEvent,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.eventTryRead",
@@ -362,7 +362,7 @@ pub(crate) unsafe fn destack_display_monitor_event_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_monitor_event_try_read_batch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<DisplayMonitorEvent>,
     handle: resource::DisplayEventHandle,
     maxevents: u32,
@@ -370,7 +370,7 @@ pub(crate) unsafe fn destack_display_monitor_event_try_read_batch(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, maxevents);
+    let _ = (binding, out, handle, maxevents);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.eventTryReadBatch",
@@ -396,14 +396,14 @@ pub(crate) unsafe fn destack_display_monitor_event_try_read_batch(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_monitor_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<DisplayDescriptor>,
     request: DisplayMonitorListRequest,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, request);
+    let _ = (binding, out, request);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.monitor.list")).boxed())
 }
@@ -426,14 +426,14 @@ pub(crate) unsafe fn destack_display_monitor_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_monitor_modes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<DisplayMode>,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.modes",
@@ -459,7 +459,7 @@ pub(crate) unsafe fn destack_display_monitor_modes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_monitor_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::DisplayHandle,
     id: NativeStringRef,
     options: DisplayMonitorOpenOptions,
@@ -467,7 +467,7 @@ pub(crate) unsafe fn destack_display_monitor_open(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, id, options);
+    let _ = (binding, out, id, options);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.monitor.open")).boxed())
 }
@@ -490,14 +490,14 @@ pub(crate) unsafe fn destack_display_monitor_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_monitor_primary(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Option<resource::DisplayHandle>,
     request: DisplayMonitorListRequest,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, request);
+    let _ = (binding, out, request);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.primary",
@@ -523,11 +523,11 @@ pub(crate) unsafe fn destack_display_monitor_primary(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_display_monitor_set_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DisplayHandle,
     mode: DisplayMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, mode);
+    let _ = (binding, handle, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.setMode",
@@ -537,14 +537,14 @@ pub(crate) unsafe fn destack_display_monitor_set_mode(
 
 /// Read display color state.
 pub(crate) unsafe fn destack_display_monitor_color_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayColorState,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.colorState",
@@ -554,14 +554,14 @@ pub(crate) unsafe fn destack_display_monitor_color_state(
 
 /// Read display HDR mode.
 pub(crate) unsafe fn destack_display_monitor_hdr_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayHdrMode,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.hdrMode",
@@ -571,11 +571,11 @@ pub(crate) unsafe fn destack_display_monitor_hdr_mode(
 
 /// Set display HDR mode.
 pub(crate) unsafe fn destack_display_monitor_set_hdr_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DisplayHandle,
     mode: DisplayHdrMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, mode);
+    let _ = (binding, handle, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.setHdrMode",
@@ -585,14 +585,14 @@ pub(crate) unsafe fn destack_display_monitor_set_hdr_mode(
 
 /// Read display gamma ramp.
 pub(crate) unsafe fn destack_display_monitor_gamma_ramp(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayGammaRamp,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.gammaRamp",
@@ -602,11 +602,11 @@ pub(crate) unsafe fn destack_display_monitor_gamma_ramp(
 
 /// Set display gamma ramp.
 pub(crate) unsafe fn destack_display_monitor_set_gamma_ramp(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DisplayHandle,
     ramp: DisplayGammaRamp,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, ramp);
+    let _ = (binding, handle, ramp);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.setGammaRamp",
@@ -631,10 +631,10 @@ pub(crate) unsafe fn destack_display_monitor_set_gamma_ramp(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, window);
+    let _ = (binding, window);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.close")).boxed())
 }
@@ -656,14 +656,14 @@ pub(crate) unsafe fn destack_display_window_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut WindowDescriptor,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, window);
+    let _ = (binding, out, window);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.descriptor",
@@ -688,10 +688,10 @@ pub(crate) unsafe fn destack_display_window_descriptor(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_event_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::WindowEventHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.eventClose",
@@ -718,14 +718,14 @@ pub(crate) unsafe fn destack_display_window_event_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_event_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::WindowEventHandle,
     options: WindowEventOpenOptions,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, options);
+    let _ = (binding, out, options);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.eventOpen",
@@ -750,7 +750,7 @@ pub(crate) unsafe fn destack_display_window_event_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_event_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut WindowEvent,
     handle: resource::WindowEventHandle,
     timeoutns: u64,
@@ -758,7 +758,7 @@ pub(crate) unsafe fn destack_display_window_event_read(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, timeoutns);
+    let _ = (binding, out, handle, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.eventRead",
@@ -783,7 +783,7 @@ pub(crate) unsafe fn destack_display_window_event_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_event_read_batch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<WindowEvent>,
     handle: resource::WindowEventHandle,
     maxevents: u32,
@@ -792,7 +792,7 @@ pub(crate) unsafe fn destack_display_window_event_read_batch(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, maxevents, timeoutns);
+    let _ = (binding, out, handle, maxevents, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.eventReadBatch",
@@ -818,14 +818,14 @@ pub(crate) unsafe fn destack_display_window_event_read_batch(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_event_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut WindowEvent,
     handle: resource::WindowEventHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.eventTryRead",
@@ -850,7 +850,7 @@ pub(crate) unsafe fn destack_display_window_event_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_event_try_read_batch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<WindowEvent>,
     handle: resource::WindowEventHandle,
     maxevents: u32,
@@ -858,7 +858,7 @@ pub(crate) unsafe fn destack_display_window_event_try_read_batch(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, maxevents);
+    let _ = (binding, out, handle, maxevents);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.eventTryReadBatch",
@@ -884,14 +884,14 @@ pub(crate) unsafe fn destack_display_window_event_try_read_batch(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::WindowHandle,
     options: WindowOptions,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, options);
+    let _ = (binding, out, options);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.open")).boxed())
 }
@@ -913,11 +913,11 @@ pub(crate) unsafe fn destack_display_window_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_request_attention(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     level: WindowAttentionLevel,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, level);
+    let _ = (binding, window, level);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.requestAttention",
@@ -942,10 +942,10 @@ pub(crate) unsafe fn destack_display_window_request_attention(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_request_refresh(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, window);
+    let _ = (binding, window);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.requestRefresh",
@@ -970,11 +970,11 @@ pub(crate) unsafe fn destack_display_window_request_refresh(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_set_always_on_top(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     alwaysontop: bool,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, alwaysontop);
+    let _ = (binding, window, alwaysontop);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setAlwaysOnTop",
@@ -999,11 +999,11 @@ pub(crate) unsafe fn destack_display_window_set_always_on_top(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_set_cursor_icon(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     icon: WindowCursorIcon,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, icon);
+    let _ = (binding, window, icon);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setCursorIcon",
@@ -1028,11 +1028,11 @@ pub(crate) unsafe fn destack_display_window_set_cursor_icon(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_set_cursor_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     mode: WindowCursorMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, mode);
+    let _ = (binding, window, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setCursorMode",
@@ -1057,11 +1057,11 @@ pub(crate) unsafe fn destack_display_window_set_cursor_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_set_cursor_position(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     position: WindowPosition,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, position);
+    let _ = (binding, window, position);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setCursorPosition",
@@ -1086,11 +1086,11 @@ pub(crate) unsafe fn destack_display_window_set_cursor_position(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_set_cursor_visible(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     visible: bool,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, visible);
+    let _ = (binding, window, visible);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setCursorVisible",
@@ -1115,11 +1115,11 @@ pub(crate) unsafe fn destack_display_window_set_cursor_visible(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_set_decorated(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     decorated: bool,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, decorated);
+    let _ = (binding, window, decorated);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setDecorated",
@@ -1144,11 +1144,11 @@ pub(crate) unsafe fn destack_display_window_set_decorated(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_set_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     mode: WindowModeOptions,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, mode);
+    let _ = (binding, window, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setMode",
@@ -1158,11 +1158,11 @@ pub(crate) unsafe fn destack_display_window_set_mode(
 
 /// Set one window aspect ratio lock.
 pub(crate) unsafe fn destack_display_window_set_aspect_ratio(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     aspectratio: Option<WindowAspectRatio>,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, aspectratio);
+    let _ = (binding, window, aspectratio);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setAspectRatio",
@@ -1172,11 +1172,11 @@ pub(crate) unsafe fn destack_display_window_set_aspect_ratio(
 
 /// Set one window chrome kind.
 pub(crate) unsafe fn destack_display_window_set_chrome(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     chrome: WindowChromeKind,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, chrome);
+    let _ = (binding, window, chrome);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setChrome",
@@ -1201,11 +1201,11 @@ pub(crate) unsafe fn destack_display_window_set_chrome(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_set_position(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     position: WindowPosition,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, position);
+    let _ = (binding, window, position);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setPosition",
@@ -1230,11 +1230,11 @@ pub(crate) unsafe fn destack_display_window_set_position(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_set_resizable(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     resizable: bool,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, resizable);
+    let _ = (binding, window, resizable);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setResizable",
@@ -1259,11 +1259,11 @@ pub(crate) unsafe fn destack_display_window_set_resizable(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_set_size_logical(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     size: WindowLogicalSize,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, size);
+    let _ = (binding, window, size);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setSize",
@@ -1289,11 +1289,11 @@ pub(crate) unsafe fn destack_display_window_set_size_logical(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_set_size_constraints(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     constraints: Option<WindowSizeConstraints>,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, constraints);
+    let _ = (binding, window, constraints);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setSizeConstraints",
@@ -1318,11 +1318,11 @@ pub(crate) unsafe fn destack_display_window_set_size_constraints(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_set_size_physical(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     size: WindowPhysicalSize,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, size);
+    let _ = (binding, window, size);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setSizePhysical",
@@ -1347,11 +1347,11 @@ pub(crate) unsafe fn destack_display_window_set_size_physical(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_set_title(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     title: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, title);
+    let _ = (binding, window, title);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setTitle",
@@ -1361,11 +1361,11 @@ pub(crate) unsafe fn destack_display_window_set_title(
 
 /// Set one window icon set.
 pub(crate) unsafe fn destack_display_window_set_icons(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     icons: Option<WindowIconSet>,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, icons);
+    let _ = (binding, window, icons);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setIcons",
@@ -1375,11 +1375,11 @@ pub(crate) unsafe fn destack_display_window_set_icons(
 
 /// Set one window modal state.
 pub(crate) unsafe fn destack_display_window_set_modal(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     modal: bool,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, modal);
+    let _ = (binding, window, modal);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setModal",
@@ -1389,11 +1389,11 @@ pub(crate) unsafe fn destack_display_window_set_modal(
 
 /// Set one window mouse passthrough state.
 pub(crate) unsafe fn destack_display_window_set_mouse_passthrough(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     passthrough: bool,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, passthrough);
+    let _ = (binding, window, passthrough);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setMousePassthrough",
@@ -1403,11 +1403,11 @@ pub(crate) unsafe fn destack_display_window_set_mouse_passthrough(
 
 /// Set one window opacity.
 pub(crate) unsafe fn destack_display_window_set_opacity(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     opacity: f64,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, opacity);
+    let _ = (binding, window, opacity);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setOpacity",
@@ -1417,14 +1417,14 @@ pub(crate) unsafe fn destack_display_window_set_opacity(
 
 /// Read one window opacity.
 pub(crate) unsafe fn destack_display_window_opacity(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut f64,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, window);
+    let _ = (binding, out, window);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.opacity",
@@ -1434,30 +1434,30 @@ pub(crate) unsafe fn destack_display_window_opacity(
 
 /// Focus one window.
 pub(crate) unsafe fn destack_display_window_focus(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, window);
+    let _ = (binding, window);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.focus")).boxed())
 }
 
 /// Raise one window.
 pub(crate) unsafe fn destack_display_window_raise(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, window);
+    let _ = (binding, window);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.raise")).boxed())
 }
 
 /// Minimize one window.
 pub(crate) unsafe fn destack_display_window_minimize(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, window);
+    let _ = (binding, window);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.minimize",
@@ -1467,10 +1467,10 @@ pub(crate) unsafe fn destack_display_window_minimize(
 
 /// Maximize one window.
 pub(crate) unsafe fn destack_display_window_maximize(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, window);
+    let _ = (binding, window);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.maximize",
@@ -1480,10 +1480,10 @@ pub(crate) unsafe fn destack_display_window_maximize(
 
 /// Restore one window.
 pub(crate) unsafe fn destack_display_window_restore(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, window);
+    let _ = (binding, window);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.restore",
@@ -1493,11 +1493,11 @@ pub(crate) unsafe fn destack_display_window_restore(
 
 /// Set one window parent relationship.
 pub(crate) unsafe fn destack_display_window_set_parent(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     parent: Option<resource::WindowHandle>,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, parent);
+    let _ = (binding, window, parent);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setParent",
@@ -1507,11 +1507,11 @@ pub(crate) unsafe fn destack_display_window_set_parent(
 
 /// Set one window transient relationship.
 pub(crate) unsafe fn destack_display_window_set_transient_for(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     transientfor: Option<resource::WindowHandle>,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, transientfor);
+    let _ = (binding, window, transientfor);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setTransientFor",
@@ -1521,11 +1521,11 @@ pub(crate) unsafe fn destack_display_window_set_transient_for(
 
 /// Set one window taskbar visibility.
 pub(crate) unsafe fn destack_display_window_set_taskbar_visible(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     visible: bool,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, visible);
+    let _ = (binding, window, visible);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setTaskbarVisible",
@@ -1535,10 +1535,10 @@ pub(crate) unsafe fn destack_display_window_set_taskbar_visible(
 
 /// Begin one native move-drag interaction.
 pub(crate) unsafe fn destack_display_window_begin_move_drag(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, window);
+    let _ = (binding, window);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.beginMoveDrag",
@@ -1548,11 +1548,11 @@ pub(crate) unsafe fn destack_display_window_begin_move_drag(
 
 /// Begin one native resize-drag interaction.
 pub(crate) unsafe fn destack_display_window_begin_resize_drag(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     edge: WindowResizeEdge,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, edge);
+    let _ = (binding, window, edge);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.beginResizeDrag",
@@ -1577,11 +1577,11 @@ pub(crate) unsafe fn destack_display_window_begin_resize_drag(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_set_visibility(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     visibility: WindowVisibility,
 ) -> RuntimeResult<()> {
-    let _ = (context, window, visibility);
+    let _ = (binding, window, visibility);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.setVisibility",
@@ -1606,14 +1606,14 @@ pub(crate) unsafe fn destack_display_window_set_visibility(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_display_window_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut WindowState,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, window);
+    let _ = (binding, out, window);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.state")).boxed())
 }

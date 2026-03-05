@@ -32,7 +32,7 @@ const MESSAGE_QUEUE_UNLINK_OPERATION: &str = "destack.ipc.message.queueUnlink";
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_close(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::MessageQueueHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -58,7 +58,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_open(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::MessageQueueHandle,
     name: NativeStringRef,
     flags: u32,
@@ -90,7 +90,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_receive(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut MessageQueueReceive,
     handle: resource::MessageQueueHandle,
     timeoutns: u64,
@@ -122,7 +122,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_send(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::MessageQueueHandle,
     priority: u32,
     timeoutns: u64,
@@ -151,7 +151,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_send(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_unlink(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = name;

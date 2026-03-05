@@ -396,7 +396,7 @@ fn tcp_protocol() -> SocketProtocol {
 
 #[cfg(unix)]
 fn socket_address_native_from_host_port(
-    _runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     host: &str,
     port: u16,
     family: SocketFamily,
@@ -529,7 +529,7 @@ fn socket_address_native_from_host_port(
 
 #[cfg(windows)]
 fn socket_address_native_from_host_port(
-    _runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     host: &str,
     port: u16,
     family: SocketFamily,
@@ -643,13 +643,13 @@ fn socket_address_native_from_host_port(
 
 #[cfg(any(unix, windows))]
 fn socket_address_vm_from_host_port(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     host: &str,
     port: u16,
     family: SocketFamily,
 ) -> RuntimeResult<SocketAddressVm> {
-    let address = socket_address_native_from_host_port(runtime, host, port, family)?;
+    let address = socket_address_native_from_host_port(binding, host, port, family)?;
     let bytes = VmArray::from_values(context, address.bytes()).map_err(|error| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "address.bytes",

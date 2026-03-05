@@ -25,9 +25,9 @@ pub(crate) struct WindowsUdsRuntimeState {
 }
 
 /// Return runtime-owned state for windows UDS helpers.
-fn windows_uds_runtime_state(context: &BindingCallContext) -> Arc<WindowsUdsRuntimeState> {
-    context
-        .runtime()
+fn windows_uds_runtime_state(binding: &BindingCallContext) -> Arc<WindowsUdsRuntimeState> {
+    binding
+        .agent()
         .platform_state
         .net
         .windows_uds_runtime_state(|| WindowsUdsRuntimeState {
@@ -84,9 +84,9 @@ fn uds_sockaddr(path: OsPath) -> RuntimeResult<(SOCKADDR_UN, i32)> {
 }
 
 /// Build one unique temporary path for UDS socket-pair emulation.
-fn temporary_uds_socket_pair_path(context: &BindingCallContext) -> String {
+fn temporary_uds_socket_pair_path(binding: &BindingCallContext) -> String {
     // build a deterministic short filename suffix
-    let runtime_state = windows_uds_runtime_state(context);
+    let runtime_state = windows_uds_runtime_state(binding);
     let pid = unsafe { GetCurrentProcessId() };
     let suffix = runtime_state
         .next_socket_pair_id
@@ -148,7 +148,7 @@ fn delete_socket_path(path: &str) {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_connect(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketHandle,
     path: OsPath,
 ) -> RuntimeResult<()> {
@@ -186,10 +186,10 @@ pub(crate) unsafe fn destack_net_uds_connect(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(socket as _)
         .with_finalizer(SocketFinalizer::new(socket));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -215,7 +215,7 @@ pub(crate) unsafe fn destack_net_uds_connect(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_listen(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut ListenerHandle,
     path: OsPath,
     backlog: u32,
@@ -269,10 +269,10 @@ pub(crate) unsafe fn destack_net_uds_listen(
     let entry = ResourceEntry::new(ResourceKind::Listener)
         .with_socket(socket as _)
         .with_finalizer(SocketFinalizer::new(socket));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     unsafe {
         *out = ListenerHandle(resource_id);
     }
@@ -298,11 +298,11 @@ pub(crate) unsafe fn destack_net_uds_listen(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_accept(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketHandle,
     listener: ListenerHandle,
 ) -> RuntimeResult<()> {
-    unsafe { super::destack_net_accept(context, out, listener, AcceptFlags(0)) }
+    unsafe { super::destack_net_accept(binding, out, listener, AcceptFlags(0)) }
 }
 
 /// Close a UDS listener handle.
@@ -323,10 +323,10 @@ pub(crate) unsafe fn destack_net_uds_accept(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_close_listener(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ListenerHandle,
 ) -> RuntimeResult<()> {
-    unsafe { super::destack_net_close_listener(context, handle) }
+    unsafe { super::destack_net_close_listener(binding, handle) }
 }
 
 /// Create a connected UDS socket pair.
@@ -348,7 +348,7 @@ pub(crate) unsafe fn destack_net_uds_close_listener(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_uds_socket_pair(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketPair,
     socket_type: SocketType,
 ) -> RuntimeResult<()> {
@@ -368,7 +368,7 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
     core_platform::ensure_winsock()?;
 
     // allocate one temporary filesystem path for the pair setup
-    let socket_path = temporary_uds_socket_pair_path(context);
+    let socket_path = temporary_uds_socket_pair_path(binding);
     let (address, address_length) = uds_sockaddr_from_bytes(socket_path.as_bytes())?;
 
     // create one listener socket
@@ -467,19 +467,19 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
     let first_entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(client_socket as _)
         .with_finalizer(SocketFinalizer::new(client_socket));
-    let first_id = context
+    let first_id = binding
         .agent()
         .resources
-        .insert(first_entry, Some(context.engine()));
+        .insert(first_entry, Some(binding.engine()));
 
     // register the second socket
     let second_entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(server_socket as _)
         .with_finalizer(SocketFinalizer::new(server_socket));
-    let second_id = context
+    let second_id = binding
         .agent()
         .resources
-        .insert(second_entry, Some(context.engine()));
+        .insert(second_entry, Some(binding.engine()));
 
     // write the pair output
     unsafe {

@@ -10,27 +10,27 @@ use super::constants::{
 };
 
 /// Return configured or default Unix system certificate bundle files.
-pub(super) fn configured_system_certificate_files(context: &BindingCallContext) -> Vec<PathBuf> {
-    unix_core::configured_system_certificate_files(context, &DEFAULT_UNIX_SYSTEM_CERTIFICATE_FILES)
+pub(super) fn configured_system_certificate_files(binding: &BindingCallContext) -> Vec<PathBuf> {
+    unix_core::configured_system_certificate_files(binding, &DEFAULT_UNIX_SYSTEM_CERTIFICATE_FILES)
 }
 
 /// Return configured or default Unix system certificate directories.
 pub(super) fn configured_system_certificate_directories(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> Vec<PathBuf> {
     unix_core::configured_system_certificate_directories(
-        context,
+        binding,
         &DEFAULT_UNIX_SYSTEM_CERTIFICATE_DIRECTORIES,
     )
 }
 
 /// Return one host key-store snapshot path for one lane when available.
 pub(super) fn keystore_path(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> Option<PathBuf> {
     unix_core::keystore_path(
-        context,
+        binding,
         kind,
         UNIX_USER_KEYSTORE_RELATIVE_PATH,
         UNIX_MACHINE_KEYSTORE_ABSOLUTE_PATH,

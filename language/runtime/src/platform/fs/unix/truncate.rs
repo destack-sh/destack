@@ -33,7 +33,7 @@ use std::path::PathBuf;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate_bytes(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathBytes,
     size: FileOffset,
 ) -> RuntimeResult<()> {
@@ -66,13 +66,13 @@ pub(crate) unsafe fn destack_fs_truncate_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     size: FileOffset,
 ) -> RuntimeResult<()> {
     // truncate the file by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_truncate_bytes(context, path, size)
+        destack_fs_truncate_bytes(binding, path, size)
     })
 }
 
@@ -94,14 +94,14 @@ pub(crate) unsafe fn destack_fs_truncate_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: OsPath,
     size: FileOffset,
 ) -> RuntimeResult<()> {
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_truncate_bytes(context, path, size) },
-        |path| unsafe { destack_fs_truncate_utf16(context, path, size) },
+        |path| unsafe { destack_fs_truncate_bytes(binding, path, size) },
+        |path| unsafe { destack_fs_truncate_utf16(binding, path, size) },
     )
 }

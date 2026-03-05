@@ -33,7 +33,7 @@ use std::path::PathBuf;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readdir(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<Dirent>,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
@@ -43,7 +43,7 @@ pub(crate) unsafe fn destack_fs_readdir(
     }
 
     // read directory entries on unix platforms
-    let resource = directory_resource(context, handle)?;
+    let resource = directory_resource(binding, handle)?;
     let dup_fd = unsafe { libc::dup(resource.fd) };
     if dup_fd < 0 {
         return Err(core_platform::io_error("dup", None));
@@ -103,14 +103,14 @@ pub(crate) unsafe fn destack_fs_readdir(
                 kind = dirent_kind_from_mode(stat.st_mode);
             }
         }
-        let name = PathBytesAbi::<NativeAbi>(context.store_array(name_bytes.to_vec()));
+        let name = PathBytesAbi::<NativeAbi>(binding.store_array(name_bytes.to_vec()));
         dirents.push(Dirent {
             name: core_fs::path_ref_from_bytes(name),
             kind,
         });
     }
 
-    let array = context.store_array(dirents);
+    let array = binding.store_array(dirents);
     unsafe {
         *out = array;
     }
@@ -136,7 +136,7 @@ pub(crate) unsafe fn destack_fs_readdir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rmdir_bytes(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathBytes,
 ) -> RuntimeResult<()> {
     // remove the directory on unix platforms
@@ -167,12 +167,12 @@ pub(crate) unsafe fn destack_fs_rmdir_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rmdir_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
     // remove the directory by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_rmdir_bytes(context, path)
+        destack_fs_rmdir_bytes(binding, path)
     })
 }
 
@@ -194,7 +194,7 @@ pub(crate) unsafe fn destack_fs_rmdir_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdir_bytes(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathBytes,
     mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -226,13 +226,13 @@ pub(crate) unsafe fn destack_fs_mkdir_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdir_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     // create the directory by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_mkdir_bytes(context, path, mode)
+        destack_fs_mkdir_bytes(binding, path, mode)
     })
 }
 
@@ -254,13 +254,13 @@ pub(crate) unsafe fn destack_fs_mkdir_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdirat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     // create the directory on unix platforms
-    let resource = directory_resource(context, dir)?;
+    let resource = directory_resource(binding, dir)?;
     let path = resolve_path_bytes_cstring(path, "path")?;
     let result = unsafe { libc::mkdirat(resource.fd, path.as_ptr(), mode.0 as libc::mode_t) };
     if result != 0 {
@@ -287,14 +287,14 @@ pub(crate) unsafe fn destack_fs_mkdirat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdirat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     // create the directory by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_mkdirat_bytes(context, dir, path, mode)
+        destack_fs_mkdirat_bytes(binding, dir, path, mode)
     })
 }
 
@@ -316,15 +316,15 @@ pub(crate) unsafe fn destack_fs_mkdirat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdir(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: OsPath,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_mkdir_bytes(context, path, mode) },
-        |path| unsafe { destack_fs_mkdir_utf16(context, path, mode) },
+        |path| unsafe { destack_fs_mkdir_bytes(binding, path, mode) },
+        |path| unsafe { destack_fs_mkdir_utf16(binding, path, mode) },
     )
 }
 
@@ -346,7 +346,7 @@ pub(crate) unsafe fn destack_fs_mkdir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdirat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: OsPath,
     mode: FileMode,
@@ -354,8 +354,8 @@ pub(crate) unsafe fn destack_fs_mkdirat(
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_mkdirat_bytes(context, dir, path, mode) },
-        |path| unsafe { destack_fs_mkdirat_utf16(context, dir, path, mode) },
+        |path| unsafe { destack_fs_mkdirat_bytes(binding, dir, path, mode) },
+        |path| unsafe { destack_fs_mkdirat_utf16(binding, dir, path, mode) },
     )
 }
 
@@ -377,14 +377,14 @@ pub(crate) unsafe fn destack_fs_mkdirat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rmdir(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: OsPath,
 ) -> RuntimeResult<()> {
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_rmdir_bytes(context, path) },
-        |path| unsafe { destack_fs_rmdir_utf16(context, path) },
+        |path| unsafe { destack_fs_rmdir_bytes(binding, path) },
+        |path| unsafe { destack_fs_rmdir_utf16(binding, path) },
     )
 }
 
@@ -406,7 +406,7 @@ pub(crate) unsafe fn destack_fs_rmdir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readdir_next(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DirentNext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
@@ -416,7 +416,7 @@ pub(crate) unsafe fn destack_fs_readdir_next(
     }
 
     // resolve the directory resource and its iteration cursor
-    let resource = directory_resource(context, handle)?;
+    let resource = directory_resource(binding, handle)?;
     let mut cursor = resource.cursor.lock().map_err(|_| {
         RuntimeError::from(PlatformError::generic(
             None,
@@ -515,7 +515,7 @@ pub(crate) unsafe fn destack_fs_readdir_next(
             }
         }
 
-        let name = PathBytesAbi::<NativeAbi>(context.store_array(name_bytes.to_vec()));
+        let name = PathBytesAbi::<NativeAbi>(binding.store_array(name_bytes.to_vec()));
         *cursor = current_index.saturating_add(1);
         unsafe {
             *out = DirentNext::DirentNextEntry(DirentNextEntry {
@@ -549,11 +549,11 @@ pub(crate) unsafe fn destack_fs_readdir_next(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rewinddir(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
     // resolve the directory resource and reset its cursor
-    let resource = directory_resource(context, handle)?;
+    let resource = directory_resource(binding, handle)?;
     let mut cursor = resource.cursor.lock().map_err(|_| {
         RuntimeError::from(PlatformError::generic(
             None,
@@ -584,7 +584,7 @@ pub(crate) unsafe fn destack_fs_rewinddir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_watch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut WatchHandle,
     path: OsPath,
     options: WatchOptions,
@@ -607,7 +607,7 @@ pub(crate) unsafe fn destack_fs_watch(
             .boxed())
         },
     )?;
-    let handle = core_fs::open_watch(context, &watch_path, options)?;
+    let handle = core_fs::open_watch(binding, &watch_path, options)?;
 
     // store the returned watch handle
     unsafe {
@@ -635,10 +635,10 @@ pub(crate) unsafe fn destack_fs_watch(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_watch_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: WatchHandle,
 ) -> RuntimeResult<()> {
-    core_fs::close_watch(context, handle)
+    core_fs::close_watch(binding, handle)
 }
 
 /// Read a batch of events from a watch handle.
@@ -659,7 +659,7 @@ pub(crate) unsafe fn destack_fs_watch_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_watch_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut WatchBatch,
     handle: WatchHandle,
 ) -> RuntimeResult<()> {
@@ -669,7 +669,7 @@ pub(crate) unsafe fn destack_fs_watch_read(
     }
 
     // read one pending watch batch
-    let batch = core_fs::read_watch(context, handle)?;
+    let batch = core_fs::read_watch(binding, handle)?;
     unsafe {
         *out = batch;
     }
@@ -695,7 +695,7 @@ pub(crate) unsafe fn destack_fs_watch_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_watchat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut WatchHandle,
     directory: DirectoryHandle,
     path: OsPath,
@@ -707,7 +707,7 @@ pub(crate) unsafe fn destack_fs_watchat(
     }
 
     // resolve the directory base path
-    let directory = directory_resource(context, directory)?;
+    let directory = directory_resource(binding, directory)?;
 
     // decode the path and resolve it relative to the directory
     let watch_path = core_fs::with_path_ref(
@@ -727,7 +727,7 @@ pub(crate) unsafe fn destack_fs_watchat(
     } else {
         directory.path.join(watch_path)
     };
-    let handle = core_fs::open_watch(context, &watch_path, options)?;
+    let handle = core_fs::open_watch(binding, &watch_path, options)?;
 
     // store the returned watch handle
     unsafe {

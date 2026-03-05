@@ -57,16 +57,16 @@ use destack_vm as vm;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_agreement_derive_key(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     privatekey: resource::CryptoKeyHandle,
     peerpublickey: resource::CryptoKeyHandle,
     request: CryptoAgreementDeriveKeyRequestVm,
 ) -> RuntimeResult<VmSlice<u8>> {
-    let request = agreement_request_from_vm(runtime, context, request)?;
+    let request = agreement_request_from_vm(binding, context, request)?;
     let output = call_out(|out| unsafe {
         host_crypto::destack_crypto_agreement_derive_key(
-            runtime,
+            binding,
             out,
             privatekey,
             peerpublickey,
@@ -92,7 +92,7 @@ pub(crate) fn destack_crypto_agreement_derive_key(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_agreement_derive_shared_secret(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     privatekey: resource::CryptoKeyHandle,
     peerpublickey: resource::CryptoKeyHandle,
@@ -100,7 +100,7 @@ pub(crate) fn destack_crypto_agreement_derive_shared_secret(
 ) -> RuntimeResult<VmSlice<u8>> {
     let output = call_out(|out| unsafe {
         host_crypto::destack_crypto_agreement_derive_shared_secret(
-            runtime,
+            binding,
             out,
             privatekey,
             peerpublickey,
@@ -129,11 +129,11 @@ pub(crate) fn destack_crypto_agreement_derive_shared_secret(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_certificate_delete(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoCertificateHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_crypto::destack_crypto_certificate_delete(runtime, handle) }
+    unsafe { host_crypto::destack_crypto_certificate_delete(binding, handle) }
 }
 
 /// Return one certificate descriptor.
@@ -153,12 +153,12 @@ pub(crate) fn destack_crypto_certificate_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_certificate_descriptor(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoCertificateHandle,
 ) -> RuntimeResult<CryptoCertificateDescriptorVm> {
     let descriptor = call_out(|out| unsafe {
-        host_crypto::destack_crypto_certificate_descriptor(runtime, out, handle)
+        host_crypto::destack_crypto_certificate_descriptor(binding, out, handle)
     })?;
 
     certificate_descriptor_to_vm(context, descriptor)
@@ -181,13 +181,13 @@ pub(crate) fn destack_crypto_certificate_descriptor(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_certificate_export(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoCertificateHandle,
     format: CryptoCertificateFormat,
 ) -> RuntimeResult<VmSlice<u8>> {
     let output = call_out(|out| unsafe {
-        host_crypto::destack_crypto_certificate_export(runtime, out, handle, format)
+        host_crypto::destack_crypto_certificate_export(binding, out, handle, format)
     })?;
 
     bytes_to_vm(context, output)
@@ -211,15 +211,15 @@ pub(crate) fn destack_crypto_certificate_export(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_certificate_import(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     store: resource::CryptoStoreHandle,
     format: CryptoCertificateFormat,
     certificate: VmSlice<u8>,
 ) -> RuntimeResult<resource::CryptoCertificateHandle> {
-    let certificate = bytes_from_vm(runtime, context, certificate)?;
+    let certificate = bytes_from_vm(binding, context, certificate)?;
     call_out(|out| unsafe {
-        host_crypto::destack_crypto_certificate_import(runtime, out, store, format, certificate)
+        host_crypto::destack_crypto_certificate_import(binding, out, store, format, certificate)
     })
 }
 
@@ -241,13 +241,13 @@ pub(crate) fn destack_crypto_certificate_import(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_certificate_verify(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     request: CryptoCertificateVerifyRequestVm,
 ) -> RuntimeResult<CryptoCertificateVerifyResultVm> {
-    let request = certificate_verify_request_from_vm(runtime, context, request)?;
+    let request = certificate_verify_request_from_vm(binding, context, request)?;
     let result = call_out(|out| unsafe {
-        host_crypto::destack_crypto_certificate_verify(runtime, out, request)
+        host_crypto::destack_crypto_certificate_verify(binding, out, request)
     })?;
     certificate_verify_result_to_vm(context, result)
 }
@@ -267,11 +267,11 @@ pub(crate) fn destack_crypto_certificate_verify(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_cipher_close(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoCipherHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_crypto::destack_crypto_cipher_close(runtime, handle) }
+    unsafe { host_crypto::destack_crypto_cipher_close(binding, handle) }
 }
 
 /// Decrypt one payload in one shot.
@@ -289,16 +289,16 @@ pub(crate) fn destack_crypto_cipher_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_cipher_decrypt(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     key: resource::CryptoKeyHandle,
     parameters: CryptoCipherParametersVm,
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<VmSlice<u8>> {
-    let parameters = cipher_parameters_from_vm(runtime, context, parameters)?;
-    let payload = bytes_from_vm(runtime, context, argument_payload)?;
+    let parameters = cipher_parameters_from_vm(binding, context, parameters)?;
+    let payload = bytes_from_vm(binding, context, argument_payload)?;
     let output = call_out(|out| unsafe {
-        host_crypto::destack_crypto_cipher_decrypt(runtime, out, key, parameters, payload)
+        host_crypto::destack_crypto_cipher_decrypt(binding, out, key, parameters, payload)
     })?;
 
     bytes_to_vm(context, output)
@@ -319,16 +319,16 @@ pub(crate) fn destack_crypto_cipher_decrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_cipher_encrypt(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     key: resource::CryptoKeyHandle,
     parameters: CryptoCipherParametersVm,
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<CryptoCipherOutputVm> {
-    let parameters = cipher_parameters_from_vm(runtime, context, parameters)?;
-    let payload = bytes_from_vm(runtime, context, argument_payload)?;
+    let parameters = cipher_parameters_from_vm(binding, context, parameters)?;
+    let payload = bytes_from_vm(binding, context, argument_payload)?;
     let output = call_out(|out| unsafe {
-        host_crypto::destack_crypto_cipher_encrypt(runtime, out, key, parameters, payload)
+        host_crypto::destack_crypto_cipher_encrypt(binding, out, key, parameters, payload)
     })?;
 
     cipher_output_to_vm(context, output)
@@ -352,14 +352,14 @@ pub(crate) fn destack_crypto_cipher_encrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_cipher_finish(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoCipherHandle,
     finalpayload: VmSlice<u8>,
 ) -> RuntimeResult<CryptoCipherOutputVm> {
-    let payload = bytes_from_vm(runtime, context, finalpayload)?;
+    let payload = bytes_from_vm(binding, context, finalpayload)?;
     let output = call_out(|out| unsafe {
-        host_crypto::destack_crypto_cipher_finish(runtime, out, handle, payload)
+        host_crypto::destack_crypto_cipher_finish(binding, out, handle, payload)
     })?;
 
     cipher_output_to_vm(context, output)
@@ -380,15 +380,15 @@ pub(crate) fn destack_crypto_cipher_finish(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_cipher_open(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     key: resource::CryptoKeyHandle,
     direction: CryptoCipherDirection,
     parameters: CryptoCipherParametersVm,
 ) -> RuntimeResult<resource::CryptoCipherHandle> {
-    let parameters = cipher_parameters_from_vm(runtime, context, parameters)?;
+    let parameters = cipher_parameters_from_vm(binding, context, parameters)?;
     call_out(|out| unsafe {
-        host_crypto::destack_crypto_cipher_open(runtime, out, key, direction, parameters)
+        host_crypto::destack_crypto_cipher_open(binding, out, key, direction, parameters)
     })
 }
 
@@ -407,13 +407,13 @@ pub(crate) fn destack_crypto_cipher_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_cipher_reset(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoCipherHandle,
     parameters: CryptoCipherParametersVm,
 ) -> RuntimeResult<()> {
-    let parameters = cipher_parameters_from_vm(runtime, context, parameters)?;
-    unsafe { host_crypto::destack_crypto_cipher_reset(runtime, handle, parameters) }
+    let parameters = cipher_parameters_from_vm(binding, context, parameters)?;
+    unsafe { host_crypto::destack_crypto_cipher_reset(binding, handle, parameters) }
 }
 
 /// Update one streaming cipher context with one payload chunk.
@@ -431,14 +431,14 @@ pub(crate) fn destack_crypto_cipher_reset(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_cipher_update(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoCipherHandle,
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<VmSlice<u8>> {
-    let payload = bytes_from_vm(runtime, context, argument_payload)?;
+    let payload = bytes_from_vm(binding, context, argument_payload)?;
     let output = call_out(|out| unsafe {
-        host_crypto::destack_crypto_cipher_update(runtime, out, handle, payload)
+        host_crypto::destack_crypto_cipher_update(binding, out, handle, payload)
     })?;
 
     bytes_to_vm(context, output)
@@ -459,14 +459,14 @@ pub(crate) fn destack_crypto_cipher_update(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_cipher_update_additional_data(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoCipherHandle,
     additionaldata: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    let additional_data = bytes_from_vm(runtime, context, additionaldata)?;
+    let additional_data = bytes_from_vm(binding, context, additionaldata)?;
     unsafe {
-        host_crypto::destack_crypto_cipher_update_additional_data(runtime, handle, additional_data)
+        host_crypto::destack_crypto_cipher_update_additional_data(binding, handle, additional_data)
     }
 }
 
@@ -485,11 +485,11 @@ pub(crate) fn destack_crypto_cipher_update_additional_data(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_digest_close(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoDigestHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_crypto::destack_crypto_digest_close(runtime, handle) }
+    unsafe { host_crypto::destack_crypto_digest_close(binding, handle) }
 }
 
 /// Compute one digest in one shot.
@@ -507,14 +507,14 @@ pub(crate) fn destack_crypto_digest_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_digest_compute(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     algorithm: CryptoDigestAlgorithm,
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<VmSlice<u8>> {
-    let payload = bytes_from_vm(runtime, context, argument_payload)?;
+    let payload = bytes_from_vm(binding, context, argument_payload)?;
     let output = call_out(|out| unsafe {
-        host_crypto::destack_crypto_digest_compute(runtime, out, algorithm, payload)
+        host_crypto::destack_crypto_digest_compute(binding, out, algorithm, payload)
     })?;
 
     bytes_to_vm(context, output)
@@ -535,12 +535,12 @@ pub(crate) fn destack_crypto_digest_compute(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_digest_finish(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoDigestHandle,
 ) -> RuntimeResult<VmSlice<u8>> {
     let output =
-        call_out(|out| unsafe { host_crypto::destack_crypto_digest_finish(runtime, out, handle) })?;
+        call_out(|out| unsafe { host_crypto::destack_crypto_digest_finish(binding, out, handle) })?;
 
     bytes_to_vm(context, output)
 }
@@ -560,11 +560,11 @@ pub(crate) fn destack_crypto_digest_finish(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_digest_open(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     algorithm: CryptoDigestAlgorithm,
 ) -> RuntimeResult<resource::CryptoDigestHandle> {
-    call_out(|out| unsafe { host_crypto::destack_crypto_digest_open(runtime, out, algorithm) })
+    call_out(|out| unsafe { host_crypto::destack_crypto_digest_open(binding, out, algorithm) })
 }
 
 /// Reset one streaming digest context to its initial state.
@@ -582,11 +582,11 @@ pub(crate) fn destack_crypto_digest_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_digest_reset(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoDigestHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_crypto::destack_crypto_digest_reset(runtime, handle) }
+    unsafe { host_crypto::destack_crypto_digest_reset(binding, handle) }
 }
 
 /// Update one streaming digest context.
@@ -604,13 +604,13 @@ pub(crate) fn destack_crypto_digest_reset(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_digest_update(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoDigestHandle,
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    let payload = bytes_from_vm(runtime, context, argument_payload)?;
-    unsafe { host_crypto::destack_crypto_digest_update(runtime, handle, payload) }
+    let payload = bytes_from_vm(binding, context, argument_payload)?;
+    unsafe { host_crypto::destack_crypto_digest_update(binding, handle, payload) }
 }
 
 /// Derive one key with Argon2id.
@@ -628,13 +628,13 @@ pub(crate) fn destack_crypto_digest_update(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_kdf_argon2id(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     request: CryptoArgon2idRequestVm,
 ) -> RuntimeResult<VmSlice<u8>> {
-    let request = argon2id_request_from_vm(runtime, context, request)?;
+    let request = argon2id_request_from_vm(binding, context, request)?;
     let output =
-        call_out(|out| unsafe { host_crypto::destack_crypto_kdf_argon2id(runtime, out, request) })?;
+        call_out(|out| unsafe { host_crypto::destack_crypto_kdf_argon2id(binding, out, request) })?;
 
     bytes_to_vm(context, output)
 }
@@ -654,13 +654,13 @@ pub(crate) fn destack_crypto_kdf_argon2id(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_kdf_hkdf(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     request: CryptoHkdfRequestVm,
 ) -> RuntimeResult<VmSlice<u8>> {
-    let request = hkdf_request_from_vm(runtime, context, request)?;
+    let request = hkdf_request_from_vm(binding, context, request)?;
     let output =
-        call_out(|out| unsafe { host_crypto::destack_crypto_kdf_hkdf(runtime, out, request) })?;
+        call_out(|out| unsafe { host_crypto::destack_crypto_kdf_hkdf(binding, out, request) })?;
 
     bytes_to_vm(context, output)
 }
@@ -680,13 +680,13 @@ pub(crate) fn destack_crypto_kdf_hkdf(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_kdf_pbkdf2(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     request: CryptoPbkdf2RequestVm,
 ) -> RuntimeResult<VmSlice<u8>> {
-    let request = pbkdf2_request_from_vm(runtime, context, request)?;
+    let request = pbkdf2_request_from_vm(binding, context, request)?;
     let output =
-        call_out(|out| unsafe { host_crypto::destack_crypto_kdf_pbkdf2(runtime, out, request) })?;
+        call_out(|out| unsafe { host_crypto::destack_crypto_kdf_pbkdf2(binding, out, request) })?;
 
     bytes_to_vm(context, output)
 }
@@ -706,13 +706,13 @@ pub(crate) fn destack_crypto_kdf_pbkdf2(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_kdf_scrypt(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     request: CryptoScryptRequestVm,
 ) -> RuntimeResult<VmSlice<u8>> {
-    let request = scrypt_request_from_vm(runtime, context, request)?;
+    let request = scrypt_request_from_vm(binding, context, request)?;
     let output =
-        call_out(|out| unsafe { host_crypto::destack_crypto_kdf_scrypt(runtime, out, request) })?;
+        call_out(|out| unsafe { host_crypto::destack_crypto_kdf_scrypt(binding, out, request) })?;
 
     bytes_to_vm(context, output)
 }
@@ -735,16 +735,16 @@ pub(crate) fn destack_crypto_kdf_scrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_decrypt(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoAsymmetricEncryptionParametersVm,
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<VmSlice<u8>> {
-    let parameters = asymmetric_encryption_parameters_from_vm(runtime, context, parameters)?;
-    let payload = bytes_from_vm(runtime, context, argument_payload)?;
+    let parameters = asymmetric_encryption_parameters_from_vm(binding, context, parameters)?;
+    let payload = bytes_from_vm(binding, context, argument_payload)?;
     let output = call_out(|out| unsafe {
-        host_crypto::destack_crypto_key_decrypt(runtime, out, handle, parameters, payload)
+        host_crypto::destack_crypto_key_decrypt(binding, out, handle, parameters, payload)
     })?;
 
     bytes_to_vm(context, output)
@@ -768,11 +768,11 @@ pub(crate) fn destack_crypto_key_decrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_delete(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_crypto::destack_crypto_key_delete(runtime, handle) }
+    unsafe { host_crypto::destack_crypto_key_delete(binding, handle) }
 }
 
 /// Return one key descriptor.
@@ -792,12 +792,12 @@ pub(crate) fn destack_crypto_key_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_descriptor(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeResult<CryptoKeyDescriptorVm> {
     let descriptor = call_out(|out| unsafe {
-        host_crypto::destack_crypto_key_descriptor(runtime, out, handle)
+        host_crypto::destack_crypto_key_descriptor(binding, out, handle)
     })?;
 
     key_descriptor_to_vm(context, descriptor)
@@ -821,16 +821,16 @@ pub(crate) fn destack_crypto_key_descriptor(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_encrypt(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoAsymmetricEncryptionParametersVm,
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<VmSlice<u8>> {
-    let parameters = asymmetric_encryption_parameters_from_vm(runtime, context, parameters)?;
-    let payload = bytes_from_vm(runtime, context, argument_payload)?;
+    let parameters = asymmetric_encryption_parameters_from_vm(binding, context, parameters)?;
+    let payload = bytes_from_vm(binding, context, argument_payload)?;
     let output = call_out(|out| unsafe {
-        host_crypto::destack_crypto_key_encrypt(runtime, out, handle, parameters, payload)
+        host_crypto::destack_crypto_key_encrypt(binding, out, handle, parameters, payload)
     })?;
 
     bytes_to_vm(context, output)
@@ -856,14 +856,14 @@ pub(crate) fn destack_crypto_key_encrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_export_private(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoKeyHandle,
     request: CryptoPrivateKeyExportRequestVm,
 ) -> RuntimeResult<VmSlice<u8>> {
-    let request = private_key_export_request_from_vm(runtime, context, request)?;
+    let request = private_key_export_request_from_vm(binding, context, request)?;
     let output = call_out(|out| unsafe {
-        host_crypto::destack_crypto_key_export_private(runtime, out, handle, request)
+        host_crypto::destack_crypto_key_export_private(binding, out, handle, request)
     })?;
 
     bytes_to_vm(context, output)
@@ -886,13 +886,13 @@ pub(crate) fn destack_crypto_key_export_private(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_export_public(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
 ) -> RuntimeResult<VmSlice<u8>> {
     let output = call_out(|out| unsafe {
-        host_crypto::destack_crypto_key_export_public(runtime, out, handle, format)
+        host_crypto::destack_crypto_key_export_public(binding, out, handle, format)
     })?;
 
     bytes_to_vm(context, output)
@@ -916,13 +916,13 @@ pub(crate) fn destack_crypto_key_export_public(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_export_secret(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
 ) -> RuntimeResult<VmSlice<u8>> {
     let output = call_out(|out| unsafe {
-        host_crypto::destack_crypto_key_export_secret(runtime, out, handle, format)
+        host_crypto::destack_crypto_key_export_secret(binding, out, handle, format)
     })?;
 
     bytes_to_vm(context, output)
@@ -946,14 +946,14 @@ pub(crate) fn destack_crypto_key_export_secret(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_generate_pair(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     store: resource::CryptoStoreHandle,
     request: CryptoKeyGenerationRequestVm,
 ) -> RuntimeResult<CryptoKeyPairVm> {
-    let request = key_generation_request_from_vm(runtime, context, request)?;
+    let request = key_generation_request_from_vm(binding, context, request)?;
     let pair = call_out(|out| unsafe {
-        host_crypto::destack_crypto_key_generate_pair(runtime, out, store, request)
+        host_crypto::destack_crypto_key_generate_pair(binding, out, store, request)
     })?;
 
     Ok(key_pair_to_vm(pair))
@@ -978,14 +978,14 @@ pub(crate) fn destack_crypto_key_generate_pair(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_generate_secret(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     store: resource::CryptoStoreHandle,
     request: CryptoKeyGenerationRequestVm,
 ) -> RuntimeResult<resource::CryptoKeyHandle> {
-    let request = key_generation_request_from_vm(runtime, context, request)?;
+    let request = key_generation_request_from_vm(binding, context, request)?;
     call_out(|out| unsafe {
-        host_crypto::destack_crypto_key_generate_secret(runtime, out, store, request)
+        host_crypto::destack_crypto_key_generate_secret(binding, out, store, request)
     })
 }
 
@@ -1008,13 +1008,13 @@ pub(crate) fn destack_crypto_key_generate_secret(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_import(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     store: resource::CryptoStoreHandle,
     request: CryptoKeyImportRequestVm,
 ) -> RuntimeResult<resource::CryptoKeyHandle> {
-    let request = key_import_request_from_vm(runtime, context, request)?;
-    call_out(|out| unsafe { host_crypto::destack_crypto_key_import(runtime, out, store, request) })
+    let request = key_import_request_from_vm(binding, context, request)?;
+    call_out(|out| unsafe { host_crypto::destack_crypto_key_import(binding, out, store, request) })
 }
 
 /// Sign one payload.
@@ -1035,15 +1035,15 @@ pub(crate) fn destack_crypto_key_import(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_sign(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoSignatureParametersVm,
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<VmSlice<u8>> {
-    let payload = bytes_from_vm(runtime, context, argument_payload)?;
+    let payload = bytes_from_vm(binding, context, argument_payload)?;
     let output = call_out(|out| unsafe {
-        host_crypto::destack_crypto_key_sign(runtime, out, handle, parameters, payload)
+        host_crypto::destack_crypto_key_sign(binding, out, handle, parameters, payload)
     })?;
 
     bytes_to_vm(context, output)
@@ -1067,7 +1067,7 @@ pub(crate) fn destack_crypto_key_sign(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_unwrap(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     store: resource::CryptoStoreHandle,
     wrappingkey: resource::CryptoKeyHandle,
@@ -1075,12 +1075,12 @@ pub(crate) fn destack_crypto_key_unwrap(
     parameters: CryptoKeyWrapParametersVm,
     request: CryptoKeyImportRequestVm,
 ) -> RuntimeResult<resource::CryptoKeyHandle> {
-    let wrapped_key = bytes_from_vm(runtime, context, wrappedkey)?;
-    let parameters = key_wrap_parameters_from_vm(runtime, context, parameters)?;
-    let request = key_import_request_from_vm(runtime, context, request)?;
+    let wrapped_key = bytes_from_vm(binding, context, wrappedkey)?;
+    let parameters = key_wrap_parameters_from_vm(binding, context, parameters)?;
+    let request = key_import_request_from_vm(binding, context, request)?;
     call_out(|out| unsafe {
         host_crypto::destack_crypto_key_unwrap(
-            runtime,
+            binding,
             out,
             store,
             wrappingkey,
@@ -1109,17 +1109,17 @@ pub(crate) fn destack_crypto_key_unwrap(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_verify(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoSignatureParametersVm,
     argument_payload: VmSlice<u8>,
     signature: VmSlice<u8>,
 ) -> RuntimeResult<bool> {
-    let payload = bytes_from_vm(runtime, context, argument_payload)?;
-    let signature = bytes_from_vm(runtime, context, signature)?;
+    let payload = bytes_from_vm(binding, context, argument_payload)?;
+    let signature = bytes_from_vm(binding, context, signature)?;
     call_out(|out| unsafe {
-        host_crypto::destack_crypto_key_verify(runtime, out, handle, parameters, payload, signature)
+        host_crypto::destack_crypto_key_verify(binding, out, handle, parameters, payload, signature)
     })
 }
 
@@ -1142,17 +1142,17 @@ pub(crate) fn destack_crypto_key_verify(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_key_wrap(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     wrappingkey: resource::CryptoKeyHandle,
     keytowrap: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
     parameters: CryptoKeyWrapParametersVm,
 ) -> RuntimeResult<VmSlice<u8>> {
-    let parameters = key_wrap_parameters_from_vm(runtime, context, parameters)?;
+    let parameters = key_wrap_parameters_from_vm(binding, context, parameters)?;
     let output = call_out(|out| unsafe {
         host_crypto::destack_crypto_key_wrap(
-            runtime,
+            binding,
             out,
             wrappingkey,
             keytowrap,
@@ -1179,11 +1179,11 @@ pub(crate) fn destack_crypto_key_wrap(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_mac_close(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoMacHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_crypto::destack_crypto_mac_close(runtime, handle) }
+    unsafe { host_crypto::destack_crypto_mac_close(binding, handle) }
 }
 
 /// Compute one message authentication code in one shot.
@@ -1201,15 +1201,15 @@ pub(crate) fn destack_crypto_mac_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_mac_compute(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     key: resource::CryptoKeyHandle,
     parameters: CryptoMacParametersVm,
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<VmSlice<u8>> {
-    let payload = bytes_from_vm(runtime, context, argument_payload)?;
+    let payload = bytes_from_vm(binding, context, argument_payload)?;
     let output = call_out(|out| unsafe {
-        host_crypto::destack_crypto_mac_compute(runtime, out, key, parameters, payload)
+        host_crypto::destack_crypto_mac_compute(binding, out, key, parameters, payload)
     })?;
 
     bytes_to_vm(context, output)
@@ -1230,12 +1230,12 @@ pub(crate) fn destack_crypto_mac_compute(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_mac_finish(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoMacHandle,
 ) -> RuntimeResult<VmSlice<u8>> {
     let output =
-        call_out(|out| unsafe { host_crypto::destack_crypto_mac_finish(runtime, out, handle) })?;
+        call_out(|out| unsafe { host_crypto::destack_crypto_mac_finish(binding, out, handle) })?;
 
     bytes_to_vm(context, output)
 }
@@ -1255,12 +1255,12 @@ pub(crate) fn destack_crypto_mac_finish(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_mac_open(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     key: resource::CryptoKeyHandle,
     parameters: CryptoMacParametersVm,
 ) -> RuntimeResult<resource::CryptoMacHandle> {
-    call_out(|out| unsafe { host_crypto::destack_crypto_mac_open(runtime, out, key, parameters) })
+    call_out(|out| unsafe { host_crypto::destack_crypto_mac_open(binding, out, key, parameters) })
 }
 
 /// Reset one streaming MAC context to its initial state.
@@ -1278,11 +1278,11 @@ pub(crate) fn destack_crypto_mac_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_mac_reset(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoMacHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_crypto::destack_crypto_mac_reset(runtime, handle) }
+    unsafe { host_crypto::destack_crypto_mac_reset(binding, handle) }
 }
 
 /// Update one streaming MAC context.
@@ -1300,13 +1300,13 @@ pub(crate) fn destack_crypto_mac_reset(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_mac_update(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoMacHandle,
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    let payload = bytes_from_vm(runtime, context, argument_payload)?;
-    unsafe { host_crypto::destack_crypto_mac_update(runtime, handle, payload) }
+    let payload = bytes_from_vm(binding, context, argument_payload)?;
+    unsafe { host_crypto::destack_crypto_mac_update(binding, handle, payload) }
 }
 
 /// Verify one message authentication code in one shot.
@@ -1324,17 +1324,17 @@ pub(crate) fn destack_crypto_mac_update(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_mac_verify(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     key: resource::CryptoKeyHandle,
     parameters: CryptoMacParametersVm,
     argument_payload: VmSlice<u8>,
     tag: VmSlice<u8>,
 ) -> RuntimeResult<bool> {
-    let payload = bytes_from_vm(runtime, context, argument_payload)?;
-    let tag = bytes_from_vm(runtime, context, tag)?;
+    let payload = bytes_from_vm(binding, context, argument_payload)?;
+    let tag = bytes_from_vm(binding, context, tag)?;
     call_out(|out| unsafe {
-        host_crypto::destack_crypto_mac_verify(runtime, out, key, parameters, payload, tag)
+        host_crypto::destack_crypto_mac_verify(binding, out, key, parameters, payload, tag)
     })
 }
 
@@ -1356,11 +1356,11 @@ pub(crate) fn destack_crypto_mac_verify(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_crypto_probe_agreement_algorithms(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<CryptoKeyAgreementAlgorithm>> {
     let output = call_out(|out| unsafe {
-        host_crypto::destack_crypto_probe_agreement_algorithms(runtime, out)
+        host_crypto::destack_crypto_probe_agreement_algorithms(binding, out)
     })?;
     slice_to_vm(context, output)
 }
@@ -1383,11 +1383,11 @@ pub(crate) fn destack_crypto_probe_agreement_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_crypto_probe_cipher_algorithms(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<CryptoCipherAlgorithm>> {
     let output = call_out(|out| unsafe {
-        host_crypto::destack_crypto_probe_cipher_algorithms(runtime, out)
+        host_crypto::destack_crypto_probe_cipher_algorithms(binding, out)
     })?;
     slice_to_vm(context, output)
 }
@@ -1410,11 +1410,11 @@ pub(crate) fn destack_crypto_probe_cipher_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_crypto_probe_digest_algorithms(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<CryptoDigestAlgorithm>> {
     let output = call_out(|out| unsafe {
-        host_crypto::destack_crypto_probe_digest_algorithms(runtime, out)
+        host_crypto::destack_crypto_probe_digest_algorithms(binding, out)
     })?;
     slice_to_vm(context, output)
 }
@@ -1437,11 +1437,11 @@ pub(crate) fn destack_crypto_probe_digest_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_crypto_probe_kdf_algorithms(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<CryptoKdfAlgorithm>> {
     let output =
-        call_out(|out| unsafe { host_crypto::destack_crypto_probe_kdf_algorithms(runtime, out) })?;
+        call_out(|out| unsafe { host_crypto::destack_crypto_probe_kdf_algorithms(binding, out) })?;
     slice_to_vm(context, output)
 }
 
@@ -1463,11 +1463,11 @@ pub(crate) fn destack_crypto_probe_kdf_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_crypto_probe_key_algorithms(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<CryptoKeyAlgorithm>> {
     let output =
-        call_out(|out| unsafe { host_crypto::destack_crypto_probe_key_algorithms(runtime, out) })?;
+        call_out(|out| unsafe { host_crypto::destack_crypto_probe_key_algorithms(binding, out) })?;
     slice_to_vm(context, output)
 }
 
@@ -1489,11 +1489,11 @@ pub(crate) fn destack_crypto_probe_key_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_crypto_probe_key_wrap_algorithms(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<CryptoKeyWrapAlgorithm>> {
     let output = call_out(|out| unsafe {
-        host_crypto::destack_crypto_probe_key_wrap_algorithms(runtime, out)
+        host_crypto::destack_crypto_probe_key_wrap_algorithms(binding, out)
     })?;
     slice_to_vm(context, output)
 }
@@ -1516,11 +1516,11 @@ pub(crate) fn destack_crypto_probe_key_wrap_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_crypto_probe_key_formats(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<CryptoKeyFormat>> {
     let output =
-        call_out(|out| unsafe { host_crypto::destack_crypto_probe_key_formats(runtime, out) })?;
+        call_out(|out| unsafe { host_crypto::destack_crypto_probe_key_formats(binding, out) })?;
     slice_to_vm(context, output)
 }
 
@@ -1542,11 +1542,11 @@ pub(crate) fn destack_crypto_probe_key_formats(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_crypto_probe_key_residencies(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<CryptoKeyResidency>> {
     let output =
-        call_out(|out| unsafe { host_crypto::destack_crypto_probe_key_residencies(runtime, out) })?;
+        call_out(|out| unsafe { host_crypto::destack_crypto_probe_key_residencies(binding, out) })?;
     slice_to_vm(context, output)
 }
 
@@ -1568,11 +1568,11 @@ pub(crate) fn destack_crypto_probe_key_residencies(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_crypto_probe_mac_algorithms(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<CryptoMacAlgorithm>> {
     let output =
-        call_out(|out| unsafe { host_crypto::destack_crypto_probe_mac_algorithms(runtime, out) })?;
+        call_out(|out| unsafe { host_crypto::destack_crypto_probe_mac_algorithms(binding, out) })?;
     slice_to_vm(context, output)
 }
 
@@ -1594,11 +1594,11 @@ pub(crate) fn destack_crypto_probe_mac_algorithms(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_crypto_probe_named_curves(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<CryptoNamedCurve>> {
     let output =
-        call_out(|out| unsafe { host_crypto::destack_crypto_probe_named_curves(runtime, out) })?;
+        call_out(|out| unsafe { host_crypto::destack_crypto_probe_named_curves(binding, out) })?;
     slice_to_vm(context, output)
 }
 
@@ -1620,11 +1620,11 @@ pub(crate) fn destack_crypto_probe_named_curves(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_crypto_probe_signature_algorithms(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<CryptoSignatureAlgorithm>> {
     let output = call_out(|out| unsafe {
-        host_crypto::destack_crypto_probe_signature_algorithms(runtime, out)
+        host_crypto::destack_crypto_probe_signature_algorithms(binding, out)
     })?;
     slice_to_vm(context, output)
 }
@@ -1644,12 +1644,12 @@ pub(crate) fn destack_crypto_probe_signature_algorithms(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_random_bytes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     length: u32,
 ) -> RuntimeResult<VmSlice<u8>> {
     let output =
-        call_out(|out| unsafe { host_crypto::destack_crypto_random_bytes(runtime, out, length) })?;
+        call_out(|out| unsafe { host_crypto::destack_crypto_random_bytes(binding, out, length) })?;
     bytes_to_vm(context, output)
 }
 
@@ -1668,12 +1668,12 @@ pub(crate) fn destack_crypto_random_bytes(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_random_fill(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    let native_buffer = runtime.store_slice(vec![0_u8; buffer.len as usize]);
-    unsafe { host_crypto::destack_crypto_random_fill(runtime, native_buffer) }?;
+    let native_buffer = binding.store_slice(vec![0_u8; buffer.len as usize]);
+    unsafe { host_crypto::destack_crypto_random_fill(binding, native_buffer) }?;
     copy_native_bytes_into_vm(context, buffer, native_buffer)
 }
 
@@ -1696,11 +1696,11 @@ pub(crate) fn destack_crypto_random_fill(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_store_close(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoStoreHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_crypto::destack_crypto_store_close(runtime, handle) }
+    unsafe { host_crypto::destack_crypto_store_close(binding, handle) }
 }
 
 /// List certificates from one store.
@@ -1722,14 +1722,14 @@ pub(crate) fn destack_crypto_store_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_store_list_certificates(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoStoreHandle,
     query: CryptoCertificateQueryVm,
 ) -> RuntimeResult<CryptoCertificateListPageVm> {
-    let query = certificate_query_from_vm(runtime, context, query)?;
+    let query = certificate_query_from_vm(binding, context, query)?;
     let page = call_out(|out| unsafe {
-        host_crypto::destack_crypto_store_list_certificates(runtime, out, handle, query)
+        host_crypto::destack_crypto_store_list_certificates(binding, out, handle, query)
     })?;
 
     certificate_list_page_to_vm(context, page)
@@ -1754,14 +1754,14 @@ pub(crate) fn destack_crypto_store_list_certificates(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_store_list_keys(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CryptoStoreHandle,
     query: CryptoKeyQueryVm,
 ) -> RuntimeResult<CryptoKeyListPageVm> {
-    let query = key_query_from_vm(runtime, context, query)?;
+    let query = key_query_from_vm(binding, context, query)?;
     let page = call_out(|out| unsafe {
-        host_crypto::destack_crypto_store_list_keys(runtime, out, handle, query)
+        host_crypto::destack_crypto_store_list_keys(binding, out, handle, query)
     })?;
 
     key_list_page_to_vm(context, page)
@@ -1784,13 +1784,13 @@ pub(crate) fn destack_crypto_store_list_keys(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_crypto_store_probe_capability(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     kind: CryptoStoreKind,
     provider: CryptoStoreProvider,
 ) -> RuntimeResult<CryptoStoreCapabilityVm> {
     let capability = call_out(|out| unsafe {
-        host_crypto::destack_crypto_store_probe_capability(runtime, out, kind, provider)
+        host_crypto::destack_crypto_store_probe_capability(binding, out, kind, provider)
     })?;
 
     store_capability_to_vm(context, capability)
@@ -1813,11 +1813,11 @@ pub(crate) fn destack_crypto_store_probe_capability(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_crypto_store_probe_kinds(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmArray<CryptoStoreKind>> {
     let kinds =
-        call_out(|out| unsafe { host_crypto::destack_crypto_store_probe_kinds(runtime, out) })?;
+        call_out(|out| unsafe { host_crypto::destack_crypto_store_probe_kinds(binding, out) })?;
     array_to_vm(context, kinds)
 }
 
@@ -1843,12 +1843,12 @@ pub(crate) fn destack_crypto_store_probe_kinds(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_crypto_store_open(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     options: CryptoStoreOptionsVm,
 ) -> RuntimeResult<resource::CryptoStoreHandle> {
-    let options = store_options_from_vm(runtime, context, options)?;
-    call_out(|out| unsafe { host_crypto::destack_crypto_store_open(runtime, out, options) })
+    let options = store_options_from_vm(binding, context, options)?;
+    call_out(|out| unsafe { host_crypto::destack_crypto_store_open(binding, out, options) })
 }
 
 fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
@@ -1858,14 +1858,14 @@ fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<
 }
 
 fn string_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     value: vm::StringHandle,
 ) -> RuntimeResult<NativeStringRef> {
     let value = context
         .string_ref(value)
         .map_err(|error| RuntimeError::from(error).boxed())?;
-    Ok(runtime.store_string(value.as_str()))
+    Ok(binding.store_string(value.as_str()))
 }
 
 fn string_to_vm(
@@ -1877,21 +1877,21 @@ fn string_to_vm(
 }
 
 fn bytes_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     value: VmSlice<u8>,
 ) -> RuntimeResult<NativeSlice<u8>> {
     let bytes = value.read_bytes(context)?;
-    Ok(runtime.store_slice(bytes))
+    Ok(binding.store_slice(bytes))
 }
 
 fn slice_from_vm<T: Copy + VmAggregateCodec + 'static>(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     value: VmSlice<T>,
 ) -> RuntimeResult<NativeSlice<T>> {
     let values = value.read_values(context)?;
-    Ok(runtime.store_slice(values))
+    Ok(binding.store_slice(values))
 }
 
 fn bytes_to_vm(
@@ -1928,33 +1928,33 @@ fn copy_native_bytes_into_vm(
 }
 
 fn agreement_request_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     request: CryptoAgreementDeriveKeyRequestVm,
 ) -> RuntimeResult<CryptoAgreementDeriveKeyRequest> {
     Ok(CryptoAgreementDeriveKeyRequest {
         algorithm: request.algorithm,
         digest: request.digest,
-        salt: bytes_from_vm(runtime, context, request.salt)?,
-        info: bytes_from_vm(runtime, context, request.info)?,
+        salt: bytes_from_vm(binding, context, request.salt)?,
+        info: bytes_from_vm(binding, context, request.info)?,
         output_length: request.output_length,
     })
 }
 
 fn certificate_verify_request_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     request: CryptoCertificateVerifyRequestVm,
 ) -> RuntimeResult<CryptoCertificateVerifyRequest> {
     Ok(CryptoCertificateVerifyRequest {
         leaf: request.leaf,
-        intermediates: slice_from_vm(runtime, context, request.intermediates)?,
-        trust_anchors: slice_from_vm(runtime, context, request.trust_anchors)?,
+        intermediates: slice_from_vm(binding, context, request.intermediates)?,
+        trust_anchors: slice_from_vm(binding, context, request.trust_anchors)?,
         use_system_trust_anchors: request.use_system_trust_anchors,
         purpose: request.purpose,
         identity: CryptoCertificateVerifyIdentity {
             kind: request.identity.kind,
-            value: string_from_vm(runtime, context, request.identity.value)?,
+            value: string_from_vm(binding, context, request.identity.value)?,
         },
         verification_unix_seconds: request.verification_unix_seconds,
         revocation_mode: request.revocation_mode,
@@ -1962,55 +1962,55 @@ fn certificate_verify_request_from_vm(
 }
 
 fn cipher_parameters_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     parameters: CryptoCipherParametersVm,
 ) -> RuntimeResult<CryptoCipherParameters> {
     Ok(CryptoCipherParameters {
         algorithm: parameters.algorithm,
-        nonce: bytes_from_vm(runtime, context, parameters.nonce)?,
-        additional_data: bytes_from_vm(runtime, context, parameters.additional_data)?,
-        tag: bytes_from_vm(runtime, context, parameters.tag)?,
+        nonce: bytes_from_vm(binding, context, parameters.nonce)?,
+        additional_data: bytes_from_vm(binding, context, parameters.additional_data)?,
+        tag: bytes_from_vm(binding, context, parameters.tag)?,
         tag_length_bytes: parameters.tag_length_bytes,
     })
 }
 
 fn hkdf_request_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     request: CryptoHkdfRequestVm,
 ) -> RuntimeResult<CryptoHkdfRequest> {
     Ok(CryptoHkdfRequest {
         digest: request.digest,
-        input_key_material: bytes_from_vm(runtime, context, request.input_key_material)?,
-        salt: bytes_from_vm(runtime, context, request.salt)?,
-        info: bytes_from_vm(runtime, context, request.info)?,
+        input_key_material: bytes_from_vm(binding, context, request.input_key_material)?,
+        salt: bytes_from_vm(binding, context, request.salt)?,
+        info: bytes_from_vm(binding, context, request.info)?,
         length: request.length,
     })
 }
 
 fn pbkdf2_request_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     request: CryptoPbkdf2RequestVm,
 ) -> RuntimeResult<CryptoPbkdf2Request> {
     Ok(CryptoPbkdf2Request {
         digest: request.digest,
-        password: bytes_from_vm(runtime, context, request.password)?,
-        salt: bytes_from_vm(runtime, context, request.salt)?,
+        password: bytes_from_vm(binding, context, request.password)?,
+        salt: bytes_from_vm(binding, context, request.salt)?,
         iterations: request.iterations,
         length: request.length,
     })
 }
 
 fn scrypt_request_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     request: CryptoScryptRequestVm,
 ) -> RuntimeResult<CryptoScryptRequest> {
     Ok(CryptoScryptRequest {
-        password: bytes_from_vm(runtime, context, request.password)?,
-        salt: bytes_from_vm(runtime, context, request.salt)?,
+        password: bytes_from_vm(binding, context, request.password)?,
+        salt: bytes_from_vm(binding, context, request.salt)?,
         cost: request.cost,
         block_size: request.block_size,
         parallelization: request.parallelization,
@@ -2020,15 +2020,15 @@ fn scrypt_request_from_vm(
 }
 
 fn argon2id_request_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     request: CryptoArgon2idRequestVm,
 ) -> RuntimeResult<CryptoArgon2idRequest> {
     Ok(CryptoArgon2idRequest {
-        password: bytes_from_vm(runtime, context, request.password)?,
-        salt: bytes_from_vm(runtime, context, request.salt)?,
-        associated_data: bytes_from_vm(runtime, context, request.associated_data)?,
-        secret: bytes_from_vm(runtime, context, request.secret)?,
+        password: bytes_from_vm(binding, context, request.password)?,
+        salt: bytes_from_vm(binding, context, request.salt)?,
+        associated_data: bytes_from_vm(binding, context, request.associated_data)?,
+        secret: bytes_from_vm(binding, context, request.secret)?,
         iterations: request.iterations,
         memory_ki_b: request.memory_ki_b,
         parallelism: request.parallelism,
@@ -2037,19 +2037,19 @@ fn argon2id_request_from_vm(
 }
 
 fn asymmetric_encryption_parameters_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     parameters: CryptoAsymmetricEncryptionParametersVm,
 ) -> RuntimeResult<CryptoAsymmetricEncryptionParameters> {
     Ok(CryptoAsymmetricEncryptionParameters {
         algorithm: parameters.algorithm,
         digest: parameters.digest,
-        label: bytes_from_vm(runtime, context, parameters.label)?,
+        label: bytes_from_vm(binding, context, parameters.label)?,
     })
 }
 
 fn key_generation_request_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     request: CryptoKeyGenerationRequestVm,
 ) -> RuntimeResult<CryptoKeyGenerationRequest> {
@@ -2057,10 +2057,10 @@ fn key_generation_request_from_vm(
         CryptoKeyGenerationRequestVm::CryptoKeyGenerationRequestAes(request) => {
             Ok(CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
                 CryptoKeyGenerationRequestAes {
-                    algorithm: runtime.store_string("aes"),
+                    algorithm: binding.store_string("aes"),
                     size_bits: request.size_bits,
                     usage_mask: request.usage_mask,
-                    label: string_from_vm(runtime, context, request.label)?,
+                    label: string_from_vm(binding, context, request.label)?,
                     extractable: request.extractable,
                     residency: request.residency,
                     hardware_backed: request.hardware_backed,
@@ -2071,10 +2071,10 @@ fn key_generation_request_from_vm(
         CryptoKeyGenerationRequestVm::CryptoKeyGenerationRequestChaCha20(request) => Ok(
             CryptoKeyGenerationRequest::CryptoKeyGenerationRequestChaCha20(
                 CryptoKeyGenerationRequestChaCha20 {
-                    algorithm: runtime.store_string("chacha20"),
+                    algorithm: binding.store_string("chacha20"),
                     size_bits: request.size_bits,
                     usage_mask: request.usage_mask,
-                    label: string_from_vm(runtime, context, request.label)?,
+                    label: string_from_vm(binding, context, request.label)?,
                     extractable: request.extractable,
                     residency: request.residency,
                     hardware_backed: request.hardware_backed,
@@ -2085,10 +2085,10 @@ fn key_generation_request_from_vm(
         CryptoKeyGenerationRequestVm::CryptoKeyGenerationRequestEc(request) => {
             Ok(CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEc(
                 CryptoKeyGenerationRequestEc {
-                    algorithm: runtime.store_string("ec"),
+                    algorithm: binding.store_string("ec"),
                     named_curve: request.named_curve,
                     usage_mask: request.usage_mask,
-                    label: string_from_vm(runtime, context, request.label)?,
+                    label: string_from_vm(binding, context, request.label)?,
                     extractable: request.extractable,
                     residency: request.residency,
                     hardware_backed: request.hardware_backed,
@@ -2099,9 +2099,9 @@ fn key_generation_request_from_vm(
         CryptoKeyGenerationRequestVm::CryptoKeyGenerationRequestEd25519(request) => Ok(
             CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEd25519(
                 CryptoKeyGenerationRequestEd25519 {
-                    algorithm: runtime.store_string("ed25519"),
+                    algorithm: binding.store_string("ed25519"),
                     usage_mask: request.usage_mask,
-                    label: string_from_vm(runtime, context, request.label)?,
+                    label: string_from_vm(binding, context, request.label)?,
                     extractable: request.extractable,
                     residency: request.residency,
                     hardware_backed: request.hardware_backed,
@@ -2112,9 +2112,9 @@ fn key_generation_request_from_vm(
         CryptoKeyGenerationRequestVm::CryptoKeyGenerationRequestEd448(request) => {
             Ok(CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEd448(
                 CryptoKeyGenerationRequestEd448 {
-                    algorithm: runtime.store_string("ed448"),
+                    algorithm: binding.store_string("ed448"),
                     usage_mask: request.usage_mask,
-                    label: string_from_vm(runtime, context, request.label)?,
+                    label: string_from_vm(binding, context, request.label)?,
                     extractable: request.extractable,
                     residency: request.residency,
                     hardware_backed: request.hardware_backed,
@@ -2125,11 +2125,11 @@ fn key_generation_request_from_vm(
         CryptoKeyGenerationRequestVm::CryptoKeyGenerationRequestHmac(request) => {
             Ok(CryptoKeyGenerationRequest::CryptoKeyGenerationRequestHmac(
                 CryptoKeyGenerationRequestHmac {
-                    algorithm: runtime.store_string("hmac"),
+                    algorithm: binding.store_string("hmac"),
                     size_bits: request.size_bits,
                     digest: request.digest,
                     usage_mask: request.usage_mask,
-                    label: string_from_vm(runtime, context, request.label)?,
+                    label: string_from_vm(binding, context, request.label)?,
                     extractable: request.extractable,
                     residency: request.residency,
                     hardware_backed: request.hardware_backed,
@@ -2140,12 +2140,12 @@ fn key_generation_request_from_vm(
         CryptoKeyGenerationRequestVm::CryptoKeyGenerationRequestRsa(request) => {
             Ok(CryptoKeyGenerationRequest::CryptoKeyGenerationRequestRsa(
                 CryptoKeyGenerationRequestRsa {
-                    algorithm: runtime.store_string("rsa"),
+                    algorithm: binding.store_string("rsa"),
                     modulus_bits: request.modulus_bits,
                     public_exponent: request.public_exponent,
                     digest: request.digest,
                     usage_mask: request.usage_mask,
-                    label: string_from_vm(runtime, context, request.label)?,
+                    label: string_from_vm(binding, context, request.label)?,
                     extractable: request.extractable,
                     residency: request.residency,
                     hardware_backed: request.hardware_backed,
@@ -2156,9 +2156,9 @@ fn key_generation_request_from_vm(
         CryptoKeyGenerationRequestVm::CryptoKeyGenerationRequestX25519(request) => Ok(
             CryptoKeyGenerationRequest::CryptoKeyGenerationRequestX25519(
                 CryptoKeyGenerationRequestX25519 {
-                    algorithm: runtime.store_string("x25519"),
+                    algorithm: binding.store_string("x25519"),
                     usage_mask: request.usage_mask,
-                    label: string_from_vm(runtime, context, request.label)?,
+                    label: string_from_vm(binding, context, request.label)?,
                     extractable: request.extractable,
                     residency: request.residency,
                     hardware_backed: request.hardware_backed,
@@ -2169,9 +2169,9 @@ fn key_generation_request_from_vm(
         CryptoKeyGenerationRequestVm::CryptoKeyGenerationRequestX448(request) => {
             Ok(CryptoKeyGenerationRequest::CryptoKeyGenerationRequestX448(
                 CryptoKeyGenerationRequestX448 {
-                    algorithm: runtime.store_string("x448"),
+                    algorithm: binding.store_string("x448"),
                     usage_mask: request.usage_mask,
-                    label: string_from_vm(runtime, context, request.label)?,
+                    label: string_from_vm(binding, context, request.label)?,
                     extractable: request.extractable,
                     residency: request.residency,
                     hardware_backed: request.hardware_backed,
@@ -2183,130 +2183,130 @@ fn key_generation_request_from_vm(
 }
 
 fn key_import_request_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     request: CryptoKeyImportRequestVm,
 ) -> RuntimeResult<CryptoKeyImportRequest> {
     match request {
         CryptoKeyImportRequestVm::CryptoKeyImportRequestAes(request) => Ok(
             CryptoKeyImportRequest::CryptoKeyImportRequestAes(CryptoKeyImportRequestAes {
-                algorithm: runtime.store_string("aes"),
+                algorithm: binding.store_string("aes"),
                 format: request.format,
-                bytes: bytes_from_vm(runtime, context, request.bytes)?,
+                bytes: bytes_from_vm(binding, context, request.bytes)?,
                 usage_mask: request.usage_mask,
-                label: string_from_vm(runtime, context, request.label)?,
+                label: string_from_vm(binding, context, request.label)?,
                 extractable: request.extractable,
                 residency: request.residency,
-                passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
+                passphrase: bytes_from_vm(binding, context, request.passphrase)?,
                 persistent: request.persistent,
             }),
         ),
         CryptoKeyImportRequestVm::CryptoKeyImportRequestChaCha20(request) => {
             Ok(CryptoKeyImportRequest::CryptoKeyImportRequestChaCha20(
                 CryptoKeyImportRequestChaCha20 {
-                    algorithm: runtime.store_string("chacha20"),
+                    algorithm: binding.store_string("chacha20"),
                     format: request.format,
-                    bytes: bytes_from_vm(runtime, context, request.bytes)?,
+                    bytes: bytes_from_vm(binding, context, request.bytes)?,
                     usage_mask: request.usage_mask,
-                    label: string_from_vm(runtime, context, request.label)?,
+                    label: string_from_vm(binding, context, request.label)?,
                     extractable: request.extractable,
                     residency: request.residency,
-                    passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
+                    passphrase: bytes_from_vm(binding, context, request.passphrase)?,
                     persistent: request.persistent,
                 },
             ))
         }
         CryptoKeyImportRequestVm::CryptoKeyImportRequestEc(request) => Ok(
             CryptoKeyImportRequest::CryptoKeyImportRequestEc(CryptoKeyImportRequestEc {
-                algorithm: runtime.store_string("ec"),
+                algorithm: binding.store_string("ec"),
                 format: request.format,
-                bytes: bytes_from_vm(runtime, context, request.bytes)?,
+                bytes: bytes_from_vm(binding, context, request.bytes)?,
                 named_curve: request.named_curve,
                 usage_mask: request.usage_mask,
-                label: string_from_vm(runtime, context, request.label)?,
+                label: string_from_vm(binding, context, request.label)?,
                 extractable: request.extractable,
                 residency: request.residency,
-                passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
+                passphrase: bytes_from_vm(binding, context, request.passphrase)?,
                 persistent: request.persistent,
             }),
         ),
         CryptoKeyImportRequestVm::CryptoKeyImportRequestEd25519(request) => Ok(
             CryptoKeyImportRequest::CryptoKeyImportRequestEd25519(CryptoKeyImportRequestEd25519 {
-                algorithm: runtime.store_string("ed25519"),
+                algorithm: binding.store_string("ed25519"),
                 format: request.format,
-                bytes: bytes_from_vm(runtime, context, request.bytes)?,
+                bytes: bytes_from_vm(binding, context, request.bytes)?,
                 usage_mask: request.usage_mask,
-                label: string_from_vm(runtime, context, request.label)?,
+                label: string_from_vm(binding, context, request.label)?,
                 extractable: request.extractable,
                 residency: request.residency,
-                passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
+                passphrase: bytes_from_vm(binding, context, request.passphrase)?,
                 persistent: request.persistent,
             }),
         ),
         CryptoKeyImportRequestVm::CryptoKeyImportRequestEd448(request) => Ok(
             CryptoKeyImportRequest::CryptoKeyImportRequestEd448(CryptoKeyImportRequestEd448 {
-                algorithm: runtime.store_string("ed448"),
+                algorithm: binding.store_string("ed448"),
                 format: request.format,
-                bytes: bytes_from_vm(runtime, context, request.bytes)?,
+                bytes: bytes_from_vm(binding, context, request.bytes)?,
                 usage_mask: request.usage_mask,
-                label: string_from_vm(runtime, context, request.label)?,
+                label: string_from_vm(binding, context, request.label)?,
                 extractable: request.extractable,
                 residency: request.residency,
-                passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
+                passphrase: bytes_from_vm(binding, context, request.passphrase)?,
                 persistent: request.persistent,
             }),
         ),
         CryptoKeyImportRequestVm::CryptoKeyImportRequestHmac(request) => Ok(
             CryptoKeyImportRequest::CryptoKeyImportRequestHmac(CryptoKeyImportRequestHmac {
-                algorithm: runtime.store_string("hmac"),
+                algorithm: binding.store_string("hmac"),
                 format: request.format,
-                bytes: bytes_from_vm(runtime, context, request.bytes)?,
+                bytes: bytes_from_vm(binding, context, request.bytes)?,
                 digest: request.digest,
                 usage_mask: request.usage_mask,
-                label: string_from_vm(runtime, context, request.label)?,
+                label: string_from_vm(binding, context, request.label)?,
                 extractable: request.extractable,
                 residency: request.residency,
-                passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
+                passphrase: bytes_from_vm(binding, context, request.passphrase)?,
                 persistent: request.persistent,
             }),
         ),
         CryptoKeyImportRequestVm::CryptoKeyImportRequestRsa(request) => Ok(
             CryptoKeyImportRequest::CryptoKeyImportRequestRsa(CryptoKeyImportRequestRsa {
-                algorithm: runtime.store_string("rsa"),
+                algorithm: binding.store_string("rsa"),
                 format: request.format,
-                bytes: bytes_from_vm(runtime, context, request.bytes)?,
+                bytes: bytes_from_vm(binding, context, request.bytes)?,
                 digest: request.digest,
                 usage_mask: request.usage_mask,
-                label: string_from_vm(runtime, context, request.label)?,
+                label: string_from_vm(binding, context, request.label)?,
                 extractable: request.extractable,
                 residency: request.residency,
-                passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
+                passphrase: bytes_from_vm(binding, context, request.passphrase)?,
                 persistent: request.persistent,
             }),
         ),
         CryptoKeyImportRequestVm::CryptoKeyImportRequestX25519(request) => Ok(
             CryptoKeyImportRequest::CryptoKeyImportRequestX25519(CryptoKeyImportRequestX25519 {
-                algorithm: runtime.store_string("x25519"),
+                algorithm: binding.store_string("x25519"),
                 format: request.format,
-                bytes: bytes_from_vm(runtime, context, request.bytes)?,
+                bytes: bytes_from_vm(binding, context, request.bytes)?,
                 usage_mask: request.usage_mask,
-                label: string_from_vm(runtime, context, request.label)?,
+                label: string_from_vm(binding, context, request.label)?,
                 extractable: request.extractable,
                 residency: request.residency,
-                passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
+                passphrase: bytes_from_vm(binding, context, request.passphrase)?,
                 persistent: request.persistent,
             }),
         ),
         CryptoKeyImportRequestVm::CryptoKeyImportRequestX448(request) => Ok(
             CryptoKeyImportRequest::CryptoKeyImportRequestX448(CryptoKeyImportRequestX448 {
-                algorithm: runtime.store_string("x448"),
+                algorithm: binding.store_string("x448"),
                 format: request.format,
-                bytes: bytes_from_vm(runtime, context, request.bytes)?,
+                bytes: bytes_from_vm(binding, context, request.bytes)?,
                 usage_mask: request.usage_mask,
-                label: string_from_vm(runtime, context, request.label)?,
+                label: string_from_vm(binding, context, request.label)?,
                 extractable: request.extractable,
                 residency: request.residency,
-                passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
+                passphrase: bytes_from_vm(binding, context, request.passphrase)?,
                 persistent: request.persistent,
             }),
         ),
@@ -2314,65 +2314,65 @@ fn key_import_request_from_vm(
 }
 
 fn private_key_export_request_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     request: CryptoPrivateKeyExportRequestVm,
 ) -> RuntimeResult<CryptoPrivateKeyExportRequest> {
     Ok(CryptoPrivateKeyExportRequest {
         format: request.format,
-        passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
+        passphrase: bytes_from_vm(binding, context, request.passphrase)?,
     })
 }
 
 fn key_wrap_parameters_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     parameters: CryptoKeyWrapParametersVm,
 ) -> RuntimeResult<CryptoKeyWrapParameters> {
     Ok(CryptoKeyWrapParameters {
         algorithm: parameters.algorithm,
         digest: parameters.digest,
-        label: bytes_from_vm(runtime, context, parameters.label)?,
+        label: bytes_from_vm(binding, context, parameters.label)?,
     })
 }
 
 fn key_query_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     query: CryptoKeyQueryVm,
 ) -> RuntimeResult<CryptoKeyQuery> {
     Ok(CryptoKeyQuery {
-        label_prefix: string_from_vm(runtime, context, query.label_prefix)?,
+        label_prefix: string_from_vm(binding, context, query.label_prefix)?,
         algorithm: query.algorithm,
         usage_mask: query.usage_mask,
-        cursor: string_from_vm(runtime, context, query.cursor)?,
+        cursor: string_from_vm(binding, context, query.cursor)?,
         limit: query.limit,
     })
 }
 
 fn certificate_query_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     query: CryptoCertificateQueryVm,
 ) -> RuntimeResult<CryptoCertificateQuery> {
     Ok(CryptoCertificateQuery {
-        subject_contains: string_from_vm(runtime, context, query.subject_contains)?,
-        issuer_contains: string_from_vm(runtime, context, query.issuer_contains)?,
-        subject_alternative_name: string_from_vm(runtime, context, query.subject_alternative_name)?,
-        cursor: string_from_vm(runtime, context, query.cursor)?,
+        subject_contains: string_from_vm(binding, context, query.subject_contains)?,
+        issuer_contains: string_from_vm(binding, context, query.issuer_contains)?,
+        subject_alternative_name: string_from_vm(binding, context, query.subject_alternative_name)?,
+        cursor: string_from_vm(binding, context, query.cursor)?,
         limit: query.limit,
     })
 }
 
 fn store_options_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     options: CryptoStoreOptionsVm,
 ) -> RuntimeResult<CryptoStoreOptions> {
     Ok(CryptoStoreOptions {
         kind: options.kind,
         provider: options.provider,
-        namespace: string_from_vm(runtime, context, options.namespace)?,
+        namespace: string_from_vm(binding, context, options.namespace)?,
     })
 }
 

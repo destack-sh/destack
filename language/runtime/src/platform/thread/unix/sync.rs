@@ -134,7 +134,7 @@ unsafe fn pthread_rwlock_timed_write_lock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_address_wait(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     address: u64,
     expected: u32,
     timeoutns: u64,
@@ -251,7 +251,7 @@ pub(crate) unsafe fn destack_thread_address_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_address_wake_all(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     address: u64,
 ) -> RuntimeResult<()> {
     // validate the waited address
@@ -317,7 +317,7 @@ pub(crate) unsafe fn destack_thread_address_wake_all(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_address_wake_one(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     address: u64,
 ) -> RuntimeResult<()> {
     // validate the waited address
@@ -383,7 +383,7 @@ pub(crate) unsafe fn destack_thread_address_wake_one(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_barrier_create(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut BarrierHandle,
     participants: u32,
     flags: u32,
@@ -424,7 +424,7 @@ pub(crate) unsafe fn destack_thread_barrier_create(
 
         // store one barrier resource
         let resource_id = core_thread::insert_thread_resource(
-            context,
+            binding,
             ResourceKind::Barrier,
             "thread.barrier",
             resource_thread::BarrierResource {
@@ -444,7 +444,7 @@ pub(crate) unsafe fn destack_thread_barrier_create(
 
     #[cfg(not(any(target_os = "linux", target_os = "android", target_os = "freebsd")))]
     {
-        let _ = (context, participants);
+        let _ = (binding, participants);
         Err(RuntimeError::from(PlatformError::not_supported(
             "destack.thread.sync.barrierCreate",
         ))
@@ -470,7 +470,7 @@ pub(crate) unsafe fn destack_thread_barrier_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_barrier_wait(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: BarrierHandle,
     timeoutns: u64,
@@ -484,7 +484,7 @@ pub(crate) unsafe fn destack_thread_barrier_wait(
     {
         // resolve the barrier resource
         let barrier = core_thread::resolve_thread_resource::<resource_thread::BarrierResource>(
-            context,
+            binding,
             handle.0,
             "handle",
             "barrier handle",
@@ -523,7 +523,7 @@ pub(crate) unsafe fn destack_thread_barrier_wait(
 
     #[cfg(not(any(target_os = "linux", target_os = "android", target_os = "freebsd")))]
     {
-        let _ = (context, handle, timeoutns);
+        let _ = (binding, handle, timeoutns);
         Err(RuntimeError::from(PlatformError::not_supported(
             "destack.thread.sync.barrierWait",
         ))
@@ -549,7 +549,7 @@ pub(crate) unsafe fn destack_thread_barrier_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_cond_var_create(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CondVarHandle,
     flags: u32,
 ) -> RuntimeResult<()> {
@@ -577,7 +577,7 @@ pub(crate) unsafe fn destack_thread_cond_var_create(
 
     // store one condition-variable resource
     let resource_id = core_thread::insert_thread_resource(
-        context,
+        binding,
         ResourceKind::CondVar,
         "thread.condvar",
         resource_thread::CondVarResource {
@@ -612,12 +612,12 @@ pub(crate) unsafe fn destack_thread_cond_var_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_cond_var_notify_all(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     condvar: CondVarHandle,
 ) -> RuntimeResult<()> {
     // resolve the condition-variable resource
     let condvar = core_thread::resolve_thread_resource::<resource_thread::CondVarResource>(
-        context,
+        binding,
         condvar.0,
         "condvar",
         "condition variable handle",
@@ -650,12 +650,12 @@ pub(crate) unsafe fn destack_thread_cond_var_notify_all(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_cond_var_notify_one(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     condvar: CondVarHandle,
 ) -> RuntimeResult<()> {
     // resolve the condition-variable resource
     let condvar = core_thread::resolve_thread_resource::<resource_thread::CondVarResource>(
-        context,
+        binding,
         condvar.0,
         "condvar",
         "condition variable handle",
@@ -688,20 +688,20 @@ pub(crate) unsafe fn destack_thread_cond_var_notify_one(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_cond_var_wait(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     condvar: CondVarHandle,
     mutex: MutexHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     // resolve synchronization resources
     let condvar = core_thread::resolve_thread_resource::<resource_thread::CondVarResource>(
-        context,
+        binding,
         condvar.0,
         "condvar",
         "condition variable handle",
     )?;
     let mutex = core_thread::resolve_thread_resource::<resource_thread::MutexResource>(
-        context,
+        binding,
         mutex.0,
         "mutex",
         "mutex handle",
@@ -768,7 +768,7 @@ pub(crate) unsafe fn destack_thread_cond_var_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_mutex_create(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut MutexHandle,
     flags: u32,
 ) -> RuntimeResult<()> {
@@ -810,7 +810,7 @@ pub(crate) unsafe fn destack_thread_mutex_create(
 
     // store one mutex resource
     let resource_id = core_thread::insert_thread_resource(
-        context,
+        binding,
         ResourceKind::Mutex,
         "thread.mutex",
         resource_thread::MutexResource {
@@ -845,13 +845,13 @@ pub(crate) unsafe fn destack_thread_mutex_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_mutex_lock(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: MutexHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     // resolve the mutex resource
     let mutex = core_thread::resolve_thread_resource::<resource_thread::MutexResource>(
-        context,
+        binding,
         handle.0,
         "handle",
         "mutex handle",
@@ -930,12 +930,12 @@ pub(crate) unsafe fn destack_thread_mutex_lock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_mutex_unlock(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: MutexHandle,
 ) -> RuntimeResult<()> {
     // resolve the mutex resource
     let mutex = core_thread::resolve_thread_resource::<resource_thread::MutexResource>(
-        context,
+        binding,
         handle.0,
         "handle",
         "mutex handle",
@@ -975,7 +975,7 @@ pub(crate) unsafe fn destack_thread_mutex_unlock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_rwlock_create(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut RwLockHandle,
     flags: u32,
 ) -> RuntimeResult<()> {
@@ -1003,7 +1003,7 @@ pub(crate) unsafe fn destack_thread_rwlock_create(
 
     // store one read-write lock resource
     let resource_id = core_thread::insert_thread_resource(
-        context,
+        binding,
         ResourceKind::RwLock,
         "thread.rwlock",
         resource_thread::RwLockResource {
@@ -1038,13 +1038,13 @@ pub(crate) unsafe fn destack_thread_rwlock_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_rwlock_read_lock(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: RwLockHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     // resolve the read-write lock resource
     let rwlock = core_thread::resolve_thread_resource::<resource_thread::RwLockResource>(
-        context,
+        binding,
         handle.0,
         "handle",
         "rwlock handle",
@@ -1116,12 +1116,12 @@ pub(crate) unsafe fn destack_thread_rwlock_read_lock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_rwlock_unlock(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: RwLockHandle,
 ) -> RuntimeResult<()> {
     // resolve the read-write lock resource
     let rwlock = core_thread::resolve_thread_resource::<resource_thread::RwLockResource>(
-        context,
+        binding,
         handle.0,
         "handle",
         "rwlock handle",
@@ -1161,13 +1161,13 @@ pub(crate) unsafe fn destack_thread_rwlock_unlock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_rwlock_write_lock(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: RwLockHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     // resolve the read-write lock resource
     let rwlock = core_thread::resolve_thread_resource::<resource_thread::RwLockResource>(
-        context,
+        binding,
         handle.0,
         "handle",
         "rwlock handle",
@@ -1239,7 +1239,7 @@ pub(crate) unsafe fn destack_thread_rwlock_write_lock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_semaphore_create(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut ThreadSemaphoreHandle,
     initial: u32,
     maximum: u32,
@@ -1289,7 +1289,7 @@ pub(crate) unsafe fn destack_thread_semaphore_create(
 
     // store one semaphore resource
     let resource_id = core_thread::insert_thread_resource(
-        context,
+        binding,
         ResourceKind::ThreadSemaphore,
         "thread.semaphore",
         resource_thread::SemaphoreResource {
@@ -1325,13 +1325,13 @@ pub(crate) unsafe fn destack_thread_semaphore_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_semaphore_post(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ThreadSemaphoreHandle,
     count: u32,
 ) -> RuntimeResult<()> {
     // resolve the semaphore resource
     let semaphore = core_thread::resolve_thread_resource::<resource_thread::SemaphoreResource>(
-        context,
+        binding,
         handle.0,
         "handle",
         "thread semaphore handle",
@@ -1379,13 +1379,13 @@ pub(crate) unsafe fn destack_thread_semaphore_post(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_semaphore_wait(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ThreadSemaphoreHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     // resolve the semaphore resource
     let semaphore = core_thread::resolve_thread_resource::<resource_thread::SemaphoreResource>(
-        context,
+        binding,
         handle.0,
         "handle",
         "thread semaphore handle",

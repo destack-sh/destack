@@ -22,12 +22,12 @@ use destack_vm as vm;
 /// # Replay
 /// Deterministic.
 pub(super) fn destack_error_take_platform_error(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     error_id: u64,
 ) -> RuntimeResult<PlatformErrorVm> {
     let error = take_platform_error(
-        runtime.runtime().diagnostic.as_ref(),
+        binding.agent().diagnostic.as_ref(),
         RuntimeErrorId::from_raw(error_id),
     );
     let mut store = VmStringStore::new(context);

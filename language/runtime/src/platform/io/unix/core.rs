@@ -102,10 +102,10 @@ fn event_signal_descriptor_map() -> &'static Mutex<HashMap<(usize, ResourceId), 
 /// Return the descriptor-map key for one event token in one agent.
 #[cfg(all(unix, not(target_os = "linux")))]
 fn event_signal_descriptor_key(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     token: EventToken,
 ) -> (usize, ResourceId) {
-    (io_core::agent_key(context), ResourceId(token.0))
+    (io_core::agent_key(binding), ResourceId(token.0))
 }
 
 /// Create one nonblocking close-on-exec pipe pair for events.
@@ -252,7 +252,7 @@ pub(crate) fn host_completion_create_proactor(entries: u32) -> RuntimeResult<Box
 
 /// Execute one generic descriptor fcntl-style operation.
 pub(crate) fn host_control_fcntl(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ResourceId,
     command: DescriptorControlCommand,
     argument: u64,
@@ -268,7 +268,7 @@ pub(crate) fn host_control_fcntl(
     }
 
     // resolve one fd-backed resource from the table
-    let fd = context
+    let fd = binding
         .agent()
         .resources
         .with_entry(handle, |entry| entry.fd())
@@ -302,7 +302,7 @@ pub(crate) fn host_control_fcntl(
 
 /// Execute one generic descriptor ioctl-style operation.
 pub(crate) fn host_control_ioctl(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ResourceId,
     request: DescriptorRequest,
 ) -> RuntimeResult<DescriptorResult> {
@@ -349,7 +349,7 @@ pub(crate) fn host_control_ioctl(
     }
 
     // resolve one fd-backed resource from the table
-    let fd = context
+    let fd = binding
         .agent()
         .resources
         .with_entry(handle, |entry| entry.fd())
@@ -369,7 +369,7 @@ pub(crate) fn host_control_ioctl(
 
     // encode the fixed-size output lane requested by the caller
     let output_len = request.output_size as usize;
-    let output = context.store_slice(lane[..output_len].to_vec());
+    let output = binding.store_slice(lane[..output_len].to_vec());
 
     Ok(DescriptorResult {
         return_value: result as i64,
@@ -389,11 +389,11 @@ pub(crate) const fn host_map_poll_backend(backend: PollBackend) -> HostPollerBac
 
 /// Resolve one poll target resource into one platform handle.
 pub(crate) fn host_poll_resolve_target_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     target: ResourceId,
 ) -> RuntimeResult<PlatformHandle> {
     // resolve one runtime target entry
-    let resolved = context
+    let resolved = binding
         .agent()
         .resources
         .with_entry(target, |entry| entry.fd().map(PlatformHandle::from_raw_fd));
@@ -420,12 +420,12 @@ pub(crate) fn host_poll_resolve_target_handle(
 
 /// Resolve one completion target resource into one platform handle.
 pub(crate) fn host_completion_resolve_target_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     target: ResourceId,
     operation: &'static str,
 ) -> RuntimeResult<PlatformHandle> {
     // resolve one runtime target entry
-    let resolved = context
+    let resolved = binding
         .agent()
         .resources
         .with_entry(target, |entry| entry.fd().map(PlatformHandle::from_raw_fd));
@@ -449,7 +449,7 @@ pub(crate) fn host_completion_resolve_target_handle(
 
 /// Register one accepted socket handle into the runtime resource table.
 pub(crate) fn host_completion_register_accepted_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: PlatformHandle,
 ) -> RuntimeResult<i64> {
     let descriptor = handle.as_raw_fd();
@@ -460,16 +460,16 @@ pub(crate) fn host_completion_register_accepted_handle(
             descriptor,
             paired_descriptor: None,
         });
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     Ok(resource_id.0 as i64)
 }
 
 /// Open one event token on Unix hosts.
 pub(crate) fn host_event_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     initial: u64,
 ) -> RuntimeResult<EventToken> {
     #[cfg(target_os = "linux")]
@@ -499,10 +499,10 @@ pub(crate) fn host_event_open(
                 descriptor,
                 paired_descriptor: None,
             });
-        let resource_id = context
+        let resource_id = binding
             .agent()
             .resources
-            .insert(entry, Some(context.engine()));
+            .insert(entry, Some(binding.engine()));
         return Ok(EventToken(resource_id.0));
     }
 
@@ -524,7 +524,7 @@ pub(crate) fn host_event_open(
         }
 
         // store one runtime event token resource
-        let agent_key = io_core::agent_key(context);
+        let agent_key = io_core::agent_key(binding);
         let entry = ResourceEntry::new(ResourceKind::Event)
             .with_label(io_core::EVENT_RESOURCE_LABEL)
             .with_fd(read_descriptor)
@@ -533,11 +533,11 @@ pub(crate) fn host_event_open(
                 read_descriptor,
                 write_descriptor,
             });
-        let resource_id = context
+        let resource_id = binding
             .agent()
             .resources
-            .insert(entry, Some(context.engine()));
-        let descriptor_key = event_signal_descriptor_key(context, EventToken(resource_id.0));
+            .insert(entry, Some(binding.engine()));
+        let descriptor_key = event_signal_descriptor_key(binding, EventToken(resource_id.0));
         event_signal_descriptor_map()
             .lock()
             .insert(descriptor_key, write_descriptor);
@@ -548,20 +548,20 @@ pub(crate) fn host_event_open(
 
 /// Close one event token on Unix hosts.
 pub(crate) fn host_event_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     token: EventToken,
 ) -> RuntimeResult<()> {
     #[cfg(all(unix, not(target_os = "linux")))]
     {
-        let descriptor_key = event_signal_descriptor_key(context, token);
+        let descriptor_key = event_signal_descriptor_key(binding, token);
         event_signal_descriptor_map().lock().remove(&descriptor_key);
     }
 
     // remove one token resource from the runtime table
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(ResourceId(token.0), Some(context.engine()));
+        .remove_and_finalize(ResourceId(token.0), Some(binding.engine()));
     if !removed {
         return Err(io_core::event_not_found("destack.io.event.close", token));
     }
@@ -571,14 +571,14 @@ pub(crate) fn host_event_close(
 
 /// Signal one event token on Unix hosts.
 pub(crate) fn host_event_signal(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     token: EventToken,
     value: u64,
 ) -> RuntimeResult<()> {
     // resolve one descriptor from the token resource
     #[cfg(target_os = "linux")]
     let descriptor = {
-        context
+        binding
             .agent()
             .resources
             .with_entry(ResourceId(token.0), |entry| entry.fd())
@@ -586,7 +586,7 @@ pub(crate) fn host_event_signal(
             .ok_or_else(|| io_core::event_not_found("destack.io.event.signal", token))?
     };
     #[cfg(all(unix, not(target_os = "linux")))]
-    let descriptor_key = event_signal_descriptor_key(context, token);
+    let descriptor_key = event_signal_descriptor_key(binding, token);
     #[cfg(all(unix, not(target_os = "linux")))]
     let descriptor = event_signal_descriptor_map()
         .lock()

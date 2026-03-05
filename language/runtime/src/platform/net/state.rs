@@ -8,7 +8,7 @@ use super::host::{WindowsPacketRuntimeState, WindowsUdsRuntimeState};
 
 /// Runtime-owned network module state.
 #[derive(Default)]
-pub struct PlatformNetState {
+pub(crate) struct PlatformNetState {
     /// Runtime-owned windows packet state.
     #[cfg(windows)]
     windows_packet_runtime_state: OnceLock<Arc<WindowsPacketRuntimeState>>,

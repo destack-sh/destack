@@ -33,7 +33,7 @@ use crate::platform::tls::{
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_context_close(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -59,7 +59,7 @@ pub(crate) unsafe fn destack_tls_context_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_context_open(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut resource::TlsContextHandle,
     options: TlsContextOptions,
 ) -> RuntimeResult<()> {
@@ -89,7 +89,7 @@ pub(crate) unsafe fn destack_tls_context_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_cipher_suites(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     suites: NativeStringSlice,
 ) -> RuntimeResult<()> {
@@ -119,7 +119,7 @@ pub(crate) unsafe fn destack_tls_context_set_cipher_suites(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_groups(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     groups: NativeStringSlice,
 ) -> RuntimeResult<()> {
@@ -149,7 +149,7 @@ pub(crate) unsafe fn destack_tls_context_set_groups(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_hostname_verification_mode(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     mode: TlsHostnameVerificationMode,
 ) -> RuntimeResult<()> {
@@ -179,7 +179,7 @@ pub(crate) unsafe fn destack_tls_context_set_hostname_verification_mode(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_identity_pem(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     certificatechainpem: NativeSlice<u8>,
     privatekeypem: NativeSlice<u8>,
@@ -210,7 +210,7 @@ pub(crate) unsafe fn destack_tls_context_set_identity_pem(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_keylog_enabled(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -240,7 +240,7 @@ pub(crate) unsafe fn destack_tls_context_set_keylog_enabled(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_session_resumption(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     mode: TlsSessionResumptionMode,
 ) -> RuntimeResult<()> {
@@ -270,7 +270,7 @@ pub(crate) unsafe fn destack_tls_context_set_session_resumption(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_signature_algorithms(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     algorithms: NativeStringSlice,
 ) -> RuntimeResult<()> {
@@ -300,7 +300,7 @@ pub(crate) unsafe fn destack_tls_context_set_signature_algorithms(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_trust_anchors_pem(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     trustanchorspem: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -330,7 +330,7 @@ pub(crate) unsafe fn destack_tls_context_set_trust_anchors_pem(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_close(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -356,7 +356,7 @@ pub(crate) unsafe fn destack_tls_session_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_export_keying_material(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::TlsSessionHandle,
     label: NativeStringRef,
@@ -392,7 +392,7 @@ pub(crate) unsafe fn destack_tls_session_export_keying_material(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_handshake(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut TlsHandshakeStatus,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
@@ -425,7 +425,7 @@ pub(crate) unsafe fn destack_tls_session_handshake(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_negotiated_alpn(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
@@ -458,7 +458,7 @@ pub(crate) unsafe fn destack_tls_session_negotiated_alpn(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_open(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut resource::TlsSessionHandle,
     argument_context: resource::TlsContextHandle,
     socket: resource::SocketHandle,
@@ -490,7 +490,7 @@ pub(crate) unsafe fn destack_tls_session_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_peer_certificates_pem(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
@@ -523,7 +523,7 @@ pub(crate) unsafe fn destack_tls_session_peer_certificates_pem(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_read(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::TlsSessionHandle,
     buffer: NativeSlice<u8>,
@@ -554,7 +554,7 @@ pub(crate) unsafe fn destack_tls_session_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_resumption_state(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut TlsSessionResumptionState,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
@@ -587,7 +587,7 @@ pub(crate) unsafe fn destack_tls_session_resumption_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_shutdown(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -613,7 +613,7 @@ pub(crate) unsafe fn destack_tls_session_shutdown(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_write(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::TlsSessionHandle,
     buffer: NativeSlice<u8>,

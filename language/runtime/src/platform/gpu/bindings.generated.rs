@@ -39,14 +39,13 @@ use crate::platform::gpu::{
     GpuTextureViewOptions, GpuTextureViewOptionsVm, GpuVertexBufferLayoutVm, GpuVertexStateVm,
 };
 use crate::platform::{
-    NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
-    abi as platform_abi,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec,
+    VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
     BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
-use crate::runtime::{NativeSlice, NativeStringRef};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
@@ -10300,21 +10299,21 @@ pub const GPU_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for gpu bindings.
 #[inline]
 fn destack_gpu_adapter_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_ADAPTER_CLOSE,
-        context.replay_payload_for(GPU_ADAPTER_CLOSE)?,
+        binding.replay_payload_for(GPU_ADAPTER_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_adapter_close(context, handle)
+                platform_native::destack_gpu_adapter_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_adapter_close(context, handle)
+                platform_simulation_native::destack_gpu_adapter_close(binding, handle)
             },
         },
         |result| {
@@ -10348,22 +10347,22 @@ fn destack_gpu_adapter_close_replay(
 
 #[inline]
 fn destack_gpu_adapter_features_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<GpuFeatureId>,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_ADAPTER_FEATURES,
-        context.replay_payload_for(GPU_ADAPTER_FEATURES)?,
+        binding.replay_payload_for(GPU_ADAPTER_FEATURES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_adapter_features(context, out, handle)
+                platform_native::destack_gpu_adapter_features(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_adapter_features(context, out, handle)
+                platform_simulation_native::destack_gpu_adapter_features(binding, out, handle)
             },
         },
         |result| {
@@ -10406,7 +10405,7 @@ fn destack_gpu_adapter_features_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -10420,7 +10419,7 @@ fn destack_gpu_adapter_features_replay(
 
 #[inline]
 fn destack_gpu_adapter_format_capabilities_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuAdapterFormatCapabilities,
     handle: resource::GpuAdapterHandle,
@@ -10428,18 +10427,18 @@ fn destack_gpu_adapter_format_capabilities_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &format);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_ADAPTER_FORMAT_CAPABILITIES,
-        context.replay_payload_for(GPU_ADAPTER_FORMAT_CAPABILITIES)?,
+        binding.replay_payload_for(GPU_ADAPTER_FORMAT_CAPABILITIES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_adapter_format_capabilities(
-                    context, out, handle, format,
+                    binding, out, handle, format,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_adapter_format_capabilities(
-                    context, out, handle, format,
+                    binding, out, handle, format,
                 )
             },
         },
@@ -10512,7 +10511,7 @@ fn destack_gpu_adapter_format_capabilities_replay(
 
 #[inline]
 fn destack_gpu_adapter_has_feature_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut bool,
     handle: resource::GpuAdapterHandle,
@@ -10520,16 +10519,16 @@ fn destack_gpu_adapter_has_feature_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &feature);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_ADAPTER_HAS_FEATURE,
-        context.replay_payload_for(GPU_ADAPTER_HAS_FEATURE)?,
+        binding.replay_payload_for(GPU_ADAPTER_HAS_FEATURE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_adapter_has_feature(context, out, handle, feature)
+                platform_native::destack_gpu_adapter_has_feature(binding, out, handle, feature)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_adapter_has_feature(
-                    context, out, handle, feature,
+                    binding, out, handle, feature,
                 )
             },
         },
@@ -10576,22 +10575,22 @@ fn destack_gpu_adapter_has_feature_replay(
 
 #[inline]
 fn destack_gpu_adapter_info_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuAdapterInfo,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_ADAPTER_INFO,
-        context.replay_payload_for(GPU_ADAPTER_INFO)?,
+        binding.replay_payload_for(GPU_ADAPTER_INFO)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_adapter_info(context, out, handle)
+                platform_native::destack_gpu_adapter_info(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_adapter_info(context, out, handle)
+                platform_simulation_native::destack_gpu_adapter_info(binding, out, handle)
             },
         },
         |result| {
@@ -10779,11 +10778,11 @@ fn destack_gpu_adapter_info_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_id = context.store_string(&value.id);
-                    let value_native_name = context.store_string(&value.name);
-                    let value_native_vendor = context.store_string(&value.vendor);
-                    let value_native_driver = context.store_string(&value.driver);
-                    let value_native_driver_version = context.store_string(&value.driver_version);
+                    let value_native_id = binding.store_string(&value.id);
+                    let value_native_name = binding.store_string(&value.name);
+                    let value_native_vendor = binding.store_string(&value.vendor);
+                    let value_native_driver = binding.store_string(&value.driver);
+                    let value_native_driver_version = binding.store_string(&value.driver_version);
                     let value_native_backend = value.backend;
                     let value_native_adapter_type = value.adapter_type;
                     let value_native_vendor_id = value.vendor_id;
@@ -10796,7 +10795,7 @@ fn destack_gpu_adapter_info_replay(
                         let value_native_features_item_native = value_native_features_item;
                         value_native_features_values.push(value_native_features_item_native);
                     }
-                    let value_native_features = context.store_slice(value_native_features_values);
+                    let value_native_features = binding.store_slice(value_native_features_values);
                     let value_native_limits_max_bind_groups = value.limits.max_bind_groups;
                     let value_native_limits_max_bindings_per_bind_group =
                         value.limits.max_bindings_per_bind_group;
@@ -10942,22 +10941,22 @@ fn destack_gpu_adapter_info_replay(
 
 #[inline]
 fn destack_gpu_adapter_limits_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuAdapterLimits,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_ADAPTER_LIMITS,
-        context.replay_payload_for(GPU_ADAPTER_LIMITS)?,
+        binding.replay_payload_for(GPU_ADAPTER_LIMITS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_adapter_limits(context, out, handle)
+                platform_native::destack_gpu_adapter_limits(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_adapter_limits(context, out, handle)
+                platform_simulation_native::destack_gpu_adapter_limits(binding, out, handle)
             },
         },
         |result| {
@@ -11203,19 +11202,19 @@ fn destack_gpu_adapter_limits_replay(
 
 #[inline]
 fn destack_gpu_adapter_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<GpuAdapterInfo>,
     request: GpuAdapterRequest,
 ) -> RuntimeResult<()> {
     let _ = &request;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_ADAPTER_LIST,
-        context.replay_payload_for(GPU_ADAPTER_LIST)?,
+        binding.replay_payload_for(GPU_ADAPTER_LIST)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_gpu_adapter_list(context, out, request) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_gpu_adapter_list(context, out, request) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_gpu_adapter_list(binding, out, request) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_gpu_adapter_list(binding, out, request) },
         },
         |result| {
             if let Ok(()) = result {
@@ -11354,11 +11353,11 @@ fn destack_gpu_adapter_list_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
-                        let value_native_item_native_id = context.store_string(&value_native_item.id);
-                        let value_native_item_native_name = context.store_string(&value_native_item.name);
-                        let value_native_item_native_vendor = context.store_string(&value_native_item.vendor);
-                        let value_native_item_native_driver = context.store_string(&value_native_item.driver);
-                        let value_native_item_native_driver_version = context.store_string(&value_native_item.driver_version);
+                        let value_native_item_native_id = binding.store_string(&value_native_item.id);
+                        let value_native_item_native_name = binding.store_string(&value_native_item.name);
+                        let value_native_item_native_vendor = binding.store_string(&value_native_item.vendor);
+                        let value_native_item_native_driver = binding.store_string(&value_native_item.driver);
+                        let value_native_item_native_driver_version = binding.store_string(&value_native_item.driver_version);
                         let value_native_item_native_backend = value_native_item.backend;
                         let value_native_item_native_adapter_type = value_native_item.adapter_type;
                         let value_native_item_native_vendor_id = value_native_item.vendor_id;
@@ -11371,7 +11370,7 @@ fn destack_gpu_adapter_list_replay(
                             let value_native_item_native_features_item_native = value_native_item_native_features_item;
                             value_native_item_native_features_values.push(value_native_item_native_features_item_native);
                         }
-                        let value_native_item_native_features = context.store_slice(value_native_item_native_features_values);
+                        let value_native_item_native_features = binding.store_slice(value_native_item_native_features_values);
                         let value_native_item_native_limits_max_bind_groups = value_native_item.limits.max_bind_groups;
                         let value_native_item_native_limits_max_bindings_per_bind_group = value_native_item.limits.max_bindings_per_bind_group;
                         let value_native_item_native_limits_max_push_constant_bytes = value_native_item.limits.max_push_constant_bytes;
@@ -11456,7 +11455,7 @@ fn destack_gpu_adapter_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
@@ -11468,22 +11467,22 @@ fn destack_gpu_adapter_list_replay(
 
 #[inline]
 fn destack_gpu_adapter_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuAdapterHandle,
     id: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = &id;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_ADAPTER_OPEN,
-        context.replay_payload_for(GPU_ADAPTER_OPEN)?,
+        binding.replay_payload_for(GPU_ADAPTER_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_adapter_open(context, out, id)
+                platform_native::destack_gpu_adapter_open(binding, out, id)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_adapter_open(context, out, id)
+                platform_simulation_native::destack_gpu_adapter_open(binding, out, id)
             },
         },
         |result| {
@@ -11529,7 +11528,7 @@ fn destack_gpu_adapter_open_replay(
 
 #[inline]
 fn destack_gpu_bind_group_create_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuBindGroupHandle,
     device: resource::GpuDeviceHandle,
@@ -11539,18 +11538,18 @@ fn destack_gpu_bind_group_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &layout, &entries, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_BIND_GROUP_CREATE,
-        context.replay_payload_for(GPU_BIND_GROUP_CREATE)?,
+        binding.replay_payload_for(GPU_BIND_GROUP_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_bind_group_create(
-                    context, out, device, layout, entries, flags,
+                    binding, out, device, layout, entries, flags,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_bind_group_create(
-                    context, out, device, layout, entries, flags,
+                    binding, out, device, layout, entries, flags,
                 )
             },
         },
@@ -11597,21 +11596,21 @@ fn destack_gpu_bind_group_create_replay(
 
 #[inline]
 fn destack_gpu_bind_group_destroy_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuBindGroupHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_BIND_GROUP_DESTROY,
-        context.replay_payload_for(GPU_BIND_GROUP_DESTROY)?,
+        binding.replay_payload_for(GPU_BIND_GROUP_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_bind_group_destroy(context, handle)
+                platform_native::destack_gpu_bind_group_destroy(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_bind_group_destroy(context, handle)
+                platform_simulation_native::destack_gpu_bind_group_destroy(binding, handle)
             },
         },
         |result| {
@@ -11645,7 +11644,7 @@ fn destack_gpu_bind_group_destroy_replay(
 
 #[inline]
 fn destack_gpu_bind_group_layout_create_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuBindGroupLayoutHandle,
     device: resource::GpuDeviceHandle,
@@ -11654,18 +11653,18 @@ fn destack_gpu_bind_group_layout_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &entries, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_BIND_GROUP_LAYOUT_CREATE,
-        context.replay_payload_for(GPU_BIND_GROUP_LAYOUT_CREATE)?,
+        binding.replay_payload_for(GPU_BIND_GROUP_LAYOUT_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_bind_group_layout_create(
-                    context, out, device, entries, flags,
+                    binding, out, device, entries, flags,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_bind_group_layout_create(
-                    context, out, device, entries, flags,
+                    binding, out, device, entries, flags,
                 )
             },
         },
@@ -11712,21 +11711,21 @@ fn destack_gpu_bind_group_layout_create_replay(
 
 #[inline]
 fn destack_gpu_bind_group_layout_destroy_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuBindGroupLayoutHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_BIND_GROUP_LAYOUT_DESTROY,
-        context.replay_payload_for(GPU_BIND_GROUP_LAYOUT_DESTROY)?,
+        binding.replay_payload_for(GPU_BIND_GROUP_LAYOUT_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_bind_group_layout_destroy(context, handle)
+                platform_native::destack_gpu_bind_group_layout_destroy(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_bind_group_layout_destroy(context, handle)
+                platform_simulation_native::destack_gpu_bind_group_layout_destroy(binding, handle)
             },
         },
         |result| {
@@ -11760,7 +11759,7 @@ fn destack_gpu_bind_group_layout_destroy_replay(
 
 #[inline]
 fn destack_gpu_bind_pipeline_layout_create_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuPipelineLayoutHandle,
     device: resource::GpuDeviceHandle,
@@ -11768,16 +11767,16 @@ fn destack_gpu_bind_pipeline_layout_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_BIND_PIPELINE_LAYOUT_CREATE,
-        context.replay_payload_for(GPU_BIND_PIPELINE_LAYOUT_CREATE)?,
+        binding.replay_payload_for(GPU_BIND_PIPELINE_LAYOUT_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_pipeline_layout_create(context, out, device, options)
+                platform_native::destack_gpu_pipeline_layout_create(binding, out, device, options)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_pipeline_layout_create(
-                    context, out, device, options,
+                    binding, out, device, options,
                 )
             },
         },
@@ -11824,21 +11823,21 @@ fn destack_gpu_bind_pipeline_layout_create_replay(
 
 #[inline]
 fn destack_gpu_bind_pipeline_layout_destroy_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuPipelineLayoutHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_BIND_PIPELINE_LAYOUT_DESTROY,
-        context.replay_payload_for(GPU_BIND_PIPELINE_LAYOUT_DESTROY)?,
+        binding.replay_payload_for(GPU_BIND_PIPELINE_LAYOUT_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_pipeline_layout_destroy(context, handle)
+                platform_native::destack_gpu_pipeline_layout_destroy(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_pipeline_layout_destroy(context, handle)
+                platform_simulation_native::destack_gpu_pipeline_layout_destroy(binding, handle)
             },
         },
         |result| {
@@ -11872,25 +11871,25 @@ fn destack_gpu_bind_pipeline_layout_destroy_replay(
 
 #[inline]
 fn destack_gpu_command_bind_compute_pipeline_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &pipeline);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_BIND_COMPUTE_PIPELINE,
-        context.replay_payload_for(GPU_COMMAND_BIND_COMPUTE_PIPELINE)?,
+        binding.replay_payload_for(GPU_COMMAND_BIND_COMPUTE_PIPELINE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_bind_compute_pipeline(
-                    context, handle, pipeline,
+                    binding, handle, pipeline,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_bind_compute_pipeline(
-                    context, handle, pipeline,
+                    binding, handle, pipeline,
                 )
             },
         },
@@ -11925,23 +11924,23 @@ fn destack_gpu_command_bind_compute_pipeline_replay(
 
 #[inline]
 fn destack_gpu_command_bind_render_pipeline_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &pipeline);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_BIND_RENDER_PIPELINE,
-        context.replay_payload_for(GPU_COMMAND_BIND_RENDER_PIPELINE)?,
+        binding.replay_payload_for(GPU_COMMAND_BIND_RENDER_PIPELINE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_bind_render_pipeline(context, handle, pipeline)
+                platform_native::destack_gpu_command_bind_render_pipeline(binding, handle, pipeline)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_bind_render_pipeline(
-                    context, handle, pipeline,
+                    binding, handle, pipeline,
                 )
             },
         },
@@ -11976,7 +11975,7 @@ fn destack_gpu_command_bind_render_pipeline_replay(
 
 #[inline]
 fn destack_gpu_command_clear_buffer_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     buffer: resource::GpuBufferHandle,
@@ -11985,18 +11984,18 @@ fn destack_gpu_command_clear_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &size);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_CLEAR_BUFFER,
-        context.replay_payload_for(GPU_COMMAND_CLEAR_BUFFER)?,
+        binding.replay_payload_for(GPU_COMMAND_CLEAR_BUFFER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_clear_buffer(
-                    context, handle, buffer, offset, size,
+                    binding, handle, buffer, offset, size,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_clear_buffer(
-                    context, handle, buffer, offset, size,
+                    binding, handle, buffer, offset, size,
                 )
             },
         },
@@ -12031,7 +12030,7 @@ fn destack_gpu_command_clear_buffer_replay(
 
 #[inline]
 fn destack_gpu_command_compute_pass_begin_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuComputePassHandle,
     handle: resource::GpuCommandListHandle,
@@ -12039,18 +12038,18 @@ fn destack_gpu_command_compute_pass_begin_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_COMPUTE_PASS_BEGIN,
-        context.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_BEGIN)?,
+        binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_BEGIN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_compute_pass_begin(
-                    context, out, handle, options,
+                    binding, out, handle, options,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_compute_pass_begin(
-                    context, out, handle, options,
+                    binding, out, handle, options,
                 )
             },
         },
@@ -12097,21 +12096,21 @@ fn destack_gpu_command_compute_pass_begin_replay(
 
 #[inline]
 fn destack_gpu_command_compute_pass_end_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_COMPUTE_PASS_END,
-        context.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_END)?,
+        binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_END)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_compute_pass_end(context, handle)
+                platform_native::destack_gpu_command_compute_pass_end(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_command_compute_pass_end(context, handle)
+                platform_simulation_native::destack_gpu_command_compute_pass_end(binding, handle)
             },
         },
         |result| {
@@ -12145,25 +12144,25 @@ fn destack_gpu_command_compute_pass_end_replay(
 
 #[inline]
 fn destack_gpu_command_compute_pass_insert_debug_marker_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     marker: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &marker);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER,
-        context.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER)?,
+        binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_compute_pass_insert_debug_marker(
-                    context, handle, marker,
+                    binding, handle, marker,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_compute_pass_insert_debug_marker(
-                    context, handle, marker,
+                    binding, handle, marker,
                 )
             },
         },
@@ -12198,22 +12197,22 @@ fn destack_gpu_command_compute_pass_insert_debug_marker_replay(
 
 #[inline]
 fn destack_gpu_command_compute_pass_pop_debug_group_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP,
-        context.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_compute_pass_pop_debug_group(context, handle)
+                platform_native::destack_gpu_command_compute_pass_pop_debug_group(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_compute_pass_pop_debug_group(
-                    context, handle,
+                    binding, handle,
                 )
             },
         },
@@ -12248,25 +12247,25 @@ fn destack_gpu_command_compute_pass_pop_debug_group_replay(
 
 #[inline]
 fn destack_gpu_command_compute_pass_push_debug_group_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     label: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &label);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP,
-        context.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_compute_pass_push_debug_group(
-                    context, handle, label,
+                    binding, handle, label,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_compute_pass_push_debug_group(
-                    context, handle, label,
+                    binding, handle, label,
                 )
             },
         },
@@ -12301,7 +12300,7 @@ fn destack_gpu_command_compute_pass_push_debug_group_replay(
 
 #[inline]
 fn destack_gpu_command_copy_buffer_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     src: resource::GpuBufferHandle,
@@ -12312,13 +12311,13 @@ fn destack_gpu_command_copy_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &src, &srcoffset, &dst, &dstoffset, &argument_bytes);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_COPY_BUFFER,
-        context.replay_payload_for(GPU_COMMAND_COPY_BUFFER)?,
+        binding.replay_payload_for(GPU_COMMAND_COPY_BUFFER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_copy_buffer(
-                    context,
+                    binding,
                     handle,
                     src,
                     srcoffset,
@@ -12329,7 +12328,7 @@ fn destack_gpu_command_copy_buffer_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_copy_buffer(
-                    context,
+                    binding,
                     handle,
                     src,
                     srcoffset,
@@ -12370,7 +12369,7 @@ fn destack_gpu_command_copy_buffer_replay(
 
 #[inline]
 fn destack_gpu_command_copy_buffer_to_texture_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     source: GpuBufferCopy,
@@ -12379,13 +12378,13 @@ fn destack_gpu_command_copy_buffer_to_texture_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &source, &destination, &size);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_COPY_BUFFER_TO_TEXTURE,
-        context.replay_payload_for(GPU_COMMAND_COPY_BUFFER_TO_TEXTURE)?,
+        binding.replay_payload_for(GPU_COMMAND_COPY_BUFFER_TO_TEXTURE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_copy_buffer_to_texture(
-                    context,
+                    binding,
                     handle,
                     source,
                     destination,
@@ -12394,7 +12393,7 @@ fn destack_gpu_command_copy_buffer_to_texture_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_copy_buffer_to_texture(
-                    context,
+                    binding,
                     handle,
                     source,
                     destination,
@@ -12433,7 +12432,7 @@ fn destack_gpu_command_copy_buffer_to_texture_replay(
 
 #[inline]
 fn destack_gpu_command_copy_texture_to_buffer_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     source: GpuTextureCopy,
@@ -12442,13 +12441,13 @@ fn destack_gpu_command_copy_texture_to_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &source, &destination, &size);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_COPY_TEXTURE_TO_BUFFER,
-        context.replay_payload_for(GPU_COMMAND_COPY_TEXTURE_TO_BUFFER)?,
+        binding.replay_payload_for(GPU_COMMAND_COPY_TEXTURE_TO_BUFFER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_copy_texture_to_buffer(
-                    context,
+                    binding,
                     handle,
                     source,
                     destination,
@@ -12457,7 +12456,7 @@ fn destack_gpu_command_copy_texture_to_buffer_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_copy_texture_to_buffer(
-                    context,
+                    binding,
                     handle,
                     source,
                     destination,
@@ -12496,7 +12495,7 @@ fn destack_gpu_command_copy_texture_to_buffer_replay(
 
 #[inline]
 fn destack_gpu_command_copy_texture_to_texture_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     source: GpuTextureCopy,
@@ -12505,13 +12504,13 @@ fn destack_gpu_command_copy_texture_to_texture_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &source, &destination, &size);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE,
-        context.replay_payload_for(GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE)?,
+        binding.replay_payload_for(GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_copy_texture_to_texture(
-                    context,
+                    binding,
                     handle,
                     source,
                     destination,
@@ -12520,7 +12519,7 @@ fn destack_gpu_command_copy_texture_to_texture_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_copy_texture_to_texture(
-                    context,
+                    binding,
                     handle,
                     source,
                     destination,
@@ -12559,7 +12558,7 @@ fn destack_gpu_command_copy_texture_to_texture_replay(
 
 #[inline]
 fn destack_gpu_command_dispatch_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     groupx: u32,
@@ -12568,18 +12567,18 @@ fn destack_gpu_command_dispatch_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &groupx, &groupy, &groupz);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_DISPATCH,
-        context.replay_payload_for(GPU_COMMAND_DISPATCH)?,
+        binding.replay_payload_for(GPU_COMMAND_DISPATCH)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_dispatch(
-                    context, handle, groupx, groupy, groupz,
+                    binding, handle, groupx, groupy, groupz,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_dispatch(
-                    context, handle, groupx, groupy, groupz,
+                    binding, handle, groupx, groupy, groupz,
                 )
             },
         },
@@ -12614,7 +12613,7 @@ fn destack_gpu_command_dispatch_replay(
 
 #[inline]
 fn destack_gpu_command_dispatch_indirect_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     buffer: resource::GpuBufferHandle,
@@ -12622,18 +12621,18 @@ fn destack_gpu_command_dispatch_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_DISPATCH_INDIRECT,
-        context.replay_payload_for(GPU_COMMAND_DISPATCH_INDIRECT)?,
+        binding.replay_payload_for(GPU_COMMAND_DISPATCH_INDIRECT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_dispatch_indirect(
-                    context, handle, buffer, offset,
+                    binding, handle, buffer, offset,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_dispatch_indirect(
-                    context, handle, buffer, offset,
+                    binding, handle, buffer, offset,
                 )
             },
         },
@@ -12668,7 +12667,7 @@ fn destack_gpu_command_dispatch_indirect_replay(
 
 #[inline]
 fn destack_gpu_command_draw_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     vertexcount: u32,
@@ -12684,13 +12683,13 @@ fn destack_gpu_command_draw_replay(
         &firstinstance,
     );
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_DRAW,
-        context.replay_payload_for(GPU_COMMAND_DRAW)?,
+        binding.replay_payload_for(GPU_COMMAND_DRAW)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_draw(
-                    context,
+                    binding,
                     handle,
                     vertexcount,
                     instancecount,
@@ -12700,7 +12699,7 @@ fn destack_gpu_command_draw_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_draw(
-                    context,
+                    binding,
                     handle,
                     vertexcount,
                     instancecount,
@@ -12740,7 +12739,7 @@ fn destack_gpu_command_draw_replay(
 
 #[inline]
 fn destack_gpu_command_draw_indexed_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     indexcount: u32,
@@ -12758,13 +12757,13 @@ fn destack_gpu_command_draw_indexed_replay(
         &firstinstance,
     );
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_DRAW_INDEXED,
-        context.replay_payload_for(GPU_COMMAND_DRAW_INDEXED)?,
+        binding.replay_payload_for(GPU_COMMAND_DRAW_INDEXED)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_draw_indexed(
-                    context,
+                    binding,
                     handle,
                     indexcount,
                     instancecount,
@@ -12775,7 +12774,7 @@ fn destack_gpu_command_draw_indexed_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_draw_indexed(
-                    context,
+                    binding,
                     handle,
                     indexcount,
                     instancecount,
@@ -12816,7 +12815,7 @@ fn destack_gpu_command_draw_indexed_replay(
 
 #[inline]
 fn destack_gpu_command_draw_indexed_indirect_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -12826,18 +12825,18 @@ fn destack_gpu_command_draw_indexed_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_DRAW_INDEXED_INDIRECT,
-        context.replay_payload_for(GPU_COMMAND_DRAW_INDEXED_INDIRECT)?,
+        binding.replay_payload_for(GPU_COMMAND_DRAW_INDEXED_INDIRECT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_draw_indexed_indirect(
-                    context, handle, buffer, offset, drawcount, stride,
+                    binding, handle, buffer, offset, drawcount, stride,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_draw_indexed_indirect(
-                    context, handle, buffer, offset, drawcount, stride,
+                    binding, handle, buffer, offset, drawcount, stride,
                 )
             },
         },
@@ -12872,7 +12871,7 @@ fn destack_gpu_command_draw_indexed_indirect_replay(
 
 #[inline]
 fn destack_gpu_command_draw_indirect_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -12882,18 +12881,18 @@ fn destack_gpu_command_draw_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_DRAW_INDIRECT,
-        context.replay_payload_for(GPU_COMMAND_DRAW_INDIRECT)?,
+        binding.replay_payload_for(GPU_COMMAND_DRAW_INDIRECT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_draw_indirect(
-                    context, handle, buffer, offset, drawcount, stride,
+                    binding, handle, buffer, offset, drawcount, stride,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_draw_indirect(
-                    context, handle, buffer, offset, drawcount, stride,
+                    binding, handle, buffer, offset, drawcount, stride,
                 )
             },
         },
@@ -12928,21 +12927,21 @@ fn destack_gpu_command_draw_indirect_replay(
 
 #[inline]
 fn destack_gpu_command_encoder_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_ENCODER_CLOSE,
-        context.replay_payload_for(GPU_COMMAND_ENCODER_CLOSE)?,
+        binding.replay_payload_for(GPU_COMMAND_ENCODER_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_encoder_close(context, handle)
+                platform_native::destack_gpu_command_encoder_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_command_encoder_close(context, handle)
+                platform_simulation_native::destack_gpu_command_encoder_close(binding, handle)
             },
         },
         |result| {
@@ -12976,21 +12975,21 @@ fn destack_gpu_command_encoder_close_replay(
 
 #[inline]
 fn destack_gpu_command_encoder_finish_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_ENCODER_FINISH,
-        context.replay_payload_for(GPU_COMMAND_ENCODER_FINISH)?,
+        binding.replay_payload_for(GPU_COMMAND_ENCODER_FINISH)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_encoder_finish(context, handle)
+                platform_native::destack_gpu_command_encoder_finish(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_command_encoder_finish(context, handle)
+                platform_simulation_native::destack_gpu_command_encoder_finish(binding, handle)
             },
         },
         |result| {
@@ -13024,7 +13023,7 @@ fn destack_gpu_command_encoder_finish_replay(
 
 #[inline]
 fn destack_gpu_command_encoder_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuCommandListHandle,
     device: resource::GpuDeviceHandle,
@@ -13032,16 +13031,16 @@ fn destack_gpu_command_encoder_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_ENCODER_OPEN,
-        context.replay_payload_for(GPU_COMMAND_ENCODER_OPEN)?,
+        binding.replay_payload_for(GPU_COMMAND_ENCODER_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_encoder_open(context, out, device, options)
+                platform_native::destack_gpu_command_encoder_open(binding, out, device, options)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_encoder_open(
-                    context, out, device, options,
+                    binding, out, device, options,
                 )
             },
         },
@@ -13088,23 +13087,23 @@ fn destack_gpu_command_encoder_open_replay(
 
 #[inline]
 fn destack_gpu_command_execute_bundles_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     bundles: NativeSlice<resource::GpuRenderBundleHandle>,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &bundles);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_EXECUTE_BUNDLES,
-        context.replay_payload_for(GPU_COMMAND_EXECUTE_BUNDLES)?,
+        binding.replay_payload_for(GPU_COMMAND_EXECUTE_BUNDLES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_execute_bundles(context, handle, bundles)
+                platform_native::destack_gpu_command_execute_bundles(binding, handle, bundles)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_execute_bundles(
-                    context, handle, bundles,
+                    binding, handle, bundles,
                 )
             },
         },
@@ -13139,23 +13138,23 @@ fn destack_gpu_command_execute_bundles_replay(
 
 #[inline]
 fn destack_gpu_command_insert_debug_marker_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     marker: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &marker);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_INSERT_DEBUG_MARKER,
-        context.replay_payload_for(GPU_COMMAND_INSERT_DEBUG_MARKER)?,
+        binding.replay_payload_for(GPU_COMMAND_INSERT_DEBUG_MARKER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_insert_debug_marker(context, handle, marker)
+                platform_native::destack_gpu_command_insert_debug_marker(binding, handle, marker)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_insert_debug_marker(
-                    context, handle, marker,
+                    binding, handle, marker,
                 )
             },
         },
@@ -13190,7 +13189,7 @@ fn destack_gpu_command_insert_debug_marker_replay(
 
 #[inline]
 fn destack_gpu_command_multi_draw_indexed_indirect_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -13200,18 +13199,18 @@ fn destack_gpu_command_multi_draw_indexed_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT,
-        context.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT)?,
+        binding.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_multi_draw_indexed_indirect(
-                    context, handle, buffer, offset, drawcount, stride,
+                    binding, handle, buffer, offset, drawcount, stride,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_multi_draw_indexed_indirect(
-                    context, handle, buffer, offset, drawcount, stride,
+                    binding, handle, buffer, offset, drawcount, stride,
                 )
             },
         },
@@ -13246,7 +13245,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_replay(
 
 #[inline]
 fn destack_gpu_command_multi_draw_indexed_indirect_count_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -13266,13 +13265,13 @@ fn destack_gpu_command_multi_draw_indexed_indirect_count_replay(
         &stride,
     );
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT,
-        context.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT)?,
+        binding.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_multi_draw_indexed_indirect_count(
-                    context,
+                    binding,
                     handle,
                     buffer,
                     offset,
@@ -13284,7 +13283,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_count_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_multi_draw_indexed_indirect_count(
-                    context,
+                    binding,
                     handle,
                     buffer,
                     offset,
@@ -13326,7 +13325,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_count_replay(
 
 #[inline]
 fn destack_gpu_command_multi_draw_indirect_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -13336,18 +13335,18 @@ fn destack_gpu_command_multi_draw_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_MULTI_DRAW_INDIRECT,
-        context.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDIRECT)?,
+        binding.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDIRECT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_multi_draw_indirect(
-                    context, handle, buffer, offset, drawcount, stride,
+                    binding, handle, buffer, offset, drawcount, stride,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_multi_draw_indirect(
-                    context, handle, buffer, offset, drawcount, stride,
+                    binding, handle, buffer, offset, drawcount, stride,
                 )
             },
         },
@@ -13382,7 +13381,7 @@ fn destack_gpu_command_multi_draw_indirect_replay(
 
 #[inline]
 fn destack_gpu_command_multi_draw_indirect_count_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -13402,13 +13401,13 @@ fn destack_gpu_command_multi_draw_indirect_count_replay(
         &stride,
     );
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT,
-        context.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT)?,
+        binding.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_multi_draw_indirect_count(
-                    context,
+                    binding,
                     handle,
                     buffer,
                     offset,
@@ -13420,7 +13419,7 @@ fn destack_gpu_command_multi_draw_indirect_count_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_multi_draw_indirect_count(
-                    context,
+                    binding,
                     handle,
                     buffer,
                     offset,
@@ -13462,21 +13461,21 @@ fn destack_gpu_command_multi_draw_indirect_count_replay(
 
 #[inline]
 fn destack_gpu_command_pop_debug_group_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_POP_DEBUG_GROUP,
-        context.replay_payload_for(GPU_COMMAND_POP_DEBUG_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_POP_DEBUG_GROUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_pop_debug_group(context, handle)
+                platform_native::destack_gpu_command_pop_debug_group(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_command_pop_debug_group(context, handle)
+                platform_simulation_native::destack_gpu_command_pop_debug_group(binding, handle)
             },
         },
         |result| {
@@ -13510,23 +13509,23 @@ fn destack_gpu_command_pop_debug_group_replay(
 
 #[inline]
 fn destack_gpu_command_push_debug_group_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     label: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &label);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_PUSH_DEBUG_GROUP,
-        context.replay_payload_for(GPU_COMMAND_PUSH_DEBUG_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_PUSH_DEBUG_GROUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_push_debug_group(context, handle, label)
+                platform_native::destack_gpu_command_push_debug_group(binding, handle, label)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_push_debug_group(
-                    context, handle, label,
+                    binding, handle, label,
                 )
             },
         },
@@ -13561,7 +13560,7 @@ fn destack_gpu_command_push_debug_group_replay(
 
 #[inline]
 fn destack_gpu_command_queue_submit_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     commandlists: NativeSlice<resource::GpuCommandListHandle>,
@@ -13569,16 +13568,16 @@ fn destack_gpu_command_queue_submit_replay(
 ) -> RuntimeResult<()> {
     let _ = (&queue, &commandlists, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_QUEUE_SUBMIT,
-        context.replay_payload_for(GPU_COMMAND_QUEUE_SUBMIT)?,
+        binding.replay_payload_for(GPU_COMMAND_QUEUE_SUBMIT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_queue_submit(context, queue, commandlists, options)
+                platform_native::destack_gpu_queue_submit(binding, queue, commandlists, options)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_queue_submit(
-                    context,
+                    binding,
                     queue,
                     commandlists,
                     options,
@@ -13616,22 +13615,22 @@ fn destack_gpu_command_queue_submit_replay(
 
 #[inline]
 fn destack_gpu_command_queue_wait_idle_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     let _ = (&queue, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_QUEUE_WAIT_IDLE,
-        context.replay_payload_for(GPU_COMMAND_QUEUE_WAIT_IDLE)?,
+        binding.replay_payload_for(GPU_COMMAND_QUEUE_WAIT_IDLE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_queue_wait_idle(context, queue, timeoutns)
+                platform_native::destack_gpu_queue_wait_idle(binding, queue, timeoutns)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_queue_wait_idle(context, queue, timeoutns)
+                platform_simulation_native::destack_gpu_queue_wait_idle(binding, queue, timeoutns)
             },
         },
         |result| {
@@ -13665,7 +13664,7 @@ fn destack_gpu_command_queue_wait_idle_replay(
 
 #[inline]
 fn destack_gpu_command_queue_write_buffer_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     buffer: resource::GpuBufferHandle,
@@ -13676,13 +13675,13 @@ fn destack_gpu_command_queue_write_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&queue, &buffer, &bufferoffset, &data, &dataoffset, &size);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_QUEUE_WRITE_BUFFER,
-        context.replay_payload_for(GPU_COMMAND_QUEUE_WRITE_BUFFER)?,
+        binding.replay_payload_for(GPU_COMMAND_QUEUE_WRITE_BUFFER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_queue_write_buffer(
-                    context,
+                    binding,
                     queue,
                     buffer,
                     bufferoffset,
@@ -13693,7 +13692,7 @@ fn destack_gpu_command_queue_write_buffer_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_queue_write_buffer(
-                    context,
+                    binding,
                     queue,
                     buffer,
                     bufferoffset,
@@ -13734,7 +13733,7 @@ fn destack_gpu_command_queue_write_buffer_replay(
 
 #[inline]
 fn destack_gpu_command_queue_write_texture_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     destination: GpuTextureCopy,
@@ -13744,13 +13743,13 @@ fn destack_gpu_command_queue_write_texture_replay(
 ) -> RuntimeResult<()> {
     let _ = (&queue, &destination, &data, &layout, &size);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_QUEUE_WRITE_TEXTURE,
-        context.replay_payload_for(GPU_COMMAND_QUEUE_WRITE_TEXTURE)?,
+        binding.replay_payload_for(GPU_COMMAND_QUEUE_WRITE_TEXTURE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_queue_write_texture(
-                    context,
+                    binding,
                     queue,
                     destination,
                     data,
@@ -13760,7 +13759,7 @@ fn destack_gpu_command_queue_write_texture_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_queue_write_texture(
-                    context,
+                    binding,
                     queue,
                     destination,
                     data,
@@ -13800,21 +13799,21 @@ fn destack_gpu_command_queue_write_texture_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_destroy_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_DESTROY,
-        context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DESTROY)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_render_bundle_destroy(context, handle)
+                platform_native::destack_gpu_render_bundle_destroy(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_render_bundle_destroy(context, handle)
+                platform_simulation_native::destack_gpu_render_bundle_destroy(binding, handle)
             },
         },
         |result| {
@@ -13848,7 +13847,7 @@ fn destack_gpu_command_render_bundle_destroy_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_draw_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     vertexcount: u32,
@@ -13864,13 +13863,13 @@ fn destack_gpu_command_render_bundle_draw_replay(
         &firstinstance,
     );
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_DRAW,
-        context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_render_bundle_draw(
-                    context,
+                    binding,
                     handle,
                     vertexcount,
                     instancecount,
@@ -13880,7 +13879,7 @@ fn destack_gpu_command_render_bundle_draw_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_draw(
-                    context,
+                    binding,
                     handle,
                     vertexcount,
                     instancecount,
@@ -13920,7 +13919,7 @@ fn destack_gpu_command_render_bundle_draw_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_draw_indexed_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     indexcount: u32,
@@ -13938,13 +13937,13 @@ fn destack_gpu_command_render_bundle_draw_indexed_replay(
         &firstinstance,
     );
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED,
-        context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_render_bundle_draw_indexed(
-                    context,
+                    binding,
                     handle,
                     indexcount,
                     instancecount,
@@ -13955,7 +13954,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_draw_indexed(
-                    context,
+                    binding,
                     handle,
                     indexcount,
                     instancecount,
@@ -13996,7 +13995,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_draw_indexed_indirect_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     buffer: resource::GpuBufferHandle,
@@ -14006,18 +14005,18 @@ fn destack_gpu_command_render_bundle_draw_indexed_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT,
-        context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_render_bundle_draw_indexed_indirect(
-                    context, handle, buffer, offset, drawcount, stride,
+                    binding, handle, buffer, offset, drawcount, stride,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_draw_indexed_indirect(
-                    context, handle, buffer, offset, drawcount, stride,
+                    binding, handle, buffer, offset, drawcount, stride,
                 )
             },
         },
@@ -14052,7 +14051,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_indirect_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_draw_indirect_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     buffer: resource::GpuBufferHandle,
@@ -14062,18 +14061,18 @@ fn destack_gpu_command_render_bundle_draw_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT,
-        context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_render_bundle_draw_indirect(
-                    context, handle, buffer, offset, drawcount, stride,
+                    binding, handle, buffer, offset, drawcount, stride,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_draw_indirect(
-                    context, handle, buffer, offset, drawcount, stride,
+                    binding, handle, buffer, offset, drawcount, stride,
                 )
             },
         },
@@ -14108,21 +14107,21 @@ fn destack_gpu_command_render_bundle_draw_indirect_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_encoder_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE,
-        context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_render_bundle_encoder_close(context, handle)
+                platform_native::destack_gpu_render_bundle_encoder_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_render_bundle_encoder_close(context, handle)
+                platform_simulation_native::destack_gpu_render_bundle_encoder_close(binding, handle)
             },
         },
         |result| {
@@ -14156,23 +14155,23 @@ fn destack_gpu_command_render_bundle_encoder_close_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_encoder_finish_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuRenderBundleHandle,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH,
-        context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_render_bundle_encoder_finish(context, out, handle)
+                platform_native::destack_gpu_render_bundle_encoder_finish(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_encoder_finish(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -14219,7 +14218,7 @@ fn destack_gpu_command_render_bundle_encoder_finish_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_encoder_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuRenderBundleEncoderHandle,
     device: resource::GpuDeviceHandle,
@@ -14227,18 +14226,18 @@ fn destack_gpu_command_render_bundle_encoder_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN,
-        context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_render_bundle_encoder_open(
-                    context, out, device, options,
+                    binding, out, device, options,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_encoder_open(
-                    context, out, device, options,
+                    binding, out, device, options,
                 )
             },
         },
@@ -14285,25 +14284,25 @@ fn destack_gpu_command_render_bundle_encoder_open_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_insert_debug_marker_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     marker: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &marker);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER,
-        context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_render_bundle_insert_debug_marker(
-                    context, handle, marker,
+                    binding, handle, marker,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_insert_debug_marker(
-                    context, handle, marker,
+                    binding, handle, marker,
                 )
             },
         },
@@ -14338,22 +14337,22 @@ fn destack_gpu_command_render_bundle_insert_debug_marker_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_pop_debug_group_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP,
-        context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_render_bundle_pop_debug_group(context, handle)
+                platform_native::destack_gpu_render_bundle_pop_debug_group(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_pop_debug_group(
-                    context, handle,
+                    binding, handle,
                 )
             },
         },
@@ -14388,23 +14387,23 @@ fn destack_gpu_command_render_bundle_pop_debug_group_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_push_debug_group_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     label: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &label);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP,
-        context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_render_bundle_push_debug_group(context, handle, label)
+                platform_native::destack_gpu_render_bundle_push_debug_group(binding, handle, label)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_push_debug_group(
-                    context, handle, label,
+                    binding, handle, label,
                 )
             },
         },
@@ -14439,7 +14438,7 @@ fn destack_gpu_command_render_bundle_push_debug_group_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_set_bind_group_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     index: u32,
@@ -14448,13 +14447,13 @@ fn destack_gpu_command_render_bundle_set_bind_group_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &index, &bindgroup, &dynamicoffsets);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP,
-        context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_render_bundle_set_bind_group(
-                    context,
+                    binding,
                     handle,
                     index,
                     bindgroup,
@@ -14463,7 +14462,7 @@ fn destack_gpu_command_render_bundle_set_bind_group_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_set_bind_group(
-                    context,
+                    binding,
                     handle,
                     index,
                     bindgroup,
@@ -14502,7 +14501,7 @@ fn destack_gpu_command_render_bundle_set_bind_group_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_set_index_buffer_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     buffer: resource::GpuBufferHandle,
@@ -14512,18 +14511,18 @@ fn destack_gpu_command_render_bundle_set_index_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &format, &offset, &size);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER,
-        context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_render_bundle_set_index_buffer(
-                    context, handle, buffer, format, offset, size,
+                    binding, handle, buffer, format, offset, size,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_set_index_buffer(
-                    context, handle, buffer, format, offset, size,
+                    binding, handle, buffer, format, offset, size,
                 )
             },
         },
@@ -14558,23 +14557,23 @@ fn destack_gpu_command_render_bundle_set_index_buffer_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_set_pipeline_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &pipeline);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE,
-        context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_render_bundle_set_pipeline(context, handle, pipeline)
+                platform_native::destack_gpu_render_bundle_set_pipeline(binding, handle, pipeline)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_set_pipeline(
-                    context, handle, pipeline,
+                    binding, handle, pipeline,
                 )
             },
         },
@@ -14609,7 +14608,7 @@ fn destack_gpu_command_render_bundle_set_pipeline_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_set_vertex_buffer_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     slot: u32,
@@ -14619,18 +14618,18 @@ fn destack_gpu_command_render_bundle_set_vertex_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &slot, &buffer, &offset, &size);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER,
-        context.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_render_bundle_set_vertex_buffer(
-                    context, handle, slot, buffer, offset, size,
+                    binding, handle, slot, buffer, offset, size,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_bundle_set_vertex_buffer(
-                    context, handle, slot, buffer, offset, size,
+                    binding, handle, slot, buffer, offset, size,
                 )
             },
         },
@@ -14665,7 +14664,7 @@ fn destack_gpu_command_render_bundle_set_vertex_buffer_replay(
 
 #[inline]
 fn destack_gpu_command_render_pass_begin_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuRenderPassHandle,
     handle: resource::GpuCommandListHandle,
@@ -14673,18 +14672,18 @@ fn destack_gpu_command_render_pass_begin_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_PASS_BEGIN,
-        context.replay_payload_for(GPU_COMMAND_RENDER_PASS_BEGIN)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_BEGIN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_render_pass_begin(
-                    context, out, handle, options,
+                    binding, out, handle, options,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_render_pass_begin(
-                    context, out, handle, options,
+                    binding, out, handle, options,
                 )
             },
         },
@@ -14731,21 +14730,21 @@ fn destack_gpu_command_render_pass_begin_replay(
 
 #[inline]
 fn destack_gpu_command_render_pass_end_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_PASS_END,
-        context.replay_payload_for(GPU_COMMAND_RENDER_PASS_END)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_END)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_render_pass_end(context, handle)
+                platform_native::destack_gpu_command_render_pass_end(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_command_render_pass_end(context, handle)
+                platform_simulation_native::destack_gpu_command_render_pass_end(binding, handle)
             },
         },
         |result| {
@@ -14779,25 +14778,25 @@ fn destack_gpu_command_render_pass_end_replay(
 
 #[inline]
 fn destack_gpu_command_render_pass_insert_debug_marker_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     marker: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &marker);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER,
-        context.replay_payload_for(GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_render_pass_insert_debug_marker(
-                    context, handle, marker,
+                    binding, handle, marker,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_render_pass_insert_debug_marker(
-                    context, handle, marker,
+                    binding, handle, marker,
                 )
             },
         },
@@ -14832,22 +14831,22 @@ fn destack_gpu_command_render_pass_insert_debug_marker_replay(
 
 #[inline]
 fn destack_gpu_command_render_pass_pop_debug_group_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP,
-        context.replay_payload_for(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_render_pass_pop_debug_group(context, handle)
+                platform_native::destack_gpu_command_render_pass_pop_debug_group(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_render_pass_pop_debug_group(
-                    context, handle,
+                    binding, handle,
                 )
             },
         },
@@ -14882,25 +14881,25 @@ fn destack_gpu_command_render_pass_pop_debug_group_replay(
 
 #[inline]
 fn destack_gpu_command_render_pass_push_debug_group_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     label: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &label);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP,
-        context.replay_payload_for(GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_render_pass_push_debug_group(
-                    context, handle, label,
+                    binding, handle, label,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_render_pass_push_debug_group(
-                    context, handle, label,
+                    binding, handle, label,
                 )
             },
         },
@@ -14935,7 +14934,7 @@ fn destack_gpu_command_render_pass_push_debug_group_replay(
 
 #[inline]
 fn destack_gpu_command_set_blend_constant_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     r: f64,
@@ -14945,16 +14944,16 @@ fn destack_gpu_command_set_blend_constant_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &r, &g, &b, &a);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_SET_BLEND_CONSTANT,
-        context.replay_payload_for(GPU_COMMAND_SET_BLEND_CONSTANT)?,
+        binding.replay_payload_for(GPU_COMMAND_SET_BLEND_CONSTANT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_set_blend_constant(context, handle, r, g, b, a)
+                platform_native::destack_gpu_command_set_blend_constant(binding, handle, r, g, b, a)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_set_blend_constant(
-                    context, handle, r, g, b, a,
+                    binding, handle, r, g, b, a,
                 )
             },
         },
@@ -14989,7 +14988,7 @@ fn destack_gpu_command_set_blend_constant_replay(
 
 #[inline]
 fn destack_gpu_command_set_compute_bind_group_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     index: u32,
@@ -14998,13 +14997,13 @@ fn destack_gpu_command_set_compute_bind_group_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &index, &bindgroup, &dynamicoffsets);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_SET_COMPUTE_BIND_GROUP,
-        context.replay_payload_for(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_set_compute_bind_group(
-                    context,
+                    binding,
                     handle,
                     index,
                     bindgroup,
@@ -15013,7 +15012,7 @@ fn destack_gpu_command_set_compute_bind_group_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_set_compute_bind_group(
-                    context,
+                    binding,
                     handle,
                     index,
                     bindgroup,
@@ -15052,7 +15051,7 @@ fn destack_gpu_command_set_compute_bind_group_replay(
 
 #[inline]
 fn destack_gpu_command_set_index_buffer_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
@@ -15062,18 +15061,18 @@ fn destack_gpu_command_set_index_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &format, &offset, &size);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_SET_INDEX_BUFFER,
-        context.replay_payload_for(GPU_COMMAND_SET_INDEX_BUFFER)?,
+        binding.replay_payload_for(GPU_COMMAND_SET_INDEX_BUFFER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_set_index_buffer(
-                    context, handle, buffer, format, offset, size,
+                    binding, handle, buffer, format, offset, size,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_set_index_buffer(
-                    context, handle, buffer, format, offset, size,
+                    binding, handle, buffer, format, offset, size,
                 )
             },
         },
@@ -15108,7 +15107,7 @@ fn destack_gpu_command_set_index_buffer_replay(
 
 #[inline]
 fn destack_gpu_command_set_render_bind_group_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     index: u32,
@@ -15117,13 +15116,13 @@ fn destack_gpu_command_set_render_bind_group_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &index, &bindgroup, &dynamicoffsets);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_SET_RENDER_BIND_GROUP,
-        context.replay_payload_for(GPU_COMMAND_SET_RENDER_BIND_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_SET_RENDER_BIND_GROUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_set_render_bind_group(
-                    context,
+                    binding,
                     handle,
                     index,
                     bindgroup,
@@ -15132,7 +15131,7 @@ fn destack_gpu_command_set_render_bind_group_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_set_render_bind_group(
-                    context,
+                    binding,
                     handle,
                     index,
                     bindgroup,
@@ -15171,7 +15170,7 @@ fn destack_gpu_command_set_render_bind_group_replay(
 
 #[inline]
 fn destack_gpu_command_set_scissor_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     x: u32,
@@ -15181,18 +15180,18 @@ fn destack_gpu_command_set_scissor_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &x, &y, &width, &height);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_SET_SCISSOR,
-        context.replay_payload_for(GPU_COMMAND_SET_SCISSOR)?,
+        binding.replay_payload_for(GPU_COMMAND_SET_SCISSOR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_set_scissor(
-                    context, handle, x, y, width, height,
+                    binding, handle, x, y, width, height,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_set_scissor(
-                    context, handle, x, y, width, height,
+                    binding, handle, x, y, width, height,
                 )
             },
         },
@@ -15227,25 +15226,25 @@ fn destack_gpu_command_set_scissor_replay(
 
 #[inline]
 fn destack_gpu_command_set_stencil_reference_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     reference: u32,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &reference);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_SET_STENCIL_REFERENCE,
-        context.replay_payload_for(GPU_COMMAND_SET_STENCIL_REFERENCE)?,
+        binding.replay_payload_for(GPU_COMMAND_SET_STENCIL_REFERENCE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_set_stencil_reference(
-                    context, handle, reference,
+                    binding, handle, reference,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_set_stencil_reference(
-                    context, handle, reference,
+                    binding, handle, reference,
                 )
             },
         },
@@ -15280,7 +15279,7 @@ fn destack_gpu_command_set_stencil_reference_replay(
 
 #[inline]
 fn destack_gpu_command_set_vertex_buffer_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     slot: u32,
@@ -15290,18 +15289,18 @@ fn destack_gpu_command_set_vertex_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &slot, &buffer, &offset, &size);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_SET_VERTEX_BUFFER,
-        context.replay_payload_for(GPU_COMMAND_SET_VERTEX_BUFFER)?,
+        binding.replay_payload_for(GPU_COMMAND_SET_VERTEX_BUFFER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_set_vertex_buffer(
-                    context, handle, slot, buffer, offset, size,
+                    binding, handle, slot, buffer, offset, size,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_set_vertex_buffer(
-                    context, handle, slot, buffer, offset, size,
+                    binding, handle, slot, buffer, offset, size,
                 )
             },
         },
@@ -15336,7 +15335,7 @@ fn destack_gpu_command_set_vertex_buffer_replay(
 
 #[inline]
 fn destack_gpu_command_set_viewport_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     x: f64,
@@ -15348,18 +15347,18 @@ fn destack_gpu_command_set_viewport_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &x, &y, &width, &height, &mindepth, &maxdepth);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_COMMAND_SET_VIEWPORT,
-        context.replay_payload_for(GPU_COMMAND_SET_VIEWPORT)?,
+        binding.replay_payload_for(GPU_COMMAND_SET_VIEWPORT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_set_viewport(
-                    context, handle, x, y, width, height, mindepth, maxdepth,
+                    binding, handle, x, y, width, height, mindepth, maxdepth,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_set_viewport(
-                    context, handle, x, y, width, height, mindepth, maxdepth,
+                    binding, handle, x, y, width, height, mindepth, maxdepth,
                 )
             },
         },
@@ -15394,22 +15393,22 @@ fn destack_gpu_command_set_viewport_replay(
 
 #[inline]
 fn destack_gpu_debug_set_label_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::ResourceId,
     label: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &label);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_DEBUG_SET_LABEL,
-        context.replay_payload_for(GPU_DEBUG_SET_LABEL)?,
+        binding.replay_payload_for(GPU_DEBUG_SET_LABEL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_set_label(context, handle, label)
+                platform_native::destack_gpu_set_label(binding, handle, label)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_set_label(context, handle, label)
+                platform_simulation_native::destack_gpu_set_label(binding, handle, label)
             },
         },
         |result| {
@@ -15443,21 +15442,21 @@ fn destack_gpu_debug_set_label_replay(
 
 #[inline]
 fn destack_gpu_device_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_DEVICE_CLOSE,
-        context.replay_payload_for(GPU_DEVICE_CLOSE)?,
+        binding.replay_payload_for(GPU_DEVICE_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_device_close(context, handle)
+                platform_native::destack_gpu_device_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_device_close(context, handle)
+                platform_simulation_native::destack_gpu_device_close(binding, handle)
             },
         },
         |result| {
@@ -15491,22 +15490,22 @@ fn destack_gpu_device_close_replay(
 
 #[inline]
 fn destack_gpu_device_features_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<GpuFeatureId>,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &device;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_DEVICE_FEATURES,
-        context.replay_payload_for(GPU_DEVICE_FEATURES)?,
+        binding.replay_payload_for(GPU_DEVICE_FEATURES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_device_features(context, out, device)
+                platform_native::destack_gpu_device_features(binding, out, device)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_device_features(context, out, device)
+                platform_simulation_native::destack_gpu_device_features(binding, out, device)
             },
         },
         |result| {
@@ -15549,7 +15548,7 @@ fn destack_gpu_device_features_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -15563,7 +15562,7 @@ fn destack_gpu_device_features_replay(
 
 #[inline]
 fn destack_gpu_device_has_feature_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut bool,
     device: resource::GpuDeviceHandle,
@@ -15571,16 +15570,16 @@ fn destack_gpu_device_has_feature_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &feature);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_DEVICE_HAS_FEATURE,
-        context.replay_payload_for(GPU_DEVICE_HAS_FEATURE)?,
+        binding.replay_payload_for(GPU_DEVICE_HAS_FEATURE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_device_has_feature(context, out, device, feature)
+                platform_native::destack_gpu_device_has_feature(binding, out, device, feature)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_device_has_feature(
-                    context, out, device, feature,
+                    binding, out, device, feature,
                 )
             },
         },
@@ -15627,19 +15626,19 @@ fn destack_gpu_device_has_feature_replay(
 
 #[inline]
 fn destack_gpu_device_info_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuDeviceInfo,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &device;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_DEVICE_INFO,
-        context.replay_payload_for(GPU_DEVICE_INFO)?,
+        binding.replay_payload_for(GPU_DEVICE_INFO)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_gpu_device_info(context, out, device) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_gpu_device_info(context, out, device) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_gpu_device_info(binding, out, device) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_gpu_device_info(binding, out, device) },
         },
         |result| {
             if let Ok(()) = result {
@@ -15762,7 +15761,7 @@ fn destack_gpu_device_info_replay(
                         let value_native_enabled_features_item_native = value_native_enabled_features_item;
                         value_native_enabled_features_values.push(value_native_enabled_features_item_native);
                     }
-                    let value_native_enabled_features = context.store_slice(value_native_enabled_features_values);
+                    let value_native_enabled_features = binding.store_slice(value_native_enabled_features_values);
                     let value_native_effective_limits_max_bind_groups = value.effective_limits.max_bind_groups;
                     let value_native_effective_limits_max_bindings_per_bind_group = value.effective_limits.max_bindings_per_bind_group;
                     let value_native_effective_limits_max_push_constant_bytes = value.effective_limits.max_push_constant_bytes;
@@ -15853,22 +15852,22 @@ fn destack_gpu_device_info_replay(
 
 #[inline]
 fn destack_gpu_device_limits_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuAdapterLimits,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &device;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_DEVICE_LIMITS,
-        context.replay_payload_for(GPU_DEVICE_LIMITS)?,
+        binding.replay_payload_for(GPU_DEVICE_LIMITS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_device_limits(context, out, device)
+                platform_native::destack_gpu_device_limits(binding, out, device)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_device_limits(context, out, device)
+                platform_simulation_native::destack_gpu_device_limits(binding, out, device)
             },
         },
         |result| {
@@ -16114,7 +16113,7 @@ fn destack_gpu_device_limits_replay(
 
 #[inline]
 fn destack_gpu_device_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuDeviceHandle,
     adapter: resource::GpuAdapterHandle,
@@ -16122,15 +16121,15 @@ fn destack_gpu_device_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&adapter, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_DEVICE_OPEN,
-        context.replay_payload_for(GPU_DEVICE_OPEN)?,
+        binding.replay_payload_for(GPU_DEVICE_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_device_open(context, out, adapter, options)
+                platform_native::destack_gpu_device_open(binding, out, adapter, options)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_device_open(context, out, adapter, options)
+                platform_simulation_native::destack_gpu_device_open(binding, out, adapter, options)
             },
         },
         |result| {
@@ -16176,7 +16175,7 @@ fn destack_gpu_device_open_replay(
 
 #[inline]
 fn destack_gpu_device_poll_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     device: resource::GpuDeviceHandle,
@@ -16185,16 +16184,16 @@ fn destack_gpu_device_poll_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &wait, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_DEVICE_POLL,
-        context.replay_payload_for(GPU_DEVICE_POLL)?,
+        binding.replay_payload_for(GPU_DEVICE_POLL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_device_poll(context, out, device, wait, timeoutns)
+                platform_native::destack_gpu_device_poll(binding, out, device, wait, timeoutns)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_device_poll(
-                    context, out, device, wait, timeoutns,
+                    binding, out, device, wait, timeoutns,
                 )
             },
         },
@@ -16241,7 +16240,7 @@ fn destack_gpu_device_poll_replay(
 
 #[inline]
 fn destack_gpu_device_pop_error_scope_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuCapturedError,
     device: resource::GpuDeviceHandle,
@@ -16249,16 +16248,16 @@ fn destack_gpu_device_pop_error_scope_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_DEVICE_POP_ERROR_SCOPE,
-        context.replay_payload_for(GPU_DEVICE_POP_ERROR_SCOPE)?,
+        binding.replay_payload_for(GPU_DEVICE_POP_ERROR_SCOPE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_device_pop_error_scope(context, out, device, timeoutns)
+                platform_native::destack_gpu_device_pop_error_scope(binding, out, device, timeoutns)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_device_pop_error_scope(
-                    context, out, device, timeoutns,
+                    binding, out, device, timeoutns,
                 )
             },
         },
@@ -16307,7 +16306,7 @@ fn destack_gpu_device_pop_error_scope_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_message = if let Some(value) = value.message {
-                        let value_native_message_inner = context.store_string(&value);
+                        let value_native_message_inner = binding.store_string(&value);
                         Some(value_native_message_inner)
                     } else {
                         None
@@ -16335,23 +16334,23 @@ fn destack_gpu_device_pop_error_scope_replay(
 
 #[inline]
 fn destack_gpu_device_push_error_scope_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     filter: GpuErrorFilter,
 ) -> RuntimeResult<()> {
     let _ = (&device, &filter);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_DEVICE_PUSH_ERROR_SCOPE,
-        context.replay_payload_for(GPU_DEVICE_PUSH_ERROR_SCOPE)?,
+        binding.replay_payload_for(GPU_DEVICE_PUSH_ERROR_SCOPE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_device_push_error_scope(context, device, filter)
+                platform_native::destack_gpu_device_push_error_scope(binding, device, filter)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_device_push_error_scope(
-                    context, device, filter,
+                    binding, device, filter,
                 )
             },
         },
@@ -16386,22 +16385,22 @@ fn destack_gpu_device_push_error_scope_replay(
 
 #[inline]
 fn destack_gpu_device_queue_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuQueueHandle,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &device;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_DEVICE_QUEUE,
-        context.replay_payload_for(GPU_DEVICE_QUEUE)?,
+        binding.replay_payload_for(GPU_DEVICE_QUEUE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_device_queue(context, out, device)
+                platform_native::destack_gpu_device_queue(binding, out, device)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_device_queue(context, out, device)
+                platform_simulation_native::destack_gpu_device_queue(binding, out, device)
             },
         },
         |result| {
@@ -16447,22 +16446,22 @@ fn destack_gpu_device_queue_replay(
 
 #[inline]
 fn destack_gpu_device_status_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuDeviceStatus,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &device;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_DEVICE_STATUS,
-        context.replay_payload_for(GPU_DEVICE_STATUS)?,
+        binding.replay_payload_for(GPU_DEVICE_STATUS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_device_status(context, out, device)
+                platform_native::destack_gpu_device_status(binding, out, device)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_device_status(context, out, device)
+                platform_simulation_native::destack_gpu_device_status(binding, out, device)
             },
         },
         |result| {
@@ -16506,7 +16505,7 @@ fn destack_gpu_device_status_replay(
                     let value_native_healthy = value.healthy;
                     let value_native_loss_reason = value.loss_reason;
                     let value_native_backend_code = value.backend_code;
-                    let value_native_message = context.store_string(&value.message);
+                    let value_native_message = binding.store_string(&value.message);
                     let value_native = GpuDeviceStatus {
                         healthy: value_native_healthy,
                         loss_reason: value_native_loss_reason,
@@ -16526,7 +16525,7 @@ fn destack_gpu_device_status_replay(
 
 #[inline]
 fn destack_gpu_pipeline_bind_group_layout_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuBindGroupLayoutHandle,
     pipeline: resource::GpuPipelineHandle,
@@ -16534,18 +16533,18 @@ fn destack_gpu_pipeline_bind_group_layout_replay(
 ) -> RuntimeResult<()> {
     let _ = (&pipeline, &groupindex);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_PIPELINE_BIND_GROUP_LAYOUT,
-        context.replay_payload_for(GPU_PIPELINE_BIND_GROUP_LAYOUT)?,
+        binding.replay_payload_for(GPU_PIPELINE_BIND_GROUP_LAYOUT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_pipeline_bind_group_layout(
-                    context, out, pipeline, groupindex,
+                    binding, out, pipeline, groupindex,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_pipeline_bind_group_layout(
-                    context, out, pipeline, groupindex,
+                    binding, out, pipeline, groupindex,
                 )
             },
         },
@@ -16592,7 +16591,7 @@ fn destack_gpu_pipeline_bind_group_layout_replay(
 
 #[inline]
 fn destack_gpu_pipeline_compute_create_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuPipelineHandle,
     device: resource::GpuDeviceHandle,
@@ -16600,16 +16599,16 @@ fn destack_gpu_pipeline_compute_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_PIPELINE_COMPUTE_CREATE,
-        context.replay_payload_for(GPU_PIPELINE_COMPUTE_CREATE)?,
+        binding.replay_payload_for(GPU_PIPELINE_COMPUTE_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_compute_pipeline_create(context, out, device, options)
+                platform_native::destack_gpu_compute_pipeline_create(binding, out, device, options)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_compute_pipeline_create(
-                    context, out, device, options,
+                    binding, out, device, options,
                 )
             },
         },
@@ -16656,21 +16655,21 @@ fn destack_gpu_pipeline_compute_create_replay(
 
 #[inline]
 fn destack_gpu_pipeline_destroy_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_PIPELINE_DESTROY,
-        context.replay_payload_for(GPU_PIPELINE_DESTROY)?,
+        binding.replay_payload_for(GPU_PIPELINE_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_pipeline_destroy(context, handle)
+                platform_native::destack_gpu_pipeline_destroy(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_pipeline_destroy(context, handle)
+                platform_simulation_native::destack_gpu_pipeline_destroy(binding, handle)
             },
         },
         |result| {
@@ -16704,7 +16703,7 @@ fn destack_gpu_pipeline_destroy_replay(
 
 #[inline]
 fn destack_gpu_pipeline_render_create_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuPipelineHandle,
     device: resource::GpuDeviceHandle,
@@ -16712,16 +16711,16 @@ fn destack_gpu_pipeline_render_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_PIPELINE_RENDER_CREATE,
-        context.replay_payload_for(GPU_PIPELINE_RENDER_CREATE)?,
+        binding.replay_payload_for(GPU_PIPELINE_RENDER_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_render_pipeline_create(context, out, device, options)
+                platform_native::destack_gpu_render_pipeline_create(binding, out, device, options)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_render_pipeline_create(
-                    context, out, device, options,
+                    binding, out, device, options,
                 )
             },
         },
@@ -16768,7 +16767,7 @@ fn destack_gpu_pipeline_render_create_replay(
 
 #[inline]
 fn destack_gpu_pipeline_shader_compilation_info_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuCompilationInfo,
     handle: resource::GpuShaderHandle,
@@ -16776,18 +16775,18 @@ fn destack_gpu_pipeline_shader_compilation_info_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_PIPELINE_SHADER_COMPILATION_INFO,
-        context.replay_payload_for(GPU_PIPELINE_SHADER_COMPILATION_INFO)?,
+        binding.replay_payload_for(GPU_PIPELINE_SHADER_COMPILATION_INFO)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_shader_compilation_info(
-                    context, out, handle, timeoutns,
+                    binding, out, handle, timeoutns,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_shader_compilation_info(
-                    context, out, handle, timeoutns,
+                    binding, out, handle, timeoutns,
                 )
             },
         },
@@ -16855,7 +16854,7 @@ fn destack_gpu_pipeline_shader_compilation_info_replay(
                         let value_native_messages_item_native_kind =
                             value_native_messages_item.kind;
                         let value_native_messages_item_native_message =
-                            context.store_string(&value_native_messages_item.message);
+                            binding.store_string(&value_native_messages_item.message);
                         let value_native_messages_item_native_line =
                             value_native_messages_item.line;
                         let value_native_messages_item_native_column =
@@ -16874,7 +16873,7 @@ fn destack_gpu_pipeline_shader_compilation_info_replay(
                         };
                         value_native_messages_values.push(value_native_messages_item_native);
                     }
-                    let value_native_messages = context.store_slice(value_native_messages_values);
+                    let value_native_messages = binding.store_slice(value_native_messages_values);
                     let value_native = GpuCompilationInfo {
                         messages: value_native_messages,
                     };
@@ -16891,7 +16890,7 @@ fn destack_gpu_pipeline_shader_compilation_info_replay(
 
 #[inline]
 fn destack_gpu_pipeline_shader_create_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuShaderHandle,
     device: resource::GpuDeviceHandle,
@@ -16900,13 +16899,13 @@ fn destack_gpu_pipeline_shader_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options, &argument_bytes);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_PIPELINE_SHADER_CREATE,
-        context.replay_payload_for(GPU_PIPELINE_SHADER_CREATE)?,
+        binding.replay_payload_for(GPU_PIPELINE_SHADER_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_shader_create(
-                    context,
+                    binding,
                     out,
                     device,
                     options,
@@ -16915,7 +16914,7 @@ fn destack_gpu_pipeline_shader_create_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_shader_create(
-                    context,
+                    binding,
                     out,
                     device,
                     options,
@@ -16966,21 +16965,21 @@ fn destack_gpu_pipeline_shader_create_replay(
 
 #[inline]
 fn destack_gpu_pipeline_shader_destroy_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuShaderHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_PIPELINE_SHADER_DESTROY,
-        context.replay_payload_for(GPU_PIPELINE_SHADER_DESTROY)?,
+        binding.replay_payload_for(GPU_PIPELINE_SHADER_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_shader_destroy(context, handle)
+                platform_native::destack_gpu_shader_destroy(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_shader_destroy(context, handle)
+                platform_simulation_native::destack_gpu_shader_destroy(binding, handle)
             },
         },
         |result| {
@@ -17014,7 +17013,7 @@ fn destack_gpu_pipeline_shader_destroy_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_create_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuBufferHandle,
     device: resource::GpuDeviceHandle,
@@ -17022,15 +17021,15 @@ fn destack_gpu_resource_buffer_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_RESOURCE_BUFFER_CREATE,
-        context.replay_payload_for(GPU_RESOURCE_BUFFER_CREATE)?,
+        binding.replay_payload_for(GPU_RESOURCE_BUFFER_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_buffer_create(context, out, device, options)
+                platform_native::destack_gpu_buffer_create(binding, out, device, options)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_buffer_create(context, out, device, options)
+                platform_simulation_native::destack_gpu_buffer_create(binding, out, device, options)
             },
         },
         |result| {
@@ -17076,21 +17075,21 @@ fn destack_gpu_resource_buffer_create_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_destroy_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_RESOURCE_BUFFER_DESTROY,
-        context.replay_payload_for(GPU_RESOURCE_BUFFER_DESTROY)?,
+        binding.replay_payload_for(GPU_RESOURCE_BUFFER_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_buffer_destroy(context, handle)
+                platform_native::destack_gpu_buffer_destroy(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_buffer_destroy(context, handle)
+                platform_simulation_native::destack_gpu_buffer_destroy(binding, handle)
             },
         },
         |result| {
@@ -17124,22 +17123,22 @@ fn destack_gpu_resource_buffer_destroy_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_info_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuBufferInfo,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_RESOURCE_BUFFER_INFO,
-        context.replay_payload_for(GPU_RESOURCE_BUFFER_INFO)?,
+        binding.replay_payload_for(GPU_RESOURCE_BUFFER_INFO)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_buffer_info(context, out, handle)
+                platform_native::destack_gpu_buffer_info(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_buffer_info(context, out, handle)
+                platform_simulation_native::destack_gpu_buffer_info(binding, out, handle)
             },
         },
         |result| {
@@ -17199,7 +17198,7 @@ fn destack_gpu_resource_buffer_info_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_map_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuMappedBufferRange,
     handle: resource::GpuBufferHandle,
@@ -17209,16 +17208,16 @@ fn destack_gpu_resource_buffer_map_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length, &mode);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_RESOURCE_BUFFER_MAP,
-        context.replay_payload_for(GPU_RESOURCE_BUFFER_MAP)?,
+        binding.replay_payload_for(GPU_RESOURCE_BUFFER_MAP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_buffer_map(context, out, handle, offset, length, mode)
+                platform_native::destack_gpu_buffer_map(binding, out, handle, offset, length, mode)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_buffer_map(
-                    context, out, handle, offset, length, mode,
+                    binding, out, handle, offset, length, mode,
                 )
             },
         },
@@ -17279,7 +17278,7 @@ fn destack_gpu_resource_buffer_map_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     handle: resource::GpuBufferHandle,
@@ -17288,16 +17287,16 @@ fn destack_gpu_resource_buffer_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_RESOURCE_BUFFER_READ,
-        context.replay_payload_for(GPU_RESOURCE_BUFFER_READ)?,
+        binding.replay_payload_for(GPU_RESOURCE_BUFFER_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_buffer_read(context, out, handle, offset, length)
+                platform_native::destack_gpu_buffer_read(binding, out, handle, offset, length)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_buffer_read(
-                    context, out, handle, offset, length,
+                    binding, out, handle, offset, length,
                 )
             },
         },
@@ -17341,7 +17340,7 @@ fn destack_gpu_resource_buffer_read_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -17355,21 +17354,21 @@ fn destack_gpu_resource_buffer_read_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_unmap_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_RESOURCE_BUFFER_UNMAP,
-        context.replay_payload_for(GPU_RESOURCE_BUFFER_UNMAP)?,
+        binding.replay_payload_for(GPU_RESOURCE_BUFFER_UNMAP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_buffer_unmap(context, handle)
+                platform_native::destack_gpu_buffer_unmap(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_buffer_unmap(context, handle)
+                platform_simulation_native::destack_gpu_buffer_unmap(binding, handle)
             },
         },
         |result| {
@@ -17403,7 +17402,7 @@ fn destack_gpu_resource_buffer_unmap_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_write_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
     offset: u64,
@@ -17411,16 +17410,16 @@ fn destack_gpu_resource_buffer_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &argument_bytes);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_RESOURCE_BUFFER_WRITE,
-        context.replay_payload_for(GPU_RESOURCE_BUFFER_WRITE)?,
+        binding.replay_payload_for(GPU_RESOURCE_BUFFER_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_buffer_write(context, handle, offset, argument_bytes)
+                platform_native::destack_gpu_buffer_write(binding, handle, offset, argument_bytes)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_buffer_write(
-                    context,
+                    binding,
                     handle,
                     offset,
                     argument_bytes,
@@ -17458,7 +17457,7 @@ fn destack_gpu_resource_buffer_write_replay(
 
 #[inline]
 fn destack_gpu_resource_sampler_create_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuSamplerHandle,
     device: resource::GpuDeviceHandle,
@@ -17466,16 +17465,16 @@ fn destack_gpu_resource_sampler_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_RESOURCE_SAMPLER_CREATE,
-        context.replay_payload_for(GPU_RESOURCE_SAMPLER_CREATE)?,
+        binding.replay_payload_for(GPU_RESOURCE_SAMPLER_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_sampler_create(context, out, device, options)
+                platform_native::destack_gpu_sampler_create(binding, out, device, options)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_sampler_create(
-                    context, out, device, options,
+                    binding, out, device, options,
                 )
             },
         },
@@ -17522,21 +17521,21 @@ fn destack_gpu_resource_sampler_create_replay(
 
 #[inline]
 fn destack_gpu_resource_sampler_destroy_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuSamplerHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_RESOURCE_SAMPLER_DESTROY,
-        context.replay_payload_for(GPU_RESOURCE_SAMPLER_DESTROY)?,
+        binding.replay_payload_for(GPU_RESOURCE_SAMPLER_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_sampler_destroy(context, handle)
+                platform_native::destack_gpu_sampler_destroy(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_sampler_destroy(context, handle)
+                platform_simulation_native::destack_gpu_sampler_destroy(binding, handle)
             },
         },
         |result| {
@@ -17570,7 +17569,7 @@ fn destack_gpu_resource_sampler_destroy_replay(
 
 #[inline]
 fn destack_gpu_resource_texture_create_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuTextureHandle,
     device: resource::GpuDeviceHandle,
@@ -17578,16 +17577,16 @@ fn destack_gpu_resource_texture_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_RESOURCE_TEXTURE_CREATE,
-        context.replay_payload_for(GPU_RESOURCE_TEXTURE_CREATE)?,
+        binding.replay_payload_for(GPU_RESOURCE_TEXTURE_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_texture_create(context, out, device, options)
+                platform_native::destack_gpu_texture_create(binding, out, device, options)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_texture_create(
-                    context, out, device, options,
+                    binding, out, device, options,
                 )
             },
         },
@@ -17634,21 +17633,21 @@ fn destack_gpu_resource_texture_create_replay(
 
 #[inline]
 fn destack_gpu_resource_texture_destroy_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuTextureHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_RESOURCE_TEXTURE_DESTROY,
-        context.replay_payload_for(GPU_RESOURCE_TEXTURE_DESTROY)?,
+        binding.replay_payload_for(GPU_RESOURCE_TEXTURE_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_texture_destroy(context, handle)
+                platform_native::destack_gpu_texture_destroy(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_texture_destroy(context, handle)
+                platform_simulation_native::destack_gpu_texture_destroy(binding, handle)
             },
         },
         |result| {
@@ -17682,22 +17681,22 @@ fn destack_gpu_resource_texture_destroy_replay(
 
 #[inline]
 fn destack_gpu_resource_texture_info_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuTextureInfo,
     handle: resource::GpuTextureHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_RESOURCE_TEXTURE_INFO,
-        context.replay_payload_for(GPU_RESOURCE_TEXTURE_INFO)?,
+        binding.replay_payload_for(GPU_RESOURCE_TEXTURE_INFO)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_texture_info(context, out, handle)
+                platform_native::destack_gpu_texture_info(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_texture_info(context, out, handle)
+                platform_simulation_native::destack_gpu_texture_info(binding, out, handle)
             },
         },
         |result| {
@@ -17777,7 +17776,7 @@ fn destack_gpu_resource_texture_info_replay(
 
 #[inline]
 fn destack_gpu_resource_texture_view_create_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuTextureViewHandle,
     texture: resource::GpuTextureHandle,
@@ -17785,16 +17784,16 @@ fn destack_gpu_resource_texture_view_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&texture, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_RESOURCE_TEXTURE_VIEW_CREATE,
-        context.replay_payload_for(GPU_RESOURCE_TEXTURE_VIEW_CREATE)?,
+        binding.replay_payload_for(GPU_RESOURCE_TEXTURE_VIEW_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_texture_view_create(context, out, texture, options)
+                platform_native::destack_gpu_texture_view_create(binding, out, texture, options)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_texture_view_create(
-                    context, out, texture, options,
+                    binding, out, texture, options,
                 )
             },
         },
@@ -17841,21 +17840,21 @@ fn destack_gpu_resource_texture_view_create_replay(
 
 #[inline]
 fn destack_gpu_resource_texture_view_destroy_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuTextureViewHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_RESOURCE_TEXTURE_VIEW_DESTROY,
-        context.replay_payload_for(GPU_RESOURCE_TEXTURE_VIEW_DESTROY)?,
+        binding.replay_payload_for(GPU_RESOURCE_TEXTURE_VIEW_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_texture_view_destroy(context, handle)
+                platform_native::destack_gpu_texture_view_destroy(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_texture_view_destroy(context, handle)
+                platform_simulation_native::destack_gpu_texture_view_destroy(binding, handle)
             },
         },
         |result| {
@@ -17889,7 +17888,7 @@ fn destack_gpu_resource_texture_view_destroy_replay(
 
 #[inline]
 fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     computepass: resource::GpuComputePassHandle,
     queryset: resource::GpuQuerySetHandle,
@@ -17897,12 +17896,12 @@ fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_replay(
 ) -> RuntimeResult<()> {
     let _ = (&computepass, &queryset, &queryindex);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY,
-        context.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
+        binding.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_gpu_command_begin_compute_pipeline_statistics_query(context, computepass, queryset, queryindex) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_gpu_command_begin_compute_pipeline_statistics_query(context, computepass, queryset, queryindex) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_gpu_command_begin_compute_pipeline_statistics_query(binding, computepass, queryset, queryindex) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_gpu_command_begin_compute_pipeline_statistics_query(binding, computepass, queryset, queryindex) },
         },
         |result| {
             if let Ok(()) = result {
@@ -17937,7 +17936,7 @@ fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_replay(
 
 #[inline]
 fn destack_gpu_sync_command_begin_occlusion_query_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
@@ -17945,18 +17944,18 @@ fn destack_gpu_sync_command_begin_occlusion_query_replay(
 ) -> RuntimeResult<()> {
     let _ = (&renderpass, &queryset, &queryindex);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY,
-        context.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY)?,
+        binding.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_begin_occlusion_query(
-                    context, renderpass, queryset, queryindex,
+                    binding, renderpass, queryset, queryindex,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_begin_occlusion_query(
-                    context, renderpass, queryset, queryindex,
+                    binding, renderpass, queryset, queryindex,
                 )
             },
         },
@@ -17991,7 +17990,7 @@ fn destack_gpu_sync_command_begin_occlusion_query_replay(
 
 #[inline]
 fn destack_gpu_sync_command_begin_render_pipeline_statistics_query_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
@@ -17999,12 +17998,12 @@ fn destack_gpu_sync_command_begin_render_pipeline_statistics_query_replay(
 ) -> RuntimeResult<()> {
     let _ = (&renderpass, &queryset, &queryindex);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY,
-        context.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?,
+        binding.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_gpu_command_begin_render_pipeline_statistics_query(context, renderpass, queryset, queryindex) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_gpu_command_begin_render_pipeline_statistics_query(context, renderpass, queryset, queryindex) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_gpu_command_begin_render_pipeline_statistics_query(binding, renderpass, queryset, queryindex) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_gpu_command_begin_render_pipeline_statistics_query(binding, renderpass, queryset, queryindex) },
         },
         |result| {
             if let Ok(()) = result {
@@ -18039,18 +18038,18 @@ fn destack_gpu_sync_command_begin_render_pipeline_statistics_query_replay(
 
 #[inline]
 fn destack_gpu_sync_command_end_compute_pipeline_statistics_query_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     computepass: resource::GpuComputePassHandle,
 ) -> RuntimeResult<()> {
     let _ = &computepass;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY,
-        context.replay_payload_for(GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
+        binding.replay_payload_for(GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_gpu_command_end_compute_pipeline_statistics_query(context, computepass) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_gpu_command_end_compute_pipeline_statistics_query(context, computepass) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_gpu_command_end_compute_pipeline_statistics_query(binding, computepass) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_gpu_command_end_compute_pipeline_statistics_query(binding, computepass) },
         },
         |result| {
             if let Ok(()) = result {
@@ -18085,22 +18084,22 @@ fn destack_gpu_sync_command_end_compute_pipeline_statistics_query_replay(
 
 #[inline]
 fn destack_gpu_sync_command_end_occlusion_query_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
     let _ = &renderpass;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_SYNC_COMMAND_END_OCCLUSION_QUERY,
-        context.replay_payload_for(GPU_SYNC_COMMAND_END_OCCLUSION_QUERY)?,
+        binding.replay_payload_for(GPU_SYNC_COMMAND_END_OCCLUSION_QUERY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_command_end_occlusion_query(context, renderpass)
+                platform_native::destack_gpu_command_end_occlusion_query(binding, renderpass)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_end_occlusion_query(
-                    context, renderpass,
+                    binding, renderpass,
                 )
             },
         },
@@ -18135,18 +18134,18 @@ fn destack_gpu_sync_command_end_occlusion_query_replay(
 
 #[inline]
 fn destack_gpu_sync_command_end_render_pipeline_statistics_query_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<()> {
     let _ = &renderpass;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
-        context.replay_payload_for(GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY)?,
+        binding.replay_payload_for(GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_gpu_command_end_render_pipeline_statistics_query(context, renderpass) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_gpu_command_end_render_pipeline_statistics_query(context, renderpass) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_gpu_command_end_render_pipeline_statistics_query(binding, renderpass) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_gpu_command_end_render_pipeline_statistics_query(binding, renderpass) },
         },
         |result| {
             if let Ok(()) = result {
@@ -18181,7 +18180,7 @@ fn destack_gpu_sync_command_end_render_pipeline_statistics_query_replay(
 
 #[inline]
 fn destack_gpu_sync_command_resolve_queries_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     commandlist: resource::GpuCommandListHandle,
     queryset: resource::GpuQuerySetHandle,
@@ -18199,13 +18198,13 @@ fn destack_gpu_sync_command_resolve_queries_replay(
         &destinationoffset,
     );
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_SYNC_COMMAND_RESOLVE_QUERIES,
-        context.replay_payload_for(GPU_SYNC_COMMAND_RESOLVE_QUERIES)?,
+        binding.replay_payload_for(GPU_SYNC_COMMAND_RESOLVE_QUERIES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_resolve_queries(
-                    context,
+                    binding,
                     commandlist,
                     queryset,
                     firstquery,
@@ -18216,7 +18215,7 @@ fn destack_gpu_sync_command_resolve_queries_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_resolve_queries(
-                    context,
+                    binding,
                     commandlist,
                     queryset,
                     firstquery,
@@ -18257,7 +18256,7 @@ fn destack_gpu_sync_command_resolve_queries_replay(
 
 #[inline]
 fn destack_gpu_sync_command_write_timestamp_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     commandlist: resource::GpuCommandListHandle,
     queryset: resource::GpuQuerySetHandle,
@@ -18265,13 +18264,13 @@ fn destack_gpu_sync_command_write_timestamp_replay(
 ) -> RuntimeResult<()> {
     let _ = (&commandlist, &queryset, &queryindex);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_SYNC_COMMAND_WRITE_TIMESTAMP,
-        context.replay_payload_for(GPU_SYNC_COMMAND_WRITE_TIMESTAMP)?,
+        binding.replay_payload_for(GPU_SYNC_COMMAND_WRITE_TIMESTAMP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_write_timestamp(
-                    context,
+                    binding,
                     commandlist,
                     queryset,
                     queryindex,
@@ -18279,7 +18278,7 @@ fn destack_gpu_sync_command_write_timestamp_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_command_write_timestamp(
-                    context,
+                    binding,
                     commandlist,
                     queryset,
                     queryindex,
@@ -18317,7 +18316,7 @@ fn destack_gpu_sync_command_write_timestamp_replay(
 
 #[inline]
 fn destack_gpu_sync_fence_create_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuFenceHandle,
     device: resource::GpuDeviceHandle,
@@ -18325,15 +18324,15 @@ fn destack_gpu_sync_fence_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_SYNC_FENCE_CREATE,
-        context.replay_payload_for(GPU_SYNC_FENCE_CREATE)?,
+        binding.replay_payload_for(GPU_SYNC_FENCE_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_fence_create(context, out, device, options)
+                platform_native::destack_gpu_fence_create(binding, out, device, options)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_fence_create(context, out, device, options)
+                platform_simulation_native::destack_gpu_fence_create(binding, out, device, options)
             },
         },
         |result| {
@@ -18379,21 +18378,21 @@ fn destack_gpu_sync_fence_create_replay(
 
 #[inline]
 fn destack_gpu_sync_fence_destroy_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuFenceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_SYNC_FENCE_DESTROY,
-        context.replay_payload_for(GPU_SYNC_FENCE_DESTROY)?,
+        binding.replay_payload_for(GPU_SYNC_FENCE_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_fence_destroy(context, handle)
+                platform_native::destack_gpu_fence_destroy(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_fence_destroy(context, handle)
+                platform_simulation_native::destack_gpu_fence_destroy(binding, handle)
             },
         },
         |result| {
@@ -18427,7 +18426,7 @@ fn destack_gpu_sync_fence_destroy_replay(
 
 #[inline]
 fn destack_gpu_sync_query_set_create_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::GpuQuerySetHandle,
     device: resource::GpuDeviceHandle,
@@ -18435,16 +18434,16 @@ fn destack_gpu_sync_query_set_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_SYNC_QUERY_SET_CREATE,
-        context.replay_payload_for(GPU_SYNC_QUERY_SET_CREATE)?,
+        binding.replay_payload_for(GPU_SYNC_QUERY_SET_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_query_set_create(context, out, device, options)
+                platform_native::destack_gpu_query_set_create(binding, out, device, options)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_query_set_create(
-                    context, out, device, options,
+                    binding, out, device, options,
                 )
             },
         },
@@ -18491,21 +18490,21 @@ fn destack_gpu_sync_query_set_create_replay(
 
 #[inline]
 fn destack_gpu_sync_query_set_destroy_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::GpuQuerySetHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_SYNC_QUERY_SET_DESTROY,
-        context.replay_payload_for(GPU_SYNC_QUERY_SET_DESTROY)?,
+        binding.replay_payload_for(GPU_SYNC_QUERY_SET_DESTROY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_query_set_destroy(context, handle)
+                platform_native::destack_gpu_query_set_destroy(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_query_set_destroy(context, handle)
+                platform_simulation_native::destack_gpu_query_set_destroy(binding, handle)
             },
         },
         |result| {
@@ -18539,22 +18538,22 @@ fn destack_gpu_sync_query_set_destroy_replay(
 
 #[inline]
 fn destack_gpu_sync_query_set_info_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GpuQuerySetInfo,
     handle: resource::GpuQuerySetHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_SYNC_QUERY_SET_INFO,
-        context.replay_payload_for(GPU_SYNC_QUERY_SET_INFO)?,
+        binding.replay_payload_for(GPU_SYNC_QUERY_SET_INFO)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_query_set_info(context, out, handle)
+                platform_native::destack_gpu_query_set_info(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_query_set_info(context, out, handle)
+                platform_simulation_native::destack_gpu_query_set_info(binding, out, handle)
             },
         },
         |result| {
@@ -18615,7 +18614,7 @@ fn destack_gpu_sync_query_set_info_replay(
 
 #[inline]
 fn destack_gpu_sync_queue_signal_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     fence: resource::GpuFenceHandle,
@@ -18623,16 +18622,16 @@ fn destack_gpu_sync_queue_signal_replay(
 ) -> RuntimeResult<()> {
     let _ = (&queue, &fence, &argument_value);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_SYNC_QUEUE_SIGNAL,
-        context.replay_payload_for(GPU_SYNC_QUEUE_SIGNAL)?,
+        binding.replay_payload_for(GPU_SYNC_QUEUE_SIGNAL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_queue_signal(context, queue, fence, argument_value)
+                platform_native::destack_gpu_queue_signal(binding, queue, fence, argument_value)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_queue_signal(
-                    context,
+                    binding,
                     queue,
                     fence,
                     argument_value,
@@ -18670,22 +18669,22 @@ fn destack_gpu_sync_queue_signal_replay(
 
 #[inline]
 fn destack_gpu_sync_queue_timestamp_period_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut f64,
     queue: resource::GpuQueueHandle,
 ) -> RuntimeResult<()> {
     let _ = &queue;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_SYNC_QUEUE_TIMESTAMP_PERIOD,
-        context.replay_payload_for(GPU_SYNC_QUEUE_TIMESTAMP_PERIOD)?,
+        binding.replay_payload_for(GPU_SYNC_QUEUE_TIMESTAMP_PERIOD)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_queue_timestamp_period(context, out, queue)
+                platform_native::destack_gpu_queue_timestamp_period(binding, out, queue)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_queue_timestamp_period(context, out, queue)
+                platform_simulation_native::destack_gpu_queue_timestamp_period(binding, out, queue)
             },
         },
         |result| {
@@ -18731,7 +18730,7 @@ fn destack_gpu_sync_queue_timestamp_period_replay(
 
 #[inline]
 fn destack_gpu_sync_queue_wait_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     fence: resource::GpuFenceHandle,
@@ -18740,13 +18739,13 @@ fn destack_gpu_sync_queue_wait_replay(
 ) -> RuntimeResult<()> {
     let _ = (&queue, &fence, &argument_value, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_SYNC_QUEUE_WAIT,
-        context.replay_payload_for(GPU_SYNC_QUEUE_WAIT)?,
+        binding.replay_payload_for(GPU_SYNC_QUEUE_WAIT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_queue_wait(
-                    context,
+                    binding,
                     queue,
                     fence,
                     argument_value,
@@ -18755,7 +18754,7 @@ fn destack_gpu_sync_queue_wait_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_gpu_queue_wait(
-                    context,
+                    binding,
                     queue,
                     fence,
                     argument_value,
@@ -18794,22 +18793,22 @@ fn destack_gpu_sync_queue_wait_replay(
 
 #[inline]
 fn destack_gpu_sync_queue_work_done_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     let _ = (&queue, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         GPU_SYNC_QUEUE_WORK_DONE,
-        context.replay_payload_for(GPU_SYNC_QUEUE_WORK_DONE)?,
+        binding.replay_payload_for(GPU_SYNC_QUEUE_WORK_DONE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_queue_work_done(context, queue, timeoutns)
+                platform_native::destack_gpu_queue_work_done(binding, queue, timeoutns)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_gpu_queue_work_done(context, queue, timeoutns)
+                platform_simulation_native::destack_gpu_queue_work_done(binding, queue, timeoutns)
             },
         },
         |result| {
@@ -21249,19 +21248,19 @@ pub unsafe extern "C" fn destack_gpu_sync_queue_work_done(
 /// VM replay implementations for gpu bindings.
 #[inline]
 fn destack_gpu_adapter_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_ADAPTER_CLOSE,
-        runtime.replay_payload_for(GPU_ADAPTER_CLOSE)?,
+        binding.replay_payload_for(GPU_ADAPTER_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_gpu_adapter_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_gpu_adapter_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_adapter_close(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_adapter_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -21299,21 +21298,21 @@ fn destack_gpu_adapter_close_vm_replay(
 
 #[inline]
 fn destack_gpu_adapter_features_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_ADAPTER_FEATURES,
-        runtime.replay_payload_for(GPU_ADAPTER_FEATURES)?,
+        binding.replay_payload_for(GPU_ADAPTER_FEATURES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_adapter_features(runtime, context, handle)
+                platform_vm::destack_gpu_adapter_features(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_adapter_features(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_adapter_features(binding, context, handle)
             }
         },
         |context, result| {
@@ -21372,23 +21371,23 @@ fn destack_gpu_adapter_features_vm_replay(
 
 #[inline]
 fn destack_gpu_adapter_format_capabilities_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuAdapterHandle,
     format: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_ADAPTER_FORMAT_CAPABILITIES,
-        runtime.replay_payload_for(GPU_ADAPTER_FORMAT_CAPABILITIES)?,
+        binding.replay_payload_for(GPU_ADAPTER_FORMAT_CAPABILITIES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_adapter_format_capabilities(
-                runtime, context, handle, format,
+                binding, context, handle, format,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_adapter_format_capabilities(
-                    runtime, context, handle, format,
+                    binding, context, handle, format,
                 )
             }
         },
@@ -21457,22 +21456,22 @@ fn destack_gpu_adapter_format_capabilities_vm_replay(
 
 #[inline]
 fn destack_gpu_adapter_has_feature_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuAdapterHandle,
     feature: GpuFeatureId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_ADAPTER_HAS_FEATURE,
-        runtime.replay_payload_for(GPU_ADAPTER_HAS_FEATURE)?,
+        binding.replay_payload_for(GPU_ADAPTER_HAS_FEATURE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_adapter_has_feature(runtime, context, handle, feature)
+                platform_vm::destack_gpu_adapter_has_feature(binding, context, handle, feature)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_adapter_has_feature(
-                runtime, context, handle, feature,
+                binding, context, handle, feature,
             ),
         },
         |context, result| {
@@ -21514,19 +21513,19 @@ fn destack_gpu_adapter_has_feature_vm_replay(
 
 #[inline]
 fn destack_gpu_adapter_info_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_ADAPTER_INFO,
-        runtime.replay_payload_for(GPU_ADAPTER_INFO)?,
+        binding.replay_payload_for(GPU_ADAPTER_INFO)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_gpu_adapter_info(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_gpu_adapter_info(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_adapter_info(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_adapter_info(binding, context, handle)
             }
         },
         |context, result| {
@@ -21906,19 +21905,19 @@ fn destack_gpu_adapter_info_vm_replay(
 
 #[inline]
 fn destack_gpu_adapter_limits_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_ADAPTER_LIMITS,
-        runtime.replay_payload_for(GPU_ADAPTER_LIMITS)?,
+        binding.replay_payload_for(GPU_ADAPTER_LIMITS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_gpu_adapter_limits(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_gpu_adapter_limits(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_adapter_limits(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_adapter_limits(binding, context, handle)
             }
         },
         |context, result| {
@@ -22154,19 +22153,19 @@ fn destack_gpu_adapter_limits_vm_replay(
 
 #[inline]
 fn destack_gpu_adapter_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     request: GpuAdapterRequestVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_ADAPTER_LIST,
-        runtime.replay_payload_for(GPU_ADAPTER_LIST)?,
+        binding.replay_payload_for(GPU_ADAPTER_LIST)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_adapter_list(runtime, context, request),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_adapter_list(runtime, context, request),
+                RuntimeWorld::Host => platform_vm::destack_gpu_adapter_list(binding, context, request),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_adapter_list(binding, context, request),
             }
         },
         |context, result| {
@@ -22551,19 +22550,19 @@ fn destack_gpu_adapter_list_vm_replay(
 
 #[inline]
 fn destack_gpu_adapter_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     id: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_ADAPTER_OPEN,
-        runtime.replay_payload_for(GPU_ADAPTER_OPEN)?,
+        binding.replay_payload_for(GPU_ADAPTER_OPEN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_gpu_adapter_open(runtime, context, id),
+            RuntimeWorld::Host => platform_vm::destack_gpu_adapter_open(binding, context, id),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_adapter_open(runtime, context, id)
+                platform_simulation_vm::destack_gpu_adapter_open(binding, context, id)
             }
         },
         |context, result| {
@@ -22605,7 +22604,7 @@ fn destack_gpu_adapter_open_vm_replay(
 
 #[inline]
 fn destack_gpu_bind_group_create_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
@@ -22613,16 +22612,16 @@ fn destack_gpu_bind_group_create_vm_replay(
     entries: VmSlice<GpuBindGroupEntryVm>,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_BIND_GROUP_CREATE,
-        runtime.replay_payload_for(GPU_BIND_GROUP_CREATE)?,
+        binding.replay_payload_for(GPU_BIND_GROUP_CREATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_bind_group_create(
-                runtime, context, device, layout, entries, flags,
+                binding, context, device, layout, entries, flags,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_bind_group_create(
-                runtime, context, device, layout, entries, flags,
+                binding, context, device, layout, entries, flags,
             ),
         },
         |context, result| {
@@ -22664,21 +22663,21 @@ fn destack_gpu_bind_group_create_vm_replay(
 
 #[inline]
 fn destack_gpu_bind_group_destroy_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuBindGroupHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_BIND_GROUP_DESTROY,
-        runtime.replay_payload_for(GPU_BIND_GROUP_DESTROY)?,
+        binding.replay_payload_for(GPU_BIND_GROUP_DESTROY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_bind_group_destroy(runtime, context, handle)
+                platform_vm::destack_gpu_bind_group_destroy(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_bind_group_destroy(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_bind_group_destroy(binding, context, handle)
             }
         },
         |context, result| {
@@ -22716,24 +22715,24 @@ fn destack_gpu_bind_group_destroy_vm_replay(
 
 #[inline]
 fn destack_gpu_bind_group_layout_create_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     entries: VmSlice<GpuBindGroupLayoutEntryVm>,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_BIND_GROUP_LAYOUT_CREATE,
-        runtime.replay_payload_for(GPU_BIND_GROUP_LAYOUT_CREATE)?,
+        binding.replay_payload_for(GPU_BIND_GROUP_LAYOUT_CREATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_bind_group_layout_create(
-                runtime, context, device, entries, flags,
+                binding, context, device, entries, flags,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_bind_group_layout_create(
-                    runtime, context, device, entries, flags,
+                    binding, context, device, entries, flags,
                 )
             }
         },
@@ -22776,22 +22775,22 @@ fn destack_gpu_bind_group_layout_create_vm_replay(
 
 #[inline]
 fn destack_gpu_bind_group_layout_destroy_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuBindGroupLayoutHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_BIND_GROUP_LAYOUT_DESTROY,
-        runtime.replay_payload_for(GPU_BIND_GROUP_LAYOUT_DESTROY)?,
+        binding.replay_payload_for(GPU_BIND_GROUP_LAYOUT_DESTROY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_bind_group_layout_destroy(runtime, context, handle)
+                platform_vm::destack_gpu_bind_group_layout_destroy(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_bind_group_layout_destroy(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -22830,22 +22829,22 @@ fn destack_gpu_bind_group_layout_destroy_vm_replay(
 
 #[inline]
 fn destack_gpu_bind_pipeline_layout_create_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuPipelineLayoutOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_BIND_PIPELINE_LAYOUT_CREATE,
-        runtime.replay_payload_for(GPU_BIND_PIPELINE_LAYOUT_CREATE)?,
+        binding.replay_payload_for(GPU_BIND_PIPELINE_LAYOUT_CREATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_pipeline_layout_create(runtime, context, device, options)
+                platform_vm::destack_gpu_pipeline_layout_create(binding, context, device, options)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_pipeline_layout_create(
-                runtime, context, device, options,
+                binding, context, device, options,
             ),
         },
         |context, result| {
@@ -22887,22 +22886,22 @@ fn destack_gpu_bind_pipeline_layout_create_vm_replay(
 
 #[inline]
 fn destack_gpu_bind_pipeline_layout_destroy_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuPipelineLayoutHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_BIND_PIPELINE_LAYOUT_DESTROY,
-        runtime.replay_payload_for(GPU_BIND_PIPELINE_LAYOUT_DESTROY)?,
+        binding.replay_payload_for(GPU_BIND_PIPELINE_LAYOUT_DESTROY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_pipeline_layout_destroy(runtime, context, handle)
+                platform_vm::destack_gpu_pipeline_layout_destroy(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_pipeline_layout_destroy(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -22941,23 +22940,23 @@ fn destack_gpu_bind_pipeline_layout_destroy_vm_replay(
 
 #[inline]
 fn destack_gpu_command_bind_compute_pipeline_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_BIND_COMPUTE_PIPELINE,
-        runtime.replay_payload_for(GPU_COMMAND_BIND_COMPUTE_PIPELINE)?,
+        binding.replay_payload_for(GPU_COMMAND_BIND_COMPUTE_PIPELINE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_bind_compute_pipeline(
-                runtime, context, handle, pipeline,
+                binding, context, handle, pipeline,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_bind_compute_pipeline(
-                    runtime, context, handle, pipeline,
+                    binding, context, handle, pipeline,
                 )
             }
         },
@@ -22996,23 +22995,23 @@ fn destack_gpu_command_bind_compute_pipeline_vm_replay(
 
 #[inline]
 fn destack_gpu_command_bind_render_pipeline_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_BIND_RENDER_PIPELINE,
-        runtime.replay_payload_for(GPU_COMMAND_BIND_RENDER_PIPELINE)?,
+        binding.replay_payload_for(GPU_COMMAND_BIND_RENDER_PIPELINE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_bind_render_pipeline(
-                runtime, context, handle, pipeline,
+                binding, context, handle, pipeline,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_bind_render_pipeline(
-                    runtime, context, handle, pipeline,
+                    binding, context, handle, pipeline,
                 )
             }
         },
@@ -23051,7 +23050,7 @@ fn destack_gpu_command_bind_render_pipeline_vm_replay(
 
 #[inline]
 fn destack_gpu_command_clear_buffer_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
@@ -23059,16 +23058,16 @@ fn destack_gpu_command_clear_buffer_vm_replay(
     offset: u64,
     size: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_CLEAR_BUFFER,
-        runtime.replay_payload_for(GPU_COMMAND_CLEAR_BUFFER)?,
+        binding.replay_payload_for(GPU_COMMAND_CLEAR_BUFFER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_clear_buffer(
-                runtime, context, handle, buffer, offset, size,
+                binding, context, handle, buffer, offset, size,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_command_clear_buffer(
-                runtime, context, handle, buffer, offset, size,
+                binding, context, handle, buffer, offset, size,
             ),
         },
         |context, result| {
@@ -23106,23 +23105,23 @@ fn destack_gpu_command_clear_buffer_vm_replay(
 
 #[inline]
 fn destack_gpu_command_compute_pass_begin_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     options: GpuComputePassOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_COMPUTE_PASS_BEGIN,
-        runtime.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_BEGIN)?,
+        binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_BEGIN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_compute_pass_begin(
-                runtime, context, handle, options,
+                binding, context, handle, options,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_compute_pass_begin(
-                    runtime, context, handle, options,
+                    binding, context, handle, options,
                 )
             }
         },
@@ -23165,22 +23164,22 @@ fn destack_gpu_command_compute_pass_begin_vm_replay(
 
 #[inline]
 fn destack_gpu_command_compute_pass_end_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_COMPUTE_PASS_END,
-        runtime.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_END)?,
+        binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_END)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_command_compute_pass_end(runtime, context, handle)
+                platform_vm::destack_gpu_command_compute_pass_end(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_compute_pass_end(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -23219,25 +23218,25 @@ fn destack_gpu_command_compute_pass_end_vm_replay(
 
 #[inline]
 fn destack_gpu_command_compute_pass_insert_debug_marker_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     marker: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER,
-        runtime.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER)?,
+        binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
                 platform_vm::destack_gpu_command_compute_pass_insert_debug_marker(
-                    runtime, context, handle, marker,
+                    binding, context, handle, marker,
                 )
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_compute_pass_insert_debug_marker(
-                    runtime, context, handle, marker,
+                    binding, context, handle, marker,
                 )
             }
         },
@@ -23277,22 +23276,22 @@ fn destack_gpu_command_compute_pass_insert_debug_marker_vm_replay(
 
 #[inline]
 fn destack_gpu_command_compute_pass_pop_debug_group_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP,
-        runtime.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_compute_pass_pop_debug_group(
-                runtime, context, handle,
+                binding, context, handle,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_compute_pass_pop_debug_group(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -23331,23 +23330,23 @@ fn destack_gpu_command_compute_pass_pop_debug_group_vm_replay(
 
 #[inline]
 fn destack_gpu_command_compute_pass_push_debug_group_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     label: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP,
-        runtime.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_compute_pass_push_debug_group(
-                runtime, context, handle, label,
+                binding, context, handle, label,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_compute_pass_push_debug_group(
-                    runtime, context, handle, label,
+                    binding, context, handle, label,
                 )
             }
         },
@@ -23386,7 +23385,7 @@ fn destack_gpu_command_compute_pass_push_debug_group_vm_replay(
 
 #[inline]
 fn destack_gpu_command_copy_buffer_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
@@ -23396,13 +23395,13 @@ fn destack_gpu_command_copy_buffer_vm_replay(
     dstoffset: u64,
     argument_bytes: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_COPY_BUFFER,
-        runtime.replay_payload_for(GPU_COMMAND_COPY_BUFFER)?,
+        binding.replay_payload_for(GPU_COMMAND_COPY_BUFFER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_copy_buffer(
-                runtime,
+                binding,
                 context,
                 handle,
                 src,
@@ -23412,7 +23411,7 @@ fn destack_gpu_command_copy_buffer_vm_replay(
                 argument_bytes,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_command_copy_buffer(
-                runtime,
+                binding,
                 context,
                 handle,
                 src,
@@ -23457,7 +23456,7 @@ fn destack_gpu_command_copy_buffer_vm_replay(
 
 #[inline]
 fn destack_gpu_command_copy_buffer_to_texture_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
@@ -23465,13 +23464,13 @@ fn destack_gpu_command_copy_buffer_to_texture_vm_replay(
     destination: GpuTextureCopyVm,
     size: GpuExtent3DVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_COPY_BUFFER_TO_TEXTURE,
-        runtime.replay_payload_for(GPU_COMMAND_COPY_BUFFER_TO_TEXTURE)?,
+        binding.replay_payload_for(GPU_COMMAND_COPY_BUFFER_TO_TEXTURE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_copy_buffer_to_texture(
-                runtime,
+                binding,
                 context,
                 handle,
                 source,
@@ -23480,7 +23479,7 @@ fn destack_gpu_command_copy_buffer_to_texture_vm_replay(
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_copy_buffer_to_texture(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     source,
@@ -23524,7 +23523,7 @@ fn destack_gpu_command_copy_buffer_to_texture_vm_replay(
 
 #[inline]
 fn destack_gpu_command_copy_texture_to_buffer_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
@@ -23532,13 +23531,13 @@ fn destack_gpu_command_copy_texture_to_buffer_vm_replay(
     destination: GpuBufferCopyVm,
     size: GpuExtent3DVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_COPY_TEXTURE_TO_BUFFER,
-        runtime.replay_payload_for(GPU_COMMAND_COPY_TEXTURE_TO_BUFFER)?,
+        binding.replay_payload_for(GPU_COMMAND_COPY_TEXTURE_TO_BUFFER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_copy_texture_to_buffer(
-                runtime,
+                binding,
                 context,
                 handle,
                 source,
@@ -23547,7 +23546,7 @@ fn destack_gpu_command_copy_texture_to_buffer_vm_replay(
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_copy_texture_to_buffer(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     source,
@@ -23591,7 +23590,7 @@ fn destack_gpu_command_copy_texture_to_buffer_vm_replay(
 
 #[inline]
 fn destack_gpu_command_copy_texture_to_texture_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
@@ -23599,13 +23598,13 @@ fn destack_gpu_command_copy_texture_to_texture_vm_replay(
     destination: GpuTextureCopyVm,
     size: GpuExtent3DVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE,
-        runtime.replay_payload_for(GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE)?,
+        binding.replay_payload_for(GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_copy_texture_to_texture(
-                runtime,
+                binding,
                 context,
                 handle,
                 source,
@@ -23614,7 +23613,7 @@ fn destack_gpu_command_copy_texture_to_texture_vm_replay(
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_copy_texture_to_texture(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     source,
@@ -23658,7 +23657,7 @@ fn destack_gpu_command_copy_texture_to_texture_vm_replay(
 
 #[inline]
 fn destack_gpu_command_dispatch_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
@@ -23666,16 +23665,16 @@ fn destack_gpu_command_dispatch_vm_replay(
     groupy: u32,
     groupz: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_DISPATCH,
-        runtime.replay_payload_for(GPU_COMMAND_DISPATCH)?,
+        binding.replay_payload_for(GPU_COMMAND_DISPATCH)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_dispatch(
-                runtime, context, handle, groupx, groupy, groupz,
+                binding, context, handle, groupx, groupy, groupz,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_command_dispatch(
-                runtime, context, handle, groupx, groupy, groupz,
+                binding, context, handle, groupx, groupy, groupz,
             ),
         },
         |context, result| {
@@ -23713,24 +23712,24 @@ fn destack_gpu_command_dispatch_vm_replay(
 
 #[inline]
 fn destack_gpu_command_dispatch_indirect_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_DISPATCH_INDIRECT,
-        runtime.replay_payload_for(GPU_COMMAND_DISPATCH_INDIRECT)?,
+        binding.replay_payload_for(GPU_COMMAND_DISPATCH_INDIRECT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_dispatch_indirect(
-                runtime, context, handle, buffer, offset,
+                binding, context, handle, buffer, offset,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_dispatch_indirect(
-                    runtime, context, handle, buffer, offset,
+                    binding, context, handle, buffer, offset,
                 )
             }
         },
@@ -23769,7 +23768,7 @@ fn destack_gpu_command_dispatch_indirect_vm_replay(
 
 #[inline]
 fn destack_gpu_command_draw_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -23778,13 +23777,13 @@ fn destack_gpu_command_draw_vm_replay(
     firstvertex: u32,
     firstinstance: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_DRAW,
-        runtime.replay_payload_for(GPU_COMMAND_DRAW)?,
+        binding.replay_payload_for(GPU_COMMAND_DRAW)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_draw(
-                runtime,
+                binding,
                 context,
                 handle,
                 vertexcount,
@@ -23793,7 +23792,7 @@ fn destack_gpu_command_draw_vm_replay(
                 firstinstance,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_command_draw(
-                runtime,
+                binding,
                 context,
                 handle,
                 vertexcount,
@@ -23837,7 +23836,7 @@ fn destack_gpu_command_draw_vm_replay(
 
 #[inline]
 fn destack_gpu_command_draw_indexed_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -23847,13 +23846,13 @@ fn destack_gpu_command_draw_indexed_vm_replay(
     basevertex: i32,
     firstinstance: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_DRAW_INDEXED,
-        runtime.replay_payload_for(GPU_COMMAND_DRAW_INDEXED)?,
+        binding.replay_payload_for(GPU_COMMAND_DRAW_INDEXED)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_draw_indexed(
-                runtime,
+                binding,
                 context,
                 handle,
                 indexcount,
@@ -23863,7 +23862,7 @@ fn destack_gpu_command_draw_indexed_vm_replay(
                 firstinstance,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_command_draw_indexed(
-                runtime,
+                binding,
                 context,
                 handle,
                 indexcount,
@@ -23908,7 +23907,7 @@ fn destack_gpu_command_draw_indexed_vm_replay(
 
 #[inline]
 fn destack_gpu_command_draw_indexed_indirect_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -23917,17 +23916,17 @@ fn destack_gpu_command_draw_indexed_indirect_vm_replay(
     drawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_DRAW_INDEXED_INDIRECT,
-        runtime.replay_payload_for(GPU_COMMAND_DRAW_INDEXED_INDIRECT)?,
+        binding.replay_payload_for(GPU_COMMAND_DRAW_INDEXED_INDIRECT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_draw_indexed_indirect(
-                runtime, context, handle, buffer, offset, drawcount, stride,
+                binding, context, handle, buffer, offset, drawcount, stride,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_draw_indexed_indirect(
-                    runtime, context, handle, buffer, offset, drawcount, stride,
+                    binding, context, handle, buffer, offset, drawcount, stride,
                 )
             }
         },
@@ -23966,7 +23965,7 @@ fn destack_gpu_command_draw_indexed_indirect_vm_replay(
 
 #[inline]
 fn destack_gpu_command_draw_indirect_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -23975,16 +23974,16 @@ fn destack_gpu_command_draw_indirect_vm_replay(
     drawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_DRAW_INDIRECT,
-        runtime.replay_payload_for(GPU_COMMAND_DRAW_INDIRECT)?,
+        binding.replay_payload_for(GPU_COMMAND_DRAW_INDIRECT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_draw_indirect(
-                runtime, context, handle, buffer, offset, drawcount, stride,
+                binding, context, handle, buffer, offset, drawcount, stride,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_command_draw_indirect(
-                runtime, context, handle, buffer, offset, drawcount, stride,
+                binding, context, handle, buffer, offset, drawcount, stride,
             ),
         },
         |context, result| {
@@ -24022,21 +24021,21 @@ fn destack_gpu_command_draw_indirect_vm_replay(
 
 #[inline]
 fn destack_gpu_command_encoder_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_ENCODER_CLOSE,
-        runtime.replay_payload_for(GPU_COMMAND_ENCODER_CLOSE)?,
+        binding.replay_payload_for(GPU_COMMAND_ENCODER_CLOSE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_command_encoder_close(runtime, context, handle)
+                platform_vm::destack_gpu_command_encoder_close(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_command_encoder_close(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_command_encoder_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -24074,21 +24073,21 @@ fn destack_gpu_command_encoder_close_vm_replay(
 
 #[inline]
 fn destack_gpu_command_encoder_finish_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_ENCODER_FINISH,
-        runtime.replay_payload_for(GPU_COMMAND_ENCODER_FINISH)?,
+        binding.replay_payload_for(GPU_COMMAND_ENCODER_FINISH)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_command_encoder_finish(runtime, context, handle)
+                platform_vm::destack_gpu_command_encoder_finish(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_command_encoder_finish(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_command_encoder_finish(binding, context, handle)
             }
         },
         |context, result| {
@@ -24126,22 +24125,22 @@ fn destack_gpu_command_encoder_finish_vm_replay(
 
 #[inline]
 fn destack_gpu_command_encoder_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuCommandEncoderOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_ENCODER_OPEN,
-        runtime.replay_payload_for(GPU_COMMAND_ENCODER_OPEN)?,
+        binding.replay_payload_for(GPU_COMMAND_ENCODER_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_command_encoder_open(runtime, context, device, options)
+                platform_vm::destack_gpu_command_encoder_open(binding, context, device, options)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_command_encoder_open(
-                runtime, context, device, options,
+                binding, context, device, options,
             ),
         },
         |context, result| {
@@ -24183,23 +24182,23 @@ fn destack_gpu_command_encoder_open_vm_replay(
 
 #[inline]
 fn destack_gpu_command_execute_bundles_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     bundles: VmSlice<resource::GpuRenderBundleHandle>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_EXECUTE_BUNDLES,
-        runtime.replay_payload_for(GPU_COMMAND_EXECUTE_BUNDLES)?,
+        binding.replay_payload_for(GPU_COMMAND_EXECUTE_BUNDLES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_command_execute_bundles(runtime, context, handle, bundles)
+                platform_vm::destack_gpu_command_execute_bundles(binding, context, handle, bundles)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_execute_bundles(
-                    runtime, context, handle, bundles,
+                    binding, context, handle, bundles,
                 )
             }
         },
@@ -24238,23 +24237,23 @@ fn destack_gpu_command_execute_bundles_vm_replay(
 
 #[inline]
 fn destack_gpu_command_insert_debug_marker_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     marker: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_INSERT_DEBUG_MARKER,
-        runtime.replay_payload_for(GPU_COMMAND_INSERT_DEBUG_MARKER)?,
+        binding.replay_payload_for(GPU_COMMAND_INSERT_DEBUG_MARKER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_insert_debug_marker(
-                runtime, context, handle, marker,
+                binding, context, handle, marker,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_insert_debug_marker(
-                    runtime, context, handle, marker,
+                    binding, context, handle, marker,
                 )
             }
         },
@@ -24293,7 +24292,7 @@ fn destack_gpu_command_insert_debug_marker_vm_replay(
 
 #[inline]
 fn destack_gpu_command_multi_draw_indexed_indirect_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -24302,17 +24301,17 @@ fn destack_gpu_command_multi_draw_indexed_indirect_vm_replay(
     drawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT,
-        runtime.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT)?,
+        binding.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_multi_draw_indexed_indirect(
-                runtime, context, handle, buffer, offset, drawcount, stride,
+                binding, context, handle, buffer, offset, drawcount, stride,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_multi_draw_indexed_indirect(
-                    runtime, context, handle, buffer, offset, drawcount, stride,
+                    binding, context, handle, buffer, offset, drawcount, stride,
                 )
             }
         },
@@ -24351,7 +24350,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_vm_replay(
 
 #[inline]
 fn destack_gpu_command_multi_draw_indexed_indirect_count_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -24362,14 +24361,14 @@ fn destack_gpu_command_multi_draw_indexed_indirect_count_vm_replay(
     maxdrawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT,
-        runtime.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT)?,
+        binding.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
                 platform_vm::destack_gpu_command_multi_draw_indexed_indirect_count(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     buffer,
@@ -24382,7 +24381,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_count_vm_replay(
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_multi_draw_indexed_indirect_count(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     buffer,
@@ -24430,7 +24429,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_count_vm_replay(
 
 #[inline]
 fn destack_gpu_command_multi_draw_indirect_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -24439,17 +24438,17 @@ fn destack_gpu_command_multi_draw_indirect_vm_replay(
     drawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_MULTI_DRAW_INDIRECT,
-        runtime.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDIRECT)?,
+        binding.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDIRECT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_multi_draw_indirect(
-                runtime, context, handle, buffer, offset, drawcount, stride,
+                binding, context, handle, buffer, offset, drawcount, stride,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_multi_draw_indirect(
-                    runtime, context, handle, buffer, offset, drawcount, stride,
+                    binding, context, handle, buffer, offset, drawcount, stride,
                 )
             }
         },
@@ -24488,7 +24487,7 @@ fn destack_gpu_command_multi_draw_indirect_vm_replay(
 
 #[inline]
 fn destack_gpu_command_multi_draw_indirect_count_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -24499,13 +24498,13 @@ fn destack_gpu_command_multi_draw_indirect_count_vm_replay(
     maxdrawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT,
-        runtime.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT)?,
+        binding.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_multi_draw_indirect_count(
-                runtime,
+                binding,
                 context,
                 handle,
                 buffer,
@@ -24517,7 +24516,7 @@ fn destack_gpu_command_multi_draw_indirect_count_vm_replay(
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_multi_draw_indirect_count(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     buffer,
@@ -24564,22 +24563,22 @@ fn destack_gpu_command_multi_draw_indirect_count_vm_replay(
 
 #[inline]
 fn destack_gpu_command_pop_debug_group_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_POP_DEBUG_GROUP,
-        runtime.replay_payload_for(GPU_COMMAND_POP_DEBUG_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_POP_DEBUG_GROUP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_command_pop_debug_group(runtime, context, handle)
+                platform_vm::destack_gpu_command_pop_debug_group(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_pop_debug_group(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -24618,23 +24617,23 @@ fn destack_gpu_command_pop_debug_group_vm_replay(
 
 #[inline]
 fn destack_gpu_command_push_debug_group_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     label: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_PUSH_DEBUG_GROUP,
-        runtime.replay_payload_for(GPU_COMMAND_PUSH_DEBUG_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_PUSH_DEBUG_GROUP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_command_push_debug_group(runtime, context, handle, label)
+                platform_vm::destack_gpu_command_push_debug_group(binding, context, handle, label)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_push_debug_group(
-                    runtime, context, handle, label,
+                    binding, context, handle, label,
                 )
             }
         },
@@ -24673,27 +24672,27 @@ fn destack_gpu_command_push_debug_group_vm_replay(
 
 #[inline]
 fn destack_gpu_command_queue_submit_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     commandlists: VmSlice<resource::GpuCommandListHandle>,
     options: GpuSubmitOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_QUEUE_SUBMIT,
-        runtime.replay_payload_for(GPU_COMMAND_QUEUE_SUBMIT)?,
+        binding.replay_payload_for(GPU_COMMAND_QUEUE_SUBMIT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_queue_submit(
-                runtime,
+                binding,
                 context,
                 queue,
                 commandlists,
                 options,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_queue_submit(
-                runtime,
+                binding,
                 context,
                 queue,
                 commandlists,
@@ -24735,22 +24734,22 @@ fn destack_gpu_command_queue_submit_vm_replay(
 
 #[inline]
 fn destack_gpu_command_queue_wait_idle_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_QUEUE_WAIT_IDLE,
-        runtime.replay_payload_for(GPU_COMMAND_QUEUE_WAIT_IDLE)?,
+        binding.replay_payload_for(GPU_COMMAND_QUEUE_WAIT_IDLE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_queue_wait_idle(runtime, context, queue, timeoutns)
+                platform_vm::destack_gpu_queue_wait_idle(binding, context, queue, timeoutns)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_queue_wait_idle(
-                runtime, context, queue, timeoutns,
+                binding, context, queue, timeoutns,
             ),
         },
         |context, result| {
@@ -24788,7 +24787,7 @@ fn destack_gpu_command_queue_wait_idle_vm_replay(
 
 #[inline]
 fn destack_gpu_command_queue_write_buffer_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
@@ -24798,13 +24797,13 @@ fn destack_gpu_command_queue_write_buffer_vm_replay(
     dataoffset: u64,
     size: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_QUEUE_WRITE_BUFFER,
-        runtime.replay_payload_for(GPU_COMMAND_QUEUE_WRITE_BUFFER)?,
+        binding.replay_payload_for(GPU_COMMAND_QUEUE_WRITE_BUFFER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_queue_write_buffer(
-                runtime,
+                binding,
                 context,
                 queue,
                 buffer,
@@ -24814,7 +24813,7 @@ fn destack_gpu_command_queue_write_buffer_vm_replay(
                 size,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_queue_write_buffer(
-                runtime,
+                binding,
                 context,
                 queue,
                 buffer,
@@ -24859,7 +24858,7 @@ fn destack_gpu_command_queue_write_buffer_vm_replay(
 
 #[inline]
 fn destack_gpu_command_queue_write_texture_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
@@ -24868,13 +24867,13 @@ fn destack_gpu_command_queue_write_texture_vm_replay(
     layout: GpuBufferCopyLayoutVm,
     size: GpuExtent3DVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_QUEUE_WRITE_TEXTURE,
-        runtime.replay_payload_for(GPU_COMMAND_QUEUE_WRITE_TEXTURE)?,
+        binding.replay_payload_for(GPU_COMMAND_QUEUE_WRITE_TEXTURE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_queue_write_texture(
-                runtime,
+                binding,
                 context,
                 queue,
                 destination,
@@ -24883,7 +24882,7 @@ fn destack_gpu_command_queue_write_texture_vm_replay(
                 size,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_queue_write_texture(
-                runtime,
+                binding,
                 context,
                 queue,
                 destination,
@@ -24927,21 +24926,21 @@ fn destack_gpu_command_queue_write_texture_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_destroy_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_BUNDLE_DESTROY,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DESTROY)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DESTROY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_render_bundle_destroy(runtime, context, handle)
+                platform_vm::destack_gpu_render_bundle_destroy(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_render_bundle_destroy(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_render_bundle_destroy(binding, context, handle)
             }
         },
         |context, result| {
@@ -24979,7 +24978,7 @@ fn destack_gpu_command_render_bundle_destroy_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_draw_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
@@ -24988,13 +24987,13 @@ fn destack_gpu_command_render_bundle_draw_vm_replay(
     firstvertex: u32,
     firstinstance: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_BUNDLE_DRAW,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_draw(
-                runtime,
+                binding,
                 context,
                 handle,
                 vertexcount,
@@ -25003,7 +25002,7 @@ fn destack_gpu_command_render_bundle_draw_vm_replay(
                 firstinstance,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_render_bundle_draw(
-                runtime,
+                binding,
                 context,
                 handle,
                 vertexcount,
@@ -25047,7 +25046,7 @@ fn destack_gpu_command_render_bundle_draw_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_draw_indexed_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
@@ -25057,13 +25056,13 @@ fn destack_gpu_command_render_bundle_draw_indexed_vm_replay(
     basevertex: i32,
     firstinstance: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_draw_indexed(
-                runtime,
+                binding,
                 context,
                 handle,
                 indexcount,
@@ -25074,7 +25073,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_vm_replay(
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_render_bundle_draw_indexed(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     indexcount,
@@ -25120,7 +25119,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_draw_indexed_indirect_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
@@ -25129,17 +25128,17 @@ fn destack_gpu_command_render_bundle_draw_indexed_indirect_vm_replay(
     drawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_draw_indexed_indirect(
-                runtime, context, handle, buffer, offset, drawcount, stride,
+                binding, context, handle, buffer, offset, drawcount, stride,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_render_bundle_draw_indexed_indirect(
-                    runtime, context, handle, buffer, offset, drawcount, stride,
+                    binding, context, handle, buffer, offset, drawcount, stride,
                 )
             }
         },
@@ -25179,7 +25178,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_indirect_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_draw_indirect_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
@@ -25188,17 +25187,17 @@ fn destack_gpu_command_render_bundle_draw_indirect_vm_replay(
     drawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_draw_indirect(
-                runtime, context, handle, buffer, offset, drawcount, stride,
+                binding, context, handle, buffer, offset, drawcount, stride,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_render_bundle_draw_indirect(
-                    runtime, context, handle, buffer, offset, drawcount, stride,
+                    binding, context, handle, buffer, offset, drawcount, stride,
                 )
             }
         },
@@ -25237,22 +25236,22 @@ fn destack_gpu_command_render_bundle_draw_indirect_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_encoder_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_render_bundle_encoder_close(runtime, context, handle)
+                platform_vm::destack_gpu_render_bundle_encoder_close(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_render_bundle_encoder_close(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -25291,22 +25290,22 @@ fn destack_gpu_command_render_bundle_encoder_close_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_encoder_finish_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_render_bundle_encoder_finish(runtime, context, handle)
+                platform_vm::destack_gpu_render_bundle_encoder_finish(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_render_bundle_encoder_finish(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -25349,23 +25348,23 @@ fn destack_gpu_command_render_bundle_encoder_finish_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_encoder_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuRenderBundleEncoderOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_encoder_open(
-                runtime, context, device, options,
+                binding, context, device, options,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_render_bundle_encoder_open(
-                    runtime, context, device, options,
+                    binding, context, device, options,
                 )
             }
         },
@@ -25408,23 +25407,23 @@ fn destack_gpu_command_render_bundle_encoder_open_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_insert_debug_marker_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     marker: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_insert_debug_marker(
-                runtime, context, handle, marker,
+                binding, context, handle, marker,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_render_bundle_insert_debug_marker(
-                    runtime, context, handle, marker,
+                    binding, context, handle, marker,
                 )
             }
         },
@@ -25464,22 +25463,22 @@ fn destack_gpu_command_render_bundle_insert_debug_marker_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_pop_debug_group_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_render_bundle_pop_debug_group(runtime, context, handle)
+                platform_vm::destack_gpu_render_bundle_pop_debug_group(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_render_bundle_pop_debug_group(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -25518,23 +25517,23 @@ fn destack_gpu_command_render_bundle_pop_debug_group_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_push_debug_group_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     label: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_push_debug_group(
-                runtime, context, handle, label,
+                binding, context, handle, label,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_render_bundle_push_debug_group(
-                    runtime, context, handle, label,
+                    binding, context, handle, label,
                 )
             }
         },
@@ -25573,7 +25572,7 @@ fn destack_gpu_command_render_bundle_push_debug_group_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_set_bind_group_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
@@ -25581,13 +25580,13 @@ fn destack_gpu_command_render_bundle_set_bind_group_vm_replay(
     bindgroup: resource::GpuBindGroupHandle,
     dynamicoffsets: VmSlice<u32>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_set_bind_group(
-                runtime,
+                binding,
                 context,
                 handle,
                 index,
@@ -25596,7 +25595,7 @@ fn destack_gpu_command_render_bundle_set_bind_group_vm_replay(
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_render_bundle_set_bind_group(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     index,
@@ -25640,7 +25639,7 @@ fn destack_gpu_command_render_bundle_set_bind_group_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_set_index_buffer_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
@@ -25649,17 +25648,17 @@ fn destack_gpu_command_render_bundle_set_index_buffer_vm_replay(
     offset: u64,
     size: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_set_index_buffer(
-                runtime, context, handle, buffer, format, offset, size,
+                binding, context, handle, buffer, format, offset, size,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_render_bundle_set_index_buffer(
-                    runtime, context, handle, buffer, format, offset, size,
+                    binding, context, handle, buffer, format, offset, size,
                 )
             }
         },
@@ -25698,23 +25697,23 @@ fn destack_gpu_command_render_bundle_set_index_buffer_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_set_pipeline_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_set_pipeline(
-                runtime, context, handle, pipeline,
+                binding, context, handle, pipeline,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_render_bundle_set_pipeline(
-                    runtime, context, handle, pipeline,
+                    binding, context, handle, pipeline,
                 )
             }
         },
@@ -25753,7 +25752,7 @@ fn destack_gpu_command_render_bundle_set_pipeline_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_bundle_set_vertex_buffer_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
@@ -25762,17 +25761,17 @@ fn destack_gpu_command_render_bundle_set_vertex_buffer_vm_replay(
     offset: u64,
     size: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_render_bundle_set_vertex_buffer(
-                runtime, context, handle, slot, buffer, offset, size,
+                binding, context, handle, slot, buffer, offset, size,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_render_bundle_set_vertex_buffer(
-                    runtime, context, handle, slot, buffer, offset, size,
+                    binding, context, handle, slot, buffer, offset, size,
                 )
             }
         },
@@ -25812,23 +25811,23 @@ fn destack_gpu_command_render_bundle_set_vertex_buffer_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_pass_begin_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
     options: GpuRenderPassOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_PASS_BEGIN,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_PASS_BEGIN)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_BEGIN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_render_pass_begin(
-                runtime, context, handle, options,
+                binding, context, handle, options,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_render_pass_begin(
-                    runtime, context, handle, options,
+                    binding, context, handle, options,
                 )
             }
         },
@@ -25871,22 +25870,22 @@ fn destack_gpu_command_render_pass_begin_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_pass_end_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_PASS_END,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_PASS_END)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_END)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_command_render_pass_end(runtime, context, handle)
+                platform_vm::destack_gpu_command_render_pass_end(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_render_pass_end(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -25925,23 +25924,23 @@ fn destack_gpu_command_render_pass_end_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_pass_insert_debug_marker_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     marker: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_render_pass_insert_debug_marker(
-                runtime, context, handle, marker,
+                binding, context, handle, marker,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_render_pass_insert_debug_marker(
-                    runtime, context, handle, marker,
+                    binding, context, handle, marker,
                 )
             }
         },
@@ -25981,22 +25980,22 @@ fn destack_gpu_command_render_pass_insert_debug_marker_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_pass_pop_debug_group_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_render_pass_pop_debug_group(
-                runtime, context, handle,
+                binding, context, handle,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_render_pass_pop_debug_group(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -26035,23 +26034,23 @@ fn destack_gpu_command_render_pass_pop_debug_group_vm_replay(
 
 #[inline]
 fn destack_gpu_command_render_pass_push_debug_group_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     label: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP,
-        runtime.replay_payload_for(GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_render_pass_push_debug_group(
-                runtime, context, handle, label,
+                binding, context, handle, label,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_render_pass_push_debug_group(
-                    runtime, context, handle, label,
+                    binding, context, handle, label,
                 )
             }
         },
@@ -26090,7 +26089,7 @@ fn destack_gpu_command_render_pass_push_debug_group_vm_replay(
 
 #[inline]
 fn destack_gpu_command_set_blend_constant_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -26099,17 +26098,17 @@ fn destack_gpu_command_set_blend_constant_vm_replay(
     b: f64,
     a: f64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_SET_BLEND_CONSTANT,
-        runtime.replay_payload_for(GPU_COMMAND_SET_BLEND_CONSTANT)?,
+        binding.replay_payload_for(GPU_COMMAND_SET_BLEND_CONSTANT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_set_blend_constant(
-                runtime, context, handle, r, g, b, a,
+                binding, context, handle, r, g, b, a,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_set_blend_constant(
-                    runtime, context, handle, r, g, b, a,
+                    binding, context, handle, r, g, b, a,
                 )
             }
         },
@@ -26148,7 +26147,7 @@ fn destack_gpu_command_set_blend_constant_vm_replay(
 
 #[inline]
 fn destack_gpu_command_set_compute_bind_group_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
@@ -26156,13 +26155,13 @@ fn destack_gpu_command_set_compute_bind_group_vm_replay(
     bindgroup: resource::GpuBindGroupHandle,
     dynamicoffsets: VmSlice<u32>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_SET_COMPUTE_BIND_GROUP,
-        runtime.replay_payload_for(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_set_compute_bind_group(
-                runtime,
+                binding,
                 context,
                 handle,
                 index,
@@ -26171,7 +26170,7 @@ fn destack_gpu_command_set_compute_bind_group_vm_replay(
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_set_compute_bind_group(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     index,
@@ -26215,7 +26214,7 @@ fn destack_gpu_command_set_compute_bind_group_vm_replay(
 
 #[inline]
 fn destack_gpu_command_set_index_buffer_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -26224,17 +26223,17 @@ fn destack_gpu_command_set_index_buffer_vm_replay(
     offset: u64,
     size: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_SET_INDEX_BUFFER,
-        runtime.replay_payload_for(GPU_COMMAND_SET_INDEX_BUFFER)?,
+        binding.replay_payload_for(GPU_COMMAND_SET_INDEX_BUFFER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_set_index_buffer(
-                runtime, context, handle, buffer, format, offset, size,
+                binding, context, handle, buffer, format, offset, size,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_set_index_buffer(
-                    runtime, context, handle, buffer, format, offset, size,
+                    binding, context, handle, buffer, format, offset, size,
                 )
             }
         },
@@ -26273,7 +26272,7 @@ fn destack_gpu_command_set_index_buffer_vm_replay(
 
 #[inline]
 fn destack_gpu_command_set_render_bind_group_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -26281,13 +26280,13 @@ fn destack_gpu_command_set_render_bind_group_vm_replay(
     bindgroup: resource::GpuBindGroupHandle,
     dynamicoffsets: VmSlice<u32>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_SET_RENDER_BIND_GROUP,
-        runtime.replay_payload_for(GPU_COMMAND_SET_RENDER_BIND_GROUP)?,
+        binding.replay_payload_for(GPU_COMMAND_SET_RENDER_BIND_GROUP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_set_render_bind_group(
-                runtime,
+                binding,
                 context,
                 handle,
                 index,
@@ -26296,7 +26295,7 @@ fn destack_gpu_command_set_render_bind_group_vm_replay(
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_set_render_bind_group(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     index,
@@ -26340,7 +26339,7 @@ fn destack_gpu_command_set_render_bind_group_vm_replay(
 
 #[inline]
 fn destack_gpu_command_set_scissor_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -26349,16 +26348,16 @@ fn destack_gpu_command_set_scissor_vm_replay(
     width: u32,
     height: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_SET_SCISSOR,
-        runtime.replay_payload_for(GPU_COMMAND_SET_SCISSOR)?,
+        binding.replay_payload_for(GPU_COMMAND_SET_SCISSOR)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_set_scissor(
-                runtime, context, handle, x, y, width, height,
+                binding, context, handle, x, y, width, height,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_command_set_scissor(
-                runtime, context, handle, x, y, width, height,
+                binding, context, handle, x, y, width, height,
             ),
         },
         |context, result| {
@@ -26396,23 +26395,23 @@ fn destack_gpu_command_set_scissor_vm_replay(
 
 #[inline]
 fn destack_gpu_command_set_stencil_reference_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
     reference: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_SET_STENCIL_REFERENCE,
-        runtime.replay_payload_for(GPU_COMMAND_SET_STENCIL_REFERENCE)?,
+        binding.replay_payload_for(GPU_COMMAND_SET_STENCIL_REFERENCE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_set_stencil_reference(
-                runtime, context, handle, reference,
+                binding, context, handle, reference,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_set_stencil_reference(
-                    runtime, context, handle, reference,
+                    binding, context, handle, reference,
                 )
             }
         },
@@ -26451,7 +26450,7 @@ fn destack_gpu_command_set_stencil_reference_vm_replay(
 
 #[inline]
 fn destack_gpu_command_set_vertex_buffer_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -26460,17 +26459,17 @@ fn destack_gpu_command_set_vertex_buffer_vm_replay(
     offset: u64,
     size: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_SET_VERTEX_BUFFER,
-        runtime.replay_payload_for(GPU_COMMAND_SET_VERTEX_BUFFER)?,
+        binding.replay_payload_for(GPU_COMMAND_SET_VERTEX_BUFFER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_set_vertex_buffer(
-                runtime, context, handle, slot, buffer, offset, size,
+                binding, context, handle, slot, buffer, offset, size,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_set_vertex_buffer(
-                    runtime, context, handle, slot, buffer, offset, size,
+                    binding, context, handle, slot, buffer, offset, size,
                 )
             }
         },
@@ -26509,7 +26508,7 @@ fn destack_gpu_command_set_vertex_buffer_vm_replay(
 
 #[inline]
 fn destack_gpu_command_set_viewport_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
@@ -26520,16 +26519,16 @@ fn destack_gpu_command_set_viewport_vm_replay(
     mindepth: f64,
     maxdepth: f64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_COMMAND_SET_VIEWPORT,
-        runtime.replay_payload_for(GPU_COMMAND_SET_VIEWPORT)?,
+        binding.replay_payload_for(GPU_COMMAND_SET_VIEWPORT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_set_viewport(
-                runtime, context, handle, x, y, width, height, mindepth, maxdepth,
+                binding, context, handle, x, y, width, height, mindepth, maxdepth,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_command_set_viewport(
-                runtime, context, handle, x, y, width, height, mindepth, maxdepth,
+                binding, context, handle, x, y, width, height, mindepth, maxdepth,
             ),
         },
         |context, result| {
@@ -26567,22 +26566,22 @@ fn destack_gpu_command_set_viewport_vm_replay(
 
 #[inline]
 fn destack_gpu_debug_set_label_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::ResourceId,
     label: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_DEBUG_SET_LABEL,
-        runtime.replay_payload_for(GPU_DEBUG_SET_LABEL)?,
+        binding.replay_payload_for(GPU_DEBUG_SET_LABEL)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_set_label(runtime, context, handle, label)
+                platform_vm::destack_gpu_set_label(binding, context, handle, label)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_set_label(runtime, context, handle, label)
+                platform_simulation_vm::destack_gpu_set_label(binding, context, handle, label)
             }
         },
         |context, result| {
@@ -26620,19 +26619,19 @@ fn destack_gpu_debug_set_label_vm_replay(
 
 #[inline]
 fn destack_gpu_device_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_DEVICE_CLOSE,
-        runtime.replay_payload_for(GPU_DEVICE_CLOSE)?,
+        binding.replay_payload_for(GPU_DEVICE_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_gpu_device_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_gpu_device_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_device_close(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_device_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -26670,21 +26669,21 @@ fn destack_gpu_device_close_vm_replay(
 
 #[inline]
 fn destack_gpu_device_features_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_DEVICE_FEATURES,
-        runtime.replay_payload_for(GPU_DEVICE_FEATURES)?,
+        binding.replay_payload_for(GPU_DEVICE_FEATURES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_device_features(runtime, context, device)
+                platform_vm::destack_gpu_device_features(binding, context, device)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_device_features(runtime, context, device)
+                platform_simulation_vm::destack_gpu_device_features(binding, context, device)
             }
         },
         |context, result| {
@@ -26743,22 +26742,22 @@ fn destack_gpu_device_features_vm_replay(
 
 #[inline]
 fn destack_gpu_device_has_feature_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     feature: GpuFeatureId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_DEVICE_HAS_FEATURE,
-        runtime.replay_payload_for(GPU_DEVICE_HAS_FEATURE)?,
+        binding.replay_payload_for(GPU_DEVICE_HAS_FEATURE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_device_has_feature(runtime, context, device, feature)
+                platform_vm::destack_gpu_device_has_feature(binding, context, device, feature)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_device_has_feature(
-                runtime, context, device, feature,
+                binding, context, device, feature,
             ),
         },
         |context, result| {
@@ -26800,19 +26799,19 @@ fn destack_gpu_device_has_feature_vm_replay(
 
 #[inline]
 fn destack_gpu_device_info_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_DEVICE_INFO,
-        runtime.replay_payload_for(GPU_DEVICE_INFO)?,
+        binding.replay_payload_for(GPU_DEVICE_INFO)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_gpu_device_info(runtime, context, device),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_device_info(runtime, context, device),
+                RuntimeWorld::Host => platform_vm::destack_gpu_device_info(binding, context, device),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_device_info(binding, context, device),
             }
         },
         |context, result| {
@@ -27029,19 +27028,19 @@ fn destack_gpu_device_info_vm_replay(
 
 #[inline]
 fn destack_gpu_device_limits_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_DEVICE_LIMITS,
-        runtime.replay_payload_for(GPU_DEVICE_LIMITS)?,
+        binding.replay_payload_for(GPU_DEVICE_LIMITS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_gpu_device_limits(runtime, context, device),
+            RuntimeWorld::Host => platform_vm::destack_gpu_device_limits(binding, context, device),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_device_limits(runtime, context, device)
+                platform_simulation_vm::destack_gpu_device_limits(binding, context, device)
             }
         },
         |context, result| {
@@ -27277,22 +27276,22 @@ fn destack_gpu_device_limits_vm_replay(
 
 #[inline]
 fn destack_gpu_device_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     adapter: resource::GpuAdapterHandle,
     options: GpuDeviceOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_DEVICE_OPEN,
-        runtime.replay_payload_for(GPU_DEVICE_OPEN)?,
+        binding.replay_payload_for(GPU_DEVICE_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_device_open(runtime, context, adapter, options)
+                platform_vm::destack_gpu_device_open(binding, context, adapter, options)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_device_open(runtime, context, adapter, options)
+                platform_simulation_vm::destack_gpu_device_open(binding, context, adapter, options)
             }
         },
         |context, result| {
@@ -27334,23 +27333,23 @@ fn destack_gpu_device_open_vm_replay(
 
 #[inline]
 fn destack_gpu_device_poll_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     wait: bool,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_DEVICE_POLL,
-        runtime.replay_payload_for(GPU_DEVICE_POLL)?,
+        binding.replay_payload_for(GPU_DEVICE_POLL)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_device_poll(runtime, context, device, wait, timeoutns)
+                platform_vm::destack_gpu_device_poll(binding, context, device, wait, timeoutns)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_device_poll(
-                runtime, context, device, wait, timeoutns,
+                binding, context, device, wait, timeoutns,
             ),
         },
         |context, result| {
@@ -27392,22 +27391,22 @@ fn destack_gpu_device_poll_vm_replay(
 
 #[inline]
 fn destack_gpu_device_pop_error_scope_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_DEVICE_POP_ERROR_SCOPE,
-        runtime.replay_payload_for(GPU_DEVICE_POP_ERROR_SCOPE)?,
+        binding.replay_payload_for(GPU_DEVICE_POP_ERROR_SCOPE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_device_pop_error_scope(runtime, context, device, timeoutns)
+                platform_vm::destack_gpu_device_pop_error_scope(binding, context, device, timeoutns)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_device_pop_error_scope(
-                runtime, context, device, timeoutns,
+                binding, context, device, timeoutns,
             ),
         },
         |context, result| {
@@ -27486,23 +27485,23 @@ fn destack_gpu_device_pop_error_scope_vm_replay(
 
 #[inline]
 fn destack_gpu_device_push_error_scope_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     filter: GpuErrorFilter,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_DEVICE_PUSH_ERROR_SCOPE,
-        runtime.replay_payload_for(GPU_DEVICE_PUSH_ERROR_SCOPE)?,
+        binding.replay_payload_for(GPU_DEVICE_PUSH_ERROR_SCOPE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_device_push_error_scope(runtime, context, device, filter)
+                platform_vm::destack_gpu_device_push_error_scope(binding, context, device, filter)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_device_push_error_scope(
-                    runtime, context, device, filter,
+                    binding, context, device, filter,
                 )
             }
         },
@@ -27541,19 +27540,19 @@ fn destack_gpu_device_push_error_scope_vm_replay(
 
 #[inline]
 fn destack_gpu_device_queue_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_DEVICE_QUEUE,
-        runtime.replay_payload_for(GPU_DEVICE_QUEUE)?,
+        binding.replay_payload_for(GPU_DEVICE_QUEUE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_gpu_device_queue(runtime, context, device),
+            RuntimeWorld::Host => platform_vm::destack_gpu_device_queue(binding, context, device),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_device_queue(runtime, context, device)
+                platform_simulation_vm::destack_gpu_device_queue(binding, context, device)
             }
         },
         |context, result| {
@@ -27595,19 +27594,19 @@ fn destack_gpu_device_queue_vm_replay(
 
 #[inline]
 fn destack_gpu_device_status_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_DEVICE_STATUS,
-        runtime.replay_payload_for(GPU_DEVICE_STATUS)?,
+        binding.replay_payload_for(GPU_DEVICE_STATUS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_gpu_device_status(runtime, context, device),
+            RuntimeWorld::Host => platform_vm::destack_gpu_device_status(binding, context, device),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_device_status(runtime, context, device)
+                platform_simulation_vm::destack_gpu_device_status(binding, context, device)
             }
         },
         |context, result| {
@@ -27673,23 +27672,23 @@ fn destack_gpu_device_status_vm_replay(
 
 #[inline]
 fn destack_gpu_pipeline_bind_group_layout_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     pipeline: resource::GpuPipelineHandle,
     groupindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_PIPELINE_BIND_GROUP_LAYOUT,
-        runtime.replay_payload_for(GPU_PIPELINE_BIND_GROUP_LAYOUT)?,
+        binding.replay_payload_for(GPU_PIPELINE_BIND_GROUP_LAYOUT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_pipeline_bind_group_layout(
-                runtime, context, pipeline, groupindex,
+                binding, context, pipeline, groupindex,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_pipeline_bind_group_layout(
-                    runtime, context, pipeline, groupindex,
+                    binding, context, pipeline, groupindex,
                 )
             }
         },
@@ -27732,23 +27731,23 @@ fn destack_gpu_pipeline_bind_group_layout_vm_replay(
 
 #[inline]
 fn destack_gpu_pipeline_compute_create_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuComputePipelineOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_PIPELINE_COMPUTE_CREATE,
-        runtime.replay_payload_for(GPU_PIPELINE_COMPUTE_CREATE)?,
+        binding.replay_payload_for(GPU_PIPELINE_COMPUTE_CREATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_compute_pipeline_create(runtime, context, device, options)
+                platform_vm::destack_gpu_compute_pipeline_create(binding, context, device, options)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_compute_pipeline_create(
-                    runtime, context, device, options,
+                    binding, context, device, options,
                 )
             }
         },
@@ -27791,21 +27790,21 @@ fn destack_gpu_pipeline_compute_create_vm_replay(
 
 #[inline]
 fn destack_gpu_pipeline_destroy_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuPipelineHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_PIPELINE_DESTROY,
-        runtime.replay_payload_for(GPU_PIPELINE_DESTROY)?,
+        binding.replay_payload_for(GPU_PIPELINE_DESTROY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_pipeline_destroy(runtime, context, handle)
+                platform_vm::destack_gpu_pipeline_destroy(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_pipeline_destroy(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_pipeline_destroy(binding, context, handle)
             }
         },
         |context, result| {
@@ -27843,22 +27842,22 @@ fn destack_gpu_pipeline_destroy_vm_replay(
 
 #[inline]
 fn destack_gpu_pipeline_render_create_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuRenderPipelineOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_PIPELINE_RENDER_CREATE,
-        runtime.replay_payload_for(GPU_PIPELINE_RENDER_CREATE)?,
+        binding.replay_payload_for(GPU_PIPELINE_RENDER_CREATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_render_pipeline_create(runtime, context, device, options)
+                platform_vm::destack_gpu_render_pipeline_create(binding, context, device, options)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_render_pipeline_create(
-                runtime, context, device, options,
+                binding, context, device, options,
             ),
         },
         |context, result| {
@@ -27900,23 +27899,23 @@ fn destack_gpu_pipeline_render_create_vm_replay(
 
 #[inline]
 fn destack_gpu_pipeline_shader_compilation_info_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuShaderHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_PIPELINE_SHADER_COMPILATION_INFO,
-        runtime.replay_payload_for(GPU_PIPELINE_SHADER_COMPILATION_INFO)?,
+        binding.replay_payload_for(GPU_PIPELINE_SHADER_COMPILATION_INFO)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_shader_compilation_info(
-                runtime, context, handle, timeoutns,
+                binding, context, handle, timeoutns,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_shader_compilation_info(
-                    runtime, context, handle, timeoutns,
+                    binding, context, handle, timeoutns,
                 )
             }
         },
@@ -28110,27 +28109,27 @@ fn destack_gpu_pipeline_shader_compilation_info_vm_replay(
 
 #[inline]
 fn destack_gpu_pipeline_shader_create_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuShaderOptionsVm,
     argument_bytes: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_PIPELINE_SHADER_CREATE,
-        runtime.replay_payload_for(GPU_PIPELINE_SHADER_CREATE)?,
+        binding.replay_payload_for(GPU_PIPELINE_SHADER_CREATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_shader_create(
-                runtime,
+                binding,
                 context,
                 device,
                 options,
                 argument_bytes,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_shader_create(
-                runtime,
+                binding,
                 context,
                 device,
                 options,
@@ -28176,19 +28175,19 @@ fn destack_gpu_pipeline_shader_create_vm_replay(
 
 #[inline]
 fn destack_gpu_pipeline_shader_destroy_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuShaderHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_PIPELINE_SHADER_DESTROY,
-        runtime.replay_payload_for(GPU_PIPELINE_SHADER_DESTROY)?,
+        binding.replay_payload_for(GPU_PIPELINE_SHADER_DESTROY)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_gpu_shader_destroy(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_gpu_shader_destroy(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_shader_destroy(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_shader_destroy(binding, context, handle)
             }
         },
         |context, result| {
@@ -28226,22 +28225,22 @@ fn destack_gpu_pipeline_shader_destroy_vm_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_create_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuBufferOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_RESOURCE_BUFFER_CREATE,
-        runtime.replay_payload_for(GPU_RESOURCE_BUFFER_CREATE)?,
+        binding.replay_payload_for(GPU_RESOURCE_BUFFER_CREATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_buffer_create(runtime, context, device, options)
+                platform_vm::destack_gpu_buffer_create(binding, context, device, options)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_buffer_create(runtime, context, device, options)
+                platform_simulation_vm::destack_gpu_buffer_create(binding, context, device, options)
             }
         },
         |context, result| {
@@ -28283,19 +28282,19 @@ fn destack_gpu_resource_buffer_create_vm_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_destroy_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_RESOURCE_BUFFER_DESTROY,
-        runtime.replay_payload_for(GPU_RESOURCE_BUFFER_DESTROY)?,
+        binding.replay_payload_for(GPU_RESOURCE_BUFFER_DESTROY)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_gpu_buffer_destroy(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_gpu_buffer_destroy(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_buffer_destroy(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_buffer_destroy(binding, context, handle)
             }
         },
         |context, result| {
@@ -28333,19 +28332,19 @@ fn destack_gpu_resource_buffer_destroy_vm_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_info_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_RESOURCE_BUFFER_INFO,
-        runtime.replay_payload_for(GPU_RESOURCE_BUFFER_INFO)?,
+        binding.replay_payload_for(GPU_RESOURCE_BUFFER_INFO)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_gpu_buffer_info(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_gpu_buffer_info(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_buffer_info(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_buffer_info(binding, context, handle)
             }
         },
         |context, result| {
@@ -28401,7 +28400,7 @@ fn destack_gpu_resource_buffer_info_vm_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_map_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
@@ -28409,16 +28408,16 @@ fn destack_gpu_resource_buffer_map_vm_replay(
     length: u64,
     mode: GpuMapMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_RESOURCE_BUFFER_MAP,
-        runtime.replay_payload_for(GPU_RESOURCE_BUFFER_MAP)?,
+        binding.replay_payload_for(GPU_RESOURCE_BUFFER_MAP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_buffer_map(runtime, context, handle, offset, length, mode)
+                platform_vm::destack_gpu_buffer_map(binding, context, handle, offset, length, mode)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_buffer_map(
-                runtime, context, handle, offset, length, mode,
+                binding, context, handle, offset, length, mode,
             ),
         },
         |context, result| {
@@ -28474,23 +28473,23 @@ fn destack_gpu_resource_buffer_map_vm_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
     offset: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_RESOURCE_BUFFER_READ,
-        runtime.replay_payload_for(GPU_RESOURCE_BUFFER_READ)?,
+        binding.replay_payload_for(GPU_RESOURCE_BUFFER_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_buffer_read(runtime, context, handle, offset, length)
+                platform_vm::destack_gpu_buffer_read(binding, context, handle, offset, length)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_buffer_read(
-                runtime, context, handle, offset, length,
+                binding, context, handle, offset, length,
             ),
         },
         |context, result| {
@@ -28532,19 +28531,19 @@ fn destack_gpu_resource_buffer_read_vm_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_unmap_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_RESOURCE_BUFFER_UNMAP,
-        runtime.replay_payload_for(GPU_RESOURCE_BUFFER_UNMAP)?,
+        binding.replay_payload_for(GPU_RESOURCE_BUFFER_UNMAP)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_gpu_buffer_unmap(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_gpu_buffer_unmap(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_buffer_unmap(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_buffer_unmap(binding, context, handle)
             }
         },
         |context, result| {
@@ -28582,27 +28581,27 @@ fn destack_gpu_resource_buffer_unmap_vm_replay(
 
 #[inline]
 fn destack_gpu_resource_buffer_write_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
     offset: u64,
     argument_bytes: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_RESOURCE_BUFFER_WRITE,
-        runtime.replay_payload_for(GPU_RESOURCE_BUFFER_WRITE)?,
+        binding.replay_payload_for(GPU_RESOURCE_BUFFER_WRITE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_buffer_write(
-                runtime,
+                binding,
                 context,
                 handle,
                 offset,
                 argument_bytes,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_buffer_write(
-                runtime,
+                binding,
                 context,
                 handle,
                 offset,
@@ -28644,22 +28643,22 @@ fn destack_gpu_resource_buffer_write_vm_replay(
 
 #[inline]
 fn destack_gpu_resource_sampler_create_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuSamplerOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_RESOURCE_SAMPLER_CREATE,
-        runtime.replay_payload_for(GPU_RESOURCE_SAMPLER_CREATE)?,
+        binding.replay_payload_for(GPU_RESOURCE_SAMPLER_CREATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_sampler_create(runtime, context, device, options)
+                platform_vm::destack_gpu_sampler_create(binding, context, device, options)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_sampler_create(
-                runtime, context, device, options,
+                binding, context, device, options,
             ),
         },
         |context, result| {
@@ -28701,21 +28700,21 @@ fn destack_gpu_resource_sampler_create_vm_replay(
 
 #[inline]
 fn destack_gpu_resource_sampler_destroy_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuSamplerHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_RESOURCE_SAMPLER_DESTROY,
-        runtime.replay_payload_for(GPU_RESOURCE_SAMPLER_DESTROY)?,
+        binding.replay_payload_for(GPU_RESOURCE_SAMPLER_DESTROY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_sampler_destroy(runtime, context, handle)
+                platform_vm::destack_gpu_sampler_destroy(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_sampler_destroy(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_sampler_destroy(binding, context, handle)
             }
         },
         |context, result| {
@@ -28753,22 +28752,22 @@ fn destack_gpu_resource_sampler_destroy_vm_replay(
 
 #[inline]
 fn destack_gpu_resource_texture_create_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuTextureOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_RESOURCE_TEXTURE_CREATE,
-        runtime.replay_payload_for(GPU_RESOURCE_TEXTURE_CREATE)?,
+        binding.replay_payload_for(GPU_RESOURCE_TEXTURE_CREATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_texture_create(runtime, context, device, options)
+                platform_vm::destack_gpu_texture_create(binding, context, device, options)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_texture_create(
-                runtime, context, device, options,
+                binding, context, device, options,
             ),
         },
         |context, result| {
@@ -28810,21 +28809,21 @@ fn destack_gpu_resource_texture_create_vm_replay(
 
 #[inline]
 fn destack_gpu_resource_texture_destroy_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuTextureHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_RESOURCE_TEXTURE_DESTROY,
-        runtime.replay_payload_for(GPU_RESOURCE_TEXTURE_DESTROY)?,
+        binding.replay_payload_for(GPU_RESOURCE_TEXTURE_DESTROY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_texture_destroy(runtime, context, handle)
+                platform_vm::destack_gpu_texture_destroy(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_texture_destroy(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_texture_destroy(binding, context, handle)
             }
         },
         |context, result| {
@@ -28862,19 +28861,19 @@ fn destack_gpu_resource_texture_destroy_vm_replay(
 
 #[inline]
 fn destack_gpu_resource_texture_info_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuTextureHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_RESOURCE_TEXTURE_INFO,
-        runtime.replay_payload_for(GPU_RESOURCE_TEXTURE_INFO)?,
+        binding.replay_payload_for(GPU_RESOURCE_TEXTURE_INFO)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_gpu_texture_info(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_gpu_texture_info(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_texture_info(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_texture_info(binding, context, handle)
             }
         },
         |context, result| {
@@ -28950,22 +28949,22 @@ fn destack_gpu_resource_texture_info_vm_replay(
 
 #[inline]
 fn destack_gpu_resource_texture_view_create_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     texture: resource::GpuTextureHandle,
     options: GpuTextureViewOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_RESOURCE_TEXTURE_VIEW_CREATE,
-        runtime.replay_payload_for(GPU_RESOURCE_TEXTURE_VIEW_CREATE)?,
+        binding.replay_payload_for(GPU_RESOURCE_TEXTURE_VIEW_CREATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_texture_view_create(runtime, context, texture, options)
+                platform_vm::destack_gpu_texture_view_create(binding, context, texture, options)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_texture_view_create(
-                runtime, context, texture, options,
+                binding, context, texture, options,
             ),
         },
         |context, result| {
@@ -29007,21 +29006,21 @@ fn destack_gpu_resource_texture_view_create_vm_replay(
 
 #[inline]
 fn destack_gpu_resource_texture_view_destroy_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuTextureViewHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_RESOURCE_TEXTURE_VIEW_DESTROY,
-        runtime.replay_payload_for(GPU_RESOURCE_TEXTURE_VIEW_DESTROY)?,
+        binding.replay_payload_for(GPU_RESOURCE_TEXTURE_VIEW_DESTROY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_texture_view_destroy(runtime, context, handle)
+                platform_vm::destack_gpu_texture_view_destroy(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_texture_view_destroy(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_texture_view_destroy(binding, context, handle)
             }
         },
         |context, result| {
@@ -29059,21 +29058,21 @@ fn destack_gpu_resource_texture_view_destroy_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     computepass: resource::GpuComputePassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY,
-        runtime.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
+        binding.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
                 platform_vm::destack_gpu_command_begin_compute_pipeline_statistics_query(
-                    runtime,
+                    binding,
                     context,
                     computepass,
                     queryset,
@@ -29082,7 +29081,7 @@ fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_vm_replay(
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_begin_compute_pipeline_statistics_query(
-                    runtime,
+                    binding,
                     context,
                     computepass,
                     queryset,
@@ -29127,24 +29126,24 @@ fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_command_begin_occlusion_query_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY,
-        runtime.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY)?,
+        binding.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_begin_occlusion_query(
-                runtime, context, renderpass, queryset, queryindex,
+                binding, context, renderpass, queryset, queryindex,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_begin_occlusion_query(
-                    runtime, context, renderpass, queryset, queryindex,
+                    binding, context, renderpass, queryset, queryindex,
                 )
             }
         },
@@ -29183,26 +29182,26 @@ fn destack_gpu_sync_command_begin_occlusion_query_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_command_begin_render_pipeline_statistics_query_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY,
-        runtime.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?,
+        binding.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
                 platform_vm::destack_gpu_command_begin_render_pipeline_statistics_query(
-                    runtime, context, renderpass, queryset, queryindex,
+                    binding, context, renderpass, queryset, queryindex,
                 )
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_begin_render_pipeline_statistics_query(
-                    runtime, context, renderpass, queryset, queryindex,
+                    binding, context, renderpass, queryset, queryindex,
                 )
             }
         },
@@ -29243,26 +29242,26 @@ fn destack_gpu_sync_command_begin_render_pipeline_statistics_query_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_command_end_compute_pipeline_statistics_query_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     computepass: resource::GpuComputePassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY,
-        runtime.replay_payload_for(GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
+        binding.replay_payload_for(GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
                 platform_vm::destack_gpu_command_end_compute_pipeline_statistics_query(
-                    runtime,
+                    binding,
                     context,
                     computepass,
                 )
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_end_compute_pipeline_statistics_query(
-                    runtime,
+                    binding,
                     context,
                     computepass,
                 )
@@ -29305,22 +29304,22 @@ fn destack_gpu_sync_command_end_compute_pipeline_statistics_query_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_command_end_occlusion_query_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_SYNC_COMMAND_END_OCCLUSION_QUERY,
-        runtime.replay_payload_for(GPU_SYNC_COMMAND_END_OCCLUSION_QUERY)?,
+        binding.replay_payload_for(GPU_SYNC_COMMAND_END_OCCLUSION_QUERY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_command_end_occlusion_query(runtime, context, renderpass)
+                platform_vm::destack_gpu_command_end_occlusion_query(binding, context, renderpass)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_end_occlusion_query(
-                    runtime, context, renderpass,
+                    binding, context, renderpass,
                 )
             }
         },
@@ -29359,24 +29358,24 @@ fn destack_gpu_sync_command_end_occlusion_query_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_command_end_render_pipeline_statistics_query_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
-        runtime.replay_payload_for(GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY)?,
+        binding.replay_payload_for(GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
                 platform_vm::destack_gpu_command_end_render_pipeline_statistics_query(
-                    runtime, context, renderpass,
+                    binding, context, renderpass,
                 )
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_end_render_pipeline_statistics_query(
-                    runtime, context, renderpass,
+                    binding, context, renderpass,
                 )
             }
         },
@@ -29417,7 +29416,7 @@ fn destack_gpu_sync_command_end_render_pipeline_statistics_query_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_command_resolve_queries_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     commandlist: resource::GpuCommandListHandle,
@@ -29427,13 +29426,13 @@ fn destack_gpu_sync_command_resolve_queries_vm_replay(
     destination: resource::GpuBufferHandle,
     destinationoffset: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_SYNC_COMMAND_RESOLVE_QUERIES,
-        runtime.replay_payload_for(GPU_SYNC_COMMAND_RESOLVE_QUERIES)?,
+        binding.replay_payload_for(GPU_SYNC_COMMAND_RESOLVE_QUERIES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_resolve_queries(
-                runtime,
+                binding,
                 context,
                 commandlist,
                 queryset,
@@ -29444,7 +29443,7 @@ fn destack_gpu_sync_command_resolve_queries_vm_replay(
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_resolve_queries(
-                    runtime,
+                    binding,
                     context,
                     commandlist,
                     queryset,
@@ -29490,20 +29489,20 @@ fn destack_gpu_sync_command_resolve_queries_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_command_write_timestamp_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     commandlist: resource::GpuCommandListHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_SYNC_COMMAND_WRITE_TIMESTAMP,
-        runtime.replay_payload_for(GPU_SYNC_COMMAND_WRITE_TIMESTAMP)?,
+        binding.replay_payload_for(GPU_SYNC_COMMAND_WRITE_TIMESTAMP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_command_write_timestamp(
-                runtime,
+                binding,
                 context,
                 commandlist,
                 queryset,
@@ -29511,7 +29510,7 @@ fn destack_gpu_sync_command_write_timestamp_vm_replay(
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_gpu_command_write_timestamp(
-                    runtime,
+                    binding,
                     context,
                     commandlist,
                     queryset,
@@ -29554,22 +29553,22 @@ fn destack_gpu_sync_command_write_timestamp_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_fence_create_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuFenceOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_SYNC_FENCE_CREATE,
-        runtime.replay_payload_for(GPU_SYNC_FENCE_CREATE)?,
+        binding.replay_payload_for(GPU_SYNC_FENCE_CREATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_fence_create(runtime, context, device, options)
+                platform_vm::destack_gpu_fence_create(binding, context, device, options)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_fence_create(runtime, context, device, options)
+                platform_simulation_vm::destack_gpu_fence_create(binding, context, device, options)
             }
         },
         |context, result| {
@@ -29611,19 +29610,19 @@ fn destack_gpu_sync_fence_create_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_fence_destroy_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuFenceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_SYNC_FENCE_DESTROY,
-        runtime.replay_payload_for(GPU_SYNC_FENCE_DESTROY)?,
+        binding.replay_payload_for(GPU_SYNC_FENCE_DESTROY)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_gpu_fence_destroy(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_gpu_fence_destroy(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_fence_destroy(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_fence_destroy(binding, context, handle)
             }
         },
         |context, result| {
@@ -29661,22 +29660,22 @@ fn destack_gpu_sync_fence_destroy_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_query_set_create_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuQuerySetOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_SYNC_QUERY_SET_CREATE,
-        runtime.replay_payload_for(GPU_SYNC_QUERY_SET_CREATE)?,
+        binding.replay_payload_for(GPU_SYNC_QUERY_SET_CREATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_query_set_create(runtime, context, device, options)
+                platform_vm::destack_gpu_query_set_create(binding, context, device, options)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_query_set_create(
-                runtime, context, device, options,
+                binding, context, device, options,
             ),
         },
         |context, result| {
@@ -29718,21 +29717,21 @@ fn destack_gpu_sync_query_set_create_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_query_set_destroy_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuQuerySetHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_SYNC_QUERY_SET_DESTROY,
-        runtime.replay_payload_for(GPU_SYNC_QUERY_SET_DESTROY)?,
+        binding.replay_payload_for(GPU_SYNC_QUERY_SET_DESTROY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_query_set_destroy(runtime, context, handle)
+                platform_vm::destack_gpu_query_set_destroy(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_query_set_destroy(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_query_set_destroy(binding, context, handle)
             }
         },
         |context, result| {
@@ -29770,19 +29769,19 @@ fn destack_gpu_sync_query_set_destroy_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_query_set_info_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::GpuQuerySetHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_SYNC_QUERY_SET_INFO,
-        runtime.replay_payload_for(GPU_SYNC_QUERY_SET_INFO)?,
+        binding.replay_payload_for(GPU_SYNC_QUERY_SET_INFO)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_gpu_query_set_info(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_gpu_query_set_info(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_query_set_info(runtime, context, handle)
+                platform_simulation_vm::destack_gpu_query_set_info(binding, context, handle)
             }
         },
         |context, result| {
@@ -29839,27 +29838,27 @@ fn destack_gpu_sync_query_set_info_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_queue_signal_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     fence: resource::GpuFenceHandle,
     argument_value: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_SYNC_QUEUE_SIGNAL,
-        runtime.replay_payload_for(GPU_SYNC_QUEUE_SIGNAL)?,
+        binding.replay_payload_for(GPU_SYNC_QUEUE_SIGNAL)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_queue_signal(
-                runtime,
+                binding,
                 context,
                 queue,
                 fence,
                 argument_value,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_queue_signal(
-                runtime,
+                binding,
                 context,
                 queue,
                 fence,
@@ -29901,21 +29900,21 @@ fn destack_gpu_sync_queue_signal_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_queue_timestamp_period_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_SYNC_QUEUE_TIMESTAMP_PERIOD,
-        runtime.replay_payload_for(GPU_SYNC_QUEUE_TIMESTAMP_PERIOD)?,
+        binding.replay_payload_for(GPU_SYNC_QUEUE_TIMESTAMP_PERIOD)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_queue_timestamp_period(runtime, context, queue)
+                platform_vm::destack_gpu_queue_timestamp_period(binding, context, queue)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_gpu_queue_timestamp_period(runtime, context, queue)
+                platform_simulation_vm::destack_gpu_queue_timestamp_period(binding, context, queue)
             }
         },
         |context, result| {
@@ -29957,7 +29956,7 @@ fn destack_gpu_sync_queue_timestamp_period_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_queue_wait_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
@@ -29965,13 +29964,13 @@ fn destack_gpu_sync_queue_wait_vm_replay(
     argument_value: u64,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_SYNC_QUEUE_WAIT,
-        runtime.replay_payload_for(GPU_SYNC_QUEUE_WAIT)?,
+        binding.replay_payload_for(GPU_SYNC_QUEUE_WAIT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_gpu_queue_wait(
-                runtime,
+                binding,
                 context,
                 queue,
                 fence,
@@ -29979,7 +29978,7 @@ fn destack_gpu_sync_queue_wait_vm_replay(
                 timeoutns,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_queue_wait(
-                runtime,
+                binding,
                 context,
                 queue,
                 fence,
@@ -30022,22 +30021,22 @@ fn destack_gpu_sync_queue_wait_vm_replay(
 
 #[inline]
 fn destack_gpu_sync_queue_work_done_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         GPU_SYNC_QUEUE_WORK_DONE,
-        runtime.replay_payload_for(GPU_SYNC_QUEUE_WORK_DONE)?,
+        binding.replay_payload_for(GPU_SYNC_QUEUE_WORK_DONE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_gpu_queue_work_done(runtime, context, queue, timeoutns)
+                platform_vm::destack_gpu_queue_work_done(binding, context, queue, timeoutns)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_gpu_queue_work_done(
-                runtime, context, queue, timeoutns,
+                binding, context, queue, timeoutns,
             ),
         },
         |context, result| {
@@ -30081,14 +30080,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_ADAPTER_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_adapter_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_ADAPTER_CLOSE)?;
-                    destack_gpu_adapter_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_ADAPTER_CLOSE)?;
+                    destack_gpu_adapter_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -30100,14 +30099,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_ADAPTER_FEATURES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_adapter_features_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_ADAPTER_FEATURES)?;
-                    destack_gpu_adapter_features_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_ADAPTER_FEATURES)?;
+                    destack_gpu_adapter_features_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -30119,16 +30118,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_ADAPTER_FORMAT_CAPABILITIES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, format) =
                         decode_destack_gpu_adapter_format_capabilities_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_ADAPTER_FORMAT_CAPABILITIES)?;
+                        binding.on_before_binding_resolve_world(GPU_ADAPTER_FORMAT_CAPABILITIES)?;
                     destack_gpu_adapter_format_capabilities_vm_replay(
-                        runtime, context, world, handle, format,
+                        binding, context, world, handle, format,
                     )
                 })
                 .map_err(Into::into)
@@ -30141,16 +30140,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_ADAPTER_HAS_FEATURE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, feature) =
                         decode_destack_gpu_adapter_has_feature_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_ADAPTER_HAS_FEATURE)?;
+                        binding.on_before_binding_resolve_world(GPU_ADAPTER_HAS_FEATURE)?;
                     destack_gpu_adapter_has_feature_vm_replay(
-                        runtime, context, world, handle, feature,
+                        binding, context, world, handle, feature,
                     )
                 })
                 .map_err(Into::into)
@@ -30159,14 +30158,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, GPU_ADAPTER_INFO, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_gpu_adapter_info_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(GPU_ADAPTER_INFO)?;
-                destack_gpu_adapter_info_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(GPU_ADAPTER_INFO)?;
+                destack_gpu_adapter_info_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
@@ -30177,14 +30176,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_ADAPTER_LIMITS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_adapter_limits_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_ADAPTER_LIMITS)?;
-                    destack_gpu_adapter_limits_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_ADAPTER_LIMITS)?;
+                    destack_gpu_adapter_limits_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -30192,28 +30191,28 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, GPU_ADAPTER_LIST, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (request,) = decode_destack_gpu_adapter_list_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(GPU_ADAPTER_LIST)?;
-                destack_gpu_adapter_list_vm_replay(runtime, context, world, request)
+                    binding.on_before_binding_resolve_world(GPU_ADAPTER_LIST)?;
+                destack_gpu_adapter_list_vm_replay(binding, context, world, request)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, GPU_ADAPTER_OPEN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (id,) = decode_destack_gpu_adapter_open_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(GPU_ADAPTER_OPEN)?;
-                destack_gpu_adapter_open_vm_replay(runtime, context, world, id)
+                    binding.on_before_binding_resolve_world(GPU_ADAPTER_OPEN)?;
+                destack_gpu_adapter_open_vm_replay(binding, context, world, id)
             })
             .map_err(Into::into)
         });
@@ -30224,16 +30223,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_BIND_GROUP_CREATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, layout, entries, flags) =
                         decode_destack_gpu_bind_group_create_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_BIND_GROUP_CREATE)?;
+                        binding.on_before_binding_resolve_world(GPU_BIND_GROUP_CREATE)?;
                     destack_gpu_bind_group_create_vm_replay(
-                        runtime, context, world, device, layout, entries, flags,
+                        binding, context, world, device, layout, entries, flags,
                     )
                 })
                 .map_err(Into::into)
@@ -30246,14 +30245,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_BIND_GROUP_DESTROY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_bind_group_destroy_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_BIND_GROUP_DESTROY)?;
-                    destack_gpu_bind_group_destroy_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_BIND_GROUP_DESTROY)?;
+                    destack_gpu_bind_group_destroy_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -30265,16 +30264,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_BIND_GROUP_LAYOUT_CREATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, entries, flags) =
                         decode_destack_gpu_bind_group_layout_create_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_BIND_GROUP_LAYOUT_CREATE)?;
+                        binding.on_before_binding_resolve_world(GPU_BIND_GROUP_LAYOUT_CREATE)?;
                     destack_gpu_bind_group_layout_create_vm_replay(
-                        runtime, context, world, device, entries, flags,
+                        binding, context, world, device, entries, flags,
                     )
                 })
                 .map_err(Into::into)
@@ -30287,15 +30286,15 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_BIND_GROUP_LAYOUT_DESTROY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_gpu_bind_group_layout_destroy_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_BIND_GROUP_LAYOUT_DESTROY)?;
-                    destack_gpu_bind_group_layout_destroy_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_BIND_GROUP_LAYOUT_DESTROY)?;
+                    destack_gpu_bind_group_layout_destroy_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -30307,16 +30306,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_BIND_PIPELINE_LAYOUT_CREATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_bind_pipeline_layout_create_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_BIND_PIPELINE_LAYOUT_CREATE)?;
+                        binding.on_before_binding_resolve_world(GPU_BIND_PIPELINE_LAYOUT_CREATE)?;
                     destack_gpu_bind_pipeline_layout_create_vm_replay(
-                        runtime, context, world, device, options,
+                        binding, context, world, device, options,
                     )
                 })
                 .map_err(Into::into)
@@ -30329,16 +30328,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_BIND_PIPELINE_LAYOUT_DESTROY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_gpu_bind_pipeline_layout_destroy_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_BIND_PIPELINE_LAYOUT_DESTROY)?;
                     destack_gpu_bind_pipeline_layout_destroy_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -30351,16 +30350,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_BIND_COMPUTE_PIPELINE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, pipeline) =
                         decode_destack_gpu_command_bind_compute_pipeline_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_COMMAND_BIND_COMPUTE_PIPELINE)?;
                     destack_gpu_command_bind_compute_pipeline_vm_replay(
-                        runtime, context, world, handle, pipeline,
+                        binding, context, world, handle, pipeline,
                     )
                 })
                 .map_err(Into::into)
@@ -30373,16 +30372,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_BIND_RENDER_PIPELINE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, pipeline) =
                         decode_destack_gpu_command_bind_render_pipeline_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_COMMAND_BIND_RENDER_PIPELINE)?;
                     destack_gpu_command_bind_render_pipeline_vm_replay(
-                        runtime, context, world, handle, pipeline,
+                        binding, context, world, handle, pipeline,
                     )
                 })
                 .map_err(Into::into)
@@ -30395,16 +30394,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_CLEAR_BUFFER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffer, offset, size) =
                         decode_destack_gpu_command_clear_buffer_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_CLEAR_BUFFER)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_CLEAR_BUFFER)?;
                     destack_gpu_command_clear_buffer_vm_replay(
-                        runtime, context, world, handle, buffer, offset, size,
+                        binding, context, world, handle, buffer, offset, size,
                     )
                 })
                 .map_err(Into::into)
@@ -30417,16 +30416,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_COMPUTE_PASS_BEGIN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, options) =
                         decode_destack_gpu_command_compute_pass_begin_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_COMPUTE_PASS_BEGIN)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_COMPUTE_PASS_BEGIN)?;
                     destack_gpu_command_compute_pass_begin_vm_replay(
-                        runtime, context, world, handle, options,
+                        binding, context, world, handle, options,
                     )
                 })
                 .map_err(Into::into)
@@ -30439,15 +30438,15 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_COMPUTE_PASS_END,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_gpu_command_compute_pass_end_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_COMPUTE_PASS_END)?;
-                    destack_gpu_command_compute_pass_end_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_COMPUTE_PASS_END)?;
+                    destack_gpu_command_compute_pass_end_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -30459,7 +30458,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, marker) =
                         decode_destack_gpu_command_compute_pass_insert_debug_marker_args(
@@ -30467,11 +30466,11 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER,
                     )?;
                     destack_gpu_command_compute_pass_insert_debug_marker_vm_replay(
-                        runtime, context, world, handle, marker,
+                        binding, context, world, handle, marker,
                     )
                 })
                 .map_err(Into::into)
@@ -30484,18 +30483,18 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_command_compute_pass_pop_debug_group_args(
                         context, args,
                     )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP,
                     )?;
                     destack_gpu_command_compute_pass_pop_debug_group_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -30508,7 +30507,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, label) =
                         decode_destack_gpu_command_compute_pass_push_debug_group_args(
@@ -30516,11 +30515,11 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP,
                     )?;
                     destack_gpu_command_compute_pass_push_debug_group_vm_replay(
-                        runtime, context, world, handle, label,
+                        binding, context, world, handle, label,
                     )
                 })
                 .map_err(Into::into)
@@ -30533,16 +30532,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_COPY_BUFFER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, src, srcoffset, dst, dstoffset, argument_bytes) =
                         decode_destack_gpu_command_copy_buffer_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_COPY_BUFFER)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_COPY_BUFFER)?;
                     destack_gpu_command_copy_buffer_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -30563,16 +30562,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_COPY_BUFFER_TO_TEXTURE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, source, destination, size) =
                         decode_destack_gpu_command_copy_buffer_to_texture_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_COMMAND_COPY_BUFFER_TO_TEXTURE)?;
                     destack_gpu_command_copy_buffer_to_texture_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -30591,16 +30590,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_COPY_TEXTURE_TO_BUFFER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, source, destination, size) =
                         decode_destack_gpu_command_copy_texture_to_buffer_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_COMMAND_COPY_TEXTURE_TO_BUFFER)?;
                     destack_gpu_command_copy_texture_to_buffer_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -30619,16 +30618,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, source, destination, size) =
                         decode_destack_gpu_command_copy_texture_to_texture_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE)?;
                     destack_gpu_command_copy_texture_to_texture_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -30647,16 +30646,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_DISPATCH,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, groupx, groupy, groupz) =
                         decode_destack_gpu_command_dispatch_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_DISPATCH)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_DISPATCH)?;
                     destack_gpu_command_dispatch_vm_replay(
-                        runtime, context, world, handle, groupx, groupy, groupz,
+                        binding, context, world, handle, groupx, groupy, groupz,
                     )
                 })
                 .map_err(Into::into)
@@ -30669,16 +30668,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_DISPATCH_INDIRECT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffer, offset) =
                         decode_destack_gpu_command_dispatch_indirect_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_DISPATCH_INDIRECT)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_DISPATCH_INDIRECT)?;
                     destack_gpu_command_dispatch_indirect_vm_replay(
-                        runtime, context, world, handle, buffer, offset,
+                        binding, context, world, handle, buffer, offset,
                     )
                 })
                 .map_err(Into::into)
@@ -30687,16 +30686,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, GPU_COMMAND_DRAW, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, vertexcount, instancecount, firstvertex, firstinstance) =
                     decode_destack_gpu_command_draw_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(GPU_COMMAND_DRAW)?;
+                    binding.on_before_binding_resolve_world(GPU_COMMAND_DRAW)?;
                 destack_gpu_command_draw_vm_replay(
-                    runtime,
+                    binding,
                     context,
                     world,
                     handle,
@@ -30715,16 +30714,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_DRAW_INDEXED,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, indexcount, instancecount, firstindex, basevertex, firstinstance) =
                         decode_destack_gpu_command_draw_indexed_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_DRAW_INDEXED)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_DRAW_INDEXED)?;
                     destack_gpu_command_draw_indexed_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -30745,16 +30744,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_DRAW_INDEXED_INDIRECT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffer, offset, drawcount, stride) =
                         decode_destack_gpu_command_draw_indexed_indirect_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_COMMAND_DRAW_INDEXED_INDIRECT)?;
                     destack_gpu_command_draw_indexed_indirect_vm_replay(
-                        runtime, context, world, handle, buffer, offset, drawcount, stride,
+                        binding, context, world, handle, buffer, offset, drawcount, stride,
                     )
                 })
                 .map_err(Into::into)
@@ -30767,16 +30766,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_DRAW_INDIRECT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffer, offset, drawcount, stride) =
                         decode_destack_gpu_command_draw_indirect_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_DRAW_INDIRECT)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_DRAW_INDIRECT)?;
                     destack_gpu_command_draw_indirect_vm_replay(
-                        runtime, context, world, handle, buffer, offset, drawcount, stride,
+                        binding, context, world, handle, buffer, offset, drawcount, stride,
                     )
                 })
                 .map_err(Into::into)
@@ -30789,14 +30788,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_ENCODER_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_command_encoder_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_ENCODER_CLOSE)?;
-                    destack_gpu_command_encoder_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_ENCODER_CLOSE)?;
+                    destack_gpu_command_encoder_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -30808,14 +30807,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_ENCODER_FINISH,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_command_encoder_finish_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_ENCODER_FINISH)?;
-                    destack_gpu_command_encoder_finish_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_ENCODER_FINISH)?;
+                    destack_gpu_command_encoder_finish_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -30827,16 +30826,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_ENCODER_OPEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_command_encoder_open_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_ENCODER_OPEN)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_ENCODER_OPEN)?;
                     destack_gpu_command_encoder_open_vm_replay(
-                        runtime, context, world, device, options,
+                        binding, context, world, device, options,
                     )
                 })
                 .map_err(Into::into)
@@ -30849,16 +30848,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_EXECUTE_BUNDLES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, bundles) =
                         decode_destack_gpu_command_execute_bundles_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_EXECUTE_BUNDLES)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_EXECUTE_BUNDLES)?;
                     destack_gpu_command_execute_bundles_vm_replay(
-                        runtime, context, world, handle, bundles,
+                        binding, context, world, handle, bundles,
                     )
                 })
                 .map_err(Into::into)
@@ -30871,16 +30870,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_INSERT_DEBUG_MARKER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, marker) =
                         decode_destack_gpu_command_insert_debug_marker_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_INSERT_DEBUG_MARKER)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_INSERT_DEBUG_MARKER)?;
                     destack_gpu_command_insert_debug_marker_vm_replay(
-                        runtime, context, world, handle, marker,
+                        binding, context, world, handle, marker,
                     )
                 })
                 .map_err(Into::into)
@@ -30893,16 +30892,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffer, offset, drawcount, stride) =
                         decode_destack_gpu_command_multi_draw_indexed_indirect_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT)?;
                     destack_gpu_command_multi_draw_indexed_indirect_vm_replay(
-                        runtime, context, world, handle, buffer, offset, drawcount, stride,
+                        binding, context, world, handle, buffer, offset, drawcount, stride,
                     )
                 })
                 .map_err(Into::into)
@@ -30915,7 +30914,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffer, offset, countbuffer, countoffset, maxdrawcount, stride) =
                         decode_destack_gpu_command_multi_draw_indexed_indirect_count_args(
@@ -30923,11 +30922,11 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT,
                     )?;
                     destack_gpu_command_multi_draw_indexed_indirect_count_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -30949,16 +30948,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_MULTI_DRAW_INDIRECT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffer, offset, drawcount, stride) =
                         decode_destack_gpu_command_multi_draw_indirect_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_MULTI_DRAW_INDIRECT)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_MULTI_DRAW_INDIRECT)?;
                     destack_gpu_command_multi_draw_indirect_vm_replay(
-                        runtime, context, world, handle, buffer, offset, drawcount, stride,
+                        binding, context, world, handle, buffer, offset, drawcount, stride,
                     )
                 })
                 .map_err(Into::into)
@@ -30971,16 +30970,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffer, offset, countbuffer, countoffset, maxdrawcount, stride) =
                         decode_destack_gpu_command_multi_draw_indirect_count_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT)?;
                     destack_gpu_command_multi_draw_indirect_count_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -31002,14 +31001,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_POP_DEBUG_GROUP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_command_pop_debug_group_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_POP_DEBUG_GROUP)?;
-                    destack_gpu_command_pop_debug_group_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_POP_DEBUG_GROUP)?;
+                    destack_gpu_command_pop_debug_group_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -31021,16 +31020,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_PUSH_DEBUG_GROUP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, label) =
                         decode_destack_gpu_command_push_debug_group_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_PUSH_DEBUG_GROUP)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_PUSH_DEBUG_GROUP)?;
                     destack_gpu_command_push_debug_group_vm_replay(
-                        runtime, context, world, handle, label,
+                        binding, context, world, handle, label,
                     )
                 })
                 .map_err(Into::into)
@@ -31043,16 +31042,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_QUEUE_SUBMIT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (queue, commandlists, options) =
                         decode_destack_gpu_command_queue_submit_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_QUEUE_SUBMIT)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_QUEUE_SUBMIT)?;
                     destack_gpu_command_queue_submit_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         queue,
@@ -31070,16 +31069,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_QUEUE_WAIT_IDLE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (queue, timeoutns) =
                         decode_destack_gpu_command_queue_wait_idle_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_QUEUE_WAIT_IDLE)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_QUEUE_WAIT_IDLE)?;
                     destack_gpu_command_queue_wait_idle_vm_replay(
-                        runtime, context, world, queue, timeoutns,
+                        binding, context, world, queue, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -31092,16 +31091,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_QUEUE_WRITE_BUFFER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (queue, buffer, bufferoffset, data, dataoffset, size) =
                         decode_destack_gpu_command_queue_write_buffer_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_QUEUE_WRITE_BUFFER)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_QUEUE_WRITE_BUFFER)?;
                     destack_gpu_command_queue_write_buffer_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         queue,
@@ -31122,16 +31121,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_QUEUE_WRITE_TEXTURE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (queue, destination, data, layout, size) =
                         decode_destack_gpu_command_queue_write_texture_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_QUEUE_WRITE_TEXTURE)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_QUEUE_WRITE_TEXTURE)?;
                     destack_gpu_command_queue_write_texture_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         queue,
@@ -31151,16 +31150,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_DESTROY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_gpu_command_render_bundle_destroy_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DESTROY)?;
                     destack_gpu_command_render_bundle_destroy_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -31173,16 +31172,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_DRAW,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, vertexcount, instancecount, firstvertex, firstinstance) =
                         decode_destack_gpu_command_render_bundle_draw_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DRAW)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DRAW)?;
                     destack_gpu_command_render_bundle_draw_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -31202,16 +31201,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, indexcount, instancecount, firstindex, basevertex, firstinstance) =
                         decode_destack_gpu_command_render_bundle_draw_indexed_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED)?;
                     destack_gpu_command_render_bundle_draw_indexed_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -31232,7 +31231,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffer, offset, drawcount, stride) =
                         decode_destack_gpu_command_render_bundle_draw_indexed_indirect_args(
@@ -31240,11 +31239,11 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT,
                     )?;
                     destack_gpu_command_render_bundle_draw_indexed_indirect_vm_replay(
-                        runtime, context, world, handle, buffer, offset, drawcount, stride,
+                        binding, context, world, handle, buffer, offset, drawcount, stride,
                     )
                 })
                 .map_err(Into::into)
@@ -31257,16 +31256,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffer, offset, drawcount, stride) =
                         decode_destack_gpu_command_render_bundle_draw_indirect_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT)?;
                     destack_gpu_command_render_bundle_draw_indirect_vm_replay(
-                        runtime, context, world, handle, buffer, offset, drawcount, stride,
+                        binding, context, world, handle, buffer, offset, drawcount, stride,
                     )
                 })
                 .map_err(Into::into)
@@ -31279,16 +31278,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_gpu_command_render_bundle_encoder_close_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE)?;
                     destack_gpu_command_render_bundle_encoder_close_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -31301,18 +31300,18 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_command_render_bundle_encoder_finish_args(
                         context, args,
                     )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH,
                     )?;
                     destack_gpu_command_render_bundle_encoder_finish_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -31325,16 +31324,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_command_render_bundle_encoder_open_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN)?;
                     destack_gpu_command_render_bundle_encoder_open_vm_replay(
-                        runtime, context, world, device, options,
+                        binding, context, world, device, options,
                     )
                 })
                 .map_err(Into::into)
@@ -31347,7 +31346,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, marker) =
                         decode_destack_gpu_command_render_bundle_insert_debug_marker_args(
@@ -31355,11 +31354,11 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER,
                     )?;
                     destack_gpu_command_render_bundle_insert_debug_marker_vm_replay(
-                        runtime, context, world, handle, marker,
+                        binding, context, world, handle, marker,
                     )
                 })
                 .map_err(Into::into)
@@ -31372,18 +31371,18 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_command_render_bundle_pop_debug_group_args(
                         context, args,
                     )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP,
                     )?;
                     destack_gpu_command_render_bundle_pop_debug_group_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -31396,7 +31395,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, label) =
                         decode_destack_gpu_command_render_bundle_push_debug_group_args(
@@ -31404,11 +31403,11 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP,
                     )?;
                     destack_gpu_command_render_bundle_push_debug_group_vm_replay(
-                        runtime, context, world, handle, label,
+                        binding, context, world, handle, label,
                     )
                 })
                 .map_err(Into::into)
@@ -31421,7 +31420,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, index, bindgroup, dynamicoffsets) =
                         decode_destack_gpu_command_render_bundle_set_bind_group_args(
@@ -31429,11 +31428,11 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP,
                     )?;
                     destack_gpu_command_render_bundle_set_bind_group_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -31452,7 +31451,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffer, format, offset, size) =
                         decode_destack_gpu_command_render_bundle_set_index_buffer_args(
@@ -31460,11 +31459,11 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER,
                     )?;
                     destack_gpu_command_render_bundle_set_index_buffer_vm_replay(
-                        runtime, context, world, handle, buffer, format, offset, size,
+                        binding, context, world, handle, buffer, format, offset, size,
                     )
                 })
                 .map_err(Into::into)
@@ -31477,16 +31476,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, pipeline) =
                         decode_destack_gpu_command_render_bundle_set_pipeline_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE)?;
                     destack_gpu_command_render_bundle_set_pipeline_vm_replay(
-                        runtime, context, world, handle, pipeline,
+                        binding, context, world, handle, pipeline,
                     )
                 })
                 .map_err(Into::into)
@@ -31499,7 +31498,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, slot, buffer, offset, size) =
                         decode_destack_gpu_command_render_bundle_set_vertex_buffer_args(
@@ -31507,11 +31506,11 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER,
                     )?;
                     destack_gpu_command_render_bundle_set_vertex_buffer_vm_replay(
-                        runtime, context, world, handle, slot, buffer, offset, size,
+                        binding, context, world, handle, slot, buffer, offset, size,
                     )
                 })
                 .map_err(Into::into)
@@ -31524,16 +31523,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_PASS_BEGIN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, options) =
                         decode_destack_gpu_command_render_pass_begin_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_RENDER_PASS_BEGIN)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_RENDER_PASS_BEGIN)?;
                     destack_gpu_command_render_pass_begin_vm_replay(
-                        runtime, context, world, handle, options,
+                        binding, context, world, handle, options,
                     )
                 })
                 .map_err(Into::into)
@@ -31546,14 +31545,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_PASS_END,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_command_render_pass_end_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_RENDER_PASS_END)?;
-                    destack_gpu_command_render_pass_end_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_RENDER_PASS_END)?;
+                    destack_gpu_command_render_pass_end_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -31565,7 +31564,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, marker) =
                         decode_destack_gpu_command_render_pass_insert_debug_marker_args(
@@ -31573,11 +31572,11 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER,
                     )?;
                     destack_gpu_command_render_pass_insert_debug_marker_vm_replay(
-                        runtime, context, world, handle, marker,
+                        binding, context, world, handle, marker,
                     )
                 })
                 .map_err(Into::into)
@@ -31590,16 +31589,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_gpu_command_render_pass_pop_debug_group_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?;
                     destack_gpu_command_render_pass_pop_debug_group_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -31612,7 +31611,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, label) =
                         decode_destack_gpu_command_render_pass_push_debug_group_args(
@@ -31620,11 +31619,11 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP,
                     )?;
                     destack_gpu_command_render_pass_push_debug_group_vm_replay(
-                        runtime, context, world, handle, label,
+                        binding, context, world, handle, label,
                     )
                 })
                 .map_err(Into::into)
@@ -31637,16 +31636,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_SET_BLEND_CONSTANT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, r, g, b, a) =
                         decode_destack_gpu_command_set_blend_constant_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_SET_BLEND_CONSTANT)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_SET_BLEND_CONSTANT)?;
                     destack_gpu_command_set_blend_constant_vm_replay(
-                        runtime, context, world, handle, r, g, b, a,
+                        binding, context, world, handle, r, g, b, a,
                     )
                 })
                 .map_err(Into::into)
@@ -31659,16 +31658,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_SET_COMPUTE_BIND_GROUP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, index, bindgroup, dynamicoffsets) =
                         decode_destack_gpu_command_set_compute_bind_group_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?;
                     destack_gpu_command_set_compute_bind_group_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -31687,16 +31686,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_SET_INDEX_BUFFER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, buffer, format, offset, size) =
                         decode_destack_gpu_command_set_index_buffer_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_SET_INDEX_BUFFER)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_SET_INDEX_BUFFER)?;
                     destack_gpu_command_set_index_buffer_vm_replay(
-                        runtime, context, world, handle, buffer, format, offset, size,
+                        binding, context, world, handle, buffer, format, offset, size,
                     )
                 })
                 .map_err(Into::into)
@@ -31709,16 +31708,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_SET_RENDER_BIND_GROUP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, index, bindgroup, dynamicoffsets) =
                         decode_destack_gpu_command_set_render_bind_group_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_COMMAND_SET_RENDER_BIND_GROUP)?;
                     destack_gpu_command_set_render_bind_group_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -31737,16 +31736,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_SET_SCISSOR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, x, y, width, height) =
                         decode_destack_gpu_command_set_scissor_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_SET_SCISSOR)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_SET_SCISSOR)?;
                     destack_gpu_command_set_scissor_vm_replay(
-                        runtime, context, world, handle, x, y, width, height,
+                        binding, context, world, handle, x, y, width, height,
                     )
                 })
                 .map_err(Into::into)
@@ -31759,16 +31758,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_SET_STENCIL_REFERENCE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, reference) =
                         decode_destack_gpu_command_set_stencil_reference_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_COMMAND_SET_STENCIL_REFERENCE)?;
                     destack_gpu_command_set_stencil_reference_vm_replay(
-                        runtime, context, world, handle, reference,
+                        binding, context, world, handle, reference,
                     )
                 })
                 .map_err(Into::into)
@@ -31781,16 +31780,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_SET_VERTEX_BUFFER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, slot, buffer, offset, size) =
                         decode_destack_gpu_command_set_vertex_buffer_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_SET_VERTEX_BUFFER)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_SET_VERTEX_BUFFER)?;
                     destack_gpu_command_set_vertex_buffer_vm_replay(
-                        runtime, context, world, handle, slot, buffer, offset, size,
+                        binding, context, world, handle, slot, buffer, offset, size,
                     )
                 })
                 .map_err(Into::into)
@@ -31803,16 +31802,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_COMMAND_SET_VIEWPORT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, x, y, width, height, mindepth, maxdepth) =
                         decode_destack_gpu_command_set_viewport_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_COMMAND_SET_VIEWPORT)?;
+                        binding.on_before_binding_resolve_world(GPU_COMMAND_SET_VIEWPORT)?;
                     destack_gpu_command_set_viewport_vm_replay(
-                        runtime, context, world, handle, x, y, width, height, mindepth, maxdepth,
+                        binding, context, world, handle, x, y, width, height, mindepth, maxdepth,
                     )
                 })
                 .map_err(Into::into)
@@ -31825,14 +31824,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_DEBUG_SET_LABEL,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, label) = decode_destack_gpu_debug_set_label_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_DEBUG_SET_LABEL)?;
-                    destack_gpu_debug_set_label_vm_replay(runtime, context, world, handle, label)
+                        binding.on_before_binding_resolve_world(GPU_DEBUG_SET_LABEL)?;
+                    destack_gpu_debug_set_label_vm_replay(binding, context, world, handle, label)
                 })
                 .map_err(Into::into)
             }
@@ -31840,14 +31839,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, GPU_DEVICE_CLOSE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_gpu_device_close_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(GPU_DEVICE_CLOSE)?;
-                destack_gpu_device_close_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(GPU_DEVICE_CLOSE)?;
+                destack_gpu_device_close_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
@@ -31858,14 +31857,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_DEVICE_FEATURES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device,) = decode_destack_gpu_device_features_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_DEVICE_FEATURES)?;
-                    destack_gpu_device_features_vm_replay(runtime, context, world, device)
+                        binding.on_before_binding_resolve_world(GPU_DEVICE_FEATURES)?;
+                    destack_gpu_device_features_vm_replay(binding, context, world, device)
                 })
                 .map_err(Into::into)
             }
@@ -31877,16 +31876,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_DEVICE_HAS_FEATURE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, feature) =
                         decode_destack_gpu_device_has_feature_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_DEVICE_HAS_FEATURE)?;
+                        binding.on_before_binding_resolve_world(GPU_DEVICE_HAS_FEATURE)?;
                     destack_gpu_device_has_feature_vm_replay(
-                        runtime, context, world, device, feature,
+                        binding, context, world, device, feature,
                     )
                 })
                 .map_err(Into::into)
@@ -31895,14 +31894,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, GPU_DEVICE_INFO, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (device,) = decode_destack_gpu_device_info_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(GPU_DEVICE_INFO)?;
-                destack_gpu_device_info_vm_replay(runtime, context, world, device)
+                    binding.on_before_binding_resolve_world(GPU_DEVICE_INFO)?;
+                destack_gpu_device_info_vm_replay(binding, context, world, device)
             })
             .map_err(Into::into)
         });
@@ -31913,14 +31912,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_DEVICE_LIMITS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device,) = decode_destack_gpu_device_limits_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_DEVICE_LIMITS)?;
-                    destack_gpu_device_limits_vm_replay(runtime, context, world, device)
+                        binding.on_before_binding_resolve_world(GPU_DEVICE_LIMITS)?;
+                    destack_gpu_device_limits_vm_replay(binding, context, world, device)
                 })
                 .map_err(Into::into)
             }
@@ -31928,28 +31927,28 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, GPU_DEVICE_OPEN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (adapter, options) = decode_destack_gpu_device_open_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(GPU_DEVICE_OPEN)?;
-                destack_gpu_device_open_vm_replay(runtime, context, world, adapter, options)
+                    binding.on_before_binding_resolve_world(GPU_DEVICE_OPEN)?;
+                destack_gpu_device_open_vm_replay(binding, context, world, adapter, options)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, GPU_DEVICE_POLL, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (device, wait, timeoutns) = decode_destack_gpu_device_poll_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(GPU_DEVICE_POLL)?;
-                destack_gpu_device_poll_vm_replay(runtime, context, world, device, wait, timeoutns)
+                    binding.on_before_binding_resolve_world(GPU_DEVICE_POLL)?;
+                destack_gpu_device_poll_vm_replay(binding, context, world, device, wait, timeoutns)
             })
             .map_err(Into::into)
         });
@@ -31960,16 +31959,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_DEVICE_POP_ERROR_SCOPE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, timeoutns) =
                         decode_destack_gpu_device_pop_error_scope_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_DEVICE_POP_ERROR_SCOPE)?;
+                        binding.on_before_binding_resolve_world(GPU_DEVICE_POP_ERROR_SCOPE)?;
                     destack_gpu_device_pop_error_scope_vm_replay(
-                        runtime, context, world, device, timeoutns,
+                        binding, context, world, device, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -31982,16 +31981,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_DEVICE_PUSH_ERROR_SCOPE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, filter) =
                         decode_destack_gpu_device_push_error_scope_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_DEVICE_PUSH_ERROR_SCOPE)?;
+                        binding.on_before_binding_resolve_world(GPU_DEVICE_PUSH_ERROR_SCOPE)?;
                     destack_gpu_device_push_error_scope_vm_replay(
-                        runtime, context, world, device, filter,
+                        binding, context, world, device, filter,
                     )
                 })
                 .map_err(Into::into)
@@ -32000,14 +31999,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, GPU_DEVICE_QUEUE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (device,) = decode_destack_gpu_device_queue_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(GPU_DEVICE_QUEUE)?;
-                destack_gpu_device_queue_vm_replay(runtime, context, world, device)
+                    binding.on_before_binding_resolve_world(GPU_DEVICE_QUEUE)?;
+                destack_gpu_device_queue_vm_replay(binding, context, world, device)
             })
             .map_err(Into::into)
         });
@@ -32018,14 +32017,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_DEVICE_STATUS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device,) = decode_destack_gpu_device_status_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_DEVICE_STATUS)?;
-                    destack_gpu_device_status_vm_replay(runtime, context, world, device)
+                        binding.on_before_binding_resolve_world(GPU_DEVICE_STATUS)?;
+                    destack_gpu_device_status_vm_replay(binding, context, world, device)
                 })
                 .map_err(Into::into)
             }
@@ -32037,16 +32036,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PIPELINE_BIND_GROUP_LAYOUT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (pipeline, groupindex) =
                         decode_destack_gpu_pipeline_bind_group_layout_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_PIPELINE_BIND_GROUP_LAYOUT)?;
+                        binding.on_before_binding_resolve_world(GPU_PIPELINE_BIND_GROUP_LAYOUT)?;
                     destack_gpu_pipeline_bind_group_layout_vm_replay(
-                        runtime, context, world, pipeline, groupindex,
+                        binding, context, world, pipeline, groupindex,
                     )
                 })
                 .map_err(Into::into)
@@ -32059,16 +32058,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PIPELINE_COMPUTE_CREATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_pipeline_compute_create_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_PIPELINE_COMPUTE_CREATE)?;
+                        binding.on_before_binding_resolve_world(GPU_PIPELINE_COMPUTE_CREATE)?;
                     destack_gpu_pipeline_compute_create_vm_replay(
-                        runtime, context, world, device, options,
+                        binding, context, world, device, options,
                     )
                 })
                 .map_err(Into::into)
@@ -32081,14 +32080,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PIPELINE_DESTROY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_pipeline_destroy_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_PIPELINE_DESTROY)?;
-                    destack_gpu_pipeline_destroy_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_PIPELINE_DESTROY)?;
+                    destack_gpu_pipeline_destroy_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -32100,16 +32099,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PIPELINE_RENDER_CREATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_pipeline_render_create_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_PIPELINE_RENDER_CREATE)?;
+                        binding.on_before_binding_resolve_world(GPU_PIPELINE_RENDER_CREATE)?;
                     destack_gpu_pipeline_render_create_vm_replay(
-                        runtime, context, world, device, options,
+                        binding, context, world, device, options,
                     )
                 })
                 .map_err(Into::into)
@@ -32122,16 +32121,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PIPELINE_SHADER_COMPILATION_INFO,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_gpu_pipeline_shader_compilation_info_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_PIPELINE_SHADER_COMPILATION_INFO)?;
                     destack_gpu_pipeline_shader_compilation_info_vm_replay(
-                        runtime, context, world, handle, timeoutns,
+                        binding, context, world, handle, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -32144,16 +32143,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PIPELINE_SHADER_CREATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, options, argument_bytes) =
                         decode_destack_gpu_pipeline_shader_create_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_PIPELINE_SHADER_CREATE)?;
+                        binding.on_before_binding_resolve_world(GPU_PIPELINE_SHADER_CREATE)?;
                     destack_gpu_pipeline_shader_create_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         device,
@@ -32171,14 +32170,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PIPELINE_SHADER_DESTROY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_pipeline_shader_destroy_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_PIPELINE_SHADER_DESTROY)?;
-                    destack_gpu_pipeline_shader_destroy_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_PIPELINE_SHADER_DESTROY)?;
+                    destack_gpu_pipeline_shader_destroy_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -32190,7 +32189,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PRESENT_SURFACE_ACQUIRE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (surface, timeoutns) =
                         decode_destack_gpu_present_surface_acquire_args(context, args)?;
@@ -32198,14 +32197,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(GPU_PRESENT_SURFACE_ACQUIRE)?;
+                            binding.on_before_binding_resolve_world(GPU_PRESENT_SURFACE_ACQUIRE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_gpu_surface_acquire(
-                                runtime, context, surface, timeoutns,
+                                binding, context, surface, timeoutns,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_gpu_surface_acquire(
-                                    runtime, context, surface, timeoutns,
+                                    binding, context, surface, timeoutns,
                                 )
                             }
                         }
@@ -32222,22 +32221,22 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PRESENT_SURFACE_CAPABILITIES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (surface, adapter) =
                         decode_destack_gpu_present_surface_capabilities_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(GPU_PRESENT_SURFACE_CAPABILITIES)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_gpu_surface_capabilities(
-                                runtime, context, surface, adapter,
+                                binding, context, surface, adapter,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_gpu_surface_capabilities(
-                                    runtime, context, surface, adapter,
+                                    binding, context, surface, adapter,
                                 )
                             }
                         }
@@ -32254,21 +32253,21 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PRESENT_SURFACE_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (surface,) = decode_destack_gpu_present_surface_close_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(GPU_PRESENT_SURFACE_CLOSE)?;
+                            binding.on_before_binding_resolve_world(GPU_PRESENT_SURFACE_CLOSE)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_gpu_surface_close(runtime, context, surface)
+                                platform_vm::destack_gpu_surface_close(binding, context, surface)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_gpu_surface_close(
-                                    runtime, context, surface,
+                                    binding, context, surface,
                                 )
                             }
                         }
@@ -32285,22 +32284,22 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PRESENT_SURFACE_CONFIGURE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, surface, options) =
                         decode_destack_gpu_present_surface_configure_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(GPU_PRESENT_SURFACE_CONFIGURE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_gpu_surface_configure(
-                                runtime, context, device, surface, options,
+                                binding, context, device, surface, options,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_gpu_surface_configure(
-                                    runtime, context, device, surface, options,
+                                    binding, context, device, surface, options,
                                 )
                             }
                         }
@@ -32317,21 +32316,21 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PRESENT_SURFACE_OPEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (window,) = decode_destack_gpu_present_surface_open_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(GPU_PRESENT_SURFACE_OPEN)?;
+                            binding.on_before_binding_resolve_world(GPU_PRESENT_SURFACE_OPEN)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_gpu_surface_open(runtime, context, window)
+                                platform_vm::destack_gpu_surface_open(binding, context, window)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_gpu_surface_open(
-                                    runtime, context, window,
+                                    binding, context, window,
                                 )
                             }
                         }
@@ -32348,7 +32347,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PRESENT_SURFACE_PRESENT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (surface, options) =
                         decode_destack_gpu_present_surface_present_args(context, args)?;
@@ -32356,14 +32355,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(GPU_PRESENT_SURFACE_PRESENT)?;
+                            binding.on_before_binding_resolve_world(GPU_PRESENT_SURFACE_PRESENT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_gpu_surface_present(
-                                runtime, context, surface, options,
+                                binding, context, surface, options,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_gpu_surface_present(
-                                    runtime, context, surface, options,
+                                    binding, context, surface, options,
                                 )
                             }
                         }
@@ -32380,22 +32379,22 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_PRESENT_SURFACE_UNCONFIGURE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (surface,) =
                         decode_destack_gpu_present_surface_unconfigure_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(GPU_PRESENT_SURFACE_UNCONFIGURE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_gpu_surface_unconfigure(
-                                runtime, context, surface,
+                                binding, context, surface,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_gpu_surface_unconfigure(
-                                    runtime, context, surface,
+                                    binding, context, surface,
                                 )
                             }
                         }
@@ -32412,16 +32411,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_BUFFER_CREATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_resource_buffer_create_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_CREATE)?;
+                        binding.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_CREATE)?;
                     destack_gpu_resource_buffer_create_vm_replay(
-                        runtime, context, world, device, options,
+                        binding, context, world, device, options,
                     )
                 })
                 .map_err(Into::into)
@@ -32434,14 +32433,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_BUFFER_DESTROY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_resource_buffer_destroy_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_DESTROY)?;
-                    destack_gpu_resource_buffer_destroy_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_DESTROY)?;
+                    destack_gpu_resource_buffer_destroy_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -32453,14 +32452,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_BUFFER_INFO,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_resource_buffer_info_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_INFO)?;
-                    destack_gpu_resource_buffer_info_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_INFO)?;
+                    destack_gpu_resource_buffer_info_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -32472,16 +32471,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_BUFFER_MAP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, offset, length, mode) =
                         decode_destack_gpu_resource_buffer_map_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_MAP)?;
+                        binding.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_MAP)?;
                     destack_gpu_resource_buffer_map_vm_replay(
-                        runtime, context, world, handle, offset, length, mode,
+                        binding, context, world, handle, offset, length, mode,
                     )
                 })
                 .map_err(Into::into)
@@ -32494,16 +32493,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_BUFFER_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, offset, length) =
                         decode_destack_gpu_resource_buffer_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_READ)?;
+                        binding.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_READ)?;
                     destack_gpu_resource_buffer_read_vm_replay(
-                        runtime, context, world, handle, offset, length,
+                        binding, context, world, handle, offset, length,
                     )
                 })
                 .map_err(Into::into)
@@ -32516,14 +32515,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_BUFFER_UNMAP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_resource_buffer_unmap_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_UNMAP)?;
-                    destack_gpu_resource_buffer_unmap_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_UNMAP)?;
+                    destack_gpu_resource_buffer_unmap_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -32535,16 +32534,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_BUFFER_WRITE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, offset, argument_bytes) =
                         decode_destack_gpu_resource_buffer_write_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_WRITE)?;
+                        binding.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_WRITE)?;
                     destack_gpu_resource_buffer_write_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -32562,16 +32561,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_SAMPLER_CREATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_resource_sampler_create_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_SAMPLER_CREATE)?;
+                        binding.on_before_binding_resolve_world(GPU_RESOURCE_SAMPLER_CREATE)?;
                     destack_gpu_resource_sampler_create_vm_replay(
-                        runtime, context, world, device, options,
+                        binding, context, world, device, options,
                     )
                 })
                 .map_err(Into::into)
@@ -32584,15 +32583,15 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_SAMPLER_DESTROY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_gpu_resource_sampler_destroy_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_SAMPLER_DESTROY)?;
-                    destack_gpu_resource_sampler_destroy_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_RESOURCE_SAMPLER_DESTROY)?;
+                    destack_gpu_resource_sampler_destroy_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -32604,16 +32603,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_TEXTURE_CREATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_resource_texture_create_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_TEXTURE_CREATE)?;
+                        binding.on_before_binding_resolve_world(GPU_RESOURCE_TEXTURE_CREATE)?;
                     destack_gpu_resource_texture_create_vm_replay(
-                        runtime, context, world, device, options,
+                        binding, context, world, device, options,
                     )
                 })
                 .map_err(Into::into)
@@ -32626,15 +32625,15 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_TEXTURE_DESTROY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_gpu_resource_texture_destroy_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_TEXTURE_DESTROY)?;
-                    destack_gpu_resource_texture_destroy_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_RESOURCE_TEXTURE_DESTROY)?;
+                    destack_gpu_resource_texture_destroy_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -32646,14 +32645,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_TEXTURE_INFO,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_resource_texture_info_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_TEXTURE_INFO)?;
-                    destack_gpu_resource_texture_info_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_RESOURCE_TEXTURE_INFO)?;
+                    destack_gpu_resource_texture_info_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -32665,16 +32664,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_TEXTURE_VIEW_CREATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (texture, options) =
                         decode_destack_gpu_resource_texture_view_create_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_RESOURCE_TEXTURE_VIEW_CREATE)?;
                     destack_gpu_resource_texture_view_create_vm_replay(
-                        runtime, context, world, texture, options,
+                        binding, context, world, texture, options,
                     )
                 })
                 .map_err(Into::into)
@@ -32687,16 +32686,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_RESOURCE_TEXTURE_VIEW_DESTROY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_gpu_resource_texture_view_destroy_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_RESOURCE_TEXTURE_VIEW_DESTROY)?;
                     destack_gpu_resource_texture_view_destroy_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -32709,13 +32708,13 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                 // decode args
                 let (computepass, queryset, queryindex) = decode_destack_gpu_sync_command_begin_compute_pipeline_statistics_query_args(context, args)?;
 
                 // execute binding
-                let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?;
-                destack_gpu_sync_command_begin_compute_pipeline_statistics_query_vm_replay(runtime, context, world, computepass, queryset, queryindex)
+                let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?;
+                destack_gpu_sync_command_begin_compute_pipeline_statistics_query_vm_replay(binding, context, world, computepass, queryset, queryindex)
             })
             .map_err(Into::into)
             }
@@ -32727,16 +32726,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (renderpass, queryset, queryindex) =
                         decode_destack_gpu_sync_command_begin_occlusion_query_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY)?;
                     destack_gpu_sync_command_begin_occlusion_query_vm_replay(
-                        runtime, context, world, renderpass, queryset, queryindex,
+                        binding, context, world, renderpass, queryset, queryindex,
                     )
                 })
                 .map_err(Into::into)
@@ -32749,13 +32748,13 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                 // decode args
                 let (renderpass, queryset, queryindex) = decode_destack_gpu_sync_command_begin_render_pipeline_statistics_query_args(context, args)?;
 
                 // execute binding
-                let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?;
-                destack_gpu_sync_command_begin_render_pipeline_statistics_query_vm_replay(runtime, context, world, renderpass, queryset, queryindex)
+                let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?;
+                destack_gpu_sync_command_begin_render_pipeline_statistics_query_vm_replay(binding, context, world, renderpass, queryset, queryindex)
             })
             .map_err(Into::into)
             }
@@ -32767,7 +32766,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (computepass,) =
                         decode_destack_gpu_sync_command_end_compute_pipeline_statistics_query_args(
@@ -32775,11 +32774,11 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY,
                     )?;
                     destack_gpu_sync_command_end_compute_pipeline_statistics_query_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         computepass,
@@ -32795,16 +32794,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_COMMAND_END_OCCLUSION_QUERY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (renderpass,) =
                         decode_destack_gpu_sync_command_end_occlusion_query_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_SYNC_COMMAND_END_OCCLUSION_QUERY)?;
                     destack_gpu_sync_command_end_occlusion_query_vm_replay(
-                        runtime, context, world, renderpass,
+                        binding, context, world, renderpass,
                     )
                 })
                 .map_err(Into::into)
@@ -32817,7 +32816,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (renderpass,) =
                         decode_destack_gpu_sync_command_end_render_pipeline_statistics_query_args(
@@ -32825,11 +32824,11 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
                     )?;
                     destack_gpu_sync_command_end_render_pipeline_statistics_query_vm_replay(
-                        runtime, context, world, renderpass,
+                        binding, context, world, renderpass,
                     )
                 })
                 .map_err(Into::into)
@@ -32842,7 +32841,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_COMMAND_RESOLVE_QUERIES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (
                         commandlist,
@@ -32854,10 +32853,10 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     ) = decode_destack_gpu_sync_command_resolve_queries_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_SYNC_COMMAND_RESOLVE_QUERIES)?;
                     destack_gpu_sync_command_resolve_queries_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         commandlist,
@@ -32878,16 +32877,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_COMMAND_WRITE_TIMESTAMP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (commandlist, queryset, queryindex) =
                         decode_destack_gpu_sync_command_write_timestamp_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(GPU_SYNC_COMMAND_WRITE_TIMESTAMP)?;
                     destack_gpu_sync_command_write_timestamp_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         commandlist,
@@ -32905,16 +32904,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_FENCE_CREATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_sync_fence_create_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_SYNC_FENCE_CREATE)?;
+                        binding.on_before_binding_resolve_world(GPU_SYNC_FENCE_CREATE)?;
                     destack_gpu_sync_fence_create_vm_replay(
-                        runtime, context, world, device, options,
+                        binding, context, world, device, options,
                     )
                 })
                 .map_err(Into::into)
@@ -32927,14 +32926,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_FENCE_DESTROY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_sync_fence_destroy_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_SYNC_FENCE_DESTROY)?;
-                    destack_gpu_sync_fence_destroy_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_SYNC_FENCE_DESTROY)?;
+                    destack_gpu_sync_fence_destroy_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -32946,16 +32945,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_QUERY_SET_CREATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, options) =
                         decode_destack_gpu_sync_query_set_create_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_SYNC_QUERY_SET_CREATE)?;
+                        binding.on_before_binding_resolve_world(GPU_SYNC_QUERY_SET_CREATE)?;
                     destack_gpu_sync_query_set_create_vm_replay(
-                        runtime, context, world, device, options,
+                        binding, context, world, device, options,
                     )
                 })
                 .map_err(Into::into)
@@ -32968,14 +32967,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_QUERY_SET_DESTROY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_sync_query_set_destroy_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_SYNC_QUERY_SET_DESTROY)?;
-                    destack_gpu_sync_query_set_destroy_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_SYNC_QUERY_SET_DESTROY)?;
+                    destack_gpu_sync_query_set_destroy_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -32987,14 +32986,14 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_QUERY_SET_INFO,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_gpu_sync_query_set_info_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_SYNC_QUERY_SET_INFO)?;
-                    destack_gpu_sync_query_set_info_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(GPU_SYNC_QUERY_SET_INFO)?;
+                    destack_gpu_sync_query_set_info_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -33006,16 +33005,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_QUEUE_SIGNAL,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (queue, fence, argument_value) =
                         decode_destack_gpu_sync_queue_signal_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_SYNC_QUEUE_SIGNAL)?;
+                        binding.on_before_binding_resolve_world(GPU_SYNC_QUEUE_SIGNAL)?;
                     destack_gpu_sync_queue_signal_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         queue,
@@ -33033,16 +33032,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_QUEUE_TIMESTAMP_PERIOD,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (queue,) =
                         decode_destack_gpu_sync_queue_timestamp_period_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_SYNC_QUEUE_TIMESTAMP_PERIOD)?;
+                        binding.on_before_binding_resolve_world(GPU_SYNC_QUEUE_TIMESTAMP_PERIOD)?;
                     destack_gpu_sync_queue_timestamp_period_vm_replay(
-                        runtime, context, world, queue,
+                        binding, context, world, queue,
                     )
                 })
                 .map_err(Into::into)
@@ -33055,16 +33054,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_QUEUE_WAIT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (queue, fence, argument_value, timeoutns) =
                         decode_destack_gpu_sync_queue_wait_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_SYNC_QUEUE_WAIT)?;
+                        binding.on_before_binding_resolve_world(GPU_SYNC_QUEUE_WAIT)?;
                     destack_gpu_sync_queue_wait_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         queue,
@@ -33083,16 +33082,16 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             GPU_SYNC_QUEUE_WORK_DONE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (queue, timeoutns) =
                         decode_destack_gpu_sync_queue_work_done_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(GPU_SYNC_QUEUE_WORK_DONE)?;
+                        binding.on_before_binding_resolve_world(GPU_SYNC_QUEUE_WORK_DONE)?;
                     destack_gpu_sync_queue_work_done_vm_replay(
-                        runtime, context, world, queue, timeoutns,
+                        binding, context, world, queue, timeoutns,
                     )
                 })
                 .map_err(Into::into)

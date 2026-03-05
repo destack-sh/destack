@@ -74,7 +74,7 @@ fn apply_raw_mode(mode: u32, enabled: bool) -> u32 {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_get_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut TtyMode,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
@@ -82,9 +82,9 @@ pub(crate) unsafe fn destack_tty_get_mode(
     ensure_out(out, "out")?;
 
     // resolve one pty-backed mode cache when present
-    let binding = tty_binding(context, handle, "destack.tty.mode.getMode")?;
-    if let Some(binding) = binding {
-        let mode = *binding.mode.read();
+    let resolved_binding = tty_binding(binding, handle, "destack.tty.mode.getMode")?;
+    if let Some(resolved_binding) = resolved_binding {
+        let mode = *resolved_binding.mode.read();
 
         unsafe {
             out.write(mode);
@@ -94,7 +94,7 @@ pub(crate) unsafe fn destack_tty_get_mode(
     }
 
     // resolve one console tty handle
-    let host_handle = tty_handle(context, handle, "destack.tty.mode.getMode")?;
+    let host_handle = tty_handle(binding, handle, "destack.tty.mode.getMode")?;
 
     // query one console mode snapshot
     let mut console_mode = 0u32;
@@ -141,7 +141,7 @@ pub(crate) unsafe fn destack_tty_get_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_set_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     mode: TtyMode,
 ) -> RuntimeResult<()> {
@@ -149,9 +149,9 @@ pub(crate) unsafe fn destack_tty_set_mode(
     let console_mode = decode_console_mode(mode)?;
 
     // resolve one pty-backed mode cache when present
-    let binding = tty_binding(context, handle, "destack.tty.mode.setMode")?;
-    if let Some(binding) = binding {
-        *binding.mode.write() = TtyMode {
+    let resolved_binding = tty_binding(binding, handle, "destack.tty.mode.setMode")?;
+    if let Some(resolved_binding) = resolved_binding {
+        *resolved_binding.mode.write() = TtyMode {
             input_flags: 0,
             output_flags: 0,
             control_flags: 0,
@@ -161,7 +161,7 @@ pub(crate) unsafe fn destack_tty_set_mode(
     }
 
     // resolve one console tty handle
-    let host_handle = tty_handle(context, handle, "destack.tty.mode.setMode")?;
+    let host_handle = tty_handle(binding, handle, "destack.tty.mode.setMode")?;
 
     // apply one console mode update
     let status = unsafe { SetConsoleMode(host_handle, console_mode) };
@@ -194,16 +194,16 @@ pub(crate) unsafe fn destack_tty_set_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_set_raw_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     // resolve one pty-backed mode cache when present
-    let binding = tty_binding(context, handle, "destack.tty.mode.setRawMode")?;
-    if let Some(binding) = binding {
-        let current = decode_console_mode(*binding.mode.read())?;
+    let resolved_binding = tty_binding(binding, handle, "destack.tty.mode.setRawMode")?;
+    if let Some(resolved_binding) = resolved_binding {
+        let current = decode_console_mode(*resolved_binding.mode.read())?;
         let next = apply_raw_mode(current, enabled);
-        *binding.mode.write() = TtyMode {
+        *resolved_binding.mode.write() = TtyMode {
             input_flags: 0,
             output_flags: 0,
             control_flags: 0,
@@ -213,7 +213,7 @@ pub(crate) unsafe fn destack_tty_set_raw_mode(
     }
 
     // resolve one console tty handle
-    let host_handle = tty_handle(context, handle, "destack.tty.mode.setRawMode")?;
+    let host_handle = tty_handle(binding, handle, "destack.tty.mode.setRawMode")?;
 
     // query one baseline console mode before mutation
     let mut current = 0u32;

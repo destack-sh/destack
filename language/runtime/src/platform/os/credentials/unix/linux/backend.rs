@@ -16,7 +16,7 @@ use super::core::{map_keyring_error, open_keyring_entry, write_entry_secret};
 
 /// Read one credential record from the Linux keyring backend.
 pub(crate) fn read_credentials(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     query: &CredentialQueryOwned,
 ) -> RuntimeResult<CredentialRecordOwned> {
     // reject access-group routes because linux keyring has no access-group model
@@ -53,7 +53,7 @@ pub(crate) fn read_credentials(
 
 /// Write one credential record to the Linux keyring backend.
 pub(crate) fn write_credentials(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     options: &CredentialWriteOptionsOwned,
 ) -> RuntimeResult<()> {
     // reject access-group routes because linux keyring has no access-group model
@@ -74,8 +74,8 @@ pub(crate) fn write_credentials(
     // reject duplicate writes when replacement is disabled
     if !options.replace_existing {
         // serialize check-then-write in-runtime: this is strict per runtime, not cross-process atomic
-        return with_no_replace_write_guard(context, || {
-            let exists = contains_credentials(context, &options.service, &options.account, None)?;
+        return with_no_replace_write_guard(binding, || {
+            let exists = contains_credentials(binding, &options.service, &options.account, None)?;
             if exists {
                 return Err(already_exists(
                     OS_CREDENTIALS_WRITE_OPERATION,
@@ -104,7 +104,7 @@ pub(crate) fn write_credentials(
 
 /// Delete one credential record from the Linux keyring backend.
 pub(crate) fn delete_credentials(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     service: &str,
     account: &str,
     access_group: Option<&str>,
@@ -134,7 +134,7 @@ pub(crate) fn delete_credentials(
 
 /// Return whether one credential record exists in the Linux keyring backend.
 pub(crate) fn contains_credentials(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     service: &str,
     account: &str,
     access_group: Option<&str>,
@@ -174,7 +174,7 @@ pub(crate) fn contains_credentials(
 
 /// Run one host authentication challenge on Linux keyring backend.
 pub(crate) fn authenticate_credentials(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _options: &CredentialAuthenticationOptionsOwned,
 ) -> RuntimeResult<CredentialAuthenticationResult> {
     Err(core_platform::not_supported(

@@ -33,7 +33,7 @@ use std::path::PathBuf;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lutimes_bytes(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathBytes,
     atimens: u64,
     mtimens: u64,
@@ -74,14 +74,14 @@ pub(crate) unsafe fn destack_fs_lutimes_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lutimes_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<()> {
     // update timestamps by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_lutimes_bytes(context, path, atimens, mtimens)
+        destack_fs_lutimes_bytes(binding, path, atimens, mtimens)
     })
 }
 
@@ -103,7 +103,7 @@ pub(crate) unsafe fn destack_fs_lutimes_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimensat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     atimens: u64,
@@ -111,7 +111,7 @@ pub(crate) unsafe fn destack_fs_utimensat_bytes(
     flags: AtFlags,
 ) -> RuntimeResult<()> {
     // update timestamps relative to the directory on unix platforms
-    let resource = directory_resource(context, dir)?;
+    let resource = directory_resource(binding, dir)?;
     let c_path = resolve_path_bytes_cstring(path, "path")?;
     let times = [timespec_from_nanos(atimens), timespec_from_nanos(mtimens)];
     let rc = unsafe {
@@ -147,7 +147,7 @@ pub(crate) unsafe fn destack_fs_utimensat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimensat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     atimens: u64,
@@ -156,7 +156,7 @@ pub(crate) unsafe fn destack_fs_utimensat_utf16(
 ) -> RuntimeResult<()> {
     // update timestamps by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_utimensat_bytes(context, dir, path, atimens, mtimens, flags)
+        destack_fs_utimensat_bytes(binding, dir, path, atimens, mtimens, flags)
     })
 }
 
@@ -178,7 +178,7 @@ pub(crate) unsafe fn destack_fs_utimensat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimes_bytes(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathBytes,
     atimens: u64,
     mtimens: u64,
@@ -212,14 +212,14 @@ pub(crate) unsafe fn destack_fs_utimes_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimes_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<()> {
     // update timestamps by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_utimes_bytes(context, path, atimens, mtimens)
+        destack_fs_utimes_bytes(binding, path, atimens, mtimens)
     })
 }
 
@@ -241,7 +241,7 @@ pub(crate) unsafe fn destack_fs_utimes_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: OsPath,
     atime_ns: u64,
     mtime_ns: u64,
@@ -249,8 +249,8 @@ pub(crate) unsafe fn destack_fs_utimes(
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_utimes_bytes(context, path, atime_ns, mtime_ns) },
-        |path| unsafe { destack_fs_utimes_utf16(context, path, atime_ns, mtime_ns) },
+        |path| unsafe { destack_fs_utimes_bytes(binding, path, atime_ns, mtime_ns) },
+        |path| unsafe { destack_fs_utimes_utf16(binding, path, atime_ns, mtime_ns) },
     )
 }
 
@@ -272,7 +272,7 @@ pub(crate) unsafe fn destack_fs_utimes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lutimes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: OsPath,
     atime_ns: u64,
     mtime_ns: u64,
@@ -280,8 +280,8 @@ pub(crate) unsafe fn destack_fs_lutimes(
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_lutimes_bytes(context, path, atime_ns, mtime_ns) },
-        |path| unsafe { destack_fs_lutimes_utf16(context, path, atime_ns, mtime_ns) },
+        |path| unsafe { destack_fs_lutimes_bytes(binding, path, atime_ns, mtime_ns) },
+        |path| unsafe { destack_fs_lutimes_utf16(binding, path, atime_ns, mtime_ns) },
     )
 }
 
@@ -303,7 +303,7 @@ pub(crate) unsafe fn destack_fs_lutimes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimensat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: OsPath,
     atime_ns: u64,
@@ -313,7 +313,7 @@ pub(crate) unsafe fn destack_fs_utimensat(
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_utimensat_bytes(context, dir, path, atime_ns, mtime_ns, flags) },
-        |path| unsafe { destack_fs_utimensat_utf16(context, dir, path, atime_ns, mtime_ns, flags) },
+        |path| unsafe { destack_fs_utimensat_bytes(binding, dir, path, atime_ns, mtime_ns, flags) },
+        |path| unsafe { destack_fs_utimensat_utf16(binding, dir, path, atime_ns, mtime_ns, flags) },
     )
 }

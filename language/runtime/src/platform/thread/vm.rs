@@ -17,7 +17,7 @@ fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<
 
 /// Convert one VM string handle into one call-context native string reference.
 fn string_ref_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     value: vm::StringHandle,
 ) -> RuntimeResult<NativeStringRef> {
@@ -25,7 +25,7 @@ fn string_ref_from_vm(
         .string_ref(value)
         .map_err(|error| RuntimeError::from(error).boxed())?;
 
-    Ok(runtime.store_string(value.as_str()))
+    Ok(binding.store_string(value.as_str()))
 }
 
 /// Create one thread-local key.
@@ -46,10 +46,10 @@ fn string_ref_from_vm(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_local_create(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<ThreadLocalKey> {
-    call_out(|out| unsafe { host_thread::destack_thread_local_create(runtime, out) })
+    call_out(|out| unsafe { host_thread::destack_thread_local_create(binding, out) })
 }
 
 /// Delete one thread-local key.
@@ -70,11 +70,11 @@ pub(crate) fn destack_thread_local_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_local_delete(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     key: ThreadLocalKey,
 ) -> RuntimeResult<()> {
-    unsafe { host_thread::destack_thread_local_delete(runtime, key) }
+    unsafe { host_thread::destack_thread_local_delete(binding, key) }
 }
 
 /// Read one thread-local value.
@@ -95,11 +95,11 @@ pub(crate) fn destack_thread_local_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_local_get(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     key: ThreadLocalKey,
 ) -> RuntimeResult<u64> {
-    call_out(|out| unsafe { host_thread::destack_thread_local_get(runtime, out, key) })
+    call_out(|out| unsafe { host_thread::destack_thread_local_get(binding, out, key) })
 }
 
 /// Store one thread-local value.
@@ -120,12 +120,12 @@ pub(crate) fn destack_thread_local_get(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_local_set(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     key: ThreadLocalKey,
     argument_value: u64,
 ) -> RuntimeResult<()> {
-    unsafe { host_thread::destack_thread_local_set(runtime, key, argument_value) }
+    unsafe { host_thread::destack_thread_local_set(binding, key, argument_value) }
 }
 
 /// Read thread affinity mask.
@@ -146,11 +146,11 @@ pub(crate) fn destack_thread_local_set(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_get_affinity(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: ThreadHandle,
 ) -> RuntimeResult<u64> {
-    call_out(|out| unsafe { host_thread::destack_thread_get_affinity(runtime, out, handle) })
+    call_out(|out| unsafe { host_thread::destack_thread_get_affinity(binding, out, handle) })
 }
 
 /// Read thread priority.
@@ -171,11 +171,11 @@ pub(crate) fn destack_thread_get_affinity(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_get_priority(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: ThreadHandle,
 ) -> RuntimeResult<i32> {
-    call_out(|out| unsafe { host_thread::destack_thread_get_priority(runtime, out, handle) })
+    call_out(|out| unsafe { host_thread::destack_thread_get_priority(binding, out, handle) })
 }
 
 /// Set thread affinity mask.
@@ -196,12 +196,12 @@ pub(crate) fn destack_thread_get_priority(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_set_affinity(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: ThreadHandle,
     mask: u64,
 ) -> RuntimeResult<()> {
-    unsafe { host_thread::destack_thread_set_affinity(runtime, handle, mask) }
+    unsafe { host_thread::destack_thread_set_affinity(binding, handle, mask) }
 }
 
 /// Set thread priority.
@@ -222,12 +222,12 @@ pub(crate) fn destack_thread_set_affinity(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_set_priority(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: ThreadHandle,
     priority: i32,
 ) -> RuntimeResult<()> {
-    unsafe { host_thread::destack_thread_set_priority(runtime, handle, priority) }
+    unsafe { host_thread::destack_thread_set_priority(binding, handle, priority) }
 }
 
 /// Detach one host thread.
@@ -248,11 +248,11 @@ pub(crate) fn destack_thread_set_priority(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_detach(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: ThreadHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_thread::destack_thread_detach(runtime, handle) }
+    unsafe { host_thread::destack_thread_detach(binding, handle) }
 }
 
 /// Join one host thread.
@@ -273,11 +273,11 @@ pub(crate) fn destack_thread_detach(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_join(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: ThreadHandle,
 ) -> RuntimeResult<u32> {
-    call_out(|out| unsafe { host_thread::destack_thread_join(runtime, out, handle) })
+    call_out(|out| unsafe { host_thread::destack_thread_join(binding, out, handle) })
 }
 
 /// Spawn one host thread.
@@ -298,15 +298,15 @@ pub(crate) fn destack_thread_join(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_spawn(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     entry: vm::StringHandle,
     argument: u64,
     options: ThreadOptionsVm,
 ) -> RuntimeResult<ThreadHandle> {
-    let entry = string_ref_from_vm(runtime, context, entry)?;
+    let entry = string_ref_from_vm(binding, context, entry)?;
     call_out(|out| unsafe {
-        host_thread::destack_thread_spawn(runtime, out, entry, argument, options)
+        host_thread::destack_thread_spawn(binding, out, entry, argument, options)
     })
 }
 
@@ -328,13 +328,13 @@ pub(crate) fn destack_thread_spawn(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_address_wait(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     expected: u32,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    unsafe { host_thread::destack_thread_address_wait(runtime, address, expected, timeoutns) }
+    unsafe { host_thread::destack_thread_address_wait(binding, address, expected, timeoutns) }
 }
 
 /// Wake all waiters on a memory address.
@@ -355,11 +355,11 @@ pub(crate) fn destack_thread_address_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_address_wake_all(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
 ) -> RuntimeResult<()> {
-    unsafe { host_thread::destack_thread_address_wake_all(runtime, address) }
+    unsafe { host_thread::destack_thread_address_wake_all(binding, address) }
 }
 
 /// Wake one waiter on a memory address.
@@ -380,11 +380,11 @@ pub(crate) fn destack_thread_address_wake_all(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_address_wake_one(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
 ) -> RuntimeResult<()> {
-    unsafe { host_thread::destack_thread_address_wake_one(runtime, address) }
+    unsafe { host_thread::destack_thread_address_wake_one(binding, address) }
 }
 
 /// Create one thread barrier.
@@ -405,13 +405,13 @@ pub(crate) fn destack_thread_address_wake_one(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_barrier_create(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     participants: u32,
     flags: u32,
 ) -> RuntimeResult<BarrierHandle> {
     call_out(|out| unsafe {
-        host_thread::destack_thread_barrier_create(runtime, out, participants, flags)
+        host_thread::destack_thread_barrier_create(binding, out, participants, flags)
     })
 }
 
@@ -433,13 +433,13 @@ pub(crate) fn destack_thread_barrier_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_barrier_wait(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: BarrierHandle,
     timeoutns: u64,
 ) -> RuntimeResult<bool> {
     call_out(|out| unsafe {
-        host_thread::destack_thread_barrier_wait(runtime, out, handle, timeoutns)
+        host_thread::destack_thread_barrier_wait(binding, out, handle, timeoutns)
     })
 }
 
@@ -461,11 +461,11 @@ pub(crate) fn destack_thread_barrier_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_cond_var_create(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     flags: u32,
 ) -> RuntimeResult<CondVarHandle> {
-    call_out(|out| unsafe { host_thread::destack_thread_cond_var_create(runtime, out, flags) })
+    call_out(|out| unsafe { host_thread::destack_thread_cond_var_create(binding, out, flags) })
 }
 
 /// Notify all condition-variable waiters.
@@ -486,11 +486,11 @@ pub(crate) fn destack_thread_cond_var_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_cond_var_notify_all(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     condvar: CondVarHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_thread::destack_thread_cond_var_notify_all(runtime, condvar) }
+    unsafe { host_thread::destack_thread_cond_var_notify_all(binding, condvar) }
 }
 
 /// Notify one condition-variable waiter.
@@ -511,11 +511,11 @@ pub(crate) fn destack_thread_cond_var_notify_all(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_cond_var_notify_one(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     condvar: CondVarHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_thread::destack_thread_cond_var_notify_one(runtime, condvar) }
+    unsafe { host_thread::destack_thread_cond_var_notify_one(binding, condvar) }
 }
 
 /// Wait on one condition variable.
@@ -536,13 +536,13 @@ pub(crate) fn destack_thread_cond_var_notify_one(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_cond_var_wait(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     condvar: CondVarHandle,
     mutex: MutexHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    unsafe { host_thread::destack_thread_cond_var_wait(runtime, condvar, mutex, timeoutns) }
+    unsafe { host_thread::destack_thread_cond_var_wait(binding, condvar, mutex, timeoutns) }
 }
 
 /// Create one mutex.
@@ -563,11 +563,11 @@ pub(crate) fn destack_thread_cond_var_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_mutex_create(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     flags: u32,
 ) -> RuntimeResult<MutexHandle> {
-    call_out(|out| unsafe { host_thread::destack_thread_mutex_create(runtime, out, flags) })
+    call_out(|out| unsafe { host_thread::destack_thread_mutex_create(binding, out, flags) })
 }
 
 /// Lock one mutex.
@@ -588,12 +588,12 @@ pub(crate) fn destack_thread_mutex_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_mutex_lock(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: MutexHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    unsafe { host_thread::destack_thread_mutex_lock(runtime, handle, timeoutns) }
+    unsafe { host_thread::destack_thread_mutex_lock(binding, handle, timeoutns) }
 }
 
 /// Unlock one mutex.
@@ -614,11 +614,11 @@ pub(crate) fn destack_thread_mutex_lock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_mutex_unlock(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: MutexHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_thread::destack_thread_mutex_unlock(runtime, handle) }
+    unsafe { host_thread::destack_thread_mutex_unlock(binding, handle) }
 }
 
 /// Create one read-write lock.
@@ -639,11 +639,11 @@ pub(crate) fn destack_thread_mutex_unlock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_rwlock_create(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     flags: u32,
 ) -> RuntimeResult<RwLockHandle> {
-    call_out(|out| unsafe { host_thread::destack_thread_rwlock_create(runtime, out, flags) })
+    call_out(|out| unsafe { host_thread::destack_thread_rwlock_create(binding, out, flags) })
 }
 
 /// Lock one read-write lock for read access.
@@ -664,12 +664,12 @@ pub(crate) fn destack_thread_rwlock_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_rwlock_read_lock(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: RwLockHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    unsafe { host_thread::destack_thread_rwlock_read_lock(runtime, handle, timeoutns) }
+    unsafe { host_thread::destack_thread_rwlock_read_lock(binding, handle, timeoutns) }
 }
 
 /// Unlock one read-write lock.
@@ -690,11 +690,11 @@ pub(crate) fn destack_thread_rwlock_read_lock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_rwlock_unlock(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: RwLockHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_thread::destack_thread_rwlock_unlock(runtime, handle) }
+    unsafe { host_thread::destack_thread_rwlock_unlock(binding, handle) }
 }
 
 /// Lock one read-write lock for write access.
@@ -715,12 +715,12 @@ pub(crate) fn destack_thread_rwlock_unlock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_rwlock_write_lock(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: RwLockHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    unsafe { host_thread::destack_thread_rwlock_write_lock(runtime, handle, timeoutns) }
+    unsafe { host_thread::destack_thread_rwlock_write_lock(binding, handle, timeoutns) }
 }
 
 /// Create one thread-scoped semaphore.
@@ -741,14 +741,14 @@ pub(crate) fn destack_thread_rwlock_write_lock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_semaphore_create(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     initial: u32,
     maximum: u32,
     flags: u32,
 ) -> RuntimeResult<ThreadSemaphoreHandle> {
     call_out(|out| unsafe {
-        host_thread::destack_thread_semaphore_create(runtime, out, initial, maximum, flags)
+        host_thread::destack_thread_semaphore_create(binding, out, initial, maximum, flags)
     })
 }
 
@@ -770,12 +770,12 @@ pub(crate) fn destack_thread_semaphore_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_semaphore_post(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: ThreadSemaphoreHandle,
     count: u32,
 ) -> RuntimeResult<()> {
-    unsafe { host_thread::destack_thread_semaphore_post(runtime, handle, count) }
+    unsafe { host_thread::destack_thread_semaphore_post(binding, handle, count) }
 }
 
 /// Wait one semaphore count for thread synchronization.
@@ -796,10 +796,10 @@ pub(crate) fn destack_thread_semaphore_post(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_semaphore_wait(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: ThreadSemaphoreHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    unsafe { host_thread::destack_thread_semaphore_wait(runtime, handle, timeoutns) }
+    unsafe { host_thread::destack_thread_semaphore_wait(binding, handle, timeoutns) }
 }

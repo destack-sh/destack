@@ -10,12 +10,12 @@ use crate::runtime::BindingCallContext;
 
 /// List supported haptic effects for one opened Windows input handle.
 pub(super) fn haptics_effects(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Vec<InputHapticEffectType>> {
     // resolve one backend binding and validate xinput gamepad support
-    let resolved = input_core::resolve_input(context, handle, operation)?;
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
     if resolved.backend != input_core::WindowsInputBackend::XInput {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
@@ -28,14 +28,14 @@ pub(super) fn haptics_effects(
 
 /// Play one haptic effect for one opened Windows input handle.
 pub(super) fn haptics_play(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     effect: InputHapticEffectType,
     params: InputHapticEffectParameters,
     operation: &'static str,
 ) -> RuntimeResult<InputHapticsResult> {
     // resolve one backend binding and validate xinput gamepad support
-    let resolved = input_core::resolve_input(context, handle, operation)?;
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
     if resolved.backend != input_core::WindowsInputBackend::XInput {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
@@ -51,12 +51,12 @@ pub(super) fn haptics_play(
 
 /// Stop active haptic effects for one opened Windows input handle.
 pub(super) fn haptics_stop(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // resolve one backend binding and validate xinput gamepad support
-    let resolved = input_core::resolve_input(context, handle, operation)?;
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
     if resolved.backend != input_core::WindowsInputBackend::XInput {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
@@ -84,7 +84,7 @@ pub(super) fn haptics_stop(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_haptics_effects(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<InputHapticEffectType>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -94,11 +94,11 @@ pub(crate) unsafe fn destack_input_haptics_effects(
     }
 
     // query host-supported haptic effect kinds
-    let effects = haptics_effects(context, handle, "destack.input.haptics.effects")?;
+    let effects = haptics_effects(binding, handle, "destack.input.haptics.effects")?;
 
     // write output array
     unsafe {
-        *out = context.store_array(effects);
+        *out = binding.store_array(effects);
     }
 
     Ok(())
@@ -122,7 +122,7 @@ pub(crate) unsafe fn destack_input_haptics_effects(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_haptics_play(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputHapticsResult,
     handle: resource::InputDeviceHandle,
     effect: InputHapticEffectType,
@@ -135,7 +135,7 @@ pub(crate) unsafe fn destack_input_haptics_play(
 
     // submit one host haptic command
     let result = haptics_play(
-        context,
+        binding,
         handle,
         effect,
         params,
@@ -167,8 +167,8 @@ pub(crate) unsafe fn destack_input_haptics_play(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_haptics_stop(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
-    haptics_stop(context, handle, "destack.input.haptics.stop")
+    haptics_stop(binding, handle, "destack.input.haptics.stop")
 }

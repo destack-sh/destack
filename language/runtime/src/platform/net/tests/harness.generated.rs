@@ -26,9 +26,9 @@ use crate::platform::net::{
     UdsPathAddressVm, UdsUnnamedAddress, UdsUnnamedAddressVm, native as net_native, vm as net_vm,
 };
 use crate::platform::{
-    NativeArray, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
+    VmSlice, fs, resource,
 };
-use crate::runtime::{NativeSlice, NativeStringRef};
 use destack_vm as vm;
 
 impl<'call> NetHarnessContext<'call> {

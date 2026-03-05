@@ -870,23 +870,23 @@ fn import_jwk_key_resource(
 
 /// Insert one key resource, attach it to one store, and persist it when required.
 fn insert_attach_and_persist_key(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     store: resource::CryptoStoreHandle,
     key_resource: CryptoKeyResource,
     operation: &'static str,
 ) -> RuntimeResult<resource::CryptoKeyHandle> {
     // insert one key resource handle first
-    let handle = insert_key_resource(context, key_resource);
+    let handle = insert_key_resource(binding, key_resource);
 
     // attach the key to the store and roll back on failure
-    if let Err(error) = attach_key_to_store(context, store, handle) {
-        rollback_key_publish(context, store, handle);
+    if let Err(error) = attach_key_to_store(binding, store, handle) {
+        rollback_key_publish(binding, store, handle);
         return Err(error);
     }
 
     // persist host-backed keys and roll back on failure
-    if let Err(error) = persist_key_if_required(context, store, handle, operation) {
-        rollback_key_publish(context, store, handle);
+    if let Err(error) = persist_key_if_required(binding, store, handle, operation) {
+        rollback_key_publish(binding, store, handle);
         return Err(error);
     }
 
@@ -895,12 +895,12 @@ fn insert_attach_and_persist_key(
 
 /// Roll back one key publish path by detaching and removing the resource entry.
 fn rollback_key_publish(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     store: resource::CryptoStoreHandle,
     handle: resource::CryptoKeyHandle,
 ) {
     // detach this handle from the store list when the store still exists
-    if let Ok(store_resource) = resolve_store_resource(context, store, "destack.crypto.key") {
+    if let Ok(store_resource) = resolve_store_resource(binding, store, "destack.crypto.key") {
         let mut store_resource = store_resource.lock();
         store_resource
             .keys
@@ -908,10 +908,10 @@ fn rollback_key_publish(
     }
 
     // remove the key resource and zeroize secret bytes before drop
-    let Some(entry) = context
+    let Some(entry) = binding
         .agent()
         .resources
-        .remove(handle.0, Some(context.engine()))
+        .remove(handle.0, Some(binding.engine()))
     else {
         return;
     };
@@ -930,7 +930,7 @@ fn rollback_key_publish(
 
 /// Generate one secret key and return its handle.
 pub(crate) fn key_generate_secret(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     store: resource::CryptoStoreHandle,
     request: CryptoKeyGenerationRequest,
 ) -> RuntimeResult<resource::CryptoKeyHandle> {
@@ -938,11 +938,11 @@ pub(crate) fn key_generate_secret(
 
     // enforce store policy against requested key properties
     let store_resource =
-        resolve_store_resource(context, store, "destack.crypto.key.generateSecret")?;
+        resolve_store_resource(binding, store, "destack.crypto.key.generateSecret")?;
     let store_provenance = {
         let store_resource = store_resource.lock();
         enforce_store_key_policy(
-            context,
+            binding,
             &store_resource,
             request.hardware_backed,
             request.persistent,
@@ -983,7 +983,7 @@ pub(crate) fn key_generate_secret(
     if request.hardware_backed {
         // require one backend lane that explicitly supports hardware-backed secret keys
         if !crypto_host::host_store_supports_hardware_backed_secret_key(
-            context,
+            binding,
             store_provenance.kind,
             request.algorithm,
         ) {
@@ -1022,7 +1022,7 @@ pub(crate) fn key_generate_secret(
 
         // generate host-managed secret-key material
         let host_material = crypto_host::host_generate_hardware_backed_secret_key(
-            context,
+            binding,
             store_provenance.kind,
             request.algorithm,
             request.digest,
@@ -1051,7 +1051,7 @@ pub(crate) fn key_generate_secret(
             material: CryptoKeyMaterial::Host(host_material),
         };
         let handle = insert_attach_and_persist_key(
-            context,
+            binding,
             store,
             key_resource,
             "destack.crypto.key.generateSecret",
@@ -1091,7 +1091,7 @@ pub(crate) fn key_generate_secret(
         material: CryptoKeyMaterial::Secret(bytes),
     };
     let handle = insert_attach_and_persist_key(
-        context,
+        binding,
         store,
         key_resource,
         "destack.crypto.key.generateSecret",
@@ -1102,18 +1102,18 @@ pub(crate) fn key_generate_secret(
 
 /// Generate one asymmetric key pair and return both handles.
 pub(crate) fn key_generate_pair(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     store: resource::CryptoStoreHandle,
     request: CryptoKeyGenerationRequest,
 ) -> RuntimeResult<CryptoKeyPair> {
     let request = normalize_key_generation_request(request);
 
     // enforce store policy against requested key properties
-    let store_resource = resolve_store_resource(context, store, "destack.crypto.key.generatePair")?;
+    let store_resource = resolve_store_resource(binding, store, "destack.crypto.key.generatePair")?;
     let store_provenance = {
         let store_resource = store_resource.lock();
         enforce_store_key_policy(
-            context,
+            binding,
             &store_resource,
             request.hardware_backed,
             request.persistent,
@@ -1155,7 +1155,7 @@ pub(crate) fn key_generate_pair(
     ) = if request.hardware_backed {
         // require one backend lane that explicitly supports this hardware-backed pair family
         if !host_store_supports_hardware_backed_pair_algorithm(
-            context,
+            binding,
             store_provenance.kind,
             request.algorithm,
         ) {
@@ -1173,7 +1173,7 @@ pub(crate) fn key_generate_pair(
         }
 
         let pair = crypto_host::host_generate_hardware_backed_key_pair(
-            context,
+            binding,
             store_provenance.kind,
             request.algorithm,
             request.named_curve,
@@ -1201,7 +1201,7 @@ pub(crate) fn key_generate_pair(
         )
     {
         let host_pair = crypto_host::host_generate_persistent_key_pair(
-            context,
+            binding,
             store_provenance.kind,
             request.algorithm,
             request.named_curve,
@@ -1272,7 +1272,7 @@ pub(crate) fn key_generate_pair(
         material: private_material,
     };
     let private_handle = insert_attach_and_persist_key(
-        context,
+        binding,
         store,
         private_resource,
         "destack.crypto.key.generatePair",
@@ -1297,14 +1297,14 @@ pub(crate) fn key_generate_pair(
         material: public_material,
     };
     let public_handle = match insert_attach_and_persist_key(
-        context,
+        binding,
         store,
         public_resource,
         "destack.crypto.key.generatePair",
     ) {
         Ok(public_handle) => public_handle,
         Err(error) => {
-            rollback_key_publish(context, store, private_handle);
+            rollback_key_publish(binding, store, private_handle);
             return Err(error);
         }
     };
@@ -1541,7 +1541,7 @@ fn enforce_hardware_backed_secret_generation(
 
 /// Import one key into one store.
 pub(crate) fn key_import(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     store: resource::CryptoStoreHandle,
     request: CryptoKeyImportRequest,
 ) -> RuntimeResult<resource::CryptoKeyHandle> {
@@ -1550,26 +1550,26 @@ pub(crate) fn key_import(
     // decode import payload and hand off to parser
     let bytes = decode_native_bytes(request.bytes, "request.bytes")?;
 
-    key_import_with_bytes(context, store, request, bytes)
+    key_import_with_bytes(binding, store, request, bytes)
 }
 
 /// Import one key into one store from already-decoded key bytes.
 fn key_import_with_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     store: resource::CryptoStoreHandle,
     request: NormalizedKeyImportRequest,
     bytes: Vec<u8>,
 ) -> RuntimeResult<resource::CryptoKeyHandle> {
-    // decode stable operation context
+    // decode stable operation binding
     let operation = "destack.crypto.key.import";
     let label = decode_native_string(request.label, "request.label")?;
     let passphrase = decode_native_bytes(request.passphrase, "request.passphrase")?;
     let mut bytes = Zeroizing::new(bytes);
-    let store_resource = resolve_store_resource(context, store, operation)?;
+    let store_resource = resolve_store_resource(binding, store, operation)?;
     let store_provenance = {
         let store_resource = store_resource.lock();
         enforce_store_key_policy(
-            context,
+            binding,
             &store_resource,
             false,
             request.persistent,
@@ -1625,7 +1625,7 @@ fn key_import_with_bytes(
             store_provenance,
             material: CryptoKeyMaterial::Secret(key_bytes),
         };
-        let handle = insert_attach_and_persist_key(context, store, key_resource, operation)?;
+        let handle = insert_attach_and_persist_key(binding, store, key_resource, operation)?;
 
         return Ok(handle);
     }
@@ -1903,7 +1903,7 @@ fn key_import_with_bytes(
         };
 
         let host_material = crypto_host::host_import_persistent_private_key(
-            context,
+            binding,
             store_provenance.kind,
             key_resource.algorithm,
             key_resource.named_curve,
@@ -1919,31 +1919,31 @@ fn key_import_with_bytes(
         }
     }
 
-    let handle = insert_attach_and_persist_key(context, store, key_resource, operation)?;
+    let handle = insert_attach_and_persist_key(binding, store, key_resource, operation)?;
 
     Ok(handle)
 }
 
 /// Export one public key.
 pub(crate) fn key_export_public(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
 ) -> RuntimeResult<Vec<u8>> {
     // enforce export usage policy
     require_key_usage(
-        context,
+        binding,
         handle,
         KEY_USAGE_EXPORT,
         "destack.crypto.key.exportPublic",
     )?;
 
     // resolve key handle and enforce asymmetric key kind
-    let key_resource = resolve_key_resource(context, handle, "destack.crypto.key.exportPublic")?;
+    let key_resource = resolve_key_resource(binding, handle, "destack.crypto.key.exportPublic")?;
     let key_resource = key_resource.lock();
     match key_resource.kind {
         CryptoKeyKind::Public | CryptoKeyKind::Private => export_key_resource(
-            context,
+            binding,
             &key_resource,
             format,
             None,
@@ -1958,20 +1958,20 @@ pub(crate) fn key_export_public(
 
 /// Export one private key.
 pub(crate) fn key_export_private(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
     request: CryptoPrivateKeyExportRequest,
 ) -> RuntimeResult<Vec<u8>> {
     // enforce export usage policy
     require_key_usage(
-        context,
+        binding,
         handle,
         KEY_USAGE_EXPORT,
         "destack.crypto.key.exportPrivate",
     )?;
 
     // resolve key handle and enforce extractability
-    let key_resource = resolve_key_resource(context, handle, "destack.crypto.key.exportPrivate")?;
+    let key_resource = resolve_key_resource(binding, handle, "destack.crypto.key.exportPrivate")?;
     let key_resource = key_resource.lock();
     if !key_resource.extractable {
         return Err(permission_denied(
@@ -2014,7 +2014,7 @@ pub(crate) fn key_export_private(
     }
 
     export_key_resource(
-        context,
+        binding,
         &key_resource,
         request.format,
         Some(&passphrase),
@@ -2024,13 +2024,13 @@ pub(crate) fn key_export_private(
 
 /// Export one secret key.
 pub(crate) fn key_export_secret(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
 ) -> RuntimeResult<Vec<u8>> {
     // enforce export usage policy
     require_key_usage(
-        context,
+        binding,
         handle,
         KEY_USAGE_EXPORT,
         "destack.crypto.key.exportSecret",
@@ -2045,7 +2045,7 @@ pub(crate) fn key_export_secret(
     }
 
     // resolve key handle and enforce extractability
-    let key_resource = resolve_key_resource(context, handle, "destack.crypto.key.exportSecret")?;
+    let key_resource = resolve_key_resource(binding, handle, "destack.crypto.key.exportSecret")?;
     let key_resource = key_resource.lock();
     if !key_resource.extractable {
         return Err(permission_denied(
@@ -2064,7 +2064,7 @@ pub(crate) fn key_export_secret(
 
     match key_resource.kind {
         CryptoKeyKind::Secret => export_key_resource(
-            context,
+            binding,
             &key_resource,
             format,
             None,
@@ -2079,26 +2079,26 @@ pub(crate) fn key_export_secret(
 
 /// Return one key descriptor.
 pub(crate) fn key_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeResult<CryptoKeyDescriptor> {
     // resolve key handle
-    let key_resource = resolve_key_resource(context, handle, "destack.crypto.key.descriptor")?;
+    let key_resource = resolve_key_resource(binding, handle, "destack.crypto.key.descriptor")?;
     let key_resource = key_resource.lock();
 
-    Ok(key_descriptor_from_resource(context, &key_resource))
+    Ok(key_descriptor_from_resource(binding, &key_resource))
 }
 
 /// Sign one payload with one private key.
 pub(crate) fn key_sign(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoSignatureParameters,
     payload: &[u8],
 ) -> RuntimeResult<Vec<u8>> {
     // enforce signing usage policy and resolve key resource
-    require_key_usage(context, handle, KEY_USAGE_SIGN, "destack.crypto.key.sign")?;
-    let key_resource = resolve_key_resource(context, handle, "destack.crypto.key.sign")?;
+    require_key_usage(binding, handle, KEY_USAGE_SIGN, "destack.crypto.key.sign")?;
+    let key_resource = resolve_key_resource(binding, handle, "destack.crypto.key.sign")?;
     let key_resource = key_resource.lock();
 
     // route software-backed private keys through openssl signer state
@@ -2124,7 +2124,7 @@ pub(crate) fn key_sign(
     // route host-managed keys through host signing primitives
     if let CryptoKeyMaterial::Host(material) = &key_resource.material {
         return crypto_host::host_key_sign(
-            context,
+            binding,
             material,
             key_resource.store_provenance.kind,
             key_resource.algorithm,
@@ -2142,7 +2142,7 @@ pub(crate) fn key_sign(
 
 /// Verify one signature with one public key.
 pub(crate) fn key_verify(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoSignatureParameters,
     payload: &[u8],
@@ -2150,12 +2150,12 @@ pub(crate) fn key_verify(
 ) -> RuntimeResult<bool> {
     // enforce verify usage policy and resolve public key
     require_key_usage(
-        context,
+        binding,
         handle,
         KEY_USAGE_VERIFY,
         "destack.crypto.key.verify",
     )?;
-    let key = resolve_public_pkey(context, handle, "destack.crypto.key.verify")?;
+    let key = resolve_public_pkey(binding, handle, "destack.crypto.key.verify")?;
     let mut verifier = build_verifier(&key, parameters, "destack.crypto.key.verify")?;
 
     // route eddsa through one-shot and other algorithms through incremental apis
@@ -2176,7 +2176,7 @@ pub(crate) fn key_verify(
 
 /// Encrypt one payload with one public key and one usage requirement.
 fn key_encrypt_internal(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoAsymmetricEncryptionParameters,
     payload: &[u8],
@@ -2184,8 +2184,8 @@ fn key_encrypt_internal(
     operation: &'static str,
 ) -> RuntimeResult<Vec<u8>> {
     // enforce usage policy and resolve public key
-    require_key_usage(context, handle, required_usage, operation)?;
-    let key = resolve_public_pkey(context, handle, operation)?;
+    require_key_usage(binding, handle, required_usage, operation)?;
+    let key = resolve_public_pkey(binding, handle, operation)?;
 
     // configure openssl encrypter from runtime parameters
     let mut encrypter = Encrypter::new(&key).map_err(|error| openssl_error(operation, error))?;
@@ -2208,13 +2208,13 @@ fn key_encrypt_internal(
 
 /// Encrypt one payload with one public key.
 pub(crate) fn key_encrypt(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoAsymmetricEncryptionParameters,
     payload: &[u8],
 ) -> RuntimeResult<Vec<u8>> {
     key_encrypt_internal(
-        context,
+        binding,
         handle,
         parameters,
         payload,
@@ -2225,7 +2225,7 @@ pub(crate) fn key_encrypt(
 
 /// Decrypt one payload with one private key and one usage requirement.
 fn key_decrypt_internal(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoAsymmetricEncryptionParameters,
     payload: &[u8],
@@ -2233,14 +2233,14 @@ fn key_decrypt_internal(
     operation: &'static str,
 ) -> RuntimeResult<Vec<u8>> {
     // enforce usage policy and resolve key resource
-    require_key_usage(context, handle, required_usage, operation)?;
-    let key_resource = resolve_key_resource(context, handle, operation)?;
+    require_key_usage(binding, handle, required_usage, operation)?;
+    let key_resource = resolve_key_resource(binding, handle, operation)?;
     let key_resource = key_resource.lock();
 
     // route host-managed key lanes through host decrypt primitives
     if let CryptoKeyMaterial::Host(material) = &key_resource.material {
         return crypto_host::host_key_decrypt(
-            context,
+            binding,
             material,
             key_resource.store_provenance.kind,
             key_resource.algorithm,
@@ -2279,13 +2279,13 @@ fn key_decrypt_internal(
 
 /// Decrypt one payload with one private key.
 pub(crate) fn key_decrypt(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoAsymmetricEncryptionParameters,
     payload: &[u8],
 ) -> RuntimeResult<Vec<u8>> {
     key_decrypt_internal(
-        context,
+        binding,
         handle,
         parameters,
         payload,
@@ -2387,21 +2387,21 @@ fn validate_aes_key_wrap_parameters(parameters: CryptoKeyWrapParameters) -> Runt
 
 /// Resolve one AES wrapping key as raw bytes.
 fn resolve_aes_wrapping_key_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     wrapping_key: resource::CryptoKeyHandle,
     required_usage: u32,
     operation: &'static str,
 ) -> RuntimeResult<Vec<u8>> {
     // enforce usage requirement first
-    require_key_usage(context, wrapping_key, required_usage, operation)?;
+    require_key_usage(binding, wrapping_key, required_usage, operation)?;
 
     // reject host-managed secret lanes for AES key-wrap until host backends expose this primitive
-    if resolve_host_secret_key_material(context, wrapping_key, operation)?.is_some() {
+    if resolve_host_secret_key_material(binding, wrapping_key, operation)?.is_some() {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
 
     // resolve key metadata and enforce AES secret-key shape
-    let key_resource = resolve_key_resource(context, wrapping_key, operation)?;
+    let key_resource = resolve_key_resource(binding, wrapping_key, operation)?;
     let key_resource = key_resource.lock();
     if key_resource.kind != CryptoKeyKind::Secret {
         return Err(core_platform::invalid_argument(
@@ -2499,7 +2499,7 @@ fn aes_key_unwrap_payload(
 
 /// Wrap one key by exporting and encrypting it.
 pub(crate) fn key_wrap(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     wrapping_key: resource::CryptoKeyHandle,
     key_to_wrap: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
@@ -2507,7 +2507,7 @@ pub(crate) fn key_wrap(
 ) -> RuntimeResult<Vec<u8>> {
     // export target key material under export and extractability policy
     let wrapped = {
-        let key_resource = resolve_key_resource(context, key_to_wrap, "destack.crypto.key.wrap")?;
+        let key_resource = resolve_key_resource(binding, key_to_wrap, "destack.crypto.key.wrap")?;
         let key_resource = key_resource.lock();
         enforce_key_usage(&key_resource, KEY_USAGE_EXPORT, "destack.crypto.key.wrap")?;
         if key_resource.kind != CryptoKeyKind::Public && !key_resource.extractable {
@@ -2518,7 +2518,7 @@ pub(crate) fn key_wrap(
         }
 
         export_key_resource(
-            context,
+            binding,
             &key_resource,
             format,
             None,
@@ -2534,7 +2534,7 @@ pub(crate) fn key_wrap(
         CryptoKeyWrapAlgorithm::RsaOaep => {
             let parameters = key_wrap_parameters_to_asymmetric(parameters)?;
             key_encrypt_internal(
-                context,
+                binding,
                 wrapping_key,
                 parameters,
                 &wrapped,
@@ -2544,7 +2544,7 @@ pub(crate) fn key_wrap(
         }
         CryptoKeyWrapAlgorithm::AesKw | CryptoKeyWrapAlgorithm::AesKwp => {
             let wrapping_key_bytes = resolve_aes_wrapping_key_bytes(
-                context,
+                binding,
                 wrapping_key,
                 KEY_USAGE_WRAP,
                 "destack.crypto.key.wrap",
@@ -2566,7 +2566,7 @@ pub(crate) fn key_wrap(
 
 /// Unwrap one key by decrypting and importing it.
 pub(crate) fn key_unwrap(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     store: resource::CryptoStoreHandle,
     wrapping_key: resource::CryptoKeyHandle,
     wrapped_key: &[u8],
@@ -2578,7 +2578,7 @@ pub(crate) fn key_unwrap(
         CryptoKeyWrapAlgorithm::RsaOaep => {
             let parameters = key_wrap_parameters_to_asymmetric(parameters)?;
             key_decrypt_internal(
-                context,
+                binding,
                 wrapping_key,
                 parameters,
                 wrapped_key,
@@ -2588,7 +2588,7 @@ pub(crate) fn key_unwrap(
         }
         CryptoKeyWrapAlgorithm::AesKw | CryptoKeyWrapAlgorithm::AesKwp => {
             let wrapping_key_bytes = resolve_aes_wrapping_key_bytes(
-                context,
+                binding,
                 wrapping_key,
                 KEY_USAGE_UNWRAP,
                 "destack.crypto.key.unwrap",
@@ -2614,25 +2614,25 @@ pub(crate) fn key_unwrap(
     let request = normalize_key_import_request(request);
 
     // import decrypted key bytes into the target store
-    key_import_with_bytes(context, store, request, std::mem::take(&mut *clear))
+    key_import_with_bytes(binding, store, request, std::mem::take(&mut *clear))
 }
 
 /// Delete one key handle.
 pub(crate) fn key_delete(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeResult<()> {
     // resolve key handle and capture delete metadata
-    let key_resource = resolve_key_resource(context, handle, "destack.crypto.key.delete")?;
+    let key_resource = resolve_key_resource(binding, handle, "destack.crypto.key.delete")?;
     let key_resource_snapshot = { key_resource.lock().clone() };
 
     // delete one persistent host key entry when present
-    delete_persistent_key_if_present(context, &key_resource_snapshot, "destack.crypto.key.delete")?;
+    delete_persistent_key_if_present(binding, &key_resource_snapshot, "destack.crypto.key.delete")?;
 
     // delete host-managed key material when present
     if let CryptoKeyMaterial::Host(material) = &key_resource_snapshot.material {
         crypto_host::host_key_delete(
-            context,
+            binding,
             material,
             key_resource_snapshot.store_provenance.kind,
             "destack.crypto.key.delete",
@@ -2648,10 +2648,10 @@ pub(crate) fn key_delete(
     }
 
     // remove key resource and verify kind
-    let Some(entry) = context
+    let Some(entry) = binding
         .agent()
         .resources
-        .remove(handle.0, Some(context.engine()))
+        .remove(handle.0, Some(binding.engine()))
     else {
         return Err(core_platform::io_not_found(
             "destack.crypto.key.delete",
@@ -2767,23 +2767,23 @@ pub(super) fn enforce_import_named_curve_match(
 
 /// Resolve one key handle and enforce one usage requirement.
 pub(super) fn require_key_usage(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
     required_usage: u32,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let key_resource = resolve_key_resource(context, handle, operation)?;
+    let key_resource = resolve_key_resource(binding, handle, operation)?;
     let key_resource = key_resource.lock();
     enforce_key_usage(&key_resource, required_usage, operation)
 }
 
 /// Resolve one secret key to owned bytes.
 pub(super) fn resolve_secret_key_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
     operation: &'static str,
 ) -> RuntimeResult<Vec<u8>> {
-    let key = resolve_key_resource(context, handle, operation)?;
+    let key = resolve_key_resource(binding, handle, operation)?;
     let key = key.lock();
     let bytes = match &key.material {
         CryptoKeyMaterial::Secret(bytes) => bytes.clone(),
@@ -2800,11 +2800,11 @@ pub(super) fn resolve_secret_key_bytes(
 
 /// Resolve one host-managed secret key with store provenance metadata.
 pub(super) fn resolve_host_secret_key_material(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
     operation: &'static str,
 ) -> RuntimeResult<Option<(HostKeyMaterial, CryptoStoreKind, CryptoKeyAlgorithm)>> {
-    let key = resolve_key_resource(context, handle, operation)?;
+    let key = resolve_key_resource(binding, handle, operation)?;
     let key = key.lock();
     if key.kind != CryptoKeyKind::Secret {
         return Err(core_platform::invalid_argument(
@@ -2829,11 +2829,11 @@ pub(super) fn resolve_host_secret_key_material(
 
 /// Resolve one public key object.
 pub(super) fn resolve_public_pkey(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
     operation: &'static str,
 ) -> RuntimeResult<PKey<Public>> {
-    let key = resolve_key_resource(context, handle, operation)?;
+    let key = resolve_key_resource(binding, handle, operation)?;
     let key = key.lock();
     match &key.material {
         CryptoKeyMaterial::Public(value) => Ok(value.clone()),
@@ -2958,7 +2958,7 @@ pub(crate) fn resolve_nist_p_curve(
 
 /// Build one key descriptor payload from one key resource.
 pub(super) fn key_descriptor_from_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &CryptoKeyResource,
 ) -> CryptoKeyDescriptor {
     // derive one effective residency policy from key metadata
@@ -2970,13 +2970,13 @@ pub(super) fn key_descriptor_from_resource(
         CryptoKeyResidency::SoftwareNonExportable
     };
 
-    let label = context.store_string(&key.label);
-    let store_provenance = store_provenance_to_descriptor(context, &key.store_provenance);
+    let label = binding.store_string(&key.label);
+    let store_provenance = store_provenance_to_descriptor(binding, &key.store_provenance);
 
     match key.algorithm {
         CryptoKeyAlgorithm::Rsa => {
             CryptoKeyDescriptor::CryptoKeyDescriptorRsa(CryptoKeyDescriptorRsa {
-                algorithm: context.store_string("rsa"),
+                algorithm: binding.store_string("rsa"),
                 key_kind: key.kind,
                 modulus_bits: key.modulus_bits,
                 public_exponent: key.public_exponent,
@@ -2992,7 +2992,7 @@ pub(super) fn key_descriptor_from_resource(
         }
         CryptoKeyAlgorithm::Ec => {
             CryptoKeyDescriptor::CryptoKeyDescriptorEc(CryptoKeyDescriptorEc {
-                algorithm: context.store_string("ec"),
+                algorithm: binding.store_string("ec"),
                 key_kind: key.kind,
                 named_curve: key.named_curve,
                 usage_mask: key.usage_mask,
@@ -3006,7 +3006,7 @@ pub(super) fn key_descriptor_from_resource(
         }
         CryptoKeyAlgorithm::Ed25519 => {
             CryptoKeyDescriptor::CryptoKeyDescriptorEd25519(CryptoKeyDescriptorEd25519 {
-                algorithm: context.store_string("ed25519"),
+                algorithm: binding.store_string("ed25519"),
                 key_kind: key.kind,
                 usage_mask: key.usage_mask,
                 label,
@@ -3019,7 +3019,7 @@ pub(super) fn key_descriptor_from_resource(
         }
         CryptoKeyAlgorithm::Ed448 => {
             CryptoKeyDescriptor::CryptoKeyDescriptorEd448(CryptoKeyDescriptorEd448 {
-                algorithm: context.store_string("ed448"),
+                algorithm: binding.store_string("ed448"),
                 key_kind: key.kind,
                 usage_mask: key.usage_mask,
                 label,
@@ -3032,7 +3032,7 @@ pub(super) fn key_descriptor_from_resource(
         }
         CryptoKeyAlgorithm::X25519 => {
             CryptoKeyDescriptor::CryptoKeyDescriptorX25519(CryptoKeyDescriptorX25519 {
-                algorithm: context.store_string("x25519"),
+                algorithm: binding.store_string("x25519"),
                 key_kind: key.kind,
                 usage_mask: key.usage_mask,
                 label,
@@ -3045,7 +3045,7 @@ pub(super) fn key_descriptor_from_resource(
         }
         CryptoKeyAlgorithm::X448 => {
             CryptoKeyDescriptor::CryptoKeyDescriptorX448(CryptoKeyDescriptorX448 {
-                algorithm: context.store_string("x448"),
+                algorithm: binding.store_string("x448"),
                 key_kind: key.kind,
                 usage_mask: key.usage_mask,
                 label,
@@ -3058,7 +3058,7 @@ pub(super) fn key_descriptor_from_resource(
         }
         CryptoKeyAlgorithm::Aes => {
             CryptoKeyDescriptor::CryptoKeyDescriptorAes(CryptoKeyDescriptorAes {
-                algorithm: context.store_string("aes"),
+                algorithm: binding.store_string("aes"),
                 key_kind: key.kind,
                 size_bits: key.size_bits,
                 usage_mask: key.usage_mask,
@@ -3072,7 +3072,7 @@ pub(super) fn key_descriptor_from_resource(
         }
         CryptoKeyAlgorithm::ChaCha20 => {
             CryptoKeyDescriptor::CryptoKeyDescriptorChaCha20(CryptoKeyDescriptorChaCha20 {
-                algorithm: context.store_string("chacha20"),
+                algorithm: binding.store_string("chacha20"),
                 key_kind: key.kind,
                 size_bits: key.size_bits,
                 usage_mask: key.usage_mask,
@@ -3086,7 +3086,7 @@ pub(super) fn key_descriptor_from_resource(
         }
         CryptoKeyAlgorithm::Hmac => {
             CryptoKeyDescriptor::CryptoKeyDescriptorHmac(CryptoKeyDescriptorHmac {
-                algorithm: context.store_string("hmac"),
+                algorithm: binding.store_string("hmac"),
                 key_kind: key.kind,
                 size_bits: key.size_bits,
                 digest: key.digest,
@@ -3101,7 +3101,7 @@ pub(super) fn key_descriptor_from_resource(
         }
         CryptoKeyAlgorithm::Unknown => {
             CryptoKeyDescriptor::CryptoKeyDescriptorAes(CryptoKeyDescriptorAes {
-                algorithm: context.store_string("aes"),
+                algorithm: binding.store_string("aes"),
                 key_kind: key.kind,
                 size_bits: key.size_bits,
                 usage_mask: key.usage_mask,
@@ -3165,7 +3165,7 @@ pub(super) fn export_sec1_private_key(
 
 /// Export one key resource in the requested format.
 pub(super) fn export_key_resource(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     key_resource: &CryptoKeyResource,
     format: CryptoKeyFormat,
     passphrase: Option<&[u8]>,

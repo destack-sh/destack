@@ -44,13 +44,13 @@ fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_access(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     mode: AccessMode,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_access(runtime, path, mode) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_access(binding, path, mode) }
 }
 
 /// Check file access permissions relative to a directory handle.
@@ -71,15 +71,15 @@ pub fn destack_fs_access(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_accessat(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     dir: DirectoryHandle,
     path: OsPathVm,
     mode: AccessMode,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_accessat(runtime, dir, path, mode, flags) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_accessat(binding, dir, path, mode, flags) }
 }
 
 /// Change file permissions.
@@ -100,13 +100,13 @@ pub fn destack_fs_accessat(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_chmod(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_chmod(runtime, path, mode) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_chmod(binding, path, mode) }
 }
 
 /// Change file permissions relative to a directory handle.
@@ -127,15 +127,15 @@ pub fn destack_fs_chmod(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_fchmodat(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     dir: DirectoryHandle,
     path: OsPathVm,
     mode: FileMode,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_fchmodat(runtime, dir, path, mode, flags) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_fchmodat(binding, dir, path, mode, flags) }
 }
 
 /// Change file owner and group.
@@ -156,14 +156,14 @@ pub fn destack_fs_fchmodat(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_chown(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_chown(runtime, path, uid, gid) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_chown(binding, path, uid, gid) }
 }
 
 /// Change file owner and group relative to a directory handle.
@@ -184,7 +184,7 @@ pub fn destack_fs_chown(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_fchownat(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     dir: DirectoryHandle,
     path: OsPathVm,
@@ -192,8 +192,8 @@ pub fn destack_fs_fchownat(
     gid: u32,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_fchownat(runtime, dir, path, uid, gid, flags) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_fchownat(binding, dir, path, uid, gid, flags) }
 }
 
 /// Update access and modification times.
@@ -214,14 +214,14 @@ pub fn destack_fs_fchownat(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_utimes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     atime_ns: u64,
     mtime_ns: u64,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_utimes(runtime, path, atime_ns, mtime_ns) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_utimes(binding, path, atime_ns, mtime_ns) }
 }
 
 /// Update access and modification times without following symlinks.
@@ -242,14 +242,14 @@ pub fn destack_fs_utimes(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_lutimes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     atime_ns: u64,
     mtime_ns: u64,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_lutimes(runtime, path, atime_ns, mtime_ns) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_lutimes(binding, path, atime_ns, mtime_ns) }
 }
 
 /// Update access and modification times relative to a directory handle.
@@ -270,7 +270,7 @@ pub fn destack_fs_lutimes(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_utimensat(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     dir: DirectoryHandle,
     path: OsPathVm,
@@ -278,8 +278,8 @@ pub fn destack_fs_utimensat(
     mtime_ns: u64,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_utimensat(runtime, dir, path, atime_ns, mtime_ns, flags) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_utimensat(binding, dir, path, atime_ns, mtime_ns, flags) }
 }
 
 /// Create a directory.
@@ -300,13 +300,13 @@ pub fn destack_fs_utimensat(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_mkdir(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_mkdir(runtime, path, mode) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_mkdir(binding, path, mode) }
 }
 
 /// Create a directory relative to a directory handle.
@@ -327,14 +327,14 @@ pub fn destack_fs_mkdir(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_mkdirat(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     dir: DirectoryHandle,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_mkdirat(runtime, dir, path, mode) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_mkdirat(binding, dir, path, mode) }
 }
 
 /// Remove a directory.
@@ -355,12 +355,12 @@ pub fn destack_fs_mkdirat(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_rmdir(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_rmdir(runtime, path) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_rmdir(binding, path) }
 }
 
 /// Open a directory and return a handle.
@@ -381,12 +381,12 @@ pub fn destack_fs_rmdir(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_opendir(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<DirectoryHandle> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    call_out(|out| unsafe { host_fs::destack_fs_opendir(runtime, out, path) })
+    let path = path_ref_from_vm(binding, context, path)?;
+    call_out(|out| unsafe { host_fs::destack_fs_opendir(binding, out, path) })
 }
 
 /// Create a temporary directory.
@@ -407,12 +407,12 @@ pub fn destack_fs_opendir(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_mkdtemp(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     template: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
-    let template = path_ref_from_vm(runtime, context, template)?;
-    let path = call_out(|out| unsafe { host_fs::destack_fs_mkdtemp(runtime, out, template) })?;
+    let template = path_ref_from_vm(binding, context, template)?;
+    let path = call_out(|out| unsafe { host_fs::destack_fs_mkdtemp(binding, out, template) })?;
     path_ref_to_vm(context, path)
 }
 
@@ -434,14 +434,14 @@ pub fn destack_fs_mkdtemp(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_open(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<FileHandle> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    call_out(|out| unsafe { host_fs::destack_fs_open(runtime, out, path, flags, mode) })
+    let path = path_ref_from_vm(binding, context, path)?;
+    call_out(|out| unsafe { host_fs::destack_fs_open(binding, out, path, flags, mode) })
 }
 
 /// Open a file relative to a directory handle.
@@ -462,15 +462,15 @@ pub fn destack_fs_open(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_openat(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     dir: DirectoryHandle,
     path: OsPathVm,
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<FileHandle> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    call_out(|out| unsafe { host_fs::destack_fs_openat(runtime, out, dir, path, flags, mode) })
+    let path = path_ref_from_vm(binding, context, path)?;
+    call_out(|out| unsafe { host_fs::destack_fs_openat(binding, out, dir, path, flags, mode) })
 }
 
 /// Open a file relative to a directory handle with openat2 semantics.
@@ -491,19 +491,19 @@ pub fn destack_fs_openat(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_openat2(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     dir: DirectoryHandle,
     path: OsPathVm,
     how: OpenOptionsVm,
 ) -> RuntimeResult<FileHandle> {
-    let path = path_ref_from_vm(runtime, context, path)?;
+    let path = path_ref_from_vm(binding, context, path)?;
     let how = OpenOptions {
         flags: how.flags,
         mode: how.mode,
         resolve: how.resolve,
     };
-    call_out(|out| unsafe { host_fs::destack_fs_openat2(runtime, out, dir, path, how) })
+    call_out(|out| unsafe { host_fs::destack_fs_openat2(binding, out, dir, path, how) })
 }
 
 /// Close an open file handle.
@@ -524,11 +524,11 @@ pub fn destack_fs_openat2(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_close(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_fs::destack_fs_close(runtime, handle) }
+    unsafe { host_fs::destack_fs_close(binding, handle) }
 }
 
 /// Close a directory handle.
@@ -549,11 +549,11 @@ pub fn destack_fs_close(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_closedir(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_fs::destack_fs_closedir(runtime, handle) }
+    unsafe { host_fs::destack_fs_closedir(binding, handle) }
 }
 
 /// Read directory entries from an open directory handle.
@@ -574,11 +574,11 @@ pub fn destack_fs_closedir(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_readdir(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: DirectoryHandle,
 ) -> RuntimeResult<VmArray<DirentVm>> {
-    let entries = call_out(|out| unsafe { host_fs::destack_fs_readdir(runtime, out, handle) })?;
+    let entries = call_out(|out| unsafe { host_fs::destack_fs_readdir(binding, out, handle) })?;
     dirent_array_to_vm(context, entries)
 }
 
@@ -600,11 +600,11 @@ pub fn destack_fs_readdir(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_readdir_next(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: DirectoryHandle,
 ) -> RuntimeResult<DirentNextVm> {
-    let entry = call_out(|out| unsafe { host_fs::destack_fs_readdir_next(runtime, out, handle) })?;
+    let entry = call_out(|out| unsafe { host_fs::destack_fs_readdir_next(binding, out, handle) })?;
     dirent_next_to_vm(context, entry)
 }
 
@@ -626,11 +626,11 @@ pub fn destack_fs_readdir_next(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_rewinddir(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_fs::destack_fs_rewinddir(runtime, handle) }
+    unsafe { host_fs::destack_fs_rewinddir(binding, handle) }
 }
 
 /// Resolve the directory descriptor for an open directory handle.
@@ -651,11 +651,11 @@ pub fn destack_fs_rewinddir(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_dirfd(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: DirectoryHandle,
 ) -> RuntimeResult<FileHandle> {
-    call_out(|out| unsafe { host_fs::destack_fs_dirfd(runtime, out, handle) })
+    call_out(|out| unsafe { host_fs::destack_fs_dirfd(binding, out, handle) })
 }
 
 /// Read from a file into the provided slice.
@@ -676,13 +676,13 @@ pub fn destack_fs_dirfd(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_read(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
-    let native = allocate_read_buffer(runtime, buffer);
-    let count = call_out(|out| unsafe { host_fs::destack_fs_read(runtime, out, handle, native) })?;
+    let native = allocate_read_buffer(binding, buffer);
+    let count = call_out(|out| unsafe { host_fs::destack_fs_read(binding, out, handle, native) })?;
     write_read_buffer(context, buffer, native)?;
     Ok(count)
 }
@@ -705,15 +705,15 @@ pub fn destack_fs_read(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_pread(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     buffer: VmSlice<u8>,
     offset: FileOffset,
 ) -> RuntimeResult<u64> {
-    let native = allocate_read_buffer(runtime, buffer);
+    let native = allocate_read_buffer(binding, buffer);
     let count =
-        call_out(|out| unsafe { host_fs::destack_fs_pread(runtime, out, handle, native, offset) })?;
+        call_out(|out| unsafe { host_fs::destack_fs_pread(binding, out, handle, native, offset) })?;
     write_read_buffer(context, buffer, native)?;
     Ok(count)
 }
@@ -736,13 +736,13 @@ pub fn destack_fs_pread(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_write(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
-    let native = buffer_from_vm(runtime, context, buffer)?;
-    call_out(|out| unsafe { host_fs::destack_fs_write(runtime, out, handle, native) })
+    let native = buffer_from_vm(binding, context, buffer)?;
+    call_out(|out| unsafe { host_fs::destack_fs_write(binding, out, handle, native) })
 }
 
 /// Write to a file at the given file offset.
@@ -763,14 +763,14 @@ pub fn destack_fs_write(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_pwrite(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     buffer: VmSlice<u8>,
     offset: FileOffset,
 ) -> RuntimeResult<u64> {
-    let native = buffer_from_vm(runtime, context, buffer)?;
-    call_out(|out| unsafe { host_fs::destack_fs_pwrite(runtime, out, handle, native, offset) })
+    let native = buffer_from_vm(binding, context, buffer)?;
+    call_out(|out| unsafe { host_fs::destack_fs_pwrite(binding, out, handle, native, offset) })
 }
 
 /// Read into multiple buffers.
@@ -791,14 +791,14 @@ pub fn destack_fs_pwrite(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_readv(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
-    let (native_buffers, vm_buffers) = allocate_read_buffers(runtime, context, buffers)?;
+    let (native_buffers, vm_buffers) = allocate_read_buffers(binding, context, buffers)?;
     let count =
-        call_out(|out| unsafe { host_fs::destack_fs_readv(runtime, out, handle, native_buffers) })?;
+        call_out(|out| unsafe { host_fs::destack_fs_readv(binding, out, handle, native_buffers) })?;
     write_read_buffers(context, vm_buffers, native_buffers)?;
     Ok(count)
 }
@@ -821,15 +821,15 @@ pub fn destack_fs_readv(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_preadv(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeResult<u64> {
-    let (native_buffers, vm_buffers) = allocate_read_buffers(runtime, context, buffers)?;
+    let (native_buffers, vm_buffers) = allocate_read_buffers(binding, context, buffers)?;
     let count = call_out(|out| unsafe {
-        host_fs::destack_fs_preadv(runtime, out, handle, native_buffers, offset)
+        host_fs::destack_fs_preadv(binding, out, handle, native_buffers, offset)
     })?;
     write_read_buffers(context, vm_buffers, native_buffers)?;
     Ok(count)
@@ -853,16 +853,16 @@ pub fn destack_fs_preadv(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_preadv2(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
     flags: ReadWriteFlags,
 ) -> RuntimeResult<u64> {
-    let (native_buffers, vm_buffers) = allocate_read_buffers(runtime, context, buffers)?;
+    let (native_buffers, vm_buffers) = allocate_read_buffers(binding, context, buffers)?;
     let count = call_out(|out| unsafe {
-        host_fs::destack_fs_preadv2(runtime, out, handle, native_buffers, offset, flags)
+        host_fs::destack_fs_preadv2(binding, out, handle, native_buffers, offset, flags)
     })?;
     write_read_buffers(context, vm_buffers, native_buffers)?;
     Ok(count)
@@ -886,13 +886,13 @@ pub fn destack_fs_preadv2(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_writev(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
-    let native_buffers = buffers_from_vm(runtime, context, buffers)?;
-    call_out(|out| unsafe { host_fs::destack_fs_writev(runtime, out, handle, native_buffers) })
+    let native_buffers = buffers_from_vm(binding, context, buffers)?;
+    call_out(|out| unsafe { host_fs::destack_fs_writev(binding, out, handle, native_buffers) })
 }
 
 /// Write from multiple buffers at the given file offset.
@@ -913,15 +913,15 @@ pub fn destack_fs_writev(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_pwritev(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeResult<u64> {
-    let native_buffers = buffers_from_vm(runtime, context, buffers)?;
+    let native_buffers = buffers_from_vm(binding, context, buffers)?;
     call_out(|out| unsafe {
-        host_fs::destack_fs_pwritev(runtime, out, handle, native_buffers, offset)
+        host_fs::destack_fs_pwritev(binding, out, handle, native_buffers, offset)
     })
 }
 
@@ -943,16 +943,16 @@ pub fn destack_fs_pwritev(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_pwritev2(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
     flags: ReadWriteFlags,
 ) -> RuntimeResult<u64> {
-    let native_buffers = buffers_from_vm(runtime, context, buffers)?;
+    let native_buffers = buffers_from_vm(binding, context, buffers)?;
     call_out(|out| unsafe {
-        host_fs::destack_fs_pwritev2(runtime, out, handle, native_buffers, offset, flags)
+        host_fs::destack_fs_pwritev2(binding, out, handle, native_buffers, offset, flags)
     })
 }
 
@@ -974,12 +974,12 @@ pub fn destack_fs_pwritev2(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_fchmod(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    unsafe { host_fs::destack_fs_fchmod(runtime, handle, mode) }
+    unsafe { host_fs::destack_fs_fchmod(binding, handle, mode) }
 }
 
 /// Change file owner and group by handle.
@@ -1000,13 +1000,13 @@ pub fn destack_fs_fchmod(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_fchown(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<()> {
-    unsafe { host_fs::destack_fs_fchown(runtime, handle, uid, gid) }
+    unsafe { host_fs::destack_fs_fchown(binding, handle, uid, gid) }
 }
 
 /// Synchronize a file's in-core state with storage.
@@ -1027,11 +1027,11 @@ pub fn destack_fs_fchown(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_fsync(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_fs::destack_fs_fsync(runtime, handle) }
+    unsafe { host_fs::destack_fs_fsync(binding, handle) }
 }
 
 /// Synchronize file data only.
@@ -1052,11 +1052,11 @@ pub fn destack_fs_fsync(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_fdatasync(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_fs::destack_fs_fdatasync(runtime, handle) }
+    unsafe { host_fs::destack_fs_fdatasync(binding, handle) }
 }
 
 /// Truncate a file by handle.
@@ -1077,12 +1077,12 @@ pub fn destack_fs_fdatasync(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_ftruncate(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     size: FileOffset,
 ) -> RuntimeResult<()> {
-    unsafe { host_fs::destack_fs_ftruncate(runtime, handle, size) }
+    unsafe { host_fs::destack_fs_ftruncate(binding, handle, size) }
 }
 
 /// Update access and modification times by handle.
@@ -1103,13 +1103,13 @@ pub fn destack_fs_ftruncate(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_futimes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     atime_ns: u64,
     mtime_ns: u64,
 ) -> RuntimeResult<()> {
-    unsafe { host_fs::destack_fs_futimes(runtime, handle, atime_ns, mtime_ns) }
+    unsafe { host_fs::destack_fs_futimes(binding, handle, atime_ns, mtime_ns) }
 }
 
 /// Stat a file by handle.
@@ -1130,11 +1130,11 @@ pub fn destack_fs_futimes(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_fstat(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
 ) -> RuntimeResult<Stat> {
-    call_out(|out| unsafe { host_fs::destack_fs_fstat(runtime, out, handle) })
+    call_out(|out| unsafe { host_fs::destack_fs_fstat(binding, out, handle) })
 }
 
 /// Stat a filesystem by handle.
@@ -1155,11 +1155,11 @@ pub fn destack_fs_fstat(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_fstatfs(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
 ) -> RuntimeResult<StatFs> {
-    call_out(|out| unsafe { host_fs::destack_fs_fstatfs(runtime, out, handle) })
+    call_out(|out| unsafe { host_fs::destack_fs_fstatfs(binding, out, handle) })
 }
 
 /// Apply file locks to a file handle.
@@ -1180,12 +1180,12 @@ pub fn destack_fs_fstatfs(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_lock(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     flags: FileLockFlags,
 ) -> RuntimeResult<()> {
-    unsafe { host_fs::destack_fs_lock(runtime, handle, flags) }
+    unsafe { host_fs::destack_fs_lock(binding, handle, flags) }
 }
 
 /// Read file descriptor flags.
@@ -1206,11 +1206,11 @@ pub fn destack_fs_lock(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_get_fd_flags(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
 ) -> RuntimeResult<FdFlags> {
-    call_out(|out| unsafe { host_fs::destack_fs_get_fd_flags(runtime, out, handle) })
+    call_out(|out| unsafe { host_fs::destack_fs_get_fd_flags(binding, out, handle) })
 }
 
 /// Read file status flags.
@@ -1231,11 +1231,11 @@ pub fn destack_fs_get_fd_flags(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_get_status_flags(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
 ) -> RuntimeResult<StatusFlags> {
-    call_out(|out| unsafe { host_fs::destack_fs_get_status_flags(runtime, out, handle) })
+    call_out(|out| unsafe { host_fs::destack_fs_get_status_flags(binding, out, handle) })
 }
 
 /// Write file descriptor flags.
@@ -1256,12 +1256,12 @@ pub fn destack_fs_get_status_flags(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_set_fd_flags(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     flags: FdFlags,
 ) -> RuntimeResult<()> {
-    unsafe { host_fs::destack_fs_set_fd_flags(runtime, handle, flags) }
+    unsafe { host_fs::destack_fs_set_fd_flags(binding, handle, flags) }
 }
 
 /// Write file status flags.
@@ -1282,12 +1282,12 @@ pub fn destack_fs_set_fd_flags(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_set_status_flags(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     flags: StatusFlags,
 ) -> RuntimeResult<()> {
-    unsafe { host_fs::destack_fs_set_status_flags(runtime, handle, flags) }
+    unsafe { host_fs::destack_fs_set_status_flags(binding, handle, flags) }
 }
 
 /// Truncate a file.
@@ -1308,13 +1308,13 @@ pub fn destack_fs_set_status_flags(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_truncate(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     size: FileOffset,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_truncate(runtime, path, size) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_truncate(binding, path, size) }
 }
 
 /// Rename or move a file.
@@ -1335,14 +1335,14 @@ pub fn destack_fs_truncate(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_rename(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     from: OsPathVm,
     to: OsPathVm,
 ) -> RuntimeResult<()> {
-    let from = path_ref_from_vm(runtime, context, from)?;
-    let to = path_ref_from_vm(runtime, context, to)?;
-    unsafe { host_fs::destack_fs_rename(runtime, from, to) }
+    let from = path_ref_from_vm(binding, context, from)?;
+    let to = path_ref_from_vm(binding, context, to)?;
+    unsafe { host_fs::destack_fs_rename(binding, from, to) }
 }
 
 /// Rename or move a file relative to directory handles.
@@ -1363,16 +1363,16 @@ pub fn destack_fs_rename(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_renameat(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     from_dir: DirectoryHandle,
     from: OsPathVm,
     to_dir: DirectoryHandle,
     to: OsPathVm,
 ) -> RuntimeResult<()> {
-    let from = path_ref_from_vm(runtime, context, from)?;
-    let to = path_ref_from_vm(runtime, context, to)?;
-    unsafe { host_fs::destack_fs_renameat(runtime, from_dir, from, to_dir, to) }
+    let from = path_ref_from_vm(binding, context, from)?;
+    let to = path_ref_from_vm(binding, context, to)?;
+    unsafe { host_fs::destack_fs_renameat(binding, from_dir, from, to_dir, to) }
 }
 
 /// Rename or move a file relative to directory handles with renameat2 semantics.
@@ -1393,7 +1393,7 @@ pub fn destack_fs_renameat(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_renameat2(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     from_dir: DirectoryHandle,
     from: OsPathVm,
@@ -1401,9 +1401,9 @@ pub fn destack_fs_renameat2(
     to: OsPathVm,
     flags: RenameFlags,
 ) -> RuntimeResult<()> {
-    let from = path_ref_from_vm(runtime, context, from)?;
-    let to = path_ref_from_vm(runtime, context, to)?;
-    unsafe { host_fs::destack_fs_renameat2(runtime, from_dir, from, to_dir, to, flags) }
+    let from = path_ref_from_vm(binding, context, from)?;
+    let to = path_ref_from_vm(binding, context, to)?;
+    unsafe { host_fs::destack_fs_renameat2(binding, from_dir, from, to_dir, to, flags) }
 }
 
 /// Unlink a file.
@@ -1424,12 +1424,12 @@ pub fn destack_fs_renameat2(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_unlink(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_unlink(runtime, path) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_unlink(binding, path) }
 }
 
 /// Unlink a file relative to a directory handle.
@@ -1450,14 +1450,14 @@ pub fn destack_fs_unlink(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_unlinkat(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     dir: DirectoryHandle,
     path: OsPathVm,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_unlinkat(runtime, dir, path, flags) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_unlinkat(binding, dir, path, flags) }
 }
 
 /// Create a hard link.
@@ -1478,14 +1478,14 @@ pub fn destack_fs_unlinkat(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_link(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     existing_path: OsPathVm,
     new_path: OsPathVm,
 ) -> RuntimeResult<()> {
-    let existing_path = path_ref_from_vm(runtime, context, existing_path)?;
-    let new_path = path_ref_from_vm(runtime, context, new_path)?;
-    unsafe { host_fs::destack_fs_link(runtime, existing_path, new_path) }
+    let existing_path = path_ref_from_vm(binding, context, existing_path)?;
+    let new_path = path_ref_from_vm(binding, context, new_path)?;
+    unsafe { host_fs::destack_fs_link(binding, existing_path, new_path) }
 }
 
 /// Create a hard link relative to directory handles.
@@ -1506,7 +1506,7 @@ pub fn destack_fs_link(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_linkat(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     existing_dir: DirectoryHandle,
     existing_path: OsPathVm,
@@ -1514,11 +1514,11 @@ pub fn destack_fs_linkat(
     new_path: OsPathVm,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let existing_path = path_ref_from_vm(runtime, context, existing_path)?;
-    let new_path = path_ref_from_vm(runtime, context, new_path)?;
+    let existing_path = path_ref_from_vm(binding, context, existing_path)?;
+    let new_path = path_ref_from_vm(binding, context, new_path)?;
     unsafe {
         host_fs::destack_fs_linkat(
-            runtime,
+            binding,
             existing_dir,
             existing_path,
             new_dir,
@@ -1546,15 +1546,15 @@ pub fn destack_fs_linkat(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_symlink(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     target: OsPathVm,
     path: OsPathVm,
     kind: SymlinkType,
 ) -> RuntimeResult<()> {
-    let target = path_ref_from_vm(runtime, context, target)?;
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_symlink(runtime, target, path, kind) }
+    let target = path_ref_from_vm(binding, context, target)?;
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_symlink(binding, target, path, kind) }
 }
 
 /// Create a symbolic link relative to a directory handle.
@@ -1575,16 +1575,16 @@ pub fn destack_fs_symlink(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_symlinkat(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     target: OsPathVm,
     dir: DirectoryHandle,
     path: OsPathVm,
     kind: SymlinkType,
 ) -> RuntimeResult<()> {
-    let target = path_ref_from_vm(runtime, context, target)?;
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_symlinkat(runtime, target, dir, path, kind) }
+    let target = path_ref_from_vm(binding, context, target)?;
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_symlinkat(binding, target, dir, path, kind) }
 }
 
 /// Read a symbolic link.
@@ -1605,12 +1605,12 @@ pub fn destack_fs_symlinkat(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_readlink(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    let target = call_out(|out| unsafe { host_fs::destack_fs_readlink(runtime, out, path) })?;
+    let path = path_ref_from_vm(binding, context, path)?;
+    let target = call_out(|out| unsafe { host_fs::destack_fs_readlink(binding, out, path) })?;
     path_ref_to_vm(context, target)
 }
 
@@ -1632,14 +1632,14 @@ pub fn destack_fs_readlink(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_readlinkat(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     dir: DirectoryHandle,
     path: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
-    let path = path_ref_from_vm(runtime, context, path)?;
+    let path = path_ref_from_vm(binding, context, path)?;
     let target =
-        call_out(|out| unsafe { host_fs::destack_fs_readlinkat(runtime, out, dir, path) })?;
+        call_out(|out| unsafe { host_fs::destack_fs_readlinkat(binding, out, dir, path) })?;
     path_ref_to_vm(context, target)
 }
 
@@ -1661,12 +1661,12 @@ pub fn destack_fs_readlinkat(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_realpath(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    let resolved = call_out(|out| unsafe { host_fs::destack_fs_realpath(runtime, out, path) })?;
+    let path = path_ref_from_vm(binding, context, path)?;
+    let resolved = call_out(|out| unsafe { host_fs::destack_fs_realpath(binding, out, path) })?;
     path_ref_to_vm(context, resolved)
 }
 
@@ -1688,15 +1688,15 @@ pub fn destack_fs_realpath(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_copyfile(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     from: OsPathVm,
     to: OsPathVm,
     flags: CopyFlags,
 ) -> RuntimeResult<()> {
-    let from = path_ref_from_vm(runtime, context, from)?;
-    let to = path_ref_from_vm(runtime, context, to)?;
-    unsafe { host_fs::destack_fs_copyfile(runtime, from, to, flags) }
+    let from = path_ref_from_vm(binding, context, from)?;
+    let to = path_ref_from_vm(binding, context, to)?;
+    unsafe { host_fs::destack_fs_copyfile(binding, from, to, flags) }
 }
 
 /// Create a FIFO special file.
@@ -1717,13 +1717,13 @@ pub fn destack_fs_copyfile(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_mkfifo(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_mkfifo(runtime, path, mode) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_mkfifo(binding, path, mode) }
 }
 
 /// Create a FIFO special file relative to a directory handle.
@@ -1744,14 +1744,14 @@ pub fn destack_fs_mkfifo(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_mkfifoat(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     dir: DirectoryHandle,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_mkfifoat(runtime, dir, path, mode) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_mkfifoat(binding, dir, path, mode) }
 }
 
 /// Create a filesystem node.
@@ -1772,14 +1772,14 @@ pub fn destack_fs_mkfifoat(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_mknod(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     mode: FileMode,
     device: NodeDevice,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_mknod(runtime, path, mode, device) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_mknod(binding, path, mode, device) }
 }
 
 /// Create a filesystem node relative to a directory handle.
@@ -1800,15 +1800,15 @@ pub fn destack_fs_mknod(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_mknodat(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     dir: DirectoryHandle,
     path: OsPathVm,
     mode: FileMode,
     device: NodeDevice,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { host_fs::destack_fs_mknodat(runtime, dir, path, mode, device) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    unsafe { host_fs::destack_fs_mknodat(binding, dir, path, mode, device) }
 }
 
 /// Stat a file.
@@ -1829,12 +1829,12 @@ pub fn destack_fs_mknodat(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_stat(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<Stat> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    call_out(|out| unsafe { host_fs::destack_fs_stat(runtime, out, path) })
+    let path = path_ref_from_vm(binding, context, path)?;
+    call_out(|out| unsafe { host_fs::destack_fs_stat(binding, out, path) })
 }
 
 /// Stat a file relative to a directory handle.
@@ -1855,14 +1855,14 @@ pub fn destack_fs_stat(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_statat(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     dir: DirectoryHandle,
     path: OsPathVm,
     flags: AtFlags,
 ) -> RuntimeResult<Stat> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    call_out(|out| unsafe { host_fs::destack_fs_statat(runtime, out, dir, path, flags) })
+    let path = path_ref_from_vm(binding, context, path)?;
+    call_out(|out| unsafe { host_fs::destack_fs_statat(binding, out, dir, path, flags) })
 }
 
 /// Stat a file without following symlinks.
@@ -1883,12 +1883,12 @@ pub fn destack_fs_statat(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_lstat(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<Stat> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    call_out(|out| unsafe { host_fs::destack_fs_lstat(runtime, out, path) })
+    let path = path_ref_from_vm(binding, context, path)?;
+    call_out(|out| unsafe { host_fs::destack_fs_lstat(binding, out, path) })
 }
 
 /// Stat a filesystem.
@@ -1909,12 +1909,12 @@ pub fn destack_fs_lstat(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_statfs(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<StatFs> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    call_out(|out| unsafe { host_fs::destack_fs_statfs(runtime, out, path) })
+    let path = path_ref_from_vm(binding, context, path)?;
+    call_out(|out| unsafe { host_fs::destack_fs_statfs(binding, out, path) })
 }
 
 /// Stat a path with statx semantics.
@@ -1935,15 +1935,15 @@ pub fn destack_fs_statfs(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_statx(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     dir: DirectoryHandle,
     path: OsPathVm,
     flags: StatxFlags,
     mask: StatxMask,
 ) -> RuntimeResult<Statx> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    call_out(|out| unsafe { host_fs::destack_fs_statx(runtime, out, dir, path, flags, mask) })
+    let path = path_ref_from_vm(binding, context, path)?;
+    call_out(|out| unsafe { host_fs::destack_fs_statx(binding, out, dir, path, flags, mask) })
 }
 
 /// Synchronize a filesystem by file handle.
@@ -1964,11 +1964,11 @@ pub fn destack_fs_statx(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_syncfs(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_fs::destack_fs_syncfs(runtime, handle) }
+    unsafe { host_fs::destack_fs_syncfs(binding, handle) }
 }
 
 /// Start watching a path and return a watch handle.
@@ -1989,13 +1989,13 @@ pub fn destack_fs_syncfs(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_watch(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     options: WatchOptionsVm,
 ) -> RuntimeResult<WatchHandle> {
     // decode vm path and options
-    let path = path_ref_from_vm(runtime, context, path)?;
+    let path = path_ref_from_vm(binding, context, path)?;
     let options = WatchOptions {
         mask: options.mask,
         recursive: options.recursive,
@@ -2003,7 +2003,7 @@ pub fn destack_fs_watch(
     };
 
     // open one host watch handle
-    call_out(|out| unsafe { host_fs::destack_fs_watch(runtime, out, path, options) })
+    call_out(|out| unsafe { host_fs::destack_fs_watch(binding, out, path, options) })
 }
 
 /// Close a watch handle.
@@ -2024,11 +2024,11 @@ pub fn destack_fs_watch(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_watch_close(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: WatchHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_fs::destack_fs_watch_close(runtime, handle) }
+    unsafe { host_fs::destack_fs_watch_close(binding, handle) }
 }
 
 /// Read a batch of events from a watch handle.
@@ -2049,12 +2049,12 @@ pub fn destack_fs_watch_close(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_watch_read(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: WatchHandle,
 ) -> RuntimeResult<WatchBatchVm> {
-    // read one watch batch from the host runtime
-    let batch = call_out(|out| unsafe { host_fs::destack_fs_watch_read(runtime, out, handle) })?;
+    // read one watch batch from the host binding
+    let batch = call_out(|out| unsafe { host_fs::destack_fs_watch_read(binding, out, handle) })?;
     watch_batch_to_vm(context, batch)
 }
 
@@ -2076,14 +2076,14 @@ pub fn destack_fs_watch_read(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_watchat(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     directory: DirectoryHandle,
     path: OsPathVm,
     options: WatchOptionsVm,
 ) -> RuntimeResult<WatchHandle> {
     // decode vm path and options
-    let path = path_ref_from_vm(runtime, context, path)?;
+    let path = path_ref_from_vm(binding, context, path)?;
     let options = WatchOptions {
         mask: options.mask,
         recursive: options.recursive,
@@ -2091,7 +2091,7 @@ pub fn destack_fs_watchat(
     };
 
     // open one host watch handle relative to a directory
-    call_out(|out| unsafe { host_fs::destack_fs_watchat(runtime, out, directory, path, options) })
+    call_out(|out| unsafe { host_fs::destack_fs_watchat(binding, out, directory, path, options) })
 }
 
 /// Duplicate a file handle.
@@ -2112,11 +2112,11 @@ pub fn destack_fs_watchat(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_dup(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
 ) -> RuntimeResult<FileHandle> {
-    call_out(|out| unsafe { host_fs::destack_fs_dup(runtime, out, handle) })
+    call_out(|out| unsafe { host_fs::destack_fs_dup(binding, out, handle) })
 }
 
 /// Duplicate a file handle to a specific target.
@@ -2137,12 +2137,12 @@ pub fn destack_fs_dup(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_dup2(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     target: FileHandle,
 ) -> RuntimeResult<FileHandle> {
-    call_out(|out| unsafe { host_fs::destack_fs_dup2(runtime, out, handle, target) })
+    call_out(|out| unsafe { host_fs::destack_fs_dup2(binding, out, handle, target) })
 }
 
 /// Duplicate a file handle to a specific target with flags.
@@ -2163,13 +2163,13 @@ pub fn destack_fs_dup2(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_dup3(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     target: FileHandle,
     flags: OpenFlags,
 ) -> RuntimeResult<FileHandle> {
-    call_out(|out| unsafe { host_fs::destack_fs_dup3(runtime, out, handle, target, flags) })
+    call_out(|out| unsafe { host_fs::destack_fs_dup3(binding, out, handle, target, flags) })
 }
 
 /// Copy a range between file descriptors.
@@ -2190,7 +2190,7 @@ pub fn destack_fs_dup3(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_copy_file_range(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     src: FileHandle,
     src_offset: FileOffset,
@@ -2199,7 +2199,7 @@ pub fn destack_fs_copy_file_range(
     length: FileSize,
 ) -> RuntimeResult<u64> {
     call_out(|out| unsafe {
-        host_fs::destack_fs_copy_file_range(runtime, out, src, src_offset, dst, dst_offset, length)
+        host_fs::destack_fs_copy_file_range(binding, out, src, src_offset, dst, dst_offset, length)
     })
 }
 
@@ -2221,7 +2221,7 @@ pub fn destack_fs_copy_file_range(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_sendfile(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     socket: SocketHandle,
     file: FileHandle,
@@ -2229,7 +2229,7 @@ pub fn destack_fs_sendfile(
     length: FileSize,
 ) -> RuntimeResult<u64> {
     call_out(|out| unsafe {
-        host_fs::destack_fs_sendfile(runtime, out, socket, file, offset, length)
+        host_fs::destack_fs_sendfile(binding, out, socket, file, offset, length)
     })
 }
 
@@ -2251,7 +2251,7 @@ pub fn destack_fs_sendfile(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_splice(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     source: ResourceId,
     sourcecursor: SpliceCursor,
@@ -2263,7 +2263,7 @@ pub fn destack_fs_splice(
     // forward splice to the host lane
     call_out(|out| unsafe {
         host_fs::destack_fs_splice(
-            runtime,
+            binding,
             out,
             source,
             sourcecursor,
@@ -2293,7 +2293,7 @@ pub fn destack_fs_splice(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_tee(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     sourcepipe: PipeHandle,
     targetpipe: PipeHandle,
@@ -2302,7 +2302,7 @@ pub fn destack_fs_tee(
 ) -> RuntimeResult<u64> {
     // forward tee to the host lane
     call_out(|out| unsafe {
-        host_fs::destack_fs_tee(runtime, out, sourcepipe, targetpipe, length, flags)
+        host_fs::destack_fs_tee(binding, out, sourcepipe, targetpipe, length, flags)
     })
 }
 
@@ -2324,18 +2324,18 @@ pub fn destack_fs_tee(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_vmsplice(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     pipe: PipeHandle,
     buffers: VmSlice<VmSlice<u8>>,
     flags: SpliceFlags,
 ) -> RuntimeResult<u64> {
     // decode VM buffer slices into native host buffers
-    let native_buffers = buffers_from_vm(runtime, context, buffers)?;
+    let native_buffers = buffers_from_vm(binding, context, buffers)?;
 
     // forward vmsplice to the host lane
     call_out(|out| unsafe {
-        host_fs::destack_fs_vmsplice(runtime, out, pipe, native_buffers, flags)
+        host_fs::destack_fs_vmsplice(binding, out, pipe, native_buffers, flags)
     })
 }
 
@@ -2357,13 +2357,13 @@ pub fn destack_fs_vmsplice(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_seek(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     offset: FileOffset,
     whence: SeekWhence,
 ) -> RuntimeResult<FileOffset> {
-    call_out(|out| unsafe { host_fs::destack_fs_seek(runtime, out, handle, offset, whence) })
+    call_out(|out| unsafe { host_fs::destack_fs_seek(binding, out, handle, offset, whence) })
 }
 
 /// Advise the kernel about access patterns.
@@ -2384,14 +2384,14 @@ pub fn destack_fs_seek(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_fadvise(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     offset: FileOffset,
     length: FileSize,
     advice: FileAdvice,
 ) -> RuntimeResult<()> {
-    unsafe { host_fs::destack_fs_fadvise(runtime, handle, offset, length, advice) }
+    unsafe { host_fs::destack_fs_fadvise(binding, handle, offset, length, advice) }
 }
 
 /// Allocate or punch file space.
@@ -2412,14 +2412,14 @@ pub fn destack_fs_fadvise(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_fallocate(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     offset: FileOffset,
     length: FileSize,
     flags: AllocFlags,
 ) -> RuntimeResult<()> {
-    unsafe { host_fs::destack_fs_fallocate(runtime, handle, offset, length, flags) }
+    unsafe { host_fs::destack_fs_fallocate(binding, handle, offset, length, flags) }
 }
 
 /// Synchronize a file range.
@@ -2440,14 +2440,14 @@ pub fn destack_fs_fallocate(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_sync_file_range(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     offset: FileOffset,
     length: FileSize,
     flags: SyncFlags,
 ) -> RuntimeResult<()> {
-    unsafe { host_fs::destack_fs_sync_file_range(runtime, handle, offset, length, flags) }
+    unsafe { host_fs::destack_fs_sync_file_range(binding, handle, offset, length, flags) }
 }
 
 /// Read an extended attribute by path.
@@ -2468,14 +2468,14 @@ pub fn destack_fs_sync_file_range(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_getxattr(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<VmArray<u8>> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    let name = string_ref_from_vm(runtime, context, name)?;
-    let values = call_out(|out| unsafe { host_fs::destack_fs_getxattr(runtime, out, path, name) })?;
+    let path = path_ref_from_vm(binding, context, path)?;
+    let name = string_ref_from_vm(binding, context, name)?;
+    let values = call_out(|out| unsafe { host_fs::destack_fs_getxattr(binding, out, path, name) })?;
     array_u8_to_vm(context, values)
 }
 
@@ -2497,22 +2497,22 @@ pub fn destack_fs_getxattr(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_getxattr_bytes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<VmArray<u8>> {
     // decode path and raw name inputs
-    let path = path_ref_from_vm(runtime, context, path)?;
-    let name = buffer_from_vm(runtime, context, name)?;
+    let path = path_ref_from_vm(binding, context, path)?;
+    let name = buffer_from_vm(binding, context, name)?;
 
     // dispatch by path encoding
     let values = call_out(|out| match path {
         OsPath::OsPathBytes(path_bytes) => unsafe {
-            host_fs::destack_fs_getxattr_bytes(runtime, out, path_bytes.bytes, name)
+            host_fs::destack_fs_getxattr_bytes(binding, out, path_bytes.bytes, name)
         },
         OsPath::OsPathUtf16(path_utf16) => unsafe {
-            host_fs::destack_fs_getxattr_utf16(runtime, out, path_utf16.utf16, name)
+            host_fs::destack_fs_getxattr_utf16(binding, out, path_utf16.utf16, name)
         },
     })?;
 
@@ -2537,15 +2537,15 @@ pub fn destack_fs_getxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_lgetxattr(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<VmArray<u8>> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    let name = string_ref_from_vm(runtime, context, name)?;
+    let path = path_ref_from_vm(binding, context, path)?;
+    let name = string_ref_from_vm(binding, context, name)?;
     let values =
-        call_out(|out| unsafe { host_fs::destack_fs_lgetxattr(runtime, out, path, name) })?;
+        call_out(|out| unsafe { host_fs::destack_fs_lgetxattr(binding, out, path, name) })?;
     array_u8_to_vm(context, values)
 }
 
@@ -2567,22 +2567,22 @@ pub fn destack_fs_lgetxattr(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_lgetxattr_bytes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<VmArray<u8>> {
     // decode path and raw name inputs
-    let path = path_ref_from_vm(runtime, context, path)?;
-    let name = buffer_from_vm(runtime, context, name)?;
+    let path = path_ref_from_vm(binding, context, path)?;
+    let name = buffer_from_vm(binding, context, name)?;
 
     // dispatch by path encoding
     let values = call_out(|out| match path {
         OsPath::OsPathBytes(path_bytes) => unsafe {
-            host_fs::destack_fs_lgetxattr_bytes(runtime, out, path_bytes.bytes, name)
+            host_fs::destack_fs_lgetxattr_bytes(binding, out, path_bytes.bytes, name)
         },
         OsPath::OsPathUtf16(path_utf16) => unsafe {
-            host_fs::destack_fs_lgetxattr_utf16(runtime, out, path_utf16.utf16, name)
+            host_fs::destack_fs_lgetxattr_utf16(binding, out, path_utf16.utf16, name)
         },
     })?;
 
@@ -2607,14 +2607,14 @@ pub fn destack_fs_lgetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_fgetxattr(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     name: vm::StringHandle,
 ) -> RuntimeResult<VmArray<u8>> {
-    let name = string_ref_from_vm(runtime, context, name)?;
+    let name = string_ref_from_vm(binding, context, name)?;
     let values =
-        call_out(|out| unsafe { host_fs::destack_fs_fgetxattr(runtime, out, handle, name) })?;
+        call_out(|out| unsafe { host_fs::destack_fs_fgetxattr(binding, out, handle, name) })?;
     array_u8_to_vm(context, values)
 }
 
@@ -2636,17 +2636,17 @@ pub fn destack_fs_fgetxattr(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_fgetxattr_bytes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     name: VmSlice<u8>,
 ) -> RuntimeResult<VmArray<u8>> {
     // decode the raw name input
-    let name = buffer_from_vm(runtime, context, name)?;
+    let name = buffer_from_vm(binding, context, name)?;
 
     // dispatch through the raw handle lane
     let values = call_out(|out| unsafe {
-        host_fs::destack_fs_fgetxattr_handle(runtime, out, handle, name)
+        host_fs::destack_fs_fgetxattr_handle(binding, out, handle, name)
     })?;
 
     array_u8_to_vm(context, values)
@@ -2670,17 +2670,17 @@ pub fn destack_fs_fgetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_setxattr(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     name: vm::StringHandle,
     value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    let name = string_ref_from_vm(runtime, context, name)?;
-    let value = buffer_from_vm(runtime, context, value)?;
-    unsafe { host_fs::destack_fs_setxattr(runtime, path, name, value, flags) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    let name = string_ref_from_vm(binding, context, name)?;
+    let value = buffer_from_vm(binding, context, value)?;
+    unsafe { host_fs::destack_fs_setxattr(binding, path, name, value, flags) }
 }
 
 /// Set an extended attribute by path with a raw name payload.
@@ -2701,7 +2701,7 @@ pub fn destack_fs_setxattr(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_setxattr_bytes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     name: VmSlice<u8>,
@@ -2709,17 +2709,17 @@ pub fn destack_fs_setxattr_bytes(
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
     // decode path, raw name, and value inputs
-    let path = path_ref_from_vm(runtime, context, path)?;
-    let name = buffer_from_vm(runtime, context, name)?;
-    let value = buffer_from_vm(runtime, context, value)?;
+    let path = path_ref_from_vm(binding, context, path)?;
+    let name = buffer_from_vm(binding, context, name)?;
+    let value = buffer_from_vm(binding, context, value)?;
 
     // dispatch by path encoding
     match path {
         OsPath::OsPathBytes(path_bytes) => unsafe {
-            host_fs::destack_fs_setxattr_bytes(runtime, path_bytes.bytes, name, value, flags)
+            host_fs::destack_fs_setxattr_bytes(binding, path_bytes.bytes, name, value, flags)
         },
         OsPath::OsPathUtf16(path_utf16) => unsafe {
-            host_fs::destack_fs_setxattr_utf16(runtime, path_utf16.utf16, name, value, flags)
+            host_fs::destack_fs_setxattr_utf16(binding, path_utf16.utf16, name, value, flags)
         },
     }
 }
@@ -2742,17 +2742,17 @@ pub fn destack_fs_setxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_lsetxattr(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     name: vm::StringHandle,
     value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    let name = string_ref_from_vm(runtime, context, name)?;
-    let value = buffer_from_vm(runtime, context, value)?;
-    unsafe { host_fs::destack_fs_lsetxattr(runtime, path, name, value, flags) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    let name = string_ref_from_vm(binding, context, name)?;
+    let value = buffer_from_vm(binding, context, value)?;
+    unsafe { host_fs::destack_fs_lsetxattr(binding, path, name, value, flags) }
 }
 
 /// Set an extended attribute without following symlinks, using a raw name payload.
@@ -2773,7 +2773,7 @@ pub fn destack_fs_lsetxattr(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_lsetxattr_bytes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     name: VmSlice<u8>,
@@ -2781,17 +2781,17 @@ pub fn destack_fs_lsetxattr_bytes(
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
     // decode path, raw name, and value inputs
-    let path = path_ref_from_vm(runtime, context, path)?;
-    let name = buffer_from_vm(runtime, context, name)?;
-    let value = buffer_from_vm(runtime, context, value)?;
+    let path = path_ref_from_vm(binding, context, path)?;
+    let name = buffer_from_vm(binding, context, name)?;
+    let value = buffer_from_vm(binding, context, value)?;
 
     // dispatch by path encoding
     match path {
         OsPath::OsPathBytes(path_bytes) => unsafe {
-            host_fs::destack_fs_lsetxattr_bytes(runtime, path_bytes.bytes, name, value, flags)
+            host_fs::destack_fs_lsetxattr_bytes(binding, path_bytes.bytes, name, value, flags)
         },
         OsPath::OsPathUtf16(path_utf16) => unsafe {
-            host_fs::destack_fs_lsetxattr_utf16(runtime, path_utf16.utf16, name, value, flags)
+            host_fs::destack_fs_lsetxattr_utf16(binding, path_utf16.utf16, name, value, flags)
         },
     }
 }
@@ -2814,16 +2814,16 @@ pub fn destack_fs_lsetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_fsetxattr(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     name: vm::StringHandle,
     value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let name = string_ref_from_vm(runtime, context, name)?;
-    let value = buffer_from_vm(runtime, context, value)?;
-    unsafe { host_fs::destack_fs_fsetxattr(runtime, handle, name, value, flags) }
+    let name = string_ref_from_vm(binding, context, name)?;
+    let value = buffer_from_vm(binding, context, value)?;
+    unsafe { host_fs::destack_fs_fsetxattr(binding, handle, name, value, flags) }
 }
 
 /// Set an extended attribute by handle with a raw name payload.
@@ -2844,7 +2844,7 @@ pub fn destack_fs_fsetxattr(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_fsetxattr_bytes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     name: VmSlice<u8>,
@@ -2852,11 +2852,11 @@ pub fn destack_fs_fsetxattr_bytes(
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
     // decode raw name and value inputs
-    let name = buffer_from_vm(runtime, context, name)?;
-    let value = buffer_from_vm(runtime, context, value)?;
+    let name = buffer_from_vm(binding, context, name)?;
+    let value = buffer_from_vm(binding, context, value)?;
 
     // dispatch through the raw handle lane
-    unsafe { host_fs::destack_fs_fsetxattr_handle(runtime, handle, name, value, flags) }
+    unsafe { host_fs::destack_fs_fsetxattr_handle(binding, handle, name, value, flags) }
 }
 
 /// List extended attribute names by path.
@@ -2877,12 +2877,12 @@ pub fn destack_fs_fsetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_listxattr(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<VmArray<vm::StringHandle>> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    let names = call_out(|out| unsafe { host_fs::destack_fs_listxattr(runtime, out, path) })?;
+    let path = path_ref_from_vm(binding, context, path)?;
+    let names = call_out(|out| unsafe { host_fs::destack_fs_listxattr(binding, out, path) })?;
     string_array_to_vm(context, names)
 }
 
@@ -2904,20 +2904,20 @@ pub fn destack_fs_listxattr(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_listxattr_bytes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<VmArray<VmArray<u8>>> {
     // decode the path input
-    let path = path_ref_from_vm(runtime, context, path)?;
+    let path = path_ref_from_vm(binding, context, path)?;
 
     // query host names and encode them as vm byte arrays
     let names = call_out(|out| match path {
         OsPath::OsPathBytes(path_bytes) => unsafe {
-            host_fs::destack_fs_listxattr_bytes(runtime, out, path_bytes.bytes)
+            host_fs::destack_fs_listxattr_bytes(binding, out, path_bytes.bytes)
         },
         OsPath::OsPathUtf16(path_utf16) => unsafe {
-            host_fs::destack_fs_listxattr_utf16(runtime, out, path_utf16.utf16)
+            host_fs::destack_fs_listxattr_utf16(binding, out, path_utf16.utf16)
         },
     })?;
 
@@ -2942,12 +2942,12 @@ pub fn destack_fs_listxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_llistxattr(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<VmArray<vm::StringHandle>> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    let names = call_out(|out| unsafe { host_fs::destack_fs_llistxattr(runtime, out, path) })?;
+    let path = path_ref_from_vm(binding, context, path)?;
+    let names = call_out(|out| unsafe { host_fs::destack_fs_llistxattr(binding, out, path) })?;
     string_array_to_vm(context, names)
 }
 
@@ -2969,20 +2969,20 @@ pub fn destack_fs_llistxattr(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_llistxattr_bytes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<VmArray<VmArray<u8>>> {
     // decode the path input
-    let path = path_ref_from_vm(runtime, context, path)?;
+    let path = path_ref_from_vm(binding, context, path)?;
 
     // query host names and encode them as vm byte arrays
     let names = call_out(|out| match path {
         OsPath::OsPathBytes(path_bytes) => unsafe {
-            host_fs::destack_fs_llistxattr_bytes(runtime, out, path_bytes.bytes)
+            host_fs::destack_fs_llistxattr_bytes(binding, out, path_bytes.bytes)
         },
         OsPath::OsPathUtf16(path_utf16) => unsafe {
-            host_fs::destack_fs_llistxattr_utf16(runtime, out, path_utf16.utf16)
+            host_fs::destack_fs_llistxattr_utf16(binding, out, path_utf16.utf16)
         },
     })?;
 
@@ -3007,11 +3007,11 @@ pub fn destack_fs_llistxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_flistxattr(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
 ) -> RuntimeResult<VmArray<vm::StringHandle>> {
-    let names = call_out(|out| unsafe { host_fs::destack_fs_flistxattr(runtime, out, handle) })?;
+    let names = call_out(|out| unsafe { host_fs::destack_fs_flistxattr(binding, out, handle) })?;
     string_array_to_vm(context, names)
 }
 
@@ -3033,13 +3033,13 @@ pub fn destack_fs_flistxattr(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_flistxattr_bytes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
 ) -> RuntimeResult<VmArray<VmArray<u8>>> {
     // query host names and encode them as vm byte arrays
     let names =
-        call_out(|out| unsafe { host_fs::destack_fs_flistxattr_handle(runtime, out, handle) })?;
+        call_out(|out| unsafe { host_fs::destack_fs_flistxattr_handle(binding, out, handle) })?;
 
     array_array_u8_to_vm(context, names)
 }
@@ -3062,14 +3062,14 @@ pub fn destack_fs_flistxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_removexattr(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    let name = string_ref_from_vm(runtime, context, name)?;
-    unsafe { host_fs::destack_fs_removexattr(runtime, path, name) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    let name = string_ref_from_vm(binding, context, name)?;
+    unsafe { host_fs::destack_fs_removexattr(binding, path, name) }
 }
 
 /// Remove an extended attribute by path with a raw name payload.
@@ -3090,22 +3090,22 @@ pub fn destack_fs_removexattr(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_removexattr_bytes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<()> {
     // decode path and raw name inputs
-    let path = path_ref_from_vm(runtime, context, path)?;
-    let name = buffer_from_vm(runtime, context, name)?;
+    let path = path_ref_from_vm(binding, context, path)?;
+    let name = buffer_from_vm(binding, context, name)?;
 
     // dispatch by path encoding
     match path {
         OsPath::OsPathBytes(path_bytes) => unsafe {
-            host_fs::destack_fs_removexattr_bytes(runtime, path_bytes.bytes, name)
+            host_fs::destack_fs_removexattr_bytes(binding, path_bytes.bytes, name)
         },
         OsPath::OsPathUtf16(path_utf16) => unsafe {
-            host_fs::destack_fs_removexattr_utf16(runtime, path_utf16.utf16, name)
+            host_fs::destack_fs_removexattr_utf16(binding, path_utf16.utf16, name)
         },
     }
 }
@@ -3128,14 +3128,14 @@ pub fn destack_fs_removexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_lremovexattr(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    let path = path_ref_from_vm(runtime, context, path)?;
-    let name = string_ref_from_vm(runtime, context, name)?;
-    unsafe { host_fs::destack_fs_lremovexattr(runtime, path, name) }
+    let path = path_ref_from_vm(binding, context, path)?;
+    let name = string_ref_from_vm(binding, context, name)?;
+    unsafe { host_fs::destack_fs_lremovexattr(binding, path, name) }
 }
 
 /// Remove an extended attribute without following symlinks, using a raw name payload.
@@ -3156,22 +3156,22 @@ pub fn destack_fs_lremovexattr(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_lremovexattr_bytes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<()> {
     // decode path and raw name inputs
-    let path = path_ref_from_vm(runtime, context, path)?;
-    let name = buffer_from_vm(runtime, context, name)?;
+    let path = path_ref_from_vm(binding, context, path)?;
+    let name = buffer_from_vm(binding, context, name)?;
 
     // dispatch by path encoding
     match path {
         OsPath::OsPathBytes(path_bytes) => unsafe {
-            host_fs::destack_fs_lremovexattr_bytes(runtime, path_bytes.bytes, name)
+            host_fs::destack_fs_lremovexattr_bytes(binding, path_bytes.bytes, name)
         },
         OsPath::OsPathUtf16(path_utf16) => unsafe {
-            host_fs::destack_fs_lremovexattr_utf16(runtime, path_utf16.utf16, name)
+            host_fs::destack_fs_lremovexattr_utf16(binding, path_utf16.utf16, name)
         },
     }
 }
@@ -3194,13 +3194,13 @@ pub fn destack_fs_lremovexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_fremovexattr(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     name: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    let name = string_ref_from_vm(runtime, context, name)?;
-    unsafe { host_fs::destack_fs_fremovexattr(runtime, handle, name) }
+    let name = string_ref_from_vm(binding, context, name)?;
+    unsafe { host_fs::destack_fs_fremovexattr(binding, handle, name) }
 }
 
 /// Remove an extended attribute by handle with a raw name payload.
@@ -3221,16 +3221,16 @@ pub fn destack_fs_fremovexattr(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_fremovexattr_bytes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
     name: VmSlice<u8>,
 ) -> RuntimeResult<()> {
     // decode the raw name input
-    let name = buffer_from_vm(runtime, context, name)?;
+    let name = buffer_from_vm(binding, context, name)?;
 
     // dispatch through the raw handle lane
-    unsafe { host_fs::destack_fs_fremovexattr_handle(runtime, handle, name) }
+    unsafe { host_fs::destack_fs_fremovexattr_handle(binding, handle, name) }
 }
 
 /// Create a file-backed memory mapping.
@@ -3251,7 +3251,7 @@ pub fn destack_fs_fremovexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_mmap_file(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _handle: FileHandle,
     _offset: FileOffset,
@@ -3281,7 +3281,7 @@ pub fn destack_fs_mmap_file(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_mmap_anonymous(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _length: FileSize,
     _prot: MmapProt,
@@ -3309,7 +3309,7 @@ pub fn destack_fs_mmap_anonymous(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_munmap(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _mapping: VmSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -3335,7 +3335,7 @@ pub fn destack_fs_munmap(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_mprotect(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _mapping: VmSlice<u8>,
     _prot: MmapProt,
@@ -3362,7 +3362,7 @@ pub fn destack_fs_mprotect(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_msync(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _mapping: VmSlice<u8>,
     _flags: MmapSyncFlags,
@@ -3389,7 +3389,7 @@ pub fn destack_fs_msync(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_madvise(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     _mapping: VmSlice<u8>,
     _advice: MmapAdvice,
@@ -3399,35 +3399,35 @@ pub fn destack_fs_madvise(
 }
 
 fn path_bytes_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: PathBytesVm,
 ) -> RuntimeResult<PathBytes> {
     let bytes = path.0.read_bytes(context)?;
-    Ok(PathBytesAbi::<NativeAbi>(runtime.store_array(bytes)))
+    Ok(PathBytesAbi::<NativeAbi>(binding.store_array(bytes)))
 }
 
 fn path_utf16_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: PathUtf16Vm,
 ) -> RuntimeResult<PathUtf16> {
     let units = path.0.read_values(context)?;
-    Ok(PathUtf16Abi::<NativeAbi>(runtime.store_array(units)))
+    Ok(PathUtf16Abi::<NativeAbi>(binding.store_array(units)))
 }
 
 fn path_ref_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<OsPath> {
     match path {
         OsPathVm::OsPathBytes(path_bytes) => {
-            let bytes = path_bytes_from_vm(runtime, context, path_bytes.bytes)?;
+            let bytes = path_bytes_from_vm(binding, context, path_bytes.bytes)?;
             Ok(core_fs::path_ref_from_bytes(bytes))
         }
         OsPathVm::OsPathUtf16(path_utf16) => {
-            let utf16 = path_utf16_from_vm(runtime, context, path_utf16.utf16)?;
+            let utf16 = path_utf16_from_vm(binding, context, path_utf16.utf16)?;
             Ok(core_fs::path_ref_from_utf16(utf16))
         }
     }
@@ -3474,14 +3474,14 @@ fn path_ref_to_vm(
 }
 
 fn string_ref_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     value: vm::StringHandle,
 ) -> RuntimeResult<NativeStringRef> {
     let string_ref = context
         .string_ref(value)
         .map_err(|error| RuntimeError::from(error).boxed())?;
-    Ok(runtime.store_string(string_ref.as_str()))
+    Ok(binding.store_string(string_ref.as_str()))
 }
 
 fn string_ref_to_vm(
@@ -3532,17 +3532,17 @@ fn array_array_u8_to_vm(
 }
 
 fn buffer_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<NativeSlice<u8>> {
     let bytes = buffer.read_bytes(context)?;
-    Ok(runtime.store_slice(bytes))
+    Ok(binding.store_slice(bytes))
 }
 
-fn allocate_read_buffer(runtime: &BindingCallContext, buffer: VmSlice<u8>) -> NativeSlice<u8> {
+fn allocate_read_buffer(binding: &BindingCallContext, buffer: VmSlice<u8>) -> NativeSlice<u8> {
     let length = buffer.len as usize;
-    runtime.store_slice(vec![0u8; length])
+    binding.store_slice(vec![0u8; length])
 }
 
 fn write_read_buffer(
@@ -3574,7 +3574,7 @@ fn decode_buffer_slices(
 /// Allocate native read buffers for a set of VM slices.
 #[allow(clippy::type_complexity)]
 fn allocate_read_buffers(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<(NativeSlice<NativeSlice<u8>>, Vec<VmSlice<u8>>)> {
@@ -3582,9 +3582,9 @@ fn allocate_read_buffers(
     let mut native_buffers = Vec::with_capacity(vm_buffers.len());
     for buffer in vm_buffers.iter() {
         let length = buffer.len as usize;
-        native_buffers.push(runtime.store_slice(vec![0u8; length]));
+        native_buffers.push(binding.store_slice(vec![0u8; length]));
     }
-    let native_slice = runtime.store_slice(native_buffers);
+    let native_slice = binding.store_slice(native_buffers);
 
     Ok((native_slice, vm_buffers))
 }
@@ -3614,7 +3614,7 @@ fn write_read_buffers(
 
 /// Convert VM slice buffers into native slices.
 fn buffers_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<NativeSlice<NativeSlice<u8>>> {
@@ -3622,10 +3622,10 @@ fn buffers_from_vm(
     let mut native_buffers = Vec::with_capacity(vm_buffers.len());
     for buffer in vm_buffers {
         let bytes = buffer.read_bytes(context)?;
-        native_buffers.push(runtime.store_slice(bytes));
+        native_buffers.push(binding.store_slice(bytes));
     }
 
-    Ok(runtime.store_slice(native_buffers))
+    Ok(binding.store_slice(native_buffers))
 }
 
 fn watch_batch_to_vm(

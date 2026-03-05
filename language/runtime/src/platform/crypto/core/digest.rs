@@ -31,7 +31,7 @@ pub(crate) fn digest_compute(
 
 /// Open one streaming digest context.
 pub(crate) fn digest_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     algorithm: CryptoDigestAlgorithm,
 ) -> RuntimeResult<resource::CryptoDigestHandle> {
     // allocate hasher state for the selected digest
@@ -44,22 +44,22 @@ pub(crate) fn digest_open(
     let entry = ResourceEntry::new(CRYPTO_DIGEST_RESOURCE_KIND)
         .with_label(CRYPTO_DIGEST_LABEL)
         .with_payload(Arc::new(Mutex::new(resource_value)));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     Ok(resource::CryptoDigestHandle(resource_id))
 }
 
 /// Update one streaming digest context.
 pub(crate) fn digest_update(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoDigestHandle,
     payload: &[u8],
 ) -> RuntimeResult<()> {
     // resolve the digest state
-    let resource = resolve_digest_resource(context, handle, "destack.crypto.digest.update")?;
+    let resource = resolve_digest_resource(binding, handle, "destack.crypto.digest.update")?;
     let mut resource = resource.lock();
 
     // feed payload bytes
@@ -71,11 +71,11 @@ pub(crate) fn digest_update(
 
 /// Finalize one streaming digest context and return digest bytes.
 pub(crate) fn digest_finish(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoDigestHandle,
 ) -> RuntimeResult<Vec<u8>> {
     // resolve the digest state
-    let resource = resolve_digest_resource(context, handle, "destack.crypto.digest.finish")?;
+    let resource = resolve_digest_resource(binding, handle, "destack.crypto.digest.finish")?;
     let mut resource = resource.lock();
 
     // finalize and capture digest output
@@ -94,11 +94,11 @@ pub(crate) fn digest_finish(
 
 /// Reset one streaming digest context.
 pub(crate) fn digest_reset(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoDigestHandle,
 ) -> RuntimeResult<()> {
     // resolve the digest state
-    let resource = resolve_digest_resource(context, handle, "destack.crypto.digest.reset")?;
+    let resource = resolve_digest_resource(binding, handle, "destack.crypto.digest.reset")?;
     let mut resource = resource.lock();
 
     // replace with a fresh hasher instance
@@ -110,14 +110,14 @@ pub(crate) fn digest_reset(
 
 /// Close one streaming digest context.
 pub(crate) fn digest_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoDigestHandle,
 ) -> RuntimeResult<()> {
     // remove resource and validate handle kind
-    let Some(entry) = context
+    let Some(entry) = binding
         .agent()
         .resources
-        .remove(handle.0, Some(context.engine()))
+        .remove(handle.0, Some(binding.engine()))
     else {
         return Err(core_platform::io_not_found(
             "destack.crypto.digest.close",

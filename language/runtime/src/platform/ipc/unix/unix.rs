@@ -106,7 +106,7 @@ fn peer_credentials(socket: libc::c_int) -> RuntimeResult<Option<UnixPeerCredent
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_unix_receive(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut UnixReceiveAncillary,
     socket: resource::SocketHandle,
     maxhandles: u32,
@@ -114,7 +114,7 @@ pub(crate) unsafe fn destack_ipc_unix_receive(
     core_platform::ensure_out(out, "out")?;
 
     // resolve one unix socket descriptor
-    let descriptor = socket_descriptor(context, socket, UNIX_RECEIVE_OPERATION)?;
+    let descriptor = socket_descriptor(binding, socket, UNIX_RECEIVE_OPERATION)?;
 
     // prepare one bounded payload receive buffer
     let mut payload = vec![0u8; RECEIVE_PAYLOAD_BUDGET];
@@ -190,7 +190,7 @@ pub(crate) unsafe fn destack_ipc_unix_receive(
                     continue;
                 }
 
-                let transferred = register_transferred_descriptor(context, received);
+                let transferred = register_transferred_descriptor(binding, received);
                 handles.push(transferred);
             }
         }
@@ -205,7 +205,7 @@ pub(crate) unsafe fn destack_ipc_unix_receive(
     unsafe {
         out.write(UnixReceiveAncillary {
             bytes: bytes as u64,
-            handles: context.store_array(handles),
+            handles: binding.store_array(handles),
             credentials,
         });
     }
@@ -231,7 +231,7 @@ pub(crate) unsafe fn destack_ipc_unix_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_unix_send(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     socket: resource::SocketHandle,
     argument_payload: NativeSlice<u8>,
@@ -240,14 +240,14 @@ pub(crate) unsafe fn destack_ipc_unix_send(
     core_platform::ensure_out(out, "out")?;
 
     // resolve one unix socket descriptor
-    let descriptor = socket_descriptor(context, socket, UNIX_SEND_OPERATION)?;
+    let descriptor = socket_descriptor(binding, socket, UNIX_SEND_OPERATION)?;
 
     // decode payload and transferred handle descriptors
     let payload = unsafe { argument_payload.as_slice()? };
     let handles = unsafe { handles.as_slice()? };
     let mut descriptors = Vec::with_capacity(handles.len());
     for handle in handles {
-        let descriptor = transferable_descriptor(context, *handle, "handles")?;
+        let descriptor = transferable_descriptor(binding, *handle, "handles")?;
         descriptors.push(descriptor);
     }
 

@@ -18,14 +18,14 @@ use super::key::require_key_usage;
 
 /// Derive one shared secret.
 pub(crate) fn agreement_derive_shared_secret(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     private_key: resource::CryptoKeyHandle,
     peer_public_key: resource::CryptoKeyHandle,
     algorithm: CryptoKeyAgreementAlgorithm,
 ) -> RuntimeResult<Vec<u8>> {
     // enforce derive bits usage on the private key
     require_key_usage(
-        context,
+        binding,
         private_key,
         KEY_USAGE_DERIVE_BITS,
         "destack.crypto.agreement.deriveSharedSecret",
@@ -41,7 +41,7 @@ pub(crate) fn agreement_derive_shared_secret(
 
     // resolve and validate private key handle
     let private_resource = resolve_key_resource(
-        context,
+        binding,
         private_key,
         "destack.crypto.agreement.deriveSharedSecret",
     )?;
@@ -56,7 +56,7 @@ pub(crate) fn agreement_derive_shared_secret(
 
     // resolve and validate peer public key handle
     let peer_resource = resolve_key_resource(
-        context,
+        binding,
         peer_public_key,
         "destack.crypto.agreement.deriveSharedSecret",
     )?;
@@ -154,7 +154,7 @@ pub(crate) fn agreement_derive_shared_secret(
     // derive with host key-exchange lanes for host-managed private keys
     if let Some(host_private_key) = host_private_key {
         return crypto_host::host_key_derive_shared_secret(
-            context,
+            binding,
             &host_private_key,
             private_store_kind,
             private_algorithm,
@@ -185,14 +185,14 @@ pub(crate) fn agreement_derive_shared_secret(
 
 /// Derive one shared secret and run one HKDF stage.
 pub(crate) fn agreement_derive_key(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     private_key: resource::CryptoKeyHandle,
     peer_public_key: resource::CryptoKeyHandle,
     request: CryptoAgreementDeriveKeyRequest,
 ) -> RuntimeResult<Vec<u8>> {
     // enforce derive keys usage on the private key
     require_key_usage(
-        context,
+        binding,
         private_key,
         KEY_USAGE_DERIVE_KEYS,
         "destack.crypto.agreement.deriveKey",
@@ -200,9 +200,9 @@ pub(crate) fn agreement_derive_key(
 
     // derive raw secret first
     let mut shared =
-        agreement_derive_shared_secret(context, private_key, peer_public_key, request.algorithm)?;
+        agreement_derive_shared_secret(binding, private_key, peer_public_key, request.algorithm)?;
 
-    // decode hkdf context inputs
+    // decode hkdf binding inputs
     let salt = decode_native_bytes(request.salt, "request.salt")?;
     let info = decode_native_bytes(request.info, "request.info")?;
 

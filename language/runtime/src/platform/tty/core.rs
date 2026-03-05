@@ -49,11 +49,11 @@ pub(crate) fn not_terminal_error(operation: &'static str) -> Box<RuntimeError> {
 
 /// Remove one tty resource and run finalization.
 pub(crate) fn close_tty_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let kind = context
+    let kind = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| entry.kind)
@@ -62,10 +62,10 @@ pub(crate) fn close_tty_resource(
         return Err(invalid_tty_handle(operation));
     }
 
-    if !context
+    if !binding
         .agent()
         .resources
-        .remove_and_finalize(handle.0, Some(context.engine()))
+        .remove_and_finalize(handle.0, Some(binding.engine()))
     {
         return Err(invalid_tty_handle(operation));
     }
@@ -75,11 +75,11 @@ pub(crate) fn close_tty_resource(
 
 /// Remove one pty resource and run finalization.
 pub(crate) fn close_pty_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PtyHandle,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let kind = context
+    let kind = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| entry.kind)
@@ -88,10 +88,10 @@ pub(crate) fn close_pty_resource(
         return Err(invalid_pty_handle(operation));
     }
 
-    if !context
+    if !binding
         .agent()
         .resources
-        .remove_and_finalize(handle.0, Some(context.engine()))
+        .remove_and_finalize(handle.0, Some(binding.engine()))
     {
         return Err(invalid_pty_handle(operation));
     }

@@ -29,12 +29,12 @@ struct DirectoryResource {
 
 /// Resolve a directory cursor from one directory handle.
 fn directory_cursor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<Arc<Mutex<u64>>> {
     // resolve the cursor payload for this directory handle
     core_fs::require_resource(
-        context,
+        binding,
         handle.0,
         ResourceKind::Directory,
         "directory",
@@ -71,7 +71,7 @@ fn directory_cursor(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_opendir_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DirectoryHandle,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -116,10 +116,10 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
         .with_handle(handle as _)
         .with_payload(directory)
         .with_finalizer(HandleFinalizer::new(handle));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     unsafe {
         *out = DirectoryHandle(resource_id);
     }
@@ -145,7 +145,7 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_opendir_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DirectoryHandle,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -190,10 +190,10 @@ pub(crate) unsafe fn destack_fs_opendir_utf16(
         .with_handle(handle as _)
         .with_payload(directory)
         .with_finalizer(HandleFinalizer::new(handle));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     unsafe {
         *out = DirectoryHandle(resource_id);
     }
@@ -219,7 +219,7 @@ pub(crate) unsafe fn destack_fs_opendir_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readdir(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<Dirent>,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
@@ -229,7 +229,7 @@ pub(crate) unsafe fn destack_fs_readdir(
     }
 
     // resolve the directory handle
-    let handle = directory_handle(context, handle)?;
+    let handle = directory_handle(binding, handle)?;
     let mut entries = Vec::new();
     let mut search: Vec<u16> = final_path_from_handle(handle)?;
     search.push('\\' as u16);
@@ -258,7 +258,7 @@ pub(crate) unsafe fn destack_fs_readdir(
             } else {
                 DirentKind::File
             };
-            let name = path_utf16_from_units(context, &data.cFileName[..name_len]);
+            let name = path_utf16_from_units(binding, &data.cFileName[..name_len]);
             entries.push(Dirent {
                 name: core_fs::path_ref_from_utf16(name),
                 kind,
@@ -282,7 +282,7 @@ pub(crate) unsafe fn destack_fs_readdir(
     // store the entries
     unsafe {
         FindClose(find);
-        *out = context.store_array(entries);
+        *out = binding.store_array(entries);
     }
     Ok(())
 }
@@ -305,7 +305,7 @@ pub(crate) unsafe fn destack_fs_readdir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdir_bytes(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
     _mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -338,7 +338,7 @@ pub(crate) unsafe fn destack_fs_mkdir_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdir_utf16(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     _mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -371,7 +371,7 @@ pub(crate) unsafe fn destack_fs_mkdir_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdirat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     mode: FileMode,
@@ -381,11 +381,11 @@ pub(crate) unsafe fn destack_fs_mkdirat_bytes(
 
     // use the absolute path variant when the path is fully qualified
     if pathbuf.is_absolute() {
-        return unsafe { destack_fs_mkdir_bytes(context, path, mode) };
+        return unsafe { destack_fs_mkdir_bytes(binding, path, mode) };
     }
 
     // resolve the directory handle
-    let root = directory_handle(context, dir)?;
+    let root = directory_handle(binding, dir)?;
     let path = wide_from_pathbuf_no_nul(&pathbuf);
 
     // create the directory
@@ -424,7 +424,7 @@ pub(crate) unsafe fn destack_fs_mkdirat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdirat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     mode: FileMode,
@@ -434,11 +434,11 @@ pub(crate) unsafe fn destack_fs_mkdirat_utf16(
 
     // use the absolute path variant when the path is fully qualified
     if pathbuf.is_absolute() {
-        return unsafe { destack_fs_mkdir_utf16(context, path, mode) };
+        return unsafe { destack_fs_mkdir_utf16(binding, path, mode) };
     }
 
     // resolve the directory handle
-    let root = directory_handle(context, dir)?;
+    let root = directory_handle(binding, dir)?;
     let path = wide_from_pathbuf_no_nul(&pathbuf);
 
     // create the directory
@@ -477,7 +477,7 @@ pub(crate) unsafe fn destack_fs_mkdirat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rmdir_bytes(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
 ) -> RuntimeResult<()> {
     // decode the path
@@ -512,7 +512,7 @@ pub(crate) unsafe fn destack_fs_rmdir_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rmdir_utf16(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
     // decode the path
@@ -547,15 +547,15 @@ pub(crate) unsafe fn destack_fs_rmdir_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdir(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: OsPath,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_mkdir_bytes(context, path, mode) },
-        |path| unsafe { destack_fs_mkdir_utf16(context, path, mode) },
+        |path| unsafe { destack_fs_mkdir_bytes(binding, path, mode) },
+        |path| unsafe { destack_fs_mkdir_utf16(binding, path, mode) },
     )
 }
 
@@ -577,7 +577,7 @@ pub(crate) unsafe fn destack_fs_mkdir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdirat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: OsPath,
     mode: FileMode,
@@ -585,8 +585,8 @@ pub(crate) unsafe fn destack_fs_mkdirat(
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_mkdirat_bytes(context, dir, path, mode) },
-        |path| unsafe { destack_fs_mkdirat_utf16(context, dir, path, mode) },
+        |path| unsafe { destack_fs_mkdirat_bytes(binding, dir, path, mode) },
+        |path| unsafe { destack_fs_mkdirat_utf16(binding, dir, path, mode) },
     )
 }
 
@@ -608,14 +608,14 @@ pub(crate) unsafe fn destack_fs_mkdirat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rmdir(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: OsPath,
 ) -> RuntimeResult<()> {
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_rmdir_bytes(context, path) },
-        |path| unsafe { destack_fs_rmdir_utf16(context, path) },
+        |path| unsafe { destack_fs_rmdir_bytes(binding, path) },
+        |path| unsafe { destack_fs_rmdir_utf16(binding, path) },
     )
 }
 
@@ -637,15 +637,15 @@ pub(crate) unsafe fn destack_fs_rmdir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_opendir(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DirectoryHandle,
     path: OsPath,
 ) -> RuntimeResult<()> {
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_opendir_bytes(context, out, path) },
-        |path| unsafe { destack_fs_opendir_utf16(context, out, path) },
+        |path| unsafe { destack_fs_opendir_bytes(binding, out, path) },
+        |path| unsafe { destack_fs_opendir_utf16(binding, out, path) },
     )
 }
 
@@ -667,7 +667,7 @@ pub(crate) unsafe fn destack_fs_opendir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readdir_next(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DirentNext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
@@ -677,7 +677,7 @@ pub(crate) unsafe fn destack_fs_readdir_next(
     }
 
     // resolve the per-handle cursor index and directory path
-    let cursor = directory_cursor(context, handle)?;
+    let cursor = directory_cursor(binding, handle)?;
     let mut cursor = cursor.lock().map_err(|_| {
         RuntimeError::from(PlatformError::generic(
             None,
@@ -686,7 +686,7 @@ pub(crate) unsafe fn destack_fs_readdir_next(
         .boxed()
     })?;
     let current_index = *cursor;
-    let handle = directory_handle(context, handle)?;
+    let handle = directory_handle(binding, handle)?;
     let mut search = final_path_from_handle(handle)?;
     search.push('\\' as u16);
     search.push('*' as u16);
@@ -700,7 +700,7 @@ pub(crate) unsafe fn destack_fs_readdir_next(
         if code == ERROR_NO_MORE_FILES || code == ERROR_FILE_NOT_FOUND {
             unsafe {
                 *out = DirentNext::DirentNextEnd(DirentNextEnd {
-                    kind: context.store_string("end"),
+                    kind: binding.store_string("end"),
                 });
             }
 
@@ -743,11 +743,11 @@ pub(crate) unsafe fn destack_fs_readdir_next(
                 } else {
                     DirentKind::File
                 };
-                let name = path_utf16_from_units(context, &data.cFileName[..name_length]);
+                let name = path_utf16_from_units(binding, &data.cFileName[..name_length]);
                 *cursor = current_index.saturating_add(1);
                 unsafe {
                     *out = DirentNext::DirentNextEntry(DirentNextEntry {
-                        kind: context.store_string("entry"),
+                        kind: binding.store_string("entry"),
                         entry: Dirent {
                             name: core_fs::path_ref_from_utf16(name),
                             kind,
@@ -770,7 +770,7 @@ pub(crate) unsafe fn destack_fs_readdir_next(
         if code == ERROR_NO_MORE_FILES {
             unsafe {
                 *out = DirentNext::DirentNextEnd(DirentNextEnd {
-                    kind: context.store_string("end"),
+                    kind: binding.store_string("end"),
                 });
             }
 
@@ -799,11 +799,11 @@ pub(crate) unsafe fn destack_fs_readdir_next(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rewinddir(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
     // resolve and reset the per-handle directory cursor
-    let cursor = directory_cursor(context, handle)?;
+    let cursor = directory_cursor(binding, handle)?;
     let mut cursor = cursor.lock().map_err(|_| {
         RuntimeError::from(PlatformError::generic(
             None,
@@ -834,7 +834,7 @@ pub(crate) unsafe fn destack_fs_rewinddir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_watch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut WatchHandle,
     path: OsPath,
     options: WatchOptions,
@@ -851,7 +851,7 @@ pub(crate) unsafe fn destack_fs_watch(
         |bytes| pathbuf_from_bytes(bytes, "path"),
         |utf16| pathbuf_from_utf16(utf16, "path"),
     )?;
-    let handle = core_fs::open_watch(context, &watch_path, options)?;
+    let handle = core_fs::open_watch(binding, &watch_path, options)?;
 
     // store the returned watch handle
     unsafe {
@@ -879,10 +879,10 @@ pub(crate) unsafe fn destack_fs_watch(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_watch_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: WatchHandle,
 ) -> RuntimeResult<()> {
-    core_fs::close_watch(context, handle)
+    core_fs::close_watch(binding, handle)
 }
 
 /// Read a batch of events from a watch handle.
@@ -903,7 +903,7 @@ pub(crate) unsafe fn destack_fs_watch_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_watch_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut WatchBatch,
     handle: WatchHandle,
 ) -> RuntimeResult<()> {
@@ -913,7 +913,7 @@ pub(crate) unsafe fn destack_fs_watch_read(
     }
 
     // read one pending watch batch
-    let batch = core_fs::read_watch(context, handle)?;
+    let batch = core_fs::read_watch(binding, handle)?;
     unsafe {
         *out = batch;
     }
@@ -939,7 +939,7 @@ pub(crate) unsafe fn destack_fs_watch_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_watchat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut WatchHandle,
     directory: DirectoryHandle,
     path: OsPath,
@@ -951,7 +951,7 @@ pub(crate) unsafe fn destack_fs_watchat(
     }
 
     // resolve the directory base path
-    let directory_path = directory_path(context, directory)?;
+    let directory_path = directory_path(binding, directory)?;
 
     // decode the path and resolve it relative to the directory
     let watch_path = core_fs::with_path_ref(
@@ -965,7 +965,7 @@ pub(crate) unsafe fn destack_fs_watchat(
     } else {
         directory_path.join(watch_path)
     };
-    let handle = core_fs::open_watch(context, &watch_path, options)?;
+    let handle = core_fs::open_watch(binding, &watch_path, options)?;
 
     // store the returned watch handle
     unsafe {

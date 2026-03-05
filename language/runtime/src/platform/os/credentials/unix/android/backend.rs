@@ -22,16 +22,16 @@ const MAX_ANDROID_READ_BUFFER_BYTES: usize = 1024 * 1024;
 
 /// Read one credential record through Android host callback APIs.
 pub(crate) fn read_credentials(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     query: &CredentialQueryOwned,
 ) -> RuntimeResult<CredentialRecordOwned> {
     // resolve callback runtime identifier and callback function
-    let runtime_id = callback_runtime_id(context, OS_CREDENTIALS_READ_OPERATION)?;
+    let runtime_id = callback_runtime_id(binding, OS_CREDENTIALS_READ_OPERATION)?;
 
     // encode string arguments for host callback ABI
-    let service = context.store_string(&query.service);
-    let account = context.store_string(&query.account);
-    let access_group = context.store_string_option(query.access_group.as_ref());
+    let service = binding.store_string(&query.service);
+    let account = binding.store_string(&query.account);
+    let access_group = binding.store_string_option(query.access_group.as_ref());
 
     // call host read with dynamic output-buffer growth
     let mut created_unix_ns = 0u64;
@@ -115,16 +115,16 @@ pub(crate) fn read_credentials(
 
 /// Write one credential record through Android host callback APIs.
 pub(crate) fn write_credentials(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     options: &CredentialWriteOptionsOwned,
 ) -> RuntimeResult<()> {
     // resolve callback runtime identifier and callback function
-    let runtime_id = callback_runtime_id(context, OS_CREDENTIALS_WRITE_OPERATION)?;
+    let runtime_id = callback_runtime_id(binding, OS_CREDENTIALS_WRITE_OPERATION)?;
 
     // encode string and payload arguments for host callback ABI
-    let service = context.store_string(&options.service);
-    let account = context.store_string(&options.account);
-    let access_group = context.store_string_option(options.access_group.as_ref());
+    let service = binding.store_string(&options.service);
+    let account = binding.store_string(&options.account);
+    let access_group = binding.store_string_option(options.access_group.as_ref());
 
     // convert payload length for host callback ABI width
     let payload_length = checked_u32_length(
@@ -155,19 +155,19 @@ pub(crate) fn write_credentials(
 
 /// Delete one credential record through Android host callback APIs.
 pub(crate) fn delete_credentials(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     service: &str,
     account: &str,
     access_group: Option<&str>,
 ) -> RuntimeResult<()> {
     // resolve callback runtime identifier and callback function
-    let runtime_id = callback_runtime_id(context, OS_CREDENTIALS_DELETE_OPERATION)?;
+    let runtime_id = callback_runtime_id(binding, OS_CREDENTIALS_DELETE_OPERATION)?;
 
     // encode string arguments for host callback ABI
-    let service = context.store_string(service);
-    let account = context.store_string(account);
+    let service = binding.store_string(service);
+    let account = binding.store_string(account);
     let access_group = access_group.map(str::to_owned);
-    let access_group = context.store_string_option(access_group.as_ref());
+    let access_group = binding.store_string_option(access_group.as_ref());
 
     let status = unsafe {
         destack_host_android_credentials_delete(runtime_id, service, account, access_group)
@@ -179,19 +179,19 @@ pub(crate) fn delete_credentials(
 
 /// Return whether one credential record exists through Android host callback APIs.
 pub(crate) fn contains_credentials(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     service: &str,
     account: &str,
     access_group: Option<&str>,
 ) -> RuntimeResult<bool> {
     // resolve callback runtime identifier and callback function
-    let runtime_id = callback_runtime_id(context, OS_CREDENTIALS_CONTAINS_OPERATION)?;
+    let runtime_id = callback_runtime_id(binding, OS_CREDENTIALS_CONTAINS_OPERATION)?;
 
     // encode string arguments for host callback ABI
-    let service = context.store_string(service);
-    let account = context.store_string(account);
+    let service = binding.store_string(service);
+    let account = binding.store_string(account);
     let access_group = access_group.map(str::to_owned);
-    let access_group = context.store_string_option(access_group.as_ref());
+    let access_group = binding.store_string_option(access_group.as_ref());
 
     let mut is_present = false;
     let status = unsafe {
@@ -212,16 +212,16 @@ pub(crate) fn contains_credentials(
 
 /// Run one host authentication challenge through Android host callback APIs.
 pub(crate) fn authenticate_credentials(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     options: &CredentialAuthenticationOptionsOwned,
 ) -> RuntimeResult<CredentialAuthenticationResult> {
     // resolve callback runtime identifier and callback function
-    let runtime_id = callback_runtime_id(context, OS_CREDENTIALS_AUTHENTICATE_OPERATION)?;
+    let runtime_id = callback_runtime_id(binding, OS_CREDENTIALS_AUTHENTICATE_OPERATION)?;
 
     // encode prompt fields for host callback ABI
-    let title = context.store_string(&options.title);
-    let subtitle = context.store_string(&options.subtitle);
-    let message = context.store_string(&options.message);
+    let title = binding.store_string(&options.title);
+    let subtitle = binding.store_string(&options.subtitle);
+    let message = binding.store_string(&options.message);
 
     let mut authenticated = false;
     let mut mechanism_code = CredentialAuthenticationMechanism::Unknown as u32;

@@ -31,10 +31,10 @@ use crate::platform::tls::{
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_context_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tls.context.close")).boxed())
@@ -58,11 +58,11 @@ pub(crate) unsafe fn destack_tls_context_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_context_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::TlsContextHandle,
     options: TlsContextOptions,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, options);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tls.context.open")).boxed())
@@ -86,11 +86,11 @@ pub(crate) unsafe fn destack_tls_context_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_cipher_suites(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     suites: NativeStringSlice,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, suites);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -117,11 +117,11 @@ pub(crate) unsafe fn destack_tls_context_set_cipher_suites(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_groups(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     groups: NativeStringSlice,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, groups);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -148,11 +148,11 @@ pub(crate) unsafe fn destack_tls_context_set_groups(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_hostname_verification_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     mode: TlsHostnameVerificationMode,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -179,12 +179,12 @@ pub(crate) unsafe fn destack_tls_context_set_hostname_verification_mode(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_identity_pem(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     certificatechainpem: NativeSlice<u8>,
     privatekeypem: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, certificatechainpem, privatekeypem);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -211,11 +211,11 @@ pub(crate) unsafe fn destack_tls_context_set_identity_pem(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_keylog_enabled(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, enabled);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -242,11 +242,11 @@ pub(crate) unsafe fn destack_tls_context_set_keylog_enabled(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_session_resumption(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     mode: TlsSessionResumptionMode,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -273,11 +273,11 @@ pub(crate) unsafe fn destack_tls_context_set_session_resumption(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_signature_algorithms(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     algorithms: NativeStringSlice,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, algorithms);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -304,11 +304,11 @@ pub(crate) unsafe fn destack_tls_context_set_signature_algorithms(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_trust_anchors_pem(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     trustanchorspem: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, trustanchorspem);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -335,10 +335,10 @@ pub(crate) unsafe fn destack_tls_context_set_trust_anchors_pem(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tls.session.close")).boxed())
@@ -362,14 +362,14 @@ pub(crate) unsafe fn destack_tls_session_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_export_keying_material(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::TlsSessionHandle,
     label: NativeStringRef,
     argument_context: NativeSlice<u8>,
     outputlength: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle, label, argument_context, outputlength);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -396,11 +396,11 @@ pub(crate) unsafe fn destack_tls_session_export_keying_material(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_handshake(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut TlsHandshakeStatus,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -427,11 +427,11 @@ pub(crate) unsafe fn destack_tls_session_handshake(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_negotiated_alpn(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -458,13 +458,13 @@ pub(crate) unsafe fn destack_tls_session_negotiated_alpn(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::TlsSessionHandle,
     argument_context: resource::TlsContextHandle,
     socket: resource::SocketHandle,
     servername: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, argument_context, socket, servername);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tls.session.open")).boxed())
@@ -488,11 +488,11 @@ pub(crate) unsafe fn destack_tls_session_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_peer_certificates_pem(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -519,12 +519,12 @@ pub(crate) unsafe fn destack_tls_session_peer_certificates_pem(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::TlsSessionHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle, buffer);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tls.session.read")).boxed())
@@ -548,11 +548,11 @@ pub(crate) unsafe fn destack_tls_session_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_resumption_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut TlsSessionResumptionState,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -579,10 +579,10 @@ pub(crate) unsafe fn destack_tls_session_resumption_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_shutdown(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tls.session.shutdown")).boxed())
@@ -606,12 +606,12 @@ pub(crate) unsafe fn destack_tls_session_shutdown(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::TlsSessionHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle, buffer);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tls.session.write")).boxed())

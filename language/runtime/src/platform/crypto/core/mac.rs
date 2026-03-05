@@ -22,7 +22,7 @@ use super::key::{require_key_usage, resolve_host_secret_key_material, resolve_se
 
 /// Compute one mac in one shot.
 fn mac_compute_internal(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: resource::CryptoKeyHandle,
     parameters: CryptoMacParameters,
     payload: &[u8],
@@ -37,10 +37,10 @@ fn mac_compute_internal(
 
     // route host-managed secret-key lanes through host mac primitives
     if let Some((host_key, store_kind, key_algorithm)) =
-        resolve_host_secret_key_material(context, key, "destack.crypto.mac.compute")?
+        resolve_host_secret_key_material(binding, key, "destack.crypto.mac.compute")?
     {
         return crypto_host::host_key_mac_compute(
-            context,
+            binding,
             &host_key,
             store_kind,
             key_algorithm,
@@ -51,7 +51,7 @@ fn mac_compute_internal(
     }
 
     // resolve secret key bytes and keep them zeroized on all paths
-    let key = resolve_secret_key_bytes(context, key, "destack.crypto.mac.compute")?;
+    let key = resolve_secret_key_bytes(binding, key, "destack.crypto.mac.compute")?;
     let key = Zeroizing::new(key);
 
     // compute hmac output
@@ -79,31 +79,31 @@ fn mac_compute_internal(
 
 /// Compute one mac in one shot.
 pub(crate) fn mac_compute(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: resource::CryptoKeyHandle,
     parameters: CryptoMacParameters,
     payload: &[u8],
 ) -> RuntimeResult<Vec<u8>> {
     // enforce key usage policy
-    require_key_usage(context, key, KEY_USAGE_SIGN, "destack.crypto.mac.compute")?;
+    require_key_usage(binding, key, KEY_USAGE_SIGN, "destack.crypto.mac.compute")?;
 
     // compute one-shot mac output
-    mac_compute_internal(context, key, parameters, payload)
+    mac_compute_internal(binding, key, parameters, payload)
 }
 
 /// Verify one mac in one shot.
 pub(crate) fn mac_verify(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: resource::CryptoKeyHandle,
     parameters: CryptoMacParameters,
     payload: &[u8],
     tag: &[u8],
 ) -> RuntimeResult<bool> {
     // enforce key usage policy
-    require_key_usage(context, key, KEY_USAGE_VERIFY, "destack.crypto.mac.verify")?;
+    require_key_usage(binding, key, KEY_USAGE_VERIFY, "destack.crypto.mac.verify")?;
 
     // compute expected tag for payload
-    let computed = mac_compute_internal(context, key, parameters, payload)?;
+    let computed = mac_compute_internal(binding, key, parameters, payload)?;
 
     // compare tags in constant time
     Ok(memcmp::eq(&computed, tag))
@@ -111,12 +111,12 @@ pub(crate) fn mac_verify(
 
 /// Open one streaming mac context.
 pub(crate) fn mac_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: resource::CryptoKeyHandle,
     parameters: CryptoMacParameters,
 ) -> RuntimeResult<resource::CryptoMacHandle> {
     // enforce key usage policy
-    require_key_usage(context, key, KEY_USAGE_SIGN, "destack.crypto.mac.open")?;
+    require_key_usage(binding, key, KEY_USAGE_SIGN, "destack.crypto.mac.open")?;
 
     // validate mac algorithm lane
     if parameters.algorithm != CryptoMacAlgorithm::Hmac {
@@ -128,7 +128,7 @@ pub(crate) fn mac_open(
 
     // build host-secret stream state when this key is host managed
     if let Some((material, store_kind, key_algorithm)) =
-        resolve_host_secret_key_material(context, key, "destack.crypto.mac.open")?
+        resolve_host_secret_key_material(binding, key, "destack.crypto.mac.open")?
     {
         let resource_value = CryptoMacResource {
             parameters,
@@ -142,16 +142,16 @@ pub(crate) fn mac_open(
         let entry = ResourceEntry::new(CRYPTO_MAC_RESOURCE_KIND)
             .with_label(CRYPTO_MAC_LABEL)
             .with_payload(Arc::new(Mutex::new(resource_value)));
-        let resource_id = context
+        let resource_id = binding
             .agent()
             .resources
-            .insert(entry, Some(context.engine()));
+            .insert(entry, Some(binding.engine()));
 
         return Ok(resource::CryptoMacHandle(resource_id));
     }
 
     // resolve secret key bytes and keep them zeroized on all paths
-    let key = resolve_secret_key_bytes(context, key, "destack.crypto.mac.open")?;
+    let key = resolve_secret_key_bytes(binding, key, "destack.crypto.mac.open")?;
     let key = Zeroizing::new(key);
 
     // initialize incremental hmac state
@@ -170,22 +170,22 @@ pub(crate) fn mac_open(
     let entry = ResourceEntry::new(CRYPTO_MAC_RESOURCE_KIND)
         .with_label(CRYPTO_MAC_LABEL)
         .with_payload(Arc::new(Mutex::new(resource_value)));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     Ok(resource::CryptoMacHandle(resource_id))
 }
 
 /// Update one streaming mac context.
 pub(crate) fn mac_update(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoMacHandle,
     payload: &[u8],
 ) -> RuntimeResult<()> {
     // resolve and lock mac resource
-    let resource = resolve_mac_resource(context, handle, "destack.crypto.mac.update")?;
+    let resource = resolve_mac_resource(binding, handle, "destack.crypto.mac.update")?;
     let mut resource = resource.lock();
 
     // feed payload bytes for the active stream state
@@ -205,11 +205,11 @@ pub(crate) fn mac_update(
 
 /// Finalize one streaming mac context.
 pub(crate) fn mac_finish(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoMacHandle,
 ) -> RuntimeResult<Vec<u8>> {
     // resolve and lock mac resource
-    let resource = resolve_mac_resource(context, handle, "destack.crypto.mac.finish")?;
+    let resource = resolve_mac_resource(binding, handle, "destack.crypto.mac.finish")?;
     let mut resource = resource.lock();
 
     // cache parameter lanes before mutable state match
@@ -254,7 +254,7 @@ pub(crate) fn mac_finish(
             key_algorithm,
             payload,
         } => crypto_host::host_key_mac_compute(
-            context,
+            binding,
             material,
             *store_kind,
             *key_algorithm,
@@ -267,11 +267,11 @@ pub(crate) fn mac_finish(
 
 /// Reset one streaming mac context.
 pub(crate) fn mac_reset(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoMacHandle,
 ) -> RuntimeResult<()> {
     // resolve and lock mac resource
-    let resource = resolve_mac_resource(context, handle, "destack.crypto.mac.reset")?;
+    let resource = resolve_mac_resource(binding, handle, "destack.crypto.mac.reset")?;
     let mut resource = resource.lock();
 
     // cache parameter lanes before mutable state match
@@ -302,14 +302,14 @@ pub(crate) fn mac_reset(
 
 /// Close one streaming mac context.
 pub(crate) fn mac_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoMacHandle,
 ) -> RuntimeResult<()> {
     // remove mac resource entry
-    let Some(entry) = context
+    let Some(entry) = binding
         .agent()
         .resources
-        .remove(handle.0, Some(context.engine()))
+        .remove(handle.0, Some(binding.engine()))
     else {
         return Err(core_platform::io_not_found(
             "destack.crypto.mac.close",

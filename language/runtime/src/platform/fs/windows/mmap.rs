@@ -41,9 +41,9 @@ pub(crate) struct WindowsMmapRuntimeState {
 }
 
 /// Return runtime-owned windows mmap mutable state.
-fn windows_mmap_runtime_state(context: &BindingCallContext) -> Arc<WindowsMmapRuntimeState> {
-    context
-        .runtime()
+fn windows_mmap_runtime_state(binding: &BindingCallContext) -> Arc<WindowsMmapRuntimeState> {
+    binding
+        .agent()
         .platform_state
         .fs
         .windows_mmap_runtime_state(WindowsMmapRuntimeState::default)
@@ -149,7 +149,7 @@ fn validate_mapping_length(length: FileSize) -> RuntimeResult<usize> {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mmap_file(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: FileHandle,
     offset: FileOffset,
@@ -157,7 +157,7 @@ pub(crate) unsafe fn destack_fs_mmap_file(
     prot: MmapProt,
     flags: MmapFlags,
 ) -> RuntimeResult<()> {
-    let runtime_state = windows_mmap_runtime_state(context);
+    let runtime_state = windows_mmap_runtime_state(binding);
 
     // ensure the output pointer is valid
     if out.is_null() {
@@ -180,7 +180,7 @@ pub(crate) unsafe fn destack_fs_mmap_file(
     }
 
     // resolve the file handle
-    let handle = file_handle(context, handle)?;
+    let handle = file_handle(binding, handle)?;
     let length = validate_mapping_length(length)?;
 
     // configure protections and access
@@ -262,13 +262,13 @@ pub(crate) unsafe fn destack_fs_mmap_file(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mmap_anonymous(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     length: FileSize,
     prot: MmapProt,
     flags: MmapFlags,
 ) -> RuntimeResult<()> {
-    let runtime_state = windows_mmap_runtime_state(context);
+    let runtime_state = windows_mmap_runtime_state(binding);
 
     // ensure the output pointer is valid
     if out.is_null() {
@@ -322,10 +322,10 @@ pub(crate) unsafe fn destack_fs_mmap_anonymous(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_munmap(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     mapping: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let runtime_state = windows_mmap_runtime_state(context);
+    let runtime_state = windows_mmap_runtime_state(binding);
 
     let slice = unsafe { mapping.as_slice()? };
     if slice.is_empty() {
@@ -383,7 +383,7 @@ pub(crate) unsafe fn destack_fs_munmap(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mprotect(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     mapping: NativeSlice<u8>,
     prot: MmapProt,
 ) -> RuntimeResult<()> {
@@ -426,7 +426,7 @@ pub(crate) unsafe fn destack_fs_mprotect(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_msync(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     mapping: NativeSlice<u8>,
     _flags: MmapSyncFlags,
 ) -> RuntimeResult<()> {
@@ -461,7 +461,7 @@ pub(crate) unsafe fn destack_fs_msync(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_madvise(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     mapping: NativeSlice<u8>,
     advice: MmapAdvice,
 ) -> RuntimeResult<()> {

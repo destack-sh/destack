@@ -486,14 +486,14 @@ fn test_window_modal_parent_transition_reenables_previous_owner() {
 
         let owner_a_hwnd = context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .with_entry(owner_a.0, |entry| entry.raw_handle)
             .flatten()
             .expect("owner-a window resource should expose raw hwnd");
         let owner_b_hwnd = context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .with_entry(owner_b.0, |entry| entry.raw_handle)
             .flatten()

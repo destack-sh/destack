@@ -23,28 +23,28 @@ pub(crate) type SystemCertificateSourceAvailability = fn(&BindingCallContext) ->
 
 /// Return whether one host snapshot backend is available for one lane.
 pub(crate) fn host_store_persistence_backend_is_available_with_resolver(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     resolve_snapshot_path: SnapshotPathResolver,
 ) -> bool {
-    let snapshot_path = resolve_snapshot_path(context, kind);
+    let snapshot_path = resolve_snapshot_path(binding, kind);
 
     super::host_store_persistence_backend_is_available(snapshot_path)
 }
 
 /// Return whether one host store lane is currently available.
 pub(crate) fn host_store_lane_is_available_with_resolver(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     has_system_certificate_source: SystemCertificateSourceAvailability,
     resolve_snapshot_path: SnapshotPathResolver,
 ) -> bool {
     match kind {
-        CryptoStoreKind::System => has_system_certificate_source(context),
-        CryptoStoreKind::User => resolve_snapshot_path(context, CryptoStoreKind::User).is_some(),
+        CryptoStoreKind::System => has_system_certificate_source(binding),
+        CryptoStoreKind::User => resolve_snapshot_path(binding, CryptoStoreKind::User).is_some(),
         CryptoStoreKind::Machine => {
-            has_system_certificate_source(context)
-                || resolve_snapshot_path(context, CryptoStoreKind::Machine).is_some()
+            has_system_certificate_source(binding)
+                || resolve_snapshot_path(binding, CryptoStoreKind::Machine).is_some()
         }
         CryptoStoreKind::Provider | CryptoStoreKind::Ephemeral => false,
     }
@@ -52,15 +52,15 @@ pub(crate) fn host_store_lane_is_available_with_resolver(
 
 /// Open one host store lane and return certificate snapshots.
 pub(crate) fn open_host_store_certificates_with_collector(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     collect_system_certificates: SystemCertificateCollector,
     operation: &'static str,
 ) -> RuntimeResult<Vec<X509>> {
     match kind {
-        CryptoStoreKind::System => Ok(collect_system_certificates(context)),
+        CryptoStoreKind::System => Ok(collect_system_certificates(binding)),
         CryptoStoreKind::User => Ok(Vec::new()),
-        CryptoStoreKind::Machine => Ok(collect_system_certificates(context)),
+        CryptoStoreKind::Machine => Ok(collect_system_certificates(binding)),
         CryptoStoreKind::Provider => Err(core_platform::not_supported(operation)),
         CryptoStoreKind::Ephemeral => Ok(Vec::new()),
     }
@@ -68,27 +68,27 @@ pub(crate) fn open_host_store_certificates_with_collector(
 
 /// Load one backend host-key snapshot payload for one store lane.
 pub(crate) fn load_host_key_snapshot_bytes_with_resolver(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     config: SnapshotConfig,
     resolve_snapshot_path: SnapshotPathResolver,
     operation: &'static str,
 ) -> RuntimeResult<Option<Vec<u8>>> {
-    let snapshot_path = resolve_snapshot_path(context, kind);
+    let snapshot_path = resolve_snapshot_path(binding, kind);
 
     load_snapshot_bytes(snapshot_path, config, operation)
 }
 
 /// Store one backend host-key snapshot payload for one store lane.
 pub(crate) fn store_host_key_snapshot_bytes_with_resolver(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     snapshot_bytes: &[u8],
     config: SnapshotConfig,
     resolve_snapshot_path: SnapshotPathResolver,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let snapshot_path = resolve_snapshot_path(context, kind);
+    let snapshot_path = resolve_snapshot_path(binding, kind);
 
     store_snapshot_bytes(snapshot_path, kind, snapshot_bytes, config, operation)
 }

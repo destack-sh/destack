@@ -36,7 +36,7 @@ impl Drop for RouteTableGuard {
 }
 
 /// Build one socket address payload for the given family and unspecified address bytes.
-fn unspecified_socket_address(context: &BindingCallContext, family: SocketFamily) -> SocketAddress {
+fn unspecified_socket_address(binding: &BindingCallContext, family: SocketFamily) -> SocketAddress {
     match family {
         SocketFamily::IPv4 => {
             let raw = SOCKADDR_IN {
@@ -57,7 +57,7 @@ fn unspecified_socket_address(context: &BindingCallContext, family: SocketFamily
             SocketAddress {
                 family: AF_INET,
                 length: mem::size_of::<SOCKADDR_IN>() as u32,
-                bytes: context.store_array(bytes.to_vec()),
+                bytes: binding.store_array(bytes.to_vec()),
             }
         }
         SocketFamily::IPv6 => {
@@ -80,13 +80,13 @@ fn unspecified_socket_address(context: &BindingCallContext, family: SocketFamily
             SocketAddress {
                 family: AF_INET6,
                 length: mem::size_of::<SOCKADDR_IN6>() as u32,
-                bytes: context.store_array(bytes.to_vec()),
+                bytes: binding.store_array(bytes.to_vec()),
             }
         }
         SocketFamily::Unspecified => SocketAddress {
             family: AF_UNSPEC,
             length: 0,
-            bytes: context.store_array(Vec::new()),
+            bytes: binding.store_array(Vec::new()),
         },
     }
 }
@@ -234,7 +234,7 @@ fn sockaddr_inet_from_ipv6(address: Ipv6Addr) -> SOCKADDR_INET {
 
 /// Convert one host `SOCKADDR_INET` into runtime socket-address bytes.
 fn socket_address_from_sockaddr_inet(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: SOCKADDR_INET,
 ) -> RuntimeResult<SocketAddress> {
     // dispatch conversion by native family
@@ -250,7 +250,7 @@ fn socket_address_from_sockaddr_inet(
             );
         }
         return socket_address_raw_from_storage(
-            context,
+            binding,
             &storage,
             mem::size_of::<SOCKADDR_IN>() as i32,
         );
@@ -268,7 +268,7 @@ fn socket_address_from_sockaddr_inet(
             );
         }
         return socket_address_raw_from_storage(
-            context,
+            binding,
             &storage,
             mem::size_of::<SOCKADDR_IN6>() as i32,
         );
@@ -317,7 +317,7 @@ fn route_kind_ipv6(destination: Ipv6Addr, loopback: bool) -> RouteKind {
 
 /// Decode one route row into one runtime route entry.
 fn route_entry_from_row(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     row: MIB_IPFORWARD_ROW2,
 ) -> RuntimeResult<RouteEntry> {
     // resolve runtime family from destination prefix family
@@ -335,14 +335,14 @@ fn route_entry_from_row(
     };
 
     // encode destination socket address
-    let destination = socket_address_from_sockaddr_inet(context, row.DestinationPrefix.Prefix)?;
+    let destination = socket_address_from_sockaddr_inet(binding, row.DestinationPrefix.Prefix)?;
 
     // encode gateway socket address or synthesize one unspecified gateway
     let gateway_family = unsafe { row.NextHop.si_family as i32 };
     let gateway = if gateway_family == AF_INET as i32 || gateway_family == AF_INET6 as i32 {
-        socket_address_from_sockaddr_inet(context, row.NextHop)?
+        socket_address_from_sockaddr_inet(binding, row.NextHop)?
     } else {
-        unspecified_socket_address(context, route_family)
+        unspecified_socket_address(binding, route_family)
     };
 
     // classify route kind using destination family and host loopback metadata
@@ -456,7 +456,7 @@ fn route_row_from_entry(route: RouteEntry) -> RuntimeResult<MIB_IPFORWARD_ROW2> 
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_add(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     route: RouteEntry,
 ) -> RuntimeResult<()> {
     // convert one runtime route into host route row fields
@@ -494,7 +494,7 @@ pub(crate) unsafe fn destack_net_route_add(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_delete(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     route: RouteEntry,
 ) -> RuntimeResult<()> {
     // convert one runtime route into host route row fields
@@ -532,7 +532,7 @@ pub(crate) unsafe fn destack_net_route_delete(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<RouteEntry>,
     family: SocketFamily,
 ) -> RuntimeResult<()> {
@@ -571,13 +571,13 @@ pub(crate) unsafe fn destack_net_route_list(
     let row_pointer = unsafe { (*table).Table.as_ptr() };
     for index in 0..row_count {
         let row = unsafe { *row_pointer.add(index) };
-        let route = route_entry_from_row(context, row)?;
+        let route = route_entry_from_row(binding, row)?;
         routes.push(route);
     }
 
     // write the route snapshot output
     unsafe {
-        *out = context.store_array(routes);
+        *out = binding.store_array(routes);
     }
 
     Ok(())

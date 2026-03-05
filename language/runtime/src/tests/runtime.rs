@@ -5,12 +5,12 @@ use destack_workspace::{ExecutionMode, RandomMode, RandomOptions, RuntimeOptions
 
 use crate::diagnostic::{RuntimeError, RuntimeErrorId, RuntimeResult, RuntimeStatus};
 use crate::host::Host;
+use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::random::{
     RandomStream, destack_random_stream_next_u64, destack_random_stream_next_u64_from,
 };
 use crate::platform::resource::{ListenerHandle, ResourceKind};
-use crate::platform::{PlatformContext, PlatformError};
 use crate::runtime::{
     Agent, BindingCallContext, enter_binding_call_context, enter_current_agent_context,
 };
@@ -71,8 +71,7 @@ impl TestRuntime {
     /// Build a test runtime from explicit runtime options.
     fn from_runtime_options(options: RuntimeOptions) -> Self {
         // build runtime state from explicit options
-        let agent = Agent::new(PlatformContext::new(Vec::new()), &options)
-            .expect("runtime test agent should build");
+        let agent = Agent::new(Vec::new(), &options).expect("runtime test agent should build");
         let host = Host::from_runtime_options(&options);
 
         let tree = NodeTree::new();

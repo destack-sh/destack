@@ -49,20 +49,20 @@ pub(crate) struct AsioMonitorRuntimeState {
 }
 
 /// Return runtime-owned ASIO monitor state.
-fn asio_monitor_runtime_state(context: &BindingCallContext) -> Arc<AsioMonitorRuntimeState> {
-    let runtime_state = context
-        .runtime()
+fn asio_monitor_runtime_state(binding: &BindingCallContext) -> Arc<AsioMonitorRuntimeState> {
+    let runtime_state = binding
+        .agent()
         .platform_state
         .audio
         .asio_monitor_runtime_state(AsioMonitorRuntimeState::default);
-    register_runtime_finalizer(context, &runtime_state);
+    register_runtime_finalizer(binding, &runtime_state);
 
     runtime_state
 }
 
 /// Register one runtime finalizer for ASIO monitor teardown.
 fn register_runtime_finalizer(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     runtime_state: &Arc<AsioMonitorRuntimeState>,
 ) {
     if runtime_state
@@ -73,7 +73,7 @@ fn register_runtime_finalizer(
     }
 
     let runtime_state = Arc::clone(runtime_state);
-    context.runtime().finalizers.register(move || {
+    binding.agent().finalizers.register(move || {
         let monitor = runtime_state
             .monitor
             .lock()
@@ -107,8 +107,8 @@ pub(crate) fn native_device_events_supported() -> bool {
 }
 
 /// Start ASIO native device-event monitoring.
-pub(crate) fn start_native_device_event_monitor(context: &BindingCallContext) -> RuntimeResult<()> {
-    let runtime_state = asio_monitor_runtime_state(context);
+pub(crate) fn start_native_device_event_monitor(binding: &BindingCallContext) -> RuntimeResult<()> {
+    let runtime_state = asio_monitor_runtime_state(binding);
     let mut monitor_slot = runtime_state
         .monitor
         .lock()
@@ -119,7 +119,7 @@ pub(crate) fn start_native_device_event_monitor(context: &BindingCallContext) ->
     }
 
     let stop = Arc::new(AtomicBool::new(false));
-    let runtime_state = audio_core::audio_event_runtime_state(context);
+    let runtime_state = audio_core::audio_event_runtime_state(binding);
     let stop_signal = Arc::clone(&stop);
     let callback_runtime_state = Arc::clone(&runtime_state);
     let (ready_sender, ready_receiver) = mpsc::sync_channel(1);
@@ -146,8 +146,8 @@ pub(crate) fn start_native_device_event_monitor(context: &BindingCallContext) ->
 }
 
 /// Stop ASIO native device-event monitoring.
-pub(crate) fn stop_native_device_event_monitor(_context: &BindingCallContext) {
-    let runtime_state = asio_monitor_runtime_state(_context);
+pub(crate) fn stop_native_device_event_monitor(binding: &BindingCallContext) {
+    let runtime_state = asio_monitor_runtime_state(binding);
     let monitor = {
         let mut monitor_slot = runtime_state
             .monitor

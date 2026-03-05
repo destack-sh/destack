@@ -36,7 +36,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_get_limit(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut ProcessLimit,
     resource: ProcessLimitResource,
 ) -> RuntimeResult<()> {
@@ -81,7 +81,7 @@ pub(crate) unsafe fn destack_process_get_limit(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_limit(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     resource: ProcessLimitResource,
     limit: ProcessLimit,
 ) -> RuntimeResult<()> {

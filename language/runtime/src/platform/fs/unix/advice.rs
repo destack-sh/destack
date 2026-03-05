@@ -33,14 +33,14 @@ use std::path::PathBuf;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fadvise(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     offset: FileOffset,
     length: FileSize,
     advice: FileAdvice,
 ) -> RuntimeResult<()> {
     // resolve the file descriptor
-    let fd = file_descriptor(context, handle)?;
+    let fd = file_descriptor(binding, handle)?;
     let offset = offset_to_off_t(offset)?;
     let length = length.0 as libc::off_t;
 
@@ -110,14 +110,14 @@ pub(crate) unsafe fn destack_fs_fadvise(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fallocate(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     offset: FileOffset,
     length: FileSize,
     flags: AllocFlags,
 ) -> RuntimeResult<()> {
     // resolve the file descriptor
-    let fd = file_descriptor(context, handle)?;
+    let fd = file_descriptor(binding, handle)?;
     let offset = offset_to_off_t(offset)?;
     let length = length.0 as libc::off_t;
 
@@ -196,14 +196,14 @@ pub(crate) unsafe fn destack_fs_fallocate(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_sync_file_range(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     offset: FileOffset,
     length: FileSize,
     flags: SyncFlags,
 ) -> RuntimeResult<()> {
     // resolve the file descriptor
-    let fd = file_descriptor(context, handle)?;
+    let fd = file_descriptor(binding, handle)?;
     let offset = offset_to_off_t(offset)?;
     let length = length.0 as libc::off_t;
 

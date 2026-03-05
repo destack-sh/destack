@@ -26,20 +26,23 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_event_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<()> {
-    let binding = audio_core::resolve_event_binding(context, handle, "destack.audio.event.close")?;
+    let resolved_binding =
+        audio_core::resolve_event_binding(binding, handle, "destack.audio.event.close")?;
     let backend = {
-        let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-        binding.options.backend
+        let resolved_binding = resolved_binding
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        resolved_binding.options.backend
     };
-    audio_core::unregister_event_binding(&binding);
+    audio_core::unregister_event_binding(&resolved_binding);
 
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove(handle.0, Some(context.engine()));
+        .remove(handle.0, Some(binding.engine()));
     if removed.is_none() {
         return Err(audio_core::audio_not_found(
             "destack.audio.event.close",
@@ -72,7 +75,7 @@ pub(crate) unsafe fn destack_audio_event_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_event_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::AudioEventHandle,
     options: AudioEventSubscriptionOptions,
 ) -> RuntimeResult<()> {
@@ -81,25 +84,25 @@ pub(crate) unsafe fn destack_audio_event_open(
     }
 
     let options = audio_core::normalize_event_subscription_options(
-        context,
+        binding,
         options,
         "destack.audio.event.open",
     )?;
-    let binding = audio_core::build_event_binding(context, options)?;
-    let payload = Arc::new(Mutex::new(binding));
+    let resolved_binding = audio_core::build_event_binding(binding, options)?;
+    let payload = Arc::new(Mutex::new(resolved_binding));
 
-    let handle = context.agent().resources.insert(
-        ResourceEntry::new(ResourceKind::AudioEvent, Some(context.engine()))
+    let handle = binding.agent().resources.insert(
+        ResourceEntry::new(ResourceKind::AudioEvent, Some(binding.engine()))
             .with_label(audio_core::AUDIO_EVENT_RESOURCE_LABEL)
             .with_payload(payload.clone()),
     );
     audio_core::register_event_binding(&payload);
     if let Err(error) = audio_core::refresh_backend_device_monitor(options.backend) {
         audio_core::unregister_event_binding(&payload);
-        let _ = context
+        let _ = binding
             .agent()
             .resources
-            .remove(handle, Some(context.engine()));
+            .remove(handle, Some(binding.engine()));
         return Err(error);
     }
 
@@ -128,7 +131,7 @@ pub(crate) unsafe fn destack_audio_event_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_event_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut AudioEvent,
     handle: resource::AudioEventHandle,
     timeoutns: u64,
@@ -137,17 +140,20 @@ pub(crate) unsafe fn destack_audio_event_read(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let binding = audio_core::resolve_event_binding(context, handle, "destack.audio.event.read")?;
+    let resolved_binding =
+        audio_core::resolve_event_binding(binding, handle, "destack.audio.event.read")?;
     let deadline = audio_core::host_monotonic_nanos().saturating_add(timeoutns);
 
     loop {
-        let mut guard = binding.lock().unwrap_or_else(|error| error.into_inner());
+        let mut guard = resolved_binding
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         let poll_interval_ns = guard.options.poll_interval_ns.max(1);
-        audio_core::refresh_event_queue_for_delivery_mode(context, &mut guard)?;
+        audio_core::refresh_event_queue_for_delivery_mode(binding, &mut guard)?;
         audio_core::take_event_overflow_error(&mut guard, "destack.audio.event.read")?;
         if let Some(event) = guard.pending.pop_front() {
             unsafe {
-                *out = audio_core::abi_event(context, event);
+                *out = audio_core::abi_event(binding, event);
             }
             return Ok(());
         }
@@ -185,7 +191,7 @@ pub(crate) unsafe fn destack_audio_event_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_event_read_batch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<AudioEvent>,
     handle: resource::AudioEventHandle,
     maxevents: u32,
@@ -203,26 +209,28 @@ pub(crate) unsafe fn destack_audio_event_read_batch(
         .boxed());
     }
 
-    let binding =
-        audio_core::resolve_event_binding(context, handle, "destack.audio.event.readBatch")?;
+    let resolved_binding =
+        audio_core::resolve_event_binding(binding, handle, "destack.audio.event.readBatch")?;
     let deadline = audio_core::host_monotonic_nanos().saturating_add(timeoutns);
 
     loop {
-        let mut guard = binding.lock().unwrap_or_else(|error| error.into_inner());
+        let mut guard = resolved_binding
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         let poll_interval_ns = guard.options.poll_interval_ns.max(1);
-        audio_core::refresh_event_queue_for_delivery_mode(context, &mut guard)?;
+        audio_core::refresh_event_queue_for_delivery_mode(binding, &mut guard)?;
         audio_core::take_event_overflow_error(&mut guard, "destack.audio.event.readBatch")?;
         if !guard.pending.is_empty() {
             let take = (maxevents as usize).min(guard.pending.len());
             let mut events = Vec::with_capacity(take);
             for _ in 0..take {
                 if let Some(event) = guard.pending.pop_front() {
-                    events.push(audio_core::abi_event(context, event));
+                    events.push(audio_core::abi_event(binding, event));
                 }
             }
 
             unsafe {
-                *out = context.store_slice(events);
+                *out = binding.store_slice(events);
             }
             return Ok(());
         }
@@ -259,7 +267,7 @@ pub(crate) unsafe fn destack_audio_event_read_batch(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_event_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut AudioEvent,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<()> {
@@ -267,10 +275,12 @@ pub(crate) unsafe fn destack_audio_event_try_read(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let binding =
-        audio_core::resolve_event_binding(context, handle, "destack.audio.event.tryRead")?;
-    let mut guard = binding.lock().unwrap_or_else(|error| error.into_inner());
-    audio_core::refresh_event_queue_for_delivery_mode(context, &mut guard)?;
+    let resolved_binding =
+        audio_core::resolve_event_binding(binding, handle, "destack.audio.event.tryRead")?;
+    let mut guard = resolved_binding
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    audio_core::refresh_event_queue_for_delivery_mode(binding, &mut guard)?;
     audio_core::take_event_overflow_error(&mut guard, "destack.audio.event.tryRead")?;
 
     let event = guard.pending.pop_front().ok_or_else(|| {
@@ -281,7 +291,7 @@ pub(crate) unsafe fn destack_audio_event_try_read(
     })?;
 
     unsafe {
-        *out = audio_core::abi_event(context, event);
+        *out = audio_core::abi_event(binding, event);
     }
     Ok(())
 }
@@ -304,7 +314,7 @@ pub(crate) unsafe fn destack_audio_event_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_event_try_read_batch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<AudioEvent>,
     handle: resource::AudioEventHandle,
     maxevents: u32,
@@ -321,10 +331,12 @@ pub(crate) unsafe fn destack_audio_event_try_read_batch(
         .boxed());
     }
 
-    let binding =
-        audio_core::resolve_event_binding(context, handle, "destack.audio.event.tryReadBatch")?;
-    let mut guard = binding.lock().unwrap_or_else(|error| error.into_inner());
-    audio_core::refresh_event_queue_for_delivery_mode(context, &mut guard)?;
+    let resolved_binding =
+        audio_core::resolve_event_binding(binding, handle, "destack.audio.event.tryReadBatch")?;
+    let mut guard = resolved_binding
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    audio_core::refresh_event_queue_for_delivery_mode(binding, &mut guard)?;
     audio_core::take_event_overflow_error(&mut guard, "destack.audio.event.tryReadBatch")?;
 
     if guard.pending.is_empty() {
@@ -338,12 +350,12 @@ pub(crate) unsafe fn destack_audio_event_try_read_batch(
     let mut events = Vec::with_capacity(take);
     for _ in 0..take {
         if let Some(event) = guard.pending.pop_front() {
-            events.push(audio_core::abi_event(context, event));
+            events.push(audio_core::abi_event(binding, event));
         }
     }
 
     unsafe {
-        *out = context.store_slice(events);
+        *out = binding.store_slice(events);
     }
 
     Ok(())

@@ -116,10 +116,10 @@ fn open_pty_pair(_rows: u16, _columns: u16) -> RuntimeResult<(RawFd, RawFd)> {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_pty_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PtyHandle,
 ) -> RuntimeResult<()> {
-    close_pty_resource(context, handle, "destack.tty.pty.close")
+    close_pty_resource(binding, handle, "destack.tty.pty.close")
 }
 
 /// Open one pseudo-terminal pair.
@@ -140,7 +140,7 @@ pub(crate) unsafe fn destack_tty_pty_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_pty_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PtyPair,
     rows: u32,
     columns: u32,
@@ -189,7 +189,7 @@ pub(crate) unsafe fn destack_tty_pty_open(
     }
 
     // register resources and write the returned pair
-    let pair = register_pty_pair(context, controller_descriptor, worker_descriptor);
+    let pair = register_pty_pair(binding, controller_descriptor, worker_descriptor);
     unsafe {
         out.write(pair);
     }

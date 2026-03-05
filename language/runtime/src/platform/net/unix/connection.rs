@@ -32,7 +32,7 @@ use std::os::unix::io::RawFd;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_accept(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketHandle,
     listener: ListenerHandle,
     _flags: AcceptFlags,
@@ -44,7 +44,7 @@ pub(crate) unsafe fn destack_net_accept(
 
     // accept sockets on unix platforms
     // resolve the listener descriptor
-    let fd = listener_descriptor(context, listener)?;
+    let fd = listener_descriptor(binding, listener)?;
 
     // accept the connection
     let client_fd = unsafe { libc::accept(fd, std::ptr::null_mut(), std::ptr::null_mut()) };
@@ -56,10 +56,10 @@ pub(crate) unsafe fn destack_net_accept(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(client_fd)
         .with_finalizer(SocketFinalizer { fd: client_fd });
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -85,11 +85,11 @@ pub(crate) unsafe fn destack_net_accept(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
     // validate the handle kind
-    let is_socket = context
+    let is_socket = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| entry.kind == ResourceKind::Socket)
@@ -103,10 +103,10 @@ pub(crate) unsafe fn destack_net_close(
     }
 
     // remove the resource and close it
-    if !context
+    if !binding
         .agent()
         .resources
-        .remove_and_finalize(handle.0, Some(context.engine()))
+        .remove_and_finalize(handle.0, Some(binding.engine()))
     {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
@@ -136,11 +136,11 @@ pub(crate) unsafe fn destack_net_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_close_listener(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ListenerHandle,
 ) -> RuntimeResult<()> {
     // validate the handle kind
-    let is_listener = context
+    let is_listener = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| entry.kind == ResourceKind::Listener)
@@ -154,10 +154,10 @@ pub(crate) unsafe fn destack_net_close_listener(
     }
 
     // remove the resource and close it
-    if !context
+    if !binding
         .agent()
         .resources
-        .remove_and_finalize(handle.0, Some(context.engine()))
+        .remove_and_finalize(handle.0, Some(binding.engine()))
     {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
@@ -172,12 +172,12 @@ pub(crate) unsafe fn destack_net_close_listener(
 /// Connect an existing socket to a raw remote address.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_connect_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
     // resolve the socket descriptor
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
 
     // connect using the provided raw sockaddr
     with_socket_address_raw(address, |sockaddr, length| {
@@ -211,12 +211,12 @@ pub(crate) unsafe fn destack_net_connect_raw(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_bind(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
     // resolve the socket descriptor
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
 
     // bind using the provided raw sockaddr
     with_socket_address_raw(address, |sockaddr, length| {
@@ -232,7 +232,7 @@ pub(crate) unsafe fn destack_net_bind(
 /// Start listening on a raw local socket address.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_listen_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut ListenerHandle,
     address: SocketAddress,
     backlog: u32,
@@ -308,10 +308,10 @@ pub(crate) unsafe fn destack_net_listen_raw(
         let entry = ResourceEntry::new(ResourceKind::Listener)
             .with_listener(fd)
             .with_finalizer(DescriptorFinalizer { fd });
-        let resource_id = context
+        let resource_id = binding
             .agent()
             .resources
-            .insert(entry, Some(context.engine()));
+            .insert(entry, Some(binding.engine()));
         unsafe {
             *out = ListenerHandle(resource_id);
         }
@@ -339,7 +339,7 @@ pub(crate) unsafe fn destack_net_listen_raw(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_socket(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketHandle,
     family: SocketFamily,
     socket_type: SocketType,
@@ -366,10 +366,10 @@ pub(crate) unsafe fn destack_net_socket(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(fd)
         .with_finalizer(DescriptorFinalizer { fd });
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -396,7 +396,7 @@ pub(crate) unsafe fn destack_net_socket(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_socket_pair(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketPair,
     family: SocketFamily,
     socket_type: SocketType,
@@ -437,18 +437,18 @@ pub(crate) unsafe fn destack_net_socket_pair(
     let first_entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(pair[0])
         .with_finalizer(DescriptorFinalizer { fd: pair[0] });
-    let first_id = context
+    let first_id = binding
         .agent()
         .resources
-        .insert(first_entry, Some(context.engine()));
+        .insert(first_entry, Some(binding.engine()));
 
     let second_entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(pair[1])
         .with_finalizer(DescriptorFinalizer { fd: pair[1] });
-    let second_id = context
+    let second_id = binding
         .agent()
         .resources
-        .insert(second_entry, Some(context.engine()));
+        .insert(second_entry, Some(binding.engine()));
 
     unsafe {
         *out = SocketPair {

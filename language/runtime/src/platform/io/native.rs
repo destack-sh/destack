@@ -25,10 +25,10 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_io::destack_io_timer_fd_close(context, handle) }
+    unsafe { host_io::destack_io_timer_fd_close(binding, handle) }
 }
 
 /// Read the active timerfd schedule.
@@ -49,11 +49,11 @@ pub(crate) unsafe fn destack_io_timer_fd_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_get(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut TimerFdSpec,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_io::destack_io_timer_fd_get(context, out, handle) }
+    unsafe { host_io::destack_io_timer_fd_get(binding, out, handle) }
 }
 
 /// Open one timerfd style descriptor.
@@ -74,12 +74,12 @@ pub(crate) unsafe fn destack_io_timer_fd_get(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::TimerFdHandle,
     clock: TimerFdClock,
     flags: TimerFdFlags,
 ) -> RuntimeResult<()> {
-    unsafe { host_io::destack_io_timer_fd_open(context, out, clock, flags) }
+    unsafe { host_io::destack_io_timer_fd_open(binding, out, clock, flags) }
 }
 
 /// Read one timerfd expiration counter.
@@ -100,11 +100,11 @@ pub(crate) unsafe fn destack_io_timer_fd_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_io::destack_io_timer_fd_read(context, out, handle) }
+    unsafe { host_io::destack_io_timer_fd_read(binding, out, handle) }
 }
 
 /// Update one timerfd schedule.
@@ -125,10 +125,10 @@ pub(crate) unsafe fn destack_io_timer_fd_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_set(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TimerFdHandle,
     spec: TimerFdSpec,
     flags: TimerFdSetFlags,
 ) -> RuntimeResult<()> {
-    unsafe { host_io::destack_io_timer_fd_set(context, handle, spec, flags) }
+    unsafe { host_io::destack_io_timer_fd_set(binding, handle, spec, flags) }
 }

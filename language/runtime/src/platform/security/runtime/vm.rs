@@ -23,11 +23,11 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_capability_has(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     capability: PlatformCapabilityVm,
 ) -> RuntimeResult<bool> {
-    security_vm::destack_security_capability_has(runtime, context, capability)
+    security_vm::destack_security_capability_has(binding, context, capability)
 }
 
 /// List active capabilities.
@@ -48,10 +48,10 @@ pub(crate) fn destack_security_capability_has(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_capability_list(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<PlatformCapabilityVm>> {
-    security_vm::destack_security_capability_list(runtime, context)
+    security_vm::destack_security_capability_list(binding, context)
 }
 
 /// Read policy capabilities for one named scope.
@@ -72,11 +72,11 @@ pub(crate) fn destack_security_capability_list(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_policy_get(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     scope: vm::StringHandle,
 ) -> RuntimeResult<VmSlice<PlatformCapabilityVm>> {
-    security_vm::destack_security_policy_get(runtime, context, scope)
+    security_vm::destack_security_policy_get(binding, context, scope)
 }
 
 /// Read structured policy rules for one named scope.
@@ -97,11 +97,11 @@ pub(crate) fn destack_security_policy_get(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_policy_get_rules(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     scope: vm::StringHandle,
 ) -> RuntimeResult<VmSlice<SecurityPolicyRuleVm>> {
-    security_vm::destack_security_policy_get_rules(runtime, context, scope)
+    security_vm::destack_security_policy_get_rules(binding, context, scope)
 }
 
 /// Replace policy capabilities for one named scope.
@@ -122,12 +122,12 @@ pub(crate) fn destack_security_policy_get_rules(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_policy_set(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     scope: vm::StringHandle,
     capabilities: VmSlice<PlatformCapabilityVm>,
 ) -> RuntimeResult<()> {
-    security_vm::destack_security_policy_set(runtime, context, scope, capabilities)
+    security_vm::destack_security_policy_set(binding, context, scope, capabilities)
 }
 
 /// Replace structured policy rules for one named scope.
@@ -148,12 +148,12 @@ pub(crate) fn destack_security_policy_set(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_policy_set_rules(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     scope: vm::StringHandle,
     rules: VmSlice<SecurityPolicyRuleVm>,
 ) -> RuntimeResult<()> {
-    security_vm::destack_security_policy_set_rules(runtime, context, scope, rules)
+    security_vm::destack_security_policy_set_rules(binding, context, scope, rules)
 }
 
 /// Enter a sandbox scope.
@@ -174,11 +174,11 @@ pub(crate) fn destack_security_policy_set_rules(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_security_sandbox_enter(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<resource::SandboxHandle> {
-    security_vm::destack_security_sandbox_enter(runtime, context, name)
+    security_vm::destack_security_sandbox_enter(binding, context, name)
 }
 
 /// Leave a sandbox scope.
@@ -199,11 +199,11 @@ pub(crate) fn destack_security_sandbox_enter(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_security_sandbox_exit(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<()> {
-    security_vm::destack_security_sandbox_exit(runtime, context, handle)
+    security_vm::destack_security_sandbox_exit(binding, context, handle)
 }
 
 /// Seal one sandbox policy.
@@ -224,11 +224,11 @@ pub(crate) fn destack_security_sandbox_exit(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_sandbox_seal(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<()> {
-    security_vm::destack_security_sandbox_seal(runtime, context, handle)
+    security_vm::destack_security_sandbox_seal(binding, context, handle)
 }
 
 /// Apply an explicit capability set to one sandbox scope.
@@ -249,12 +249,12 @@ pub(crate) fn destack_security_sandbox_seal(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_sandbox_set_capabilities(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SandboxHandle,
     capabilities: VmSlice<PlatformCapabilityVm>,
 ) -> RuntimeResult<()> {
-    security_vm::destack_security_sandbox_set_capabilities(runtime, context, handle, capabilities)
+    security_vm::destack_security_sandbox_set_capabilities(binding, context, handle, capabilities)
 }
 
 /// Set runtime W^X policy.
@@ -275,9 +275,9 @@ pub(crate) fn destack_security_sandbox_set_capabilities(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_security_set_write_xor_execute(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    security_vm::destack_security_set_write_xor_execute(runtime, context, enabled)
+    security_vm::destack_security_set_write_xor_execute(binding, context, enabled)
 }

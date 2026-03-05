@@ -573,14 +573,14 @@ impl Default for WindowsRawInputRuntimeState {
 
 /// Return runtime-owned raw-input mutable state.
 pub(super) fn windows_raw_input_runtime_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> Arc<WindowsRawInputRuntimeState> {
-    let runtime_state = context
-        .runtime()
+    let runtime_state = binding
+        .agent()
         .platform_state
         .input
         .windows_raw_input_runtime_state(WindowsRawInputRuntimeState::default);
-    register_runtime_finalizer(context, &runtime_state);
+    register_runtime_finalizer(binding, &runtime_state);
 
     runtime_state
 }
@@ -620,22 +620,22 @@ fn raw_touch_queue_limit(runtime_state: &WindowsRawInputRuntimeState) -> usize {
 /// Apply raw-input queue limits from one binding context.
 fn configure_raw_queue_limits(
     runtime_state: &WindowsRawInputRuntimeState,
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) {
     runtime_state.raw_input_queue_limit.store(
-        windows_core::windows_raw_input_queue_capacity(context),
+        windows_core::windows_raw_input_queue_capacity(binding),
         Ordering::Relaxed,
     );
     runtime_state.raw_monitor_queue_limit.store(
-        windows_core::windows_raw_monitor_queue_capacity(context),
+        windows_core::windows_raw_monitor_queue_capacity(binding),
         Ordering::Relaxed,
     );
     runtime_state.raw_hid_queue_limit.store(
-        windows_core::windows_raw_hid_queue_capacity(context),
+        windows_core::windows_raw_hid_queue_capacity(binding),
         Ordering::Relaxed,
     );
     runtime_state.raw_touch_queue_limit.store(
-        windows_core::windows_raw_touch_queue_capacity(context),
+        windows_core::windows_raw_touch_queue_capacity(binding),
         Ordering::Relaxed,
     );
 }
@@ -1630,7 +1630,7 @@ fn button_infos_for_raw_input_device(
 
 /// Build one runtime capabilities payload from one raw-input descriptor.
 pub(super) fn capabilities_for_raw_input_device(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     device: &RawInputDeviceDescriptor,
 ) -> InputDeviceCapabilities {
     let mut kinds = Vec::new();
@@ -1692,9 +1692,9 @@ pub(super) fn capabilities_for_raw_input_device(
     };
 
     InputDeviceCapabilities {
-        kinds: context.store_array(kinds),
-        axes: context.store_array(axes),
-        buttons: context.store_array(buttons),
+        kinds: binding.store_array(kinds),
+        axes: binding.store_array(axes),
+        buttons: binding.store_array(buttons),
         metadata_origin,
         axis_metadata_fidelity,
         button_metadata_fidelity,
@@ -1755,7 +1755,7 @@ fn raw_service_slot(
 
 /// Register one runtime teardown finalizer for the raw-input service.
 fn register_runtime_finalizer(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     runtime_state: &Arc<WindowsRawInputRuntimeState>,
 ) {
     if runtime_state
@@ -1766,7 +1766,7 @@ fn register_runtime_finalizer(
     }
 
     let runtime_state = Arc::clone(runtime_state);
-    context.runtime().finalizers.register(move || {
+    binding.agent().finalizers.register(move || {
         shutdown_raw_input_service(&runtime_state);
         clear_raw_gamepad_decoder_cache(&runtime_state);
     });
@@ -2176,7 +2176,7 @@ fn ensure_raw_input_registration(hwnd: HWND) -> RuntimeResult<()> {
 
 /// Spawn the raw-input worker and wait for successful initialization.
 fn spawn_raw_input_service(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     runtime_state: &Arc<WindowsRawInputRuntimeState>,
 ) -> Result<RawInputService, String> {
     // reuse existing shared state so restarted workers keep servicing the same queues
@@ -2190,7 +2190,7 @@ fn spawn_raw_input_service(
     let (ready_tx, ready_rx) = mpsc::channel::<Result<u32, String>>();
     let thread_state = Arc::clone(&state);
     let thread_runtime_state = Arc::clone(runtime_state);
-    let thread_host = context.host().clone();
+    let thread_host = binding.host().clone();
     let handle = thread::Builder::new()
         .name("destack-input-raw".to_string())
         .spawn(move || {
@@ -2917,15 +2917,15 @@ fn push_mouse_button_events(
 
 /// Pop one queued packet, optionally blocking for the next event.
 fn pop_input_event_for_device(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     queue_kind: RawQueueKind,
     device_id: &str,
     nonblocking: bool,
     operation: &'static str,
 ) -> RuntimeResult<RawInputPacket> {
     // ensure the singleton raw service is initialized
-    let runtime_state = windows_raw_input_runtime_state(context);
-    let service = ensure_raw_service(context, operation)?;
+    let runtime_state = windows_raw_input_runtime_state(binding);
+    let service = ensure_raw_service(binding, operation)?;
     let mut queues = service.state.queues.lock();
 
     loop {
@@ -2961,13 +2961,13 @@ fn pop_input_event_for_device(
 
 /// Pop one queued monitor packet, optionally blocking for the next event.
 fn pop_monitor_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     nonblocking: bool,
     operation: &'static str,
 ) -> RuntimeResult<RawMonitorPacket> {
     // ensure the singleton raw service is initialized
-    let runtime_state = windows_raw_input_runtime_state(context);
-    let service = ensure_raw_service(context, operation)?;
+    let runtime_state = windows_raw_input_runtime_state(binding);
+    let service = ensure_raw_service(binding, operation)?;
     let mut queues = service.state.queues.lock();
 
     loop {
@@ -2995,13 +2995,13 @@ fn pop_monitor_event(
 
 /// Pop one queued raw-hid packet for one device, optionally blocking.
 fn pop_raw_hid_packet_for_device(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     device_id: &str,
     nonblocking: bool,
     operation: &'static str,
 ) -> RuntimeResult<RawHidPacket> {
-    let runtime_state = windows_raw_input_runtime_state(context);
-    let service = ensure_raw_service(context, operation)?;
+    let runtime_state = windows_raw_input_runtime_state(binding);
+    let service = ensure_raw_service(binding, operation)?;
     let mut queues = service.state.queues.lock();
 
     loop {
@@ -3031,17 +3031,17 @@ fn pop_raw_hid_packet_for_device(
 
 /// Pop one queued raw-hid packet for one device with one bounded timeout.
 fn pop_raw_hid_packet_for_device_with_timeout(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     device_id: &str,
     timeoutns: u64,
     operation: &'static str,
 ) -> RuntimeResult<RawHidPacket> {
     if timeoutns == 0 {
-        return pop_raw_hid_packet_for_device(context, device_id, true, operation);
+        return pop_raw_hid_packet_for_device(binding, device_id, true, operation);
     }
 
-    let runtime_state = windows_raw_input_runtime_state(context);
-    let service = ensure_raw_service(context, operation)?;
+    let runtime_state = windows_raw_input_runtime_state(binding);
+    let service = ensure_raw_service(binding, operation)?;
     let mut queues = service.state.queues.lock();
     let deadline = Instant::now().checked_add(Duration::from_nanos(timeoutns));
 
@@ -3081,13 +3081,13 @@ fn pop_raw_hid_packet_for_device_with_timeout(
 
 /// Pop one queued touch snapshot for one device, optionally blocking.
 fn pop_touch_packet_for_device(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     device_id: &str,
     nonblocking: bool,
     operation: &'static str,
 ) -> RuntimeResult<RawTouchPacket> {
-    let runtime_state = windows_raw_input_runtime_state(context);
-    let service = ensure_raw_service(context, operation)?;
+    let runtime_state = windows_raw_input_runtime_state(binding);
+    let service = ensure_raw_service(binding, operation)?;
     let mut queues = service.state.queues.lock();
 
     loop {
@@ -3117,11 +3117,11 @@ fn pop_touch_packet_for_device(
 
 /// Return the singleton raw service or map startup errors.
 fn ensure_raw_service(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     operation: &'static str,
 ) -> RuntimeResult<RawInputService> {
-    let runtime_state = windows_raw_input_runtime_state(context);
-    configure_raw_queue_limits(&runtime_state, context);
+    let runtime_state = windows_raw_input_runtime_state(binding);
+    configure_raw_queue_limits(&runtime_state, binding);
 
     let mut slot = raw_service_slot(&runtime_state).lock();
 
@@ -3131,7 +3131,7 @@ fn ensure_raw_service(
         None => true,
     };
     if requires_spawn {
-        let service = spawn_raw_input_service(context, &runtime_state)
+        let service = spawn_raw_input_service(binding, &runtime_state)
             .map_err(|error| service_error(operation, format!("raw input unavailable: {error}")))?;
         *slot = Some(service);
     }
@@ -3147,22 +3147,22 @@ fn ensure_raw_service(
 
 /// Ensure the raw service is initialized for one binding operation.
 pub(super) fn ensure_service(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let _ = ensure_raw_service(context, operation)?;
+    let _ = ensure_raw_service(binding, operation)?;
     Ok(())
 }
 
 /// Register one opened per-device stream for queue filtering.
 pub(super) fn register_input_stream(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     device_id: &str,
     operation: &'static str,
 ) -> RuntimeResult<Arc<WindowsRawInputRuntimeState>> {
     // ensure service startup before mutating shared stream counts
-    let runtime_state = windows_raw_input_runtime_state(context);
-    let service = ensure_raw_service(context, operation)?;
+    let runtime_state = windows_raw_input_runtime_state(binding);
+    let service = ensure_raw_service(binding, operation)?;
     let mut queues = service.state.queues.lock();
     let current = queues
         .active_input_streams
@@ -3220,7 +3220,7 @@ pub(super) fn release_input_stream(
 
 /// Read one event for one opened raw-input device.
 pub(super) fn read_device_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     device: &RawInputDeviceDescriptor,
     nonblocking: bool,
     operation: &'static str,
@@ -3233,8 +3233,8 @@ pub(super) fn read_device_event(
             RawQueueKind::Mouse
         };
         let event =
-            pop_input_event_for_device(context, queue_kind, &device.id, nonblocking, operation)?;
-        let mut payload = windows_core::empty_event_payload(context);
+            pop_input_event_for_device(binding, queue_kind, &device.id, nonblocking, operation)?;
+        let mut payload = windows_core::empty_event_payload(binding);
         match event.kind {
             InputEventKind::Key => {
                 payload.key = InputKeyEventPayload {
@@ -3284,7 +3284,7 @@ pub(super) fn read_device_event(
         }
 
         return Ok(windows_core::build_input_event(
-            context,
+            binding,
             event.kind,
             event.timestamp_ns,
             0,
@@ -3295,8 +3295,8 @@ pub(super) fn read_device_event(
 
     // map touch snapshots into one touch event payload
     if matches!(device.kind, InputDeviceKind::Touch | InputDeviceKind::Pen) {
-        let touch = pop_touch_packet_for_device(context, &device.id, nonblocking, operation)?;
-        let mut payload = windows_core::empty_event_payload(context);
+        let touch = pop_touch_packet_for_device(binding, &device.id, nonblocking, operation)?;
+        let mut payload = windows_core::empty_event_payload(binding);
         if let Some(contact) = touch.contacts.first() {
             let action = if contact.phase == InputTouchContactPhase::Begin {
                 InputEventAction::Press
@@ -3317,7 +3317,7 @@ pub(super) fn read_device_event(
         }
 
         return Ok(windows_core::build_input_event(
-            context,
+            binding,
             InputEventKind::Touch,
             touch.timestamp_ns,
             0,
@@ -3328,8 +3328,8 @@ pub(super) fn read_device_event(
 
     // map sensor-capable streams into one sensor event payload
     if let Some(sensor_kind) = sensor_kind_for_device(device) {
-        let sample = read_sensor_sample(context, device, sensor_kind, nonblocking, operation)?;
-        let mut payload = windows_core::empty_event_payload(context);
+        let sample = read_sensor_sample(binding, device, sensor_kind, nonblocking, operation)?;
+        let mut payload = windows_core::empty_event_payload(binding);
         payload.sensor.action = InputEventAction::Axis;
         payload.sensor.backend_code = sensor_kind as u32;
         payload.sensor.backend_value = i64::from(sample.flags);
@@ -3337,7 +3337,7 @@ pub(super) fn read_device_event(
         payload.sensor.y = sample.y;
         payload.sensor.z = sample.z;
         return Ok(windows_core::build_input_event(
-            context,
+            binding,
             InputEventKind::Sensor,
             sample.timestamp_ns,
             0,
@@ -3347,13 +3347,13 @@ pub(super) fn read_device_event(
     }
 
     // map generic raw-hid packets into one device event payload
-    let packet = pop_raw_hid_packet_for_device(context, &device.id, nonblocking, operation)?;
-    let mut payload = windows_core::empty_event_payload(context);
+    let packet = pop_raw_hid_packet_for_device(binding, &device.id, nonblocking, operation)?;
+    let mut payload = windows_core::empty_event_payload(binding);
     payload.device.action = InputEventAction::Move;
     payload.device.backend_code = u32::from(packet.report_id);
     payload.device.backend_value = packet.data.len() as i64;
     Ok(windows_core::build_input_event(
-        context,
+        binding,
         InputEventKind::Device,
         packet.timestamp_ns,
         0,
@@ -3373,7 +3373,7 @@ fn monitor_kind_from_action(action: InputEventAction) -> InputMonitorEventKind {
 
 /// Build one monitor event payload for raw-input monitor deltas.
 fn build_raw_monitor_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     timestamp_ns: u64,
     sequence: u64,
     device_id: &str,
@@ -3385,7 +3385,7 @@ fn build_raw_monitor_event(
     let metadata = InputMonitorEventMetadata {
         timestamp_ns,
         sequence,
-        device_id: context.store_string(device_id),
+        device_id: binding.store_string(device_id),
         device_kind,
         connected,
     };
@@ -3393,19 +3393,19 @@ fn build_raw_monitor_event(
     match kind {
         InputMonitorEventKind::Connect => {
             InputMonitorEvent::InputMonitorConnectEvent(InputMonitorConnectEvent {
-                kind: context.store_string("connect"),
+                kind: binding.store_string("connect"),
                 metadata,
             })
         }
         InputMonitorEventKind::Disconnect => {
             InputMonitorEvent::InputMonitorDisconnectEvent(InputMonitorDisconnectEvent {
-                kind: context.store_string("disconnect"),
+                kind: binding.store_string("disconnect"),
                 metadata,
             })
         }
         InputMonitorEventKind::Change => {
             InputMonitorEvent::InputMonitorChangeEvent(InputMonitorChangeEvent {
-                kind: context.store_string("change"),
+                kind: binding.store_string("change"),
                 metadata,
             })
         }
@@ -3414,16 +3414,16 @@ fn build_raw_monitor_event(
 
 /// Read one monitor event from the raw queue.
 pub(super) fn read_monitor_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     nonblocking: bool,
     operation: &'static str,
 ) -> RuntimeResult<InputMonitorEvent> {
     // pop one monitor packet and map queue state
-    let event = pop_monitor_event(context, nonblocking, operation)?;
+    let event = pop_monitor_event(binding, nonblocking, operation)?;
 
     // map monitor packet into one runtime monitor payload
     Ok(build_raw_monitor_event(
-        context,
+        binding,
         event.timestamp_ns,
         0,
         &event.device_id,
@@ -3635,11 +3635,11 @@ fn neutral_gamepad_state() -> DecodedRawGamepadState {
 
 /// Return one latest queued raw-hid packet for one device without draining queue state.
 fn latest_raw_hid_packet_for_device(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     device_id: &str,
     operation: &'static str,
 ) -> RuntimeResult<Option<RawHidPacket>> {
-    let service = ensure_raw_service(context, operation)?;
+    let service = ensure_raw_service(binding, operation)?;
     let queues = service.state.queues.lock();
     Ok(queues
         .hid
@@ -4061,7 +4061,7 @@ fn decode_cached_raw_gamepad_state(
 
 /// Read one gamepad state snapshot for one raw-input gamepad descriptor.
 pub(super) fn gamepad_state_for_raw_input_device(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     device: &RawInputDeviceDescriptor,
     operation: &'static str,
 ) -> RuntimeResult<InputGamepadState> {
@@ -4071,8 +4071,8 @@ pub(super) fn gamepad_state_for_raw_input_device(
     }
 
     // capture the latest queued hid packet before probing direct report state
-    let runtime_state = windows_raw_input_runtime_state(context);
-    let latest_packet = latest_raw_hid_packet_for_device(context, &device.id, operation)?;
+    let runtime_state = windows_raw_input_runtime_state(binding);
+    let latest_packet = latest_raw_hid_packet_for_device(binding, &device.id, operation)?;
 
     // decode one packet using the persistent decoder cache
     let (timestamp_ns, decoded) =
@@ -4099,9 +4099,9 @@ pub(super) fn gamepad_state_for_raw_input_device(
         battery,
         supports_rumble: device.supports_rumble,
         supports_trigger_rumble: false,
-        axes: context.store_array(decoded.axes.to_vec()),
-        buttons: context.store_array(decoded.buttons.to_vec()),
-        touches: context.store_array(Vec::new()),
+        axes: binding.store_array(decoded.axes.to_vec()),
+        buttons: binding.store_array(decoded.buttons.to_vec()),
+        touches: binding.store_array(Vec::new()),
     })
 }
 
@@ -4170,14 +4170,14 @@ pub(super) fn set_gamepad_light_for_raw_input_device(
 
 /// Read one raw-hid report for one opened device descriptor.
 pub(super) fn read_raw_hid_report_with_timeout(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     device: &RawInputDeviceDescriptor,
     maxbytes: u32,
     timeoutns: u64,
     operation: &'static str,
 ) -> RuntimeResult<InputRawHidReport> {
     let packet =
-        pop_raw_hid_packet_for_device_with_timeout(context, &device.id, timeoutns, operation)?;
+        pop_raw_hid_packet_for_device_with_timeout(binding, &device.id, timeoutns, operation)?;
 
     let payload = if packet.report_id != 0 && packet.data.len() > 1 {
         packet.data[1..].to_vec()
@@ -4191,19 +4191,19 @@ pub(super) fn read_raw_hid_report_with_timeout(
         timestamp_ns: packet.timestamp_ns,
         sequence: packet.sequence,
         report_id: packet.report_id,
-        data: context.store_slice(payload),
+        data: binding.store_slice(payload),
     })
 }
 
 /// Read one raw-hid report for one opened device descriptor.
 pub(super) fn read_raw_hid_report(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     device: &RawInputDeviceDescriptor,
     maxbytes: u32,
     nonblocking: bool,
     operation: &'static str,
 ) -> RuntimeResult<InputRawHidReport> {
-    let packet = pop_raw_hid_packet_for_device(context, &device.id, nonblocking, operation)?;
+    let packet = pop_raw_hid_packet_for_device(binding, &device.id, nonblocking, operation)?;
 
     let payload = if packet.report_id != 0 && packet.data.len() > 1 {
         packet.data[1..].to_vec()
@@ -4217,18 +4217,18 @@ pub(super) fn read_raw_hid_report(
         timestamp_ns: packet.timestamp_ns,
         sequence: packet.sequence,
         report_id: packet.report_id,
-        data: context.store_slice(payload),
+        data: binding.store_slice(payload),
     })
 }
 
 /// Read one current touch snapshot from active contact state.
 pub(super) fn read_touch_state_snapshot(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     device: &RawInputDeviceDescriptor,
     operation: &'static str,
 ) -> RuntimeResult<InputTouchState> {
     // resolve the raw service and inspect current active contacts
-    let service = ensure_raw_service(context, operation)?;
+    let service = ensure_raw_service(binding, operation)?;
     let mut queues = service.state.queues.lock();
 
     // snapshot active contacts for this device in stable contact-id order
@@ -4264,14 +4264,14 @@ pub(super) fn read_touch_state_snapshot(
     Ok(InputTouchState {
         timestamp_ns: now_timestamp_ns(),
         sequence,
-        device_id: context.store_string(&device.id),
-        contacts: context.store_array(projected_contacts),
+        device_id: binding.store_string(&device.id),
+        contacts: binding.store_array(projected_contacts),
     })
 }
 
 /// Read one current pen snapshot from active touch-contact state.
 pub(super) fn read_pen_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     device: &RawInputDeviceDescriptor,
     operation: &'static str,
 ) -> RuntimeResult<Option<RawPenStateSnapshot>> {
@@ -4281,7 +4281,7 @@ pub(super) fn read_pen_state(
     }
 
     // resolve the raw service and inspect current active contacts
-    let service = ensure_raw_service(context, operation)?;
+    let service = ensure_raw_service(binding, operation)?;
     let queues = service.state.queues.lock();
     let Some(contacts) = queues.active_touch_contacts.get(&device.id) else {
         return Ok(Some(RawPenStateSnapshot {
@@ -4376,13 +4376,13 @@ fn decode_sensor_sample_from_packet(
 
 /// Read one sensor sample from one sensor-capable raw-hid stream.
 pub(super) fn read_sensor_sample(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     device: &RawInputDeviceDescriptor,
     sensor_kind: InputSensorKind,
     nonblocking: bool,
     operation: &'static str,
 ) -> RuntimeResult<InputSensorSample> {
-    let packet = pop_raw_hid_packet_for_device(context, &device.id, nonblocking, operation)?;
+    let packet = pop_raw_hid_packet_for_device(binding, &device.id, nonblocking, operation)?;
     decode_sensor_sample_from_packet(packet, sensor_kind, operation)
 }
 

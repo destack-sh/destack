@@ -41,20 +41,20 @@ macro_rules! dispatch_backend {
 
 /// Close one display endpoint.
 pub(crate) unsafe fn destack_display_monitor_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     let backend = core::resolve_default_backend("destack.display.monitor.close")?;
     dispatch_backend!(
         backend,
         "destack.display.monitor.close",
-        monitor_close(context, handle)
+        monitor_close(binding, handle)
     )
 }
 
 /// Resolve one requested mode to the closest supported mode.
 pub(crate) unsafe fn destack_display_monitor_closest_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
     requested: DisplayMode,
@@ -63,13 +63,13 @@ pub(crate) unsafe fn destack_display_monitor_closest_mode(
     dispatch_backend!(
         backend,
         "destack.display.monitor.closestMode",
-        monitor_closest_mode(context, out, handle, requested)
+        monitor_closest_mode(binding, out, handle, requested)
     )
 }
 
 /// Read the current mode for one opened display.
 pub(crate) unsafe fn destack_display_monitor_current_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
@@ -77,13 +77,13 @@ pub(crate) unsafe fn destack_display_monitor_current_mode(
     dispatch_backend!(
         backend,
         "destack.display.monitor.currentMode",
-        monitor_current_mode(context, out, handle)
+        monitor_current_mode(binding, out, handle)
     )
 }
 
 /// Read descriptor metadata for one opened display.
 pub(crate) unsafe fn destack_display_monitor_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayDescriptor,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
@@ -91,13 +91,13 @@ pub(crate) unsafe fn destack_display_monitor_descriptor(
     dispatch_backend!(
         backend,
         "destack.display.monitor.descriptor",
-        monitor_descriptor(context, out, handle)
+        monitor_descriptor(binding, out, handle)
     )
 }
 
 /// Read the desktop-preferred mode for one opened display.
 pub(crate) unsafe fn destack_display_monitor_desktop_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
@@ -105,13 +105,13 @@ pub(crate) unsafe fn destack_display_monitor_desktop_mode(
     dispatch_backend!(
         backend,
         "destack.display.monitor.desktopMode",
-        monitor_desktop_mode(context, out, handle)
+        monitor_desktop_mode(binding, out, handle)
     )
 }
 
 /// List available displays.
 pub(crate) unsafe fn destack_display_monitor_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<DisplayDescriptor>,
     request: DisplayMonitorListRequest,
 ) -> RuntimeResult<()> {
@@ -123,13 +123,13 @@ pub(crate) unsafe fn destack_display_monitor_list(
     dispatch_backend!(
         backend,
         "destack.display.monitor.list",
-        monitor_list(context, out, request)
+        monitor_list(binding, out, request)
     )
 }
 
 /// Read available display modes.
 pub(crate) unsafe fn destack_display_monitor_modes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<DisplayMode>,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
@@ -137,13 +137,13 @@ pub(crate) unsafe fn destack_display_monitor_modes(
     dispatch_backend!(
         backend,
         "destack.display.monitor.modes",
-        monitor_modes(context, out, handle)
+        monitor_modes(binding, out, handle)
     )
 }
 
 /// Open one display endpoint.
 pub(crate) unsafe fn destack_display_monitor_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::DisplayHandle,
     id: NativeStringRef,
     options: DisplayMonitorOpenOptions,
@@ -156,13 +156,13 @@ pub(crate) unsafe fn destack_display_monitor_open(
     dispatch_backend!(
         backend,
         "destack.display.monitor.open",
-        monitor_open(context, out, id, options)
+        monitor_open(binding, out, id, options)
     )
 }
 
 /// Read the current primary display handle.
 pub(crate) unsafe fn destack_display_monitor_primary(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Option<resource::DisplayHandle>,
     request: DisplayMonitorListRequest,
 ) -> RuntimeResult<()> {
@@ -174,13 +174,13 @@ pub(crate) unsafe fn destack_display_monitor_primary(
     dispatch_backend!(
         backend,
         "destack.display.monitor.primary",
-        monitor_primary(context, out, request)
+        monitor_primary(binding, out, request)
     )
 }
 
 /// Apply one display mode.
 pub(crate) unsafe fn destack_display_monitor_set_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DisplayHandle,
     mode: DisplayMode,
 ) -> RuntimeResult<()> {
@@ -188,13 +188,13 @@ pub(crate) unsafe fn destack_display_monitor_set_mode(
     dispatch_backend!(
         backend,
         "destack.display.monitor.setMode",
-        monitor_set_mode(context, handle, mode)
+        monitor_set_mode(binding, handle, mode)
     )
 }
 
 /// Read display color state.
 pub(crate) unsafe fn destack_display_monitor_color_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayColorState,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
@@ -202,13 +202,13 @@ pub(crate) unsafe fn destack_display_monitor_color_state(
     dispatch_backend!(
         backend,
         "destack.display.monitor.colorState",
-        monitor_color_state(context, out, handle)
+        monitor_color_state(binding, out, handle)
     )
 }
 
 /// Read display HDR mode.
 pub(crate) unsafe fn destack_display_monitor_hdr_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayHdrMode,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
@@ -216,13 +216,13 @@ pub(crate) unsafe fn destack_display_monitor_hdr_mode(
     dispatch_backend!(
         backend,
         "destack.display.monitor.hdrMode",
-        monitor_hdr_mode(context, out, handle)
+        monitor_hdr_mode(binding, out, handle)
     )
 }
 
 /// Set display HDR mode.
 pub(crate) unsafe fn destack_display_monitor_set_hdr_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DisplayHandle,
     mode: DisplayHdrMode,
 ) -> RuntimeResult<()> {
@@ -230,13 +230,13 @@ pub(crate) unsafe fn destack_display_monitor_set_hdr_mode(
     dispatch_backend!(
         backend,
         "destack.display.monitor.setHdrMode",
-        monitor_set_hdr_mode(context, handle, mode)
+        monitor_set_hdr_mode(binding, handle, mode)
     )
 }
 
 /// Read display gamma ramp.
 pub(crate) unsafe fn destack_display_monitor_gamma_ramp(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayGammaRamp,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
@@ -244,13 +244,13 @@ pub(crate) unsafe fn destack_display_monitor_gamma_ramp(
     dispatch_backend!(
         backend,
         "destack.display.monitor.gammaRamp",
-        monitor_gamma_ramp(context, out, handle)
+        monitor_gamma_ramp(binding, out, handle)
     )
 }
 
 /// Set display gamma ramp.
 pub(crate) unsafe fn destack_display_monitor_set_gamma_ramp(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DisplayHandle,
     ramp: DisplayGammaRamp,
 ) -> RuntimeResult<()> {
@@ -258,26 +258,26 @@ pub(crate) unsafe fn destack_display_monitor_set_gamma_ramp(
     dispatch_backend!(
         backend,
         "destack.display.monitor.setGammaRamp",
-        monitor_set_gamma_ramp(context, handle, ramp)
+        monitor_set_gamma_ramp(binding, handle, ramp)
     )
 }
 
 /// Close one global monitor-event stream.
 pub(crate) unsafe fn destack_display_monitor_event_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<()> {
     let backend = core::resolve_default_backend("destack.display.monitor.eventClose")?;
     dispatch_backend!(
         backend,
         "destack.display.monitor.eventClose",
-        monitor_event_close(context, handle)
+        monitor_event_close(binding, handle)
     )
 }
 
 /// Open one global monitor-event stream.
 pub(crate) unsafe fn destack_display_monitor_event_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::DisplayEventHandle,
     options: DisplayMonitorEventOpenOptions,
 ) -> RuntimeResult<()> {
@@ -289,13 +289,13 @@ pub(crate) unsafe fn destack_display_monitor_event_open(
     dispatch_backend!(
         backend,
         "destack.display.monitor.eventOpen",
-        monitor_event_open(context, out, options)
+        monitor_event_open(binding, out, options)
     )
 }
 
 /// Wait for one monitor event.
 pub(crate) unsafe fn destack_display_monitor_event_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayMonitorEvent,
     handle: resource::DisplayEventHandle,
     timeout_ns: u64,
@@ -304,13 +304,13 @@ pub(crate) unsafe fn destack_display_monitor_event_read(
     dispatch_backend!(
         backend,
         "destack.display.monitor.eventRead",
-        monitor_event_read(context, out, handle, timeout_ns)
+        monitor_event_read(binding, out, handle, timeout_ns)
     )
 }
 
 /// Wait for one batch of monitor events.
 pub(crate) unsafe fn destack_display_monitor_event_read_batch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<DisplayMonitorEvent>,
     handle: resource::DisplayEventHandle,
     max_events: u32,
@@ -320,13 +320,13 @@ pub(crate) unsafe fn destack_display_monitor_event_read_batch(
     dispatch_backend!(
         backend,
         "destack.display.monitor.eventReadBatch",
-        monitor_event_read_batch(context, out, handle, max_events, timeout_ns)
+        monitor_event_read_batch(binding, out, handle, max_events, timeout_ns)
     )
 }
 
 /// Poll one monitor event without blocking.
 pub(crate) unsafe fn destack_display_monitor_event_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayMonitorEvent,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<()> {
@@ -334,13 +334,13 @@ pub(crate) unsafe fn destack_display_monitor_event_try_read(
     dispatch_backend!(
         backend,
         "destack.display.monitor.eventTryRead",
-        monitor_event_try_read(context, out, handle)
+        monitor_event_try_read(binding, out, handle)
     )
 }
 
 /// Poll one batch of monitor events without blocking.
 pub(crate) unsafe fn destack_display_monitor_event_try_read_batch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<DisplayMonitorEvent>,
     handle: resource::DisplayEventHandle,
     max_events: u32,
@@ -349,26 +349,26 @@ pub(crate) unsafe fn destack_display_monitor_event_try_read_batch(
     dispatch_backend!(
         backend,
         "destack.display.monitor.eventTryReadBatch",
-        monitor_event_try_read_batch(context, out, handle, max_events)
+        monitor_event_try_read_batch(binding, out, handle, max_events)
     )
 }
 
 /// Close one window.
 pub(crate) unsafe fn destack_display_window_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let backend = core::resolve_default_backend("destack.display.window.close")?;
     dispatch_backend!(
         backend,
         "destack.display.window.close",
-        window_close(context, window)
+        window_close(binding, window)
     )
 }
 
 /// Read descriptor metadata for one window.
 pub(crate) unsafe fn destack_display_window_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut WindowDescriptor,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
@@ -376,13 +376,13 @@ pub(crate) unsafe fn destack_display_window_descriptor(
     dispatch_backend!(
         backend,
         "destack.display.window.descriptor",
-        window_descriptor(context, out, window)
+        window_descriptor(binding, out, window)
     )
 }
 
 /// Open one window.
 pub(crate) unsafe fn destack_display_window_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::WindowHandle,
     options: WindowOptions,
 ) -> RuntimeResult<()> {
@@ -394,13 +394,13 @@ pub(crate) unsafe fn destack_display_window_open(
     dispatch_backend!(
         backend,
         "destack.display.window.open",
-        window_open(context, out, options)
+        window_open(binding, out, options)
     )
 }
 
 /// Request user attention for one window.
 pub(crate) unsafe fn destack_display_window_request_attention(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     level: WindowAttentionLevel,
 ) -> RuntimeResult<()> {
@@ -408,26 +408,26 @@ pub(crate) unsafe fn destack_display_window_request_attention(
     dispatch_backend!(
         backend,
         "destack.display.window.requestAttention",
-        window_request_attention(context, window, level)
+        window_request_attention(binding, window, level)
     )
 }
 
 /// Request one redraw for one window.
 pub(crate) unsafe fn destack_display_window_request_refresh(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let backend = core::resolve_default_backend("destack.display.window.requestRefresh")?;
     dispatch_backend!(
         backend,
         "destack.display.window.requestRefresh",
-        window_request_refresh(context, window)
+        window_request_refresh(binding, window)
     )
 }
 
 /// Set always-on-top state.
 pub(crate) unsafe fn destack_display_window_set_always_on_top(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     alwaysontop: bool,
 ) -> RuntimeResult<()> {
@@ -435,13 +435,13 @@ pub(crate) unsafe fn destack_display_window_set_always_on_top(
     dispatch_backend!(
         backend,
         "destack.display.window.setAlwaysOnTop",
-        window_set_always_on_top(context, window, alwaysontop)
+        window_set_always_on_top(binding, window, alwaysontop)
     )
 }
 
 /// Set cursor icon for one window.
 pub(crate) unsafe fn destack_display_window_set_cursor_icon(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     icon: WindowCursorIcon,
 ) -> RuntimeResult<()> {
@@ -449,13 +449,13 @@ pub(crate) unsafe fn destack_display_window_set_cursor_icon(
     dispatch_backend!(
         backend,
         "destack.display.window.setCursorIcon",
-        window_set_cursor_icon(context, window, icon)
+        window_set_cursor_icon(binding, window, icon)
     )
 }
 
 /// Set cursor interaction mode for one window.
 pub(crate) unsafe fn destack_display_window_set_cursor_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     mode: WindowCursorMode,
 ) -> RuntimeResult<()> {
@@ -463,13 +463,13 @@ pub(crate) unsafe fn destack_display_window_set_cursor_mode(
     dispatch_backend!(
         backend,
         "destack.display.window.setCursorMode",
-        window_set_cursor_mode(context, window, mode)
+        window_set_cursor_mode(binding, window, mode)
     )
 }
 
 /// Set cursor position for one window.
 pub(crate) unsafe fn destack_display_window_set_cursor_position(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     position: WindowPosition,
 ) -> RuntimeResult<()> {
@@ -477,13 +477,13 @@ pub(crate) unsafe fn destack_display_window_set_cursor_position(
     dispatch_backend!(
         backend,
         "destack.display.window.setCursorPosition",
-        window_set_cursor_position(context, window, position)
+        window_set_cursor_position(binding, window, position)
     )
 }
 
 /// Set cursor visibility for one window.
 pub(crate) unsafe fn destack_display_window_set_cursor_visible(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     visible: bool,
 ) -> RuntimeResult<()> {
@@ -491,13 +491,13 @@ pub(crate) unsafe fn destack_display_window_set_cursor_visible(
     dispatch_backend!(
         backend,
         "destack.display.window.setCursorVisible",
-        window_set_cursor_visible(context, window, visible)
+        window_set_cursor_visible(binding, window, visible)
     )
 }
 
 /// Set window decoration state.
 pub(crate) unsafe fn destack_display_window_set_decorated(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     decorated: bool,
 ) -> RuntimeResult<()> {
@@ -505,13 +505,13 @@ pub(crate) unsafe fn destack_display_window_set_decorated(
     dispatch_backend!(
         backend,
         "destack.display.window.setDecorated",
-        window_set_decorated(context, window, decorated)
+        window_set_decorated(binding, window, decorated)
     )
 }
 
 /// Set one window mode.
 pub(crate) unsafe fn destack_display_window_set_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     mode: WindowModeOptions,
 ) -> RuntimeResult<()> {
@@ -519,13 +519,13 @@ pub(crate) unsafe fn destack_display_window_set_mode(
     dispatch_backend!(
         backend,
         "destack.display.window.setMode",
-        window_set_mode(context, window, mode)
+        window_set_mode(binding, window, mode)
     )
 }
 
 /// Set one window aspect-ratio lock.
 pub(crate) unsafe fn destack_display_window_set_aspect_ratio(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     aspectratio: Option<WindowAspectRatio>,
 ) -> RuntimeResult<()> {
@@ -533,13 +533,13 @@ pub(crate) unsafe fn destack_display_window_set_aspect_ratio(
     dispatch_backend!(
         backend,
         "destack.display.window.setAspectRatio",
-        window_set_aspect_ratio(context, window, aspectratio)
+        window_set_aspect_ratio(binding, window, aspectratio)
     )
 }
 
 /// Set one window chrome kind.
 pub(crate) unsafe fn destack_display_window_set_chrome(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     chrome: WindowChromeKind,
 ) -> RuntimeResult<()> {
@@ -547,13 +547,13 @@ pub(crate) unsafe fn destack_display_window_set_chrome(
     dispatch_backend!(
         backend,
         "destack.display.window.setChrome",
-        window_set_chrome(context, window, chrome)
+        window_set_chrome(binding, window, chrome)
     )
 }
 
 /// Set one window position.
 pub(crate) unsafe fn destack_display_window_set_position(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     position: WindowPosition,
 ) -> RuntimeResult<()> {
@@ -561,13 +561,13 @@ pub(crate) unsafe fn destack_display_window_set_position(
     dispatch_backend!(
         backend,
         "destack.display.window.setPosition",
-        window_set_position(context, window, position)
+        window_set_position(binding, window, position)
     )
 }
 
 /// Set window resizable state.
 pub(crate) unsafe fn destack_display_window_set_resizable(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     resizable: bool,
 ) -> RuntimeResult<()> {
@@ -575,13 +575,13 @@ pub(crate) unsafe fn destack_display_window_set_resizable(
     dispatch_backend!(
         backend,
         "destack.display.window.setResizable",
-        window_set_resizable(context, window, resizable)
+        window_set_resizable(binding, window, resizable)
     )
 }
 
 /// Set logical size constraints.
 pub(crate) unsafe fn destack_display_window_set_size_constraints(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     constraints: Option<WindowSizeConstraints>,
 ) -> RuntimeResult<()> {
@@ -589,13 +589,13 @@ pub(crate) unsafe fn destack_display_window_set_size_constraints(
     dispatch_backend!(
         backend,
         "destack.display.window.setSizeConstraints",
-        window_set_size_constraints(context, window, constraints)
+        window_set_size_constraints(binding, window, constraints)
     )
 }
 
 /// Set one logical window size.
 pub(crate) unsafe fn destack_display_window_set_size_logical(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     size: WindowLogicalSize,
 ) -> RuntimeResult<()> {
@@ -603,13 +603,13 @@ pub(crate) unsafe fn destack_display_window_set_size_logical(
     dispatch_backend!(
         backend,
         "destack.display.window.setSizeLogical",
-        window_set_size_logical(context, window, size)
+        window_set_size_logical(binding, window, size)
     )
 }
 
 /// Set one physical window size.
 pub(crate) unsafe fn destack_display_window_set_size_physical(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     size: WindowPhysicalSize,
 ) -> RuntimeResult<()> {
@@ -617,13 +617,13 @@ pub(crate) unsafe fn destack_display_window_set_size_physical(
     dispatch_backend!(
         backend,
         "destack.display.window.setSizePhysical",
-        window_set_size_physical(context, window, size)
+        window_set_size_physical(binding, window, size)
     )
 }
 
 /// Set one window title string.
 pub(crate) unsafe fn destack_display_window_set_title(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     title: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -631,13 +631,13 @@ pub(crate) unsafe fn destack_display_window_set_title(
     dispatch_backend!(
         backend,
         "destack.display.window.setTitle",
-        window_set_title(context, window, title)
+        window_set_title(binding, window, title)
     )
 }
 
 /// Set one window icon set.
 pub(crate) unsafe fn destack_display_window_set_icons(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     icons: Option<WindowIconSet>,
 ) -> RuntimeResult<()> {
@@ -645,13 +645,13 @@ pub(crate) unsafe fn destack_display_window_set_icons(
     dispatch_backend!(
         backend,
         "destack.display.window.setIcons",
-        window_set_icons(context, window, icons)
+        window_set_icons(binding, window, icons)
     )
 }
 
 /// Set one window modal state.
 pub(crate) unsafe fn destack_display_window_set_modal(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     modal: bool,
 ) -> RuntimeResult<()> {
@@ -659,13 +659,13 @@ pub(crate) unsafe fn destack_display_window_set_modal(
     dispatch_backend!(
         backend,
         "destack.display.window.setModal",
-        window_set_modal(context, window, modal)
+        window_set_modal(binding, window, modal)
     )
 }
 
 /// Set one window mouse passthrough state.
 pub(crate) unsafe fn destack_display_window_set_mouse_passthrough(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     passthrough: bool,
 ) -> RuntimeResult<()> {
@@ -673,13 +673,13 @@ pub(crate) unsafe fn destack_display_window_set_mouse_passthrough(
     dispatch_backend!(
         backend,
         "destack.display.window.setMousePassthrough",
-        window_set_mouse_passthrough(context, window, passthrough)
+        window_set_mouse_passthrough(binding, window, passthrough)
     )
 }
 
 /// Set one window opacity.
 pub(crate) unsafe fn destack_display_window_set_opacity(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     opacity: f64,
 ) -> RuntimeResult<()> {
@@ -687,13 +687,13 @@ pub(crate) unsafe fn destack_display_window_set_opacity(
     dispatch_backend!(
         backend,
         "destack.display.window.setOpacity",
-        window_set_opacity(context, window, opacity)
+        window_set_opacity(binding, window, opacity)
     )
 }
 
 /// Read one window opacity.
 pub(crate) unsafe fn destack_display_window_opacity(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut f64,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
@@ -701,78 +701,78 @@ pub(crate) unsafe fn destack_display_window_opacity(
     dispatch_backend!(
         backend,
         "destack.display.window.opacity",
-        window_opacity(context, out, window)
+        window_opacity(binding, out, window)
     )
 }
 
 /// Focus one window.
 pub(crate) unsafe fn destack_display_window_focus(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let backend = core::resolve_default_backend("destack.display.window.focus")?;
     dispatch_backend!(
         backend,
         "destack.display.window.focus",
-        window_focus(context, window)
+        window_focus(binding, window)
     )
 }
 
 /// Raise one window.
 pub(crate) unsafe fn destack_display_window_raise(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let backend = core::resolve_default_backend("destack.display.window.raise")?;
     dispatch_backend!(
         backend,
         "destack.display.window.raise",
-        window_raise(context, window)
+        window_raise(binding, window)
     )
 }
 
 /// Minimize one window.
 pub(crate) unsafe fn destack_display_window_minimize(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let backend = core::resolve_default_backend("destack.display.window.minimize")?;
     dispatch_backend!(
         backend,
         "destack.display.window.minimize",
-        window_minimize(context, window)
+        window_minimize(binding, window)
     )
 }
 
 /// Maximize one window.
 pub(crate) unsafe fn destack_display_window_maximize(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let backend = core::resolve_default_backend("destack.display.window.maximize")?;
     dispatch_backend!(
         backend,
         "destack.display.window.maximize",
-        window_maximize(context, window)
+        window_maximize(binding, window)
     )
 }
 
 /// Restore one window.
 pub(crate) unsafe fn destack_display_window_restore(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let backend = core::resolve_default_backend("destack.display.window.restore")?;
     dispatch_backend!(
         backend,
         "destack.display.window.restore",
-        window_restore(context, window)
+        window_restore(binding, window)
     )
 }
 
 /// Set one window parent relationship.
 pub(crate) unsafe fn destack_display_window_set_parent(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     parent: Option<resource::WindowHandle>,
 ) -> RuntimeResult<()> {
@@ -780,13 +780,13 @@ pub(crate) unsafe fn destack_display_window_set_parent(
     dispatch_backend!(
         backend,
         "destack.display.window.setParent",
-        window_set_parent(context, window, parent)
+        window_set_parent(binding, window, parent)
     )
 }
 
 /// Set one window transient relationship.
 pub(crate) unsafe fn destack_display_window_set_transient_for(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     transientfor: Option<resource::WindowHandle>,
 ) -> RuntimeResult<()> {
@@ -794,13 +794,13 @@ pub(crate) unsafe fn destack_display_window_set_transient_for(
     dispatch_backend!(
         backend,
         "destack.display.window.setTransientFor",
-        window_set_transient_for(context, window, transientfor)
+        window_set_transient_for(binding, window, transientfor)
     )
 }
 
 /// Set one window taskbar visibility state.
 pub(crate) unsafe fn destack_display_window_set_taskbar_visible(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     visible: bool,
 ) -> RuntimeResult<()> {
@@ -808,26 +808,26 @@ pub(crate) unsafe fn destack_display_window_set_taskbar_visible(
     dispatch_backend!(
         backend,
         "destack.display.window.setTaskbarVisible",
-        window_set_taskbar_visible(context, window, visible)
+        window_set_taskbar_visible(binding, window, visible)
     )
 }
 
 /// Begin one native window move drag.
 pub(crate) unsafe fn destack_display_window_begin_move_drag(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let backend = core::resolve_default_backend("destack.display.window.beginMoveDrag")?;
     dispatch_backend!(
         backend,
         "destack.display.window.beginMoveDrag",
-        window_begin_move_drag(context, window)
+        window_begin_move_drag(binding, window)
     )
 }
 
 /// Begin one native window resize drag.
 pub(crate) unsafe fn destack_display_window_begin_resize_drag(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     edge: WindowResizeEdge,
 ) -> RuntimeResult<()> {
@@ -835,13 +835,13 @@ pub(crate) unsafe fn destack_display_window_begin_resize_drag(
     dispatch_backend!(
         backend,
         "destack.display.window.beginResizeDrag",
-        window_begin_resize_drag(context, window, edge)
+        window_begin_resize_drag(binding, window, edge)
     )
 }
 
 /// Set one window visibility state.
 pub(crate) unsafe fn destack_display_window_set_visibility(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     visibility: WindowVisibility,
 ) -> RuntimeResult<()> {
@@ -849,13 +849,13 @@ pub(crate) unsafe fn destack_display_window_set_visibility(
     dispatch_backend!(
         backend,
         "destack.display.window.setVisibility",
-        window_set_visibility(context, window, visibility)
+        window_set_visibility(binding, window, visibility)
     )
 }
 
 /// Read one window state snapshot.
 pub(crate) unsafe fn destack_display_window_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut WindowState,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
@@ -863,26 +863,26 @@ pub(crate) unsafe fn destack_display_window_state(
     dispatch_backend!(
         backend,
         "destack.display.window.state",
-        window_state(context, out, window)
+        window_state(binding, out, window)
     )
 }
 
 /// Close one global window-event stream.
 pub(crate) unsafe fn destack_display_window_event_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::WindowEventHandle,
 ) -> RuntimeResult<()> {
     let backend = core::resolve_default_backend("destack.display.window.eventClose")?;
     dispatch_backend!(
         backend,
         "destack.display.window.eventClose",
-        window_event_close(context, handle)
+        window_event_close(binding, handle)
     )
 }
 
 /// Open one global window-event stream.
 pub(crate) unsafe fn destack_display_window_event_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::WindowEventHandle,
     options: WindowEventOpenOptions,
 ) -> RuntimeResult<()> {
@@ -894,13 +894,13 @@ pub(crate) unsafe fn destack_display_window_event_open(
     dispatch_backend!(
         backend,
         "destack.display.window.eventOpen",
-        window_event_open(context, out, options)
+        window_event_open(binding, out, options)
     )
 }
 
 /// Wait for one window event.
 pub(crate) unsafe fn destack_display_window_event_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut WindowEvent,
     handle: resource::WindowEventHandle,
     timeoutns: u64,
@@ -909,13 +909,13 @@ pub(crate) unsafe fn destack_display_window_event_read(
     dispatch_backend!(
         backend,
         "destack.display.window.eventRead",
-        window_event_read(context, out, handle, timeoutns)
+        window_event_read(binding, out, handle, timeoutns)
     )
 }
 
 /// Wait for one batch of window events.
 pub(crate) unsafe fn destack_display_window_event_read_batch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<WindowEvent>,
     handle: resource::WindowEventHandle,
     maxevents: u32,
@@ -925,13 +925,13 @@ pub(crate) unsafe fn destack_display_window_event_read_batch(
     dispatch_backend!(
         backend,
         "destack.display.window.eventReadBatch",
-        window_event_read_batch(context, out, handle, maxevents, timeoutns)
+        window_event_read_batch(binding, out, handle, maxevents, timeoutns)
     )
 }
 
 /// Poll one window event without blocking.
 pub(crate) unsafe fn destack_display_window_event_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut WindowEvent,
     handle: resource::WindowEventHandle,
 ) -> RuntimeResult<()> {
@@ -939,13 +939,13 @@ pub(crate) unsafe fn destack_display_window_event_try_read(
     dispatch_backend!(
         backend,
         "destack.display.window.eventTryRead",
-        window_event_try_read(context, out, handle)
+        window_event_try_read(binding, out, handle)
     )
 }
 
 /// Poll one batch of window events without blocking.
 pub(crate) unsafe fn destack_display_window_event_try_read_batch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<WindowEvent>,
     handle: resource::WindowEventHandle,
     maxevents: u32,
@@ -954,6 +954,6 @@ pub(crate) unsafe fn destack_display_window_event_try_read_batch(
     dispatch_backend!(
         backend,
         "destack.display.window.eventTryReadBatch",
-        window_event_try_read_batch(context, out, handle, maxevents)
+        window_event_try_read_batch(binding, out, handle, maxevents)
     )
 }

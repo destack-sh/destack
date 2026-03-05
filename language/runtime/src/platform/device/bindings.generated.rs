@@ -48,13 +48,13 @@ use crate::platform::device::{
     UsbStringDescriptorReplayRecord, UsbStringDescriptorVm,
 };
 use crate::platform::{
-    PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice, abi as platform_abi,
+    NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
+    abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
     BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
-use crate::runtime::{NativeSlice, NativeStringRef};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
@@ -5645,19 +5645,19 @@ pub const DEVICE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for device bindings.
 #[inline]
 fn destack_device_bluetooth_adapter_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<BluetoothAdapterDescriptor>,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_ADAPTER_LIST,
-        context.replay_payload_for(DEVICE_BLUETOOTH_ADAPTER_LIST)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_ADAPTER_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_bluetooth_adapter_list(context, out)
+                platform_native::destack_device_bluetooth_adapter_list(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_bluetooth_adapter_list(context, out)
+                platform_simulation_native::destack_device_bluetooth_adapter_list(binding, out)
             },
         },
         |result| {
@@ -5709,9 +5709,9 @@ fn destack_device_bluetooth_adapter_list_replay(
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
                         let value_native_item_native_id =
-                            context.store_string(&value_native_item.id);
+                            binding.store_string(&value_native_item.id);
                         let value_native_item_native_name =
-                            context.store_string(&value_native_item.name);
+                            binding.store_string(&value_native_item.name);
                         let value_native_item_native_powered = value_native_item.powered;
                         let value_native_item_native_low_energy = value_native_item.low_energy;
                         let value_native_item_native = BluetoothAdapterDescriptor {
@@ -5722,7 +5722,7 @@ fn destack_device_bluetooth_adapter_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -5736,7 +5736,7 @@ fn destack_device_bluetooth_adapter_list_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_characteristic_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<BluetoothGattCharacteristicDescriptor>,
     handle: resource::BluetoothDeviceHandle,
@@ -5744,13 +5744,13 @@ fn destack_device_bluetooth_gatt_characteristic_list_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &serviceuuid);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST,
-        context.replay_payload_for(DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_bluetooth_gatt_characteristic_list(
-                    context,
+                    binding,
                     out,
                     handle,
                     serviceuuid,
@@ -5758,7 +5758,7 @@ fn destack_device_bluetooth_gatt_characteristic_list_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_bluetooth_gatt_characteristic_list(
-                    context,
+                    binding,
                     out,
                     handle,
                     serviceuuid,
@@ -5813,9 +5813,9 @@ fn destack_device_bluetooth_gatt_characteristic_list_replay(
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
                         let value_native_item_native_service_uuid =
-                            context.store_string(&value_native_item.service_uuid);
+                            binding.store_string(&value_native_item.service_uuid);
                         let value_native_item_native_uuid =
-                            context.store_string(&value_native_item.uuid);
+                            binding.store_string(&value_native_item.uuid);
                         let value_native_item_native_properties = value_native_item.properties;
                         let value_native_item_native = BluetoothGattCharacteristicDescriptor {
                             service_uuid: value_native_item_native_service_uuid,
@@ -5824,7 +5824,7 @@ fn destack_device_bluetooth_gatt_characteristic_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -5838,7 +5838,7 @@ fn destack_device_bluetooth_gatt_characteristic_list_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_descriptor_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<BluetoothGattDescriptorDescriptor>,
     handle: resource::BluetoothDeviceHandle,
@@ -5847,13 +5847,13 @@ fn destack_device_bluetooth_gatt_descriptor_list_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &serviceuuid, &characteristicuuid);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST,
-        context.replay_payload_for(DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_bluetooth_gatt_descriptor_list(
-                    context,
+                    binding,
                     out,
                     handle,
                     serviceuuid,
@@ -5862,7 +5862,7 @@ fn destack_device_bluetooth_gatt_descriptor_list_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_bluetooth_gatt_descriptor_list(
-                    context,
+                    binding,
                     out,
                     handle,
                     serviceuuid,
@@ -5919,11 +5919,11 @@ fn destack_device_bluetooth_gatt_descriptor_list_replay(
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
                         let value_native_item_native_service_uuid =
-                            context.store_string(&value_native_item.service_uuid);
+                            binding.store_string(&value_native_item.service_uuid);
                         let value_native_item_native_characteristic_uuid =
-                            context.store_string(&value_native_item.characteristic_uuid);
+                            binding.store_string(&value_native_item.characteristic_uuid);
                         let value_native_item_native_uuid =
-                            context.store_string(&value_native_item.uuid);
+                            binding.store_string(&value_native_item.uuid);
                         let value_native_item_native = BluetoothGattDescriptorDescriptor {
                             service_uuid: value_native_item_native_service_uuid,
                             characteristic_uuid: value_native_item_native_characteristic_uuid,
@@ -5931,7 +5931,7 @@ fn destack_device_bluetooth_gatt_descriptor_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -5945,22 +5945,22 @@ fn destack_device_bluetooth_gatt_descriptor_list_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_mtu_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u16,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_GATT_MTU,
-        context.replay_payload_for(DEVICE_BLUETOOTH_GATT_MTU)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_MTU)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_bluetooth_gatt_mtu(context, out, handle)
+                platform_native::destack_device_bluetooth_gatt_mtu(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_bluetooth_gatt_mtu(context, out, handle)
+                platform_simulation_native::destack_device_bluetooth_gatt_mtu(binding, out, handle)
             },
         },
         |result| {
@@ -6006,7 +6006,7 @@ fn destack_device_bluetooth_gatt_mtu_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     handle: resource::BluetoothDeviceHandle,
@@ -6016,13 +6016,13 @@ fn destack_device_bluetooth_gatt_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &serviceuuid, &characteristicuuid, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_GATT_READ,
-        context.replay_payload_for(DEVICE_BLUETOOTH_GATT_READ)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_bluetooth_gatt_read(
-                    context,
+                    binding,
                     out,
                     handle,
                     serviceuuid,
@@ -6032,7 +6032,7 @@ fn destack_device_bluetooth_gatt_read_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_bluetooth_gatt_read(
-                    context,
+                    binding,
                     out,
                     handle,
                     serviceuuid,
@@ -6081,7 +6081,7 @@ fn destack_device_bluetooth_gatt_read_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -6095,7 +6095,7 @@ fn destack_device_bluetooth_gatt_read_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_read_descriptor_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     handle: resource::BluetoothDeviceHandle,
@@ -6112,13 +6112,13 @@ fn destack_device_bluetooth_gatt_read_descriptor_replay(
         &timeoutns,
     );
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR,
-        context.replay_payload_for(DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_bluetooth_gatt_read_descriptor(
-                    context,
+                    binding,
                     out,
                     handle,
                     serviceuuid,
@@ -6129,7 +6129,7 @@ fn destack_device_bluetooth_gatt_read_descriptor_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_bluetooth_gatt_read_descriptor(
-                    context,
+                    binding,
                     out,
                     handle,
                     serviceuuid,
@@ -6179,7 +6179,7 @@ fn destack_device_bluetooth_gatt_read_descriptor_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -6193,7 +6193,7 @@ fn destack_device_bluetooth_gatt_read_descriptor_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_read_event_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut BluetoothGattValueEvent,
     handle: resource::BluetoothSubscriptionHandle,
@@ -6201,18 +6201,18 @@ fn destack_device_bluetooth_gatt_read_event_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_GATT_READ_EVENT,
-        context.replay_payload_for(DEVICE_BLUETOOTH_GATT_READ_EVENT)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_READ_EVENT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_bluetooth_gatt_read_event(
-                    context, out, handle, timeoutns,
+                    binding, out, handle, timeoutns,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_bluetooth_gatt_read_event(
-                    context, out, handle, timeoutns,
+                    binding, out, handle, timeoutns,
                 )
             },
         },
@@ -6263,15 +6263,15 @@ fn destack_device_bluetooth_gatt_read_event_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_timestamp_ns = value.timestamp_ns;
-                    let value_native_service_uuid = context.store_string(&value.service_uuid);
+                    let value_native_service_uuid = binding.store_string(&value.service_uuid);
                     let value_native_characteristic_uuid =
-                        context.store_string(&value.characteristic_uuid);
+                        binding.store_string(&value.characteristic_uuid);
                     let mut value_native_value_values = Vec::with_capacity(value.value.len());
                     for value_native_value_item in value.value {
                         let value_native_value_item_native = value_native_value_item;
                         value_native_value_values.push(value_native_value_item_native);
                     }
-                    let value_native_value = context.store_slice(value_native_value_values);
+                    let value_native_value = binding.store_slice(value_native_value_values);
                     let value_native = BluetoothGattValueEvent {
                         timestamp_ns: value_native_timestamp_ns,
                         service_uuid: value_native_service_uuid,
@@ -6291,7 +6291,7 @@ fn destack_device_bluetooth_gatt_read_event_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_request_mtu_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u16,
     handle: resource::BluetoothDeviceHandle,
@@ -6300,18 +6300,18 @@ fn destack_device_bluetooth_gatt_request_mtu_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mtu, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_GATT_REQUEST_MTU,
-        context.replay_payload_for(DEVICE_BLUETOOTH_GATT_REQUEST_MTU)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_REQUEST_MTU)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_bluetooth_gatt_request_mtu(
-                    context, out, handle, mtu, timeoutns,
+                    binding, out, handle, mtu, timeoutns,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_bluetooth_gatt_request_mtu(
-                    context, out, handle, mtu, timeoutns,
+                    binding, out, handle, mtu, timeoutns,
                 )
             },
         },
@@ -6358,23 +6358,23 @@ fn destack_device_bluetooth_gatt_request_mtu_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_service_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<BluetoothGattServiceDescriptor>,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_GATT_SERVICE_LIST,
-        context.replay_payload_for(DEVICE_BLUETOOTH_GATT_SERVICE_LIST)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_SERVICE_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_bluetooth_gatt_service_list(context, out, handle)
+                platform_native::destack_device_bluetooth_gatt_service_list(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_bluetooth_gatt_service_list(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -6423,7 +6423,7 @@ fn destack_device_bluetooth_gatt_service_list_replay(
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
                         let value_native_item_native_uuid =
-                            context.store_string(&value_native_item.uuid);
+                            binding.store_string(&value_native_item.uuid);
                         let value_native_item_native_primary = value_native_item.primary;
                         let value_native_item_native = BluetoothGattServiceDescriptor {
                             uuid: value_native_item_native_uuid,
@@ -6431,7 +6431,7 @@ fn destack_device_bluetooth_gatt_service_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -6445,7 +6445,7 @@ fn destack_device_bluetooth_gatt_service_list_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_subscribe_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::BluetoothSubscriptionHandle,
     handle: resource::BluetoothDeviceHandle,
@@ -6454,13 +6454,13 @@ fn destack_device_bluetooth_gatt_subscribe_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &serviceuuid, &characteristicuuid);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_GATT_SUBSCRIBE,
-        context.replay_payload_for(DEVICE_BLUETOOTH_GATT_SUBSCRIBE)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_SUBSCRIBE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_bluetooth_gatt_subscribe(
-                    context,
+                    binding,
                     out,
                     handle,
                     serviceuuid,
@@ -6469,7 +6469,7 @@ fn destack_device_bluetooth_gatt_subscribe_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_bluetooth_gatt_subscribe(
-                    context,
+                    binding,
                     out,
                     handle,
                     serviceuuid,
@@ -6520,23 +6520,23 @@ fn destack_device_bluetooth_gatt_subscribe_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_try_read_event_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut BluetoothGattValueEvent,
     handle: resource::BluetoothSubscriptionHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT,
-        context.replay_payload_for(DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_bluetooth_gatt_try_read_event(context, out, handle)
+                platform_native::destack_device_bluetooth_gatt_try_read_event(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_bluetooth_gatt_try_read_event(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -6587,15 +6587,15 @@ fn destack_device_bluetooth_gatt_try_read_event_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_timestamp_ns = value.timestamp_ns;
-                    let value_native_service_uuid = context.store_string(&value.service_uuid);
+                    let value_native_service_uuid = binding.store_string(&value.service_uuid);
                     let value_native_characteristic_uuid =
-                        context.store_string(&value.characteristic_uuid);
+                        binding.store_string(&value.characteristic_uuid);
                     let mut value_native_value_values = Vec::with_capacity(value.value.len());
                     for value_native_value_item in value.value {
                         let value_native_value_item_native = value_native_value_item;
                         value_native_value_values.push(value_native_value_item_native);
                     }
-                    let value_native_value = context.store_slice(value_native_value_values);
+                    let value_native_value = binding.store_slice(value_native_value_values);
                     let value_native = BluetoothGattValueEvent {
                         timestamp_ns: value_native_timestamp_ns,
                         service_uuid: value_native_service_uuid,
@@ -6615,22 +6615,22 @@ fn destack_device_bluetooth_gatt_try_read_event_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_unsubscribe_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::BluetoothSubscriptionHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE,
-        context.replay_payload_for(DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_bluetooth_gatt_unsubscribe(context, handle)
+                platform_native::destack_device_bluetooth_gatt_unsubscribe(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_bluetooth_gatt_unsubscribe(
-                    context, handle,
+                    binding, handle,
                 )
             },
         },
@@ -6665,7 +6665,7 @@ fn destack_device_bluetooth_gatt_unsubscribe_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_write_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: NativeStringRef,
@@ -6683,13 +6683,13 @@ fn destack_device_bluetooth_gatt_write_replay(
         &timeoutns,
     );
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_GATT_WRITE,
-        context.replay_payload_for(DEVICE_BLUETOOTH_GATT_WRITE)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_bluetooth_gatt_write(
-                    context,
+                    binding,
                     handle,
                     serviceuuid,
                     characteristicuuid,
@@ -6700,7 +6700,7 @@ fn destack_device_bluetooth_gatt_write_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_bluetooth_gatt_write(
-                    context,
+                    binding,
                     handle,
                     serviceuuid,
                     characteristicuuid,
@@ -6741,7 +6741,7 @@ fn destack_device_bluetooth_gatt_write_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_write_descriptor_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: NativeStringRef,
@@ -6759,13 +6759,13 @@ fn destack_device_bluetooth_gatt_write_descriptor_replay(
         &timeoutns,
     );
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR,
-        context.replay_payload_for(DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_bluetooth_gatt_write_descriptor(
-                    context,
+                    binding,
                     handle,
                     serviceuuid,
                     characteristicuuid,
@@ -6776,7 +6776,7 @@ fn destack_device_bluetooth_gatt_write_descriptor_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_bluetooth_gatt_write_descriptor(
-                    context,
+                    binding,
                     handle,
                     serviceuuid,
                     characteristicuuid,
@@ -6817,21 +6817,21 @@ fn destack_device_bluetooth_gatt_write_descriptor_replay(
 
 #[inline]
 fn destack_device_bluetooth_scan_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::BluetoothScanHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_SCAN_CLOSE,
-        context.replay_payload_for(DEVICE_BLUETOOTH_SCAN_CLOSE)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_SCAN_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_bluetooth_scan_close(context, handle)
+                platform_native::destack_device_bluetooth_scan_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_bluetooth_scan_close(context, handle)
+                platform_simulation_native::destack_device_bluetooth_scan_close(binding, handle)
             },
         },
         |result| {
@@ -6865,7 +6865,7 @@ fn destack_device_bluetooth_scan_close_replay(
 
 #[inline]
 fn destack_device_bluetooth_scan_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::BluetoothScanHandle,
     adapterid: NativeStringRef,
@@ -6873,16 +6873,16 @@ fn destack_device_bluetooth_scan_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&adapterid, &filter);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_SCAN_OPEN,
-        context.replay_payload_for(DEVICE_BLUETOOTH_SCAN_OPEN)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_SCAN_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_bluetooth_scan_open(context, out, adapterid, filter)
+                platform_native::destack_device_bluetooth_scan_open(binding, out, adapterid, filter)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_bluetooth_scan_open(
-                    context, out, adapterid, filter,
+                    binding, out, adapterid, filter,
                 )
             },
         },
@@ -6929,7 +6929,7 @@ fn destack_device_bluetooth_scan_open_replay(
 
 #[inline]
 fn destack_device_bluetooth_scan_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut BluetoothDeviceDescriptor,
     handle: resource::BluetoothScanHandle,
@@ -6937,12 +6937,12 @@ fn destack_device_bluetooth_scan_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_SCAN_READ,
-        context.replay_payload_for(DEVICE_BLUETOOTH_SCAN_READ)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_SCAN_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_device_bluetooth_scan_read(context, out, handle, timeoutns) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_device_bluetooth_scan_read(context, out, handle, timeoutns) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_device_bluetooth_scan_read(binding, out, handle, timeoutns) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_device_bluetooth_scan_read(binding, out, handle, timeoutns) },
         },
         |result| {
             if let Ok(()) = result {
@@ -7043,22 +7043,22 @@ fn destack_device_bluetooth_scan_read_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_id = context.store_string(&value.id);
-                    let value_native_address = context.store_string(&value.address);
-                    let value_native_name = context.store_string(&value.name);
+                    let value_native_id = binding.store_string(&value.id);
+                    let value_native_address = binding.store_string(&value.address);
+                    let value_native_name = binding.store_string(&value.name);
                     let value_native_rssi = value.rssi;
                     let value_native_paired = value.paired;
                     let value_native_pair_state = value.pair_state;
                     let value_native_connected = value.connected;
                     let value_native_connectable = value.connectable;
-                    let value_native_advertisement_local_name = context.store_string(&value.advertisement.local_name);
+                    let value_native_advertisement_local_name = binding.store_string(&value.advertisement.local_name);
                     let value_native_advertisement_tx_power = value.advertisement.tx_power;
                     let mut value_native_advertisement_service_uuids_values = Vec::with_capacity(value.advertisement.service_uuids.len());
                     for value_native_advertisement_service_uuids_item in value.advertisement.service_uuids {
-                        let value_native_advertisement_service_uuids_item_native = context.store_string(&value_native_advertisement_service_uuids_item);
+                        let value_native_advertisement_service_uuids_item_native = binding.store_string(&value_native_advertisement_service_uuids_item);
                         value_native_advertisement_service_uuids_values.push(value_native_advertisement_service_uuids_item_native);
                     }
-                    let value_native_advertisement_service_uuids = context.store_array(value_native_advertisement_service_uuids_values);
+                    let value_native_advertisement_service_uuids = binding.store_array(value_native_advertisement_service_uuids_values);
                     let mut value_native_advertisement_manufacturer_data_values = Vec::with_capacity(value.advertisement.manufacturer_data.len());
                     for value_native_advertisement_manufacturer_data_item in value.advertisement.manufacturer_data {
                         let value_native_advertisement_manufacturer_data_item_native_company_id = value_native_advertisement_manufacturer_data_item.company_id;
@@ -7067,30 +7067,30 @@ fn destack_device_bluetooth_scan_read_replay(
                             let value_native_advertisement_manufacturer_data_item_native_data_item_native = value_native_advertisement_manufacturer_data_item_native_data_item;
                             value_native_advertisement_manufacturer_data_item_native_data_values.push(value_native_advertisement_manufacturer_data_item_native_data_item_native);
                         }
-                        let value_native_advertisement_manufacturer_data_item_native_data = context.store_slice(value_native_advertisement_manufacturer_data_item_native_data_values);
+                        let value_native_advertisement_manufacturer_data_item_native_data = binding.store_slice(value_native_advertisement_manufacturer_data_item_native_data_values);
                         let value_native_advertisement_manufacturer_data_item_native = BluetoothAdvertisementManufacturerData {
                             company_id: value_native_advertisement_manufacturer_data_item_native_company_id,
                             data: value_native_advertisement_manufacturer_data_item_native_data,
                         };
                         value_native_advertisement_manufacturer_data_values.push(value_native_advertisement_manufacturer_data_item_native);
                     }
-                    let value_native_advertisement_manufacturer_data = context.store_array(value_native_advertisement_manufacturer_data_values);
+                    let value_native_advertisement_manufacturer_data = binding.store_array(value_native_advertisement_manufacturer_data_values);
                     let mut value_native_advertisement_service_data_values = Vec::with_capacity(value.advertisement.service_data.len());
                     for value_native_advertisement_service_data_item in value.advertisement.service_data {
-                        let value_native_advertisement_service_data_item_native_service_uuid = context.store_string(&value_native_advertisement_service_data_item.service_uuid);
+                        let value_native_advertisement_service_data_item_native_service_uuid = binding.store_string(&value_native_advertisement_service_data_item.service_uuid);
                         let mut value_native_advertisement_service_data_item_native_data_values = Vec::with_capacity(value_native_advertisement_service_data_item.data.len());
                         for value_native_advertisement_service_data_item_native_data_item in value_native_advertisement_service_data_item.data {
                             let value_native_advertisement_service_data_item_native_data_item_native = value_native_advertisement_service_data_item_native_data_item;
                             value_native_advertisement_service_data_item_native_data_values.push(value_native_advertisement_service_data_item_native_data_item_native);
                         }
-                        let value_native_advertisement_service_data_item_native_data = context.store_slice(value_native_advertisement_service_data_item_native_data_values);
+                        let value_native_advertisement_service_data_item_native_data = binding.store_slice(value_native_advertisement_service_data_item_native_data_values);
                         let value_native_advertisement_service_data_item_native = BluetoothAdvertisementServiceData {
                             service_uuid: value_native_advertisement_service_data_item_native_service_uuid,
                             data: value_native_advertisement_service_data_item_native_data,
                         };
                         value_native_advertisement_service_data_values.push(value_native_advertisement_service_data_item_native);
                     }
-                    let value_native_advertisement_service_data = context.store_array(value_native_advertisement_service_data_values);
+                    let value_native_advertisement_service_data = binding.store_array(value_native_advertisement_service_data_values);
                     let value_native_advertisement = BluetoothAdvertisementData {
                         local_name: value_native_advertisement_local_name,
                         tx_power: value_native_advertisement_tx_power,
@@ -7120,19 +7120,19 @@ fn destack_device_bluetooth_scan_read_replay(
 
 #[inline]
 fn destack_device_bluetooth_scan_try_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut BluetoothDeviceDescriptor,
     handle: resource::BluetoothScanHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_SCAN_TRY_READ,
-        context.replay_payload_for(DEVICE_BLUETOOTH_SCAN_TRY_READ)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_SCAN_TRY_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_device_bluetooth_scan_try_read(context, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_device_bluetooth_scan_try_read(context, out, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_device_bluetooth_scan_try_read(binding, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_device_bluetooth_scan_try_read(binding, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
@@ -7233,22 +7233,22 @@ fn destack_device_bluetooth_scan_try_read_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_id = context.store_string(&value.id);
-                    let value_native_address = context.store_string(&value.address);
-                    let value_native_name = context.store_string(&value.name);
+                    let value_native_id = binding.store_string(&value.id);
+                    let value_native_address = binding.store_string(&value.address);
+                    let value_native_name = binding.store_string(&value.name);
                     let value_native_rssi = value.rssi;
                     let value_native_paired = value.paired;
                     let value_native_pair_state = value.pair_state;
                     let value_native_connected = value.connected;
                     let value_native_connectable = value.connectable;
-                    let value_native_advertisement_local_name = context.store_string(&value.advertisement.local_name);
+                    let value_native_advertisement_local_name = binding.store_string(&value.advertisement.local_name);
                     let value_native_advertisement_tx_power = value.advertisement.tx_power;
                     let mut value_native_advertisement_service_uuids_values = Vec::with_capacity(value.advertisement.service_uuids.len());
                     for value_native_advertisement_service_uuids_item in value.advertisement.service_uuids {
-                        let value_native_advertisement_service_uuids_item_native = context.store_string(&value_native_advertisement_service_uuids_item);
+                        let value_native_advertisement_service_uuids_item_native = binding.store_string(&value_native_advertisement_service_uuids_item);
                         value_native_advertisement_service_uuids_values.push(value_native_advertisement_service_uuids_item_native);
                     }
-                    let value_native_advertisement_service_uuids = context.store_array(value_native_advertisement_service_uuids_values);
+                    let value_native_advertisement_service_uuids = binding.store_array(value_native_advertisement_service_uuids_values);
                     let mut value_native_advertisement_manufacturer_data_values = Vec::with_capacity(value.advertisement.manufacturer_data.len());
                     for value_native_advertisement_manufacturer_data_item in value.advertisement.manufacturer_data {
                         let value_native_advertisement_manufacturer_data_item_native_company_id = value_native_advertisement_manufacturer_data_item.company_id;
@@ -7257,30 +7257,30 @@ fn destack_device_bluetooth_scan_try_read_replay(
                             let value_native_advertisement_manufacturer_data_item_native_data_item_native = value_native_advertisement_manufacturer_data_item_native_data_item;
                             value_native_advertisement_manufacturer_data_item_native_data_values.push(value_native_advertisement_manufacturer_data_item_native_data_item_native);
                         }
-                        let value_native_advertisement_manufacturer_data_item_native_data = context.store_slice(value_native_advertisement_manufacturer_data_item_native_data_values);
+                        let value_native_advertisement_manufacturer_data_item_native_data = binding.store_slice(value_native_advertisement_manufacturer_data_item_native_data_values);
                         let value_native_advertisement_manufacturer_data_item_native = BluetoothAdvertisementManufacturerData {
                             company_id: value_native_advertisement_manufacturer_data_item_native_company_id,
                             data: value_native_advertisement_manufacturer_data_item_native_data,
                         };
                         value_native_advertisement_manufacturer_data_values.push(value_native_advertisement_manufacturer_data_item_native);
                     }
-                    let value_native_advertisement_manufacturer_data = context.store_array(value_native_advertisement_manufacturer_data_values);
+                    let value_native_advertisement_manufacturer_data = binding.store_array(value_native_advertisement_manufacturer_data_values);
                     let mut value_native_advertisement_service_data_values = Vec::with_capacity(value.advertisement.service_data.len());
                     for value_native_advertisement_service_data_item in value.advertisement.service_data {
-                        let value_native_advertisement_service_data_item_native_service_uuid = context.store_string(&value_native_advertisement_service_data_item.service_uuid);
+                        let value_native_advertisement_service_data_item_native_service_uuid = binding.store_string(&value_native_advertisement_service_data_item.service_uuid);
                         let mut value_native_advertisement_service_data_item_native_data_values = Vec::with_capacity(value_native_advertisement_service_data_item.data.len());
                         for value_native_advertisement_service_data_item_native_data_item in value_native_advertisement_service_data_item.data {
                             let value_native_advertisement_service_data_item_native_data_item_native = value_native_advertisement_service_data_item_native_data_item;
                             value_native_advertisement_service_data_item_native_data_values.push(value_native_advertisement_service_data_item_native_data_item_native);
                         }
-                        let value_native_advertisement_service_data_item_native_data = context.store_slice(value_native_advertisement_service_data_item_native_data_values);
+                        let value_native_advertisement_service_data_item_native_data = binding.store_slice(value_native_advertisement_service_data_item_native_data_values);
                         let value_native_advertisement_service_data_item_native = BluetoothAdvertisementServiceData {
                             service_uuid: value_native_advertisement_service_data_item_native_service_uuid,
                             data: value_native_advertisement_service_data_item_native_data,
                         };
                         value_native_advertisement_service_data_values.push(value_native_advertisement_service_data_item_native);
                     }
-                    let value_native_advertisement_service_data = context.store_array(value_native_advertisement_service_data_values);
+                    let value_native_advertisement_service_data = binding.store_array(value_native_advertisement_service_data_values);
                     let value_native_advertisement = BluetoothAdvertisementData {
                         local_name: value_native_advertisement_local_name,
                         tx_power: value_native_advertisement_tx_power,
@@ -7310,21 +7310,21 @@ fn destack_device_bluetooth_scan_try_read_replay(
 
 #[inline]
 fn destack_device_bluetooth_session_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_SESSION_CLOSE,
-        context.replay_payload_for(DEVICE_BLUETOOTH_SESSION_CLOSE)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_SESSION_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_bluetooth_close(context, handle)
+                platform_native::destack_device_bluetooth_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_bluetooth_close(context, handle)
+                platform_simulation_native::destack_device_bluetooth_close(binding, handle)
             },
         },
         |result| {
@@ -7358,7 +7358,7 @@ fn destack_device_bluetooth_session_close_replay(
 
 #[inline]
 fn destack_device_bluetooth_session_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::BluetoothDeviceHandle,
     adapterid: NativeStringRef,
@@ -7366,16 +7366,16 @@ fn destack_device_bluetooth_session_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&adapterid, &deviceid);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_SESSION_OPEN,
-        context.replay_payload_for(DEVICE_BLUETOOTH_SESSION_OPEN)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_SESSION_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_bluetooth_open(context, out, adapterid, deviceid)
+                platform_native::destack_device_bluetooth_open(binding, out, adapterid, deviceid)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_bluetooth_open(
-                    context, out, adapterid, deviceid,
+                    binding, out, adapterid, deviceid,
                 )
             },
         },
@@ -7422,7 +7422,7 @@ fn destack_device_bluetooth_session_open_replay(
 
 #[inline]
 fn destack_device_bluetooth_session_rssi_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut i32,
     handle: resource::BluetoothDeviceHandle,
@@ -7430,16 +7430,16 @@ fn destack_device_bluetooth_session_rssi_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_BLUETOOTH_SESSION_RSSI,
-        context.replay_payload_for(DEVICE_BLUETOOTH_SESSION_RSSI)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_SESSION_RSSI)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_bluetooth_read_rssi(context, out, handle, timeoutns)
+                platform_native::destack_device_bluetooth_read_rssi(binding, out, handle, timeoutns)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_bluetooth_read_rssi(
-                    context, out, handle, timeoutns,
+                    binding, out, handle, timeoutns,
                 )
             },
         },
@@ -7486,21 +7486,21 @@ fn destack_device_bluetooth_session_rssi_replay(
 
 #[inline]
 fn destack_device_camera_device_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_DEVICE_CLOSE,
-        context.replay_payload_for(DEVICE_CAMERA_DEVICE_CLOSE)?,
+        binding.replay_payload_for(DEVICE_CAMERA_DEVICE_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_camera_device_close(context, handle)
+                platform_native::destack_device_camera_device_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_camera_device_close(context, handle)
+                platform_simulation_native::destack_device_camera_device_close(binding, handle)
             },
         },
         |result| {
@@ -7534,19 +7534,19 @@ fn destack_device_camera_device_close_replay(
 
 #[inline]
 fn destack_device_camera_device_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<CameraDeviceDescriptor>,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_DEVICE_LIST,
-        context.replay_payload_for(DEVICE_CAMERA_DEVICE_LIST)?,
+        binding.replay_payload_for(DEVICE_CAMERA_DEVICE_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_camera_device_list(context, out)
+                platform_native::destack_device_camera_device_list(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_camera_device_list(context, out)
+                platform_simulation_native::destack_device_camera_device_list(binding, out)
             },
         },
         |result| {
@@ -7603,11 +7603,11 @@ fn destack_device_camera_device_list_replay(
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
                         let value_native_item_native_id =
-                            context.store_string(&value_native_item.id);
+                            binding.store_string(&value_native_item.id);
                         let value_native_item_native_name =
-                            context.store_string(&value_native_item.name);
+                            binding.store_string(&value_native_item.name);
                         let value_native_item_native_manufacturer =
-                            context.store_string(&value_native_item.manufacturer);
+                            binding.store_string(&value_native_item.manufacturer);
                         let value_native_item_native_front_facing = value_native_item.front_facing;
                         let value_native_item_native_depth_capable =
                             value_native_item.depth_capable;
@@ -7620,7 +7620,7 @@ fn destack_device_camera_device_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -7634,22 +7634,22 @@ fn destack_device_camera_device_list_replay(
 
 #[inline]
 fn destack_device_camera_device_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::CameraDeviceHandle,
     id: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = &id;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_DEVICE_OPEN,
-        context.replay_payload_for(DEVICE_CAMERA_DEVICE_OPEN)?,
+        binding.replay_payload_for(DEVICE_CAMERA_DEVICE_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_camera_device_open(context, out, id)
+                platform_native::destack_device_camera_device_open(binding, out, id)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_camera_device_open(context, out, id)
+                platform_simulation_native::destack_device_camera_device_open(binding, out, id)
             },
         },
         |result| {
@@ -7695,25 +7695,25 @@ fn destack_device_camera_device_open_replay(
 
 #[inline]
 fn destack_device_camera_device_stream_capability_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<CameraStreamCapability>,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST,
-        context.replay_payload_for(DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST)?,
+        binding.replay_payload_for(DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_camera_device_stream_capability_list(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_camera_device_stream_capability_list(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -7820,7 +7820,7 @@ fn destack_device_camera_device_stream_capability_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -7834,25 +7834,25 @@ fn destack_device_camera_device_stream_capability_list_replay(
 
 #[inline]
 fn destack_device_camera_device_stream_config_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<CameraStreamConfig>,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST,
-        context.replay_payload_for(DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST)?,
+        binding.replay_payload_for(DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_camera_device_stream_config_list(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_camera_device_stream_config_list(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -7916,7 +7916,7 @@ fn destack_device_camera_device_stream_config_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -7930,21 +7930,21 @@ fn destack_device_camera_device_stream_config_list_replay(
 
 #[inline]
 fn destack_device_camera_stream_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_STREAM_CLOSE,
-        context.replay_payload_for(DEVICE_CAMERA_STREAM_CLOSE)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_camera_stream_close(context, handle)
+                platform_native::destack_device_camera_stream_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_camera_stream_close(context, handle)
+                platform_simulation_native::destack_device_camera_stream_close(binding, handle)
             },
         },
         |result| {
@@ -7978,7 +7978,7 @@ fn destack_device_camera_stream_close_replay(
 
 #[inline]
 fn destack_device_camera_stream_control_range_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut CameraControlRange,
     handle: resource::CameraStreamHandle,
@@ -7986,18 +7986,18 @@ fn destack_device_camera_stream_control_range_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &control);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_STREAM_CONTROL_RANGE,
-        context.replay_payload_for(DEVICE_CAMERA_STREAM_CONTROL_RANGE)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_CONTROL_RANGE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_camera_stream_control_range(
-                    context, out, handle, control,
+                    binding, out, handle, control,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_camera_stream_control_range(
-                    context, out, handle, control,
+                    binding, out, handle, control,
                 )
             },
         },
@@ -8070,23 +8070,23 @@ fn destack_device_camera_stream_control_range_replay(
 
 #[inline]
 fn destack_device_camera_stream_exposure_mode_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut CameraExposureMode,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_STREAM_EXPOSURE_MODE,
-        context.replay_payload_for(DEVICE_CAMERA_STREAM_EXPOSURE_MODE)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_EXPOSURE_MODE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_camera_stream_exposure_mode(context, out, handle)
+                platform_native::destack_device_camera_stream_exposure_mode(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_camera_stream_exposure_mode(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -8133,7 +8133,7 @@ fn destack_device_camera_stream_exposure_mode_replay(
 
 #[inline]
 fn destack_device_camera_stream_get_control_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut f64,
     handle: resource::CameraStreamHandle,
@@ -8141,18 +8141,18 @@ fn destack_device_camera_stream_get_control_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &control);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_STREAM_GET_CONTROL,
-        context.replay_payload_for(DEVICE_CAMERA_STREAM_GET_CONTROL)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_GET_CONTROL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_camera_stream_get_control(
-                    context, out, handle, control,
+                    binding, out, handle, control,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_camera_stream_get_control(
-                    context, out, handle, control,
+                    binding, out, handle, control,
                 )
             },
         },
@@ -8199,7 +8199,7 @@ fn destack_device_camera_stream_get_control_replay(
 
 #[inline]
 fn destack_device_camera_stream_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::CameraStreamHandle,
     device: resource::CameraDeviceHandle,
@@ -8207,16 +8207,16 @@ fn destack_device_camera_stream_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &config);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_STREAM_OPEN,
-        context.replay_payload_for(DEVICE_CAMERA_STREAM_OPEN)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_camera_stream_open(context, out, device, config)
+                platform_native::destack_device_camera_stream_open(binding, out, device, config)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_camera_stream_open(
-                    context, out, device, config,
+                    binding, out, device, config,
                 )
             },
         },
@@ -8263,7 +8263,7 @@ fn destack_device_camera_stream_open_replay(
 
 #[inline]
 fn destack_device_camera_stream_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut CameraFrame,
     handle: resource::CameraStreamHandle,
@@ -8271,16 +8271,16 @@ fn destack_device_camera_stream_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_STREAM_READ,
-        context.replay_payload_for(DEVICE_CAMERA_STREAM_READ)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_camera_stream_read(context, out, handle, timeoutns)
+                platform_native::destack_device_camera_stream_read(binding, out, handle, timeoutns)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_camera_stream_read(
-                    context, out, handle, timeoutns,
+                    binding, out, handle, timeoutns,
                 )
             },
         },
@@ -8396,7 +8396,7 @@ fn destack_device_camera_stream_read_replay(
                         };
                         value_native_planes_values.push(value_native_planes_item_native);
                     }
-                    let value_native_planes = context.store_slice(value_native_planes_values);
+                    let value_native_planes = binding.store_slice(value_native_planes_values);
                     let value_native_metadata_exposure_time_ns = value.metadata.exposure_time_ns;
                     let value_native_metadata_sensor_iso = value.metadata.sensor_iso;
                     let value_native_metadata_white_balance_kelvin =
@@ -8416,7 +8416,7 @@ fn destack_device_camera_stream_read_replay(
                         let value_native_bytes_item_native = value_native_bytes_item;
                         value_native_bytes_values.push(value_native_bytes_item_native);
                     }
-                    let value_native_bytes = context.store_slice(value_native_bytes_values);
+                    let value_native_bytes = binding.store_slice(value_native_bytes_values);
                     let value_native = CameraFrame {
                         timestamp_ns: value_native_timestamp_ns,
                         sequence: value_native_sequence,
@@ -8441,7 +8441,7 @@ fn destack_device_camera_stream_read_replay(
 
 #[inline]
 fn destack_device_camera_stream_set_control_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
     control: CameraControl,
@@ -8449,13 +8449,13 @@ fn destack_device_camera_stream_set_control_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &control, &argument_value);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_STREAM_SET_CONTROL,
-        context.replay_payload_for(DEVICE_CAMERA_STREAM_SET_CONTROL)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_CONTROL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_camera_stream_set_control(
-                    context,
+                    binding,
                     handle,
                     control,
                     argument_value,
@@ -8463,7 +8463,7 @@ fn destack_device_camera_stream_set_control_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_camera_stream_set_control(
-                    context,
+                    binding,
                     handle,
                     control,
                     argument_value,
@@ -8501,25 +8501,25 @@ fn destack_device_camera_stream_set_control_replay(
 
 #[inline]
 fn destack_device_camera_stream_set_exposure_mode_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
     mode: CameraExposureMode,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mode);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE,
-        context.replay_payload_for(DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_camera_stream_set_exposure_mode(
-                    context, handle, mode,
+                    binding, handle, mode,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_camera_stream_set_exposure_mode(
-                    context, handle, mode,
+                    binding, handle, mode,
                 )
             },
         },
@@ -8554,25 +8554,25 @@ fn destack_device_camera_stream_set_exposure_mode_replay(
 
 #[inline]
 fn destack_device_camera_stream_set_stabilization_mode_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
     mode: CameraStabilizationMode,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mode);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE,
-        context.replay_payload_for(DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_camera_stream_set_stabilization_mode(
-                    context, handle, mode,
+                    binding, handle, mode,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_camera_stream_set_stabilization_mode(
-                    context, handle, mode,
+                    binding, handle, mode,
                 )
             },
         },
@@ -8607,23 +8607,23 @@ fn destack_device_camera_stream_set_stabilization_mode_replay(
 
 #[inline]
 fn destack_device_camera_stream_set_torch_mode_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
     mode: CameraTorchMode,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mode);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_STREAM_SET_TORCH_MODE,
-        context.replay_payload_for(DEVICE_CAMERA_STREAM_SET_TORCH_MODE)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_TORCH_MODE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_camera_stream_set_torch_mode(context, handle, mode)
+                platform_native::destack_device_camera_stream_set_torch_mode(binding, handle, mode)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_camera_stream_set_torch_mode(
-                    context, handle, mode,
+                    binding, handle, mode,
                 )
             },
         },
@@ -8658,25 +8658,25 @@ fn destack_device_camera_stream_set_torch_mode_replay(
 
 #[inline]
 fn destack_device_camera_stream_stabilization_mode_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut CameraStabilizationMode,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_STREAM_STABILIZATION_MODE,
-        context.replay_payload_for(DEVICE_CAMERA_STREAM_STABILIZATION_MODE)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_STABILIZATION_MODE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_camera_stream_stabilization_mode(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_camera_stream_stabilization_mode(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -8723,21 +8723,21 @@ fn destack_device_camera_stream_stabilization_mode_replay(
 
 #[inline]
 fn destack_device_camera_stream_start_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_STREAM_START,
-        context.replay_payload_for(DEVICE_CAMERA_STREAM_START)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_START)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_camera_stream_start(context, handle)
+                platform_native::destack_device_camera_stream_start(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_camera_stream_start(context, handle)
+                platform_simulation_native::destack_device_camera_stream_start(binding, handle)
             },
         },
         |result| {
@@ -8771,21 +8771,21 @@ fn destack_device_camera_stream_start_replay(
 
 #[inline]
 fn destack_device_camera_stream_stop_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_STREAM_STOP,
-        context.replay_payload_for(DEVICE_CAMERA_STREAM_STOP)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_STOP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_camera_stream_stop(context, handle)
+                platform_native::destack_device_camera_stream_stop(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_camera_stream_stop(context, handle)
+                platform_simulation_native::destack_device_camera_stream_stop(binding, handle)
             },
         },
         |result| {
@@ -8819,23 +8819,23 @@ fn destack_device_camera_stream_stop_replay(
 
 #[inline]
 fn destack_device_camera_stream_torch_mode_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut CameraTorchMode,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_STREAM_TORCH_MODE,
-        context.replay_payload_for(DEVICE_CAMERA_STREAM_TORCH_MODE)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_TORCH_MODE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_camera_stream_torch_mode(context, out, handle)
+                platform_native::destack_device_camera_stream_torch_mode(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_camera_stream_torch_mode(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -8882,23 +8882,23 @@ fn destack_device_camera_stream_torch_mode_replay(
 
 #[inline]
 fn destack_device_camera_stream_try_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut CameraFrame,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_CAMERA_STREAM_TRY_READ,
-        context.replay_payload_for(DEVICE_CAMERA_STREAM_TRY_READ)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_TRY_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_camera_stream_try_read(context, out, handle)
+                platform_native::destack_device_camera_stream_try_read(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_camera_stream_try_read(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -9014,7 +9014,7 @@ fn destack_device_camera_stream_try_read_replay(
                         };
                         value_native_planes_values.push(value_native_planes_item_native);
                     }
-                    let value_native_planes = context.store_slice(value_native_planes_values);
+                    let value_native_planes = binding.store_slice(value_native_planes_values);
                     let value_native_metadata_exposure_time_ns = value.metadata.exposure_time_ns;
                     let value_native_metadata_sensor_iso = value.metadata.sensor_iso;
                     let value_native_metadata_white_balance_kelvin =
@@ -9034,7 +9034,7 @@ fn destack_device_camera_stream_try_read_replay(
                         let value_native_bytes_item_native = value_native_bytes_item;
                         value_native_bytes_values.push(value_native_bytes_item_native);
                     }
-                    let value_native_bytes = context.store_slice(value_native_bytes_values);
+                    let value_native_bytes = binding.store_slice(value_native_bytes_values);
                     let value_native = CameraFrame {
                         timestamp_ns: value_native_timestamp_ns,
                         sequence: value_native_sequence,
@@ -9059,21 +9059,21 @@ fn destack_device_camera_stream_try_read_replay(
 
 #[inline]
 fn destack_device_serial_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_SERIAL_CLOSE,
-        context.replay_payload_for(DEVICE_SERIAL_CLOSE)?,
+        binding.replay_payload_for(DEVICE_SERIAL_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_serial_close(context, handle)
+                platform_native::destack_device_serial_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_serial_close(context, handle)
+                platform_simulation_native::destack_device_serial_close(binding, handle)
             },
         },
         |result| {
@@ -9107,22 +9107,22 @@ fn destack_device_serial_close_replay(
 
 #[inline]
 fn destack_device_serial_configure_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
     config: SerialPortConfig,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &config);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_SERIAL_CONFIGURE,
-        context.replay_payload_for(DEVICE_SERIAL_CONFIGURE)?,
+        binding.replay_payload_for(DEVICE_SERIAL_CONFIGURE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_serial_configure(context, handle, config)
+                platform_native::destack_device_serial_configure(binding, handle, config)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_serial_configure(context, handle, config)
+                platform_simulation_native::destack_device_serial_configure(binding, handle, config)
             },
         },
         |result| {
@@ -9156,21 +9156,21 @@ fn destack_device_serial_configure_replay(
 
 #[inline]
 fn destack_device_serial_discard_input_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_SERIAL_DISCARD_INPUT,
-        context.replay_payload_for(DEVICE_SERIAL_DISCARD_INPUT)?,
+        binding.replay_payload_for(DEVICE_SERIAL_DISCARD_INPUT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_serial_discard_input(context, handle)
+                platform_native::destack_device_serial_discard_input(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_serial_discard_input(context, handle)
+                platform_simulation_native::destack_device_serial_discard_input(binding, handle)
             },
         },
         |result| {
@@ -9204,21 +9204,21 @@ fn destack_device_serial_discard_input_replay(
 
 #[inline]
 fn destack_device_serial_discard_output_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_SERIAL_DISCARD_OUTPUT,
-        context.replay_payload_for(DEVICE_SERIAL_DISCARD_OUTPUT)?,
+        binding.replay_payload_for(DEVICE_SERIAL_DISCARD_OUTPUT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_serial_discard_output(context, handle)
+                platform_native::destack_device_serial_discard_output(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_serial_discard_output(context, handle)
+                platform_simulation_native::destack_device_serial_discard_output(binding, handle)
             },
         },
         |result| {
@@ -9252,21 +9252,21 @@ fn destack_device_serial_discard_output_replay(
 
 #[inline]
 fn destack_device_serial_flush_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_SERIAL_FLUSH,
-        context.replay_payload_for(DEVICE_SERIAL_FLUSH)?,
+        binding.replay_payload_for(DEVICE_SERIAL_FLUSH)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_serial_flush(context, handle)
+                platform_native::destack_device_serial_flush(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_serial_flush(context, handle)
+                platform_simulation_native::destack_device_serial_flush(binding, handle)
             },
         },
         |result| {
@@ -9300,16 +9300,16 @@ fn destack_device_serial_flush_replay(
 
 #[inline]
 fn destack_device_serial_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<SerialPortDescriptor>,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_SERIAL_LIST,
-        context.replay_payload_for(DEVICE_SERIAL_LIST)?,
+        binding.replay_payload_for(DEVICE_SERIAL_LIST)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_device_serial_list(context, out) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_device_serial_list(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_device_serial_list(binding, out) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_device_serial_list(binding, out) },
         },
         |result| {
             if let Ok(()) = result {
@@ -9392,17 +9392,17 @@ fn destack_device_serial_list_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
-                        let value_native_item_native_id = context.store_string(&value_native_item.id);
-                        let value_native_item_native_name = context.store_string(&value_native_item.name);
+                        let value_native_item_native_id = binding.store_string(&value_native_item.id);
+                        let value_native_item_native_name = binding.store_string(&value_native_item.name);
                         let value_native_item_native_path = match value_native_item.path {
                             fs::OsPathReplayRecord::OsPathBytes(value) => {
-                                let value_native_item_native_path_os_path_bytes_kind = context.store_string(&value.kind);
+                                let value_native_item_native_path_os_path_bytes_kind = binding.store_string(&value.kind);
                                 let mut value_native_item_native_path_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
                                 for value_native_item_native_path_os_path_bytes_bytes_inner_item in value.bytes {
                                     let value_native_item_native_path_os_path_bytes_bytes_inner_item_native = value_native_item_native_path_os_path_bytes_bytes_inner_item;
                                     value_native_item_native_path_os_path_bytes_bytes_inner_values.push(value_native_item_native_path_os_path_bytes_bytes_inner_item_native);
                                 }
-                                let value_native_item_native_path_os_path_bytes_bytes_inner = context.store_array(value_native_item_native_path_os_path_bytes_bytes_inner_values);
+                                let value_native_item_native_path_os_path_bytes_bytes_inner = binding.store_array(value_native_item_native_path_os_path_bytes_bytes_inner_values);
                                 let value_native_item_native_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_item_native_path_os_path_bytes_bytes_inner);
                                 let value_native_item_native_path_os_path_bytes = fs::OsPathBytes {
                                     kind: value_native_item_native_path_os_path_bytes_kind,
@@ -9411,13 +9411,13 @@ fn destack_device_serial_list_replay(
                                 fs::OsPath::OsPathBytes(value_native_item_native_path_os_path_bytes)
                             }
                             fs::OsPathReplayRecord::OsPathUtf16(value) => {
-                                let value_native_item_native_path_os_path_utf16_kind = context.store_string(&value.kind);
+                                let value_native_item_native_path_os_path_utf16_kind = binding.store_string(&value.kind);
                                 let mut value_native_item_native_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                 for value_native_item_native_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                     let value_native_item_native_path_os_path_utf16_utf16_inner_item_native = value_native_item_native_path_os_path_utf16_utf16_inner_item;
                                     value_native_item_native_path_os_path_utf16_utf16_inner_values.push(value_native_item_native_path_os_path_utf16_utf16_inner_item_native);
                                 }
-                                let value_native_item_native_path_os_path_utf16_utf16_inner = context.store_array(value_native_item_native_path_os_path_utf16_utf16_inner_values);
+                                let value_native_item_native_path_os_path_utf16_utf16_inner = binding.store_array(value_native_item_native_path_os_path_utf16_utf16_inner_values);
                                 let value_native_item_native_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_item_native_path_os_path_utf16_utf16_inner);
                                 let value_native_item_native_path_os_path_utf16 = fs::OsPathUtf16 {
                                     kind: value_native_item_native_path_os_path_utf16_kind,
@@ -9439,7 +9439,7 @@ fn destack_device_serial_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
@@ -9451,7 +9451,7 @@ fn destack_device_serial_list_replay(
 
 #[inline]
 fn destack_device_serial_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::SerialPortHandle,
     id: NativeStringRef,
@@ -9459,15 +9459,15 @@ fn destack_device_serial_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&id, &config);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_SERIAL_OPEN,
-        context.replay_payload_for(DEVICE_SERIAL_OPEN)?,
+        binding.replay_payload_for(DEVICE_SERIAL_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_serial_open(context, out, id, config)
+                platform_native::destack_device_serial_open(binding, out, id, config)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_serial_open(context, out, id, config)
+                platform_simulation_native::destack_device_serial_open(binding, out, id, config)
             },
         },
         |result| {
@@ -9513,7 +9513,7 @@ fn destack_device_serial_open_replay(
 
 #[inline]
 fn destack_device_serial_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     handle: resource::SerialPortHandle,
@@ -9522,18 +9522,18 @@ fn destack_device_serial_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxbytes, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_SERIAL_READ,
-        context.replay_payload_for(DEVICE_SERIAL_READ)?,
+        binding.replay_payload_for(DEVICE_SERIAL_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_serial_read(
-                    context, out, handle, maxbytes, timeoutns,
+                    binding, out, handle, maxbytes, timeoutns,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_serial_read(
-                    context, out, handle, maxbytes, timeoutns,
+                    binding, out, handle, maxbytes, timeoutns,
                 )
             },
         },
@@ -9577,7 +9577,7 @@ fn destack_device_serial_read_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -9591,7 +9591,7 @@ fn destack_device_serial_read_replay(
 
 #[inline]
 fn destack_device_serial_read_event_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut SerialEvent,
     handle: resource::SerialPortHandle,
@@ -9599,12 +9599,12 @@ fn destack_device_serial_read_event_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_SERIAL_READ_EVENT,
-        context.replay_payload_for(DEVICE_SERIAL_READ_EVENT)?,
+        binding.replay_payload_for(DEVICE_SERIAL_READ_EVENT)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_device_serial_read_event(context, out, handle, timeoutns) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_device_serial_read_event(context, out, handle, timeoutns) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_device_serial_read_event(binding, out, handle, timeoutns) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_device_serial_read_event(binding, out, handle, timeoutns) },
         },
         |result| {
             if let Ok(()) = result {
@@ -9716,7 +9716,7 @@ fn destack_device_serial_read_event_replay(
                 Ok(value) => {
                     let value_native = match value {
                         SerialEventReplayRecord::SerialErrorEvent(value) => {
-                            let value_native_serial_error_event_kind = context.store_string(&value.kind);
+                            let value_native_serial_error_event_kind = binding.store_string(&value.kind);
                             let value_native_serial_error_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_serial_error_event_metadata_sequence = value.metadata.sequence;
                             let value_native_serial_error_event_metadata = SerialEventMetadata {
@@ -9737,7 +9737,7 @@ fn destack_device_serial_read_event_replay(
                             SerialEvent::SerialErrorEvent(value_native_serial_error_event)
                         }
                         SerialEventReplayRecord::SerialReadReadyEvent(value) => {
-                            let value_native_serial_read_ready_event_kind = context.store_string(&value.kind);
+                            let value_native_serial_read_ready_event_kind = binding.store_string(&value.kind);
                             let value_native_serial_read_ready_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_serial_read_ready_event_metadata_sequence = value.metadata.sequence;
                             let value_native_serial_read_ready_event_metadata = SerialEventMetadata {
@@ -9756,7 +9756,7 @@ fn destack_device_serial_read_event_replay(
                             SerialEvent::SerialReadReadyEvent(value_native_serial_read_ready_event)
                         }
                         SerialEventReplayRecord::SerialSignalsChangedEvent(value) => {
-                            let value_native_serial_signals_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_serial_signals_changed_event_kind = binding.store_string(&value.kind);
                             let value_native_serial_signals_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_serial_signals_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_serial_signals_changed_event_metadata = SerialEventMetadata {
@@ -9775,7 +9775,7 @@ fn destack_device_serial_read_event_replay(
                             SerialEvent::SerialSignalsChangedEvent(value_native_serial_signals_changed_event)
                         }
                         SerialEventReplayRecord::SerialWriteReadyEvent(value) => {
-                            let value_native_serial_write_ready_event_kind = context.store_string(&value.kind);
+                            let value_native_serial_write_ready_event_kind = binding.store_string(&value.kind);
                             let value_native_serial_write_ready_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_serial_write_ready_event_metadata_sequence = value.metadata.sequence;
                             let value_native_serial_write_ready_event_metadata = SerialEventMetadata {
@@ -9805,23 +9805,23 @@ fn destack_device_serial_read_event_replay(
 
 #[inline]
 fn destack_device_serial_set_break_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_SERIAL_SET_BREAK,
-        context.replay_payload_for(DEVICE_SERIAL_SET_BREAK)?,
+        binding.replay_payload_for(DEVICE_SERIAL_SET_BREAK)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_serial_set_break(context, handle, enabled)
+                platform_native::destack_device_serial_set_break(binding, handle, enabled)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_serial_set_break(
-                    context, handle, enabled,
+                    binding, handle, enabled,
                 )
             },
         },
@@ -9856,7 +9856,7 @@ fn destack_device_serial_set_break_replay(
 
 #[inline]
 fn destack_device_serial_set_control_lines_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
     dtr: bool,
@@ -9864,16 +9864,16 @@ fn destack_device_serial_set_control_lines_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &dtr, &rts);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_SERIAL_SET_CONTROL_LINES,
-        context.replay_payload_for(DEVICE_SERIAL_SET_CONTROL_LINES)?,
+        binding.replay_payload_for(DEVICE_SERIAL_SET_CONTROL_LINES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_serial_set_control_lines(context, handle, dtr, rts)
+                platform_native::destack_device_serial_set_control_lines(binding, handle, dtr, rts)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_serial_set_control_lines(
-                    context, handle, dtr, rts,
+                    binding, handle, dtr, rts,
                 )
             },
         },
@@ -9908,22 +9908,22 @@ fn destack_device_serial_set_control_lines_replay(
 
 #[inline]
 fn destack_device_serial_signal_bits_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_SERIAL_SIGNAL_BITS,
-        context.replay_payload_for(DEVICE_SERIAL_SIGNAL_BITS)?,
+        binding.replay_payload_for(DEVICE_SERIAL_SIGNAL_BITS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_serial_signal_bits(context, out, handle)
+                platform_native::destack_device_serial_signal_bits(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_serial_signal_bits(context, out, handle)
+                platform_simulation_native::destack_device_serial_signal_bits(binding, out, handle)
             },
         },
         |result| {
@@ -9969,19 +9969,19 @@ fn destack_device_serial_signal_bits_replay(
 
 #[inline]
 fn destack_device_serial_try_event_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut SerialEvent,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_SERIAL_TRY_EVENT,
-        context.replay_payload_for(DEVICE_SERIAL_TRY_EVENT)?,
+        binding.replay_payload_for(DEVICE_SERIAL_TRY_EVENT)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_device_serial_try_event(context, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_device_serial_try_event(context, out, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_device_serial_try_event(binding, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_device_serial_try_event(binding, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
@@ -10093,7 +10093,7 @@ fn destack_device_serial_try_event_replay(
                 Ok(value) => {
                     let value_native = match value {
                         SerialEventReplayRecord::SerialErrorEvent(value) => {
-                            let value_native_serial_error_event_kind = context.store_string(&value.kind);
+                            let value_native_serial_error_event_kind = binding.store_string(&value.kind);
                             let value_native_serial_error_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_serial_error_event_metadata_sequence = value.metadata.sequence;
                             let value_native_serial_error_event_metadata = SerialEventMetadata {
@@ -10114,7 +10114,7 @@ fn destack_device_serial_try_event_replay(
                             SerialEvent::SerialErrorEvent(value_native_serial_error_event)
                         }
                         SerialEventReplayRecord::SerialReadReadyEvent(value) => {
-                            let value_native_serial_read_ready_event_kind = context.store_string(&value.kind);
+                            let value_native_serial_read_ready_event_kind = binding.store_string(&value.kind);
                             let value_native_serial_read_ready_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_serial_read_ready_event_metadata_sequence = value.metadata.sequence;
                             let value_native_serial_read_ready_event_metadata = SerialEventMetadata {
@@ -10133,7 +10133,7 @@ fn destack_device_serial_try_event_replay(
                             SerialEvent::SerialReadReadyEvent(value_native_serial_read_ready_event)
                         }
                         SerialEventReplayRecord::SerialSignalsChangedEvent(value) => {
-                            let value_native_serial_signals_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_serial_signals_changed_event_kind = binding.store_string(&value.kind);
                             let value_native_serial_signals_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_serial_signals_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_serial_signals_changed_event_metadata = SerialEventMetadata {
@@ -10152,7 +10152,7 @@ fn destack_device_serial_try_event_replay(
                             SerialEvent::SerialSignalsChangedEvent(value_native_serial_signals_changed_event)
                         }
                         SerialEventReplayRecord::SerialWriteReadyEvent(value) => {
-                            let value_native_serial_write_ready_event_kind = context.store_string(&value.kind);
+                            let value_native_serial_write_ready_event_kind = binding.store_string(&value.kind);
                             let value_native_serial_write_ready_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_serial_write_ready_event_metadata_sequence = value.metadata.sequence;
                             let value_native_serial_write_ready_event_metadata = SerialEventMetadata {
@@ -10182,7 +10182,7 @@ fn destack_device_serial_try_event_replay(
 
 #[inline]
 fn destack_device_serial_try_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     handle: resource::SerialPortHandle,
@@ -10190,16 +10190,16 @@ fn destack_device_serial_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxbytes);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_SERIAL_TRY_READ,
-        context.replay_payload_for(DEVICE_SERIAL_TRY_READ)?,
+        binding.replay_payload_for(DEVICE_SERIAL_TRY_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_serial_try_read(context, out, handle, maxbytes)
+                platform_native::destack_device_serial_try_read(binding, out, handle, maxbytes)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_serial_try_read(
-                    context, out, handle, maxbytes,
+                    binding, out, handle, maxbytes,
                 )
             },
         },
@@ -10243,7 +10243,7 @@ fn destack_device_serial_try_read_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -10257,7 +10257,7 @@ fn destack_device_serial_try_read_replay(
 
 #[inline]
 fn destack_device_serial_write_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::SerialPortHandle,
@@ -10266,16 +10266,16 @@ fn destack_device_serial_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &data, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_SERIAL_WRITE,
-        context.replay_payload_for(DEVICE_SERIAL_WRITE)?,
+        binding.replay_payload_for(DEVICE_SERIAL_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_serial_write(context, out, handle, data, timeoutns)
+                platform_native::destack_device_serial_write(binding, out, handle, data, timeoutns)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_serial_write(
-                    context, out, handle, data, timeoutns,
+                    binding, out, handle, data, timeoutns,
                 )
             },
         },
@@ -10322,7 +10322,7 @@ fn destack_device_serial_write_replay(
 
 #[inline]
 fn destack_device_usb_bulk_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     handle: resource::UsbDeviceHandle,
@@ -10332,13 +10332,13 @@ fn destack_device_usb_bulk_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &endpointaddress, &maxbytes, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_BULK_READ,
-        context.replay_payload_for(DEVICE_USB_BULK_READ)?,
+        binding.replay_payload_for(DEVICE_USB_BULK_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_usb_bulk_read(
-                    context,
+                    binding,
                     out,
                     handle,
                     endpointaddress,
@@ -10348,7 +10348,7 @@ fn destack_device_usb_bulk_read_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_usb_bulk_read(
-                    context,
+                    binding,
                     out,
                     handle,
                     endpointaddress,
@@ -10397,7 +10397,7 @@ fn destack_device_usb_bulk_read_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -10411,7 +10411,7 @@ fn destack_device_usb_bulk_read_replay(
 
 #[inline]
 fn destack_device_usb_bulk_write_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::UsbDeviceHandle,
@@ -10421,13 +10421,13 @@ fn destack_device_usb_bulk_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &endpointaddress, &argument_bytes, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_BULK_WRITE,
-        context.replay_payload_for(DEVICE_USB_BULK_WRITE)?,
+        binding.replay_payload_for(DEVICE_USB_BULK_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_usb_bulk_write(
-                    context,
+                    binding,
                     out,
                     handle,
                     endpointaddress,
@@ -10437,7 +10437,7 @@ fn destack_device_usb_bulk_write_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_usb_bulk_write(
-                    context,
+                    binding,
                     out,
                     handle,
                     endpointaddress,
@@ -10489,27 +10489,27 @@ fn destack_device_usb_bulk_write_replay(
 
 #[inline]
 fn destack_device_usb_claim_interface_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &interfacenumber);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_CLAIM_INTERFACE,
-        context.replay_payload_for(DEVICE_USB_CLAIM_INTERFACE)?,
+        binding.replay_payload_for(DEVICE_USB_CLAIM_INTERFACE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_usb_claim_interface(
-                    context,
+                    binding,
                     handle,
                     interfacenumber,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_usb_claim_interface(
-                    context,
+                    binding,
                     handle,
                     interfacenumber,
                 )
@@ -10546,23 +10546,23 @@ fn destack_device_usb_claim_interface_replay(
 
 #[inline]
 fn destack_device_usb_clear_halt_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &endpointaddress);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_CLEAR_HALT,
-        context.replay_payload_for(DEVICE_USB_CLEAR_HALT)?,
+        binding.replay_payload_for(DEVICE_USB_CLEAR_HALT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_usb_clear_halt(context, handle, endpointaddress)
+                platform_native::destack_device_usb_clear_halt(binding, handle, endpointaddress)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_usb_clear_halt(
-                    context,
+                    binding,
                     handle,
                     endpointaddress,
                 )
@@ -10599,21 +10599,21 @@ fn destack_device_usb_clear_halt_replay(
 
 #[inline]
 fn destack_device_usb_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_CLOSE,
-        context.replay_payload_for(DEVICE_USB_CLOSE)?,
+        binding.replay_payload_for(DEVICE_USB_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_usb_close(context, handle)
+                platform_native::destack_device_usb_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_usb_close(context, handle)
+                platform_simulation_native::destack_device_usb_close(binding, handle)
             },
         },
         |result| {
@@ -10647,23 +10647,23 @@ fn destack_device_usb_close_replay(
 
 #[inline]
 fn destack_device_usb_configuration_get_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u8,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_CONFIGURATION_GET,
-        context.replay_payload_for(DEVICE_USB_CONFIGURATION_GET)?,
+        binding.replay_payload_for(DEVICE_USB_CONFIGURATION_GET)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_usb_configuration_get(context, out, handle)
+                platform_native::destack_device_usb_configuration_get(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_usb_configuration_get(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -10710,19 +10710,19 @@ fn destack_device_usb_configuration_get_replay(
 
 #[inline]
 fn destack_device_usb_configuration_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<UsbConfigurationDescriptor>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_CONFIGURATION_LIST,
-        context.replay_payload_for(DEVICE_USB_CONFIGURATION_LIST)?,
+        binding.replay_payload_for(DEVICE_USB_CONFIGURATION_LIST)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_device_usb_configuration_list(context, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_device_usb_configuration_list(context, out, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_device_usb_configuration_list(binding, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_device_usb_configuration_list(binding, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
@@ -10828,7 +10828,7 @@ fn destack_device_usb_configuration_list_replay(
                                 };
                                 value_native_item_native_interfaces_item_native_endpoints_values.push(value_native_item_native_interfaces_item_native_endpoints_item_native);
                             }
-                            let value_native_item_native_interfaces_item_native_endpoints = context.store_slice(value_native_item_native_interfaces_item_native_endpoints_values);
+                            let value_native_item_native_interfaces_item_native_endpoints = binding.store_slice(value_native_item_native_interfaces_item_native_endpoints_values);
                             let value_native_item_native_interfaces_item_native = UsbInterfaceDescriptor {
                                 number: value_native_item_native_interfaces_item_native_number,
                                 alternate_setting: value_native_item_native_interfaces_item_native_alternate_setting,
@@ -10839,7 +10839,7 @@ fn destack_device_usb_configuration_list_replay(
                             };
                             value_native_item_native_interfaces_values.push(value_native_item_native_interfaces_item_native);
                         }
-                        let value_native_item_native_interfaces = context.store_slice(value_native_item_native_interfaces_values);
+                        let value_native_item_native_interfaces = binding.store_slice(value_native_item_native_interfaces_values);
                         let value_native_item_native = UsbConfigurationDescriptor {
                             value: value_native_item_native_value,
                             attributes: value_native_item_native_attributes,
@@ -10848,7 +10848,7 @@ fn destack_device_usb_configuration_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
@@ -10860,27 +10860,27 @@ fn destack_device_usb_configuration_list_replay(
 
 #[inline]
 fn destack_device_usb_configuration_set_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     configurationvalue: u8,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &configurationvalue);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_CONFIGURATION_SET,
-        context.replay_payload_for(DEVICE_USB_CONFIGURATION_SET)?,
+        binding.replay_payload_for(DEVICE_USB_CONFIGURATION_SET)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_usb_configuration_set(
-                    context,
+                    binding,
                     handle,
                     configurationvalue,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_usb_configuration_set(
-                    context,
+                    binding,
                     handle,
                     configurationvalue,
                 )
@@ -10917,7 +10917,7 @@ fn destack_device_usb_configuration_set_replay(
 
 #[inline]
 fn destack_device_usb_control_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     handle: resource::UsbDeviceHandle,
@@ -10926,18 +10926,18 @@ fn destack_device_usb_control_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &setup, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_CONTROL_READ,
-        context.replay_payload_for(DEVICE_USB_CONTROL_READ)?,
+        binding.replay_payload_for(DEVICE_USB_CONTROL_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_usb_control_read(
-                    context, out, handle, setup, timeoutns,
+                    binding, out, handle, setup, timeoutns,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_usb_control_read(
-                    context, out, handle, setup, timeoutns,
+                    binding, out, handle, setup, timeoutns,
                 )
             },
         },
@@ -10981,7 +10981,7 @@ fn destack_device_usb_control_read_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -10995,7 +10995,7 @@ fn destack_device_usb_control_read_replay(
 
 #[inline]
 fn destack_device_usb_control_write_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::UsbDeviceHandle,
@@ -11005,13 +11005,13 @@ fn destack_device_usb_control_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &setup, &argument_bytes, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_CONTROL_WRITE,
-        context.replay_payload_for(DEVICE_USB_CONTROL_WRITE)?,
+        binding.replay_payload_for(DEVICE_USB_CONTROL_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_usb_control_write(
-                    context,
+                    binding,
                     out,
                     handle,
                     setup,
@@ -11021,7 +11021,7 @@ fn destack_device_usb_control_write_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_usb_control_write(
-                    context,
+                    binding,
                     out,
                     handle,
                     setup,
@@ -11073,22 +11073,22 @@ fn destack_device_usb_control_write_replay(
 
 #[inline]
 fn destack_device_usb_descriptor_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut UsbDeviceDescriptor,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_DESCRIPTOR,
-        context.replay_payload_for(DEVICE_USB_DESCRIPTOR)?,
+        binding.replay_payload_for(DEVICE_USB_DESCRIPTOR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_usb_descriptor(context, out, handle)
+                platform_native::destack_device_usb_descriptor(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_usb_descriptor(context, out, handle)
+                platform_simulation_native::destack_device_usb_descriptor(binding, out, handle)
             },
         },
         |result| {
@@ -11141,15 +11141,15 @@ fn destack_device_usb_descriptor_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_id = context.store_string(&value.id);
+                    let value_native_id = binding.store_string(&value.id);
                     let value_native_vendor_id = value.vendor_id;
                     let value_native_product_id = value.product_id;
                     let value_native_class_code = value.class_code;
                     let value_native_subclass_code = value.subclass_code;
                     let value_native_protocol_code = value.protocol_code;
-                    let value_native_manufacturer = context.store_string(&value.manufacturer);
-                    let value_native_product = context.store_string(&value.product);
-                    let value_native_serial_number = context.store_string(&value.serial_number);
+                    let value_native_manufacturer = binding.store_string(&value.manufacturer);
+                    let value_native_product = binding.store_string(&value.product);
+                    let value_native_serial_number = binding.store_string(&value.serial_number);
                     let value_native = UsbDeviceDescriptor {
                         id: value_native_id,
                         vendor_id: value_native_vendor_id,
@@ -11174,7 +11174,7 @@ fn destack_device_usb_descriptor_replay(
 
 #[inline]
 fn destack_device_usb_interrupt_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     handle: resource::UsbDeviceHandle,
@@ -11184,13 +11184,13 @@ fn destack_device_usb_interrupt_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &endpointaddress, &maxbytes, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_INTERRUPT_READ,
-        context.replay_payload_for(DEVICE_USB_INTERRUPT_READ)?,
+        binding.replay_payload_for(DEVICE_USB_INTERRUPT_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_usb_interrupt_read(
-                    context,
+                    binding,
                     out,
                     handle,
                     endpointaddress,
@@ -11200,7 +11200,7 @@ fn destack_device_usb_interrupt_read_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_usb_interrupt_read(
-                    context,
+                    binding,
                     out,
                     handle,
                     endpointaddress,
@@ -11249,7 +11249,7 @@ fn destack_device_usb_interrupt_read_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -11263,7 +11263,7 @@ fn destack_device_usb_interrupt_read_replay(
 
 #[inline]
 fn destack_device_usb_interrupt_write_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::UsbDeviceHandle,
@@ -11273,13 +11273,13 @@ fn destack_device_usb_interrupt_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &endpointaddress, &argument_bytes, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_INTERRUPT_WRITE,
-        context.replay_payload_for(DEVICE_USB_INTERRUPT_WRITE)?,
+        binding.replay_payload_for(DEVICE_USB_INTERRUPT_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_usb_interrupt_write(
-                    context,
+                    binding,
                     out,
                     handle,
                     endpointaddress,
@@ -11289,7 +11289,7 @@ fn destack_device_usb_interrupt_write_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_usb_interrupt_write(
-                    context,
+                    binding,
                     out,
                     handle,
                     endpointaddress,
@@ -11341,7 +11341,7 @@ fn destack_device_usb_interrupt_write_replay(
 
 #[inline]
 fn destack_device_usb_isochronous_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut UsbIsochronousTransferResult,
     handle: resource::UsbDeviceHandle,
@@ -11351,13 +11351,13 @@ fn destack_device_usb_isochronous_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &endpointaddress, &packetsizes, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_ISOCHRONOUS_READ,
-        context.replay_payload_for(DEVICE_USB_ISOCHRONOUS_READ)?,
+        binding.replay_payload_for(DEVICE_USB_ISOCHRONOUS_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_usb_isochronous_read(
-                    context,
+                    binding,
                     out,
                     handle,
                     endpointaddress,
@@ -11367,7 +11367,7 @@ fn destack_device_usb_isochronous_read_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_usb_isochronous_read(
-                    context,
+                    binding,
                     out,
                     handle,
                     endpointaddress,
@@ -11449,7 +11449,7 @@ fn destack_device_usb_isochronous_read_replay(
                         let value_native_bytes_item_native = value_native_bytes_item;
                         value_native_bytes_values.push(value_native_bytes_item_native);
                     }
-                    let value_native_bytes = context.store_slice(value_native_bytes_values);
+                    let value_native_bytes = binding.store_slice(value_native_bytes_values);
                     let mut value_native_packet_actual_lengths_values =
                         Vec::with_capacity(value.packet_actual_lengths.len());
                     for value_native_packet_actual_lengths_item in value.packet_actual_lengths {
@@ -11459,7 +11459,7 @@ fn destack_device_usb_isochronous_read_replay(
                             .push(value_native_packet_actual_lengths_item_native);
                     }
                     let value_native_packet_actual_lengths =
-                        context.store_slice(value_native_packet_actual_lengths_values);
+                        binding.store_slice(value_native_packet_actual_lengths_values);
                     let mut value_native_packet_statuses_values =
                         Vec::with_capacity(value.packet_statuses.len());
                     for value_native_packet_statuses_item in value.packet_statuses {
@@ -11469,7 +11469,7 @@ fn destack_device_usb_isochronous_read_replay(
                             .push(value_native_packet_statuses_item_native);
                     }
                     let value_native_packet_statuses =
-                        context.store_slice(value_native_packet_statuses_values);
+                        binding.store_slice(value_native_packet_statuses_values);
                     let value_native = UsbIsochronousTransferResult {
                         bytes: value_native_bytes,
                         packet_actual_lengths: value_native_packet_actual_lengths,
@@ -11488,7 +11488,7 @@ fn destack_device_usb_isochronous_read_replay(
 
 #[inline]
 fn destack_device_usb_isochronous_write_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut UsbIsochronousTransferResult,
     handle: resource::UsbDeviceHandle,
@@ -11505,13 +11505,13 @@ fn destack_device_usb_isochronous_write_replay(
         &timeoutns,
     );
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_ISOCHRONOUS_WRITE,
-        context.replay_payload_for(DEVICE_USB_ISOCHRONOUS_WRITE)?,
+        binding.replay_payload_for(DEVICE_USB_ISOCHRONOUS_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_usb_isochronous_write(
-                    context,
+                    binding,
                     out,
                     handle,
                     endpointaddress,
@@ -11522,7 +11522,7 @@ fn destack_device_usb_isochronous_write_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_usb_isochronous_write(
-                    context,
+                    binding,
                     out,
                     handle,
                     endpointaddress,
@@ -11605,7 +11605,7 @@ fn destack_device_usb_isochronous_write_replay(
                         let value_native_bytes_item_native = value_native_bytes_item;
                         value_native_bytes_values.push(value_native_bytes_item_native);
                     }
-                    let value_native_bytes = context.store_slice(value_native_bytes_values);
+                    let value_native_bytes = binding.store_slice(value_native_bytes_values);
                     let mut value_native_packet_actual_lengths_values =
                         Vec::with_capacity(value.packet_actual_lengths.len());
                     for value_native_packet_actual_lengths_item in value.packet_actual_lengths {
@@ -11615,7 +11615,7 @@ fn destack_device_usb_isochronous_write_replay(
                             .push(value_native_packet_actual_lengths_item_native);
                     }
                     let value_native_packet_actual_lengths =
-                        context.store_slice(value_native_packet_actual_lengths_values);
+                        binding.store_slice(value_native_packet_actual_lengths_values);
                     let mut value_native_packet_statuses_values =
                         Vec::with_capacity(value.packet_statuses.len());
                     for value_native_packet_statuses_item in value.packet_statuses {
@@ -11625,7 +11625,7 @@ fn destack_device_usb_isochronous_write_replay(
                             .push(value_native_packet_statuses_item_native);
                     }
                     let value_native_packet_statuses =
-                        context.store_slice(value_native_packet_statuses_values);
+                        binding.store_slice(value_native_packet_statuses_values);
                     let value_native = UsbIsochronousTransferResult {
                         bytes: value_native_bytes,
                         packet_actual_lengths: value_native_packet_actual_lengths,
@@ -11644,7 +11644,7 @@ fn destack_device_usb_isochronous_write_replay(
 
 #[inline]
 fn destack_device_usb_kernel_driver_active_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut bool,
     handle: resource::UsbDeviceHandle,
@@ -11652,13 +11652,13 @@ fn destack_device_usb_kernel_driver_active_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &interfacenumber);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_KERNEL_DRIVER_ACTIVE,
-        context.replay_payload_for(DEVICE_USB_KERNEL_DRIVER_ACTIVE)?,
+        binding.replay_payload_for(DEVICE_USB_KERNEL_DRIVER_ACTIVE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_usb_kernel_driver_active(
-                    context,
+                    binding,
                     out,
                     handle,
                     interfacenumber,
@@ -11666,7 +11666,7 @@ fn destack_device_usb_kernel_driver_active_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_usb_kernel_driver_active(
-                    context,
+                    binding,
                     out,
                     handle,
                     interfacenumber,
@@ -11716,17 +11716,17 @@ fn destack_device_usb_kernel_driver_active_replay(
 
 #[inline]
 fn destack_device_usb_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<UsbDeviceDescriptor>,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_LIST,
-        context.replay_payload_for(DEVICE_USB_LIST)?,
+        binding.replay_payload_for(DEVICE_USB_LIST)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_device_usb_list(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_device_usb_list(binding, out) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_usb_list(context, out)
+                platform_simulation_native::destack_device_usb_list(binding, out)
             },
         },
         |result| {
@@ -11792,7 +11792,7 @@ fn destack_device_usb_list_replay(
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
                         let value_native_item_native_id =
-                            context.store_string(&value_native_item.id);
+                            binding.store_string(&value_native_item.id);
                         let value_native_item_native_vendor_id = value_native_item.vendor_id;
                         let value_native_item_native_product_id = value_native_item.product_id;
                         let value_native_item_native_class_code = value_native_item.class_code;
@@ -11801,11 +11801,11 @@ fn destack_device_usb_list_replay(
                         let value_native_item_native_protocol_code =
                             value_native_item.protocol_code;
                         let value_native_item_native_manufacturer =
-                            context.store_string(&value_native_item.manufacturer);
+                            binding.store_string(&value_native_item.manufacturer);
                         let value_native_item_native_product =
-                            context.store_string(&value_native_item.product);
+                            binding.store_string(&value_native_item.product);
                         let value_native_item_native_serial_number =
-                            context.store_string(&value_native_item.serial_number);
+                            binding.store_string(&value_native_item.serial_number);
                         let value_native_item_native = UsbDeviceDescriptor {
                             id: value_native_item_native_id,
                             vendor_id: value_native_item_native_vendor_id,
@@ -11819,7 +11819,7 @@ fn destack_device_usb_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -11833,22 +11833,22 @@ fn destack_device_usb_list_replay(
 
 #[inline]
 fn destack_device_usb_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::UsbDeviceHandle,
     id: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = &id;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_OPEN,
-        context.replay_payload_for(DEVICE_USB_OPEN)?,
+        binding.replay_payload_for(DEVICE_USB_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_usb_open(context, out, id)
+                platform_native::destack_device_usb_open(binding, out, id)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_usb_open(context, out, id)
+                platform_simulation_native::destack_device_usb_open(binding, out, id)
             },
         },
         |result| {
@@ -11894,27 +11894,27 @@ fn destack_device_usb_open_replay(
 
 #[inline]
 fn destack_device_usb_release_interface_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &interfacenumber);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_RELEASE_INTERFACE,
-        context.replay_payload_for(DEVICE_USB_RELEASE_INTERFACE)?,
+        binding.replay_payload_for(DEVICE_USB_RELEASE_INTERFACE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_usb_release_interface(
-                    context,
+                    binding,
                     handle,
                     interfacenumber,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_usb_release_interface(
-                    context,
+                    binding,
                     handle,
                     interfacenumber,
                 )
@@ -11951,7 +11951,7 @@ fn destack_device_usb_release_interface_replay(
 
 #[inline]
 fn destack_device_usb_set_interface_alternate_setting_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
@@ -11959,13 +11959,13 @@ fn destack_device_usb_set_interface_alternate_setting_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &interfacenumber, &alternatesetting);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING,
-        context.replay_payload_for(DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING)?,
+        binding.replay_payload_for(DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_usb_set_interface_alternate_setting(
-                    context,
+                    binding,
                     handle,
                     interfacenumber,
                     alternatesetting,
@@ -11973,7 +11973,7 @@ fn destack_device_usb_set_interface_alternate_setting_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_usb_set_interface_alternate_setting(
-                    context,
+                    binding,
                     handle,
                     interfacenumber,
                     alternatesetting,
@@ -12011,7 +12011,7 @@ fn destack_device_usb_set_interface_alternate_setting_replay(
 
 #[inline]
 fn destack_device_usb_string_descriptor_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut UsbStringDescriptor,
     handle: resource::UsbDeviceHandle,
@@ -12019,18 +12019,18 @@ fn destack_device_usb_string_descriptor_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &languageid);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_STRING_DESCRIPTOR,
-        context.replay_payload_for(DEVICE_USB_STRING_DESCRIPTOR)?,
+        binding.replay_payload_for(DEVICE_USB_STRING_DESCRIPTOR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_device_usb_string_descriptor(
-                    context, out, handle, languageid,
+                    binding, out, handle, languageid,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_usb_string_descriptor(
-                    context, out, handle, languageid,
+                    binding, out, handle, languageid,
                 )
             },
         },
@@ -12075,9 +12075,9 @@ fn destack_device_usb_string_descriptor_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_language_id = value.language_id;
-                    let value_native_manufacturer = context.store_string(&value.manufacturer);
-                    let value_native_product = context.store_string(&value.product);
-                    let value_native_serial_number = context.store_string(&value.serial_number);
+                    let value_native_manufacturer = binding.store_string(&value.manufacturer);
+                    let value_native_product = binding.store_string(&value.product);
+                    let value_native_serial_number = binding.store_string(&value.serial_number);
                     let value_native = UsbStringDescriptor {
                         language_id: value_native_language_id,
                         manufacturer: value_native_manufacturer,
@@ -12097,23 +12097,23 @@ fn destack_device_usb_string_descriptor_replay(
 
 #[inline]
 fn destack_device_usb_string_language_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u16>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_STRING_LANGUAGE_LIST,
-        context.replay_payload_for(DEVICE_USB_STRING_LANGUAGE_LIST)?,
+        binding.replay_payload_for(DEVICE_USB_STRING_LANGUAGE_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_usb_string_language_list(context, out, handle)
+                platform_native::destack_device_usb_string_language_list(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_device_usb_string_language_list(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -12157,7 +12157,7 @@ fn destack_device_usb_string_language_list_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -12171,21 +12171,21 @@ fn destack_device_usb_string_language_list_replay(
 
 #[inline]
 fn destack_device_usb_watch_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::UsbWatchHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_WATCH_CLOSE,
-        context.replay_payload_for(DEVICE_USB_WATCH_CLOSE)?,
+        binding.replay_payload_for(DEVICE_USB_WATCH_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_usb_watch_close(context, handle)
+                platform_native::destack_device_usb_watch_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_usb_watch_close(context, handle)
+                platform_simulation_native::destack_device_usb_watch_close(binding, handle)
             },
         },
         |result| {
@@ -12219,19 +12219,19 @@ fn destack_device_usb_watch_close_replay(
 
 #[inline]
 fn destack_device_usb_watch_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::UsbWatchHandle,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_WATCH_OPEN,
-        context.replay_payload_for(DEVICE_USB_WATCH_OPEN)?,
+        binding.replay_payload_for(DEVICE_USB_WATCH_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_usb_watch_open(context, out)
+                platform_native::destack_device_usb_watch_open(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_usb_watch_open(context, out)
+                platform_simulation_native::destack_device_usb_watch_open(binding, out)
             },
         },
         |result| {
@@ -12277,7 +12277,7 @@ fn destack_device_usb_watch_open_replay(
 
 #[inline]
 fn destack_device_usb_watch_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut UsbHotplugEvent,
     handle: resource::UsbWatchHandle,
@@ -12285,12 +12285,12 @@ fn destack_device_usb_watch_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_WATCH_READ,
-        context.replay_payload_for(DEVICE_USB_WATCH_READ)?,
+        binding.replay_payload_for(DEVICE_USB_WATCH_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_device_usb_watch_read(context, out, handle, timeoutns) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_device_usb_watch_read(context, out, handle, timeoutns) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_device_usb_watch_read(binding, out, handle, timeoutns) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_device_usb_watch_read(binding, out, handle, timeoutns) },
         },
         |result| {
             if let Ok(()) = result {
@@ -12394,18 +12394,18 @@ fn destack_device_usb_watch_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         UsbHotplugEventReplayRecord::UsbHotplugAttachedEvent(value) => {
-                            let value_native_usb_hotplug_attached_event_kind = context.store_string(&value.kind);
+                            let value_native_usb_hotplug_attached_event_kind = binding.store_string(&value.kind);
                             let value_native_usb_hotplug_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_usb_hotplug_attached_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_usb_hotplug_attached_event_metadata_device_id = context.store_string(&value.metadata.device.id);
+                            let value_native_usb_hotplug_attached_event_metadata_device_id = binding.store_string(&value.metadata.device.id);
                             let value_native_usb_hotplug_attached_event_metadata_device_vendor_id = value.metadata.device.vendor_id;
                             let value_native_usb_hotplug_attached_event_metadata_device_product_id = value.metadata.device.product_id;
                             let value_native_usb_hotplug_attached_event_metadata_device_class_code = value.metadata.device.class_code;
                             let value_native_usb_hotplug_attached_event_metadata_device_subclass_code = value.metadata.device.subclass_code;
                             let value_native_usb_hotplug_attached_event_metadata_device_protocol_code = value.metadata.device.protocol_code;
-                            let value_native_usb_hotplug_attached_event_metadata_device_manufacturer = context.store_string(&value.metadata.device.manufacturer);
-                            let value_native_usb_hotplug_attached_event_metadata_device_product = context.store_string(&value.metadata.device.product);
-                            let value_native_usb_hotplug_attached_event_metadata_device_serial_number = context.store_string(&value.metadata.device.serial_number);
+                            let value_native_usb_hotplug_attached_event_metadata_device_manufacturer = binding.store_string(&value.metadata.device.manufacturer);
+                            let value_native_usb_hotplug_attached_event_metadata_device_product = binding.store_string(&value.metadata.device.product);
+                            let value_native_usb_hotplug_attached_event_metadata_device_serial_number = binding.store_string(&value.metadata.device.serial_number);
                             let value_native_usb_hotplug_attached_event_metadata_device = UsbDeviceDescriptor {
                                 id: value_native_usb_hotplug_attached_event_metadata_device_id,
                                 vendor_id: value_native_usb_hotplug_attached_event_metadata_device_vendor_id,
@@ -12429,18 +12429,18 @@ fn destack_device_usb_watch_read_replay(
                             UsbHotplugEvent::UsbHotplugAttachedEvent(value_native_usb_hotplug_attached_event)
                         }
                         UsbHotplugEventReplayRecord::UsbHotplugDetachedEvent(value) => {
-                            let value_native_usb_hotplug_detached_event_kind = context.store_string(&value.kind);
+                            let value_native_usb_hotplug_detached_event_kind = binding.store_string(&value.kind);
                             let value_native_usb_hotplug_detached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_usb_hotplug_detached_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_usb_hotplug_detached_event_metadata_device_id = context.store_string(&value.metadata.device.id);
+                            let value_native_usb_hotplug_detached_event_metadata_device_id = binding.store_string(&value.metadata.device.id);
                             let value_native_usb_hotplug_detached_event_metadata_device_vendor_id = value.metadata.device.vendor_id;
                             let value_native_usb_hotplug_detached_event_metadata_device_product_id = value.metadata.device.product_id;
                             let value_native_usb_hotplug_detached_event_metadata_device_class_code = value.metadata.device.class_code;
                             let value_native_usb_hotplug_detached_event_metadata_device_subclass_code = value.metadata.device.subclass_code;
                             let value_native_usb_hotplug_detached_event_metadata_device_protocol_code = value.metadata.device.protocol_code;
-                            let value_native_usb_hotplug_detached_event_metadata_device_manufacturer = context.store_string(&value.metadata.device.manufacturer);
-                            let value_native_usb_hotplug_detached_event_metadata_device_product = context.store_string(&value.metadata.device.product);
-                            let value_native_usb_hotplug_detached_event_metadata_device_serial_number = context.store_string(&value.metadata.device.serial_number);
+                            let value_native_usb_hotplug_detached_event_metadata_device_manufacturer = binding.store_string(&value.metadata.device.manufacturer);
+                            let value_native_usb_hotplug_detached_event_metadata_device_product = binding.store_string(&value.metadata.device.product);
+                            let value_native_usb_hotplug_detached_event_metadata_device_serial_number = binding.store_string(&value.metadata.device.serial_number);
                             let value_native_usb_hotplug_detached_event_metadata_device = UsbDeviceDescriptor {
                                 id: value_native_usb_hotplug_detached_event_metadata_device_id,
                                 vendor_id: value_native_usb_hotplug_detached_event_metadata_device_vendor_id,
@@ -12475,19 +12475,19 @@ fn destack_device_usb_watch_read_replay(
 
 #[inline]
 fn destack_device_usb_watch_try_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut UsbHotplugEvent,
     handle: resource::UsbWatchHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEVICE_USB_WATCH_TRY_READ,
-        context.replay_payload_for(DEVICE_USB_WATCH_TRY_READ)?,
+        binding.replay_payload_for(DEVICE_USB_WATCH_TRY_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_device_usb_watch_try_read(context, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_device_usb_watch_try_read(context, out, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_device_usb_watch_try_read(binding, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_device_usb_watch_try_read(binding, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
@@ -12591,18 +12591,18 @@ fn destack_device_usb_watch_try_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         UsbHotplugEventReplayRecord::UsbHotplugAttachedEvent(value) => {
-                            let value_native_usb_hotplug_attached_event_kind = context.store_string(&value.kind);
+                            let value_native_usb_hotplug_attached_event_kind = binding.store_string(&value.kind);
                             let value_native_usb_hotplug_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_usb_hotplug_attached_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_usb_hotplug_attached_event_metadata_device_id = context.store_string(&value.metadata.device.id);
+                            let value_native_usb_hotplug_attached_event_metadata_device_id = binding.store_string(&value.metadata.device.id);
                             let value_native_usb_hotplug_attached_event_metadata_device_vendor_id = value.metadata.device.vendor_id;
                             let value_native_usb_hotplug_attached_event_metadata_device_product_id = value.metadata.device.product_id;
                             let value_native_usb_hotplug_attached_event_metadata_device_class_code = value.metadata.device.class_code;
                             let value_native_usb_hotplug_attached_event_metadata_device_subclass_code = value.metadata.device.subclass_code;
                             let value_native_usb_hotplug_attached_event_metadata_device_protocol_code = value.metadata.device.protocol_code;
-                            let value_native_usb_hotplug_attached_event_metadata_device_manufacturer = context.store_string(&value.metadata.device.manufacturer);
-                            let value_native_usb_hotplug_attached_event_metadata_device_product = context.store_string(&value.metadata.device.product);
-                            let value_native_usb_hotplug_attached_event_metadata_device_serial_number = context.store_string(&value.metadata.device.serial_number);
+                            let value_native_usb_hotplug_attached_event_metadata_device_manufacturer = binding.store_string(&value.metadata.device.manufacturer);
+                            let value_native_usb_hotplug_attached_event_metadata_device_product = binding.store_string(&value.metadata.device.product);
+                            let value_native_usb_hotplug_attached_event_metadata_device_serial_number = binding.store_string(&value.metadata.device.serial_number);
                             let value_native_usb_hotplug_attached_event_metadata_device = UsbDeviceDescriptor {
                                 id: value_native_usb_hotplug_attached_event_metadata_device_id,
                                 vendor_id: value_native_usb_hotplug_attached_event_metadata_device_vendor_id,
@@ -12626,18 +12626,18 @@ fn destack_device_usb_watch_try_read_replay(
                             UsbHotplugEvent::UsbHotplugAttachedEvent(value_native_usb_hotplug_attached_event)
                         }
                         UsbHotplugEventReplayRecord::UsbHotplugDetachedEvent(value) => {
-                            let value_native_usb_hotplug_detached_event_kind = context.store_string(&value.kind);
+                            let value_native_usb_hotplug_detached_event_kind = binding.store_string(&value.kind);
                             let value_native_usb_hotplug_detached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_usb_hotplug_detached_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_usb_hotplug_detached_event_metadata_device_id = context.store_string(&value.metadata.device.id);
+                            let value_native_usb_hotplug_detached_event_metadata_device_id = binding.store_string(&value.metadata.device.id);
                             let value_native_usb_hotplug_detached_event_metadata_device_vendor_id = value.metadata.device.vendor_id;
                             let value_native_usb_hotplug_detached_event_metadata_device_product_id = value.metadata.device.product_id;
                             let value_native_usb_hotplug_detached_event_metadata_device_class_code = value.metadata.device.class_code;
                             let value_native_usb_hotplug_detached_event_metadata_device_subclass_code = value.metadata.device.subclass_code;
                             let value_native_usb_hotplug_detached_event_metadata_device_protocol_code = value.metadata.device.protocol_code;
-                            let value_native_usb_hotplug_detached_event_metadata_device_manufacturer = context.store_string(&value.metadata.device.manufacturer);
-                            let value_native_usb_hotplug_detached_event_metadata_device_product = context.store_string(&value.metadata.device.product);
-                            let value_native_usb_hotplug_detached_event_metadata_device_serial_number = context.store_string(&value.metadata.device.serial_number);
+                            let value_native_usb_hotplug_detached_event_metadata_device_manufacturer = binding.store_string(&value.metadata.device.manufacturer);
+                            let value_native_usb_hotplug_detached_event_metadata_device_product = binding.store_string(&value.metadata.device.product);
+                            let value_native_usb_hotplug_detached_event_metadata_device_serial_number = binding.store_string(&value.metadata.device.serial_number);
                             let value_native_usb_hotplug_detached_event_metadata_device = UsbDeviceDescriptor {
                                 id: value_native_usb_hotplug_detached_event_metadata_device_id,
                                 vendor_id: value_native_usb_hotplug_detached_event_metadata_device_vendor_id,
@@ -14380,20 +14380,20 @@ pub unsafe extern "C" fn destack_device_usb_watch_try_read(
 /// VM replay implementations for device bindings.
 #[inline]
 fn destack_device_bluetooth_adapter_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_ADAPTER_LIST,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_ADAPTER_LIST)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_ADAPTER_LIST)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_bluetooth_adapter_list(runtime, context)
+                platform_vm::destack_device_bluetooth_adapter_list(binding, context)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_bluetooth_adapter_list(runtime, context)
+                platform_simulation_vm::destack_device_bluetooth_adapter_list(binding, context)
             }
         },
         |context, result| {
@@ -14525,26 +14525,26 @@ fn destack_device_bluetooth_adapter_list_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_characteristic_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_bluetooth_gatt_characteristic_list(
-                runtime,
+                binding,
                 context,
                 handle,
                 serviceuuid,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_bluetooth_gatt_characteristic_list(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     serviceuuid,
@@ -14682,20 +14682,20 @@ fn destack_device_bluetooth_gatt_characteristic_list_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_descriptor_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: vm::StringHandle,
     characteristicuuid: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_bluetooth_gatt_descriptor_list(
-                runtime,
+                binding,
                 context,
                 handle,
                 serviceuuid,
@@ -14703,7 +14703,7 @@ fn destack_device_bluetooth_gatt_descriptor_list_vm_replay(
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_bluetooth_gatt_descriptor_list(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     serviceuuid,
@@ -14851,21 +14851,21 @@ fn destack_device_bluetooth_gatt_descriptor_list_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_mtu_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_GATT_MTU,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_GATT_MTU)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_MTU)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_bluetooth_gatt_mtu(runtime, context, handle)
+                platform_vm::destack_device_bluetooth_gatt_mtu(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_bluetooth_gatt_mtu(runtime, context, handle)
+                platform_simulation_vm::destack_device_bluetooth_gatt_mtu(binding, context, handle)
             }
         },
         |context, result| {
@@ -14907,7 +14907,7 @@ fn destack_device_bluetooth_gatt_mtu_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
@@ -14915,13 +14915,13 @@ fn destack_device_bluetooth_gatt_read_vm_replay(
     characteristicuuid: vm::StringHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_GATT_READ,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_GATT_READ)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_bluetooth_gatt_read(
-                runtime,
+                binding,
                 context,
                 handle,
                 serviceuuid,
@@ -14929,7 +14929,7 @@ fn destack_device_bluetooth_gatt_read_vm_replay(
                 timeoutns,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_bluetooth_gatt_read(
-                runtime,
+                binding,
                 context,
                 handle,
                 serviceuuid,
@@ -14976,7 +14976,7 @@ fn destack_device_bluetooth_gatt_read_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_read_descriptor_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
@@ -14985,13 +14985,13 @@ fn destack_device_bluetooth_gatt_read_descriptor_vm_replay(
     descriptoruuid: vm::StringHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_bluetooth_gatt_read_descriptor(
-                runtime,
+                binding,
                 context,
                 handle,
                 serviceuuid,
@@ -15001,7 +15001,7 @@ fn destack_device_bluetooth_gatt_read_descriptor_vm_replay(
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_bluetooth_gatt_read_descriptor(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     serviceuuid,
@@ -15050,23 +15050,23 @@ fn destack_device_bluetooth_gatt_read_descriptor_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_read_event_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothSubscriptionHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_GATT_READ_EVENT,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_GATT_READ_EVENT)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_READ_EVENT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_bluetooth_gatt_read_event(
-                runtime, context, handle, timeoutns,
+                binding, context, handle, timeoutns,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_bluetooth_gatt_read_event(
-                    runtime, context, handle, timeoutns,
+                    binding, context, handle, timeoutns,
                 )
             }
         },
@@ -15143,24 +15143,24 @@ fn destack_device_bluetooth_gatt_read_event_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_request_mtu_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
     mtu: u16,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_GATT_REQUEST_MTU,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_GATT_REQUEST_MTU)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_REQUEST_MTU)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_bluetooth_gatt_request_mtu(
-                runtime, context, handle, mtu, timeoutns,
+                binding, context, handle, mtu, timeoutns,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_bluetooth_gatt_request_mtu(
-                    runtime, context, handle, mtu, timeoutns,
+                    binding, context, handle, mtu, timeoutns,
                 )
             }
         },
@@ -15203,22 +15203,22 @@ fn destack_device_bluetooth_gatt_request_mtu_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_service_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_GATT_SERVICE_LIST,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_GATT_SERVICE_LIST)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_SERVICE_LIST)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_bluetooth_gatt_service_list(runtime, context, handle)
+                platform_vm::destack_device_bluetooth_gatt_service_list(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_bluetooth_gatt_service_list(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -15328,20 +15328,20 @@ fn destack_device_bluetooth_gatt_service_list_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_subscribe_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: vm::StringHandle,
     characteristicuuid: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_GATT_SUBSCRIBE,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_GATT_SUBSCRIBE)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_SUBSCRIBE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_bluetooth_gatt_subscribe(
-                runtime,
+                binding,
                 context,
                 handle,
                 serviceuuid,
@@ -15349,7 +15349,7 @@ fn destack_device_bluetooth_gatt_subscribe_vm_replay(
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_bluetooth_gatt_subscribe(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     serviceuuid,
@@ -15396,22 +15396,22 @@ fn destack_device_bluetooth_gatt_subscribe_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_try_read_event_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothSubscriptionHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_bluetooth_gatt_try_read_event(runtime, context, handle)
+                platform_vm::destack_device_bluetooth_gatt_try_read_event(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_bluetooth_gatt_try_read_event(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -15488,22 +15488,22 @@ fn destack_device_bluetooth_gatt_try_read_event_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_unsubscribe_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothSubscriptionHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_bluetooth_gatt_unsubscribe(runtime, context, handle)
+                platform_vm::destack_device_bluetooth_gatt_unsubscribe(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_bluetooth_gatt_unsubscribe(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -15542,7 +15542,7 @@ fn destack_device_bluetooth_gatt_unsubscribe_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_write_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
@@ -15552,13 +15552,13 @@ fn destack_device_bluetooth_gatt_write_vm_replay(
     withresponse: bool,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_GATT_WRITE,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_GATT_WRITE)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_WRITE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_bluetooth_gatt_write(
-                runtime,
+                binding,
                 context,
                 handle,
                 serviceuuid,
@@ -15569,7 +15569,7 @@ fn destack_device_bluetooth_gatt_write_vm_replay(
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_bluetooth_gatt_write(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     serviceuuid,
@@ -15615,7 +15615,7 @@ fn destack_device_bluetooth_gatt_write_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_gatt_write_descriptor_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
@@ -15625,13 +15625,13 @@ fn destack_device_bluetooth_gatt_write_descriptor_vm_replay(
     argument_value: VmSlice<u8>,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_bluetooth_gatt_write_descriptor(
-                runtime,
+                binding,
                 context,
                 handle,
                 serviceuuid,
@@ -15642,7 +15642,7 @@ fn destack_device_bluetooth_gatt_write_descriptor_vm_replay(
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_bluetooth_gatt_write_descriptor(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     serviceuuid,
@@ -15688,22 +15688,22 @@ fn destack_device_bluetooth_gatt_write_descriptor_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_scan_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothScanHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_SCAN_CLOSE,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_SCAN_CLOSE)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_SCAN_CLOSE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_bluetooth_scan_close(runtime, context, handle)
+                platform_vm::destack_device_bluetooth_scan_close(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_bluetooth_scan_close(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -15742,22 +15742,22 @@ fn destack_device_bluetooth_scan_close_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_scan_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     adapterid: vm::StringHandle,
     filter: BluetoothScanFilterVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_SCAN_OPEN,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_SCAN_OPEN)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_SCAN_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_bluetooth_scan_open(runtime, context, adapterid, filter)
+                platform_vm::destack_device_bluetooth_scan_open(binding, context, adapterid, filter)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_bluetooth_scan_open(
-                runtime, context, adapterid, filter,
+                binding, context, adapterid, filter,
             ),
         },
         |context, result| {
@@ -15799,20 +15799,20 @@ fn destack_device_bluetooth_scan_open_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_scan_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothScanHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_SCAN_READ,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_SCAN_READ)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_SCAN_READ)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_device_bluetooth_scan_read(runtime, context, handle, timeoutns),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_device_bluetooth_scan_read(runtime, context, handle, timeoutns),
+                RuntimeWorld::Host => platform_vm::destack_device_bluetooth_scan_read(binding, context, handle, timeoutns),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_device_bluetooth_scan_read(binding, context, handle, timeoutns),
             }
         },
         |context, result| {
@@ -16019,19 +16019,19 @@ fn destack_device_bluetooth_scan_read_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_scan_try_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothScanHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_SCAN_TRY_READ,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_SCAN_TRY_READ)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_SCAN_TRY_READ)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_device_bluetooth_scan_try_read(runtime, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_device_bluetooth_scan_try_read(runtime, context, handle),
+                RuntimeWorld::Host => platform_vm::destack_device_bluetooth_scan_try_read(binding, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_device_bluetooth_scan_try_read(binding, context, handle),
             }
         },
         |context, result| {
@@ -16238,21 +16238,21 @@ fn destack_device_bluetooth_scan_try_read_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_session_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_SESSION_CLOSE,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_SESSION_CLOSE)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_SESSION_CLOSE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_bluetooth_close(runtime, context, handle)
+                platform_vm::destack_device_bluetooth_close(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_bluetooth_close(runtime, context, handle)
+                platform_simulation_vm::destack_device_bluetooth_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -16290,22 +16290,22 @@ fn destack_device_bluetooth_session_close_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_session_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     adapterid: vm::StringHandle,
     deviceid: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_SESSION_OPEN,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_SESSION_OPEN)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_SESSION_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_bluetooth_open(runtime, context, adapterid, deviceid)
+                platform_vm::destack_device_bluetooth_open(binding, context, adapterid, deviceid)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_bluetooth_open(
-                runtime, context, adapterid, deviceid,
+                binding, context, adapterid, deviceid,
             ),
         },
         |context, result| {
@@ -16347,22 +16347,22 @@ fn destack_device_bluetooth_session_open_vm_replay(
 
 #[inline]
 fn destack_device_bluetooth_session_rssi_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_BLUETOOTH_SESSION_RSSI,
-        runtime.replay_payload_for(DEVICE_BLUETOOTH_SESSION_RSSI)?,
+        binding.replay_payload_for(DEVICE_BLUETOOTH_SESSION_RSSI)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_bluetooth_read_rssi(runtime, context, handle, timeoutns)
+                platform_vm::destack_device_bluetooth_read_rssi(binding, context, handle, timeoutns)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_bluetooth_read_rssi(
-                runtime, context, handle, timeoutns,
+                binding, context, handle, timeoutns,
             ),
         },
         |context, result| {
@@ -16404,21 +16404,21 @@ fn destack_device_bluetooth_session_rssi_vm_replay(
 
 #[inline]
 fn destack_device_camera_device_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_DEVICE_CLOSE,
-        runtime.replay_payload_for(DEVICE_CAMERA_DEVICE_CLOSE)?,
+        binding.replay_payload_for(DEVICE_CAMERA_DEVICE_CLOSE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_camera_device_close(runtime, context, handle)
+                platform_vm::destack_device_camera_device_close(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_camera_device_close(runtime, context, handle)
+                platform_simulation_vm::destack_device_camera_device_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -16456,18 +16456,18 @@ fn destack_device_camera_device_close_vm_replay(
 
 #[inline]
 fn destack_device_camera_device_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_DEVICE_LIST,
-        runtime.replay_payload_for(DEVICE_CAMERA_DEVICE_LIST)?,
+        binding.replay_payload_for(DEVICE_CAMERA_DEVICE_LIST)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_device_camera_device_list(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_device_camera_device_list(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_camera_device_list(runtime, context)
+                platform_simulation_vm::destack_device_camera_device_list(binding, context)
             }
         },
         |context, result| {
@@ -16630,21 +16630,21 @@ fn destack_device_camera_device_list_vm_replay(
 
 #[inline]
 fn destack_device_camera_device_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     id: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_DEVICE_OPEN,
-        runtime.replay_payload_for(DEVICE_CAMERA_DEVICE_OPEN)?,
+        binding.replay_payload_for(DEVICE_CAMERA_DEVICE_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_camera_device_open(runtime, context, id)
+                platform_vm::destack_device_camera_device_open(binding, context, id)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_camera_device_open(runtime, context, id)
+                platform_simulation_vm::destack_device_camera_device_open(binding, context, id)
             }
         },
         |context, result| {
@@ -16686,22 +16686,22 @@ fn destack_device_camera_device_open_vm_replay(
 
 #[inline]
 fn destack_device_camera_device_stream_capability_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST,
-        runtime.replay_payload_for(DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST)?,
+        binding.replay_payload_for(DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_camera_device_stream_capability_list(
-                runtime, context, handle,
+                binding, context, handle,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_camera_device_stream_capability_list(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -16968,22 +16968,22 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
 
 #[inline]
 fn destack_device_camera_device_stream_config_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST,
-        runtime.replay_payload_for(DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST)?,
+        binding.replay_payload_for(DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_camera_device_stream_config_list(
-                runtime, context, handle,
+                binding, context, handle,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_camera_device_stream_config_list(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -17124,21 +17124,21 @@ fn destack_device_camera_device_stream_config_list_vm_replay(
 
 #[inline]
 fn destack_device_camera_stream_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_STREAM_CLOSE,
-        runtime.replay_payload_for(DEVICE_CAMERA_STREAM_CLOSE)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_CLOSE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_camera_stream_close(runtime, context, handle)
+                platform_vm::destack_device_camera_stream_close(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_camera_stream_close(runtime, context, handle)
+                platform_simulation_vm::destack_device_camera_stream_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -17176,23 +17176,23 @@ fn destack_device_camera_stream_close_vm_replay(
 
 #[inline]
 fn destack_device_camera_stream_control_range_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
     control: CameraControl,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_STREAM_CONTROL_RANGE,
-        runtime.replay_payload_for(DEVICE_CAMERA_STREAM_CONTROL_RANGE)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_CONTROL_RANGE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_camera_stream_control_range(
-                runtime, context, handle, control,
+                binding, context, handle, control,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_camera_stream_control_range(
-                    runtime, context, handle, control,
+                    binding, context, handle, control,
                 )
             }
         },
@@ -17261,22 +17261,22 @@ fn destack_device_camera_stream_control_range_vm_replay(
 
 #[inline]
 fn destack_device_camera_stream_exposure_mode_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_STREAM_EXPOSURE_MODE,
-        runtime.replay_payload_for(DEVICE_CAMERA_STREAM_EXPOSURE_MODE)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_EXPOSURE_MODE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_camera_stream_exposure_mode(runtime, context, handle)
+                platform_vm::destack_device_camera_stream_exposure_mode(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_camera_stream_exposure_mode(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -17319,23 +17319,23 @@ fn destack_device_camera_stream_exposure_mode_vm_replay(
 
 #[inline]
 fn destack_device_camera_stream_get_control_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
     control: CameraControl,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_STREAM_GET_CONTROL,
-        runtime.replay_payload_for(DEVICE_CAMERA_STREAM_GET_CONTROL)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_GET_CONTROL)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_camera_stream_get_control(
-                runtime, context, handle, control,
+                binding, context, handle, control,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_camera_stream_get_control(
-                    runtime, context, handle, control,
+                    binding, context, handle, control,
                 )
             }
         },
@@ -17378,22 +17378,22 @@ fn destack_device_camera_stream_get_control_vm_replay(
 
 #[inline]
 fn destack_device_camera_stream_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     device: resource::CameraDeviceHandle,
     config: CameraStreamConfigVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_STREAM_OPEN,
-        runtime.replay_payload_for(DEVICE_CAMERA_STREAM_OPEN)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_camera_stream_open(runtime, context, device, config)
+                platform_vm::destack_device_camera_stream_open(binding, context, device, config)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_camera_stream_open(
-                runtime, context, device, config,
+                binding, context, device, config,
             ),
         },
         |context, result| {
@@ -17435,22 +17435,22 @@ fn destack_device_camera_stream_open_vm_replay(
 
 #[inline]
 fn destack_device_camera_stream_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_STREAM_READ,
-        runtime.replay_payload_for(DEVICE_CAMERA_STREAM_READ)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_camera_stream_read(runtime, context, handle, timeoutns)
+                platform_vm::destack_device_camera_stream_read(binding, context, handle, timeoutns)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_camera_stream_read(
-                runtime, context, handle, timeoutns,
+                binding, context, handle, timeoutns,
             ),
         },
         |context, result| {
@@ -17665,20 +17665,20 @@ fn destack_device_camera_stream_read_vm_replay(
 
 #[inline]
 fn destack_device_camera_stream_set_control_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
     control: CameraControl,
     argument_value: f64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_STREAM_SET_CONTROL,
-        runtime.replay_payload_for(DEVICE_CAMERA_STREAM_SET_CONTROL)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_CONTROL)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_camera_stream_set_control(
-                runtime,
+                binding,
                 context,
                 handle,
                 control,
@@ -17686,7 +17686,7 @@ fn destack_device_camera_stream_set_control_vm_replay(
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_camera_stream_set_control(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     control,
@@ -17729,23 +17729,23 @@ fn destack_device_camera_stream_set_control_vm_replay(
 
 #[inline]
 fn destack_device_camera_stream_set_exposure_mode_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
     mode: CameraExposureMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE,
-        runtime.replay_payload_for(DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_camera_stream_set_exposure_mode(
-                runtime, context, handle, mode,
+                binding, context, handle, mode,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_camera_stream_set_exposure_mode(
-                    runtime, context, handle, mode,
+                    binding, context, handle, mode,
                 )
             }
         },
@@ -17784,23 +17784,23 @@ fn destack_device_camera_stream_set_exposure_mode_vm_replay(
 
 #[inline]
 fn destack_device_camera_stream_set_stabilization_mode_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
     mode: CameraStabilizationMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE,
-        runtime.replay_payload_for(DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_camera_stream_set_stabilization_mode(
-                runtime, context, handle, mode,
+                binding, context, handle, mode,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_camera_stream_set_stabilization_mode(
-                    runtime, context, handle, mode,
+                    binding, context, handle, mode,
                 )
             }
         },
@@ -17840,23 +17840,23 @@ fn destack_device_camera_stream_set_stabilization_mode_vm_replay(
 
 #[inline]
 fn destack_device_camera_stream_set_torch_mode_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
     mode: CameraTorchMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_STREAM_SET_TORCH_MODE,
-        runtime.replay_payload_for(DEVICE_CAMERA_STREAM_SET_TORCH_MODE)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_TORCH_MODE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_camera_stream_set_torch_mode(
-                runtime, context, handle, mode,
+                binding, context, handle, mode,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_camera_stream_set_torch_mode(
-                    runtime, context, handle, mode,
+                    binding, context, handle, mode,
                 )
             }
         },
@@ -17895,22 +17895,22 @@ fn destack_device_camera_stream_set_torch_mode_vm_replay(
 
 #[inline]
 fn destack_device_camera_stream_stabilization_mode_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_STREAM_STABILIZATION_MODE,
-        runtime.replay_payload_for(DEVICE_CAMERA_STREAM_STABILIZATION_MODE)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_STABILIZATION_MODE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_camera_stream_stabilization_mode(
-                runtime, context, handle,
+                binding, context, handle,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_camera_stream_stabilization_mode(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -17953,21 +17953,21 @@ fn destack_device_camera_stream_stabilization_mode_vm_replay(
 
 #[inline]
 fn destack_device_camera_stream_start_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_STREAM_START,
-        runtime.replay_payload_for(DEVICE_CAMERA_STREAM_START)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_START)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_camera_stream_start(runtime, context, handle)
+                platform_vm::destack_device_camera_stream_start(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_camera_stream_start(runtime, context, handle)
+                platform_simulation_vm::destack_device_camera_stream_start(binding, context, handle)
             }
         },
         |context, result| {
@@ -18005,21 +18005,21 @@ fn destack_device_camera_stream_start_vm_replay(
 
 #[inline]
 fn destack_device_camera_stream_stop_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_STREAM_STOP,
-        runtime.replay_payload_for(DEVICE_CAMERA_STREAM_STOP)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_STOP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_camera_stream_stop(runtime, context, handle)
+                platform_vm::destack_device_camera_stream_stop(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_camera_stream_stop(runtime, context, handle)
+                platform_simulation_vm::destack_device_camera_stream_stop(binding, context, handle)
             }
         },
         |context, result| {
@@ -18057,22 +18057,22 @@ fn destack_device_camera_stream_stop_vm_replay(
 
 #[inline]
 fn destack_device_camera_stream_torch_mode_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_STREAM_TORCH_MODE,
-        runtime.replay_payload_for(DEVICE_CAMERA_STREAM_TORCH_MODE)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_TORCH_MODE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_camera_stream_torch_mode(runtime, context, handle)
+                platform_vm::destack_device_camera_stream_torch_mode(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_camera_stream_torch_mode(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -18115,22 +18115,22 @@ fn destack_device_camera_stream_torch_mode_vm_replay(
 
 #[inline]
 fn destack_device_camera_stream_try_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_CAMERA_STREAM_TRY_READ,
-        runtime.replay_payload_for(DEVICE_CAMERA_STREAM_TRY_READ)?,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_TRY_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_camera_stream_try_read(runtime, context, handle)
+                platform_vm::destack_device_camera_stream_try_read(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_camera_stream_try_read(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -18346,21 +18346,21 @@ fn destack_device_camera_stream_try_read_vm_replay(
 
 #[inline]
 fn destack_device_serial_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_SERIAL_CLOSE,
-        runtime.replay_payload_for(DEVICE_SERIAL_CLOSE)?,
+        binding.replay_payload_for(DEVICE_SERIAL_CLOSE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_serial_close(runtime, context, handle)
+                platform_vm::destack_device_serial_close(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_serial_close(runtime, context, handle)
+                platform_simulation_vm::destack_device_serial_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -18398,22 +18398,22 @@ fn destack_device_serial_close_vm_replay(
 
 #[inline]
 fn destack_device_serial_configure_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
     config: SerialPortConfigVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_SERIAL_CONFIGURE,
-        runtime.replay_payload_for(DEVICE_SERIAL_CONFIGURE)?,
+        binding.replay_payload_for(DEVICE_SERIAL_CONFIGURE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_serial_configure(runtime, context, handle, config)
+                platform_vm::destack_device_serial_configure(binding, context, handle, config)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_serial_configure(
-                runtime, context, handle, config,
+                binding, context, handle, config,
             ),
         },
         |context, result| {
@@ -18451,22 +18451,22 @@ fn destack_device_serial_configure_vm_replay(
 
 #[inline]
 fn destack_device_serial_discard_input_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_SERIAL_DISCARD_INPUT,
-        runtime.replay_payload_for(DEVICE_SERIAL_DISCARD_INPUT)?,
+        binding.replay_payload_for(DEVICE_SERIAL_DISCARD_INPUT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_serial_discard_input(runtime, context, handle)
+                platform_vm::destack_device_serial_discard_input(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_serial_discard_input(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -18505,22 +18505,22 @@ fn destack_device_serial_discard_input_vm_replay(
 
 #[inline]
 fn destack_device_serial_discard_output_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_SERIAL_DISCARD_OUTPUT,
-        runtime.replay_payload_for(DEVICE_SERIAL_DISCARD_OUTPUT)?,
+        binding.replay_payload_for(DEVICE_SERIAL_DISCARD_OUTPUT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_serial_discard_output(runtime, context, handle)
+                platform_vm::destack_device_serial_discard_output(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_serial_discard_output(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -18559,21 +18559,21 @@ fn destack_device_serial_discard_output_vm_replay(
 
 #[inline]
 fn destack_device_serial_flush_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_SERIAL_FLUSH,
-        runtime.replay_payload_for(DEVICE_SERIAL_FLUSH)?,
+        binding.replay_payload_for(DEVICE_SERIAL_FLUSH)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_serial_flush(runtime, context, handle)
+                platform_vm::destack_device_serial_flush(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_serial_flush(runtime, context, handle)
+                platform_simulation_vm::destack_device_serial_flush(binding, context, handle)
             }
         },
         |context, result| {
@@ -18611,18 +18611,18 @@ fn destack_device_serial_flush_vm_replay(
 
 #[inline]
 fn destack_device_serial_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_SERIAL_LIST,
-        runtime.replay_payload_for(DEVICE_SERIAL_LIST)?,
+        binding.replay_payload_for(DEVICE_SERIAL_LIST)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_device_serial_list(runtime, context),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_device_serial_list(runtime, context),
+                RuntimeWorld::Host => platform_vm::destack_device_serial_list(binding, context),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_device_serial_list(binding, context),
             }
         },
         |context, result| {
@@ -18794,22 +18794,22 @@ fn destack_device_serial_list_vm_replay(
 
 #[inline]
 fn destack_device_serial_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     id: vm::StringHandle,
     config: SerialPortConfigVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_SERIAL_OPEN,
-        runtime.replay_payload_for(DEVICE_SERIAL_OPEN)?,
+        binding.replay_payload_for(DEVICE_SERIAL_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_serial_open(runtime, context, id, config)
+                platform_vm::destack_device_serial_open(binding, context, id, config)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_serial_open(runtime, context, id, config)
+                platform_simulation_vm::destack_device_serial_open(binding, context, id, config)
             }
         },
         |context, result| {
@@ -18851,23 +18851,23 @@ fn destack_device_serial_open_vm_replay(
 
 #[inline]
 fn destack_device_serial_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
     maxbytes: u32,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_SERIAL_READ,
-        runtime.replay_payload_for(DEVICE_SERIAL_READ)?,
+        binding.replay_payload_for(DEVICE_SERIAL_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_serial_read(
-                runtime, context, handle, maxbytes, timeoutns,
+                binding, context, handle, maxbytes, timeoutns,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_serial_read(
-                runtime, context, handle, maxbytes, timeoutns,
+                binding, context, handle, maxbytes, timeoutns,
             ),
         },
         |context, result| {
@@ -18909,20 +18909,20 @@ fn destack_device_serial_read_vm_replay(
 
 #[inline]
 fn destack_device_serial_read_event_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_SERIAL_READ_EVENT,
-        runtime.replay_payload_for(DEVICE_SERIAL_READ_EVENT)?,
+        binding.replay_payload_for(DEVICE_SERIAL_READ_EVENT)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_device_serial_read_event(runtime, context, handle, timeoutns),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_device_serial_read_event(runtime, context, handle, timeoutns),
+                RuntimeWorld::Host => platform_vm::destack_device_serial_read_event(binding, context, handle, timeoutns),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_device_serial_read_event(binding, context, handle, timeoutns),
             }
         },
         |context, result| {
@@ -19140,22 +19140,22 @@ fn destack_device_serial_read_event_vm_replay(
 
 #[inline]
 fn destack_device_serial_set_break_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_SERIAL_SET_BREAK,
-        runtime.replay_payload_for(DEVICE_SERIAL_SET_BREAK)?,
+        binding.replay_payload_for(DEVICE_SERIAL_SET_BREAK)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_serial_set_break(runtime, context, handle, enabled)
+                platform_vm::destack_device_serial_set_break(binding, context, handle, enabled)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_serial_set_break(
-                runtime, context, handle, enabled,
+                binding, context, handle, enabled,
             ),
         },
         |context, result| {
@@ -19193,24 +19193,24 @@ fn destack_device_serial_set_break_vm_replay(
 
 #[inline]
 fn destack_device_serial_set_control_lines_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
     dtr: bool,
     rts: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_SERIAL_SET_CONTROL_LINES,
-        runtime.replay_payload_for(DEVICE_SERIAL_SET_CONTROL_LINES)?,
+        binding.replay_payload_for(DEVICE_SERIAL_SET_CONTROL_LINES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_serial_set_control_lines(
-                runtime, context, handle, dtr, rts,
+                binding, context, handle, dtr, rts,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_serial_set_control_lines(
-                    runtime, context, handle, dtr, rts,
+                    binding, context, handle, dtr, rts,
                 )
             }
         },
@@ -19249,21 +19249,21 @@ fn destack_device_serial_set_control_lines_vm_replay(
 
 #[inline]
 fn destack_device_serial_signal_bits_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_SERIAL_SIGNAL_BITS,
-        runtime.replay_payload_for(DEVICE_SERIAL_SIGNAL_BITS)?,
+        binding.replay_payload_for(DEVICE_SERIAL_SIGNAL_BITS)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_serial_signal_bits(runtime, context, handle)
+                platform_vm::destack_device_serial_signal_bits(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_serial_signal_bits(runtime, context, handle)
+                platform_simulation_vm::destack_device_serial_signal_bits(binding, context, handle)
             }
         },
         |context, result| {
@@ -19305,19 +19305,19 @@ fn destack_device_serial_signal_bits_vm_replay(
 
 #[inline]
 fn destack_device_serial_try_event_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_SERIAL_TRY_EVENT,
-        runtime.replay_payload_for(DEVICE_SERIAL_TRY_EVENT)?,
+        binding.replay_payload_for(DEVICE_SERIAL_TRY_EVENT)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_device_serial_try_event(runtime, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_device_serial_try_event(runtime, context, handle),
+                RuntimeWorld::Host => platform_vm::destack_device_serial_try_event(binding, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_device_serial_try_event(binding, context, handle),
             }
         },
         |context, result| {
@@ -19535,22 +19535,22 @@ fn destack_device_serial_try_event_vm_replay(
 
 #[inline]
 fn destack_device_serial_try_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
     maxbytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_SERIAL_TRY_READ,
-        runtime.replay_payload_for(DEVICE_SERIAL_TRY_READ)?,
+        binding.replay_payload_for(DEVICE_SERIAL_TRY_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_serial_try_read(runtime, context, handle, maxbytes)
+                platform_vm::destack_device_serial_try_read(binding, context, handle, maxbytes)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_serial_try_read(
-                runtime, context, handle, maxbytes,
+                binding, context, handle, maxbytes,
             ),
         },
         |context, result| {
@@ -19592,23 +19592,23 @@ fn destack_device_serial_try_read_vm_replay(
 
 #[inline]
 fn destack_device_serial_write_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
     data: VmSlice<u8>,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_SERIAL_WRITE,
-        runtime.replay_payload_for(DEVICE_SERIAL_WRITE)?,
+        binding.replay_payload_for(DEVICE_SERIAL_WRITE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_serial_write(runtime, context, handle, data, timeoutns)
+                platform_vm::destack_device_serial_write(binding, context, handle, data, timeoutns)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_serial_write(
-                runtime, context, handle, data, timeoutns,
+                binding, context, handle, data, timeoutns,
             ),
         },
         |context, result| {
@@ -19650,7 +19650,7 @@ fn destack_device_serial_write_vm_replay(
 
 #[inline]
 fn destack_device_usb_bulk_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
@@ -19658,13 +19658,13 @@ fn destack_device_usb_bulk_read_vm_replay(
     maxbytes: u32,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_BULK_READ,
-        runtime.replay_payload_for(DEVICE_USB_BULK_READ)?,
+        binding.replay_payload_for(DEVICE_USB_BULK_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_usb_bulk_read(
-                runtime,
+                binding,
                 context,
                 handle,
                 endpointaddress,
@@ -19672,7 +19672,7 @@ fn destack_device_usb_bulk_read_vm_replay(
                 timeoutns,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_usb_bulk_read(
-                runtime,
+                binding,
                 context,
                 handle,
                 endpointaddress,
@@ -19719,7 +19719,7 @@ fn destack_device_usb_bulk_read_vm_replay(
 
 #[inline]
 fn destack_device_usb_bulk_write_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
@@ -19727,13 +19727,13 @@ fn destack_device_usb_bulk_write_vm_replay(
     argument_bytes: VmSlice<u8>,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_BULK_WRITE,
-        runtime.replay_payload_for(DEVICE_USB_BULK_WRITE)?,
+        binding.replay_payload_for(DEVICE_USB_BULK_WRITE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_usb_bulk_write(
-                runtime,
+                binding,
                 context,
                 handle,
                 endpointaddress,
@@ -19741,7 +19741,7 @@ fn destack_device_usb_bulk_write_vm_replay(
                 timeoutns,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_usb_bulk_write(
-                runtime,
+                binding,
                 context,
                 handle,
                 endpointaddress,
@@ -19788,25 +19788,25 @@ fn destack_device_usb_bulk_write_vm_replay(
 
 #[inline]
 fn destack_device_usb_claim_interface_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_CLAIM_INTERFACE,
-        runtime.replay_payload_for(DEVICE_USB_CLAIM_INTERFACE)?,
+        binding.replay_payload_for(DEVICE_USB_CLAIM_INTERFACE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_usb_claim_interface(
-                runtime,
+                binding,
                 context,
                 handle,
                 interfacenumber,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_usb_claim_interface(
-                runtime,
+                binding,
                 context,
                 handle,
                 interfacenumber,
@@ -19847,25 +19847,25 @@ fn destack_device_usb_claim_interface_vm_replay(
 
 #[inline]
 fn destack_device_usb_clear_halt_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_CLEAR_HALT,
-        runtime.replay_payload_for(DEVICE_USB_CLEAR_HALT)?,
+        binding.replay_payload_for(DEVICE_USB_CLEAR_HALT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_usb_clear_halt(
-                runtime,
+                binding,
                 context,
                 handle,
                 endpointaddress,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_usb_clear_halt(
-                runtime,
+                binding,
                 context,
                 handle,
                 endpointaddress,
@@ -19906,19 +19906,19 @@ fn destack_device_usb_clear_halt_vm_replay(
 
 #[inline]
 fn destack_device_usb_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_CLOSE,
-        runtime.replay_payload_for(DEVICE_USB_CLOSE)?,
+        binding.replay_payload_for(DEVICE_USB_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_device_usb_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_device_usb_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_usb_close(runtime, context, handle)
+                platform_simulation_vm::destack_device_usb_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -19956,22 +19956,22 @@ fn destack_device_usb_close_vm_replay(
 
 #[inline]
 fn destack_device_usb_configuration_get_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_CONFIGURATION_GET,
-        runtime.replay_payload_for(DEVICE_USB_CONFIGURATION_GET)?,
+        binding.replay_payload_for(DEVICE_USB_CONFIGURATION_GET)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_usb_configuration_get(runtime, context, handle)
+                platform_vm::destack_device_usb_configuration_get(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_usb_configuration_get(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -20014,19 +20014,19 @@ fn destack_device_usb_configuration_get_vm_replay(
 
 #[inline]
 fn destack_device_usb_configuration_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_CONFIGURATION_LIST,
-        runtime.replay_payload_for(DEVICE_USB_CONFIGURATION_LIST)?,
+        binding.replay_payload_for(DEVICE_USB_CONFIGURATION_LIST)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_device_usb_configuration_list(runtime, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_device_usb_configuration_list(runtime, context, handle),
+                RuntimeWorld::Host => platform_vm::destack_device_usb_configuration_list(binding, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_device_usb_configuration_list(binding, context, handle),
             }
         },
         |context, result| {
@@ -20220,26 +20220,26 @@ fn destack_device_usb_configuration_list_vm_replay(
 
 #[inline]
 fn destack_device_usb_configuration_set_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     configurationvalue: u8,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_CONFIGURATION_SET,
-        runtime.replay_payload_for(DEVICE_USB_CONFIGURATION_SET)?,
+        binding.replay_payload_for(DEVICE_USB_CONFIGURATION_SET)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_usb_configuration_set(
-                runtime,
+                binding,
                 context,
                 handle,
                 configurationvalue,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_usb_configuration_set(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     configurationvalue,
@@ -20281,23 +20281,23 @@ fn destack_device_usb_configuration_set_vm_replay(
 
 #[inline]
 fn destack_device_usb_control_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     setup: UsbControlSetupVm,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_CONTROL_READ,
-        runtime.replay_payload_for(DEVICE_USB_CONTROL_READ)?,
+        binding.replay_payload_for(DEVICE_USB_CONTROL_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_usb_control_read(
-                runtime, context, handle, setup, timeoutns,
+                binding, context, handle, setup, timeoutns,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_usb_control_read(
-                runtime, context, handle, setup, timeoutns,
+                binding, context, handle, setup, timeoutns,
             ),
         },
         |context, result| {
@@ -20339,7 +20339,7 @@ fn destack_device_usb_control_read_vm_replay(
 
 #[inline]
 fn destack_device_usb_control_write_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
@@ -20347,13 +20347,13 @@ fn destack_device_usb_control_write_vm_replay(
     argument_bytes: VmSlice<u8>,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_CONTROL_WRITE,
-        runtime.replay_payload_for(DEVICE_USB_CONTROL_WRITE)?,
+        binding.replay_payload_for(DEVICE_USB_CONTROL_WRITE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_usb_control_write(
-                runtime,
+                binding,
                 context,
                 handle,
                 setup,
@@ -20361,7 +20361,7 @@ fn destack_device_usb_control_write_vm_replay(
                 timeoutns,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_usb_control_write(
-                runtime,
+                binding,
                 context,
                 handle,
                 setup,
@@ -20408,21 +20408,21 @@ fn destack_device_usb_control_write_vm_replay(
 
 #[inline]
 fn destack_device_usb_descriptor_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_DESCRIPTOR,
-        runtime.replay_payload_for(DEVICE_USB_DESCRIPTOR)?,
+        binding.replay_payload_for(DEVICE_USB_DESCRIPTOR)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_usb_descriptor(runtime, context, handle)
+                platform_vm::destack_device_usb_descriptor(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_usb_descriptor(runtime, context, handle)
+                platform_simulation_vm::destack_device_usb_descriptor(binding, context, handle)
             }
         },
         |context, result| {
@@ -20530,7 +20530,7 @@ fn destack_device_usb_descriptor_vm_replay(
 
 #[inline]
 fn destack_device_usb_interrupt_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
@@ -20538,13 +20538,13 @@ fn destack_device_usb_interrupt_read_vm_replay(
     maxbytes: u32,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_INTERRUPT_READ,
-        runtime.replay_payload_for(DEVICE_USB_INTERRUPT_READ)?,
+        binding.replay_payload_for(DEVICE_USB_INTERRUPT_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_usb_interrupt_read(
-                runtime,
+                binding,
                 context,
                 handle,
                 endpointaddress,
@@ -20552,7 +20552,7 @@ fn destack_device_usb_interrupt_read_vm_replay(
                 timeoutns,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_usb_interrupt_read(
-                runtime,
+                binding,
                 context,
                 handle,
                 endpointaddress,
@@ -20599,7 +20599,7 @@ fn destack_device_usb_interrupt_read_vm_replay(
 
 #[inline]
 fn destack_device_usb_interrupt_write_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
@@ -20607,13 +20607,13 @@ fn destack_device_usb_interrupt_write_vm_replay(
     argument_bytes: VmSlice<u8>,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_INTERRUPT_WRITE,
-        runtime.replay_payload_for(DEVICE_USB_INTERRUPT_WRITE)?,
+        binding.replay_payload_for(DEVICE_USB_INTERRUPT_WRITE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_usb_interrupt_write(
-                runtime,
+                binding,
                 context,
                 handle,
                 endpointaddress,
@@ -20621,7 +20621,7 @@ fn destack_device_usb_interrupt_write_vm_replay(
                 timeoutns,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_usb_interrupt_write(
-                runtime,
+                binding,
                 context,
                 handle,
                 endpointaddress,
@@ -20668,7 +20668,7 @@ fn destack_device_usb_interrupt_write_vm_replay(
 
 #[inline]
 fn destack_device_usb_isochronous_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
@@ -20676,13 +20676,13 @@ fn destack_device_usb_isochronous_read_vm_replay(
     packetsizes: VmSlice<u32>,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_ISOCHRONOUS_READ,
-        runtime.replay_payload_for(DEVICE_USB_ISOCHRONOUS_READ)?,
+        binding.replay_payload_for(DEVICE_USB_ISOCHRONOUS_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_usb_isochronous_read(
-                runtime,
+                binding,
                 context,
                 handle,
                 endpointaddress,
@@ -20691,7 +20691,7 @@ fn destack_device_usb_isochronous_read_vm_replay(
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_usb_isochronous_read(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     endpointaddress,
@@ -20804,7 +20804,7 @@ fn destack_device_usb_isochronous_read_vm_replay(
 
 #[inline]
 fn destack_device_usb_isochronous_write_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
@@ -20813,13 +20813,13 @@ fn destack_device_usb_isochronous_write_vm_replay(
     packetsizes: VmSlice<u32>,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_ISOCHRONOUS_WRITE,
-        runtime.replay_payload_for(DEVICE_USB_ISOCHRONOUS_WRITE)?,
+        binding.replay_payload_for(DEVICE_USB_ISOCHRONOUS_WRITE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_usb_isochronous_write(
-                runtime,
+                binding,
                 context,
                 handle,
                 endpointaddress,
@@ -20829,7 +20829,7 @@ fn destack_device_usb_isochronous_write_vm_replay(
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_usb_isochronous_write(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     endpointaddress,
@@ -20943,26 +20943,26 @@ fn destack_device_usb_isochronous_write_vm_replay(
 
 #[inline]
 fn destack_device_usb_kernel_driver_active_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_KERNEL_DRIVER_ACTIVE,
-        runtime.replay_payload_for(DEVICE_USB_KERNEL_DRIVER_ACTIVE)?,
+        binding.replay_payload_for(DEVICE_USB_KERNEL_DRIVER_ACTIVE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_usb_kernel_driver_active(
-                runtime,
+                binding,
                 context,
                 handle,
                 interfacenumber,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_usb_kernel_driver_active(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     interfacenumber,
@@ -21008,18 +21008,18 @@ fn destack_device_usb_kernel_driver_active_vm_replay(
 
 #[inline]
 fn destack_device_usb_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_LIST,
-        runtime.replay_payload_for(DEVICE_USB_LIST)?,
+        binding.replay_payload_for(DEVICE_USB_LIST)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_device_usb_list(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_device_usb_list(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_usb_list(runtime, context)
+                platform_simulation_vm::destack_device_usb_list(binding, context)
             }
         },
         |context, result| {
@@ -21238,19 +21238,19 @@ fn destack_device_usb_list_vm_replay(
 
 #[inline]
 fn destack_device_usb_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     id: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_OPEN,
-        runtime.replay_payload_for(DEVICE_USB_OPEN)?,
+        binding.replay_payload_for(DEVICE_USB_OPEN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_device_usb_open(runtime, context, id),
+            RuntimeWorld::Host => platform_vm::destack_device_usb_open(binding, context, id),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_usb_open(runtime, context, id)
+                platform_simulation_vm::destack_device_usb_open(binding, context, id)
             }
         },
         |context, result| {
@@ -21292,26 +21292,26 @@ fn destack_device_usb_open_vm_replay(
 
 #[inline]
 fn destack_device_usb_release_interface_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_RELEASE_INTERFACE,
-        runtime.replay_payload_for(DEVICE_USB_RELEASE_INTERFACE)?,
+        binding.replay_payload_for(DEVICE_USB_RELEASE_INTERFACE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_usb_release_interface(
-                runtime,
+                binding,
                 context,
                 handle,
                 interfacenumber,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_usb_release_interface(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     interfacenumber,
@@ -21353,20 +21353,20 @@ fn destack_device_usb_release_interface_vm_replay(
 
 #[inline]
 fn destack_device_usb_set_interface_alternate_setting_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
     alternatesetting: u8,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING,
-        runtime.replay_payload_for(DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING)?,
+        binding.replay_payload_for(DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_usb_set_interface_alternate_setting(
-                runtime,
+                binding,
                 context,
                 handle,
                 interfacenumber,
@@ -21374,7 +21374,7 @@ fn destack_device_usb_set_interface_alternate_setting_vm_replay(
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_usb_set_interface_alternate_setting(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     interfacenumber,
@@ -21417,23 +21417,23 @@ fn destack_device_usb_set_interface_alternate_setting_vm_replay(
 
 #[inline]
 fn destack_device_usb_string_descriptor_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
     languageid: u16,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_STRING_DESCRIPTOR,
-        runtime.replay_payload_for(DEVICE_USB_STRING_DESCRIPTOR)?,
+        binding.replay_payload_for(DEVICE_USB_STRING_DESCRIPTOR)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_device_usb_string_descriptor(
-                runtime, context, handle, languageid,
+                binding, context, handle, languageid,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_usb_string_descriptor(
-                    runtime, context, handle, languageid,
+                    binding, context, handle, languageid,
                 )
             }
         },
@@ -21516,22 +21516,22 @@ fn destack_device_usb_string_descriptor_vm_replay(
 
 #[inline]
 fn destack_device_usb_string_language_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_STRING_LANGUAGE_LIST,
-        runtime.replay_payload_for(DEVICE_USB_STRING_LANGUAGE_LIST)?,
+        binding.replay_payload_for(DEVICE_USB_STRING_LANGUAGE_LIST)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_usb_string_language_list(runtime, context, handle)
+                platform_vm::destack_device_usb_string_language_list(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_usb_string_language_list(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -21587,21 +21587,21 @@ fn destack_device_usb_string_language_list_vm_replay(
 
 #[inline]
 fn destack_device_usb_watch_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbWatchHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_WATCH_CLOSE,
-        runtime.replay_payload_for(DEVICE_USB_WATCH_CLOSE)?,
+        binding.replay_payload_for(DEVICE_USB_WATCH_CLOSE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_device_usb_watch_close(runtime, context, handle)
+                platform_vm::destack_device_usb_watch_close(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_usb_watch_close(runtime, context, handle)
+                platform_simulation_vm::destack_device_usb_watch_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -21639,18 +21639,18 @@ fn destack_device_usb_watch_close_vm_replay(
 
 #[inline]
 fn destack_device_usb_watch_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_WATCH_OPEN,
-        runtime.replay_payload_for(DEVICE_USB_WATCH_OPEN)?,
+        binding.replay_payload_for(DEVICE_USB_WATCH_OPEN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_device_usb_watch_open(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_device_usb_watch_open(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_usb_watch_open(runtime, context)
+                platform_simulation_vm::destack_device_usb_watch_open(binding, context)
             }
         },
         |context, result| {
@@ -21692,20 +21692,20 @@ fn destack_device_usb_watch_open_vm_replay(
 
 #[inline]
 fn destack_device_usb_watch_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbWatchHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_WATCH_READ,
-        runtime.replay_payload_for(DEVICE_USB_WATCH_READ)?,
+        binding.replay_payload_for(DEVICE_USB_WATCH_READ)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_device_usb_watch_read(runtime, context, handle, timeoutns),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_device_usb_watch_read(runtime, context, handle, timeoutns),
+                RuntimeWorld::Host => platform_vm::destack_device_usb_watch_read(binding, context, handle, timeoutns),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_device_usb_watch_read(binding, context, handle, timeoutns),
             }
         },
         |context, result| {
@@ -21931,19 +21931,19 @@ fn destack_device_usb_watch_read_vm_replay(
 
 #[inline]
 fn destack_device_usb_watch_try_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::UsbWatchHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEVICE_USB_WATCH_TRY_READ,
-        runtime.replay_payload_for(DEVICE_USB_WATCH_TRY_READ)?,
+        binding.replay_payload_for(DEVICE_USB_WATCH_TRY_READ)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_device_usb_watch_try_read(runtime, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_device_usb_watch_try_read(runtime, context, handle),
+                RuntimeWorld::Host => platform_vm::destack_device_usb_watch_try_read(binding, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_device_usb_watch_try_read(binding, context, handle),
             }
         },
         |context, result| {
@@ -22175,11 +22175,11 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_ADAPTER_LIST,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_ADAPTER_LIST)?;
-                    destack_device_bluetooth_adapter_list_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(DEVICE_BLUETOOTH_ADAPTER_LIST)?;
+                    destack_device_bluetooth_adapter_list_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -22191,7 +22191,7 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, serviceuuid) =
                         decode_destack_device_bluetooth_gatt_characteristic_list_args(
@@ -22199,11 +22199,11 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST,
                     )?;
                     destack_device_bluetooth_gatt_characteristic_list_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -22220,16 +22220,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, serviceuuid, characteristicuuid) =
                         decode_destack_device_bluetooth_gatt_descriptor_list_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST)?;
                     destack_device_bluetooth_gatt_descriptor_list_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -22247,14 +22247,14 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_GATT_MTU,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_device_bluetooth_gatt_mtu_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_MTU)?;
-                    destack_device_bluetooth_gatt_mtu_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_MTU)?;
+                    destack_device_bluetooth_gatt_mtu_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22266,16 +22266,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_GATT_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, serviceuuid, characteristicuuid, timeoutns) =
                         decode_destack_device_bluetooth_gatt_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_READ)?;
+                        binding.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_READ)?;
                     destack_device_bluetooth_gatt_read_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -22294,16 +22294,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, serviceuuid, characteristicuuid, descriptoruuid, timeoutns) =
                         decode_destack_device_bluetooth_gatt_read_descriptor_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR)?;
                     destack_device_bluetooth_gatt_read_descriptor_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -22323,16 +22323,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_GATT_READ_EVENT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_device_bluetooth_gatt_read_event_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_READ_EVENT)?;
                     destack_device_bluetooth_gatt_read_event_vm_replay(
-                        runtime, context, world, handle, timeoutns,
+                        binding, context, world, handle, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -22345,16 +22345,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_GATT_REQUEST_MTU,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, mtu, timeoutns) =
                         decode_destack_device_bluetooth_gatt_request_mtu_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_REQUEST_MTU)?;
                     destack_device_bluetooth_gatt_request_mtu_vm_replay(
-                        runtime, context, world, handle, mtu, timeoutns,
+                        binding, context, world, handle, mtu, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -22367,16 +22367,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_GATT_SERVICE_LIST,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_device_bluetooth_gatt_service_list_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_SERVICE_LIST)?;
                     destack_device_bluetooth_gatt_service_list_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -22389,16 +22389,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_GATT_SUBSCRIBE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, serviceuuid, characteristicuuid) =
                         decode_destack_device_bluetooth_gatt_subscribe_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_SUBSCRIBE)?;
+                        binding.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_SUBSCRIBE)?;
                     destack_device_bluetooth_gatt_subscribe_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -22416,16 +22416,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_device_bluetooth_gatt_try_read_event_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT)?;
                     destack_device_bluetooth_gatt_try_read_event_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -22438,16 +22438,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_device_bluetooth_gatt_unsubscribe_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE)?;
                     destack_device_bluetooth_gatt_unsubscribe_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -22460,7 +22460,7 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_GATT_WRITE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (
                         handle,
@@ -22473,9 +22473,9 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_WRITE)?;
+                        binding.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_WRITE)?;
                     destack_device_bluetooth_gatt_write_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -22496,7 +22496,7 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (
                         handle,
@@ -22508,10 +22508,10 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     ) = decode_destack_device_bluetooth_gatt_write_descriptor_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR)?;
                     destack_device_bluetooth_gatt_write_descriptor_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -22532,14 +22532,14 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_SCAN_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_device_bluetooth_scan_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SCAN_CLOSE)?;
-                    destack_device_bluetooth_scan_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SCAN_CLOSE)?;
+                    destack_device_bluetooth_scan_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22551,16 +22551,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_SCAN_OPEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (adapterid, filter) =
                         decode_destack_device_bluetooth_scan_open_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SCAN_OPEN)?;
+                        binding.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SCAN_OPEN)?;
                     destack_device_bluetooth_scan_open_vm_replay(
-                        runtime, context, world, adapterid, filter,
+                        binding, context, world, adapterid, filter,
                     )
                 })
                 .map_err(Into::into)
@@ -22573,16 +22573,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_SCAN_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_device_bluetooth_scan_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SCAN_READ)?;
+                        binding.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SCAN_READ)?;
                     destack_device_bluetooth_scan_read_vm_replay(
-                        runtime, context, world, handle, timeoutns,
+                        binding, context, world, handle, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -22595,16 +22595,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_SCAN_TRY_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_device_bluetooth_scan_try_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SCAN_TRY_READ)?;
+                        binding.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SCAN_TRY_READ)?;
                     destack_device_bluetooth_scan_try_read_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -22617,16 +22617,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_SESSION_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_device_bluetooth_session_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SESSION_CLOSE)?;
+                        binding.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SESSION_CLOSE)?;
                     destack_device_bluetooth_session_close_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -22639,16 +22639,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_SESSION_OPEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (adapterid, deviceid) =
                         decode_destack_device_bluetooth_session_open_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SESSION_OPEN)?;
+                        binding.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SESSION_OPEN)?;
                     destack_device_bluetooth_session_open_vm_replay(
-                        runtime, context, world, adapterid, deviceid,
+                        binding, context, world, adapterid, deviceid,
                     )
                 })
                 .map_err(Into::into)
@@ -22661,22 +22661,22 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_SESSION_PAIR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_device_bluetooth_session_pair_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(DEVICE_BLUETOOTH_SESSION_PAIR)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_device_bluetooth_pair(
-                                runtime, context, handle, timeoutns,
+                                binding, context, handle, timeoutns,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_device_bluetooth_pair(
-                                    runtime, context, handle, timeoutns,
+                                    binding, context, handle, timeoutns,
                                 )
                             }
                         }
@@ -22693,16 +22693,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_SESSION_RSSI,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_device_bluetooth_session_rssi_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SESSION_RSSI)?;
+                        binding.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SESSION_RSSI)?;
                     destack_device_bluetooth_session_rssi_vm_replay(
-                        runtime, context, world, handle, timeoutns,
+                        binding, context, world, handle, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -22715,22 +22715,22 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_BLUETOOTH_SESSION_UNPAIR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (adapterid, deviceid) =
                         decode_destack_device_bluetooth_session_unpair_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(DEVICE_BLUETOOTH_SESSION_UNPAIR)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_device_bluetooth_unpair(
-                                runtime, context, adapterid, deviceid,
+                                binding, context, adapterid, deviceid,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_device_bluetooth_unpair(
-                                    runtime, context, adapterid, deviceid,
+                                    binding, context, adapterid, deviceid,
                                 )
                             }
                         }
@@ -22747,14 +22747,14 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_DEVICE_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_device_camera_device_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_DEVICE_CLOSE)?;
-                    destack_device_camera_device_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(DEVICE_CAMERA_DEVICE_CLOSE)?;
+                    destack_device_camera_device_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22766,11 +22766,11 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_DEVICE_LIST,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_DEVICE_LIST)?;
-                    destack_device_camera_device_list_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(DEVICE_CAMERA_DEVICE_LIST)?;
+                    destack_device_camera_device_list_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -22782,14 +22782,14 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_DEVICE_OPEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (id,) = decode_destack_device_camera_device_open_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_DEVICE_OPEN)?;
-                    destack_device_camera_device_open_vm_replay(runtime, context, world, id)
+                        binding.on_before_binding_resolve_world(DEVICE_CAMERA_DEVICE_OPEN)?;
+                    destack_device_camera_device_open_vm_replay(binding, context, world, id)
                 })
                 .map_err(Into::into)
             }
@@ -22801,7 +22801,7 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_device_camera_device_stream_capability_list_args(
@@ -22809,11 +22809,11 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST,
                     )?;
                     destack_device_camera_device_stream_capability_list_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -22826,16 +22826,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_device_camera_device_stream_config_list_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST)?;
                     destack_device_camera_device_stream_config_list_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -22848,14 +22848,14 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_STREAM_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_device_camera_stream_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_CLOSE)?;
-                    destack_device_camera_stream_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_CLOSE)?;
+                    destack_device_camera_stream_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -22867,16 +22867,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_STREAM_CONTROL_RANGE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, control) =
                         decode_destack_device_camera_stream_control_range_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_CONTROL_RANGE)?;
                     destack_device_camera_stream_control_range_vm_replay(
-                        runtime, context, world, handle, control,
+                        binding, context, world, handle, control,
                     )
                 })
                 .map_err(Into::into)
@@ -22889,16 +22889,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_STREAM_EXPOSURE_MODE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_device_camera_stream_exposure_mode_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_EXPOSURE_MODE)?;
                     destack_device_camera_stream_exposure_mode_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -22911,16 +22911,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_STREAM_GET_CONTROL,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, control) =
                         decode_destack_device_camera_stream_get_control_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_GET_CONTROL)?;
                     destack_device_camera_stream_get_control_vm_replay(
-                        runtime, context, world, handle, control,
+                        binding, context, world, handle, control,
                     )
                 })
                 .map_err(Into::into)
@@ -22933,16 +22933,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_STREAM_OPEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (device, config) =
                         decode_destack_device_camera_stream_open_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_OPEN)?;
+                        binding.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_OPEN)?;
                     destack_device_camera_stream_open_vm_replay(
-                        runtime, context, world, device, config,
+                        binding, context, world, device, config,
                     )
                 })
                 .map_err(Into::into)
@@ -22955,16 +22955,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_STREAM_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_device_camera_stream_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_READ)?;
+                        binding.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_READ)?;
                     destack_device_camera_stream_read_vm_replay(
-                        runtime, context, world, handle, timeoutns,
+                        binding, context, world, handle, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -22977,16 +22977,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_STREAM_SET_CONTROL,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, control, argument_value) =
                         decode_destack_device_camera_stream_set_control_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_CONTROL)?;
                     destack_device_camera_stream_set_control_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -23004,16 +23004,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, mode) =
                         decode_destack_device_camera_stream_set_exposure_mode_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE)?;
                     destack_device_camera_stream_set_exposure_mode_vm_replay(
-                        runtime, context, world, handle, mode,
+                        binding, context, world, handle, mode,
                     )
                 })
                 .map_err(Into::into)
@@ -23026,7 +23026,7 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, mode) =
                         decode_destack_device_camera_stream_set_stabilization_mode_args(
@@ -23034,11 +23034,11 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE,
                     )?;
                     destack_device_camera_stream_set_stabilization_mode_vm_replay(
-                        runtime, context, world, handle, mode,
+                        binding, context, world, handle, mode,
                     )
                 })
                 .map_err(Into::into)
@@ -23051,16 +23051,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_STREAM_SET_TORCH_MODE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, mode) =
                         decode_destack_device_camera_stream_set_torch_mode_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_TORCH_MODE)?;
                     destack_device_camera_stream_set_torch_mode_vm_replay(
-                        runtime, context, world, handle, mode,
+                        binding, context, world, handle, mode,
                     )
                 })
                 .map_err(Into::into)
@@ -23073,16 +23073,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_STREAM_STABILIZATION_MODE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_device_camera_stream_stabilization_mode_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_STABILIZATION_MODE)?;
                     destack_device_camera_stream_stabilization_mode_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -23095,14 +23095,14 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_STREAM_START,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_device_camera_stream_start_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_START)?;
-                    destack_device_camera_stream_start_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_START)?;
+                    destack_device_camera_stream_start_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23114,14 +23114,14 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_STREAM_STOP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_device_camera_stream_stop_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_STOP)?;
-                    destack_device_camera_stream_stop_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_STOP)?;
+                    destack_device_camera_stream_stop_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23133,16 +23133,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_STREAM_TORCH_MODE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_device_camera_stream_torch_mode_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_TORCH_MODE)?;
+                        binding.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_TORCH_MODE)?;
                     destack_device_camera_stream_torch_mode_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -23155,15 +23155,15 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_CAMERA_STREAM_TRY_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_device_camera_stream_try_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_TRY_READ)?;
-                    destack_device_camera_stream_try_read_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_TRY_READ)?;
+                    destack_device_camera_stream_try_read_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23175,14 +23175,14 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_SERIAL_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_device_serial_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_CLOSE)?;
-                    destack_device_serial_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(DEVICE_SERIAL_CLOSE)?;
+                    destack_device_serial_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23194,16 +23194,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_SERIAL_CONFIGURE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, config) =
                         decode_destack_device_serial_configure_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_CONFIGURE)?;
+                        binding.on_before_binding_resolve_world(DEVICE_SERIAL_CONFIGURE)?;
                     destack_device_serial_configure_vm_replay(
-                        runtime, context, world, handle, config,
+                        binding, context, world, handle, config,
                     )
                 })
                 .map_err(Into::into)
@@ -23216,14 +23216,14 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_SERIAL_DISCARD_INPUT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_device_serial_discard_input_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_DISCARD_INPUT)?;
-                    destack_device_serial_discard_input_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(DEVICE_SERIAL_DISCARD_INPUT)?;
+                    destack_device_serial_discard_input_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23235,15 +23235,15 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_SERIAL_DISCARD_OUTPUT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_device_serial_discard_output_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_DISCARD_OUTPUT)?;
-                    destack_device_serial_discard_output_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(DEVICE_SERIAL_DISCARD_OUTPUT)?;
+                    destack_device_serial_discard_output_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23255,14 +23255,14 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_SERIAL_FLUSH,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_device_serial_flush_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_FLUSH)?;
-                    destack_device_serial_flush_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(DEVICE_SERIAL_FLUSH)?;
+                    destack_device_serial_flush_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23274,11 +23274,11 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_SERIAL_LIST,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_LIST)?;
-                    destack_device_serial_list_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(DEVICE_SERIAL_LIST)?;
+                    destack_device_serial_list_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -23290,14 +23290,14 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_SERIAL_OPEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (id, config) = decode_destack_device_serial_open_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_OPEN)?;
-                    destack_device_serial_open_vm_replay(runtime, context, world, id, config)
+                        binding.on_before_binding_resolve_world(DEVICE_SERIAL_OPEN)?;
+                    destack_device_serial_open_vm_replay(binding, context, world, id, config)
                 })
                 .map_err(Into::into)
             }
@@ -23309,16 +23309,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_SERIAL_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, maxbytes, timeoutns) =
                         decode_destack_device_serial_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_READ)?;
+                        binding.on_before_binding_resolve_world(DEVICE_SERIAL_READ)?;
                     destack_device_serial_read_vm_replay(
-                        runtime, context, world, handle, maxbytes, timeoutns,
+                        binding, context, world, handle, maxbytes, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -23331,16 +23331,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_SERIAL_READ_EVENT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_device_serial_read_event_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_READ_EVENT)?;
+                        binding.on_before_binding_resolve_world(DEVICE_SERIAL_READ_EVENT)?;
                     destack_device_serial_read_event_vm_replay(
-                        runtime, context, world, handle, timeoutns,
+                        binding, context, world, handle, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -23353,16 +23353,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_SERIAL_SET_BREAK,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, enabled) =
                         decode_destack_device_serial_set_break_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_SET_BREAK)?;
+                        binding.on_before_binding_resolve_world(DEVICE_SERIAL_SET_BREAK)?;
                     destack_device_serial_set_break_vm_replay(
-                        runtime, context, world, handle, enabled,
+                        binding, context, world, handle, enabled,
                     )
                 })
                 .map_err(Into::into)
@@ -23375,16 +23375,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_SERIAL_SET_CONTROL_LINES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, dtr, rts) =
                         decode_destack_device_serial_set_control_lines_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_SET_CONTROL_LINES)?;
+                        binding.on_before_binding_resolve_world(DEVICE_SERIAL_SET_CONTROL_LINES)?;
                     destack_device_serial_set_control_lines_vm_replay(
-                        runtime, context, world, handle, dtr, rts,
+                        binding, context, world, handle, dtr, rts,
                     )
                 })
                 .map_err(Into::into)
@@ -23397,14 +23397,14 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_SERIAL_SIGNAL_BITS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_device_serial_signal_bits_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_SIGNAL_BITS)?;
-                    destack_device_serial_signal_bits_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(DEVICE_SERIAL_SIGNAL_BITS)?;
+                    destack_device_serial_signal_bits_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23416,14 +23416,14 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_SERIAL_TRY_EVENT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_device_serial_try_event_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_TRY_EVENT)?;
-                    destack_device_serial_try_event_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(DEVICE_SERIAL_TRY_EVENT)?;
+                    destack_device_serial_try_event_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23435,16 +23435,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_SERIAL_TRY_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, maxbytes) =
                         decode_destack_device_serial_try_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_TRY_READ)?;
+                        binding.on_before_binding_resolve_world(DEVICE_SERIAL_TRY_READ)?;
                     destack_device_serial_try_read_vm_replay(
-                        runtime, context, world, handle, maxbytes,
+                        binding, context, world, handle, maxbytes,
                     )
                 })
                 .map_err(Into::into)
@@ -23457,16 +23457,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_SERIAL_WRITE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, data, timeoutns) =
                         decode_destack_device_serial_write_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_WRITE)?;
+                        binding.on_before_binding_resolve_world(DEVICE_SERIAL_WRITE)?;
                     destack_device_serial_write_vm_replay(
-                        runtime, context, world, handle, data, timeoutns,
+                        binding, context, world, handle, data, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -23479,16 +23479,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_BULK_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, endpointaddress, maxbytes, timeoutns) =
                         decode_destack_device_usb_bulk_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_BULK_READ)?;
+                        binding.on_before_binding_resolve_world(DEVICE_USB_BULK_READ)?;
                     destack_device_usb_bulk_read_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -23507,16 +23507,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_BULK_WRITE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, endpointaddress, argument_bytes, timeoutns) =
                         decode_destack_device_usb_bulk_write_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_BULK_WRITE)?;
+                        binding.on_before_binding_resolve_world(DEVICE_USB_BULK_WRITE)?;
                     destack_device_usb_bulk_write_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -23535,16 +23535,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_CLAIM_INTERFACE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, interfacenumber) =
                         decode_destack_device_usb_claim_interface_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_CLAIM_INTERFACE)?;
+                        binding.on_before_binding_resolve_world(DEVICE_USB_CLAIM_INTERFACE)?;
                     destack_device_usb_claim_interface_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -23561,16 +23561,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_CLEAR_HALT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, endpointaddress) =
                         decode_destack_device_usb_clear_halt_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_CLEAR_HALT)?;
+                        binding.on_before_binding_resolve_world(DEVICE_USB_CLEAR_HALT)?;
                     destack_device_usb_clear_halt_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -23583,14 +23583,14 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
     }
     {
         binding!(registry, isolate, DEVICE_USB_CLOSE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_device_usb_close_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(DEVICE_USB_CLOSE)?;
-                destack_device_usb_close_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(DEVICE_USB_CLOSE)?;
+                destack_device_usb_close_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
@@ -23601,15 +23601,15 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_CONFIGURATION_GET,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_device_usb_configuration_get_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_CONFIGURATION_GET)?;
-                    destack_device_usb_configuration_get_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(DEVICE_USB_CONFIGURATION_GET)?;
+                    destack_device_usb_configuration_get_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23621,15 +23621,15 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_CONFIGURATION_LIST,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_device_usb_configuration_list_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_CONFIGURATION_LIST)?;
-                    destack_device_usb_configuration_list_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(DEVICE_USB_CONFIGURATION_LIST)?;
+                    destack_device_usb_configuration_list_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23641,16 +23641,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_CONFIGURATION_SET,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, configurationvalue) =
                         decode_destack_device_usb_configuration_set_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_CONFIGURATION_SET)?;
+                        binding.on_before_binding_resolve_world(DEVICE_USB_CONFIGURATION_SET)?;
                     destack_device_usb_configuration_set_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -23667,16 +23667,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_CONTROL_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, setup, timeoutns) =
                         decode_destack_device_usb_control_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_CONTROL_READ)?;
+                        binding.on_before_binding_resolve_world(DEVICE_USB_CONTROL_READ)?;
                     destack_device_usb_control_read_vm_replay(
-                        runtime, context, world, handle, setup, timeoutns,
+                        binding, context, world, handle, setup, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -23689,16 +23689,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_CONTROL_WRITE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, setup, argument_bytes, timeoutns) =
                         decode_destack_device_usb_control_write_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_CONTROL_WRITE)?;
+                        binding.on_before_binding_resolve_world(DEVICE_USB_CONTROL_WRITE)?;
                     destack_device_usb_control_write_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -23717,14 +23717,14 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_DESCRIPTOR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_device_usb_descriptor_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_DESCRIPTOR)?;
-                    destack_device_usb_descriptor_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(DEVICE_USB_DESCRIPTOR)?;
+                    destack_device_usb_descriptor_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -23736,16 +23736,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_INTERRUPT_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, endpointaddress, maxbytes, timeoutns) =
                         decode_destack_device_usb_interrupt_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_INTERRUPT_READ)?;
+                        binding.on_before_binding_resolve_world(DEVICE_USB_INTERRUPT_READ)?;
                     destack_device_usb_interrupt_read_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -23764,16 +23764,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_INTERRUPT_WRITE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, endpointaddress, argument_bytes, timeoutns) =
                         decode_destack_device_usb_interrupt_write_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_INTERRUPT_WRITE)?;
+                        binding.on_before_binding_resolve_world(DEVICE_USB_INTERRUPT_WRITE)?;
                     destack_device_usb_interrupt_write_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -23792,16 +23792,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_ISOCHRONOUS_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, endpointaddress, packetsizes, timeoutns) =
                         decode_destack_device_usb_isochronous_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_ISOCHRONOUS_READ)?;
+                        binding.on_before_binding_resolve_world(DEVICE_USB_ISOCHRONOUS_READ)?;
                     destack_device_usb_isochronous_read_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -23820,16 +23820,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_ISOCHRONOUS_WRITE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, endpointaddress, argument_bytes, packetsizes, timeoutns) =
                         decode_destack_device_usb_isochronous_write_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_ISOCHRONOUS_WRITE)?;
+                        binding.on_before_binding_resolve_world(DEVICE_USB_ISOCHRONOUS_WRITE)?;
                     destack_device_usb_isochronous_write_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -23849,16 +23849,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_KERNEL_DRIVER_ACTIVE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, interfacenumber) =
                         decode_destack_device_usb_kernel_driver_active_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_KERNEL_DRIVER_ACTIVE)?;
+                        binding.on_before_binding_resolve_world(DEVICE_USB_KERNEL_DRIVER_ACTIVE)?;
                     destack_device_usb_kernel_driver_active_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -23875,19 +23875,19 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_KERNEL_DRIVER_ATTACH,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, interfacenumber) =
                         decode_destack_device_usb_kernel_driver_attach_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(DEVICE_USB_KERNEL_DRIVER_ATTACH)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_device_usb_kernel_driver_attach(
-                                    runtime,
+                                    binding,
                                     context,
                                     handle,
                                     interfacenumber,
@@ -23895,7 +23895,7 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_device_usb_kernel_driver_attach(
-                                    runtime,
+                                    binding,
                                     context,
                                     handle,
                                     interfacenumber,
@@ -23915,19 +23915,19 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_KERNEL_DRIVER_DETACH,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, interfacenumber) =
                         decode_destack_device_usb_kernel_driver_detach_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(DEVICE_USB_KERNEL_DRIVER_DETACH)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_device_usb_kernel_driver_detach(
-                                    runtime,
+                                    binding,
                                     context,
                                     handle,
                                     interfacenumber,
@@ -23935,7 +23935,7 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_device_usb_kernel_driver_detach(
-                                    runtime,
+                                    binding,
                                     context,
                                     handle,
                                     interfacenumber,
@@ -23951,25 +23951,25 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
     }
     {
         binding!(registry, isolate, DEVICE_USB_LIST, move |context, _args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(DEVICE_USB_LIST)?;
-                destack_device_usb_list_vm_replay(runtime, context, world)
+                    binding.on_before_binding_resolve_world(DEVICE_USB_LIST)?;
+                destack_device_usb_list_vm_replay(binding, context, world)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, DEVICE_USB_OPEN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (id,) = decode_destack_device_usb_open_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(DEVICE_USB_OPEN)?;
-                destack_device_usb_open_vm_replay(runtime, context, world, id)
+                    binding.on_before_binding_resolve_world(DEVICE_USB_OPEN)?;
+                destack_device_usb_open_vm_replay(binding, context, world, id)
             })
             .map_err(Into::into)
         });
@@ -23980,16 +23980,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_RELEASE_INTERFACE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, interfacenumber) =
                         decode_destack_device_usb_release_interface_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_RELEASE_INTERFACE)?;
+                        binding.on_before_binding_resolve_world(DEVICE_USB_RELEASE_INTERFACE)?;
                     destack_device_usb_release_interface_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -24002,21 +24002,21 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
     }
     {
         binding!(registry, isolate, DEVICE_USB_RESET, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_device_usb_reset_args(context, args)?;
 
                 // execute binding
                 let result = {
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_RESET)?;
+                        binding.on_before_binding_resolve_world(DEVICE_USB_RESET)?;
                     match world {
                         RuntimeWorld::Host => {
-                            platform_vm::destack_device_usb_reset(runtime, context, handle)
+                            platform_vm::destack_device_usb_reset(binding, context, handle)
                         }
                         RuntimeWorld::Simulation => {
                             platform_simulation_vm::destack_device_usb_reset(
-                                runtime, context, handle,
+                                binding, context, handle,
                             )
                         }
                     }
@@ -24032,7 +24032,7 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, interfacenumber, alternatesetting) =
                         decode_destack_device_usb_set_interface_alternate_setting_args(
@@ -24040,11 +24040,11 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         )?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
                         DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING,
                     )?;
                     destack_device_usb_set_interface_alternate_setting_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -24062,16 +24062,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_STRING_DESCRIPTOR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, languageid) =
                         decode_destack_device_usb_string_descriptor_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_STRING_DESCRIPTOR)?;
+                        binding.on_before_binding_resolve_world(DEVICE_USB_STRING_DESCRIPTOR)?;
                     destack_device_usb_string_descriptor_vm_replay(
-                        runtime, context, world, handle, languageid,
+                        binding, context, world, handle, languageid,
                     )
                 })
                 .map_err(Into::into)
@@ -24084,16 +24084,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_STRING_LANGUAGE_LIST,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_device_usb_string_language_list_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_STRING_LANGUAGE_LIST)?;
+                        binding.on_before_binding_resolve_world(DEVICE_USB_STRING_LANGUAGE_LIST)?;
                     destack_device_usb_string_language_list_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -24106,7 +24106,7 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_TRANSFER_CANCEL,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, endpointaddress) =
                         decode_destack_device_usb_transfer_cancel_args(context, args)?;
@@ -24114,17 +24114,17 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(DEVICE_USB_TRANSFER_CANCEL)?;
+                            binding.on_before_binding_resolve_world(DEVICE_USB_TRANSFER_CANCEL)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_device_usb_transfer_cancel(
-                                runtime,
+                                binding,
                                 context,
                                 handle,
                                 endpointaddress,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_device_usb_transfer_cancel(
-                                    runtime,
+                                    binding,
                                     context,
                                     handle,
                                     endpointaddress,
@@ -24144,24 +24144,24 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_TRANSFER_CANCEL_ALL,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_device_usb_transfer_cancel_all_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(DEVICE_USB_TRANSFER_CANCEL_ALL)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_device_usb_transfer_cancel_all(
-                                    runtime, context, handle,
+                                    binding, context, handle,
                                 )
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_device_usb_transfer_cancel_all(
-                                    runtime, context, handle,
+                                    binding, context, handle,
                                 )
                             }
                         }
@@ -24178,14 +24178,14 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_WATCH_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_device_usb_watch_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_WATCH_CLOSE)?;
-                    destack_device_usb_watch_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(DEVICE_USB_WATCH_CLOSE)?;
+                    destack_device_usb_watch_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -24197,11 +24197,11 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_WATCH_OPEN,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_WATCH_OPEN)?;
-                    destack_device_usb_watch_open_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(DEVICE_USB_WATCH_OPEN)?;
+                    destack_device_usb_watch_open_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -24213,16 +24213,16 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_WATCH_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_device_usb_watch_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_WATCH_READ)?;
+                        binding.on_before_binding_resolve_world(DEVICE_USB_WATCH_READ)?;
                     destack_device_usb_watch_read_vm_replay(
-                        runtime, context, world, handle, timeoutns,
+                        binding, context, world, handle, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -24235,14 +24235,14 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             isolate,
             DEVICE_USB_WATCH_TRY_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_device_usb_watch_try_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(DEVICE_USB_WATCH_TRY_READ)?;
-                    destack_device_usb_watch_try_read_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(DEVICE_USB_WATCH_TRY_READ)?;
+                    destack_device_usb_watch_try_read_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }

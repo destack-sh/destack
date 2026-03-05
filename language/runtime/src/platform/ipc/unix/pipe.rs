@@ -30,13 +30,13 @@ const PIPE_WRITE_OPERATION: &str = "destack.ipc.pipe.write";
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PipeHandle,
 ) -> RuntimeResult<()> {
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(handle.0, Some(context.engine()));
+        .remove_and_finalize(handle.0, Some(binding.engine()));
     if !removed {
         return Err(core_platform::invalid_argument(
             "handle",
@@ -65,7 +65,7 @@ pub(crate) unsafe fn destack_ipc_pipe_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PipePair,
     flags: u32,
 ) -> RuntimeResult<()> {
@@ -85,8 +85,8 @@ pub(crate) unsafe fn destack_ipc_pipe_open(
     }
 
     // register both endpoints in the runtime resource table
-    let read_handle = register_pipe_descriptor(context, descriptors[0]);
-    let write_handle = register_pipe_descriptor(context, descriptors[1]);
+    let read_handle = register_pipe_descriptor(binding, descriptors[0]);
+    let write_handle = register_pipe_descriptor(binding, descriptors[1]);
     let pair = PipePair {
         read: read_handle,
         write: write_handle,
@@ -118,14 +118,14 @@ pub(crate) unsafe fn destack_ipc_pipe_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::PipeHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // validate output argument and resolve pipe descriptor
     core_platform::ensure_out(out, "out")?;
-    let descriptor = pipe_descriptor(context, handle, PIPE_READ_OPERATION)?;
+    let descriptor = pipe_descriptor(binding, handle, PIPE_READ_OPERATION)?;
 
     // decode caller buffer and issue one read call
     let bytes = unsafe { buffer.as_mut_slice()? };
@@ -170,14 +170,14 @@ pub(crate) unsafe fn destack_ipc_pipe_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::PipeHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // validate output argument and resolve pipe descriptor
     core_platform::ensure_out(out, "out")?;
-    let descriptor = pipe_descriptor(context, handle, PIPE_WRITE_OPERATION)?;
+    let descriptor = pipe_descriptor(binding, handle, PIPE_WRITE_OPERATION)?;
 
     // decode caller buffer and issue one write call
     let bytes = unsafe { buffer.as_slice()? };

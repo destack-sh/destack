@@ -120,11 +120,11 @@ fn process_group_id_to_host(value: process::ProcessId) -> RuntimeResult<libc::pi
 /// Block until queued terminal output bytes are transmitted according to host device behavior.
 /// This does not flush input data or modify mode flags.
 pub(crate) unsafe fn destack_tty_termios_drain(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
     // resolve one tty descriptor
-    let descriptor = tty_descriptor(context, handle, "destack.tty.termios.drain")?;
+    let descriptor = tty_descriptor(binding, handle, "destack.tty.termios.drain")?;
 
     // issue one host drain operation
     let status = unsafe { libc::tcdrain(descriptor) };
@@ -144,12 +144,12 @@ pub(crate) unsafe fn destack_tty_termios_drain(
 /// Pause or resume output transmission, or send start and stop flow-control characters.
 /// Remote and local behavior follows host line-discipline configuration.
 pub(crate) unsafe fn destack_tty_termios_flow(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     action: TtyTermiosFlowAction,
 ) -> RuntimeResult<()> {
     // resolve one tty descriptor and map the requested flow action
-    let descriptor = tty_descriptor(context, handle, "destack.tty.termios.flow")?;
+    let descriptor = tty_descriptor(binding, handle, "destack.tty.termios.flow")?;
     let action = flow_action_to_host(action);
 
     // issue one host flow-control operation
@@ -170,12 +170,12 @@ pub(crate) unsafe fn destack_tty_termios_flow(
 /// Discard buffered input, output, or both queues as selected by the queue parameter.
 /// Queue semantics follow host terminal driver behavior.
 pub(crate) unsafe fn destack_tty_termios_flush(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     queue: TtyTermiosQueue,
 ) -> RuntimeResult<()> {
     // resolve one tty descriptor and map the requested queue selector
-    let descriptor = tty_descriptor(context, handle, "destack.tty.termios.flush")?;
+    let descriptor = tty_descriptor(binding, handle, "destack.tty.termios.flush")?;
     let queue = flush_queue_to_host(queue);
 
     // issue one host queue flush operation
@@ -196,7 +196,7 @@ pub(crate) unsafe fn destack_tty_termios_flush(
 /// Read one complete termios snapshot including flag groups, control characters, and speed codes.
 /// Control-character ordering follows host `c_cc` layout for the active target.
 pub(crate) unsafe fn destack_tty_termios_get_attributes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut TtyTermiosAttributes,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
@@ -204,7 +204,7 @@ pub(crate) unsafe fn destack_tty_termios_get_attributes(
     ensure_out(out, "out")?;
 
     // resolve one tty descriptor
-    let descriptor = tty_descriptor(context, handle, "destack.tty.termios.getAttributes")?;
+    let descriptor = tty_descriptor(binding, handle, "destack.tty.termios.getAttributes")?;
 
     // read one host termios payload
     let mut host_attributes = MaybeUninit::<libc::termios>::uninit();
@@ -220,7 +220,7 @@ pub(crate) unsafe fn destack_tty_termios_get_attributes(
 
     // copy control-character bytes into runtime-owned storage
     let control_characters = host_attributes.c_cc.to_vec();
-    let control_characters = context.store_slice(control_characters);
+    let control_characters = binding.store_slice(control_characters);
 
     // project the host termios payload into platform attributes
     let attributes = TtyTermiosAttributes {
@@ -246,7 +246,7 @@ pub(crate) unsafe fn destack_tty_termios_get_attributes(
 /// Read the foreground process-group id currently associated with this terminal.
 /// Foreground group semantics follow host session and job-control rules.
 pub(crate) unsafe fn destack_tty_termios_get_process_group(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut process::ProcessId,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
@@ -254,7 +254,7 @@ pub(crate) unsafe fn destack_tty_termios_get_process_group(
     ensure_out(out, "out")?;
 
     // resolve one tty descriptor
-    let descriptor = tty_descriptor(context, handle, "destack.tty.termios.getProcessGroup")?;
+    let descriptor = tty_descriptor(binding, handle, "destack.tty.termios.getProcessGroup")?;
 
     // read one foreground process-group identifier
     let status = unsafe { libc::tcgetpgrp(descriptor) };
@@ -288,12 +288,12 @@ pub(crate) unsafe fn destack_tty_termios_get_process_group(
 /// Transmit one break condition on the terminal line with one host-defined duration unit.
 /// A duration value of zero requests the host default break behavior.
 pub(crate) unsafe fn destack_tty_termios_send_break(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     duration: u32,
 ) -> RuntimeResult<()> {
     // resolve one tty descriptor and decode duration
-    let descriptor = tty_descriptor(context, handle, "destack.tty.termios.sendBreak")?;
+    let descriptor = tty_descriptor(binding, handle, "destack.tty.termios.sendBreak")?;
     let duration = libc::c_int::try_from(duration).map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "duration",
@@ -320,13 +320,13 @@ pub(crate) unsafe fn destack_tty_termios_send_break(
 /// Apply one complete termios snapshot with caller-selected update timing semantics.
 /// Unsupported flag bits and control-character lanes follow host kernel behavior.
 pub(crate) unsafe fn destack_tty_termios_set_attributes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     attributes: TtyTermiosAttributes,
     action: TtyTermiosSetAction,
 ) -> RuntimeResult<()> {
     // resolve one tty descriptor and decode caller-provided lane values
-    let descriptor = tty_descriptor(context, handle, "destack.tty.termios.setAttributes")?;
+    let descriptor = tty_descriptor(binding, handle, "destack.tty.termios.setAttributes")?;
     let input_flags = libc::tcflag_t::try_from(attributes.input_flags).map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "attributes.inputFlags",
@@ -417,12 +417,12 @@ pub(crate) unsafe fn destack_tty_termios_set_attributes(
 /// Set the foreground process-group id for this terminal to one existing process group.
 /// Permission and session checks follow host kernel job-control rules.
 pub(crate) unsafe fn destack_tty_termios_set_process_group(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     processgroupid: process::ProcessId,
 ) -> RuntimeResult<()> {
     // resolve one tty descriptor and validate requested process-group identifier
-    let descriptor = tty_descriptor(context, handle, "destack.tty.termios.setProcessGroup")?;
+    let descriptor = tty_descriptor(binding, handle, "destack.tty.termios.setProcessGroup")?;
     let process_group_id = process_group_id_to_host(processgroupid)?;
 
     // apply one foreground process-group update

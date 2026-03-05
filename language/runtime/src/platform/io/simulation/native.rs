@@ -33,12 +33,12 @@ use crate::platform::resource;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_cancel(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: resource::CompletionHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle, target);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.cancel")).boxed())
@@ -62,10 +62,10 @@ pub(crate) unsafe fn destack_io_completion_cancel(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.close")).boxed())
@@ -89,14 +89,14 @@ pub(crate) unsafe fn destack_io_completion_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_enter(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: resource::CompletionHandle,
     mincomplete: u32,
     timeoutns: u64,
     flags: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle, mincomplete, timeoutns, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.enter")).boxed())
@@ -120,11 +120,11 @@ pub(crate) unsafe fn destack_io_completion_enter(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::CompletionHandle,
     entries: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, entries);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.open")).boxed())
@@ -148,11 +148,11 @@ pub(crate) unsafe fn destack_io_completion_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_submit(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CompletionHandle,
     operation: CompletionOperation,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, operation);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.submit")).boxed())
@@ -176,14 +176,14 @@ pub(crate) unsafe fn destack_io_completion_submit(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_submit_batch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: resource::CompletionHandle,
     operationwords: NativeSlice<u64>,
     operationcount: u32,
     operationwordstride: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (
         out,
         handle,
@@ -216,13 +216,13 @@ pub(crate) unsafe fn destack_io_completion_submit_batch(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_wait(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<CompletionEvent>,
     handle: resource::CompletionHandle,
     timeoutns: u64,
     maxevents: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle, timeoutns, maxevents);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.wait")).boxed())
@@ -246,14 +246,14 @@ pub(crate) unsafe fn destack_io_completion_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_control_fcntl(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut i64,
     handle: resource::ResourceId,
     command: DescriptorControlCommand,
     argument: u64,
     flags: DescriptorControlFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle, command, argument, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.control.fcntl")).boxed())
@@ -277,12 +277,12 @@ pub(crate) unsafe fn destack_io_control_fcntl(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_control_ioctl(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DescriptorResult,
     handle: resource::ResourceId,
     request: DescriptorRequest,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle, request);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.control.ioctl")).boxed())
@@ -306,10 +306,10 @@ pub(crate) unsafe fn destack_io_control_ioctl(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_device_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DeviceHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.device.close")).boxed())
 }
@@ -332,12 +332,12 @@ pub(crate) unsafe fn destack_io_device_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_device_control(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DescriptorResult,
     handle: resource::DeviceHandle,
     request: DescriptorRequest,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle, request);
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.device.control")).boxed())
 }
@@ -360,13 +360,13 @@ pub(crate) unsafe fn destack_io_device_control(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_device_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::DeviceHandle,
     path: OsPath,
     flags: u32,
     mode: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, path, flags, mode);
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.device.open")).boxed())
 }
@@ -389,12 +389,12 @@ pub(crate) unsafe fn destack_io_device_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_device_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::DeviceHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle, buffer);
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.device.read")).boxed())
 }
@@ -417,12 +417,12 @@ pub(crate) unsafe fn destack_io_device_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_device_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::DeviceHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle, buffer);
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.device.write")).boxed())
 }
@@ -445,12 +445,12 @@ pub(crate) unsafe fn destack_io_device_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_event_attach(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     token: EventToken,
     target: resource::ResourceId,
     key: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (token, target, key);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.attach")).boxed())
@@ -474,10 +474,10 @@ pub(crate) unsafe fn destack_io_event_attach(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_event_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     token: EventToken,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = token;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.close")).boxed())
@@ -501,11 +501,11 @@ pub(crate) unsafe fn destack_io_event_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_event_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut EventToken,
     initial: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, initial);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.open")).boxed())
@@ -530,11 +530,11 @@ pub(crate) unsafe fn destack_io_event_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_event_signal(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     token: EventToken,
     argument_value: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (token, argument_value);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.signal")).boxed())
@@ -558,10 +558,10 @@ pub(crate) unsafe fn destack_io_event_signal(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PollHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.poll.close")).boxed())
@@ -585,11 +585,11 @@ pub(crate) unsafe fn destack_io_poll_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_deregister(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PollHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, target);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.poll.deregister")).boxed())
@@ -613,11 +613,11 @@ pub(crate) unsafe fn destack_io_poll_deregister(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::PollHandle,
     backend: PollBackend,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, backend);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.poll.open")).boxed())
@@ -641,13 +641,13 @@ pub(crate) unsafe fn destack_io_poll_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_register(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PollHandle,
     target: resource::ResourceId,
     key: u64,
     interest: PollInterest,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, target, key, interest);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.poll.register")).boxed())
@@ -671,13 +671,13 @@ pub(crate) unsafe fn destack_io_poll_register(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_update(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PollHandle,
     target: resource::ResourceId,
     key: u64,
     interest: PollInterest,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, target, key, interest);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.poll.update")).boxed())
@@ -701,13 +701,13 @@ pub(crate) unsafe fn destack_io_poll_update(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_wait(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<PollEvent>,
     handle: resource::PollHandle,
     timeoutns: u64,
     maxevents: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle, timeoutns, maxevents);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.poll.wait")).boxed())
@@ -731,10 +731,10 @@ pub(crate) unsafe fn destack_io_poll_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.uring.close")).boxed())
@@ -758,11 +758,11 @@ pub(crate) unsafe fn destack_io_uring_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_features(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut UringFeatures,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.uring.features")).boxed())
@@ -786,11 +786,11 @@ pub(crate) unsafe fn destack_io_uring_features(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::UringHandle,
     parameters: UringParameters,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, parameters);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.uring.open")).boxed())
@@ -814,12 +814,12 @@ pub(crate) unsafe fn destack_io_uring_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_register_buffers(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UringHandle,
     addresses: NativeSlice<u64>,
     lengths: NativeSlice<u32>,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, addresses, lengths);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -846,11 +846,11 @@ pub(crate) unsafe fn destack_io_uring_register_buffers(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_register_files(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UringHandle,
     files: NativeSlice<resource::ResourceId>,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, files);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -877,10 +877,10 @@ pub(crate) unsafe fn destack_io_uring_register_files(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_unregister_buffers(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -907,10 +907,10 @@ pub(crate) unsafe fn destack_io_uring_unregister_buffers(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_unregister_files(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -937,7 +937,7 @@ pub(crate) unsafe fn destack_io_uring_unregister_files(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_close(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     _handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.timerfd.close")).boxed())
@@ -961,7 +961,7 @@ pub(crate) unsafe fn destack_io_timer_fd_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_get(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     _out: *mut TimerFdSpec,
     _handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
@@ -986,7 +986,7 @@ pub(crate) unsafe fn destack_io_timer_fd_get(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_open(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     _out: *mut resource::TimerFdHandle,
     _clock: TimerFdClock,
     _flags: TimerFdFlags,
@@ -1012,7 +1012,7 @@ pub(crate) unsafe fn destack_io_timer_fd_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_read(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     _out: *mut u64,
     _handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
@@ -1037,7 +1037,7 @@ pub(crate) unsafe fn destack_io_timer_fd_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_timer_fd_set(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     _handle: resource::TimerFdHandle,
     _spec: TimerFdSpec,
     _flags: TimerFdSetFlags,

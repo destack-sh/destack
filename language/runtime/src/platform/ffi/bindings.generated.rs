@@ -8,13 +8,13 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::ffi::FfiPointer;
 use crate::platform::{
-    PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice, abi as platform_abi,
+    NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
+    abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
     BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
-use crate::runtime::{NativeSlice, NativeStringRef};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
@@ -688,7 +688,7 @@ pub unsafe extern "C" fn destack_ffi_symbol_lookup(
 pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(registry, isolate, FFI_CALL_INVOKE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (symbol, abi, flags, arguments, resultsize) =
                     decode_destack_ffi_call_invoke_args(context, args)?;
@@ -696,13 +696,13 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 // execute binding
                 let result = {
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FFI_CALL_INVOKE)?;
+                        binding.on_before_binding_resolve_world(FFI_CALL_INVOKE)?;
                     match world {
                         RuntimeWorld::Host => platform_vm::destack_ffi_call(
-                            runtime, context, symbol, abi, flags, arguments, resultsize,
+                            binding, context, symbol, abi, flags, arguments, resultsize,
                         ),
                         RuntimeWorld::Simulation => platform_simulation_vm::destack_ffi_call(
-                            runtime, context, symbol, abi, flags, arguments, resultsize,
+                            binding, context, symbol, abi, flags, arguments, resultsize,
                         ),
                     }
                 };
@@ -717,20 +717,20 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             FFI_LIBRARY_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_ffi_library_close_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(FFI_LIBRARY_CLOSE)?;
+                            binding.on_before_binding_resolve_world(FFI_LIBRARY_CLOSE)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_ffi_close(runtime, context, handle)
+                                platform_vm::destack_ffi_close(binding, context, handle)
                             }
                             RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_ffi_close(runtime, context, handle)
+                                platform_simulation_vm::destack_ffi_close(binding, context, handle)
                             }
                         }
                     };
@@ -742,20 +742,20 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, FFI_LIBRARY_OPEN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path, flags) = decode_destack_ffi_library_open_args(context, args)?;
 
                 // execute binding
                 let result = {
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FFI_LIBRARY_OPEN)?;
+                        binding.on_before_binding_resolve_world(FFI_LIBRARY_OPEN)?;
                     match world {
                         RuntimeWorld::Host => {
-                            platform_vm::destack_ffi_open(runtime, context, path, flags)
+                            platform_vm::destack_ffi_open(binding, context, path, flags)
                         }
                         RuntimeWorld::Simulation => {
-                            platform_simulation_vm::destack_ffi_open(runtime, context, path, flags)
+                            platform_simulation_vm::destack_ffi_open(binding, context, path, flags)
                         }
                     }
                 };
@@ -770,21 +770,21 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             FFI_POINTER_ADDRESS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (pointer,) = decode_destack_ffi_pointer_address_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(FFI_POINTER_ADDRESS)?;
+                            binding.on_before_binding_resolve_world(FFI_POINTER_ADDRESS)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_ffi_address(runtime, context, pointer)
+                                platform_vm::destack_ffi_address(binding, context, pointer)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_ffi_address(
-                                    runtime, context, pointer,
+                                    binding, context, pointer,
                                 )
                             }
                         }
@@ -801,21 +801,21 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             FFI_POINTER_FROM_ADDRESS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (address,) = decode_destack_ffi_pointer_from_address_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(FFI_POINTER_FROM_ADDRESS)?;
+                            binding.on_before_binding_resolve_world(FFI_POINTER_FROM_ADDRESS)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_ffi_from_address(runtime, context, address)
+                                platform_vm::destack_ffi_from_address(binding, context, address)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_ffi_from_address(
-                                    runtime, context, address,
+                                    binding, context, address,
                                 )
                             }
                         }
@@ -832,21 +832,21 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             FFI_SYMBOL_ADDRESS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (symbol,) = decode_destack_ffi_symbol_address_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(FFI_SYMBOL_ADDRESS)?;
+                            binding.on_before_binding_resolve_world(FFI_SYMBOL_ADDRESS)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_ffi_symbol_address(runtime, context, symbol)
+                                platform_vm::destack_ffi_symbol_address(binding, context, symbol)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_ffi_symbol_address(
-                                    runtime, context, symbol,
+                                    binding, context, symbol,
                                 )
                             }
                         }
@@ -863,21 +863,21 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             FFI_SYMBOL_LOOKUP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (library, name) = decode_destack_ffi_symbol_lookup_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(FFI_SYMBOL_LOOKUP)?;
+                            binding.on_before_binding_resolve_world(FFI_SYMBOL_LOOKUP)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_ffi_symbol_lookup(
-                                runtime, context, library, name,
+                                binding, context, library, name,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_ffi_symbol_lookup(
-                                    runtime, context, library, name,
+                                    binding, context, library, name,
                                 )
                             }
                         }

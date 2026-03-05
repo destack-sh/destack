@@ -30,7 +30,7 @@ use crate::runtime::{BindingCallContext, NativeSlice};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_udp_socket(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketHandle,
     family: SocketFamily,
 ) -> RuntimeResult<()> {
@@ -62,10 +62,10 @@ pub(crate) unsafe fn destack_net_udp_socket(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(socket as _)
         .with_finalizer(SocketFinalizer::new(socket));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -76,7 +76,7 @@ pub(crate) unsafe fn destack_net_udp_socket(
 /// Bind a UDP socket to a raw local address.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_udp_bind_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
@@ -84,7 +84,7 @@ pub(crate) unsafe fn destack_net_udp_bind_raw(
     core_platform::ensure_winsock()?;
 
     // resolve the socket descriptor
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // bind using the raw address payload
     with_socket_address_raw(address, |sockaddr, length| {
@@ -103,7 +103,7 @@ pub(crate) unsafe fn destack_net_udp_bind_raw(
 /// Connect a UDP socket to a raw remote address.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_udp_connect_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
@@ -111,7 +111,7 @@ pub(crate) unsafe fn destack_net_udp_connect_raw(
     core_platform::ensure_winsock()?;
 
     // resolve the socket descriptor
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // connect using the raw address payload
     with_socket_address_raw(address, |sockaddr, length| {
@@ -130,7 +130,7 @@ pub(crate) unsafe fn destack_net_udp_connect_raw(
 /// Receive a UDP datagram with raw sender metadata.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_udp_recv_from_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut UdpReceive,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
@@ -145,7 +145,7 @@ pub(crate) unsafe fn destack_net_udp_recv_from_raw(
     core_platform::ensure_winsock()?;
 
     // resolve runtime values
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let buffer = unsafe { buffer.as_mut_slice()? };
     let buffer_len = i32::try_from(buffer.len()).map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(
@@ -176,7 +176,7 @@ pub(crate) unsafe fn destack_net_udp_recv_from_raw(
     }
 
     // encode sender metadata and payload length
-    let address = socket_address_raw_from_storage(context, &address, address_length)?;
+    let address = socket_address_raw_from_storage(binding, &address, address_length)?;
     unsafe {
         *out = UdpReceive {
             address,
@@ -191,7 +191,7 @@ pub(crate) unsafe fn destack_net_udp_recv_from_raw(
 /// Send a UDP datagram to a raw destination address.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_udp_send_to_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     address: SocketAddress,
@@ -207,7 +207,7 @@ pub(crate) unsafe fn destack_net_udp_send_to_raw(
     core_platform::ensure_winsock()?;
 
     // resolve runtime values
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let buffer = unsafe { buffer.as_slice()? };
     let buffer_len = i32::try_from(buffer.len()).map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(

@@ -65,7 +65,7 @@ fn statx_from_fallback_stat(stat: Stat) -> Statx {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_stat_bytes(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Stat,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -106,7 +106,7 @@ pub(crate) unsafe fn destack_fs_stat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_stat_utf16(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Stat,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -147,7 +147,7 @@ pub(crate) unsafe fn destack_fs_stat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lstat_bytes(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Stat,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -188,7 +188,7 @@ pub(crate) unsafe fn destack_fs_lstat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lstat_utf16(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Stat,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -229,7 +229,7 @@ pub(crate) unsafe fn destack_fs_lstat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statfs_bytes(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut StatFs,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -270,7 +270,7 @@ pub(crate) unsafe fn destack_fs_statfs_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statfs_utf16(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut StatFs,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -311,7 +311,7 @@ pub(crate) unsafe fn destack_fs_statfs_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Stat,
     dir: DirectoryHandle,
     path: PathBytes,
@@ -337,7 +337,7 @@ pub(crate) unsafe fn destack_fs_statat_bytes(
     }
 
     // resolve the directory handle
-    let root = directory_handle(context, dir)?;
+    let root = directory_handle(binding, dir)?;
     let path = wide_from_pathbuf_no_nul(&pathbuf);
 
     // map flags into open options
@@ -385,7 +385,7 @@ pub(crate) unsafe fn destack_fs_statat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Stat,
     dir: DirectoryHandle,
     path: PathUtf16,
@@ -411,7 +411,7 @@ pub(crate) unsafe fn destack_fs_statat_utf16(
     }
 
     // resolve the directory handle
-    let root = directory_handle(context, dir)?;
+    let root = directory_handle(binding, dir)?;
     let path = wide_from_pathbuf_no_nul(&pathbuf);
 
     // map flags into open options
@@ -459,15 +459,15 @@ pub(crate) unsafe fn destack_fs_statat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_stat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Stat,
     path: OsPath,
 ) -> RuntimeResult<()> {
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_stat_bytes(context, out, path) },
-        |path| unsafe { destack_fs_stat_utf16(context, out, path) },
+        |path| unsafe { destack_fs_stat_bytes(binding, out, path) },
+        |path| unsafe { destack_fs_stat_utf16(binding, out, path) },
     )
 }
 
@@ -489,7 +489,7 @@ pub(crate) unsafe fn destack_fs_stat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Stat,
     dir: DirectoryHandle,
     path: OsPath,
@@ -498,8 +498,8 @@ pub(crate) unsafe fn destack_fs_statat(
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_statat_bytes(context, out, dir, path, flags) },
-        |path| unsafe { destack_fs_statat_utf16(context, out, dir, path, flags) },
+        |path| unsafe { destack_fs_statat_bytes(binding, out, dir, path, flags) },
+        |path| unsafe { destack_fs_statat_utf16(binding, out, dir, path, flags) },
     )
 }
 
@@ -521,15 +521,15 @@ pub(crate) unsafe fn destack_fs_statat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lstat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Stat,
     path: OsPath,
 ) -> RuntimeResult<()> {
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_lstat_bytes(context, out, path) },
-        |path| unsafe { destack_fs_lstat_utf16(context, out, path) },
+        |path| unsafe { destack_fs_lstat_bytes(binding, out, path) },
+        |path| unsafe { destack_fs_lstat_utf16(binding, out, path) },
     )
 }
 
@@ -551,15 +551,15 @@ pub(crate) unsafe fn destack_fs_lstat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statfs(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut StatFs,
     path: OsPath,
 ) -> RuntimeResult<()> {
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_statfs_bytes(context, out, path) },
-        |path| unsafe { destack_fs_statfs_utf16(context, out, path) },
+        |path| unsafe { destack_fs_statfs_bytes(binding, out, path) },
+        |path| unsafe { destack_fs_statfs_utf16(binding, out, path) },
     )
 }
 
@@ -581,7 +581,7 @@ pub(crate) unsafe fn destack_fs_statfs(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statx(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Statx,
     dir: DirectoryHandle,
     path: OsPath,
@@ -609,7 +609,7 @@ pub(crate) unsafe fn destack_fs_statx(
     // read fallback stat metadata through the statat implementation
     let mut stat = std::mem::MaybeUninit::<Stat>::uninit();
     unsafe {
-        destack_fs_statat(context, stat.as_mut_ptr(), dir, path, at_flags)?;
+        destack_fs_statat(binding, stat.as_mut_ptr(), dir, path, at_flags)?;
     }
     let stat = unsafe { stat.assume_init() };
     let statx = statx_from_fallback_stat(stat);

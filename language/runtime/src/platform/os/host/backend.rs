@@ -4,9 +4,9 @@ use crate::runtime::BindingCallContext;
 use super::core::HostIdentityOwned;
 
 /// Read one host identity payload from the active backend.
-pub(super) fn read_host_identity(context: &BindingCallContext) -> RuntimeResult<HostIdentityOwned> {
+pub(super) fn read_host_identity(binding: &BindingCallContext) -> RuntimeResult<HostIdentityOwned> {
     // dispatch to the platform backend
-    platform_backend::read_host_identity(context)
+    platform_backend::read_host_identity(binding)
 }
 
 #[cfg(unix)]

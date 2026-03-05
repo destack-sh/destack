@@ -21,10 +21,10 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_resource_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     id: resource::ResourceId,
 ) -> RuntimeResult<()> {
-    unsafe { resource_native::destack_resource_close(context, id) }
+    unsafe { resource_native::destack_resource_close(binding, id) }
 }
 
 /// Describe a resource kind.
@@ -45,11 +45,11 @@ pub(crate) unsafe fn destack_resource_close(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_resource_kind(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::ResourceKind,
     id: resource::ResourceId,
 ) -> RuntimeResult<()> {
-    unsafe { resource_native::destack_resource_kind(context, out, id) }
+    unsafe { resource_native::destack_resource_kind(binding, out, id) }
 }
 
 /// Remove a resource from the table.
@@ -70,10 +70,10 @@ pub(crate) unsafe fn destack_resource_kind(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_resource_remove(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     id: resource::ResourceId,
 ) -> RuntimeResult<()> {
-    unsafe { resource_native::destack_resource_remove(context, id) }
+    unsafe { resource_native::destack_resource_remove(binding, id) }
 }
 
 /// Transfer resource ownership.
@@ -94,9 +94,9 @@ pub(crate) unsafe fn destack_resource_remove(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_resource_transfer(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     id: resource::ResourceId,
     ownership: resource::ResourceOwnership,
 ) -> RuntimeResult<()> {
-    unsafe { resource_native::destack_resource_transfer(context, id, ownership) }
+    unsafe { resource_native::destack_resource_transfer(binding, id, ownership) }
 }

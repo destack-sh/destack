@@ -368,7 +368,7 @@ fn supports_rumble(capabilities: Option<XINPUT_CAPABILITIES>) -> bool {
 }
 
 /// Enumerate connected xinput gamepads.
-pub(super) fn list_xinput_devices(context: &BindingCallContext) -> Vec<InputDeviceDescriptor> {
+pub(super) fn list_xinput_devices(binding: &BindingCallContext) -> Vec<InputDeviceDescriptor> {
     let mut devices = Vec::new();
 
     for user_index in 0..XINPUT_USER_SLOT_COUNT {
@@ -387,11 +387,11 @@ pub(super) fn list_xinput_devices(context: &BindingCallContext) -> Vec<InputDevi
         let id = xinput_device_id(user_index);
 
         devices.push(InputDeviceDescriptor {
-            id: context.store_string(&id),
-            instance_id: context.store_string(&id),
-            hardware_id: context.store_string(&id),
-            name: context.store_string(&name),
-            transport: context.store_string("xinput"),
+            id: binding.store_string(&id),
+            instance_id: binding.store_string(&id),
+            hardware_id: binding.store_string(&id),
+            name: binding.store_string(&name),
+            transport: binding.store_string("xinput"),
             kind: InputDeviceKind::Gamepad,
             vendor_id: 0,
             product_id: 0,
@@ -422,7 +422,7 @@ pub(super) fn xinput_packet_number(user_index: u8, operation: &'static str) -> R
 
 /// Build one capability payload for one xinput device.
 pub(super) fn capabilities_for_xinput_device(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     user_index: u8,
     operation: &'static str,
 ) -> RuntimeResult<InputDeviceCapabilities> {
@@ -479,9 +479,9 @@ pub(super) fn capabilities_for_xinput_device(
     }
 
     Ok(InputDeviceCapabilities {
-        kinds: context.store_array(kinds),
-        axes: context.store_array(axes),
-        buttons: context.store_array(buttons),
+        kinds: binding.store_array(kinds),
+        axes: binding.store_array(axes),
+        buttons: binding.store_array(buttons),
         metadata_origin: InputCapabilityMetadataOrigin::Mixed,
         axis_metadata_fidelity: InputCapabilityMetadataFidelity::Full,
         button_metadata_fidelity: InputCapabilityMetadataFidelity::Full,
@@ -503,7 +503,7 @@ pub(super) fn capabilities_for_xinput_device(
 
 /// Build one full gamepad-state snapshot from one xinput user index.
 pub(super) fn gamepad_state_for_xinput(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     user_index: u8,
     player_index: u8,
     operation: &'static str,
@@ -522,9 +522,9 @@ pub(super) fn gamepad_state_for_xinput(
         battery,
         supports_rumble,
         supports_trigger_rumble: false,
-        axes: context.store_array(standard_gamepad_axes(&state)),
-        buttons: context.store_array(xinput_standard_button_states(&state)),
-        touches: context.store_array(Vec::new()),
+        axes: binding.store_array(standard_gamepad_axes(&state)),
+        buttons: binding.store_array(xinput_standard_button_states(&state)),
+        touches: binding.store_array(Vec::new()),
     })
 }
 

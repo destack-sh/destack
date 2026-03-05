@@ -12,9 +12,8 @@ use crate::platform::tty::{
     TtyTermiosQueue, TtyTermiosSetAction,
 };
 use crate::platform::{
-    PlatformError, RuntimeStatus, VmAggregateCodec, VmSlice, abi as platform_abi,
+    NativeSlice, PlatformError, RuntimeStatus, VmAggregateCodec, VmSlice, abi as platform_abi,
 };
-use crate::runtime::NativeSlice;
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
     BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
@@ -1502,19 +1501,19 @@ pub const TTY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for tty bindings.
 #[inline]
 fn destack_tty_handle_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_HANDLE_CLOSE,
-        context.replay_payload_for(TTY_HANDLE_CLOSE)?,
+        binding.replay_payload_for(TTY_HANDLE_CLOSE)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_tty_close(context, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_tty_close(binding, handle) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tty_close(context, handle)
+                platform_simulation_native::destack_tty_close(binding, handle)
             },
         },
         |result| {
@@ -1548,22 +1547,22 @@ fn destack_tty_handle_close_replay(
 
 #[inline]
 fn destack_tty_handle_is_terminal_file_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut bool,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_HANDLE_IS_TERMINAL_FILE,
-        context.replay_payload_for(TTY_HANDLE_IS_TERMINAL_FILE)?,
+        binding.replay_payload_for(TTY_HANDLE_IS_TERMINAL_FILE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tty_is_terminal_file(context, out, handle)
+                platform_native::destack_tty_is_terminal_file(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tty_is_terminal_file(context, out, handle)
+                platform_simulation_native::destack_tty_is_terminal_file(binding, out, handle)
             },
         },
         |result| {
@@ -1609,19 +1608,19 @@ fn destack_tty_handle_is_terminal_file_replay(
 
 #[inline]
 fn destack_tty_handle_stdio_stderr_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_HANDLE_STDIO_STDERR,
-        context.replay_payload_for(TTY_HANDLE_STDIO_STDERR)?,
+        binding.replay_payload_for(TTY_HANDLE_STDIO_STDERR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tty_stdio_stderr(context, out)
+                platform_native::destack_tty_stdio_stderr(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tty_stdio_stderr(context, out)
+                platform_simulation_native::destack_tty_stdio_stderr(binding, out)
             },
         },
         |result| {
@@ -1667,17 +1666,17 @@ fn destack_tty_handle_stdio_stderr_replay(
 
 #[inline]
 fn destack_tty_handle_stdio_stdin_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_HANDLE_STDIO_STDIN,
-        context.replay_payload_for(TTY_HANDLE_STDIO_STDIN)?,
+        binding.replay_payload_for(TTY_HANDLE_STDIO_STDIN)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_tty_stdio_stdin(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_tty_stdio_stdin(binding, out) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tty_stdio_stdin(context, out)
+                platform_simulation_native::destack_tty_stdio_stdin(binding, out)
             },
         },
         |result| {
@@ -1723,19 +1722,19 @@ fn destack_tty_handle_stdio_stdin_replay(
 
 #[inline]
 fn destack_tty_handle_stdio_stdout_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_HANDLE_STDIO_STDOUT,
-        context.replay_payload_for(TTY_HANDLE_STDIO_STDOUT)?,
+        binding.replay_payload_for(TTY_HANDLE_STDIO_STDOUT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tty_stdio_stdout(context, out)
+                platform_native::destack_tty_stdio_stdout(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tty_stdio_stdout(context, out)
+                platform_simulation_native::destack_tty_stdio_stdout(binding, out)
             },
         },
         |result| {
@@ -1781,7 +1780,7 @@ fn destack_tty_handle_stdio_stdout_replay(
 
 #[inline]
 fn destack_tty_io_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::TtyHandle,
@@ -1789,15 +1788,15 @@ fn destack_tty_io_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_IO_READ,
-        context.replay_payload_for(TTY_IO_READ)?,
+        binding.replay_payload_for(TTY_IO_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tty_read(context, out, handle, buffer)
+                platform_native::destack_tty_read(binding, out, handle, buffer)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tty_read(context, out, handle, buffer)
+                platform_simulation_native::destack_tty_read(binding, out, handle, buffer)
             },
         },
         |result| {
@@ -1843,7 +1842,7 @@ fn destack_tty_io_read_replay(
 
 #[inline]
 fn destack_tty_io_write_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::TtyHandle,
@@ -1851,15 +1850,15 @@ fn destack_tty_io_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_IO_WRITE,
-        context.replay_payload_for(TTY_IO_WRITE)?,
+        binding.replay_payload_for(TTY_IO_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tty_write(context, out, handle, buffer)
+                platform_native::destack_tty_write(binding, out, handle, buffer)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tty_write(context, out, handle, buffer)
+                platform_simulation_native::destack_tty_write(binding, out, handle, buffer)
             },
         },
         |result| {
@@ -1905,22 +1904,22 @@ fn destack_tty_io_write_replay(
 
 #[inline]
 fn destack_tty_mode_get_mode_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut TtyMode,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_MODE_GET_MODE,
-        context.replay_payload_for(TTY_MODE_GET_MODE)?,
+        binding.replay_payload_for(TTY_MODE_GET_MODE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tty_get_mode(context, out, handle)
+                platform_native::destack_tty_get_mode(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tty_get_mode(context, out, handle)
+                platform_simulation_native::destack_tty_get_mode(binding, out, handle)
             },
         },
         |result| {
@@ -1984,22 +1983,22 @@ fn destack_tty_mode_get_mode_replay(
 
 #[inline]
 fn destack_tty_mode_set_mode_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     mode: TtyMode,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mode);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_MODE_SET_MODE,
-        context.replay_payload_for(TTY_MODE_SET_MODE)?,
+        binding.replay_payload_for(TTY_MODE_SET_MODE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tty_set_mode(context, handle, mode)
+                platform_native::destack_tty_set_mode(binding, handle, mode)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tty_set_mode(context, handle, mode)
+                platform_simulation_native::destack_tty_set_mode(binding, handle, mode)
             },
         },
         |result| {
@@ -2033,22 +2032,22 @@ fn destack_tty_mode_set_mode_replay(
 
 #[inline]
 fn destack_tty_mode_set_raw_mode_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_MODE_SET_RAW_MODE,
-        context.replay_payload_for(TTY_MODE_SET_RAW_MODE)?,
+        binding.replay_payload_for(TTY_MODE_SET_RAW_MODE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tty_set_raw_mode(context, handle, enabled)
+                platform_native::destack_tty_set_raw_mode(binding, handle, enabled)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tty_set_raw_mode(context, handle, enabled)
+                platform_simulation_native::destack_tty_set_raw_mode(binding, handle, enabled)
             },
         },
         |result| {
@@ -2082,21 +2081,21 @@ fn destack_tty_mode_set_raw_mode_replay(
 
 #[inline]
 fn destack_tty_pty_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::PtyHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_PTY_CLOSE,
-        context.replay_payload_for(TTY_PTY_CLOSE)?,
+        binding.replay_payload_for(TTY_PTY_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tty_pty_close(context, handle)
+                platform_native::destack_tty_pty_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tty_pty_close(context, handle)
+                platform_simulation_native::destack_tty_pty_close(binding, handle)
             },
         },
         |result| {
@@ -2130,7 +2129,7 @@ fn destack_tty_pty_close_replay(
 
 #[inline]
 fn destack_tty_pty_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut PtyPair,
     rows: u32,
@@ -2139,15 +2138,15 @@ fn destack_tty_pty_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&rows, &columns, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_PTY_OPEN,
-        context.replay_payload_for(TTY_PTY_OPEN)?,
+        binding.replay_payload_for(TTY_PTY_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tty_pty_open(context, out, rows, columns, flags)
+                platform_native::destack_tty_pty_open(binding, out, rows, columns, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tty_pty_open(context, out, rows, columns, flags)
+                platform_simulation_native::destack_tty_pty_open(binding, out, rows, columns, flags)
             },
         },
         |result| {
@@ -2203,22 +2202,22 @@ fn destack_tty_pty_open_replay(
 
 #[inline]
 fn destack_tty_size_get_size_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut TtySize,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_SIZE_GET_SIZE,
-        context.replay_payload_for(TTY_SIZE_GET_SIZE)?,
+        binding.replay_payload_for(TTY_SIZE_GET_SIZE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tty_get_size(context, out, handle)
+                platform_native::destack_tty_get_size(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tty_get_size(context, out, handle)
+                platform_simulation_native::destack_tty_get_size(binding, out, handle)
             },
         },
         |result| {
@@ -2282,22 +2281,22 @@ fn destack_tty_size_get_size_replay(
 
 #[inline]
 fn destack_tty_size_set_size_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     size: TtySize,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &size);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_SIZE_SET_SIZE,
-        context.replay_payload_for(TTY_SIZE_SET_SIZE)?,
+        binding.replay_payload_for(TTY_SIZE_SET_SIZE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tty_set_size(context, handle, size)
+                platform_native::destack_tty_set_size(binding, handle, size)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tty_set_size(context, handle, size)
+                platform_simulation_native::destack_tty_set_size(binding, handle, size)
             },
         },
         |result| {
@@ -2331,21 +2330,21 @@ fn destack_tty_size_set_size_replay(
 
 #[inline]
 fn destack_tty_termios_drain_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_TERMIOS_DRAIN,
-        context.replay_payload_for(TTY_TERMIOS_DRAIN)?,
+        binding.replay_payload_for(TTY_TERMIOS_DRAIN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tty_termios_drain(context, handle)
+                platform_native::destack_tty_termios_drain(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tty_termios_drain(context, handle)
+                platform_simulation_native::destack_tty_termios_drain(binding, handle)
             },
         },
         |result| {
@@ -2379,22 +2378,22 @@ fn destack_tty_termios_drain_replay(
 
 #[inline]
 fn destack_tty_termios_flow_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     action: TtyTermiosFlowAction,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &action);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_TERMIOS_FLOW,
-        context.replay_payload_for(TTY_TERMIOS_FLOW)?,
+        binding.replay_payload_for(TTY_TERMIOS_FLOW)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tty_termios_flow(context, handle, action)
+                platform_native::destack_tty_termios_flow(binding, handle, action)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tty_termios_flow(context, handle, action)
+                platform_simulation_native::destack_tty_termios_flow(binding, handle, action)
             },
         },
         |result| {
@@ -2428,22 +2427,22 @@ fn destack_tty_termios_flow_replay(
 
 #[inline]
 fn destack_tty_termios_flush_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     queue: TtyTermiosQueue,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &queue);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_TERMIOS_FLUSH,
-        context.replay_payload_for(TTY_TERMIOS_FLUSH)?,
+        binding.replay_payload_for(TTY_TERMIOS_FLUSH)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tty_termios_flush(context, handle, queue)
+                platform_native::destack_tty_termios_flush(binding, handle, queue)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tty_termios_flush(context, handle, queue)
+                platform_simulation_native::destack_tty_termios_flush(binding, handle, queue)
             },
         },
         |result| {
@@ -2477,22 +2476,22 @@ fn destack_tty_termios_flush_replay(
 
 #[inline]
 fn destack_tty_termios_get_attributes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut TtyTermiosAttributes,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_TERMIOS_GET_ATTRIBUTES,
-        context.replay_payload_for(TTY_TERMIOS_GET_ATTRIBUTES)?,
+        binding.replay_payload_for(TTY_TERMIOS_GET_ATTRIBUTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tty_termios_get_attributes(context, out, handle)
+                platform_native::destack_tty_termios_get_attributes(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_tty_termios_get_attributes(context, out, handle)
+                platform_simulation_native::destack_tty_termios_get_attributes(binding, out, handle)
             },
         },
         |result| {
@@ -2565,7 +2564,7 @@ fn destack_tty_termios_get_attributes_replay(
                             .push(value_native_control_characters_item_native);
                     }
                     let value_native_control_characters =
-                        context.store_slice(value_native_control_characters_values);
+                        binding.store_slice(value_native_control_characters_values);
                     let value_native_input_speed_code = value.input_speed_code;
                     let value_native_output_speed_code = value.output_speed_code;
                     let value_native = TtyTermiosAttributes {
@@ -2590,23 +2589,23 @@ fn destack_tty_termios_get_attributes_replay(
 
 #[inline]
 fn destack_tty_termios_get_process_group_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut process::ProcessId,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_TERMIOS_GET_PROCESS_GROUP,
-        context.replay_payload_for(TTY_TERMIOS_GET_PROCESS_GROUP)?,
+        binding.replay_payload_for(TTY_TERMIOS_GET_PROCESS_GROUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tty_termios_get_process_group(context, out, handle)
+                platform_native::destack_tty_termios_get_process_group(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_tty_termios_get_process_group(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -2653,23 +2652,23 @@ fn destack_tty_termios_get_process_group_replay(
 
 #[inline]
 fn destack_tty_termios_send_break_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     duration: u32,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &duration);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_TERMIOS_SEND_BREAK,
-        context.replay_payload_for(TTY_TERMIOS_SEND_BREAK)?,
+        binding.replay_payload_for(TTY_TERMIOS_SEND_BREAK)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_tty_termios_send_break(context, handle, duration)
+                platform_native::destack_tty_termios_send_break(binding, handle, duration)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_tty_termios_send_break(
-                    context, handle, duration,
+                    binding, handle, duration,
                 )
             },
         },
@@ -2704,7 +2703,7 @@ fn destack_tty_termios_send_break_replay(
 
 #[inline]
 fn destack_tty_termios_set_attributes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     attributes: TtyTermiosAttributes,
@@ -2712,18 +2711,18 @@ fn destack_tty_termios_set_attributes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &attributes, &action);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_TERMIOS_SET_ATTRIBUTES,
-        context.replay_payload_for(TTY_TERMIOS_SET_ATTRIBUTES)?,
+        binding.replay_payload_for(TTY_TERMIOS_SET_ATTRIBUTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_tty_termios_set_attributes(
-                    context, handle, attributes, action,
+                    binding, handle, attributes, action,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_tty_termios_set_attributes(
-                    context, handle, attributes, action,
+                    binding, handle, attributes, action,
                 )
             },
         },
@@ -2758,27 +2757,27 @@ fn destack_tty_termios_set_attributes_replay(
 
 #[inline]
 fn destack_tty_termios_set_process_group_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     processgroupid: process::ProcessId,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &processgroupid);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         TTY_TERMIOS_SET_PROCESS_GROUP,
-        context.replay_payload_for(TTY_TERMIOS_SET_PROCESS_GROUP)?,
+        binding.replay_payload_for(TTY_TERMIOS_SET_PROCESS_GROUP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_tty_termios_set_process_group(
-                    context,
+                    binding,
                     handle,
                     processgroupid,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_tty_termios_set_process_group(
-                    context,
+                    binding,
                     handle,
                     processgroupid,
                 )
@@ -3148,19 +3147,19 @@ pub unsafe extern "C" fn destack_tty_termios_set_process_group(
 /// VM replay implementations for tty bindings.
 #[inline]
 fn destack_tty_handle_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_HANDLE_CLOSE,
-        runtime.replay_payload_for(TTY_HANDLE_CLOSE)?,
+        binding.replay_payload_for(TTY_HANDLE_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_tty_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_tty_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tty_close(runtime, context, handle)
+                platform_simulation_vm::destack_tty_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -3198,21 +3197,21 @@ fn destack_tty_handle_close_vm_replay(
 
 #[inline]
 fn destack_tty_handle_is_terminal_file_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_HANDLE_IS_TERMINAL_FILE,
-        runtime.replay_payload_for(TTY_HANDLE_IS_TERMINAL_FILE)?,
+        binding.replay_payload_for(TTY_HANDLE_IS_TERMINAL_FILE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_tty_is_terminal_file(runtime, context, handle)
+                platform_vm::destack_tty_is_terminal_file(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tty_is_terminal_file(runtime, context, handle)
+                platform_simulation_vm::destack_tty_is_terminal_file(binding, context, handle)
             }
         },
         |context, result| {
@@ -3254,18 +3253,18 @@ fn destack_tty_handle_is_terminal_file_vm_replay(
 
 #[inline]
 fn destack_tty_handle_stdio_stderr_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_HANDLE_STDIO_STDERR,
-        runtime.replay_payload_for(TTY_HANDLE_STDIO_STDERR)?,
+        binding.replay_payload_for(TTY_HANDLE_STDIO_STDERR)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_tty_stdio_stderr(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_tty_stdio_stderr(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tty_stdio_stderr(runtime, context)
+                platform_simulation_vm::destack_tty_stdio_stderr(binding, context)
             }
         },
         |context, result| {
@@ -3307,18 +3306,18 @@ fn destack_tty_handle_stdio_stderr_vm_replay(
 
 #[inline]
 fn destack_tty_handle_stdio_stdin_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_HANDLE_STDIO_STDIN,
-        runtime.replay_payload_for(TTY_HANDLE_STDIO_STDIN)?,
+        binding.replay_payload_for(TTY_HANDLE_STDIO_STDIN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_tty_stdio_stdin(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_tty_stdio_stdin(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tty_stdio_stdin(runtime, context)
+                platform_simulation_vm::destack_tty_stdio_stdin(binding, context)
             }
         },
         |context, result| {
@@ -3360,18 +3359,18 @@ fn destack_tty_handle_stdio_stdin_vm_replay(
 
 #[inline]
 fn destack_tty_handle_stdio_stdout_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_HANDLE_STDIO_STDOUT,
-        runtime.replay_payload_for(TTY_HANDLE_STDIO_STDOUT)?,
+        binding.replay_payload_for(TTY_HANDLE_STDIO_STDOUT)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_tty_stdio_stdout(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_tty_stdio_stdout(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tty_stdio_stdout(runtime, context)
+                platform_simulation_vm::destack_tty_stdio_stdout(binding, context)
             }
         },
         |context, result| {
@@ -3413,20 +3412,20 @@ fn destack_tty_handle_stdio_stdout_vm_replay(
 
 #[inline]
 fn destack_tty_io_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_IO_READ,
-        runtime.replay_payload_for(TTY_IO_READ)?,
+        binding.replay_payload_for(TTY_IO_READ)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_tty_read(runtime, context, handle, buffer),
+            RuntimeWorld::Host => platform_vm::destack_tty_read(binding, context, handle, buffer),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tty_read(runtime, context, handle, buffer)
+                platform_simulation_vm::destack_tty_read(binding, context, handle, buffer)
             }
         },
         |context, result| {
@@ -3468,20 +3467,20 @@ fn destack_tty_io_read_vm_replay(
 
 #[inline]
 fn destack_tty_io_write_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_IO_WRITE,
-        runtime.replay_payload_for(TTY_IO_WRITE)?,
+        binding.replay_payload_for(TTY_IO_WRITE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_tty_write(runtime, context, handle, buffer),
+            RuntimeWorld::Host => platform_vm::destack_tty_write(binding, context, handle, buffer),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tty_write(runtime, context, handle, buffer)
+                platform_simulation_vm::destack_tty_write(binding, context, handle, buffer)
             }
         },
         |context, result| {
@@ -3523,19 +3522,19 @@ fn destack_tty_io_write_vm_replay(
 
 #[inline]
 fn destack_tty_mode_get_mode_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_MODE_GET_MODE,
-        runtime.replay_payload_for(TTY_MODE_GET_MODE)?,
+        binding.replay_payload_for(TTY_MODE_GET_MODE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_tty_get_mode(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_tty_get_mode(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tty_get_mode(runtime, context, handle)
+                platform_simulation_vm::destack_tty_get_mode(binding, context, handle)
             }
         },
         |context, result| {
@@ -3595,20 +3594,20 @@ fn destack_tty_mode_get_mode_vm_replay(
 
 #[inline]
 fn destack_tty_mode_set_mode_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     mode: TtyModeVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_MODE_SET_MODE,
-        runtime.replay_payload_for(TTY_MODE_SET_MODE)?,
+        binding.replay_payload_for(TTY_MODE_SET_MODE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_tty_set_mode(runtime, context, handle, mode),
+            RuntimeWorld::Host => platform_vm::destack_tty_set_mode(binding, context, handle, mode),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tty_set_mode(runtime, context, handle, mode)
+                platform_simulation_vm::destack_tty_set_mode(binding, context, handle, mode)
             }
         },
         |context, result| {
@@ -3646,22 +3645,22 @@ fn destack_tty_mode_set_mode_vm_replay(
 
 #[inline]
 fn destack_tty_mode_set_raw_mode_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_MODE_SET_RAW_MODE,
-        runtime.replay_payload_for(TTY_MODE_SET_RAW_MODE)?,
+        binding.replay_payload_for(TTY_MODE_SET_RAW_MODE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_tty_set_raw_mode(runtime, context, handle, enabled)
+                platform_vm::destack_tty_set_raw_mode(binding, context, handle, enabled)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tty_set_raw_mode(runtime, context, handle, enabled)
+                platform_simulation_vm::destack_tty_set_raw_mode(binding, context, handle, enabled)
             }
         },
         |context, result| {
@@ -3699,19 +3698,19 @@ fn destack_tty_mode_set_raw_mode_vm_replay(
 
 #[inline]
 fn destack_tty_pty_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::PtyHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_PTY_CLOSE,
-        runtime.replay_payload_for(TTY_PTY_CLOSE)?,
+        binding.replay_payload_for(TTY_PTY_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_tty_pty_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_tty_pty_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tty_pty_close(runtime, context, handle)
+                platform_simulation_vm::destack_tty_pty_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -3749,23 +3748,23 @@ fn destack_tty_pty_close_vm_replay(
 
 #[inline]
 fn destack_tty_pty_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     rows: u32,
     columns: u32,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_PTY_OPEN,
-        runtime.replay_payload_for(TTY_PTY_OPEN)?,
+        binding.replay_payload_for(TTY_PTY_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_tty_pty_open(runtime, context, rows, columns, flags)
+                platform_vm::destack_tty_pty_open(binding, context, rows, columns, flags)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tty_pty_open(runtime, context, rows, columns, flags)
+                platform_simulation_vm::destack_tty_pty_open(binding, context, rows, columns, flags)
             }
         },
         |context, result| {
@@ -3817,19 +3816,19 @@ fn destack_tty_pty_open_vm_replay(
 
 #[inline]
 fn destack_tty_size_get_size_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_SIZE_GET_SIZE,
-        runtime.replay_payload_for(TTY_SIZE_GET_SIZE)?,
+        binding.replay_payload_for(TTY_SIZE_GET_SIZE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_tty_get_size(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_tty_get_size(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tty_get_size(runtime, context, handle)
+                platform_simulation_vm::destack_tty_get_size(binding, context, handle)
             }
         },
         |context, result| {
@@ -3889,20 +3888,20 @@ fn destack_tty_size_get_size_vm_replay(
 
 #[inline]
 fn destack_tty_size_set_size_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     size: TtySizeVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_SIZE_SET_SIZE,
-        runtime.replay_payload_for(TTY_SIZE_SET_SIZE)?,
+        binding.replay_payload_for(TTY_SIZE_SET_SIZE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_tty_set_size(runtime, context, handle, size),
+            RuntimeWorld::Host => platform_vm::destack_tty_set_size(binding, context, handle, size),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tty_set_size(runtime, context, handle, size)
+                platform_simulation_vm::destack_tty_set_size(binding, context, handle, size)
             }
         },
         |context, result| {
@@ -3940,19 +3939,19 @@ fn destack_tty_size_set_size_vm_replay(
 
 #[inline]
 fn destack_tty_termios_drain_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_TERMIOS_DRAIN,
-        runtime.replay_payload_for(TTY_TERMIOS_DRAIN)?,
+        binding.replay_payload_for(TTY_TERMIOS_DRAIN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_tty_termios_drain(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_tty_termios_drain(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tty_termios_drain(runtime, context, handle)
+                platform_simulation_vm::destack_tty_termios_drain(binding, context, handle)
             }
         },
         |context, result| {
@@ -3990,22 +3989,22 @@ fn destack_tty_termios_drain_vm_replay(
 
 #[inline]
 fn destack_tty_termios_flow_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     action: TtyTermiosFlowAction,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_TERMIOS_FLOW,
-        runtime.replay_payload_for(TTY_TERMIOS_FLOW)?,
+        binding.replay_payload_for(TTY_TERMIOS_FLOW)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_tty_termios_flow(runtime, context, handle, action)
+                platform_vm::destack_tty_termios_flow(binding, context, handle, action)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tty_termios_flow(runtime, context, handle, action)
+                platform_simulation_vm::destack_tty_termios_flow(binding, context, handle, action)
             }
         },
         |context, result| {
@@ -4043,22 +4042,22 @@ fn destack_tty_termios_flow_vm_replay(
 
 #[inline]
 fn destack_tty_termios_flush_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     queue: TtyTermiosQueue,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_TERMIOS_FLUSH,
-        runtime.replay_payload_for(TTY_TERMIOS_FLUSH)?,
+        binding.replay_payload_for(TTY_TERMIOS_FLUSH)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_tty_termios_flush(runtime, context, handle, queue)
+                platform_vm::destack_tty_termios_flush(binding, context, handle, queue)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tty_termios_flush(runtime, context, handle, queue)
+                platform_simulation_vm::destack_tty_termios_flush(binding, context, handle, queue)
             }
         },
         |context, result| {
@@ -4096,21 +4095,21 @@ fn destack_tty_termios_flush_vm_replay(
 
 #[inline]
 fn destack_tty_termios_get_attributes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_TERMIOS_GET_ATTRIBUTES,
-        runtime.replay_payload_for(TTY_TERMIOS_GET_ATTRIBUTES)?,
+        binding.replay_payload_for(TTY_TERMIOS_GET_ATTRIBUTES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_tty_termios_get_attributes(runtime, context, handle)
+                platform_vm::destack_tty_termios_get_attributes(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_tty_termios_get_attributes(runtime, context, handle)
+                platform_simulation_vm::destack_tty_termios_get_attributes(binding, context, handle)
             }
         },
         |context, result| {
@@ -4184,22 +4183,22 @@ fn destack_tty_termios_get_attributes_vm_replay(
 
 #[inline]
 fn destack_tty_termios_get_process_group_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_TERMIOS_GET_PROCESS_GROUP,
-        runtime.replay_payload_for(TTY_TERMIOS_GET_PROCESS_GROUP)?,
+        binding.replay_payload_for(TTY_TERMIOS_GET_PROCESS_GROUP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_tty_termios_get_process_group(runtime, context, handle)
+                platform_vm::destack_tty_termios_get_process_group(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_tty_termios_get_process_group(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -4242,22 +4241,22 @@ fn destack_tty_termios_get_process_group_vm_replay(
 
 #[inline]
 fn destack_tty_termios_send_break_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     duration: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_TERMIOS_SEND_BREAK,
-        runtime.replay_payload_for(TTY_TERMIOS_SEND_BREAK)?,
+        binding.replay_payload_for(TTY_TERMIOS_SEND_BREAK)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_tty_termios_send_break(runtime, context, handle, duration)
+                platform_vm::destack_tty_termios_send_break(binding, context, handle, duration)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_tty_termios_send_break(
-                runtime, context, handle, duration,
+                binding, context, handle, duration,
             ),
         },
         |context, result| {
@@ -4295,23 +4294,23 @@ fn destack_tty_termios_send_break_vm_replay(
 
 #[inline]
 fn destack_tty_termios_set_attributes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     attributes: TtyTermiosAttributesVm,
     action: TtyTermiosSetAction,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_TERMIOS_SET_ATTRIBUTES,
-        runtime.replay_payload_for(TTY_TERMIOS_SET_ATTRIBUTES)?,
+        binding.replay_payload_for(TTY_TERMIOS_SET_ATTRIBUTES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_tty_termios_set_attributes(
-                runtime, context, handle, attributes, action,
+                binding, context, handle, attributes, action,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_tty_termios_set_attributes(
-                runtime, context, handle, attributes, action,
+                binding, context, handle, attributes, action,
             ),
         },
         |context, result| {
@@ -4349,26 +4348,26 @@ fn destack_tty_termios_set_attributes_vm_replay(
 
 #[inline]
 fn destack_tty_termios_set_process_group_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::TtyHandle,
     processgroupid: process::ProcessId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         TTY_TERMIOS_SET_PROCESS_GROUP,
-        runtime.replay_payload_for(TTY_TERMIOS_SET_PROCESS_GROUP)?,
+        binding.replay_payload_for(TTY_TERMIOS_SET_PROCESS_GROUP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_tty_termios_set_process_group(
-                runtime,
+                binding,
                 context,
                 handle,
                 processgroupid,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_tty_termios_set_process_group(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     processgroupid,
@@ -4412,14 +4411,14 @@ fn destack_tty_termios_set_process_group_vm_replay(
 pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(registry, isolate, TTY_HANDLE_CLOSE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_tty_handle_close_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(TTY_HANDLE_CLOSE)?;
-                destack_tty_handle_close_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(TTY_HANDLE_CLOSE)?;
+                destack_tty_handle_close_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
@@ -4430,14 +4429,14 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_HANDLE_IS_TERMINAL_FILE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_tty_handle_is_terminal_file_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TTY_HANDLE_IS_TERMINAL_FILE)?;
-                    destack_tty_handle_is_terminal_file_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(TTY_HANDLE_IS_TERMINAL_FILE)?;
+                    destack_tty_handle_is_terminal_file_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -4449,11 +4448,11 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_HANDLE_STDIO_STDERR,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TTY_HANDLE_STDIO_STDERR)?;
-                    destack_tty_handle_stdio_stderr_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(TTY_HANDLE_STDIO_STDERR)?;
+                    destack_tty_handle_stdio_stderr_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -4465,11 +4464,11 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_HANDLE_STDIO_STDIN,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TTY_HANDLE_STDIO_STDIN)?;
-                    destack_tty_handle_stdio_stdin_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(TTY_HANDLE_STDIO_STDIN)?;
+                    destack_tty_handle_stdio_stdin_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -4481,11 +4480,11 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_HANDLE_STDIO_STDOUT,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TTY_HANDLE_STDIO_STDOUT)?;
-                    destack_tty_handle_stdio_stdout_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(TTY_HANDLE_STDIO_STDOUT)?;
+                    destack_tty_handle_stdio_stdout_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -4493,28 +4492,28 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, TTY_IO_READ, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, buffer) = decode_destack_tty_io_read_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(TTY_IO_READ)?;
-                destack_tty_io_read_vm_replay(runtime, context, world, handle, buffer)
+                    binding.on_before_binding_resolve_world(TTY_IO_READ)?;
+                destack_tty_io_read_vm_replay(binding, context, world, handle, buffer)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, TTY_IO_WRITE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, buffer) = decode_destack_tty_io_write_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(TTY_IO_WRITE)?;
-                destack_tty_io_write_vm_replay(runtime, context, world, handle, buffer)
+                    binding.on_before_binding_resolve_world(TTY_IO_WRITE)?;
+                destack_tty_io_write_vm_replay(binding, context, world, handle, buffer)
             })
             .map_err(Into::into)
         });
@@ -4525,14 +4524,14 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_MODE_GET_MODE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_tty_mode_get_mode_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TTY_MODE_GET_MODE)?;
-                    destack_tty_mode_get_mode_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(TTY_MODE_GET_MODE)?;
+                    destack_tty_mode_get_mode_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -4544,14 +4543,14 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_MODE_SET_MODE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, mode) = decode_destack_tty_mode_set_mode_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TTY_MODE_SET_MODE)?;
-                    destack_tty_mode_set_mode_vm_replay(runtime, context, world, handle, mode)
+                        binding.on_before_binding_resolve_world(TTY_MODE_SET_MODE)?;
+                    destack_tty_mode_set_mode_vm_replay(binding, context, world, handle, mode)
                 })
                 .map_err(Into::into)
             }
@@ -4563,16 +4562,16 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_MODE_SET_RAW_MODE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, enabled) =
                         decode_destack_tty_mode_set_raw_mode_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TTY_MODE_SET_RAW_MODE)?;
+                        binding.on_before_binding_resolve_world(TTY_MODE_SET_RAW_MODE)?;
                     destack_tty_mode_set_raw_mode_vm_replay(
-                        runtime, context, world, handle, enabled,
+                        binding, context, world, handle, enabled,
                     )
                 })
                 .map_err(Into::into)
@@ -4581,28 +4580,28 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, TTY_PTY_CLOSE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_tty_pty_close_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(TTY_PTY_CLOSE)?;
-                destack_tty_pty_close_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(TTY_PTY_CLOSE)?;
+                destack_tty_pty_close_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, TTY_PTY_OPEN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (rows, columns, flags) = decode_destack_tty_pty_open_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(TTY_PTY_OPEN)?;
-                destack_tty_pty_open_vm_replay(runtime, context, world, rows, columns, flags)
+                    binding.on_before_binding_resolve_world(TTY_PTY_OPEN)?;
+                destack_tty_pty_open_vm_replay(binding, context, world, rows, columns, flags)
             })
             .map_err(Into::into)
         });
@@ -4613,14 +4612,14 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_SIZE_GET_SIZE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_tty_size_get_size_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TTY_SIZE_GET_SIZE)?;
-                    destack_tty_size_get_size_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(TTY_SIZE_GET_SIZE)?;
+                    destack_tty_size_get_size_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -4632,14 +4631,14 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_SIZE_SET_SIZE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, size) = decode_destack_tty_size_set_size_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TTY_SIZE_SET_SIZE)?;
-                    destack_tty_size_set_size_vm_replay(runtime, context, world, handle, size)
+                        binding.on_before_binding_resolve_world(TTY_SIZE_SET_SIZE)?;
+                    destack_tty_size_set_size_vm_replay(binding, context, world, handle, size)
                 })
                 .map_err(Into::into)
             }
@@ -4651,14 +4650,14 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_TERMIOS_DRAIN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_tty_termios_drain_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TTY_TERMIOS_DRAIN)?;
-                    destack_tty_termios_drain_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(TTY_TERMIOS_DRAIN)?;
+                    destack_tty_termios_drain_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -4666,14 +4665,14 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     }
     {
         binding!(registry, isolate, TTY_TERMIOS_FLOW, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, action) = decode_destack_tty_termios_flow_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(TTY_TERMIOS_FLOW)?;
-                destack_tty_termios_flow_vm_replay(runtime, context, world, handle, action)
+                    binding.on_before_binding_resolve_world(TTY_TERMIOS_FLOW)?;
+                destack_tty_termios_flow_vm_replay(binding, context, world, handle, action)
             })
             .map_err(Into::into)
         });
@@ -4684,14 +4683,14 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_TERMIOS_FLUSH,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, queue) = decode_destack_tty_termios_flush_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TTY_TERMIOS_FLUSH)?;
-                    destack_tty_termios_flush_vm_replay(runtime, context, world, handle, queue)
+                        binding.on_before_binding_resolve_world(TTY_TERMIOS_FLUSH)?;
+                    destack_tty_termios_flush_vm_replay(binding, context, world, handle, queue)
                 })
                 .map_err(Into::into)
             }
@@ -4703,14 +4702,14 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_TERMIOS_GET_ATTRIBUTES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_tty_termios_get_attributes_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TTY_TERMIOS_GET_ATTRIBUTES)?;
-                    destack_tty_termios_get_attributes_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(TTY_TERMIOS_GET_ATTRIBUTES)?;
+                    destack_tty_termios_get_attributes_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -4722,15 +4721,15 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_TERMIOS_GET_PROCESS_GROUP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_tty_termios_get_process_group_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TTY_TERMIOS_GET_PROCESS_GROUP)?;
-                    destack_tty_termios_get_process_group_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(TTY_TERMIOS_GET_PROCESS_GROUP)?;
+                    destack_tty_termios_get_process_group_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -4742,16 +4741,16 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_TERMIOS_SEND_BREAK,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, duration) =
                         decode_destack_tty_termios_send_break_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TTY_TERMIOS_SEND_BREAK)?;
+                        binding.on_before_binding_resolve_world(TTY_TERMIOS_SEND_BREAK)?;
                     destack_tty_termios_send_break_vm_replay(
-                        runtime, context, world, handle, duration,
+                        binding, context, world, handle, duration,
                     )
                 })
                 .map_err(Into::into)
@@ -4764,16 +4763,16 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_TERMIOS_SET_ATTRIBUTES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, attributes, action) =
                         decode_destack_tty_termios_set_attributes_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TTY_TERMIOS_SET_ATTRIBUTES)?;
+                        binding.on_before_binding_resolve_world(TTY_TERMIOS_SET_ATTRIBUTES)?;
                     destack_tty_termios_set_attributes_vm_replay(
-                        runtime, context, world, handle, attributes, action,
+                        binding, context, world, handle, attributes, action,
                     )
                 })
                 .map_err(Into::into)
@@ -4786,16 +4785,16 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             isolate,
             TTY_TERMIOS_SET_PROCESS_GROUP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, processgroupid) =
                         decode_destack_tty_termios_set_process_group_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(TTY_TERMIOS_SET_PROCESS_GROUP)?;
+                        binding.on_before_binding_resolve_world(TTY_TERMIOS_SET_PROCESS_GROUP)?;
                     destack_tty_termios_set_process_group_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,

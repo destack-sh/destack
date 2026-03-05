@@ -64,10 +64,10 @@ impl Write for WindowsSocketTransport {
 
 /// Resolve one socket descriptor from a socket handle.
 fn socket_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<SOCKET> {
-    core_net::require_resource(context, handle.0, ResourceKind::Socket, "socket", |entry| {
+    core_net::require_resource(binding, handle.0, ResourceKind::Socket, "socket", |entry| {
         entry
             .socket()
             .map(|socket| socket as SOCKET)
@@ -99,10 +99,10 @@ fn socket_descriptor(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
-    core_tls::remove_session_resource(context, handle)
+    core_tls::remove_session_resource(binding, handle)
 }
 
 /// Export keying material bytes for one tls session.
@@ -123,7 +123,7 @@ pub(crate) unsafe fn destack_tls_session_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_export_keying_material(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::TlsSessionHandle,
     label: NativeStringRef,
@@ -140,14 +140,14 @@ pub(crate) unsafe fn destack_tls_session_export_keying_material(
     let argument_context = core_tls::decode_native_bytes(argument_context)?;
 
     // resolve and lock the session connection
-    let session = core_tls::resolve_session_resource(context, handle)?;
+    let session = core_tls::resolve_session_resource(binding, handle)?;
     let connection = session.connection.lock();
     let output =
         core_tls::export_keying_material(&connection, &label, &argument_context, outputlength)?;
 
     // write the output bytes
     unsafe {
-        *out = context.store_slice(output);
+        *out = binding.store_slice(output);
     }
 
     Ok(())
@@ -171,7 +171,7 @@ pub(crate) unsafe fn destack_tls_session_export_keying_material(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_handshake(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut TlsHandshakeStatus,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
@@ -181,8 +181,8 @@ pub(crate) unsafe fn destack_tls_session_handshake(
     }
 
     // resolve the session and socket transport
-    let session = core_tls::resolve_session_resource(context, handle)?;
-    let socket = socket_descriptor(context, session.socket)?;
+    let session = core_tls::resolve_session_resource(binding, handle)?;
+    let socket = socket_descriptor(binding, session.socket)?;
     let mut transport = WindowsSocketTransport { socket };
     let mut connection = session.connection.lock();
     let status = core_tls::handshake_step(&mut connection, &mut transport)?;
@@ -213,7 +213,7 @@ pub(crate) unsafe fn destack_tls_session_handshake(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_negotiated_alpn(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
@@ -223,13 +223,13 @@ pub(crate) unsafe fn destack_tls_session_negotiated_alpn(
     }
 
     // resolve one session and ALPN value
-    let session = core_tls::resolve_session_resource(context, handle)?;
+    let session = core_tls::resolve_session_resource(binding, handle)?;
     let connection = session.connection.lock();
     let alpn = core_tls::negotiated_alpn(&connection)?;
 
     // write the ALPN bytes
     unsafe {
-        *out = context.store_slice(alpn);
+        *out = binding.store_slice(alpn);
     }
 
     Ok(())
@@ -253,7 +253,7 @@ pub(crate) unsafe fn destack_tls_session_negotiated_alpn(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::TlsSessionHandle,
     argument_context: resource::TlsContextHandle,
     socket: resource::SocketHandle,
@@ -264,9 +264,9 @@ pub(crate) unsafe fn destack_tls_session_open(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // resolve context and socket inputs
-    core_tls::require_socket_handle(context, socket)?;
-    let policy = core_tls::resolve_context_resource(context, argument_context)?;
+    // resolve binding and socket inputs
+    core_tls::require_socket_handle(binding, socket)?;
+    let policy = core_tls::resolve_context_resource(binding, argument_context)?;
     let mut policy = policy.lock();
 
     // build one tls connection
@@ -287,7 +287,7 @@ pub(crate) unsafe fn destack_tls_session_open(
     };
 
     // insert and return one tls session handle
-    let handle = core_tls::insert_session_resource(context, socket, connection);
+    let handle = core_tls::insert_session_resource(binding, socket, connection);
     unsafe {
         *out = handle;
     }
@@ -313,7 +313,7 @@ pub(crate) unsafe fn destack_tls_session_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_peer_certificates_pem(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
@@ -323,13 +323,13 @@ pub(crate) unsafe fn destack_tls_session_peer_certificates_pem(
     }
 
     // resolve one session and encode peer certificates
-    let session = core_tls::resolve_session_resource(context, handle)?;
+    let session = core_tls::resolve_session_resource(binding, handle)?;
     let connection = session.connection.lock();
     let pem = core_tls::peer_certificates_pem(&connection)?;
 
     // write PEM bytes
     unsafe {
-        *out = context.store_slice(pem);
+        *out = binding.store_slice(pem);
     }
 
     Ok(())
@@ -353,7 +353,7 @@ pub(crate) unsafe fn destack_tls_session_peer_certificates_pem(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::TlsSessionHandle,
     buffer: NativeSlice<u8>,
@@ -367,8 +367,8 @@ pub(crate) unsafe fn destack_tls_session_read(
     let buffer = unsafe { buffer.as_mut_slice()? };
 
     // resolve one session and socket transport
-    let session = core_tls::resolve_session_resource(context, handle)?;
-    let socket = socket_descriptor(context, session.socket)?;
+    let session = core_tls::resolve_session_resource(binding, handle)?;
+    let socket = socket_descriptor(binding, session.socket)?;
     let mut transport = WindowsSocketTransport { socket };
     let mut connection = session.connection.lock();
     let read = core_tls::read_plaintext(&mut connection, &mut transport, buffer)?;
@@ -399,7 +399,7 @@ pub(crate) unsafe fn destack_tls_session_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_resumption_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut TlsSessionResumptionState,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
@@ -409,7 +409,7 @@ pub(crate) unsafe fn destack_tls_session_resumption_state(
     }
 
     // resolve one session and read resumption state
-    let session = core_tls::resolve_session_resource(context, handle)?;
+    let session = core_tls::resolve_session_resource(binding, handle)?;
     let connection = session.connection.lock();
     let state = core_tls::resumption_state(&connection);
 
@@ -439,12 +439,12 @@ pub(crate) unsafe fn destack_tls_session_resumption_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_shutdown(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
     // resolve one session and socket transport
-    let session = core_tls::resolve_session_resource(context, handle)?;
-    let socket = socket_descriptor(context, session.socket)?;
+    let session = core_tls::resolve_session_resource(binding, handle)?;
+    let socket = socket_descriptor(binding, session.socket)?;
     let mut transport = WindowsSocketTransport { socket };
     let mut connection = session.connection.lock();
     core_tls::shutdown(&mut connection, &mut transport)
@@ -468,7 +468,7 @@ pub(crate) unsafe fn destack_tls_session_shutdown(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::TlsSessionHandle,
     buffer: NativeSlice<u8>,
@@ -482,8 +482,8 @@ pub(crate) unsafe fn destack_tls_session_write(
     let buffer = unsafe { buffer.as_slice()? };
 
     // resolve one session and socket transport
-    let session = core_tls::resolve_session_resource(context, handle)?;
-    let socket = socket_descriptor(context, session.socket)?;
+    let session = core_tls::resolve_session_resource(binding, handle)?;
+    let socket = socket_descriptor(binding, session.socket)?;
     let mut transport = WindowsSocketTransport { socket };
     let mut connection = session.connection.lock();
     let written = core_tls::write_plaintext(&mut connection, &mut transport, buffer)?;

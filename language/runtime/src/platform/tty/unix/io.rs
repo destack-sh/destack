@@ -23,7 +23,7 @@ use crate::runtime::{BindingCallContext, NativeSlice};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::TtyHandle,
     buffer: NativeSlice<u8>,
@@ -32,7 +32,7 @@ pub(crate) unsafe fn destack_tty_read(
     ensure_out(out, "out")?;
 
     // resolve one tty descriptor and caller buffer
-    let descriptor = tty_descriptor(context, handle, "destack.tty.io.read")?;
+    let descriptor = tty_descriptor(binding, handle, "destack.tty.io.read")?;
     let buffer = unsafe { buffer.as_mut_slice()? };
     validate_buffer_length(buffer.len(), "buffer")?;
 
@@ -78,7 +78,7 @@ pub(crate) unsafe fn destack_tty_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::TtyHandle,
     buffer: NativeSlice<u8>,
@@ -87,7 +87,7 @@ pub(crate) unsafe fn destack_tty_write(
     ensure_out(out, "out")?;
 
     // resolve one tty descriptor and caller buffer
-    let descriptor = tty_descriptor(context, handle, "destack.tty.io.write")?;
+    let descriptor = tty_descriptor(binding, handle, "destack.tty.io.write")?;
     let buffer = unsafe { buffer.as_slice()? };
     validate_buffer_length(buffer.len(), "buffer")?;
 

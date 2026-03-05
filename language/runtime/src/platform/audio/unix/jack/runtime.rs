@@ -295,7 +295,7 @@ pub(super) fn open_stream(
     let negotiated_channels = playback_channels.max(capture_channels).max(1) as u16;
 
     // build one stream binding before activating JACK callbacks
-    let binding = Arc::new(audio_core::AudioStreamBinding {
+    let stream_binding = Arc::new(audio_core::AudioStreamBinding {
         device: device_info.clone(),
         direction: device_info.direction,
         requested: config,
@@ -329,7 +329,7 @@ pub(super) fn open_stream(
         *context
             .binding
             .lock()
-            .unwrap_or_else(|error| error.into_inner()) = Arc::downgrade(&binding);
+            .unwrap_or_else(|error| error.into_inner()) = Arc::downgrade(&stream_binding);
     }
 
     // activate once so this client can be wired into the live graph
@@ -357,7 +357,7 @@ pub(super) fn open_stream(
     // leave the stream deactivated until one explicit start request
     deactivate_runtime(&runtime, "destack.audio.stream.open")?;
 
-    Ok(binding)
+    Ok(stream_binding)
 }
 
 /// Close one JACK stream runtime payload once.
@@ -550,20 +550,20 @@ unsafe extern "C" fn jack_process_callback(nframes: u32, argument: *mut c_void) 
     let context = unsafe { &*(argument.cast::<JackCallbackContext>()) };
 
     // resolve one live stream binding from callback context
-    let binding = {
-        let binding = context
+    let stream_binding = {
+        let binding_guard = context
             .binding
             .lock()
             .unwrap_or_else(|error| error.into_inner());
-        binding.upgrade()
+        binding_guard.upgrade()
     };
 
-    let Some(binding) = binding else {
+    let Some(stream_binding) = stream_binding else {
         silence_output_ports(context, nframes);
         return 0;
     };
 
-    let mut state = binding
+    let mut state = stream_binding
         .sync
         .state
         .lock()
@@ -579,10 +579,10 @@ unsafe extern "C" fn jack_process_callback(nframes: u32, argument: *mut c_void) 
     state.status_flags = audio_core::AudioStreamStatusFlags(0);
 
     // move queued playback samples into runtime output buffers
-    process_playback_callback(context, &binding, &mut state, nframes);
+    process_playback_callback(context, &stream_binding, &mut state, nframes);
 
     // collect runtime input buffers into queued capture samples
-    process_capture_callback(context, &binding, &mut state, nframes);
+    process_capture_callback(context, &stream_binding, &mut state, nframes);
 
     // publish one callback timing sample
     let callback_mono_ns = audio_core::host_monotonic_nanos();

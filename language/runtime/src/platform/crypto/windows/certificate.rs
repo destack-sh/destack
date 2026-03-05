@@ -26,14 +26,14 @@ use crate::platform::crypto::core::{decode_bytes, write_out_bytes, write_out_val
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_import(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::CryptoCertificateHandle,
     store: resource::CryptoStoreHandle,
     format: CryptoCertificateFormat,
     certificate: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let certificate = decode_bytes(certificate, "certificate")?;
-    let handle = crypto_core::certificate_import(context, store, format, &certificate)?;
+    let handle = crypto_core::certificate_import(binding, store, format, &certificate)?;
     unsafe { write_out_value(out, handle) }
 }
 
@@ -54,13 +54,13 @@ pub(crate) unsafe fn destack_crypto_certificate_import(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_export(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoCertificateHandle,
     format: CryptoCertificateFormat,
 ) -> RuntimeResult<()> {
-    let bytes = crypto_core::certificate_export(context, handle, format)?;
-    unsafe { write_out_bytes(context, out, bytes) }
+    let bytes = crypto_core::certificate_export(binding, handle, format)?;
+    unsafe { write_out_bytes(binding, out, bytes) }
 }
 
 /// Return one certificate descriptor.
@@ -80,11 +80,11 @@ pub(crate) unsafe fn destack_crypto_certificate_export(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CryptoCertificateDescriptor,
     handle: resource::CryptoCertificateHandle,
 ) -> RuntimeResult<()> {
-    let descriptor = crypto_core::certificate_descriptor(context, handle)?;
+    let descriptor = crypto_core::certificate_descriptor(binding, handle)?;
     unsafe { write_out_value(out, descriptor) }
 }
 
@@ -106,11 +106,11 @@ pub(crate) unsafe fn destack_crypto_certificate_descriptor(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_verify(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CryptoCertificateVerifyResult,
     request: CryptoCertificateVerifyRequest,
 ) -> RuntimeResult<()> {
-    let result = crypto_core::certificate_verify(context, request)?;
+    let result = crypto_core::certificate_verify(binding, request)?;
     unsafe { write_out_value(out, result) }
 }
 
@@ -132,8 +132,8 @@ pub(crate) unsafe fn destack_crypto_certificate_verify(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_delete(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoCertificateHandle,
 ) -> RuntimeResult<()> {
-    crypto_core::certificate_delete(context, handle)
+    crypto_core::certificate_delete(binding, handle)
 }

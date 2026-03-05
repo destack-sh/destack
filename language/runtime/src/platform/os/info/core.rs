@@ -128,14 +128,14 @@ pub(super) fn system_time_unix_ns(operation: &'static str) -> RuntimeResult<u64>
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_system_snapshot(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SystemSnapshot,
 ) -> RuntimeResult<()> {
     // validate output argument before host calls
     core_platform::ensure_out(out, "out")?;
 
     // query one backend snapshot and write output
-    let snapshot = backend::read_system_snapshot(context)?;
+    let snapshot = backend::read_system_snapshot(binding)?;
     unsafe {
         out.write(snapshot);
     }
@@ -161,14 +161,14 @@ pub(crate) unsafe fn destack_os_system_snapshot(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_uptime_ns(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
     // validate output argument before host calls
     core_platform::ensure_out(out, "out")?;
 
     // query one backend uptime value and write output
-    let uptime_ns = backend::read_uptime_ns(context)?;
+    let uptime_ns = backend::read_uptime_ns(binding)?;
     unsafe {
         out.write(uptime_ns);
     }
@@ -194,14 +194,14 @@ pub(crate) unsafe fn destack_os_uptime_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_boot_time_unix_ns(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
     // validate output argument before host calls
     core_platform::ensure_out(out, "out")?;
 
     // query one backend boot-time value and write output
-    let boot_time_unix_ns = backend::read_boot_time_unix_ns(context)?;
+    let boot_time_unix_ns = backend::read_boot_time_unix_ns(binding)?;
     unsafe {
         out.write(boot_time_unix_ns);
     }
@@ -227,14 +227,14 @@ pub(crate) unsafe fn destack_os_boot_time_unix_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_load_average(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut LoadAverage,
 ) -> RuntimeResult<()> {
     // validate output argument before host calls
     core_platform::ensure_out(out, "out")?;
 
     // query one backend load-average payload and write output
-    let load_average = backend::read_load_average(context)?;
+    let load_average = backend::read_load_average(binding)?;
     unsafe {
         out.write(load_average);
     }

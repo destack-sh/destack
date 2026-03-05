@@ -43,11 +43,11 @@ use super::core::{
 
 /// Return whether one host lane has a writable persistent-key backend.
 pub(crate) fn host_store_persistence_backend_is_available(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
     // filesystem override enables persistence only when the target path is writable
-    if let Some(path) = configured_store_path(context, kind) {
+    if let Some(path) = configured_store_path(binding, kind) {
         if !matches!(kind, CryptoStoreKind::User | CryptoStoreKind::Machine) {
             return false;
         }
@@ -56,7 +56,7 @@ pub(crate) fn host_store_persistence_backend_is_available(
     }
 
     // filesystem mode with no lane path disables this lane
-    if filesystem_mode_enabled(context) {
+    if filesystem_mode_enabled(binding) {
         return false;
     }
 
@@ -66,7 +66,7 @@ pub(crate) fn host_store_persistence_backend_is_available(
     }
 
     // probe snapshot write access with one disposable keychain item
-    probe_keychain_snapshot_writeability(context, "destack.crypto.store.probeCapability")
+    probe_keychain_snapshot_writeability(binding, "destack.crypto.store.probeCapability")
 }
 
 /// Return whether one filesystem key-store path is writable.
@@ -106,12 +106,12 @@ fn probe_filesystem_store_writeability(path: &Path) -> bool {
 
 /// Return whether one keychain snapshot service and account pair is writable.
 fn probe_keychain_snapshot_writeability(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     operation: &'static str,
 ) -> bool {
     // build one unique probe account and payload for this writeability check
-    let service_name = configured_keychain_snapshot_service(context);
-    let account_name = configured_keychain_snapshot_account(context);
+    let service_name = configured_keychain_snapshot_service(binding);
+    let account_name = configured_keychain_snapshot_account(binding);
     let probe_identifier = next_store_write_probe_identifier();
     let probe_account_name = format!("{account_name}.destack.write-probe.{probe_identifier}");
     let probe_payload = probe_identifier.into_bytes();
@@ -243,12 +243,12 @@ fn probe_keychain_snapshot_writeability(
 
 /// Return whether one host store lane is currently available.
 pub(crate) fn host_store_lane_is_available(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
     // filesystem override uses deterministic lane availability
-    if filesystem_mode_enabled(context) {
-        return filesystem_store_lane_is_available(context, kind);
+    if filesystem_mode_enabled(binding) {
+        return filesystem_store_lane_is_available(binding, kind);
     }
 
     // ephemeral lane is always available
@@ -268,11 +268,11 @@ pub(crate) fn host_store_lane_is_available(
 
 /// Open one host store lane and return certificate snapshots.
 pub(crate) fn open_host_store_certificates(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> RuntimeResult<Vec<X509>> {
     // filesystem mode only exposes deterministic local lanes
-    if filesystem_mode_enabled(context) {
+    if filesystem_mode_enabled(binding) {
         return match kind {
             CryptoStoreKind::User | CryptoStoreKind::Machine | CryptoStoreKind::Ephemeral => {
                 Ok(Vec::new())
@@ -297,12 +297,12 @@ pub(crate) fn open_host_store_certificates(
 
 /// Load one backend host-key snapshot payload for one store lane.
 pub(crate) fn load_host_key_snapshot_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     operation: &'static str,
 ) -> RuntimeResult<Option<Vec<u8>>> {
     // read snapshot bytes from configured filesystem lane when provided
-    if let Some(path) = configured_store_path(context, kind) {
+    if let Some(path) = configured_store_path(binding, kind) {
         return load_host_key_snapshot_bytes_from_filesystem(&path, operation);
     }
 
@@ -311,8 +311,8 @@ pub(crate) fn load_host_key_snapshot_bytes(
         return Ok(None);
     }
     // build keychain query values
-    let service_name = configured_keychain_snapshot_service(context);
-    let account_name = configured_keychain_snapshot_account(context);
+    let service_name = configured_keychain_snapshot_service(binding);
+    let account_name = configured_keychain_snapshot_account(binding);
     let service = create_cf_string(&service_name, operation)?;
     let account = create_cf_string(&account_name, operation)?;
     let query_keys = unsafe {
@@ -394,13 +394,13 @@ pub(crate) fn load_host_key_snapshot_bytes(
 
 /// Store one backend host-key snapshot payload for one store lane.
 pub(crate) fn store_host_key_snapshot_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     snapshot_bytes: &[u8],
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // write snapshot bytes to configured filesystem lane when provided
-    if let Some(path) = configured_store_path(context, kind) {
+    if let Some(path) = configured_store_path(binding, kind) {
         return store_host_key_snapshot_bytes_to_filesystem(&path, snapshot_bytes, operation);
     }
 
@@ -409,8 +409,8 @@ pub(crate) fn store_host_key_snapshot_bytes(
         return Err(core_platform::not_supported(operation));
     }
     // build keychain data payload
-    let service_name = configured_keychain_snapshot_service(context);
-    let account_name = configured_keychain_snapshot_account(context);
+    let service_name = configured_keychain_snapshot_service(binding);
+    let account_name = configured_keychain_snapshot_account(binding);
     let service = create_cf_string(&service_name, operation)?;
     let account = create_cf_string(&account_name, operation)?;
     let data = unsafe {

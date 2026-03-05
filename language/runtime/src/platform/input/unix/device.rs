@@ -15,7 +15,7 @@ use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 /// Build one capabilities payload from available device summary metadata.
 fn derive_capabilities_from_device_summary(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     device: InputDeviceDescriptor,
 ) -> InputDeviceCapabilities {
     let mut kinds = Vec::new();
@@ -67,9 +67,9 @@ fn derive_capabilities_from_device_summary(
     }
 
     InputDeviceCapabilities {
-        kinds: context.store_array(kinds),
-        axes: context.store_array(axes),
-        buttons: context.store_array(buttons),
+        kinds: binding.store_array(kinds),
+        axes: binding.store_array(axes),
+        buttons: binding.store_array(buttons),
         metadata_origin: InputCapabilityMetadataOrigin::DeviceSummary,
         axis_metadata_fidelity: InputCapabilityMetadataFidelity::Minimal,
         button_metadata_fidelity: InputCapabilityMetadataFidelity::Minimal,
@@ -94,7 +94,7 @@ fn derive_capabilities_from_device_summary(
 
 /// Resolve one best-effort device kind for one normalized open spec.
 fn resolve_device_kind_for_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     backend: input_core::UnixInputBackend,
     device_id: &str,
 ) -> InputDeviceKind {
@@ -102,7 +102,7 @@ fn resolve_device_kind_for_open(
         return InputDeviceKind::Keyboard;
     }
 
-    let devices = match input_core::list_unix_devices(context) {
+    let devices = match input_core::list_unix_devices(binding) {
         Ok(devices) => devices,
         Err(_) => return InputDeviceKind::Raw,
     };
@@ -136,17 +136,17 @@ fn resolve_device_kind_for_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
-    input_core::resolve_unix_input_binding(context, handle, "destack.input.device.close")?;
+    input_core::resolve_unix_input_binding(binding, handle, "destack.input.device.close")?;
     #[cfg(target_os = "macos")]
-    input_core::release_macos_subscription(context, handle);
+    input_core::release_macos_subscription(binding, handle);
 
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(handle.0, Some(context.engine()));
+        .remove_and_finalize(handle.0, Some(binding.engine()));
     if !removed {
         return Err(input_core::input_not_found(
             "destack.input.device.close",
@@ -179,16 +179,16 @@ pub(crate) unsafe fn destack_input_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<InputDeviceDescriptor>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let devices = input_core::list_unix_devices(context)?;
+    let devices = input_core::list_unix_devices(binding)?;
     unsafe {
-        *out = context.store_slice(devices);
+        *out = binding.store_slice(devices);
     }
 
     Ok(())
@@ -215,7 +215,7 @@ pub(crate) unsafe fn destack_input_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::InputDeviceHandle,
     id: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -238,9 +238,9 @@ pub(crate) unsafe fn destack_input_open(
     } else {
         None
     };
-    let device_kind = resolve_device_kind_for_open(context, spec.backend, &spec.device_id);
+    let device_kind = resolve_device_kind_for_open(binding, spec.backend, &spec.device_id);
 
-    let binding = input_core::UnixInputBinding {
+    let resolved_binding = input_core::UnixInputBinding {
         descriptor,
         backend: spec.backend,
         read_mode: match spec.backend {
@@ -278,7 +278,7 @@ pub(crate) unsafe fn destack_input_open(
 
     let entry = ResourceEntry::new(resource::ResourceKind::InputDevice)
         .with_label(input_core::INPUT_RESOURCE_LABEL)
-        .with_payload(binding);
+        .with_payload(resolved_binding);
     let entry = if let Some(descriptor) = descriptor {
         entry.with_finalizer(input_core::InputDeviceFinalizer {
             fd: descriptor,
@@ -287,10 +287,10 @@ pub(crate) unsafe fn destack_input_open(
     } else {
         entry
     };
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     unsafe {
         *out = resource::InputDeviceHandle(resource_id);
@@ -320,7 +320,7 @@ pub(crate) unsafe fn destack_input_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_capabilities(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputDeviceCapabilities,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -329,61 +329,63 @@ pub(crate) unsafe fn destack_input_capabilities(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // resolve one opened input binding
-    let binding = input_core::resolve_unix_input_binding(
-        context,
+    // resolve one opened input resolved_binding
+    let resolved_binding = input_core::resolve_unix_input_binding(
+        binding,
         handle,
         "destack.input.device.capabilities",
     )?;
 
     // find matching device metadata from current host enumeration
     let mut device_info = None;
-    for device in input_core::list_unix_devices(context)? {
+    for device in input_core::list_unix_devices(binding)? {
         let device_id = unsafe { device.id.as_str()? };
-        if device_id == binding.device_id {
+        if device_id == resolved_binding.device_id {
             device_info = Some(device);
             break;
         }
     }
 
-    // construct fallback metadata from the open binding when enumeration misses this handle
+    // construct fallback metadata from the open resolved_binding when enumeration misses this handle
     let device_info = match device_info {
         Some(device_info) => device_info,
         None => {
-            let transport = match binding.backend {
+            let transport = match resolved_binding.backend {
                 input_core::UnixInputBackend::UnixTerminal => "tty",
                 input_core::UnixInputBackend::Platform => "platform",
             };
 
             InputDeviceDescriptor {
-                id: context.store_string(&binding.device_id),
-                instance_id: context.store_string(&binding.device_id),
-                hardware_id: context.store_string(&binding.device_id),
-                name: context.store_string(&binding.device_id),
-                transport: context.store_string(transport),
-                kind: binding.device_kind,
+                id: binding.store_string(&resolved_binding.device_id),
+                instance_id: binding.store_string(&resolved_binding.device_id),
+                hardware_id: binding.store_string(&resolved_binding.device_id),
+                name: binding.store_string(&resolved_binding.device_id),
+                transport: binding.store_string(transport),
+                kind: resolved_binding.device_kind,
                 vendor_id: 0,
                 product_id: 0,
                 key_count: 0,
                 button_count: 0,
                 axis_count: 0,
                 connected: true,
-                supports_exclusive_grab: binding.backend == input_core::UnixInputBackend::Platform,
+                supports_exclusive_grab: resolved_binding.backend
+                    == input_core::UnixInputBackend::Platform,
                 supports_raw: true,
-                supports_text: binding.backend == input_core::UnixInputBackend::UnixTerminal,
+                supports_text: resolved_binding.backend
+                    == input_core::UnixInputBackend::UnixTerminal,
                 supports_rumble: false,
                 supports_battery: false,
                 supports_light: false,
                 supports_raw_hid: {
                     #[cfg(target_os = "linux")]
                     {
-                        input_linux::is_linux_hidraw_runtime_id(&binding.device_id)
-                            || binding.device_id.starts_with("/dev/hidraw")
+                        input_linux::is_linux_hidraw_runtime_id(&resolved_binding.device_id)
+                            || resolved_binding.device_id.starts_with("/dev/hidraw")
                     }
 
                     #[cfg(not(target_os = "linux"))]
                     {
-                        binding.device_id.starts_with("/dev/hidraw")
+                        resolved_binding.device_id.starts_with("/dev/hidraw")
                     }
                 },
                 is_virtual: false,
@@ -394,10 +396,10 @@ pub(crate) unsafe fn destack_input_capabilities(
 
     // query backend-derived linux capabilities for opened platform descriptors
     #[cfg(target_os = "linux")]
-    let capabilities = if binding.backend == input_core::UnixInputBackend::Platform {
-        if let Some(descriptor) = binding.descriptor {
+    let capabilities = if resolved_binding.backend == input_core::UnixInputBackend::Platform {
+        if let Some(descriptor) = resolved_binding.descriptor {
             input_linux::query_linux_capabilities(
-                context,
+                binding,
                 descriptor,
                 device_info.kind,
                 device_info.supports_exclusive_grab,
@@ -408,22 +410,22 @@ pub(crate) unsafe fn destack_input_capabilities(
                 device_info.supports_raw_hid,
             )
         } else {
-            derive_capabilities_from_device_summary(context, device_info)
+            derive_capabilities_from_device_summary(binding, device_info)
         }
     } else {
-        derive_capabilities_from_device_summary(context, device_info)
+        derive_capabilities_from_device_summary(binding, device_info)
     };
 
     // derive capabilities from available summary metadata for non-linux unix backends
     #[cfg(not(target_os = "linux"))]
-    let capabilities = derive_capabilities_from_device_summary(context, device_info);
+    let capabilities = derive_capabilities_from_device_summary(binding, device_info);
 
     // report explicit capability tables for the macOS global-session backend
     #[cfg(target_os = "macos")]
-    let capabilities = if binding.backend == input_core::UnixInputBackend::Platform
-        && binding.device_id == input_macos::MACOS_INPUT_SESSION_ID
+    let capabilities = if resolved_binding.backend == input_core::UnixInputBackend::Platform
+        && resolved_binding.device_id == input_macos::MACOS_INPUT_SESSION_ID
     {
-        input_macos::query_macos_session_capabilities(context)
+        input_macos::query_macos_session_capabilities(binding)
     } else {
         capabilities
     };

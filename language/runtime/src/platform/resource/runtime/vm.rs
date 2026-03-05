@@ -22,11 +22,11 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_resource_close(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<()> {
-    resource_vm::destack_resource_close(runtime, context, id)
+    resource_vm::destack_resource_close(binding, context, id)
 }
 
 /// Describe a resource kind.
@@ -47,11 +47,11 @@ pub(crate) fn destack_resource_close(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_resource_kind(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<ResourceKindVm> {
-    resource_vm::destack_resource_kind(runtime, context, id)
+    resource_vm::destack_resource_kind(binding, context, id)
 }
 
 /// Remove a resource from the table.
@@ -72,11 +72,11 @@ pub(crate) fn destack_resource_kind(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_resource_remove(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<()> {
-    resource_vm::destack_resource_remove(runtime, context, id)
+    resource_vm::destack_resource_remove(binding, context, id)
 }
 
 /// Transfer resource ownership.
@@ -97,10 +97,10 @@ pub(crate) fn destack_resource_remove(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_resource_transfer(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
     ownership: ResourceOwnership,
 ) -> RuntimeResult<()> {
-    resource_vm::destack_resource_transfer(runtime, context, id, ownership)
+    resource_vm::destack_resource_transfer(binding, context, id, ownership)
 }

@@ -7,7 +7,7 @@ use super::super::super::{core, resource as display_resource};
 
 /// Resolve one optional owner handle into one x11 window id.
 fn resolve_owner_window(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     child_handle: WindowHandle,
     owner_handle: Option<WindowHandle>,
     operation: &'static str,
@@ -25,7 +25,7 @@ fn resolve_owner_window(
     }
 
     // resolve owner binding and return its native x11 window id
-    let owner_binding = display_resource::resolve_window_binding(context, owner_handle, operation)?;
+    let owner_binding = display_resource::resolve_window_binding(binding, owner_handle, operation)?;
     let owner_binding = owner_binding
         .lock()
         .unwrap_or_else(|error| error.into_inner());
@@ -36,7 +36,7 @@ fn resolve_owner_window(
 
 /// Resolve one effective transient-owner relation with transient priority.
 fn resolve_effective_owner_window(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     child_handle: WindowHandle,
     parent: Option<WindowHandle>,
     transient_for: Option<WindowHandle>,
@@ -44,33 +44,35 @@ fn resolve_effective_owner_window(
 ) -> RuntimeResult<Option<u32>> {
     // prefer transient owner when both lanes are configured
     if transient_for.is_some() {
-        return resolve_owner_window(context, child_handle, transient_for, operation);
+        return resolve_owner_window(binding, child_handle, transient_for, operation);
     }
 
     // otherwise use parent relationship
-    resolve_owner_window(context, child_handle, parent, operation)
+    resolve_owner_window(binding, child_handle, parent, operation)
 }
 
 /// Set one window modal state.
 pub(crate) unsafe fn window_set_modal(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window_handle: WindowHandle,
     modal: bool,
 ) -> RuntimeResult<()> {
-    // resolve runtime and mutate binding state
-    let runtime_state = core::runtime_state(context);
+    // resolve runtime and mutate resolved_binding state
+    let runtime_state = core::runtime_state(binding);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setModal")?;
-    let binding = display_resource::resolve_window_binding(
-        context,
+    let resolved_binding = display_resource::resolve_window_binding(
+        binding,
         window_handle,
         "destack.display.window.setModal",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.setModal")?;
+    let mut resolved_binding = resolved_binding
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    super::ensure_window_thread(&resolved_binding, "destack.display.window.setModal")?;
 
     // reject modal state when no owner relationship exists
-    if modal && binding.parent.is_none() && binding.transient_for.is_none() {
+    if modal && resolved_binding.parent.is_none() && resolved_binding.transient_for.is_none() {
         return Err(core_platform::invalid_argument(
             "modal",
             "modal windows require parent or transientFor relationship",
@@ -80,27 +82,27 @@ pub(crate) unsafe fn window_set_modal(
     // apply one modal state mutation before updating the snapshot
     super::set_net_wm_state(
         connection_state.as_ref(),
-        binding.window,
+        resolved_binding.window,
         connection_state.atoms.net_wm_state_modal,
         modal,
     )?;
-    binding.modal = modal;
+    resolved_binding.modal = modal;
 
     Ok(())
 }
 
 /// Set one window parent relationship.
 pub(crate) unsafe fn window_set_parent(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window_handle: WindowHandle,
     parent: Option<WindowHandle>,
 ) -> RuntimeResult<()> {
     // resolve runtime and child binding lanes
-    let runtime_state = core::runtime_state(context);
+    let runtime_state = core::runtime_state(binding);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setParent")?;
     let child_binding = display_resource::resolve_window_binding(
-        context,
+        binding,
         window_handle,
         "destack.display.window.setParent",
     )?;
@@ -111,7 +113,7 @@ pub(crate) unsafe fn window_set_parent(
 
     // resolve the next effective owner relationship
     let owner_window = resolve_effective_owner_window(
-        context,
+        binding,
         window_handle,
         parent,
         child_binding.transient_for,
@@ -150,16 +152,16 @@ pub(crate) unsafe fn window_set_parent(
 
 /// Set one window transient relationship.
 pub(crate) unsafe fn window_set_transient_for(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window_handle: WindowHandle,
     transient_for: Option<WindowHandle>,
 ) -> RuntimeResult<()> {
     // resolve runtime and child binding state
-    let runtime_state = core::runtime_state(context);
+    let runtime_state = core::runtime_state(binding);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setTransientFor")?;
     let child_binding = display_resource::resolve_window_binding(
-        context,
+        binding,
         window_handle,
         "destack.display.window.setTransientFor",
     )?;
@@ -170,7 +172,7 @@ pub(crate) unsafe fn window_set_transient_for(
 
     // resolve the next effective owner relationship
     let owner_window = resolve_effective_owner_window(
-        context,
+        binding,
         window_handle,
         child_binding.parent,
         transient_for,

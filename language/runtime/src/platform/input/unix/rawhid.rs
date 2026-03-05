@@ -100,24 +100,26 @@ fn io_would_block(
 
 /// Validate one opened raw-hid-capable unix binding.
 fn resolve_raw_hid_binding(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<input_core::UnixInputBinding> {
-    // validate one opened unix input binding
-    let binding = input_core::resolve_unix_input_binding(context, handle, operation)?;
+    // validate one opened unix input resolved_binding
+    let resolved_binding = input_core::resolve_unix_input_binding(binding, handle, operation)?;
 
     // require descriptor-backed platform handles for raw-hid syscalls
-    if binding.backend != input_core::UnixInputBackend::Platform || binding.descriptor.is_none() {
+    if resolved_binding.backend != input_core::UnixInputBackend::Platform
+        || resolved_binding.descriptor.is_none()
+    {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
 
     // require canonical hidraw paths for raw-hid operations
-    if !is_hidraw_device_id(&binding.device_id) {
+    if !is_hidraw_device_id(&resolved_binding.device_id) {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
 
-    Ok(binding)
+    Ok(resolved_binding)
 }
 
 /// Poll one descriptor for readable bytes with one millisecond timeout.
@@ -161,7 +163,7 @@ fn timeout_ns_to_ms(timeout_ns: u64) -> i32 {
 /// Read one raw-hid report from one linux hidraw descriptor.
 #[cfg(target_os = "linux")]
 fn read_raw_hid_report_linux(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     descriptor: i32,
     maxbytes: u32,
@@ -226,13 +228,13 @@ fn read_raw_hid_report_linux(
     };
     let payload_limit = usize::min(payload.len(), maxbytes as usize);
     let payload = payload[..payload_limit].to_vec();
-    let sequence = input_core::next_unix_event_sequence(context, handle, operation)?;
+    let sequence = input_core::next_unix_event_sequence(binding, handle, operation)?;
 
     Ok(InputRawHidReport {
         timestamp_ns: input_core::monotonic_timestamp_ns(),
         sequence,
         report_id,
-        data: context.store_slice(payload),
+        data: binding.store_slice(payload),
     })
 }
 
@@ -380,7 +382,7 @@ fn write_output_report_linux(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_get_feature(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::InputDeviceHandle,
     reportid: u8,
@@ -393,8 +395,9 @@ pub(crate) unsafe fn destack_input_raw_hid_get_feature(
 
     // validate argument contract and handle shape
     input_validation::validate_raw_hid_max_bytes(maxbytes)?;
-    let binding = resolve_raw_hid_binding(context, handle, "destack.input.rawhid.getFeature")?;
-    let descriptor = binding
+    let resolved_binding =
+        resolve_raw_hid_binding(binding, handle, "destack.input.rawhid.getFeature")?;
+    let descriptor = resolved_binding
         .descriptor
         .ok_or_else(|| input_core::input_not_found("destack.input.rawhid.getFeature", handle))?;
 
@@ -408,7 +411,7 @@ pub(crate) unsafe fn destack_input_raw_hid_get_feature(
             "destack.input.rawhid.getFeature",
         )?;
         unsafe {
-            *out = context.store_slice(report);
+            *out = binding.store_slice(report);
         }
 
         return Ok(());
@@ -442,7 +445,7 @@ pub(crate) unsafe fn destack_input_raw_hid_get_feature(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputRawHidReport,
     handle: resource::InputDeviceHandle,
     maxbytes: u32,
@@ -455,8 +458,8 @@ pub(crate) unsafe fn destack_input_raw_hid_read(
 
     // validate argument contract and handle shape
     input_validation::validate_raw_hid_max_bytes(maxbytes)?;
-    let binding = resolve_raw_hid_binding(context, handle, "destack.input.rawhid.read")?;
-    let descriptor = binding
+    let resolved_binding = resolve_raw_hid_binding(binding, handle, "destack.input.rawhid.read")?;
+    let descriptor = resolved_binding
         .descriptor
         .ok_or_else(|| input_core::input_not_found("destack.input.rawhid.read", handle))?;
 
@@ -464,7 +467,7 @@ pub(crate) unsafe fn destack_input_raw_hid_read(
     {
         // read one report payload with timeout semantics
         let report = read_raw_hid_report_linux(
-            context,
+            binding,
             handle,
             descriptor,
             maxbytes,
@@ -503,14 +506,15 @@ pub(crate) unsafe fn destack_input_raw_hid_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_set_feature(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     reportid: u8,
     data: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // validate handle shape and payload contract
-    let binding = resolve_raw_hid_binding(context, handle, "destack.input.rawhid.setFeature")?;
-    let descriptor = binding
+    let resolved_binding =
+        resolve_raw_hid_binding(binding, handle, "destack.input.rawhid.setFeature")?;
+    let descriptor = resolved_binding
         .descriptor
         .ok_or_else(|| input_core::input_not_found("destack.input.rawhid.setFeature", handle))?;
     let payload = unsafe { data.as_slice()? };
@@ -556,7 +560,7 @@ pub(crate) unsafe fn destack_input_raw_hid_set_feature(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputRawHidReport,
     handle: resource::InputDeviceHandle,
     maxbytes: u32,
@@ -568,8 +572,9 @@ pub(crate) unsafe fn destack_input_raw_hid_try_read(
 
     // validate argument contract and handle shape
     input_validation::validate_raw_hid_max_bytes(maxbytes)?;
-    let binding = resolve_raw_hid_binding(context, handle, "destack.input.rawhid.tryRead")?;
-    let descriptor = binding
+    let resolved_binding =
+        resolve_raw_hid_binding(binding, handle, "destack.input.rawhid.tryRead")?;
+    let descriptor = resolved_binding
         .descriptor
         .ok_or_else(|| input_core::input_not_found("destack.input.rawhid.tryRead", handle))?;
 
@@ -577,7 +582,7 @@ pub(crate) unsafe fn destack_input_raw_hid_try_read(
     {
         // poll one report payload without blocking
         let report = read_raw_hid_report_linux(
-            context,
+            binding,
             handle,
             descriptor,
             maxbytes,
@@ -620,7 +625,7 @@ pub(crate) unsafe fn destack_input_raw_hid_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: resource::InputDeviceHandle,
     reportid: u8,
@@ -632,8 +637,8 @@ pub(crate) unsafe fn destack_input_raw_hid_write(
     }
 
     // validate handle shape and payload contract
-    let binding = resolve_raw_hid_binding(context, handle, "destack.input.rawhid.write")?;
-    let descriptor = binding
+    let resolved_binding = resolve_raw_hid_binding(binding, handle, "destack.input.rawhid.write")?;
+    let descriptor = resolved_binding
         .descriptor
         .ok_or_else(|| input_core::input_not_found("destack.input.rawhid.write", handle))?;
     let payload = unsafe { data.as_slice()? };

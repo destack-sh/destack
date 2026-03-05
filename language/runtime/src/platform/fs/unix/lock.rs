@@ -33,12 +33,12 @@ use std::path::PathBuf;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lock(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     flags: FileLockFlags,
 ) -> RuntimeResult<()> {
     // lock the file on unix platforms
-    let fd = file_descriptor(context, handle)?;
+    let fd = file_descriptor(binding, handle)?;
     let result = unsafe { libc::flock(fd, flags.0 as libc::c_int) };
     if result != 0 {
         return Err(core_platform::io_error("flock", None));

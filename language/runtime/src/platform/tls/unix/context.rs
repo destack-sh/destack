@@ -23,10 +23,10 @@ use crate::runtime::{BindingCallContext, NativeSlice, NativeStringSlice};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_context_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<()> {
-    core_tls::remove_context_resource(context, handle)
+    core_tls::remove_context_resource(binding, handle)
 }
 
 /// Open one tls context object.
@@ -47,7 +47,7 @@ pub(crate) unsafe fn destack_tls_context_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_context_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::TlsContextHandle,
     options: TlsContextOptions,
 ) -> RuntimeResult<()> {
@@ -56,9 +56,9 @@ pub(crate) unsafe fn destack_tls_context_open(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // build and store one context resource
+    // build and store one binding resource
     let policy = core_tls::TlsContextResource::from_options(options)?;
-    let handle = core_tls::insert_context_resource(context, policy);
+    let handle = core_tls::insert_context_resource(binding, policy);
 
     // write the resulting handle
     unsafe {
@@ -86,7 +86,7 @@ pub(crate) unsafe fn destack_tls_context_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_cipher_suites(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     suites: NativeStringSlice,
 ) -> RuntimeResult<()> {
@@ -101,7 +101,7 @@ pub(crate) unsafe fn destack_tls_context_set_cipher_suites(
     }
 
     // store the suite policy
-    let policy = core_tls::resolve_context_resource(context, handle)?;
+    let policy = core_tls::resolve_context_resource(binding, handle)?;
     let mut policy = policy.lock();
     policy.cipher_suites = Some(suites);
     policy.reset_runtime_state();
@@ -127,7 +127,7 @@ pub(crate) unsafe fn destack_tls_context_set_cipher_suites(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_groups(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     groups: NativeStringSlice,
 ) -> RuntimeResult<()> {
@@ -142,7 +142,7 @@ pub(crate) unsafe fn destack_tls_context_set_groups(
     }
 
     // store the group policy
-    let policy = core_tls::resolve_context_resource(context, handle)?;
+    let policy = core_tls::resolve_context_resource(binding, handle)?;
     let mut policy = policy.lock();
     policy.groups = Some(groups);
     policy.reset_runtime_state();
@@ -168,12 +168,12 @@ pub(crate) unsafe fn destack_tls_context_set_groups(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_hostname_verification_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     mode: TlsHostnameVerificationMode,
 ) -> RuntimeResult<()> {
     // store the hostname verification mode
-    let policy = core_tls::resolve_context_resource(context, handle)?;
+    let policy = core_tls::resolve_context_resource(binding, handle)?;
     let mut policy = policy.lock();
     policy.hostname_mode = mode;
     policy.reset_runtime_state();
@@ -199,7 +199,7 @@ pub(crate) unsafe fn destack_tls_context_set_hostname_verification_mode(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_identity_pem(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     certificatechainpem: NativeSlice<u8>,
     privatekeypem: NativeSlice<u8>,
@@ -223,7 +223,7 @@ pub(crate) unsafe fn destack_tls_context_set_identity_pem(
     }
 
     // store identity material
-    let policy = core_tls::resolve_context_resource(context, handle)?;
+    let policy = core_tls::resolve_context_resource(binding, handle)?;
     let mut policy = policy.lock();
     policy.identity_chain_pem = Some(certificate_chain);
     policy.identity_key_pem = Some(private_key);
@@ -250,12 +250,12 @@ pub(crate) unsafe fn destack_tls_context_set_identity_pem(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_keylog_enabled(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     // store key logging policy
-    let policy = core_tls::resolve_context_resource(context, handle)?;
+    let policy = core_tls::resolve_context_resource(binding, handle)?;
     let mut policy = policy.lock();
     policy.keylog_enabled = enabled;
     policy.reset_runtime_state();
@@ -281,12 +281,12 @@ pub(crate) unsafe fn destack_tls_context_set_keylog_enabled(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_session_resumption(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     mode: TlsSessionResumptionMode,
 ) -> RuntimeResult<()> {
     // store resumption policy
-    let policy = core_tls::resolve_context_resource(context, handle)?;
+    let policy = core_tls::resolve_context_resource(binding, handle)?;
     let mut policy = policy.lock();
     policy.resumption_mode = mode;
     policy.reset_runtime_state();
@@ -312,7 +312,7 @@ pub(crate) unsafe fn destack_tls_context_set_session_resumption(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_signature_algorithms(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     algorithms: NativeStringSlice,
 ) -> RuntimeResult<()> {
@@ -328,7 +328,7 @@ pub(crate) unsafe fn destack_tls_context_set_signature_algorithms(
     let algorithms = core_tls::parse_signature_algorithms(&algorithms)?;
 
     // store signature algorithm policy
-    let policy = core_tls::resolve_context_resource(context, handle)?;
+    let policy = core_tls::resolve_context_resource(binding, handle)?;
     let mut policy = policy.lock();
     policy.signature_algorithms = Some(algorithms);
     policy.reset_runtime_state();
@@ -354,7 +354,7 @@ pub(crate) unsafe fn destack_tls_context_set_signature_algorithms(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_trust_anchors_pem(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
     trustanchorspem: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -369,7 +369,7 @@ pub(crate) unsafe fn destack_tls_context_set_trust_anchors_pem(
     }
 
     // store trust anchors
-    let policy = core_tls::resolve_context_resource(context, handle)?;
+    let policy = core_tls::resolve_context_resource(binding, handle)?;
     let mut policy = policy.lock();
     policy.trust_anchors_pem = Some(trust_anchors);
     policy.reset_runtime_state();

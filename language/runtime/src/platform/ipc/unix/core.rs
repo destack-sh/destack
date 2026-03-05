@@ -210,11 +210,11 @@ pub(super) fn realtime_deadline(
 
 /// Resolve one pipe handle into one unix file descriptor.
 pub(super) fn pipe_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PipeHandle,
     operation: &'static str,
 ) -> RuntimeResult<RawFd> {
-    let descriptor = context
+    let descriptor = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -237,11 +237,11 @@ pub(super) fn pipe_descriptor(
 
 /// Resolve one shared-memory handle into one unix file descriptor.
 pub(super) fn shared_memory_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SharedMemoryHandle,
     operation: &'static str,
 ) -> RuntimeResult<RawFd> {
-    let descriptor = context
+    let descriptor = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -264,11 +264,11 @@ pub(super) fn shared_memory_descriptor(
 
 /// Resolve one socket handle into one unix file descriptor.
 pub(super) fn socket_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SocketHandle,
     operation: &'static str,
 ) -> RuntimeResult<RawFd> {
-    let descriptor = context
+    let descriptor = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -291,11 +291,11 @@ pub(super) fn socket_descriptor(
 
 /// Resolve one transferred handle into one unix file descriptor.
 pub(super) fn transferable_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TransferredHandle,
     field: &'static str,
 ) -> RuntimeResult<RawFd> {
-    let descriptor = context
+    let descriptor = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| entry.fd())
@@ -308,11 +308,11 @@ pub(super) fn transferable_descriptor(
 /// Resolve one message-queue handle into one native queue descriptor.
 #[cfg(target_os = "linux")]
 pub(super) fn message_queue_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::MessageQueueHandle,
     operation: &'static str,
 ) -> RuntimeResult<libc::mqd_t> {
-    let queue = context
+    let queue = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -337,11 +337,11 @@ pub(super) fn message_queue_descriptor(
 
 /// Resolve one semaphore handle into one native semaphore pointer.
 pub(super) fn semaphore_pointer(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SemaphoreHandle,
     operation: &'static str,
 ) -> RuntimeResult<*mut libc::sem_t> {
-    let pointer = context
+    let pointer = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -366,7 +366,7 @@ pub(super) fn semaphore_pointer(
 
 /// Register one pipe descriptor in the runtime resource table.
 pub(super) fn register_pipe_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     descriptor: RawFd,
 ) -> resource::PipeHandle {
     let entry = ResourceEntry::labeled_fd_finalizer(
@@ -375,17 +375,17 @@ pub(super) fn register_pipe_descriptor(
         descriptor,
         UnixFileDescriptorFinalizer { descriptor },
     );
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     resource::PipeHandle(resource_id)
 }
 
 /// Register one shared-memory descriptor in the runtime resource table.
 pub(super) fn register_shared_memory_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     descriptor: RawFd,
 ) -> resource::SharedMemoryHandle {
     let entry = ResourceEntry::labeled_fd_finalizer(
@@ -394,17 +394,17 @@ pub(super) fn register_shared_memory_descriptor(
         descriptor,
         UnixFileDescriptorFinalizer { descriptor },
     );
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     resource::SharedMemoryHandle(resource_id)
 }
 
 /// Register one semaphore pointer in the runtime resource table.
 pub(super) fn register_semaphore(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     semaphore: *mut libc::sem_t,
 ) -> resource::SemaphoreHandle {
     let entry = ResourceEntry::labeled_payload_finalizer(
@@ -417,17 +417,17 @@ pub(super) fn register_semaphore(
             semaphore: semaphore as usize,
         },
     );
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     resource::SemaphoreHandle(resource_id)
 }
 
 /// Register one transferred descriptor in the runtime resource table.
 pub(super) fn register_transferred_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     descriptor: RawFd,
 ) -> resource::TransferredHandle {
     let entry = ResourceEntry::labeled_fd_finalizer(
@@ -436,10 +436,10 @@ pub(super) fn register_transferred_descriptor(
         descriptor,
         UnixFileDescriptorFinalizer { descriptor },
     );
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     resource::TransferredHandle(resource_id)
 }
@@ -447,7 +447,7 @@ pub(super) fn register_transferred_descriptor(
 /// Register one POSIX message queue descriptor in the runtime resource table.
 #[cfg(target_os = "linux")]
 pub(super) fn register_message_queue(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     queue: libc::mqd_t,
 ) -> resource::MessageQueueHandle {
     let entry = ResourceEntry::labeled_payload_finalizer(
@@ -456,10 +456,10 @@ pub(super) fn register_message_queue(
         UnixMessageQueueState { queue },
         UnixMessageQueueFinalizer { queue },
     );
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     resource::MessageQueueHandle(resource_id)
 }

@@ -51,11 +51,11 @@ pub(super) fn invalid_data(
 }
 
 pub(super) fn windows_keystore_path(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> Option<PathBuf> {
     // use runtime-configured path overrides first
-    if let Some(path) = windows_configured_keystore_path(context, kind) {
+    if let Some(path) = windows_configured_keystore_path(binding, kind) {
         return Some(path);
     }
 
@@ -80,12 +80,12 @@ pub(super) fn windows_keystore_path(
 
 /// Return one runtime-configured windows host-keystore path override for one lane.
 pub(super) fn windows_configured_keystore_path(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> Option<PathBuf> {
     match kind {
-        CryptoStoreKind::User => context.agent().options.crypto.host_store_paths.user.clone(),
-        CryptoStoreKind::Machine => context
+        CryptoStoreKind::User => binding.agent().options.crypto.host_store_paths.user.clone(),
+        CryptoStoreKind::Machine => binding
             .agent()
             .options
             .crypto

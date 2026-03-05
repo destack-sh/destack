@@ -250,7 +250,7 @@ where
 
 /// Generate one host-backed hardware secret key.
 pub(crate) fn host_generate_hardware_backed_secret_key(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     digest: CryptoDigestAlgorithm,
@@ -273,7 +273,7 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
     }
 
     // resolve runtime id
-    let runtime_id = callback_runtime_id(context, operation)?;
+    let runtime_id = callback_runtime_id(binding, operation)?;
 
     // encode host arguments
     let encoded_kind = host_store_kind(kind, operation)?;
@@ -316,7 +316,7 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
 
 /// Return whether one host store lane supports hardware-backed keys.
 pub(crate) fn host_store_supports_hardware_backed_key(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
     // hardware-backed keys currently target user lane
@@ -325,7 +325,7 @@ pub(crate) fn host_store_supports_hardware_backed_key(
     }
 
     // require one active callback runtime id and lane selector
-    let Some(runtime_id) = context.host().callback_runtime_id() else {
+    let Some(runtime_id) = binding.host().callback_runtime_id() else {
         return false;
     };
     let Ok(encoded_kind) = host_store_kind(kind, "destack.crypto.store.probeCapability") else {
@@ -393,7 +393,7 @@ pub(crate) fn host_store_supports_hardware_backed_key(
 
 /// Return whether one host store lane supports one hardware-backed pair algorithm.
 pub(crate) fn host_store_supports_hardware_backed_pair_algorithm(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
 ) -> bool {
@@ -403,7 +403,7 @@ pub(crate) fn host_store_supports_hardware_backed_pair_algorithm(
     }
 
     // resolve runtime id and lane selector
-    let Some(runtime_id) = context.host().callback_runtime_id() else {
+    let Some(runtime_id) = binding.host().callback_runtime_id() else {
         return false;
     };
     let Ok(encoded_kind) = host_store_kind(kind, "destack.crypto.store.probeCapability") else {
@@ -429,7 +429,7 @@ pub(crate) fn host_store_supports_hardware_backed_pair_algorithm(
 
 /// Return whether one host store lane supports hardware-backed secret keys.
 pub(crate) fn host_store_supports_hardware_backed_secret_key(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
 ) -> bool {
@@ -439,7 +439,7 @@ pub(crate) fn host_store_supports_hardware_backed_secret_key(
     }
 
     // resolve runtime id and lane selector
-    let Some(runtime_id) = context.host().callback_runtime_id() else {
+    let Some(runtime_id) = binding.host().callback_runtime_id() else {
         return false;
     };
     let Ok(encoded_kind) = host_store_kind(kind, "destack.crypto.store.probeCapability") else {
@@ -465,7 +465,7 @@ pub(crate) fn host_store_supports_hardware_backed_secret_key(
 
 /// Generate one host-backed hardware key pair.
 pub(crate) fn host_generate_hardware_backed_key_pair(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     named_curve: CryptoNamedCurve,
@@ -494,7 +494,7 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
     }
 
     // resolve runtime id
-    let runtime_id = callback_runtime_id(context, operation)?;
+    let runtime_id = callback_runtime_id(binding, operation)?;
 
     // encode host arguments
     let encoded_kind = host_store_kind(kind, operation)?;
@@ -600,7 +600,7 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
 
 /// Generate one host-managed persistent key pair when available.
 pub(crate) fn host_generate_persistent_key_pair(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     named_curve: CryptoNamedCurve,
@@ -610,7 +610,7 @@ pub(crate) fn host_generate_persistent_key_pair(
     persistent_key_label: &str,
     operation: &'static str,
 ) -> RuntimeResult<Option<HostGeneratedKeyPair>> {
-    let _ = (context, usage_mask);
+    let _ = (binding, usage_mask);
     unix_core::generate_software_persistent_key_pair(
         kind,
         algorithm,
@@ -627,7 +627,7 @@ pub(crate) fn host_generate_persistent_key_pair(
 
 /// Import one persistent host-managed private key when available.
 pub(crate) fn host_import_persistent_private_key(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     named_curve: CryptoNamedCurve,
@@ -636,7 +636,7 @@ pub(crate) fn host_import_persistent_private_key(
     persistent_key_label: &str,
     operation: &'static str,
 ) -> RuntimeResult<Option<HostKeyMaterial>> {
-    let _ = (context, usage_mask);
+    let _ = (binding, usage_mask);
     unix_core::import_software_persistent_private_key(
         kind,
         algorithm,
@@ -653,7 +653,7 @@ pub(crate) fn host_import_persistent_private_key(
 
 /// Sign one payload with one host-managed key.
 pub(crate) fn host_key_sign(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     store_kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
@@ -681,7 +681,7 @@ pub(crate) fn host_key_sign(
             return Err(core_platform::not_supported(operation));
         }
 
-        let runtime_id = callback_runtime_id(context, operation)?;
+        let runtime_id = callback_runtime_id(binding, operation)?;
 
         let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
         let encoded_signature_algorithm =
@@ -722,7 +722,7 @@ pub(crate) fn host_key_sign(
 
 /// Decrypt one payload with one host-managed key.
 pub(crate) fn host_key_decrypt(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     store_kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
@@ -740,7 +740,7 @@ pub(crate) fn host_key_decrypt(
             return Err(core_platform::not_supported(operation));
         }
 
-        let runtime_id = callback_runtime_id(context, operation)?;
+        let runtime_id = callback_runtime_id(binding, operation)?;
 
         let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
         let encoded_asymmetric_algorithm =
@@ -792,7 +792,7 @@ pub(crate) fn host_key_decrypt(
 
 /// Delete one host-managed key.
 pub(crate) fn host_key_delete(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     store_kind: CryptoStoreKind,
     operation: &'static str,
@@ -806,7 +806,7 @@ pub(crate) fn host_key_delete(
             return Err(core_platform::not_supported(operation));
         }
 
-        let runtime_id = callback_runtime_id(context, operation)?;
+        let runtime_id = callback_runtime_id(binding, operation)?;
 
         let encoded_algorithm = match key.backend {
             HostKeyBackend::AndroidHardwareKeystoreRsa => {
@@ -841,7 +841,7 @@ pub(crate) fn host_key_delete(
 
 /// Derive one shared secret with one host-managed private key.
 pub(crate) fn host_key_derive_shared_secret(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     store_kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
@@ -855,7 +855,7 @@ pub(crate) fn host_key_derive_shared_secret(
             return Err(core_platform::not_supported(operation));
         }
 
-        let runtime_id = callback_runtime_id(context, operation)?;
+        let runtime_id = callback_runtime_id(binding, operation)?;
 
         let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
         let encoded_curve = host_named_curve(named_curve, operation)?;
@@ -896,7 +896,7 @@ pub(crate) fn host_key_derive_shared_secret(
 
 /// Encrypt one payload with one host-managed secret key.
 pub(crate) fn host_key_cipher_encrypt(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     store_kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
@@ -912,7 +912,7 @@ pub(crate) fn host_key_cipher_encrypt(
         return Err(core_platform::not_supported(operation));
     }
 
-    let runtime_id = callback_runtime_id(context, operation)?;
+    let runtime_id = callback_runtime_id(binding, operation)?;
 
     let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
     let encoded_cipher_algorithm = host_cipher_algorithm(parameters.algorithm, operation)?;
@@ -954,7 +954,7 @@ pub(crate) fn host_key_cipher_encrypt(
 
 /// Decrypt one payload with one host-managed secret key.
 pub(crate) fn host_key_cipher_decrypt(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     store_kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
@@ -970,7 +970,7 @@ pub(crate) fn host_key_cipher_decrypt(
         return Err(core_platform::not_supported(operation));
     }
 
-    let runtime_id = callback_runtime_id(context, operation)?;
+    let runtime_id = callback_runtime_id(binding, operation)?;
 
     let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
     let encoded_cipher_algorithm = host_cipher_algorithm(parameters.algorithm, operation)?;
@@ -1014,7 +1014,7 @@ pub(crate) fn host_key_cipher_decrypt(
 
 /// Compute one MAC with one host-managed secret key.
 pub(crate) fn host_key_mac_compute(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: &HostKeyMaterial,
     store_kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
@@ -1030,7 +1030,7 @@ pub(crate) fn host_key_mac_compute(
         return Err(core_platform::not_supported(operation));
     }
 
-    let runtime_id = callback_runtime_id(context, operation)?;
+    let runtime_id = callback_runtime_id(binding, operation)?;
 
     let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
     let encoded_mac_algorithm = host_mac_algorithm(parameters.algorithm, operation)?;

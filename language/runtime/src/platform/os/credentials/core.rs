@@ -123,7 +123,7 @@ pub(crate) fn normalize_optional_string(value: String) -> Option<String> {
 
 /// Read one credential record from the active host backend.
 pub(crate) fn read_credentials(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     query: &CredentialQueryOwned,
 ) -> RuntimeResult<CredentialRecordOwned> {
     // validate primary key fields
@@ -135,12 +135,12 @@ pub(crate) fn read_credentials(
     )?;
 
     // dispatch to the host backend
-    backend::read_credentials(context, query)
+    backend::read_credentials(binding, query)
 }
 
 /// Write one credential record to the active host backend.
 pub(crate) fn write_credentials(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     options: &CredentialWriteOptionsOwned,
 ) -> RuntimeResult<()> {
     // validate primary key fields
@@ -160,12 +160,12 @@ pub(crate) fn write_credentials(
     }
 
     // dispatch to the host backend
-    backend::write_credentials(context, options)
+    backend::write_credentials(binding, options)
 }
 
 /// Delete one credential record from the active host backend.
 pub(crate) fn delete_credentials(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     service: &str,
     account: &str,
     access_group: Option<&str>,
@@ -179,12 +179,12 @@ pub(crate) fn delete_credentials(
     )?;
 
     // dispatch to the host backend
-    backend::delete_credentials(context, service, account, access_group)
+    backend::delete_credentials(binding, service, account, access_group)
 }
 
 /// Return whether one credential record exists on the active host backend.
 pub(crate) fn contains_credentials(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     service: &str,
     account: &str,
     access_group: Option<&str>,
@@ -198,19 +198,19 @@ pub(crate) fn contains_credentials(
     )?;
 
     // dispatch to the host backend
-    backend::contains_credentials(context, service, account, access_group)
+    backend::contains_credentials(binding, service, account, access_group)
 }
 
 /// Run one host authentication challenge.
 pub(crate) fn authenticate_credentials(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     options: &CredentialAuthenticationOptionsOwned,
 ) -> RuntimeResult<crate::platform::os::CredentialAuthenticationResult> {
     // validate prompt fields for host APIs that require text
     validate_authentication_prompt(options)?;
 
     // dispatch to the host backend
-    backend::authenticate_credentials(context, options)
+    backend::authenticate_credentials(binding, options)
 }
 
 /// Build one ioInvalidData runtime error.
@@ -312,12 +312,12 @@ pub(crate) struct NoReplaceWriteRuntimeState {
 /// Execute one closure under one runtime-local no-replace write guard.
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 pub(crate) fn with_no_replace_write_guard<R>(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     execute: impl FnOnce() -> RuntimeResult<R>,
 ) -> RuntimeResult<R> {
     // resolve one runtime-local lock holder for credential writes
-    let runtime_state = context
-        .runtime()
+    let runtime_state = binding
+        .agent()
         .platform_state
         .os
         .no_replace_write_runtime_state(NoReplaceWriteRuntimeState::default);

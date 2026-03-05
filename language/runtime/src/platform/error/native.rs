@@ -21,15 +21,15 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// Deterministic.
 pub unsafe fn destack_error_take_platform_error(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PlatformError,
     error_id: u64,
 ) -> RuntimeResult<()> {
     let error = take_platform_error(
-        context.runtime().diagnostic.as_ref(),
+        binding.agent().diagnostic.as_ref(),
         RuntimeErrorId::from_raw(error_id),
     );
-    let store = NativeStringStore::new(context);
+    let store = NativeStringStore::new(binding);
     let platform_error = platform_error_native(&store, &error);
 
     unsafe {

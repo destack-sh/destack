@@ -170,8 +170,8 @@ type EventAttachmentTargets = HashMap<ResourceId, u64>;
 type EventAttachmentRegistry = HashMap<EventAttachmentKey, EventAttachmentTargets>;
 
 /// Return a stable identity key for the current agent.
-pub(super) fn agent_key(context: &BindingCallContext) -> usize {
-    context.agent() as *const _ as usize
+pub(super) fn agent_key(binding: &BindingCallContext) -> usize {
+    binding.agent() as *const _ as usize
 }
 
 /// Build one not-found error for poll handles.
@@ -189,11 +189,11 @@ fn poll_not_found(op: &'static str, handle: resource::PollHandle) -> Box<Runtime
 
 /// Resolve one poll resource payload from one poll handle.
 fn resolve_poll_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PollHandle,
 ) -> RuntimeResult<Arc<PollResource>> {
     // resolve the poll entry payload
-    let resolved = context
+    let resolved = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -271,13 +271,13 @@ fn map_poll_event(event: PollerEvent) -> Option<PollEvent> {
 
 /// Queue one synthetic poll event for one attached event token signal.
 fn queue_attached_poll_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     target: ResourceId,
     key: u64,
     value: u64,
 ) -> RuntimeResult<()> {
     let handle = resource::PollHandle(target);
-    let poll = resolve_poll_resource(context, handle).map_err(|_| {
+    let poll = resolve_poll_resource(binding, handle).map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "target",
             "target resource is not one poll handle",
@@ -319,7 +319,7 @@ fn drain_queued_poll_events(
 
 /// Open one io.poll instance.
 pub(super) fn poll_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     backend: PollBackend,
 ) -> RuntimeResult<resource::PollHandle> {
     // create the selected backend using shared platform policy
@@ -329,25 +329,25 @@ pub(super) fn poll_open(
 
     // store the poll instance as one runtime resource
     let entry = ResourceEntry::new(ResourceKind::Poll).with_payload(resource);
-    let handle = context
+    let handle = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     Ok(resource::PollHandle(handle))
 }
 
 /// Close one io.poll instance.
 pub(super) fn poll_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PollHandle,
 ) -> RuntimeResult<()> {
     // verify this handle points to one poll resource
-    resolve_poll_resource(context, handle)?;
+    resolve_poll_resource(binding, handle)?;
 
     // drop stale event token attachments for this poll handle
     {
-        let current_agent_key = agent_key(context);
+        let current_agent_key = agent_key(binding);
         let mut attachments_by_token = event_attachment_map().lock();
         attachments_by_token.retain(|(key, _), attachments| {
             if *key != current_agent_key {
@@ -360,10 +360,10 @@ pub(super) fn poll_close(
     }
 
     // remove one poll instance from the resource table
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(handle.0, Some(context.engine()));
+        .remove_and_finalize(handle.0, Some(binding.engine()));
     if !removed {
         return Err(poll_not_found("destack.io.poll.close", handle));
     }
@@ -373,18 +373,18 @@ pub(super) fn poll_close(
 
 /// Register one target with one io.poll instance.
 pub(super) fn poll_register(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PollHandle,
     target: ResourceId,
     key: u64,
     interest: PollInterest,
 ) -> RuntimeResult<()> {
     // resolve the poll instance payload
-    let poll = resolve_poll_resource(context, handle)?;
+    let poll = resolve_poll_resource(binding, handle)?;
 
     // decode interests and resolve the target handle
     let (interests, flags) = decode_interest(interest)?;
-    let target_handle = io_host::host_poll_resolve_target_handle(context, target)?;
+    let target_handle = io_host::host_poll_resolve_target_handle(binding, target)?;
 
     // forward registration into the selected backend
     let mut poller = poll.poller.lock();
@@ -393,14 +393,14 @@ pub(super) fn poll_register(
 
 /// Update one registered target in one io.poll instance.
 pub(super) fn poll_update(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PollHandle,
     target: ResourceId,
     key: u64,
     interest: PollInterest,
 ) -> RuntimeResult<()> {
     // resolve the poll instance payload
-    let poll = resolve_poll_resource(context, handle)?;
+    let poll = resolve_poll_resource(binding, handle)?;
 
     // decode interests and update the existing registration
     let (interests, flags) = decode_interest(interest)?;
@@ -410,12 +410,12 @@ pub(super) fn poll_update(
 
 /// Remove one registered target from one io.poll instance.
 pub(super) fn poll_deregister(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PollHandle,
     target: ResourceId,
 ) -> RuntimeResult<()> {
     // resolve the poll instance payload
-    let poll = resolve_poll_resource(context, handle)?;
+    let poll = resolve_poll_resource(binding, handle)?;
 
     // forward deregistration into the selected backend
     let mut poller = poll.poller.lock();
@@ -424,7 +424,7 @@ pub(super) fn poll_deregister(
 
 /// Wait for one batch of poll events from one io.poll instance.
 pub(super) fn poll_wait(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PollHandle,
     timeout_nanos: u64,
     max_events: u32,
@@ -439,7 +439,7 @@ pub(super) fn poll_wait(
     }
 
     // resolve the poll instance payload
-    let poll = resolve_poll_resource(context, handle)?;
+    let poll = resolve_poll_resource(binding, handle)?;
 
     // consume queued synthetic events before polling the backend
     let mut output = Vec::with_capacity(max_events as usize);
@@ -578,11 +578,11 @@ pub(super) fn io_error_from_errno(operation: &'static str) -> Box<RuntimeError> 
 
 /// Resolve one completion resource payload from one completion handle.
 fn resolve_completion_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<Arc<CompletionResource>> {
     // resolve one completion resource payload
-    let resolved = context
+    let resolved = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -609,8 +609,8 @@ fn resolve_completion_resource(
 }
 
 /// Return whether one event token exists and carries the event label.
-fn event_exists(context: &BindingCallContext, token: EventToken) -> bool {
-    context
+fn event_exists(binding: &BindingCallContext, token: EventToken) -> bool {
+    binding
         .agent()
         .resources
         .with_entry(ResourceId(token.0), |entry| {
@@ -630,18 +630,18 @@ fn event_attachment_map() -> &'static Mutex<EventAttachmentRegistry> {
 }
 
 /// Return the attachment key for one event token in one agent.
-fn event_attachment_key(context: &BindingCallContext, token: EventToken) -> (usize, ResourceId) {
-    (agent_key(context), ResourceId(token.0))
+fn event_attachment_key(binding: &BindingCallContext, token: EventToken) -> (usize, ResourceId) {
+    (agent_key(binding), ResourceId(token.0))
 }
 
 /// Resolve one io_uring payload from one uring handle.
 #[cfg(target_os = "linux")]
 fn resolve_uring_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UringHandle,
 ) -> RuntimeResult<Arc<UringResource>> {
     // resolve one io_uring resource payload
-    let resolved = context
+    let resolved = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -692,7 +692,7 @@ fn remaining_timeout(timeoutns: u64, started_at: Instant) -> Option<u64> {
 
 /// Map one completion operation into one proactor request.
 fn completion_request(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     operation: CompletionOperation,
 ) -> RuntimeResult<ProactorRequest> {
     // reject reserved runtime tokens
@@ -708,7 +708,7 @@ fn completion_request(
     let request = match operation.kind {
         CompletionOperationKind::Read => {
             let target = io_host::host_completion_resolve_target_handle(
-                context,
+                binding,
                 operation.target,
                 "destack.io.completion.submit",
             )?;
@@ -739,7 +739,7 @@ fn completion_request(
         }
         CompletionOperationKind::Write => {
             let target = io_host::host_completion_resolve_target_handle(
-                context,
+                binding,
                 operation.target,
                 "destack.io.completion.submit",
             )?;
@@ -770,7 +770,7 @@ fn completion_request(
         }
         CompletionOperationKind::Accept => {
             let target = io_host::host_completion_resolve_target_handle(
-                context,
+                binding,
                 operation.target,
                 "destack.io.completion.submit",
             )?;
@@ -785,7 +785,7 @@ fn completion_request(
         }
         CompletionOperationKind::Connect => {
             let target = io_host::host_completion_resolve_target_handle(
-                context,
+                binding,
                 operation.target,
                 "destack.io.completion.submit",
             )?;
@@ -823,7 +823,7 @@ fn completion_request(
         }
         CompletionOperationKind::Fsync => {
             let target = io_host::host_completion_resolve_target_handle(
-                context,
+                binding,
                 operation.target,
                 "destack.io.completion.submit",
             )?;
@@ -835,7 +835,7 @@ fn completion_request(
         }
         CompletionOperationKind::Send => {
             let target = io_host::host_completion_resolve_target_handle(
-                context,
+                binding,
                 operation.target,
                 "destack.io.completion.submit",
             )?;
@@ -861,7 +861,7 @@ fn completion_request(
         }
         CompletionOperationKind::Receive => {
             let target = io_host::host_completion_resolve_target_handle(
-                context,
+                binding,
                 operation.target,
                 "destack.io.completion.submit",
             )?;
@@ -942,7 +942,7 @@ fn enqueue_proactor_completions(
 
 /// Map one backend completion into one io completion event.
 fn completion_event_from_backend(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     completion: ProactorCompletion,
 ) -> RuntimeResult<CompletionEvent> {
     // encode one base flag mask from the completion kind
@@ -963,7 +963,7 @@ fn completion_event_from_backend(
     match completion.data {
         ProactorCompletionData::Accept { handle, .. } => {
             flags |= COMPLETION_FLAG_ACCEPT;
-            result = io_host::host_completion_register_accepted_handle(context, handle)?;
+            result = io_host::host_completion_register_accepted_handle(binding, handle)?;
         }
         ProactorCompletionData::Timeout => {
             flags |= COMPLETION_FLAG_TIMEOUT;
@@ -982,7 +982,7 @@ fn completion_event_from_backend(
 
 /// Open one completion queue instance.
 pub(super) fn completion_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     entries: u32,
 ) -> RuntimeResult<resource::CompletionHandle> {
     // reject empty queue capacities
@@ -1002,27 +1002,27 @@ pub(super) fn completion_open(
     let entry = ResourceEntry::new(ResourceKind::Completion)
         .with_label(COMPLETION_RESOURCE_LABEL)
         .with_payload(resource);
-    let handle = context
+    let handle = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     Ok(resource::CompletionHandle(handle))
 }
 
 /// Close one completion queue instance.
 pub(super) fn completion_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<()> {
     // verify this handle points to one completion resource
-    resolve_completion_resource(context, handle)?;
+    resolve_completion_resource(binding, handle)?;
 
     // remove one completion queue from the resource table
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(handle.0, Some(context.engine()));
+        .remove_and_finalize(handle.0, Some(binding.engine()));
     if !removed {
         return Err(completion_not_found("destack.io.completion.close", handle));
     }
@@ -1032,13 +1032,13 @@ pub(super) fn completion_close(
 
 /// Submit one completion operation.
 pub(super) fn completion_submit(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CompletionHandle,
     operation: CompletionOperation,
 ) -> RuntimeResult<()> {
     // resolve the completion backend and map the request
-    let resource = resolve_completion_resource(context, handle)?;
-    let request = completion_request(context, operation)?;
+    let resource = resolve_completion_resource(binding, handle)?;
+    let request = completion_request(binding, operation)?;
 
     // submit one request and track the pending token
     let mut state = resource.state.lock();
@@ -1060,7 +1060,7 @@ pub(super) fn completion_submit(
 
 /// Submit a batch of completion operations.
 pub(super) fn completion_submit_batch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CompletionHandle,
     operationwords: NativeSlice<u64>,
     operationcount: u32,
@@ -1087,13 +1087,13 @@ pub(super) fn completion_submit_batch(
     }
 
     // resolve the completion backend and predecode requests
-    let resource = resolve_completion_resource(context, handle)?;
+    let resource = resolve_completion_resource(binding, handle)?;
     let mut requests = Vec::with_capacity(operationcount as usize);
     let mut seen = HashSet::with_capacity(operationcount as usize);
     for index in 0..operationcount {
         let base = index as usize * operationwordstride as usize;
         let operation = decode_completion_operation_words(&words[base..base + 8], index)?;
-        let request = completion_request(context, operation)?;
+        let request = completion_request(binding, operation)?;
         if !seen.insert(request.token) {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "operationwords",
@@ -1137,7 +1137,7 @@ pub(super) fn completion_submit_batch(
 
 /// Enter the completion backend and stage completions for later waits.
 pub(super) fn completion_enter(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CompletionHandle,
     mincomplete: u32,
     timeoutns: u64,
@@ -1153,7 +1153,7 @@ pub(super) fn completion_enter(
     }
 
     // resolve the completion backend state
-    let resource = resolve_completion_resource(context, handle)?;
+    let resource = resolve_completion_resource(binding, handle)?;
     let mut state = resource.state.lock();
 
     // fast path: queue already satisfies the requested minimum
@@ -1188,17 +1188,17 @@ pub(super) fn completion_enter(
 
 /// Cancel queued operations for one completion target.
 pub(super) fn completion_cancel(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CompletionHandle,
     target: ResourceId,
 ) -> RuntimeResult<u32> {
     // reject unknown targets early
-    if !context.agent().resources.contains(target) {
+    if !binding.agent().resources.contains(target) {
         return Err(io_target_not_found("destack.io.completion.cancel", target));
     }
 
     // resolve one completion backend and collect matching tokens
-    let resource = resolve_completion_resource(context, handle)?;
+    let resource = resolve_completion_resource(binding, handle)?;
     let mut state = resource.state.lock();
     let tokens = state
         .pending_tokens
@@ -1216,7 +1216,7 @@ pub(super) fn completion_cancel(
 
 /// Wait for completion events from one completion queue.
 pub(super) fn completion_wait(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CompletionHandle,
     timeoutns: u64,
     maxevents: u32,
@@ -1231,7 +1231,7 @@ pub(super) fn completion_wait(
     }
 
     // resolve one completion backend state
-    let resource = resolve_completion_resource(context, handle)?;
+    let resource = resolve_completion_resource(binding, handle)?;
     let mut state = resource.state.lock();
 
     // poll the backend when the staged queue is empty
@@ -1246,14 +1246,14 @@ pub(super) fn completion_wait(
         let Some(completion) = state.queued_completions.pop_front() else {
             break;
         };
-        events.push(completion_event_from_backend(context, completion)?);
+        events.push(completion_event_from_backend(binding, completion)?);
     }
 
     Ok(events)
 }
 
 /// Open one user-event token.
-pub(super) fn event_open(context: &BindingCallContext, initial: u64) -> RuntimeResult<EventToken> {
+pub(super) fn event_open(binding: &BindingCallContext, initial: u64) -> RuntimeResult<EventToken> {
     // reject one reserved eventfd increment value
     if initial == u64::MAX {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -1263,31 +1263,31 @@ pub(super) fn event_open(context: &BindingCallContext, initial: u64) -> RuntimeR
         .boxed());
     }
 
-    io_host::host_event_open(context, initial)
+    io_host::host_event_open(binding, initial)
 }
 
 /// Close one user-event token.
-pub(super) fn event_close(context: &BindingCallContext, token: EventToken) -> RuntimeResult<()> {
+pub(super) fn event_close(binding: &BindingCallContext, token: EventToken) -> RuntimeResult<()> {
     // verify this token points to one event resource
-    if !event_exists(context, token) {
+    if !event_exists(binding, token) {
         return Err(event_not_found("destack.io.event.close", token));
     }
 
     // remove stored poll attachments for this token
-    let attachment_key = event_attachment_key(context, token);
+    let attachment_key = event_attachment_key(binding, token);
     event_attachment_map().lock().remove(&attachment_key);
 
-    io_host::host_event_close(context, token)
+    io_host::host_event_close(binding, token)
 }
 
 /// Signal one user-event token.
 pub(super) fn event_signal(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     token: EventToken,
     value: u64,
 ) -> RuntimeResult<()> {
     // verify this token points to one event resource
-    if !event_exists(context, token) {
+    if !event_exists(binding, token) {
         return Err(event_not_found("destack.io.event.signal", token));
     }
 
@@ -1310,10 +1310,10 @@ pub(super) fn event_signal(
     }
 
     // dispatch the host-level signal first
-    io_host::host_event_signal(context, token, value)?;
+    io_host::host_event_signal(binding, token, value)?;
 
     // read current attachment mappings before dispatch
-    let attachment_key = event_attachment_key(context, token);
+    let attachment_key = event_attachment_key(binding, token);
     let attachments = event_attachment_map()
         .lock()
         .get(&attachment_key)
@@ -1323,7 +1323,7 @@ pub(super) fn event_signal(
     // queue one synthetic poll event for each attachment
     let mut stale_targets = Vec::new();
     for (target, key) in attachments {
-        let result = queue_attached_poll_event(context, target, key, value);
+        let result = queue_attached_poll_event(binding, target, key, value);
         if result.is_err() {
             stale_targets.push(target);
         }
@@ -1351,23 +1351,23 @@ pub(super) fn event_signal(
 
 /// Attach one event token to one runtime target.
 pub(super) fn event_attach(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     token: EventToken,
     target: ResourceId,
     key: u64,
 ) -> RuntimeResult<()> {
     // reject unknown target ids early
-    if !context.agent().resources.contains(target) {
+    if !binding.agent().resources.contains(target) {
         return Err(io_target_not_found("destack.io.event.attach", target));
     }
 
     // reject unknown event tokens early
-    if !event_exists(context, token) {
+    if !event_exists(binding, token) {
         return Err(event_not_found("destack.io.event.attach", token));
     }
 
     // reject non-poll targets for attachment routing
-    if resolve_poll_resource(context, resource::PollHandle(target)).is_err() {
+    if resolve_poll_resource(binding, resource::PollHandle(target)).is_err() {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "target",
             "target resource is not one poll handle",
@@ -1376,7 +1376,7 @@ pub(super) fn event_attach(
     }
 
     // store the attachment routing metadata for this token
-    let attachment_key = event_attachment_key(context, token);
+    let attachment_key = event_attachment_key(binding, token);
     let mut attachments = event_attachment_map().lock();
     attachments
         .entry(attachment_key)
@@ -1388,7 +1388,7 @@ pub(super) fn event_attach(
 
 /// Open one io_uring ring resource.
 pub(super) fn uring_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     parameters: UringParameters,
 ) -> RuntimeResult<resource::UringHandle> {
     #[cfg(target_os = "linux")]
@@ -1459,36 +1459,36 @@ pub(super) fn uring_open(
         let entry = ResourceEntry::new(ResourceKind::Uring)
             .with_label(URING_RESOURCE_LABEL)
             .with_payload(resource);
-        let handle = context
+        let handle = binding
             .agent()
             .resources
-            .insert(entry, Some(context.engine()));
+            .insert(entry, Some(binding.engine()));
 
         return Ok(resource::UringHandle(handle));
     }
 
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, parameters);
+        let _ = (binding, parameters);
         Err(RuntimeError::from(PlatformError::not_supported("destack.io.uring.open")).boxed())
     }
 }
 
 /// Close one io_uring ring resource.
 pub(super) fn uring_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]
     {
         // verify this handle points to one io_uring resource
-        resolve_uring_resource(context, handle)?;
+        resolve_uring_resource(binding, handle)?;
 
         // remove one ring resource from the table
-        let removed = context
+        let removed = binding
             .agent()
             .resources
-            .remove_and_finalize(handle.0, Some(context.engine()));
+            .remove_and_finalize(handle.0, Some(binding.engine()));
         if !removed {
             return Err(uring_not_found("destack.io.uring.close", handle));
         }
@@ -1498,20 +1498,20 @@ pub(super) fn uring_close(
 
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, handle);
+        let _ = (binding, handle);
         Err(RuntimeError::from(PlatformError::not_supported("destack.io.uring.close")).boxed())
     }
 }
 
 /// Query normalized io_uring feature support for one ring.
 pub(super) fn uring_features(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UringHandle,
 ) -> RuntimeResult<UringFeatures> {
     #[cfg(target_os = "linux")]
     {
         // resolve one ring resource and read kernel parameter flags
-        let resource = resolve_uring_resource(context, handle)?;
+        let resource = resolve_uring_resource(binding, handle)?;
         let state = resource.state.lock();
         let parameters = state.ring.params();
 
@@ -1526,14 +1526,14 @@ pub(super) fn uring_features(
 
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, handle);
+        let _ = (binding, handle);
         Err(RuntimeError::from(PlatformError::not_supported("destack.io.uring.features")).boxed())
     }
 }
 
 /// Register fixed files for one io_uring ring.
 pub(super) fn uring_register_files(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UringHandle,
     files: NativeSlice<resource::ResourceId>,
 ) -> RuntimeResult<()> {
@@ -1543,7 +1543,7 @@ pub(super) fn uring_register_files(
         let files = unsafe { files.as_slice()? };
         let mut descriptors = Vec::with_capacity(files.len());
         for file in files {
-            let fd = context
+            let fd = binding
                 .agent()
                 .resources
                 .with_entry(*file, |entry| entry.fd())
@@ -1553,7 +1553,7 @@ pub(super) fn uring_register_files(
         }
 
         // register the fixed file set with the ring
-        let resource = resolve_uring_resource(context, handle)?;
+        let resource = resolve_uring_resource(binding, handle)?;
         let mut state = resource.state.lock();
         state
             .ring
@@ -1567,7 +1567,7 @@ pub(super) fn uring_register_files(
 
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, handle, files);
+        let _ = (binding, handle, files);
         Err(RuntimeError::from(PlatformError::not_supported(
             "destack.io.uring.registerFiles",
         ))
@@ -1577,13 +1577,13 @@ pub(super) fn uring_register_files(
 
 /// Unregister fixed files for one io_uring ring.
 pub(super) fn uring_unregister_files(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]
     {
         // resolve one ring resource and skip when no files are registered
-        let resource = resolve_uring_resource(context, handle)?;
+        let resource = resolve_uring_resource(binding, handle)?;
         let mut state = resource.state.lock();
         if !state.has_registered_files {
             return Ok(());
@@ -1602,7 +1602,7 @@ pub(super) fn uring_unregister_files(
 
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, handle);
+        let _ = (binding, handle);
         Err(RuntimeError::from(PlatformError::not_supported(
             "destack.io.uring.unregisterFiles",
         ))
@@ -1612,7 +1612,7 @@ pub(super) fn uring_unregister_files(
 
 /// Register fixed buffers for one io_uring ring.
 pub(super) fn uring_register_buffers(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UringHandle,
     addresses: NativeSlice<u64>,
     lengths: NativeSlice<u32>,
@@ -1644,7 +1644,7 @@ pub(super) fn uring_register_buffers(
         }
 
         // register the fixed buffer set with the ring
-        let resource = resolve_uring_resource(context, handle)?;
+        let resource = resolve_uring_resource(binding, handle)?;
         let mut state = resource.state.lock();
         unsafe {
             state
@@ -1660,7 +1660,7 @@ pub(super) fn uring_register_buffers(
 
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, handle, addresses, lengths);
+        let _ = (binding, handle, addresses, lengths);
         Err(RuntimeError::from(PlatformError::not_supported(
             "destack.io.uring.registerBuffers",
         ))
@@ -1670,13 +1670,13 @@ pub(super) fn uring_register_buffers(
 
 /// Unregister fixed buffers for one io_uring ring.
 pub(super) fn uring_unregister_buffers(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]
     {
         // resolve one ring resource and skip when no buffers are registered
-        let resource = resolve_uring_resource(context, handle)?;
+        let resource = resolve_uring_resource(binding, handle)?;
         let mut state = resource.state.lock();
         if !state.has_registered_buffers {
             return Ok(());
@@ -1695,7 +1695,7 @@ pub(super) fn uring_unregister_buffers(
 
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, handle);
+        let _ = (binding, handle);
         Err(RuntimeError::from(PlatformError::not_supported(
             "destack.io.uring.unregisterBuffers",
         ))

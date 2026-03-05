@@ -46,7 +46,7 @@ struct OpenHow {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_open_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut FileHandle,
     path: PathBytes,
     flags: OpenFlags,
@@ -68,10 +68,10 @@ pub(crate) unsafe fn destack_fs_open_bytes(
     let entry = ResourceEntry::new(ResourceKind::File)
         .with_fd(fd)
         .with_finalizer(FdFinalizer { fd });
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     unsafe {
         *out = FileHandle(resource_id);
     }
@@ -97,7 +97,7 @@ pub(crate) unsafe fn destack_fs_open_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_open_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut FileHandle,
     path: PathUtf16,
     flags: OpenFlags,
@@ -110,7 +110,7 @@ pub(crate) unsafe fn destack_fs_open_utf16(
 
     // open the file by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_open_bytes(context, out, path, flags, mode)
+        destack_fs_open_bytes(binding, out, path, flags, mode)
     })
 }
 
@@ -132,7 +132,7 @@ pub(crate) unsafe fn destack_fs_open_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_opendir_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DirectoryHandle,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -158,10 +158,10 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
     let entry = ResourceEntry::new(ResourceKind::Directory)
         .with_payload(resource)
         .with_finalizer(FdFinalizer { fd });
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     unsafe {
         *out = DirectoryHandle(resource_id);
     }
@@ -186,7 +186,7 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_opendir_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DirectoryHandle,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -197,7 +197,7 @@ pub(crate) unsafe fn destack_fs_opendir_utf16(
 
     // open the directory by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_opendir_bytes(context, out, path)
+        destack_fs_opendir_bytes(binding, out, path)
     })
 }
 
@@ -219,7 +219,7 @@ pub(crate) unsafe fn destack_fs_opendir_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut FileHandle,
     dir: DirectoryHandle,
     path: PathBytes,
@@ -232,7 +232,7 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
     }
 
     // open the file on unix platforms
-    let resource = directory_resource(context, dir)?;
+    let resource = directory_resource(binding, dir)?;
     let path = resolve_path_bytes_cstring(path, "path")?;
     let open_flags = flags.0 as libc::c_int | libc::O_CLOEXEC;
     let fd = unsafe {
@@ -249,10 +249,10 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
     let entry = ResourceEntry::new(ResourceKind::File)
         .with_fd(fd)
         .with_finalizer(FdFinalizer { fd });
-    let handle = context
+    let handle = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     unsafe {
         *out = FileHandle(handle);
     }
@@ -277,7 +277,7 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut FileHandle,
     dir: DirectoryHandle,
     path: PathUtf16,
@@ -291,7 +291,7 @@ pub(crate) unsafe fn destack_fs_openat_utf16(
 
     // open the file by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_openat_bytes(context, out, dir, path, flags, mode)
+        destack_fs_openat_bytes(binding, out, dir, path, flags, mode)
     })
 }
 
@@ -313,7 +313,7 @@ pub(crate) unsafe fn destack_fs_openat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat2_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut FileHandle,
     dir: DirectoryHandle,
     path: PathBytes,
@@ -327,7 +327,7 @@ pub(crate) unsafe fn destack_fs_openat2_bytes(
     // open the file using openat2 on linux platforms
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
-        let resource = directory_resource(context, dir)?;
+        let resource = directory_resource(binding, dir)?;
         let path = resolve_path_bytes_cstring(path, "path")?;
         let mut open_how: OpenHow = unsafe { std::mem::zeroed() };
         open_how.flags = how.flags.0 as u64;
@@ -348,10 +348,10 @@ pub(crate) unsafe fn destack_fs_openat2_bytes(
         let entry = ResourceEntry::new(ResourceKind::File)
             .with_fd(fd)
             .with_finalizer(FdFinalizer { fd });
-        let handle = context
+        let handle = binding
             .agent()
             .resources
-            .insert(entry, Some(context.engine()));
+            .insert(entry, Some(binding.engine()));
         unsafe {
             *out = FileHandle(handle);
         }
@@ -366,7 +366,7 @@ pub(crate) unsafe fn destack_fs_openat2_bytes(
                 RuntimeError::from(PlatformError::not_supported("destack.fs.openat2")).boxed(),
             );
         }
-        unsafe { destack_fs_openat_bytes(context, out, dir, path, how.flags, how.mode) }
+        unsafe { destack_fs_openat_bytes(binding, out, dir, path, how.flags, how.mode) }
     }
 }
 
@@ -388,7 +388,7 @@ pub(crate) unsafe fn destack_fs_openat2_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat2_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut FileHandle,
     dir: DirectoryHandle,
     path: PathUtf16,
@@ -401,7 +401,7 @@ pub(crate) unsafe fn destack_fs_openat2_utf16(
 
     // open the file by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
-        destack_fs_openat2_bytes(context, out, dir, path, how)
+        destack_fs_openat2_bytes(binding, out, dir, path, how)
     })
 }
 
@@ -423,15 +423,15 @@ pub(crate) unsafe fn destack_fs_openat2_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_opendir(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DirectoryHandle,
     path: OsPath,
 ) -> RuntimeResult<()> {
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_opendir_bytes(context, out, path) },
-        |path| unsafe { destack_fs_opendir_utf16(context, out, path) },
+        |path| unsafe { destack_fs_opendir_bytes(binding, out, path) },
+        |path| unsafe { destack_fs_opendir_utf16(binding, out, path) },
     )
 }
 
@@ -453,7 +453,7 @@ pub(crate) unsafe fn destack_fs_opendir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut FileHandle,
     path: OsPath,
     flags: OpenFlags,
@@ -462,8 +462,8 @@ pub(crate) unsafe fn destack_fs_open(
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_open_bytes(context, out, path, flags, mode) },
-        |path| unsafe { destack_fs_open_utf16(context, out, path, flags, mode) },
+        |path| unsafe { destack_fs_open_bytes(binding, out, path, flags, mode) },
+        |path| unsafe { destack_fs_open_utf16(binding, out, path, flags, mode) },
     )
 }
 
@@ -485,7 +485,7 @@ pub(crate) unsafe fn destack_fs_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut FileHandle,
     dir: DirectoryHandle,
     path: OsPath,
@@ -495,8 +495,8 @@ pub(crate) unsafe fn destack_fs_openat(
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_openat_bytes(context, out, dir, path, flags, mode) },
-        |path| unsafe { destack_fs_openat_utf16(context, out, dir, path, flags, mode) },
+        |path| unsafe { destack_fs_openat_bytes(binding, out, dir, path, flags, mode) },
+        |path| unsafe { destack_fs_openat_utf16(binding, out, dir, path, flags, mode) },
     )
 }
 
@@ -518,7 +518,7 @@ pub(crate) unsafe fn destack_fs_openat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat2(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut FileHandle,
     dir: DirectoryHandle,
     path: OsPath,
@@ -527,7 +527,7 @@ pub(crate) unsafe fn destack_fs_openat2(
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_openat2_bytes(context, out, dir, path, how) },
-        |path| unsafe { destack_fs_openat2_utf16(context, out, dir, path, how) },
+        |path| unsafe { destack_fs_openat2_bytes(binding, out, dir, path, how) },
+        |path| unsafe { destack_fs_openat2_utf16(binding, out, dir, path, how) },
     )
 }

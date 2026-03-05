@@ -37,7 +37,7 @@ impl ResourceFinalizer for UnixFileFinalizer {
 
 /// Register one non-terminal file handle for tty detection tests.
 #[cfg(unix)]
-fn register_non_terminal_file(context: &BindingCallContext) -> RuntimeResult<FileHandle> {
+fn register_non_terminal_file(binding: &BindingCallContext) -> RuntimeResult<FileHandle> {
     let path = std::ffi::CString::new("/dev/null").map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument("invalid null path")).boxed()
     })?;
@@ -50,10 +50,10 @@ fn register_non_terminal_file(context: &BindingCallContext) -> RuntimeResult<Fil
         .with_label("tty.test.non-terminal")
         .with_fd(descriptor)
         .with_finalizer(UnixFileFinalizer { descriptor });
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     Ok(FileHandle(resource_id))
 }

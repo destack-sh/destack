@@ -10,7 +10,7 @@ use super::host::{DisplayEventRuntimeState, WindowRuntimeState};
 
 /// Runtime-owned display module state.
 #[derive(Default)]
-pub struct PlatformDisplayState {
+pub(crate) struct PlatformDisplayState {
     /// Runtime-owned windows display-event state.
     #[cfg(windows)]
     display_event_runtime_state: OnceLock<Arc<DisplayEventRuntimeState>>,

@@ -15,7 +15,7 @@ pub(crate) use window::*;
 
 /// List windows display backend descriptors for the active host.
 pub(super) fn display_backend_descriptors(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> Vec<DisplayBackendDescriptor> {
-    core::backend_descriptors(context)
+    core::backend_descriptors(binding)
 }

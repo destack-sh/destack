@@ -23,14 +23,14 @@ use super::key::{require_key_usage, resolve_host_secret_key_material, resolve_se
 
 /// Encrypt one payload in one shot.
 pub(crate) fn cipher_encrypt(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: resource::CryptoKeyHandle,
     parameters: CryptoCipherParameters,
     payload: &[u8],
 ) -> RuntimeResult<(Vec<u8>, Vec<u8>)> {
     // enforce key usage policy
     require_key_usage(
-        context,
+        binding,
         key,
         KEY_USAGE_ENCRYPT,
         "destack.crypto.cipher.encrypt",
@@ -38,10 +38,10 @@ pub(crate) fn cipher_encrypt(
 
     // route host-managed secret-key lanes through host cipher primitives
     if let Some((host_key, store_kind, key_algorithm)) =
-        resolve_host_secret_key_material(context, key, "destack.crypto.cipher.encrypt")?
+        resolve_host_secret_key_material(binding, key, "destack.crypto.cipher.encrypt")?
     {
         return crypto_host::host_key_cipher_encrypt(
-            context,
+            binding,
             &host_key,
             store_kind,
             key_algorithm,
@@ -52,7 +52,7 @@ pub(crate) fn cipher_encrypt(
     }
 
     // resolve secret key bytes and keep them zeroized on all paths
-    let key_bytes = resolve_secret_key_bytes(context, key, "destack.crypto.cipher.encrypt")?;
+    let key_bytes = resolve_secret_key_bytes(binding, key, "destack.crypto.cipher.encrypt")?;
     let key_bytes = Zeroizing::new(key_bytes);
 
     // process cipher operation
@@ -67,14 +67,14 @@ pub(crate) fn cipher_encrypt(
 
 /// Decrypt one payload in one shot.
 pub(crate) fn cipher_decrypt(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: resource::CryptoKeyHandle,
     parameters: CryptoCipherParameters,
     payload: &[u8],
 ) -> RuntimeResult<Vec<u8>> {
     // enforce key usage policy
     require_key_usage(
-        context,
+        binding,
         key,
         KEY_USAGE_DECRYPT,
         "destack.crypto.cipher.decrypt",
@@ -82,10 +82,10 @@ pub(crate) fn cipher_decrypt(
 
     // route host-managed secret-key lanes through host cipher primitives
     if let Some((host_key, store_kind, key_algorithm)) =
-        resolve_host_secret_key_material(context, key, "destack.crypto.cipher.decrypt")?
+        resolve_host_secret_key_material(binding, key, "destack.crypto.cipher.decrypt")?
     {
         return crypto_host::host_key_cipher_decrypt(
-            context,
+            binding,
             &host_key,
             store_kind,
             key_algorithm,
@@ -96,7 +96,7 @@ pub(crate) fn cipher_decrypt(
     }
 
     // resolve secret key bytes and keep them zeroized on all paths
-    let key_bytes = resolve_secret_key_bytes(context, key, "destack.crypto.cipher.decrypt")?;
+    let key_bytes = resolve_secret_key_bytes(binding, key, "destack.crypto.cipher.decrypt")?;
     let key_bytes = Zeroizing::new(key_bytes);
 
     // process cipher operation and return decrypted output
@@ -113,7 +113,7 @@ pub(crate) fn cipher_decrypt(
 
 /// Open one streaming cipher context.
 pub(crate) fn cipher_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key: resource::CryptoKeyHandle,
     direction: CryptoCipherDirection,
     parameters: CryptoCipherParameters,
@@ -125,11 +125,11 @@ pub(crate) fn cipher_open(
     };
 
     // enforce key usage policy
-    require_key_usage(context, key, required_usage, "destack.crypto.cipher.open")?;
+    require_key_usage(binding, key, required_usage, "destack.crypto.cipher.open")?;
 
     // build host-secret stream state when this key is host managed
     if let Some((material, store_kind, key_algorithm)) =
-        resolve_host_secret_key_material(context, key, "destack.crypto.cipher.open")?
+        resolve_host_secret_key_material(binding, key, "destack.crypto.cipher.open")?
     {
         let (nonce, additional_data, decrypt_tag) =
             prepare_host_cipher_stream_parameters(direction, parameters)?;
@@ -150,16 +150,16 @@ pub(crate) fn cipher_open(
         let entry = ResourceEntry::new(CRYPTO_CIPHER_RESOURCE_KIND)
             .with_label(CRYPTO_CIPHER_LABEL)
             .with_payload(Arc::new(Mutex::new(resource_value)));
-        let resource_id = context
+        let resource_id = binding
             .agent()
             .resources
-            .insert(entry, Some(context.engine()));
+            .insert(entry, Some(binding.engine()));
 
         return Ok(resource::CryptoCipherHandle(resource_id));
     }
 
     // resolve key bytes and initialize streaming cipher state
-    let key = resolve_secret_key_bytes(context, key, "destack.crypto.cipher.open")?;
+    let key = resolve_secret_key_bytes(binding, key, "destack.crypto.cipher.open")?;
     let crypter = build_cipher_state(&key, direction, parameters, "destack.crypto.cipher.open")?;
 
     // publish cipher resource
@@ -172,23 +172,23 @@ pub(crate) fn cipher_open(
     let entry = ResourceEntry::new(CRYPTO_CIPHER_RESOURCE_KIND)
         .with_label(CRYPTO_CIPHER_LABEL)
         .with_payload(Arc::new(Mutex::new(resource_value)));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     Ok(resource::CryptoCipherHandle(resource_id))
 }
 
 /// Update one streaming cipher with additional data.
 pub(crate) fn cipher_update_additional_data(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoCipherHandle,
     additional_data: &[u8],
 ) -> RuntimeResult<()> {
     // resolve and lock cipher resource
     let resource = resolve_cipher_resource(
-        context,
+        binding,
         handle,
         "destack.crypto.cipher.updateAdditionalData",
     )?;
@@ -211,12 +211,12 @@ pub(crate) fn cipher_update_additional_data(
 
 /// Update one streaming cipher with payload bytes.
 pub(crate) fn cipher_update(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoCipherHandle,
     payload: &[u8],
 ) -> RuntimeResult<Vec<u8>> {
     // resolve and lock cipher resource
-    let resource = resolve_cipher_resource(context, handle, "destack.crypto.cipher.update")?;
+    let resource = resolve_cipher_resource(binding, handle, "destack.crypto.cipher.update")?;
     let mut resource = resource.lock();
 
     // cache algorithm lane before mutable state match
@@ -282,7 +282,7 @@ fn cipher_finish_software(
 
 /// Finalize one host-secret cipher stream.
 fn cipher_finish_host_secret(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     algorithm: CryptoCipherAlgorithm,
     direction: CryptoCipherDirection,
     tag_length_bytes: u32,
@@ -301,16 +301,16 @@ fn cipher_finish_host_secret(
     // materialize runtime parameters from buffered host-stream state
     let parameters = CryptoCipherParameters {
         algorithm,
-        nonce: context.store_slice(nonce.to_vec()),
-        additional_data: context.store_slice(additional_data.to_vec()),
-        tag: context.store_slice(decrypt_tag.to_vec()),
+        nonce: binding.store_slice(nonce.to_vec()),
+        additional_data: binding.store_slice(additional_data.to_vec()),
+        tag: binding.store_slice(decrypt_tag.to_vec()),
         tag_length_bytes,
     };
 
     // dispatch one-shot host cipher for buffered stream payload
     if direction == CryptoCipherDirection::Encrypt {
         return crypto_host::host_key_cipher_encrypt(
-            context,
+            binding,
             material,
             store_kind,
             key_algorithm,
@@ -321,7 +321,7 @@ fn cipher_finish_host_secret(
     }
 
     let output = crypto_host::host_key_cipher_decrypt(
-        context,
+        binding,
         material,
         store_kind,
         key_algorithm,
@@ -335,12 +335,12 @@ fn cipher_finish_host_secret(
 
 /// Finalize one streaming cipher context.
 pub(crate) fn cipher_finish(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoCipherHandle,
     final_payload: &[u8],
 ) -> RuntimeResult<(Vec<u8>, Vec<u8>)> {
     // resolve and lock cipher resource
-    let resource = resolve_cipher_resource(context, handle, "destack.crypto.cipher.finish")?;
+    let resource = resolve_cipher_resource(binding, handle, "destack.crypto.cipher.finish")?;
     let mut resource = resource.lock();
 
     // finalize the active stream state
@@ -365,7 +365,7 @@ pub(crate) fn cipher_finish(
             additional_data,
             payload,
         } => cipher_finish_host_secret(
-            context,
+            binding,
             algorithm,
             direction,
             tag_length_bytes,
@@ -383,12 +383,12 @@ pub(crate) fn cipher_finish(
 
 /// Reset one streaming cipher context with new parameters.
 pub(crate) fn cipher_reset(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoCipherHandle,
     parameters: CryptoCipherParameters,
 ) -> RuntimeResult<()> {
     // resolve and lock cipher resource
-    let resource = resolve_cipher_resource(context, handle, "destack.crypto.cipher.reset")?;
+    let resource = resolve_cipher_resource(binding, handle, "destack.crypto.cipher.reset")?;
     let mut resource = resource.lock();
 
     // replace active algorithm parameters
@@ -423,14 +423,14 @@ pub(crate) fn cipher_reset(
 
 /// Close one streaming cipher context.
 pub(crate) fn cipher_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoCipherHandle,
 ) -> RuntimeResult<()> {
     // remove cipher resource entry
-    let Some(entry) = context
+    let Some(entry) = binding
         .agent()
         .resources
-        .remove(handle.0, Some(context.engine()))
+        .remove(handle.0, Some(binding.engine()))
     else {
         return Err(core_platform::io_not_found(
             "destack.crypto.cipher.close",

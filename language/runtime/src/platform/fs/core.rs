@@ -26,13 +26,13 @@ use crate::runtime::BindingCallContext;
 /// Resolve a file or directory handle to its resource entry.
 #[cfg_attr(not(any(unix, windows)), allow(dead_code))]
 pub(crate) fn require_resource<T>(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     id: ResourceId,
     kind: ResourceKind,
     label: &str,
     with_entry: impl FnOnce(&ResourceEntry) -> RuntimeResult<T>,
 ) -> RuntimeResult<T> {
-    let resolved = context
+    let resolved = binding
         .agent()
         .resources
         .with_entry(id, |entry| {
@@ -116,23 +116,23 @@ pub(crate) fn os_path_to_utf8_string(path: OsPath, label: &str) -> RuntimeResult
 }
 
 /// Encode a UTF-8 path string into an `OsPath`.
-pub(crate) fn os_path_from_utf8_string(context: &BindingCallContext, value: String) -> OsPath {
+pub(crate) fn os_path_from_utf8_string(binding: &BindingCallContext, value: String) -> OsPath {
     #[cfg(unix)]
     {
-        let bytes = PathBytesAbi::<NativeAbi>(context.store_array(value.into_bytes()));
+        let bytes = PathBytesAbi::<NativeAbi>(binding.store_array(value.into_bytes()));
         path_ref_from_bytes(bytes)
     }
 
     #[cfg(windows)]
     {
         let utf16_values = value.encode_utf16().collect::<Vec<_>>();
-        let utf16 = PathUtf16Abi::<NativeAbi>(context.store_array(utf16_values));
+        let utf16 = PathUtf16Abi::<NativeAbi>(binding.store_array(utf16_values));
         path_ref_from_utf16(utf16)
     }
 
     #[cfg(not(any(unix, windows)))]
     {
-        let bytes = PathBytesAbi::<NativeAbi>(context.store_array(value.into_bytes()));
+        let bytes = PathBytesAbi::<NativeAbi>(binding.store_array(value.into_bytes()));
         path_ref_from_bytes(bytes)
     }
 }
@@ -221,7 +221,7 @@ pub(crate) fn with_utf16_pair_as_bytes<T>(
 /// Convert one byte path into UTF-16 data for UTF-16 handlers.
 #[allow(dead_code)]
 pub(crate) fn path_utf16_from_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
     label: &str,
 ) -> RuntimeResult<PathUtf16> {
@@ -235,7 +235,7 @@ pub(crate) fn path_utf16_from_bytes(
     })?;
     let utf16: Vec<u16> = text.encode_utf16().collect();
 
-    Ok(PathUtf16Abi::<NativeAbi>(context.store_array(utf16)))
+    Ok(PathUtf16Abi::<NativeAbi>(binding.store_array(utf16)))
 }
 
 /// Dispatch one OsPath through byte or UTF-16 handlers.
@@ -291,13 +291,13 @@ pub(crate) fn with_path_ref_pair<T>(
 
 /// Build an `OsPath` from a host path.
 #[cfg(any(unix, windows))]
-pub(crate) fn os_path_from_path(context: &BindingCallContext, path: &Path) -> OsPath {
+pub(crate) fn os_path_from_path(binding: &BindingCallContext, path: &Path) -> OsPath {
     #[cfg(unix)]
     {
         use std::os::unix::ffi::OsStrExt;
 
         let bytes = path.as_os_str().as_bytes().to_vec();
-        let bytes = PathBytesAbi::<NativeAbi>(context.store_array(bytes));
+        let bytes = PathBytesAbi::<NativeAbi>(binding.store_array(bytes));
         path_ref_from_bytes(bytes)
     }
 
@@ -306,7 +306,7 @@ pub(crate) fn os_path_from_path(context: &BindingCallContext, path: &Path) -> Os
         use std::os::windows::ffi::OsStrExt;
 
         let utf16 = path.as_os_str().encode_wide().collect::<Vec<_>>();
-        let utf16 = PathUtf16Abi::<NativeAbi>(context.store_array(utf16));
+        let utf16 = PathUtf16Abi::<NativeAbi>(binding.store_array(utf16));
         path_ref_from_utf16(utf16)
     }
 }
@@ -411,10 +411,10 @@ struct WatchResource {
 /// Resolve one watch resource payload from the runtime table.
 #[cfg(any(unix, windows))]
 fn watch_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: WatchHandle,
 ) -> RuntimeResult<Arc<Mutex<WatchResource>>> {
-    require_resource(context, handle.0, ResourceKind::Watch, "watch", |entry| {
+    require_resource(binding, handle.0, ResourceKind::Watch, "watch", |entry| {
         entry
             .payload_cloned::<Arc<Mutex<WatchResource>>>()
             .ok_or_else(invalid_watch_handle_error)
@@ -608,7 +608,7 @@ fn drain_watch_backend_events(resource: &mut WatchResource) {
 
 /// Build one native watch event from one queued record.
 #[cfg(any(unix, windows))]
-fn watch_event_from_queued(context: &BindingCallContext, record: WatchQueuedEvent) -> WatchEvent {
+fn watch_event_from_queued(binding: &BindingCallContext, record: WatchQueuedEvent) -> WatchEvent {
     let metadata = WatchEventMetadata {
         cookie: record.cookie,
     };
@@ -616,7 +616,7 @@ fn watch_event_from_queued(context: &BindingCallContext, record: WatchQueuedEven
     match record.kind {
         WatchQueuedKind::Create => {
             let path = if let Some(path) = record.path.as_deref() {
-                os_path_from_path(context, path)
+                os_path_from_path(binding, path)
             } else {
                 empty_os_path()
             };
@@ -628,7 +628,7 @@ fn watch_event_from_queued(context: &BindingCallContext, record: WatchQueuedEven
         }
         WatchQueuedKind::Remove => {
             let path = if let Some(path) = record.path.as_deref() {
-                os_path_from_path(context, path)
+                os_path_from_path(binding, path)
             } else {
                 empty_os_path()
             };
@@ -640,7 +640,7 @@ fn watch_event_from_queued(context: &BindingCallContext, record: WatchQueuedEven
         }
         WatchQueuedKind::Modify => {
             let path = if let Some(path) = record.path.as_deref() {
-                os_path_from_path(context, path)
+                os_path_from_path(binding, path)
             } else {
                 empty_os_path()
             };
@@ -652,12 +652,12 @@ fn watch_event_from_queued(context: &BindingCallContext, record: WatchQueuedEven
         }
         WatchQueuedKind::Rename => {
             let path = if let Some(path) = record.path.as_deref() {
-                os_path_from_path(context, path)
+                os_path_from_path(binding, path)
             } else {
                 empty_os_path()
             };
             let related_path = if let Some(related_path) = record.related_path.as_deref() {
-                os_path_from_path(context, related_path)
+                os_path_from_path(binding, related_path)
             } else {
                 empty_os_path()
             };
@@ -670,7 +670,7 @@ fn watch_event_from_queued(context: &BindingCallContext, record: WatchQueuedEven
         }
         WatchQueuedKind::Metadata => {
             let path = if let Some(path) = record.path.as_deref() {
-                os_path_from_path(context, path)
+                os_path_from_path(binding, path)
             } else {
                 empty_os_path()
             };
@@ -690,7 +690,7 @@ fn watch_event_from_queued(context: &BindingCallContext, record: WatchQueuedEven
 /// Open one filesystem watch handle.
 #[cfg(any(unix, windows))]
 pub(crate) fn open_watch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: &Path,
     options: WatchOptions,
 ) -> RuntimeResult<WatchHandle> {
@@ -727,25 +727,25 @@ pub(crate) fn open_watch(
     };
     let entry =
         ResourceEntry::new(ResourceKind::Watch).with_payload(Arc::new(Mutex::new(resource)));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     Ok(WatchHandle(resource_id))
 }
 
 /// Close one filesystem watch handle.
 #[cfg(any(unix, windows))]
-pub(crate) fn close_watch(context: &BindingCallContext, handle: WatchHandle) -> RuntimeResult<()> {
+pub(crate) fn close_watch(binding: &BindingCallContext, handle: WatchHandle) -> RuntimeResult<()> {
     // ensure the handle still points to one watch resource
-    let _resource = watch_resource(context, handle)?;
+    let _resource = watch_resource(binding, handle)?;
 
     // remove the watch resource and drop the backend watcher
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(handle.0, Some(context.engine()));
+        .remove_and_finalize(handle.0, Some(binding.engine()));
     if !removed {
         return Err(invalid_watch_handle_error());
     }
@@ -756,11 +756,11 @@ pub(crate) fn close_watch(context: &BindingCallContext, handle: WatchHandle) -> 
 /// Read one filesystem watch batch from a watch handle.
 #[cfg(any(unix, windows))]
 pub(crate) fn read_watch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: WatchHandle,
 ) -> RuntimeResult<WatchBatch> {
     // resolve the watch resource and drain pending backend events
-    let resource = watch_resource(context, handle)?;
+    let resource = watch_resource(binding, handle)?;
     let mut resource = resource.lock();
     let _watcher = &resource.watcher;
     drain_watch_backend_events(&mut resource);
@@ -774,12 +774,12 @@ pub(crate) fn read_watch(
     // encode queued events into ABI payloads
     let mut events = Vec::with_capacity(queued_events.len());
     for queued_event in queued_events {
-        let event = watch_event_from_queued(context, queued_event);
+        let event = watch_event_from_queued(binding, queued_event);
         events.push(event);
     }
 
     Ok(WatchBatch {
-        events: context.store_array(events),
+        events: binding.store_array(events),
         overflowed,
     })
 }

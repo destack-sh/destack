@@ -22,15 +22,15 @@ use crate::platform::crypto::core::write_out_bytes;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_agreement_derive_shared_secret(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     privatekey: resource::CryptoKeyHandle,
     peerpublickey: resource::CryptoKeyHandle,
     algorithm: CryptoKeyAgreementAlgorithm,
 ) -> RuntimeResult<()> {
     let output =
-        crypto_core::agreement_derive_shared_secret(context, privatekey, peerpublickey, algorithm)?;
-    unsafe { write_out_bytes(context, out, output) }
+        crypto_core::agreement_derive_shared_secret(binding, privatekey, peerpublickey, algorithm)?;
+    unsafe { write_out_bytes(binding, out, output) }
 }
 
 /// Derive one symmetric key from one local private key and one peer public key.
@@ -50,12 +50,12 @@ pub(crate) unsafe fn destack_crypto_agreement_derive_shared_secret(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_agreement_derive_key(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     privatekey: resource::CryptoKeyHandle,
     peerpublickey: resource::CryptoKeyHandle,
     request: CryptoAgreementDeriveKeyRequest,
 ) -> RuntimeResult<()> {
-    let output = crypto_core::agreement_derive_key(context, privatekey, peerpublickey, request)?;
-    unsafe { write_out_bytes(context, out, output) }
+    let output = crypto_core::agreement_derive_key(binding, privatekey, peerpublickey, request)?;
+    unsafe { write_out_bytes(binding, out, output) }
 }

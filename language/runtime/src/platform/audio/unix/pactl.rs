@@ -52,13 +52,13 @@ pub(crate) struct PactlMonitorRuntimeState {
 
 /// Return runtime-owned pactl monitor state.
 #[cfg(target_os = "linux")]
-fn pactl_monitor_runtime_state(context: &BindingCallContext) -> Arc<PactlMonitorRuntimeState> {
-    let runtime_state = context
-        .runtime()
+fn pactl_monitor_runtime_state(binding: &BindingCallContext) -> Arc<PactlMonitorRuntimeState> {
+    let runtime_state = binding
+        .agent()
         .platform_state
         .audio
         .pactl_monitor_runtime_state(PactlMonitorRuntimeState::default);
-    register_runtime_finalizer(context, &runtime_state);
+    register_runtime_finalizer(binding, &runtime_state);
 
     runtime_state
 }
@@ -66,7 +66,7 @@ fn pactl_monitor_runtime_state(context: &BindingCallContext) -> Arc<PactlMonitor
 /// Register one runtime finalizer for pactl monitor teardown.
 #[cfg(target_os = "linux")]
 fn register_runtime_finalizer(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     runtime_state: &Arc<PactlMonitorRuntimeState>,
 ) {
     if runtime_state
@@ -77,7 +77,7 @@ fn register_runtime_finalizer(
     }
 
     let runtime_state = Arc::clone(runtime_state);
-    context.runtime().finalizers.register(move || {
+    binding.agent().finalizers.register(move || {
         let mut monitor_registry = runtime_state
             .monitors
             .lock()
@@ -132,14 +132,14 @@ pub(crate) fn native_device_events_supported(backend: audio_core::AudioBackend) 
 
 /// Start native device-event monitoring for one pactl-based backend.
 pub(crate) fn start_native_device_event_monitor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     backend: audio_core::AudioBackend,
     backend_name: &'static str,
 ) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]
     {
         let _ = backend_name;
-        let runtime_state = pactl_monitor_runtime_state(context);
+        let runtime_state = pactl_monitor_runtime_state(binding);
 
         let mut monitor_slot = runtime_state
             .monitors
@@ -151,7 +151,7 @@ pub(crate) fn start_native_device_event_monitor(
         }
 
         let stop = Arc::new(AtomicBool::new(false));
-        let runtime_state = audio_core::audio_event_runtime_state(context);
+        let runtime_state = audio_core::audio_event_runtime_state(binding);
         let process_id = Arc::new(AtomicU32::new(0));
         let stop_signal = Arc::clone(&stop);
         let callback_runtime_state = Arc::clone(&runtime_state);
@@ -202,12 +202,12 @@ pub(crate) fn start_native_device_event_monitor(
 
 /// Stop native device-event monitoring for one pactl-based backend.
 pub(crate) fn stop_native_device_event_monitor(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     backend: audio_core::AudioBackend,
 ) {
     #[cfg(target_os = "linux")]
     {
-        let runtime_state = pactl_monitor_runtime_state(_context);
+        let runtime_state = pactl_monitor_runtime_state(binding);
         let monitor = {
             let mut monitor_slot = runtime_state
                 .monitors

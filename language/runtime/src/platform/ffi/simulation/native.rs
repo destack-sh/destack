@@ -28,7 +28,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_ffi_call(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     symbol: resource::SymbolHandle,
     abi: u32,
@@ -36,7 +36,7 @@ pub(crate) unsafe fn destack_ffi_call(
     arguments: NativeSlice<u8>,
     resultsize: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, symbol, abi, flags, arguments, resultsize);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.call.invoke")).boxed())
@@ -60,10 +60,10 @@ pub(crate) unsafe fn destack_ffi_call(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_ffi_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::LibraryHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.library.close")).boxed())
@@ -87,12 +87,12 @@ pub(crate) unsafe fn destack_ffi_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_ffi_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::LibraryHandle,
     path: fs::OsPath,
     flags: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, path, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.library.open")).boxed())
@@ -116,11 +116,11 @@ pub(crate) unsafe fn destack_ffi_open(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_ffi_address(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     pointer: FfiPointer,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, pointer);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.pointer.address")).boxed())
@@ -144,11 +144,11 @@ pub(crate) unsafe fn destack_ffi_address(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_ffi_from_address(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut FfiPointer,
     address: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, address);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -175,11 +175,11 @@ pub(crate) unsafe fn destack_ffi_from_address(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_ffi_symbol_address(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     symbol: resource::SymbolHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, symbol);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.symbol.address")).boxed())
@@ -203,12 +203,12 @@ pub(crate) unsafe fn destack_ffi_symbol_address(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_ffi_symbol_lookup(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::SymbolHandle,
     library: resource::LibraryHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, library, name);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.symbol.lookup")).boxed())

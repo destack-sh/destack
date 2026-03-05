@@ -38,7 +38,7 @@ use std::ffi::{CStr, CString};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_chdir(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
     let path = core_fs::os_path_to_utf8_string(path, "path")?;
@@ -85,7 +85,7 @@ pub(crate) unsafe fn destack_process_chdir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_cwd(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut fs::OsPath,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -94,7 +94,7 @@ pub(crate) unsafe fn destack_process_cwd(
 
     let cwd = process_cwd()?;
 
-    let path = core_fs::os_path_from_utf8_string(context, cwd);
+    let path = core_fs::os_path_from_utf8_string(binding, cwd);
 
     unsafe {
         *out = path;

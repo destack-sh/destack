@@ -6,7 +6,7 @@ use super::credentials::NoReplaceWriteRuntimeState;
 
 /// Runtime-owned OS module state.
 #[derive(Default)]
-pub struct PlatformOsState {
+pub(crate) struct PlatformOsState {
     /// Runtime-owned no-replace write guard state.
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     no_replace_write_runtime_state: OnceLock<Arc<NoReplaceWriteRuntimeState>>,

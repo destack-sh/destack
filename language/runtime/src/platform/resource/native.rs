@@ -43,14 +43,14 @@ fn resource_not_found(op: &'static str, id: resource::ResourceId) -> Box<Runtime
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_resource_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     id: resource::ResourceId,
 ) -> RuntimeResult<()> {
     // remove the entry and run finalization
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(id, Some(context.engine()));
+        .remove_and_finalize(id, Some(binding.engine()));
     if !removed {
         return Err(resource_not_found("destack.resource.id.close", id));
     }
@@ -76,7 +76,7 @@ pub(crate) unsafe fn destack_resource_close(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_resource_kind(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::ResourceKind,
     id: resource::ResourceId,
 ) -> RuntimeResult<()> {
@@ -84,7 +84,7 @@ pub(crate) unsafe fn destack_resource_kind(
     unsafe { check_out_pointer(out, "out")? };
 
     // load the kind for the requested resource
-    let kind = context
+    let kind = binding
         .agent()
         .resources
         .with_entry(id, |entry| entry.kind)
@@ -116,14 +116,14 @@ pub(crate) unsafe fn destack_resource_kind(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_resource_remove(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     id: resource::ResourceId,
 ) -> RuntimeResult<()> {
     // remove the entry and run finalization
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(id, Some(context.engine()));
+        .remove_and_finalize(id, Some(binding.engine()));
     if !removed {
         return Err(resource_not_found("destack.resource.id.remove", id));
     }
@@ -149,12 +149,12 @@ pub(crate) unsafe fn destack_resource_remove(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_resource_transfer(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     id: resource::ResourceId,
     ownership: resource::ResourceOwnership,
 ) -> RuntimeResult<()> {
     // validate that the source resource exists
-    let exists = context.agent().resources.contains(id);
+    let exists = binding.agent().resources.contains(id);
     if !exists {
         return Err(resource_not_found("destack.resource.id.transfer", id));
     }

@@ -86,12 +86,12 @@ fn thread_spawn_error(code: libc::c_int) -> Box<RuntimeError> {
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_detach(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ThreadHandle,
 ) -> RuntimeResult<()> {
     // remove and validate the thread resource
     let resource = core_thread::take_thread_resource::<resource_thread::ThreadResource>(
-        context,
+        binding,
         handle.0,
         "handle",
         "thread handle",
@@ -124,7 +124,7 @@ pub(crate) unsafe fn destack_thread_detach(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_join(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: ThreadHandle,
 ) -> RuntimeResult<()> {
@@ -135,7 +135,7 @@ pub(crate) unsafe fn destack_thread_join(
 
     // remove and validate the thread resource
     let resource = core_thread::take_thread_resource::<resource_thread::ThreadResource>(
-        context,
+        binding,
         handle.0,
         "handle",
         "thread handle",
@@ -179,7 +179,7 @@ pub(crate) unsafe fn destack_thread_join(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_spawn(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut ThreadHandle,
     entry: NativeStringRef,
     argument: u64,
@@ -264,7 +264,7 @@ pub(crate) unsafe fn destack_thread_spawn(
 
     // store one spawned thread resource
     let resource_id = core_thread::insert_thread_resource(
-        context,
+        binding,
         ResourceKind::Thread,
         "thread",
         resource_thread::ThreadResource { native_handle },

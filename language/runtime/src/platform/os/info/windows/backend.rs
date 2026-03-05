@@ -77,21 +77,21 @@ fn boot_time_unix_ns_value() -> RuntimeResult<u64> {
 }
 
 /// Read one host system-information snapshot from windows APIs.
-pub(crate) fn read_system_snapshot(_context: &BindingCallContext) -> RuntimeResult<SystemSnapshot> {
+pub(crate) fn read_system_snapshot(binding: &BindingCallContext) -> RuntimeResult<SystemSnapshot> {
     system_snapshot_value()
 }
 
 /// Read one host uptime value from windows APIs.
-pub(crate) fn read_uptime_ns(_context: &BindingCallContext) -> RuntimeResult<u64> {
+pub(crate) fn read_uptime_ns(binding: &BindingCallContext) -> RuntimeResult<u64> {
     uptime_ns_value()
 }
 
 /// Read one host boot-time value from windows APIs.
-pub(crate) fn read_boot_time_unix_ns(_context: &BindingCallContext) -> RuntimeResult<u64> {
+pub(crate) fn read_boot_time_unix_ns(binding: &BindingCallContext) -> RuntimeResult<u64> {
     boot_time_unix_ns_value()
 }
 
 /// Read one host load-average payload from windows APIs.
-pub(crate) fn read_load_average(_context: &BindingCallContext) -> RuntimeResult<LoadAverage> {
+pub(crate) fn read_load_average(binding: &BindingCallContext) -> RuntimeResult<LoadAverage> {
     Err(RuntimeError::from(PlatformError::not_supported(OS_INFO_LOAD_AVERAGE_OPERATION)).boxed())
 }

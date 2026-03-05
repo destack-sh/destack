@@ -22,12 +22,12 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_event_attach(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     token: EventToken,
     target: resource::ResourceId,
     key: u64,
 ) -> RuntimeResult<()> {
-    io_core::event_attach(context, token, target, key)
+    io_core::event_attach(binding, token, target, key)
 }
 
 /// Close a user-event token.
@@ -48,10 +48,10 @@ pub(crate) unsafe fn destack_io_event_attach(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_event_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     token: EventToken,
 ) -> RuntimeResult<()> {
-    io_core::event_close(context, token)
+    io_core::event_close(binding, token)
 }
 
 /// Create a user-event token.
@@ -72,12 +72,12 @@ pub(crate) unsafe fn destack_io_event_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_event_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut EventToken,
     initial: u64,
 ) -> RuntimeResult<()> {
     require_out(out)?;
-    let value = io_core::event_open(context, initial)?;
+    let value = io_core::event_open(binding, initial)?;
 
     unsafe {
         out.write(value);
@@ -105,9 +105,9 @@ pub(crate) unsafe fn destack_io_event_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_event_signal(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     token: EventToken,
     argument_value: u64,
 ) -> RuntimeResult<()> {
-    io_core::event_signal(context, token, argument_value)
+    io_core::event_signal(binding, token, argument_value)
 }

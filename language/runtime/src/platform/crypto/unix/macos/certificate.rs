@@ -220,10 +220,10 @@ pub(crate) fn host_store_certificate_lane_is_available(kind: CryptoStoreKind) ->
 
 /// Return whether one host store lane supports certificate write operations.
 pub(crate) fn host_store_supports_certificate_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
-    if filesystem_mode_enabled(context) {
+    if filesystem_mode_enabled(binding) {
         return false;
     }
 
@@ -232,13 +232,13 @@ pub(crate) fn host_store_supports_certificate_write(
 
 /// Import one certificate into one host store lane.
 pub(crate) fn host_store_import_certificate(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     certificate: &X509,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // filesystem mode does not currently expose certificate persistence
-    if filesystem_mode_enabled(context) {
+    if filesystem_mode_enabled(binding) {
         return Err(core_platform::not_supported(operation));
     }
 
@@ -318,13 +318,13 @@ pub(crate) fn host_store_import_certificate(
 
 /// Delete one certificate from one host store lane.
 pub(crate) fn host_store_delete_certificate(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     certificate: &X509,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // filesystem mode does not currently expose certificate persistence
-    if filesystem_mode_enabled(context) {
+    if filesystem_mode_enabled(binding) {
         return Err(core_platform::not_supported(operation));
     }
 

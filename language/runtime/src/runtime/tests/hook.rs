@@ -5,7 +5,6 @@ use destack_workspace::{RuntimeOptions, RuntimeSelector};
 
 use crate::diagnostic::RuntimeError;
 use crate::host::Host;
-use crate::platform::PlatformContext;
 use crate::runtime::bindings::BindingDescriptor;
 use crate::runtime::policy::{CustomEffect, Rule, Trigger};
 use crate::runtime::{Agent, BindingCallContext, Hook, HookDecision, HookSelector, World};
@@ -16,7 +15,7 @@ fn test_on_before_binding_allows_hook_callback_deny() {
     // create one agent in one shared world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent = Agent::new_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
+    let agent = Agent::new_in_world(Vec::new(), &options, world.clone())
         .expect("agent should construct in world");
     let host = Host::from_runtime_options(&options);
 
@@ -64,7 +63,7 @@ fn test_on_before_binding_respects_hook_selector_binding_glob() {
     // create one agent in one shared world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent = Agent::new_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
+    let agent = Agent::new_in_world(Vec::new(), &options, world.clone())
         .expect("agent should construct in world");
     let host = Host::from_runtime_options(&options);
 
@@ -97,7 +96,7 @@ fn test_on_before_binding_dispatches_custom_effect_handler() {
     // create one agent in one shared world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent = Agent::new_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
+    let agent = Agent::new_in_world(Vec::new(), &options, world.clone())
         .expect("agent should construct in world");
     let host = Host::from_runtime_options(&options);
 

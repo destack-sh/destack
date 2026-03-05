@@ -16,11 +16,11 @@ const POSIX_SNAPSHOT_CONFIG: SnapshotConfig = SnapshotConfig {
 };
 
 pub(crate) fn host_store_persistence_backend_is_available(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
     unix_core::host_store_persistence_backend_is_available_with_resolver(
-        context,
+        binding,
         kind,
         keystore_path,
     )
@@ -28,11 +28,11 @@ pub(crate) fn host_store_persistence_backend_is_available(
 
 /// Return whether one host store lane is currently available.
 pub(crate) fn host_store_lane_is_available(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
     unix_core::host_store_lane_is_available_with_resolver(
-        context,
+        binding,
         kind,
         has_system_certificate_source,
         keystore_path,
@@ -41,11 +41,11 @@ pub(crate) fn host_store_lane_is_available(
 
 /// Open one host store lane and return certificate snapshots.
 pub(crate) fn open_host_store_certificates(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> RuntimeResult<Vec<X509>> {
     unix_core::open_host_store_certificates_with_collector(
-        context,
+        binding,
         kind,
         collect_system_certificates,
         CRYPTO_STORE_OPEN_OPERATION,
@@ -54,12 +54,12 @@ pub(crate) fn open_host_store_certificates(
 
 /// Load one backend host-key snapshot payload for one store lane.
 pub(crate) fn load_host_key_snapshot_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     operation: &'static str,
 ) -> RuntimeResult<Option<Vec<u8>>> {
     unix_core::load_host_key_snapshot_bytes_with_resolver(
-        context,
+        binding,
         kind,
         POSIX_SNAPSHOT_CONFIG,
         keystore_path,
@@ -69,13 +69,13 @@ pub(crate) fn load_host_key_snapshot_bytes(
 
 /// Store one backend host-key snapshot payload for one store lane.
 pub(crate) fn store_host_key_snapshot_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     snapshot_bytes: &[u8],
     operation: &'static str,
 ) -> RuntimeResult<()> {
     unix_core::store_host_key_snapshot_bytes_with_resolver(
-        context,
+        binding,
         kind,
         snapshot_bytes,
         POSIX_SNAPSHOT_CONFIG,

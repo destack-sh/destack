@@ -218,7 +218,7 @@ fn boot_time_unix_ns_value() -> RuntimeResult<u64> {
 }
 
 /// Read one host system-information snapshot from unix APIs.
-pub(crate) fn read_system_snapshot(_context: &BindingCallContext) -> RuntimeResult<SystemSnapshot> {
+pub(crate) fn read_system_snapshot(_binding: &BindingCallContext) -> RuntimeResult<SystemSnapshot> {
     // query host topology and memory fields
     let cpu_count = cpu_count_value()?;
     let page_size = page_size_bytes()?;
@@ -234,17 +234,17 @@ pub(crate) fn read_system_snapshot(_context: &BindingCallContext) -> RuntimeResu
 }
 
 /// Read one host uptime value from unix APIs.
-pub(crate) fn read_uptime_ns(_context: &BindingCallContext) -> RuntimeResult<u64> {
+pub(crate) fn read_uptime_ns(_binding: &BindingCallContext) -> RuntimeResult<u64> {
     uptime_ns_value()
 }
 
 /// Read one host boot-time value from unix APIs.
-pub(crate) fn read_boot_time_unix_ns(_context: &BindingCallContext) -> RuntimeResult<u64> {
+pub(crate) fn read_boot_time_unix_ns(_binding: &BindingCallContext) -> RuntimeResult<u64> {
     boot_time_unix_ns_value()
 }
 
 /// Read one host load-average payload from unix APIs.
-pub(crate) fn read_load_average(_context: &BindingCallContext) -> RuntimeResult<LoadAverage> {
+pub(crate) fn read_load_average(_binding: &BindingCallContext) -> RuntimeResult<LoadAverage> {
     #[cfg(target_os = "android")]
     {
         // parse load averages from procfs on android

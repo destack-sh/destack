@@ -33,12 +33,12 @@ impl ResourceFinalizer for SocketFinalizer {
 
 /// Resolve a socket descriptor from a handle.
 pub(super) fn socket_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
 ) -> RuntimeResult<SOCKET> {
     // resolve the socket resource
     let socket =
-        core_net::require_resource(context, handle.0, ResourceKind::Socket, "socket", |entry| {
+        core_net::require_resource(binding, handle.0, ResourceKind::Socket, "socket", |entry| {
             entry.socket().ok_or_else(|| {
                 RuntimeError::from(PlatformError::generic(
                     None,
@@ -104,7 +104,7 @@ pub(super) fn with_socket_address_raw<T>(
 
 /// Encode raw sockaddr storage into a socket address payload.
 pub(super) fn socket_address_raw_from_storage(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     storage: &SOCKADDR_STORAGE,
     length: i32,
 ) -> RuntimeResult<SocketAddress> {
@@ -122,7 +122,7 @@ pub(super) fn socket_address_raw_from_storage(
         let pointer = storage as *const _ as *const u8;
         std::slice::from_raw_parts(pointer, length as usize)
     };
-    let bytes = context.store_array(bytes.to_vec());
+    let bytes = binding.store_array(bytes.to_vec());
 
     // build the raw address payload
     Ok(SocketAddress {
@@ -134,12 +134,12 @@ pub(super) fn socket_address_raw_from_storage(
 
 /// Resolve a listener descriptor from a handle.
 pub(super) fn listener_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ListenerHandle,
 ) -> RuntimeResult<SOCKET> {
     // resolve the listener resource
     let socket = core_net::require_resource(
-        context,
+        binding,
         handle.0,
         ResourceKind::Listener,
         "listener",

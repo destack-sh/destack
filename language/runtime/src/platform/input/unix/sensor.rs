@@ -13,19 +13,21 @@ use crate::runtime::BindingCallContext;
 
 /// Resolve one opened sensor-capable Unix binding.
 fn resolve_sensor_binding(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<input_core::UnixInputBinding> {
-    // validate one opened unix input binding
-    let binding = input_core::resolve_unix_input_binding(context, handle, operation)?;
+    // validate one opened unix input resolved_binding
+    let resolved_binding = input_core::resolve_unix_input_binding(binding, handle, operation)?;
 
     // require platform-backed descriptor lanes for sensor streams
-    if binding.backend != input_core::UnixInputBackend::Platform || binding.descriptor.is_none() {
+    if resolved_binding.backend != input_core::UnixInputBackend::Platform
+        || resolved_binding.descriptor.is_none()
+    {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
 
-    Ok(binding)
+    Ok(resolved_binding)
 }
 
 /// Return sensor capability metadata for one opened Unix binding.
@@ -119,7 +121,7 @@ fn disabled_sensor_stream(operation: &'static str) -> Box<RuntimeError> {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_configure(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputSensorEffectiveConfig,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
@@ -130,17 +132,18 @@ pub(crate) unsafe fn destack_input_sensor_configure(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // resolve one opened sensor-capable binding
-    let binding = resolve_sensor_binding(context, handle, "destack.input.sensor.configure")?;
+    // resolve one opened sensor-capable resolved_binding
+    let resolved_binding =
+        resolve_sensor_binding(binding, handle, "destack.input.sensor.configure")?;
 
     // validate stream configuration and requested lane
     input_validation::validate_sensor_sample_rate_hz(config.sample_rate_hz)?;
-    validate_sensor_kind(&binding, kind)?;
+    validate_sensor_kind(&resolved_binding, kind)?;
 
     // persist one effective configuration for this sensor lane
     let effective = effective_sensor_config(config);
     input_core::set_sensor_stream_config(
-        context,
+        binding,
         handle,
         kind,
         effective,
@@ -173,7 +176,7 @@ pub(crate) unsafe fn destack_input_sensor_configure(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<InputSensorDescriptor>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -182,11 +185,11 @@ pub(crate) unsafe fn destack_input_sensor_list(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // resolve one opened sensor-capable binding
-    let binding = resolve_sensor_binding(context, handle, "destack.input.sensor.list")?;
+    // resolve one opened sensor-capable resolved_binding
+    let resolved_binding = resolve_sensor_binding(binding, handle, "destack.input.sensor.list")?;
 
     // query backend-reported sensor capability metadata
-    let infos = sensor_infos_for_binding(&binding)?;
+    let infos = sensor_infos_for_binding(&resolved_binding)?;
     if infos.is_empty() {
         return Err(
             RuntimeError::from(PlatformError::not_supported("destack.input.sensor.list")).boxed(),
@@ -195,7 +198,7 @@ pub(crate) unsafe fn destack_input_sensor_list(
 
     // write capability output payload
     unsafe {
-        *out = context.store_array(infos);
+        *out = binding.store_array(infos);
     }
 
     Ok(())
@@ -219,7 +222,7 @@ pub(crate) unsafe fn destack_input_sensor_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputSensorSample,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
@@ -229,19 +232,19 @@ pub(crate) unsafe fn destack_input_sensor_read(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // resolve one opened sensor-capable binding
-    let binding = resolve_sensor_binding(context, handle, "destack.input.sensor.read")?;
-    validate_sensor_kind(&binding, kind)?;
+    // resolve one opened sensor-capable resolved_binding
+    let resolved_binding = resolve_sensor_binding(binding, handle, "destack.input.sensor.read")?;
+    validate_sensor_kind(&resolved_binding, kind)?;
 
     // require explicit stream enable before blocking reads
-    if !input_core::is_sensor_stream_enabled(context, handle, kind, "destack.input.sensor.read")? {
+    if !input_core::is_sensor_stream_enabled(binding, handle, kind, "destack.input.sensor.read")? {
         return Err(disabled_sensor_stream("destack.input.sensor.read"));
     }
 
     // route sensor reads by backend support
     #[cfg(target_os = "linux")]
     {
-        let Some(descriptor) = binding.descriptor else {
+        let Some(descriptor) = resolved_binding.descriptor else {
             return Err(RuntimeError::from(PlatformError::not_supported(
                 "destack.input.sensor.read",
             ))
@@ -250,7 +253,7 @@ pub(crate) unsafe fn destack_input_sensor_read(
 
         let sample = input_linux::read_linux_sensor_sample(
             descriptor,
-            binding.device_kind,
+            resolved_binding.device_kind,
             kind,
             false,
             "destack.input.sensor.read",
@@ -264,7 +267,7 @@ pub(crate) unsafe fn destack_input_sensor_read(
 
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = binding;
+        let _ = resolved_binding;
         Err(RuntimeError::from(PlatformError::not_supported("destack.input.sensor.read")).boxed())
     }
 }
@@ -286,7 +289,7 @@ pub(crate) unsafe fn destack_input_sensor_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputSensorSample,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
@@ -296,12 +299,12 @@ pub(crate) unsafe fn destack_input_sensor_try_read(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // resolve one opened sensor-capable binding
-    let binding = resolve_sensor_binding(context, handle, "destack.input.sensor.tryRead")?;
-    validate_sensor_kind(&binding, kind)?;
+    // resolve one opened sensor-capable resolved_binding
+    let resolved_binding = resolve_sensor_binding(binding, handle, "destack.input.sensor.tryRead")?;
+    validate_sensor_kind(&resolved_binding, kind)?;
 
     // require explicit stream enable before nonblocking reads
-    if !input_core::is_sensor_stream_enabled(context, handle, kind, "destack.input.sensor.tryRead")?
+    if !input_core::is_sensor_stream_enabled(binding, handle, kind, "destack.input.sensor.tryRead")?
     {
         return Err(disabled_sensor_stream("destack.input.sensor.tryRead"));
     }
@@ -309,7 +312,7 @@ pub(crate) unsafe fn destack_input_sensor_try_read(
     // route sensor reads by backend support
     #[cfg(target_os = "linux")]
     {
-        let Some(descriptor) = binding.descriptor else {
+        let Some(descriptor) = resolved_binding.descriptor else {
             return Err(RuntimeError::from(PlatformError::not_supported(
                 "destack.input.sensor.tryRead",
             ))
@@ -318,7 +321,7 @@ pub(crate) unsafe fn destack_input_sensor_try_read(
 
         let sample = input_linux::read_linux_sensor_sample(
             descriptor,
-            binding.device_kind,
+            resolved_binding.device_kind,
             kind,
             true,
             "destack.input.sensor.tryRead",
@@ -332,7 +335,7 @@ pub(crate) unsafe fn destack_input_sensor_try_read(
 
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = binding;
+        let _ = resolved_binding;
         Err(
             RuntimeError::from(PlatformError::not_supported("destack.input.sensor.tryRead"))
                 .boxed(),

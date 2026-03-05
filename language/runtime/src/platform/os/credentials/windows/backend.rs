@@ -84,7 +84,7 @@ const READ_AUTHENTICATION_PROMPT_MESSAGE_PREFIX: &str = "Account";
 
 /// Read one credential record from the Windows credential manager.
 pub(crate) fn read_credentials(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     query: &CredentialQueryOwned,
 ) -> RuntimeResult<CredentialRecordOwned> {
     // enforce explicit host authentication before reading one credential payload
@@ -173,7 +173,7 @@ fn authenticate_read_access(service: &str, account: &str) -> RuntimeResult<()> {
 
 /// Write one credential record through the Windows credential manager.
 pub(crate) fn write_credentials(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     options: &CredentialWriteOptionsOwned,
 ) -> RuntimeResult<()> {
     // reject access-group routes because windows credential manager has no access-group model
@@ -199,9 +199,9 @@ pub(crate) fn write_credentials(
     // reject duplicate writes when replacement is disabled
     if !options.replace_existing {
         // serialize check-then-write in-runtime: this is strict per runtime, not cross-process atomic
-        return with_no_replace_write_guard(context, || {
+        return with_no_replace_write_guard(binding, || {
             let already_present =
-                contains_credentials(context, &options.service, &options.account, None)?;
+                contains_credentials(binding, &options.service, &options.account, None)?;
             if already_present {
                 return Err(already_exists(
                     OS_CREDENTIALS_WRITE_OPERATION,
@@ -220,7 +220,7 @@ pub(crate) fn write_credentials(
 
 /// Delete one credential record from the Windows credential manager.
 pub(crate) fn delete_credentials(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     service: &str,
     account: &str,
     access_group: Option<&str>,
@@ -250,7 +250,7 @@ pub(crate) fn delete_credentials(
 
 /// Return whether one credential record exists in the Windows credential manager.
 pub(crate) fn contains_credentials(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     service: &str,
     account: &str,
     access_group: Option<&str>,
@@ -295,7 +295,7 @@ pub(crate) fn contains_credentials(
 
 /// Run one host authentication challenge on Windows.
 pub(crate) fn authenticate_credentials(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     options: &CredentialAuthenticationOptionsOwned,
 ) -> RuntimeResult<CredentialAuthenticationResult> {
     // route by explicit requirement policy

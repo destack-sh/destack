@@ -21,18 +21,6 @@ pub(crate) fn unknown_handle(
     invalid_argument(field, format!("unknown {handle_kind} handle"))
 }
 
-/// Build one unknown-handle runtime error with one numeric handle id.
-pub(crate) fn unknown_handle_with_id(
-    field: impl Into<String>,
-    handle_kind: impl Into<String>,
-    handle_id: u64,
-) -> Box<RuntimeError> {
-    let field = field.into();
-    let handle_kind = handle_kind.into();
-
-    invalid_argument(field, format!("unknown {handle_kind} handle {handle_id}"))
-}
-
 /// Build one not-supported runtime error.
 pub(crate) fn not_supported(operation: impl Into<String>) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::not_supported(operation)).boxed()

@@ -23,7 +23,7 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdtemp_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PathBytes,
     template: PathBytes,
 ) -> RuntimeResult<()> {
@@ -41,7 +41,7 @@ pub(crate) unsafe fn destack_fs_mkdtemp_bytes(
     // write the output
     let bytes = bytes_from_pathbuf(&path, "path")?;
     unsafe {
-        *out = PathBytesAbi::<NativeAbi>(context.store_array(bytes));
+        *out = PathBytesAbi::<NativeAbi>(binding.store_array(bytes));
     }
 
     Ok(())
@@ -65,7 +65,7 @@ pub(crate) unsafe fn destack_fs_mkdtemp_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdtemp_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PathUtf16,
     template: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -92,7 +92,7 @@ pub(crate) unsafe fn destack_fs_mkdtemp_utf16(
 
     // write the output
     unsafe {
-        *out = path_utf16_from_pathbuf(context, &path);
+        *out = path_utf16_from_pathbuf(binding, &path);
     }
 
     Ok(())
@@ -116,7 +116,7 @@ pub(crate) unsafe fn destack_fs_mkdtemp_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdtemp(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut OsPath,
     template: OsPath,
 ) -> RuntimeResult<()> {
@@ -128,7 +128,7 @@ pub(crate) unsafe fn destack_fs_mkdtemp(
         match template.encoding {
             PathEncoding::Bytes => {
                 let mut inner = core_fs::empty_path_bytes();
-                unsafe { destack_fs_mkdtemp_bytes(context, &mut inner, template.bytes) }?;
+                unsafe { destack_fs_mkdtemp_bytes(binding, &mut inner, template.bytes) }?;
                 unsafe {
                     *out = core_fs::path_ref_from_bytes(inner);
                 }
@@ -137,10 +137,10 @@ pub(crate) unsafe fn destack_fs_mkdtemp(
             PathEncoding::Utf16 => {
                 let bytes = core_fs::with_utf16_as_bytes(template.utf16, "template", |template| {
                     let mut inner = core_fs::empty_path_bytes();
-                    unsafe { destack_fs_mkdtemp_bytes(context, &mut inner, template) }?;
+                    unsafe { destack_fs_mkdtemp_bytes(binding, &mut inner, template) }?;
                     Ok(inner)
                 })?;
-                let utf16 = core_fs::path_utf16_from_bytes(context, bytes, "template")?;
+                let utf16 = core_fs::path_utf16_from_bytes(binding, bytes, "template")?;
                 unsafe {
                     *out = core_fs::path_ref_from_utf16(utf16);
                 }
@@ -154,7 +154,7 @@ pub(crate) unsafe fn destack_fs_mkdtemp(
         "template",
         |template| {
             let mut inner = core_fs::empty_path_bytes();
-            unsafe { destack_fs_mkdtemp_bytes(context, &mut inner, template) }?;
+            unsafe { destack_fs_mkdtemp_bytes(binding, &mut inner, template) }?;
             unsafe {
                 *out = core_fs::path_ref_from_bytes(inner);
             }
@@ -162,7 +162,7 @@ pub(crate) unsafe fn destack_fs_mkdtemp(
         },
         |template| {
             let mut inner = core_fs::empty_path_utf16();
-            unsafe { destack_fs_mkdtemp_utf16(context, &mut inner, template) }?;
+            unsafe { destack_fs_mkdtemp_utf16(binding, &mut inner, template) }?;
             unsafe {
                 *out = core_fs::path_ref_from_utf16(inner);
             }

@@ -259,8 +259,8 @@ fn vm_path_to_utf8(
 }
 
 /// Encode a UTF-8 path string into native `OsPath`.
-fn native_path_from_utf8(context: &BindingCallContext, value: &str) -> fs::OsPath {
-    core_fs::os_path_from_utf8_string(context, value.to_string())
+fn native_path_from_utf8(binding: &BindingCallContext, value: &str) -> fs::OsPath {
+    core_fs::os_path_from_utf8_string(binding, value.to_string())
 }
 
 /// Encode a UTF-8 path string into VM `OsPath`.

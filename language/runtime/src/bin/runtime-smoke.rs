@@ -1,11 +1,10 @@
-use destack_runtime::platform::PlatformContext;
 use destack_runtime::runtime::Runtime;
 use destack_workspace::RuntimeOptions;
 
 /// Execute one runtime smoke pass and return one summary string.
 fn run_runtime_smoke() -> Result<String, String> {
     // build a runtime with default options
-    let platform = PlatformContext::new(Vec::new());
+    let platform = Vec::new();
     let options = RuntimeOptions::default();
     let runtime = Runtime::from_options(platform, &options).map_err(|error| format!("{error}"))?;
     let primary_agent_id = runtime.primary_agent_id();

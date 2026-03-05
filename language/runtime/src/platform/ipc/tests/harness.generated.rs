@@ -12,9 +12,9 @@ use crate::platform::ipc::{
     UnixReceiveAncillaryVm, native as ipc_native, vm as ipc_vm,
 };
 use crate::platform::{
-    NativeArray, PlatformError as HarnessPlatformError, VmArray, VmSlice, resource,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
+    VmSlice, resource,
 };
-use crate::runtime::{NativeSlice, NativeStringRef};
 use destack_vm as vm;
 
 impl<'call> IpcHarnessContext<'call> {

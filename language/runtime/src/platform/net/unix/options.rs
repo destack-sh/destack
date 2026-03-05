@@ -109,13 +109,13 @@ fn ipv6_sockaddr_storage(address: Ipv6Addr) -> libc::sockaddr_storage {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_nonblocking(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     // update nonblocking mode on unix platforms
     // resolve the socket descriptor
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
 
     // fetch current flags
     let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
@@ -155,11 +155,11 @@ pub(crate) unsafe fn destack_net_set_nonblocking(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_no_delay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     set_socket_bool(fd, libc::IPPROTO_TCP, libc::TCP_NODELAY, enabled)
 }
 
@@ -181,14 +181,14 @@ pub(crate) unsafe fn destack_net_set_no_delay(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_keep_alive(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
     idle_seconds: u32,
     interval_seconds: u32,
     probe_count: u32,
 ) -> RuntimeResult<()> {
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
 
     // update keepalive flags
     set_socket_bool(fd, libc::SOL_SOCKET, libc::SO_KEEPALIVE, enabled)?;
@@ -225,11 +225,11 @@ pub(crate) unsafe fn destack_net_set_keep_alive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_reuse_addr(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     set_socket_bool(fd, libc::SOL_SOCKET, libc::SO_REUSEADDR, enabled)
 }
 
@@ -251,11 +251,11 @@ pub(crate) unsafe fn destack_net_set_reuse_addr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_reuse_port(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     os::set_reuse_port(fd, enabled)
 }
 
@@ -277,11 +277,11 @@ pub(crate) unsafe fn destack_net_set_reuse_port(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_linger(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     linger: Linger,
 ) -> RuntimeResult<()> {
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let value = libc::linger {
         l_onoff: if linger.enabled { 1 } else { 0 },
         l_linger: linger.seconds as libc::c_int,
@@ -319,11 +319,11 @@ pub(crate) unsafe fn destack_net_set_linger(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_recv_buffer(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     size: u32,
 ) -> RuntimeResult<()> {
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     set_socket_u32(fd, libc::SOL_SOCKET, libc::SO_RCVBUF, size)
 }
 
@@ -345,11 +345,11 @@ pub(crate) unsafe fn destack_net_set_recv_buffer(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_send_buffer(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     size: u32,
 ) -> RuntimeResult<()> {
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     set_socket_u32(fd, libc::SOL_SOCKET, libc::SO_SNDBUF, size)
 }
 
@@ -371,11 +371,11 @@ pub(crate) unsafe fn destack_net_set_send_buffer(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_broadcast(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     set_socket_bool(fd, libc::SOL_SOCKET, libc::SO_BROADCAST, enabled)
 }
 
@@ -397,13 +397,13 @@ pub(crate) unsafe fn destack_net_set_broadcast(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_join_multicast_v4(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     group: NativeStringRef,
     interface_address: NativeStringRef,
 ) -> RuntimeResult<()> {
     // resolve socket descriptor
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let group = unsafe { group.as_str()? };
     let interface_address = unsafe { interface_address.as_str()? };
 
@@ -458,13 +458,13 @@ pub(crate) unsafe fn destack_net_join_multicast_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_leave_multicast_v4(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     group: NativeStringRef,
     interface_address: NativeStringRef,
 ) -> RuntimeResult<()> {
     // resolve socket descriptor
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let group = unsafe { group.as_str()? };
     let interface_address = unsafe { interface_address.as_str()? };
 
@@ -519,13 +519,13 @@ pub(crate) unsafe fn destack_net_leave_multicast_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_join_multicast_v6(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     group: NativeStringRef,
     interface_index: u32,
 ) -> RuntimeResult<()> {
     // resolve socket descriptor
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let group = unsafe { group.as_str()? };
 
     // parse and apply ipv6 membership
@@ -577,13 +577,13 @@ pub(crate) unsafe fn destack_net_join_multicast_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_leave_multicast_v6(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     group: NativeStringRef,
     interface_index: u32,
 ) -> RuntimeResult<()> {
     // resolve socket descriptor
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let group = unsafe { group.as_str()? };
 
     // parse and apply ipv6 membership
@@ -635,12 +635,12 @@ pub(crate) unsafe fn destack_net_leave_multicast_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_multicast_loop(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     // resolve socket metadata
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let family = socket_family_from_fd(fd)?;
 
     // dispatch by socket family
@@ -679,12 +679,12 @@ pub(crate) unsafe fn destack_net_set_multicast_loop(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_multicast_ttl(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     ttl: u32,
 ) -> RuntimeResult<()> {
     // resolve socket metadata
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let family = socket_family_from_fd(fd)?;
 
     // dispatch by socket family
@@ -720,11 +720,11 @@ pub(crate) unsafe fn destack_net_set_multicast_ttl(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_ttl(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     ttl: u32,
 ) -> RuntimeResult<()> {
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     set_socket_u32(fd, libc::IPPROTO_IP, libc::IP_TTL, ttl)
 }
 
@@ -746,11 +746,11 @@ pub(crate) unsafe fn destack_net_set_ttl(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_tos(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     tos: u32,
 ) -> RuntimeResult<()> {
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     set_socket_u32(fd, libc::IPPROTO_IP, libc::IP_TOS, tos)
 }
 
@@ -772,11 +772,11 @@ pub(crate) unsafe fn destack_net_set_tos(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_read_timeout(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     timeout_ms: u32,
 ) -> RuntimeResult<()> {
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let timeout = libc::timeval {
         tv_sec: (timeout_ms / 1000) as libc::time_t,
         tv_usec: ((timeout_ms % 1000) * 1000) as libc::suseconds_t,
@@ -814,11 +814,11 @@ pub(crate) unsafe fn destack_net_set_read_timeout(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_write_timeout(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     timeout_ms: u32,
 ) -> RuntimeResult<()> {
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let timeout = libc::timeval {
         tv_sec: (timeout_ms / 1000) as libc::time_t,
         tv_usec: ((timeout_ms % 1000) * 1000) as libc::suseconds_t,
@@ -857,12 +857,12 @@ pub(crate) unsafe fn destack_net_set_write_timeout(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_set_only_v6(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     // resolve the socket descriptor
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
 
     // apply IPV6_V6ONLY
     let value: libc::c_int = if enabled { 1 } else { 0 };
@@ -901,7 +901,7 @@ pub(crate) unsafe fn destack_net_set_only_v6(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_keep_alive(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut KeepAliveConfig,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -911,7 +911,7 @@ pub(crate) unsafe fn destack_net_get_keep_alive(
     }
 
     // read keepalive state
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let enabled = get_socket_bool(fd, libc::SOL_SOCKET, libc::SO_KEEPALIVE, "getsockopt")?;
 
     // select the platform idle option
@@ -963,7 +963,7 @@ pub(crate) unsafe fn destack_net_get_keep_alive(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_no_delay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -971,7 +971,7 @@ pub(crate) unsafe fn destack_net_get_no_delay(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let value = get_socket_bool(fd, libc::IPPROTO_TCP, libc::TCP_NODELAY, "getsockopt")?;
     unsafe {
         *out = value;
@@ -999,7 +999,7 @@ pub(crate) unsafe fn destack_net_get_no_delay(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_reuse_addr(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1007,7 +1007,7 @@ pub(crate) unsafe fn destack_net_get_reuse_addr(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let value = get_socket_bool(fd, libc::SOL_SOCKET, libc::SO_REUSEADDR, "getsockopt")?;
     unsafe {
         *out = value;
@@ -1035,7 +1035,7 @@ pub(crate) unsafe fn destack_net_get_reuse_addr(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_reuse_port(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1043,7 +1043,7 @@ pub(crate) unsafe fn destack_net_get_reuse_port(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     #[cfg(any(
         target_os = "linux",
         target_os = "android",
@@ -1097,7 +1097,7 @@ pub(crate) unsafe fn destack_net_get_reuse_port(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_linger(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Linger,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1105,7 +1105,7 @@ pub(crate) unsafe fn destack_net_get_linger(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let mut value = libc::linger {
         l_onoff: 0,
         l_linger: 0,
@@ -1153,7 +1153,7 @@ pub(crate) unsafe fn destack_net_get_linger(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_recv_buffer(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1161,7 +1161,7 @@ pub(crate) unsafe fn destack_net_get_recv_buffer(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let value = get_socket_u32(fd, libc::SOL_SOCKET, libc::SO_RCVBUF, "getsockopt")?;
     unsafe {
         *out = value;
@@ -1189,7 +1189,7 @@ pub(crate) unsafe fn destack_net_get_recv_buffer(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_send_buffer(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1197,7 +1197,7 @@ pub(crate) unsafe fn destack_net_get_send_buffer(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let value = get_socket_u32(fd, libc::SOL_SOCKET, libc::SO_SNDBUF, "getsockopt")?;
     unsafe {
         *out = value;
@@ -1225,7 +1225,7 @@ pub(crate) unsafe fn destack_net_get_send_buffer(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_broadcast(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1233,7 +1233,7 @@ pub(crate) unsafe fn destack_net_get_broadcast(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let value = get_socket_bool(fd, libc::SOL_SOCKET, libc::SO_BROADCAST, "getsockopt")?;
     unsafe {
         *out = value;
@@ -1261,7 +1261,7 @@ pub(crate) unsafe fn destack_net_get_broadcast(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_ttl(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1269,7 +1269,7 @@ pub(crate) unsafe fn destack_net_get_ttl(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let value = get_socket_u32(fd, libc::IPPROTO_IP, libc::IP_TTL, "getsockopt")?;
     unsafe {
         *out = value;
@@ -1297,7 +1297,7 @@ pub(crate) unsafe fn destack_net_get_ttl(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_tos(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1305,7 +1305,7 @@ pub(crate) unsafe fn destack_net_get_tos(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let value = get_socket_u32(fd, libc::IPPROTO_IP, libc::IP_TOS, "getsockopt")?;
     unsafe {
         *out = value;
@@ -1333,7 +1333,7 @@ pub(crate) unsafe fn destack_net_get_tos(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_read_timeout(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1341,7 +1341,7 @@ pub(crate) unsafe fn destack_net_get_read_timeout(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let mut timeout = libc::timeval {
         tv_sec: 0,
         tv_usec: 0,
@@ -1386,7 +1386,7 @@ pub(crate) unsafe fn destack_net_get_read_timeout(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_write_timeout(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1394,7 +1394,7 @@ pub(crate) unsafe fn destack_net_get_write_timeout(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let mut timeout = libc::timeval {
         tv_sec: 0,
         tv_usec: 0,
@@ -1439,7 +1439,7 @@ pub(crate) unsafe fn destack_net_get_write_timeout(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_only_v6(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1447,7 +1447,7 @@ pub(crate) unsafe fn destack_net_get_only_v6(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let value = get_socket_bool(fd, libc::IPPROTO_IPV6, libc::IPV6_V6ONLY, "getsockopt")?;
     unsafe {
         *out = value;
@@ -1474,14 +1474,14 @@ pub(crate) unsafe fn destack_net_get_only_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_sock_opt_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     level: SocketOptionLevel,
     name: SocketOptionName,
     value: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // resolve socket descriptor and value payload
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let value = unsafe { value.as_slice()? };
 
     // apply the host socket option payload
@@ -1519,7 +1519,7 @@ pub(crate) unsafe fn destack_net_set_sock_opt_raw(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_sock_opt_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
     handle: SocketHandle,
     level: SocketOptionLevel,
@@ -1539,7 +1539,7 @@ pub(crate) unsafe fn destack_net_get_sock_opt_raw(
     }
 
     // allocate one buffer and read the host socket option payload
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let mut value = vec![0u8; maxbytes as usize];
     let mut length = value.len() as libc::socklen_t;
     let result = unsafe {
@@ -1558,7 +1558,7 @@ pub(crate) unsafe fn destack_net_get_sock_opt_raw(
 
     // write the output payload
     unsafe {
-        *out = context.store_array(value);
+        *out = binding.store_array(value);
     }
 
     Ok(())
@@ -1582,7 +1582,7 @@ pub(crate) unsafe fn destack_net_get_sock_opt_raw(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_timestamping(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     mode: SocketTimestampingMode,
 ) -> RuntimeResult<()> {
@@ -1598,7 +1598,7 @@ pub(crate) unsafe fn destack_net_set_timestamping(
         }
 
         // resolve the descriptor and map mode into SO_TIMESTAMP
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         let enabled = mode == SocketTimestampingMode::Software;
         set_socket_bool(fd, libc::SOL_SOCKET, libc::SO_TIMESTAMP, enabled)
     }
@@ -1606,7 +1606,7 @@ pub(crate) unsafe fn destack_net_set_timestamping(
     #[cfg(target_os = "linux")]
     {
         // resolve socket descriptor
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
 
         // map runtime mode into linux timestamp flags
         let flags = match mode {
@@ -1644,7 +1644,7 @@ pub(crate) unsafe fn destack_net_set_timestamping(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_timestamping(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketTimestampingMode,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1657,7 +1657,7 @@ pub(crate) unsafe fn destack_net_get_timestamping(
     #[cfg(not(target_os = "linux"))]
     {
         // resolve descriptor and read SO_TIMESTAMP state
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         let enabled = get_socket_bool(fd, libc::SOL_SOCKET, libc::SO_TIMESTAMP, "getsockopt")?;
         let mode = if enabled {
             SocketTimestampingMode::Software
@@ -1676,7 +1676,7 @@ pub(crate) unsafe fn destack_net_get_timestamping(
     #[cfg(target_os = "linux")]
     {
         // resolve socket descriptor and read linux timestamp flags
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         let flags = get_socket_u32(fd, libc::SOL_SOCKET, libc::SO_TIMESTAMPING, "getsockopt")?;
         let has_hardware_flags = (flags
             & ((libc::SOF_TIMESTAMPING_RX_HARDWARE
@@ -1723,21 +1723,21 @@ pub(crate) unsafe fn destack_net_get_timestamping(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_packet_mark(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     mark: u32,
 ) -> RuntimeResult<()> {
     // reject non-linux targets explicitly
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, handle, mark);
+        let _ = (binding, handle, mark);
         Err(RuntimeError::from(PlatformError::not_supported("destack.net.setPacketMark")).boxed())
     }
 
     #[cfg(target_os = "linux")]
     {
         // resolve socket descriptor and apply packet mark
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         set_socket_u32(fd, libc::SOL_SOCKET, libc::SO_MARK, mark)
     }
 }
@@ -1760,7 +1760,7 @@ pub(crate) unsafe fn destack_net_set_packet_mark(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_packet_mark(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1772,14 +1772,14 @@ pub(crate) unsafe fn destack_net_get_packet_mark(
     // reject non-linux targets explicitly
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, out, handle);
+        let _ = (binding, out, handle);
         Err(RuntimeError::from(PlatformError::not_supported("destack.net.getPacketMark")).boxed())
     }
 
     #[cfg(target_os = "linux")]
     {
         // resolve socket descriptor and read packet mark
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         let mark = get_socket_u32(fd, libc::SOL_SOCKET, libc::SO_MARK, "getsockopt")?;
 
         // write the output
@@ -1809,7 +1809,7 @@ pub(crate) unsafe fn destack_net_get_packet_mark(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_multicast_interface_v4(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     interface_address: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -1828,7 +1828,7 @@ pub(crate) unsafe fn destack_net_set_multicast_interface_v4(
     };
 
     // encode and apply IP_MULTICAST_IF
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let value = libc::in_addr {
         s_addr: u32::from(interface_address).to_be(),
     };
@@ -1866,7 +1866,7 @@ pub(crate) unsafe fn destack_net_set_multicast_interface_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_multicast_interface_v4(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeStringRef,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1876,7 +1876,7 @@ pub(crate) unsafe fn destack_net_get_multicast_interface_v4(
     }
 
     // query IP_MULTICAST_IF
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let mut value = libc::in_addr { s_addr: 0 };
     let mut length = std::mem::size_of::<libc::in_addr>() as libc::socklen_t;
     let result = unsafe {
@@ -1894,7 +1894,7 @@ pub(crate) unsafe fn destack_net_get_multicast_interface_v4(
 
     // encode and store output string
     let interface_address = Ipv4Addr::from(u32::from_be(value.s_addr));
-    let interface_address = context.store_string(&interface_address.to_string());
+    let interface_address = binding.store_string(&interface_address.to_string());
     unsafe {
         *out = interface_address;
     }
@@ -1920,12 +1920,12 @@ pub(crate) unsafe fn destack_net_get_multicast_interface_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_multicast_interface_v6(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     interface_index: u32,
 ) -> RuntimeResult<()> {
     // resolve socket descriptor and encode interface selector
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let interface_index = ipv6_multicast_interface(interface_index)?;
     let result = unsafe {
         libc::setsockopt(
@@ -1961,7 +1961,7 @@ pub(crate) unsafe fn destack_net_set_multicast_interface_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_multicast_interface_v6(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1971,7 +1971,7 @@ pub(crate) unsafe fn destack_net_get_multicast_interface_v6(
     }
 
     // query IPV6_MULTICAST_IF
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let mut value: Ipv6MulticastInterface = 0;
     let mut length = std::mem::size_of::<Ipv6MulticastInterface>() as libc::socklen_t;
     let result = unsafe {
@@ -2025,7 +2025,7 @@ pub(crate) unsafe fn destack_net_get_multicast_interface_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_multicast_loop(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -2035,7 +2035,7 @@ pub(crate) unsafe fn destack_net_get_multicast_loop(
     }
 
     // resolve socket metadata
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let family = socket_family_from_fd(fd)?;
 
     // read loopback mode by socket family
@@ -2084,7 +2084,7 @@ pub(crate) unsafe fn destack_net_get_multicast_loop(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_multicast_ttl(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -2094,7 +2094,7 @@ pub(crate) unsafe fn destack_net_get_multicast_ttl(
     }
 
     // resolve socket metadata
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     let family = socket_family_from_fd(fd)?;
 
     // read ttl value by socket family
@@ -2143,14 +2143,14 @@ pub(crate) unsafe fn destack_net_get_multicast_ttl(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_join_multicast_source_v4(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     membership: UdpSourceMembershipV4,
 ) -> RuntimeResult<()> {
     // reject non-linux targets explicitly
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, handle, membership);
+        let _ = (binding, handle, membership);
         Err(RuntimeError::from(PlatformError::not_supported(
             "destack.net.joinMulticastSourceV4",
         ))
@@ -2191,7 +2191,7 @@ pub(crate) unsafe fn destack_net_join_multicast_source_v4(
         };
 
         // build and apply host membership request
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         let request = libc::ip_mreq_source {
             imr_multiaddr: libc::in_addr {
                 s_addr: u32::from(group).to_be(),
@@ -2240,14 +2240,14 @@ pub(crate) unsafe fn destack_net_join_multicast_source_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_leave_multicast_source_v4(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     membership: UdpSourceMembershipV4,
 ) -> RuntimeResult<()> {
     // reject non-linux targets explicitly
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, handle, membership);
+        let _ = (binding, handle, membership);
         Err(RuntimeError::from(PlatformError::not_supported(
             "destack.net.leaveMulticastSourceV4",
         ))
@@ -2288,7 +2288,7 @@ pub(crate) unsafe fn destack_net_leave_multicast_source_v4(
         };
 
         // build and apply host membership request
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         let request = libc::ip_mreq_source {
             imr_multiaddr: libc::in_addr {
                 s_addr: u32::from(group).to_be(),
@@ -2337,14 +2337,14 @@ pub(crate) unsafe fn destack_net_leave_multicast_source_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_join_multicast_source_v6(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     membership: UdpSourceMembershipV6,
 ) -> RuntimeResult<()> {
     // reject non-linux targets explicitly
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, handle, membership);
+        let _ = (binding, handle, membership);
         Err(RuntimeError::from(PlatformError::not_supported(
             "destack.net.joinMulticastSourceV6",
         ))
@@ -2372,7 +2372,7 @@ pub(crate) unsafe fn destack_net_join_multicast_source_v6(
         })?;
 
         // build and apply host membership request
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         let request = LinuxGroupSourceRequest {
             gsr_interface: membership.interface_index,
             gsr_group: ipv6_sockaddr_storage(group),
@@ -2415,14 +2415,14 @@ pub(crate) unsafe fn destack_net_join_multicast_source_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_leave_multicast_source_v6(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     membership: UdpSourceMembershipV6,
 ) -> RuntimeResult<()> {
     // reject non-linux targets explicitly
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, handle, membership);
+        let _ = (binding, handle, membership);
         Err(RuntimeError::from(PlatformError::not_supported(
             "destack.net.leaveMulticastSourceV6",
         ))
@@ -2450,7 +2450,7 @@ pub(crate) unsafe fn destack_net_leave_multicast_source_v6(
         })?;
 
         // build and apply host membership request
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         let request = LinuxGroupSourceRequest {
             gsr_interface: membership.interface_index,
             gsr_group: ipv6_sockaddr_storage(group),
@@ -2493,7 +2493,7 @@ pub(crate) unsafe fn destack_net_leave_multicast_source_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_raw_socket(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketHandle,
     family: SocketFamily,
     protocol: i32,
@@ -2522,10 +2522,10 @@ pub(crate) unsafe fn destack_net_raw_socket(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(fd)
         .with_finalizer(DescriptorFinalizer { fd });
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -2551,11 +2551,11 @@ pub(crate) unsafe fn destack_net_raw_socket(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_raw_set_header_included(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     // resolve socket descriptor and apply IP_HDRINCL
-    let fd = socket_descriptor(context, handle)?;
+    let fd = socket_descriptor(binding, handle)?;
     set_socket_bool(fd, libc::IPPROTO_IP, libc::IP_HDRINCL, enabled)
 }

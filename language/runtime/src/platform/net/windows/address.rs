@@ -161,7 +161,7 @@ fn string_from_wide_pointer(pointer: *const u16, label: &str) -> RuntimeResult<S
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_interface_index(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -217,7 +217,7 @@ pub(crate) unsafe fn destack_net_interface_index(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_interface_name(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeStringRef,
     index: u32,
 ) -> RuntimeResult<()> {
@@ -241,7 +241,7 @@ pub(crate) unsafe fn destack_net_interface_name(
     // decode and store output string
     let name = unsafe { CStr::from_ptr(pointer as *const i8) };
     let name = name.to_string_lossy().to_string();
-    let name = context.store_string(&name);
+    let name = binding.store_string(&name);
     unsafe {
         *out = name;
     }
@@ -267,7 +267,7 @@ pub(crate) unsafe fn destack_net_interface_name(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_list_interfaces(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<NetInterface>,
 ) -> RuntimeResult<()> {
     // validate output pointer
@@ -351,7 +351,7 @@ pub(crate) unsafe fn destack_net_list_interfaces(
                 addresses.push(SocketAddress {
                     family,
                     length: socket_address.iSockaddrLength as u32,
-                    bytes: context.store_array(bytes.to_vec()),
+                    bytes: binding.store_array(bytes.to_vec()),
                 });
             }
 
@@ -360,12 +360,12 @@ pub(crate) unsafe fn destack_net_list_interfaces(
 
         // encode and append one interface row
         interfaces.push(NetInterface {
-            name: context.store_string(&name),
+            name: binding.store_string(&name),
             index,
             flags: NetInterfaceFlags(flags),
             mtu: entry.Mtu,
-            mac_address: context.store_array(mac_address),
-            addresses: context.store_array(addresses),
+            mac_address: binding.store_array(mac_address),
+            addresses: binding.store_array(addresses),
         });
 
         adapter = entry.Next;
@@ -373,7 +373,7 @@ pub(crate) unsafe fn destack_net_list_interfaces(
 
     // write output array
     unsafe {
-        *out = context.store_array(interfaces);
+        *out = binding.store_array(interfaces);
     }
 
     Ok(())
@@ -381,7 +381,7 @@ pub(crate) unsafe fn destack_net_list_interfaces(
 
 /// Return the local address bytes for a socket.
 pub(crate) unsafe fn destack_net_local_address_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketAddress,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -391,7 +391,7 @@ pub(crate) unsafe fn destack_net_local_address_raw(
     }
 
     // resolve the socket descriptor
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // query the local address
     let mut storage = mem::MaybeUninit::<SOCKADDR_STORAGE>::uninit();
@@ -406,7 +406,7 @@ pub(crate) unsafe fn destack_net_local_address_raw(
 
     // decode and write the output
     let storage = unsafe { storage.assume_init() };
-    let address = socket_address_raw_from_storage(context, &storage, length)?;
+    let address = socket_address_raw_from_storage(binding, &storage, length)?;
     unsafe {
         *out = address;
     }
@@ -416,7 +416,7 @@ pub(crate) unsafe fn destack_net_local_address_raw(
 
 /// Return the peer address bytes for a socket.
 pub(crate) unsafe fn destack_net_peer_address_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketAddress,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -426,7 +426,7 @@ pub(crate) unsafe fn destack_net_peer_address_raw(
     }
 
     // resolve the socket descriptor
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // query the peer address
     let mut storage = mem::MaybeUninit::<SOCKADDR_STORAGE>::uninit();
@@ -441,7 +441,7 @@ pub(crate) unsafe fn destack_net_peer_address_raw(
 
     // decode and write the output
     let storage = unsafe { storage.assume_init() };
-    let address = socket_address_raw_from_storage(context, &storage, length)?;
+    let address = socket_address_raw_from_storage(binding, &storage, length)?;
     unsafe {
         *out = address;
     }
@@ -452,7 +452,7 @@ pub(crate) unsafe fn destack_net_peer_address_raw(
 /// Resolve host and port into raw socket addresses.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_resolve_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<SocketAddress>,
     host: NativeStringRef,
     port: u16,
@@ -538,14 +538,14 @@ pub(crate) unsafe fn destack_net_resolve_raw(
             addresses.push(SocketAddress {
                 family,
                 length: info.ai_addrlen as u32,
-                bytes: context.store_array(bytes.to_vec()),
+                bytes: binding.store_array(bytes.to_vec()),
             });
         }
         current = info.ai_next;
     }
 
     unsafe {
-        *out = context.store_array(addresses);
+        *out = binding.store_array(addresses);
     }
 
     Ok(())
@@ -554,7 +554,7 @@ pub(crate) unsafe fn destack_net_resolve_raw(
 /// Reverse lookup a raw socket address into host and service names.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_reverse_lookup_names_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<ReverseLookupName>,
     address: SocketAddress,
     flags: ReverseLookupFlags,
@@ -616,11 +616,11 @@ pub(crate) unsafe fn destack_net_reverse_lookup_names_raw(
 
         // encode one reverse-lookup output record
         let names = vec![ReverseLookupName {
-            host: context.store_string(&host),
-            service: context.store_string(&service),
+            host: binding.store_string(&host),
+            service: binding.store_string(&service),
         }];
         unsafe {
-            *out = context.store_array(names);
+            *out = binding.store_array(names);
         }
 
         Ok(())
@@ -630,7 +630,7 @@ pub(crate) unsafe fn destack_net_reverse_lookup_names_raw(
 /// Reverse lookup a raw socket address into hostnames.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_reverse_lookup_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
@@ -643,7 +643,7 @@ pub(crate) unsafe fn destack_net_reverse_lookup_raw(
     let mut names = std::mem::MaybeUninit::<NativeArray<ReverseLookupName>>::uninit();
     unsafe {
         destack_net_reverse_lookup_names_raw(
-            context,
+            binding,
             names.as_mut_ptr(),
             address,
             ReverseLookupFlags(0),
@@ -658,7 +658,7 @@ pub(crate) unsafe fn destack_net_reverse_lookup_raw(
         hosts.push(name.host);
     }
     unsafe {
-        *out = context.store_array(hosts);
+        *out = binding.store_array(hosts);
     }
 
     Ok(())

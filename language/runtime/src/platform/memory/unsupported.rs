@@ -12,7 +12,7 @@ use crate::runtime::BindingCallContext;
 
 /// Apply memory access advice.
 pub(crate) unsafe fn destack_memory_advise(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
     advice: MemoryAdvice,
@@ -23,7 +23,7 @@ pub(crate) unsafe fn destack_memory_advise(
 
 /// Discard memory contents.
 pub(crate) unsafe fn destack_memory_discard(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -33,7 +33,7 @@ pub(crate) unsafe fn destack_memory_discard(
 
 /// Toggle huge-page preference for one range.
 pub(crate) unsafe fn destack_memory_huge_page(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
     enabled: bool,
@@ -44,7 +44,7 @@ pub(crate) unsafe fn destack_memory_huge_page(
 
 /// Lock one memory range into physical memory.
 pub(crate) unsafe fn destack_memory_lock(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -54,7 +54,7 @@ pub(crate) unsafe fn destack_memory_lock(
 
 /// Unlock one memory range.
 pub(crate) unsafe fn destack_memory_unlock(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -64,7 +64,7 @@ pub(crate) unsafe fn destack_memory_unlock(
 
 /// Commit one reserved range.
 pub(crate) unsafe fn destack_memory_commit(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
     protection: MemoryProtection,
@@ -75,7 +75,7 @@ pub(crate) unsafe fn destack_memory_commit(
 
 /// Decommit one range.
 pub(crate) unsafe fn destack_memory_decommit(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -85,7 +85,7 @@ pub(crate) unsafe fn destack_memory_decommit(
 
 /// Bind one range to a NUMA policy.
 pub(crate) unsafe fn destack_memory_numa_bind(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
     policy: MemoryNumaPolicy,
@@ -97,7 +97,7 @@ pub(crate) unsafe fn destack_memory_numa_bind(
 
 /// Release one reserved range.
 pub(crate) unsafe fn destack_memory_release(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -107,7 +107,7 @@ pub(crate) unsafe fn destack_memory_release(
 
 /// Reserve one virtual memory range.
 pub(crate) unsafe fn destack_memory_reserve(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut MemoryRange,
     length: u64,
     addresshint: u64,
@@ -119,7 +119,7 @@ pub(crate) unsafe fn destack_memory_reserve(
 
 /// Flush instruction cache for one range.
 pub(crate) unsafe fn destack_memory_flush_instruction_cache(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -131,7 +131,7 @@ pub(crate) unsafe fn destack_memory_flush_instruction_cache(
 
 /// Change memory protection for one range.
 pub(crate) unsafe fn destack_memory_protect(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
     protection: MemoryProtection,
@@ -142,7 +142,7 @@ pub(crate) unsafe fn destack_memory_protect(
 
 /// Resize one mapped range.
 pub(crate) unsafe fn destack_memory_remap(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut ProtectedMemoryRange,
     address: u64,
     oldlength: u64,
@@ -155,7 +155,7 @@ pub(crate) unsafe fn destack_memory_remap(
 
 /// Read the host allocation granularity.
 pub(crate) unsafe fn destack_memory_allocation_granularity(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
     let _ = out;
@@ -164,7 +164,7 @@ pub(crate) unsafe fn destack_memory_allocation_granularity(
 
 /// Read the host huge-page allocation size when available.
 pub(crate) unsafe fn destack_memory_huge_page_size(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Option<u64>,
 ) -> RuntimeResult<()> {
     let _ = out;
@@ -173,7 +173,7 @@ pub(crate) unsafe fn destack_memory_huge_page_size(
 
 /// Read the host virtual-memory page size.
 pub(crate) unsafe fn destack_memory_page_size(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
     let _ = out;

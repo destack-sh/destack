@@ -22,10 +22,10 @@ use crate::runtime::{BindingCallContext, NativeSlice};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
-    io_core::uring_close(context, handle)
+    io_core::uring_close(binding, handle)
 }
 
 /// Query io_uring feature support.
@@ -46,12 +46,12 @@ pub(crate) unsafe fn destack_io_uring_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_features(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut UringFeatures,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     require_out(out)?;
-    let value = io_core::uring_features(context, handle)?;
+    let value = io_core::uring_features(binding, handle)?;
 
     unsafe {
         out.write(value);
@@ -78,12 +78,12 @@ pub(crate) unsafe fn destack_io_uring_features(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::UringHandle,
     parameters: UringParameters,
 ) -> RuntimeResult<()> {
     require_out(out)?;
-    let value = io_core::uring_open(context, parameters)?;
+    let value = io_core::uring_open(binding, parameters)?;
 
     unsafe {
         out.write(value);
@@ -110,12 +110,12 @@ pub(crate) unsafe fn destack_io_uring_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_register_buffers(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UringHandle,
     addresses: NativeSlice<u64>,
     lengths: NativeSlice<u32>,
 ) -> RuntimeResult<()> {
-    io_core::uring_register_buffers(context, handle, addresses, lengths)
+    io_core::uring_register_buffers(binding, handle, addresses, lengths)
 }
 
 /// Register fixed files with a ring.
@@ -136,11 +136,11 @@ pub(crate) unsafe fn destack_io_uring_register_buffers(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_register_files(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UringHandle,
     files: NativeSlice<resource::ResourceId>,
 ) -> RuntimeResult<()> {
-    io_core::uring_register_files(context, handle, files)
+    io_core::uring_register_files(binding, handle, files)
 }
 
 /// Unregister fixed buffers for a ring.
@@ -161,10 +161,10 @@ pub(crate) unsafe fn destack_io_uring_register_files(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_unregister_buffers(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
-    io_core::uring_unregister_buffers(context, handle)
+    io_core::uring_unregister_buffers(binding, handle)
 }
 
 /// Unregister fixed files for a ring.
@@ -185,8 +185,8 @@ pub(crate) unsafe fn destack_io_uring_unregister_buffers(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_unregister_files(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
-    io_core::uring_unregister_files(context, handle)
+    io_core::uring_unregister_files(binding, handle)
 }

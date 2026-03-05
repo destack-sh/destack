@@ -28,12 +28,12 @@ use crate::platform::crypto::core::{decode_bytes, write_out_bytes, write_out_val
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_generate_secret(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::CryptoKeyHandle,
     store: resource::CryptoStoreHandle,
     request: CryptoKeyGenerationRequest,
 ) -> RuntimeResult<()> {
-    let handle = crypto_core::key_generate_secret(context, store, request)?;
+    let handle = crypto_core::key_generate_secret(binding, store, request)?;
     unsafe { write_out_value(out, handle) }
 }
 
@@ -55,12 +55,12 @@ pub(crate) unsafe fn destack_crypto_key_generate_secret(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_generate_pair(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CryptoKeyPair,
     store: resource::CryptoStoreHandle,
     request: CryptoKeyGenerationRequest,
 ) -> RuntimeResult<()> {
-    let pair = crypto_core::key_generate_pair(context, store, request)?;
+    let pair = crypto_core::key_generate_pair(binding, store, request)?;
     unsafe { write_out_value(out, pair) }
 }
 
@@ -83,12 +83,12 @@ pub(crate) unsafe fn destack_crypto_key_generate_pair(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_import(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::CryptoKeyHandle,
     store: resource::CryptoStoreHandle,
     request: CryptoKeyImportRequest,
 ) -> RuntimeResult<()> {
-    let handle = crypto_core::key_import(context, store, request)?;
+    let handle = crypto_core::key_import(binding, store, request)?;
     unsafe { write_out_value(out, handle) }
 }
 
@@ -109,13 +109,13 @@ pub(crate) unsafe fn destack_crypto_key_import(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_export_public(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
 ) -> RuntimeResult<()> {
-    let bytes = crypto_core::key_export_public(context, handle, format)?;
-    unsafe { write_out_bytes(context, out, bytes) }
+    let bytes = crypto_core::key_export_public(binding, handle, format)?;
+    unsafe { write_out_bytes(binding, out, bytes) }
 }
 
 /// Export one private key.
@@ -138,13 +138,13 @@ pub(crate) unsafe fn destack_crypto_key_export_public(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_export_private(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     request: CryptoPrivateKeyExportRequest,
 ) -> RuntimeResult<()> {
-    let bytes = crypto_core::key_export_private(context, handle, request)?;
-    unsafe { write_out_bytes(context, out, bytes) }
+    let bytes = crypto_core::key_export_private(binding, handle, request)?;
+    unsafe { write_out_bytes(binding, out, bytes) }
 }
 
 /// Export one secret key.
@@ -165,13 +165,13 @@ pub(crate) unsafe fn destack_crypto_key_export_private(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_export_secret(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
 ) -> RuntimeResult<()> {
-    let bytes = crypto_core::key_export_secret(context, handle, format)?;
-    unsafe { write_out_bytes(context, out, bytes) }
+    let bytes = crypto_core::key_export_secret(binding, handle, format)?;
+    unsafe { write_out_bytes(binding, out, bytes) }
 }
 
 /// Return one key descriptor.
@@ -191,11 +191,11 @@ pub(crate) unsafe fn destack_crypto_key_export_secret(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CryptoKeyDescriptor,
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeResult<()> {
-    let descriptor = crypto_core::key_descriptor(context, handle)?;
+    let descriptor = crypto_core::key_descriptor(binding, handle)?;
     unsafe { write_out_value(out, descriptor) }
 }
 
@@ -217,15 +217,15 @@ pub(crate) unsafe fn destack_crypto_key_descriptor(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_sign(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoSignatureParameters,
     payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let payload = decode_bytes(payload, "payload")?;
-    let signature = crypto_core::key_sign(context, handle, parameters, &payload)?;
-    unsafe { write_out_bytes(context, out, signature) }
+    let signature = crypto_core::key_sign(binding, handle, parameters, &payload)?;
+    unsafe { write_out_bytes(binding, out, signature) }
 }
 
 /// Verify one signature.
@@ -246,7 +246,7 @@ pub(crate) unsafe fn destack_crypto_key_sign(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_verify(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoSignatureParameters,
@@ -255,7 +255,7 @@ pub(crate) unsafe fn destack_crypto_key_verify(
 ) -> RuntimeResult<()> {
     let payload = decode_bytes(payload, "payload")?;
     let signature = decode_bytes(signature, "signature")?;
-    let is_valid = crypto_core::key_verify(context, handle, parameters, &payload, &signature)?;
+    let is_valid = crypto_core::key_verify(binding, handle, parameters, &payload, &signature)?;
     unsafe { write_out_value(out, is_valid) }
 }
 
@@ -277,15 +277,15 @@ pub(crate) unsafe fn destack_crypto_key_verify(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_encrypt(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoAsymmetricEncryptionParameters,
     payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let payload = decode_bytes(payload, "payload")?;
-    let ciphertext = crypto_core::key_encrypt(context, handle, parameters, &payload)?;
-    unsafe { write_out_bytes(context, out, ciphertext) }
+    let ciphertext = crypto_core::key_encrypt(binding, handle, parameters, &payload)?;
+    unsafe { write_out_bytes(binding, out, ciphertext) }
 }
 
 /// Decrypt one payload with one asymmetric key.
@@ -306,15 +306,15 @@ pub(crate) unsafe fn destack_crypto_key_encrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_decrypt(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoAsymmetricEncryptionParameters,
     payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let payload = decode_bytes(payload, "payload")?;
-    let plaintext = crypto_core::key_decrypt(context, handle, parameters, &payload)?;
-    unsafe { write_out_bytes(context, out, plaintext) }
+    let plaintext = crypto_core::key_decrypt(binding, handle, parameters, &payload)?;
+    unsafe { write_out_bytes(binding, out, plaintext) }
 }
 
 /// Wrap one key.
@@ -336,15 +336,15 @@ pub(crate) unsafe fn destack_crypto_key_decrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_wrap(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     wrappingkey: resource::CryptoKeyHandle,
     keytowrap: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
     parameters: CryptoKeyWrapParameters,
 ) -> RuntimeResult<()> {
-    let wrapped = crypto_core::key_wrap(context, wrappingkey, keytowrap, format, parameters)?;
-    unsafe { write_out_bytes(context, out, wrapped) }
+    let wrapped = crypto_core::key_wrap(binding, wrappingkey, keytowrap, format, parameters)?;
+    unsafe { write_out_bytes(binding, out, wrapped) }
 }
 
 /// Unwrap one key.
@@ -365,7 +365,7 @@ pub(crate) unsafe fn destack_crypto_key_wrap(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_unwrap(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::CryptoKeyHandle,
     store: resource::CryptoStoreHandle,
     wrappingkey: resource::CryptoKeyHandle,
@@ -375,7 +375,7 @@ pub(crate) unsafe fn destack_crypto_key_unwrap(
 ) -> RuntimeResult<()> {
     let wrapped_key = decode_bytes(wrappedkey, "wrappedKey")?;
     let handle = crypto_core::key_unwrap(
-        context,
+        binding,
         store,
         wrappingkey,
         &wrapped_key,
@@ -403,8 +403,8 @@ pub(crate) unsafe fn destack_crypto_key_unwrap(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_delete(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeResult<()> {
-    crypto_core::key_delete(context, handle)
+    crypto_core::key_delete(binding, handle)
 }
