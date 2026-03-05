@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow negation in equality checks.
@@ -24,17 +24,17 @@ declare_lint! {
 }
 
 impl LintRule for NoNegationInEqualityCheck {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoNegationInEqualityCheck::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect binary expressions for confusing negated equality
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+            // require a binary expression
             let expr = ctx.tree.get(node_id);
-
-            // check for equality/inequality operators
             let ast::Expression::Binary {
                 left,
                 operator,
@@ -44,82 +44,108 @@ impl LintRule for NoNegationInEqualityCheck {
                 continue;
             };
 
-            // only check equality operators
-            if !matches!(
-                operator,
-                ast::BinaryOperator::Equal
-                    | ast::BinaryOperator::NotEqual
-                    | ast::BinaryOperator::EqualStrict
-                    | ast::BinaryOperator::NotEqualStrict
+            // keep only equality operators that can be inverted
+            let Some(fixed_operator) = inverted_equality_operator(*operator) else {
+                continue;
+            };
+
+            // require a leading unary not on the left side
+            let left_expression = ctx.tree.get(*left);
+            let ast::Expression::Unary {
+                operator: ast::UnaryOperator::Not,
+                right: unary_argument_id,
+            } = left_expression
+            else {
+                continue;
+            };
+
+            // skip double negation because intent is less clear
+            let unary_argument = ctx.tree.get(*unary_argument_id);
+            if matches!(
+                unary_argument,
+                ast::Expression::Unary {
+                    operator: ast::UnaryOperator::Not,
+                    ..
+                }
             ) {
                 continue;
             }
 
-            // determine which sides need explicit grouping
-            let left_needs_grouping = needs_unary_not_grouping(ctx.tree.get(*left));
-            let right_needs_grouping = needs_unary_not_grouping(ctx.tree.get(*right));
-            if !left_needs_grouping && !right_needs_grouping {
-                continue;
-            }
-
+            // skip disabled diagnostics
             let severity = ctx.get_effective_severity(meta, node_id);
             if !severity.is_enabled() {
                 continue;
             }
 
-            // build grouped expression replacement
-            let left_span = ctx.tree.get_span(*left);
+            // build the replacement inputs and diagnostic payload
             let right_span = ctx.tree.get_span(*right);
-            let mut left_text = ctx.get_span_text(left_span).to_string();
             let mut right_text = ctx.get_span_text(right_span).to_string();
-            if left_needs_grouping {
-                left_text = format!("({left_text})");
-            }
-            if right_needs_grouping {
-                right_text = format!("({right_text})");
-            }
-            let replacement = format!(
-                "{left_text} {} {right_text}",
-                binary_operator_text(*operator)
-            );
+            let unary_argument_span = ctx.tree.get_span(*unary_argument_id);
+            let mut unary_argument_text = ctx.get_span_text(unary_argument_span).to_string();
             let expression_span = ctx.tree.get_span(node_id);
-            let edits = ctx
-                .edit_builder()
-                .replace(expression_span, replacement)
-                .into_edits();
-            let fix =
-                LintFix::safe("Add explicit grouping around negated operand").with_edits(edits);
+            let mut diagnostic = LintDiagnostic::new(
+                NO_NEGATION_IN_EQUALITY_CHECK.id,
+                NO_NEGATION_IN_EQUALITY_CHECK.code,
+                NO_NEGATION_IN_EQUALITY_CHECK.category,
+                severity,
+                "negated expression in equality check is confusing",
+                ctx.module.file_id,
+                expression_span,
+            )
+            .with_label("remove `!` and invert the equality operator");
 
-            ctx.report(
-                LintDiagnostic::new(
-                    NO_NEGATION_IN_EQUALITY_CHECK.id,
-                    NO_NEGATION_IN_EQUALITY_CHECK.code,
-                    NO_NEGATION_IN_EQUALITY_CHECK.category,
-                    severity,
-                    "negation in equality check is confusing",
-                    ctx.module.file_id,
-                    expression_span,
-                )
-                .with_label("add explicit grouping around the negated side")
-                .with_fix(fix),
-            );
+            // attach a fix when text extraction is stable
+            if ctx.compute_fixes && !unary_argument_text.trim().is_empty() {
+                // guard token boundaries when removing the leading unary not
+                if needs_leading_fix_space(ctx, expression_span.start) {
+                    unary_argument_text = format!(" {unary_argument_text}");
+                }
+
+                // rewrite as direct comparison with the inverted operator
+                right_text = right_text.trim_start().to_string();
+                let replacement = format!(
+                    "{unary_argument_text} {} {right_text}",
+                    equality_operator_text(fixed_operator)
+                );
+                let edits = ctx
+                    .edit_builder()
+                    .replace(expression_span, replacement)
+                    .into_edits();
+                let fix =
+                    LintFix::safe("Invert equality and remove leading negation").with_edits(edits);
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
 }
 
-/// Return true when one expression is an unparenthesized unary not.
-fn needs_unary_not_grouping(expression: &ast::Expression) -> bool {
-    matches!(
-        expression,
-        ast::Expression::Unary {
-            operator: ast::UnaryOperator::Not,
-            ..
-        }
-    )
+/// Return one inverted operator for equality checks.
+fn inverted_equality_operator(operator: ast::BinaryOperator) -> Option<ast::BinaryOperator> {
+    match operator {
+        ast::BinaryOperator::Equal => Some(ast::BinaryOperator::NotEqual),
+        ast::BinaryOperator::NotEqual => Some(ast::BinaryOperator::Equal),
+        ast::BinaryOperator::EqualStrict => Some(ast::BinaryOperator::NotEqualStrict),
+        ast::BinaryOperator::NotEqualStrict => Some(ast::BinaryOperator::EqualStrict),
+        _ => None,
+    }
+}
+
+/// Return true when one replacement needs a leading space for lexical safety.
+fn needs_leading_fix_space(ctx: &LintModuleAstContext<'_>, start: u32) -> bool {
+    if start == 0 {
+        return false;
+    }
+
+    // preserve token separation when the previous character is identifier like
+    let source = ctx.source_text().as_bytes();
+    let previous_byte = source[(start - 1) as usize];
+    previous_byte.is_ascii_alphanumeric() || previous_byte == b'_' || previous_byte == b'$'
 }
 
 /// Return source text for equality operators handled by this lint.
-fn binary_operator_text(operator: ast::BinaryOperator) -> &'static str {
+fn equality_operator_text(operator: ast::BinaryOperator) -> &'static str {
     match operator {
         ast::BinaryOperator::Equal => "==",
         ast::BinaryOperator::NotEqual => "!=",
@@ -158,7 +184,7 @@ const x = a == !b
 "#,
         );
         test.result(result)
-            .assert_lint("no-negation-in-equality-check");
+            .assert_no_lint("no-negation-in-equality-check");
     }
 
     #[test]
@@ -226,27 +252,22 @@ const x = !a == b
             .assert_lint("no-negation-in-equality-check")
             .assert_safe_fixed(
                 r#"
-const x = (!a) == b;
+const x = a != b;
 "#,
             );
     }
 
     #[test]
-    fn test_fix_negation_on_right() {
+    fn test_no_fix_for_negation_on_right() {
         let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
         let result = test.lint_ast(
-            "no_negation_in_equality_check/test_fix_negation_on_right.ds",
+            "no_negation_in_equality_check/test_no_fix_for_negation_on_right.ds",
             r#"
 const x = a == !b
 "#,
         );
         test.result(result)
-            .assert_lint("no-negation-in-equality-check")
-            .assert_safe_fixed(
-                r#"
-const x = a == (!b);
-"#,
-            );
+            .assert_no_lint("no-negation-in-equality-check");
     }
 
     #[test]
@@ -263,7 +284,7 @@ const x = !a === !b
             .assert_lint_count("no-negation-in-equality-check", 1)
             .assert_safe_fixed(
                 r#"
-const x = (!a) === (!b);
+const x = a !== !b;
 "#,
             );
     }

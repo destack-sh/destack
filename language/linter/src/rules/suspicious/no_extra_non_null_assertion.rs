@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow extra non-null assertions.
@@ -24,55 +24,60 @@ declare_lint! {
 }
 
 impl LintRule for NoExtraNonNullAssertion {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoExtraNonNullAssertion::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect expressions for nested non null assertions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
 
-            // check for Must expression (non-null assertion)
+            // require an outer non null assertion
             let Expression::Must { left, .. } = expression else {
                 continue;
             };
 
-            // check if the inner expression is also a Must
+            // require an inner non null assertion as well
             let inner = ctx.tree.get(*left);
             if !matches!(inner, Expression::Must { .. }) {
                 continue;
             }
 
+            // skip disabled diagnostics
             let severity = ctx.get_effective_severity(meta, node_id);
             if !severity.is_enabled() {
                 continue;
             }
 
+            // build the nested assertion diagnostic
             let outer_span = ctx.tree.get_span(node_id);
-            let inner_span = ctx.tree.get_span(*left);
-            let inner_text = ctx.get_span_text(inner_span);
+            let mut diagnostic = LintDiagnostic::new(
+                NO_EXTRA_NON_NULL_ASSERTION.id,
+                NO_EXTRA_NON_NULL_ASSERTION.code,
+                NO_EXTRA_NON_NULL_ASSERTION.category,
+                severity,
+                "extra non-null assertion",
+                ctx.module.file_id,
+                outer_span,
+            )
+            .with_label("remove the extra `!`");
 
-            let edits = ctx
-                .edit_builder()
-                .replace(outer_span, inner_text)
-                .into_edits();
-            let fix = LintFix::safe("Remove extra `!`").with_edits(edits);
+            // replace the outer expression with the inner assertion text
+            if ctx.compute_fixes {
+                let inner_span = ctx.tree.get_span(*left);
+                let inner_text = ctx.get_span_text(inner_span);
+                let edits = ctx
+                    .edit_builder()
+                    .replace(outer_span, inner_text)
+                    .into_edits();
+                let fix = LintFix::safe("Remove extra `!`").with_edits(edits);
+                diagnostic = diagnostic.with_fix(fix);
+            }
 
-            ctx.report(
-                LintDiagnostic::new(
-                    NO_EXTRA_NON_NULL_ASSERTION.id,
-                    NO_EXTRA_NON_NULL_ASSERTION.code,
-                    NO_EXTRA_NON_NULL_ASSERTION.category,
-                    severity,
-                    "extra non-null assertion",
-                    ctx.module.file_id,
-                    outer_span,
-                )
-                .with_label("remove the extra `!`")
-                .with_fix(fix),
-            );
+            ctx.report(diagnostic);
         }
     }
 }

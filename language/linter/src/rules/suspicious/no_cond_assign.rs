@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow assignment expressions in conditional statements.
@@ -25,61 +25,70 @@ declare_lint! {
 }
 
 impl LintRule for NoCondAssign {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoCondAssign::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect conditional expression nodes
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+            // resolve the condition expression for supported control flow forms
             let condition_id = match ctx.tree.get(node_id) {
                 ast::Expression::If { condition, .. } => match condition {
                     ast::IfCondition::Expression { condition } => *condition,
                     ast::IfCondition::Let { .. } => continue,
                 },
                 ast::Expression::While { condition, .. } => *condition,
-                // don't check for-loop conditions since `for (;x=y;)` is less common
+                ast::Expression::For {
+                    condition: Some(condition),
+                    ..
+                } => *condition,
                 _ => continue,
             };
 
-            // check if the condition is a confusing assignment style
+            // classify assignment wrapping style in the condition
             let assignment_style = assignment_style(ctx, condition_id);
-            if assignment_style != AssignmentStyle::None {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-
-                // add explicit grouping fix to mark intentional assignment
-                let condition_span = ctx.tree.get_span(condition_id);
-                let condition_text = ctx.get_span_text(condition_span);
-                let replacement = match assignment_style {
-                    AssignmentStyle::Bare => format!("(({condition_text}))"),
-                    AssignmentStyle::SingleParenthesized => format!("({condition_text})"),
-                    AssignmentStyle::None => unreachable!(),
-                };
-                let edits = ctx
-                    .edit_builder()
-                    .replace(condition_span, replacement)
-                    .into_edits();
-                let fix = LintFix::safe("Wrap assignment in explicit extra parentheses")
-                    .with_edits(edits);
-
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_COND_ASSIGN.id,
-                        NO_COND_ASSIGN.code,
-                        NO_COND_ASSIGN.category,
-                        severity,
-                        "assignment in condition",
-                        ctx.module.file_id,
-                        condition_span,
-                    )
-                    .with_label("did you mean `==`?")
-                    .with_fix(fix),
-                );
+            if assignment_style == AssignmentStyle::None {
+                continue;
             }
+
+            // skip disabled diagnostics
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
+            // build the explicit parenthesized replacement
+            let condition_span = ctx.tree.get_span(condition_id);
+            let condition_text = ctx.get_span_text(condition_span);
+            let replacement = match assignment_style {
+                AssignmentStyle::Bare => format!("(({condition_text}))"),
+                AssignmentStyle::SingleParenthesized => format!("({condition_text})"),
+                AssignmentStyle::None => unreachable!(),
+            };
+            let edits = ctx
+                .edit_builder()
+                .replace(condition_span, replacement)
+                .into_edits();
+            let fix =
+                LintFix::safe("Wrap assignment in explicit extra parentheses").with_edits(edits);
+
+            // report the assignment style diagnostic with an intent preserving fix
+            ctx.report(
+                LintDiagnostic::new(
+                    NO_COND_ASSIGN.id,
+                    NO_COND_ASSIGN.code,
+                    NO_COND_ASSIGN.category,
+                    severity,
+                    "assignment in condition",
+                    ctx.module.file_id,
+                    condition_span,
+                )
+                .with_label("did you mean `==`?")
+                .with_fix(fix),
+            );
         }
     }
 }
@@ -87,11 +96,11 @@ impl LintRule for NoCondAssign {
 /// The assignment wrapping style in one condition expression.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AssignmentStyle {
-    /// No direct assignment style matched.
+    /// No direct assignment-like matched.
     None,
     /// Bare assignment expression: `x = y`.
     Bare,
-    /// Single-parenthesized assignment: `(x = y)`.
+    /// Single parenthesized assignment: `(x = y)`.
     SingleParenthesized,
 }
 
@@ -101,12 +110,14 @@ fn assignment_style(
     ctx: &LintModuleAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> AssignmentStyle {
+    // inspect the outer condition expression
     let expr = ctx.tree.get(expr_id);
     match expr {
         // let expressions are allowed (like `if const Some(x) = foo()`)
         ast::Expression::Let { .. } | ast::Expression::Using { .. } => AssignmentStyle::None,
         ast::Expression::Assign { .. } => AssignmentStyle::Bare,
         ast::Expression::Parenthesized { expression } => {
+            // detect one explicit parenthesized assignment
             let inner = ctx.tree.get(*expression);
             if matches!(inner, ast::Expression::Assign { .. }) {
                 AssignmentStyle::SingleParenthesized
@@ -146,6 +157,22 @@ if (x = 1) {
             "no_cond_assign/test_detects_while_assignment.ds",
             r#"
 while (x = getValue()) {
+    process(x);
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-cond-assign")
+            .assert_has_fix("no-cond-assign");
+    }
+
+    #[test]
+    fn test_detects_for_condition_assignment() {
+        let test = TestProgram::for_rule_without_prelude(NoCondAssign);
+        let result = test.lint_ast(
+            "no_cond_assign/test_detects_for_condition_assignment.ds",
+            r#"
+for (; x = next(); ) {
     process(x);
 }
 "#,
@@ -279,6 +306,22 @@ if ((x = 1)) {
 if (((x = 1))) {
     process(x)
 }
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_bare_assignment_in_for_condition() {
+        let test = TestProgram::for_rule_without_prelude(NoCondAssign);
+        let result = test.lint_ast(
+            "no_cond_assign/test_fix_bare_assignment_in_for_condition.ds",
+            r#"for (; x = next(); ) {}"#,
+        );
+        test.result(result)
+            .assert_lint("no-cond-assign")
+            .assert_safe_fixed(
+                r#"
+for (; ((x = next())); ) {}
 "#,
             );
     }
