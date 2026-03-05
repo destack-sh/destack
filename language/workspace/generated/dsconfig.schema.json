@@ -1921,8 +1921,8 @@
           "format": "uint64",
           "minimum": 0
         },
-        "perTask": {
-          "description": "Whether to use a per-task random stream.",
+        "perRunnable": {
+          "description": "Whether to use a per-runnable random stream.",
           "type": [
             "boolean",
             "null"
@@ -2096,7 +2096,7 @@
           "const": "kqueue"
         },
         {
-          "description": "Use poll (portable Unix fallback).",
+          "description": "Use poll (portable Unix backend).",
           "type": "string",
           "const": "poll"
         },

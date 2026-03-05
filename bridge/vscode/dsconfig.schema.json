@@ -65,6 +65,7 @@
         "random": null,
         "scheduler": null,
         "gc": null,
+        "diagnostic": null,
         "fs": null,
         "net": null,
         "process": null,
@@ -1068,6 +1069,17 @@
             }
           ]
         },
+        "diagnostic": {
+          "description": "Runtime diagnostics configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeDiagnosticOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "fs": {
           "description": "Global filesystem runtime defaults.",
           "anyOf": [
@@ -1909,8 +1921,8 @@
           "format": "uint64",
           "minimum": 0
         },
-        "perTask": {
-          "description": "Whether to use a per-task random stream.",
+        "perRunnable": {
+          "description": "Whether to use a per-runnable random stream.",
           "type": [
             "boolean",
             "null"
@@ -2084,7 +2096,7 @@
           "const": "kqueue"
         },
         {
-          "description": "Use poll (portable Unix fallback).",
+          "description": "Use poll (portable Unix backend).",
           "type": "string",
           "const": "poll"
         },
@@ -2183,6 +2195,67 @@
           "description": "Emit verbose GC events.",
           "type": "string",
           "const": "verbose"
+        }
+      ]
+    },
+    "RuntimeDiagnosticOptionsJson": {
+      "description": "Runtime diagnostics configuration for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "level": {
+          "description": "Minimum diagnostic level recorded by the runtime.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeDiagnosticLevelJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "capacity": {
+          "description": "Maximum number of diagnostic entries retained in the runtime ring buffer.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      }
+    },
+    "RuntimeDiagnosticLevelJson": {
+      "description": "Runtime diagnostic verbosity for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Disable runtime diagnostics collection.",
+          "type": "string",
+          "const": "off"
+        },
+        {
+          "description": "Record only error diagnostics.",
+          "type": "string",
+          "const": "error"
+        },
+        {
+          "description": "Record warning and error diagnostics.",
+          "type": "string",
+          "const": "warn"
+        },
+        {
+          "description": "Record informational diagnostics and above.",
+          "type": "string",
+          "const": "info"
+        },
+        {
+          "description": "Record debug diagnostics and above.",
+          "type": "string",
+          "const": "debug"
+        },
+        {
+          "description": "Record trace diagnostics and above.",
+          "type": "string",
+          "const": "trace"
         }
       ]
     },
@@ -2314,6 +2387,69 @@
             "null"
           ],
           "format": "uint32",
+          "minimum": 0
+        },
+        "eventMonitorPollIntervalNs": {
+          "description": "Optional monitor worker poll interval in nanoseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "eventQueueCapacity": {
+          "description": "Optional audio event queue capacity override.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "defaultEventPollIntervalNs": {
+          "description": "Optional default audio event poll interval in nanoseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "streamWaitSliceNs": {
+          "description": "Optional stream wait slice in nanoseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "maxStreamReadBytes": {
+          "description": "Optional maximum stream read bytes per operation.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "maxQueuedFrames": {
+          "description": "Optional maximum queued stream frame budget.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "workerPollIntervalNs": {
+          "description": "Optional worker poll interval in nanoseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
           "minimum": 0
         }
       }
@@ -2560,7 +2696,18 @@
     },
     "PlatformIpcOptionsJson": {
       "description": "IPC runtime options.",
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "unixSemaphorePollIntervalNs": {
+          "description": "Optional Unix semaphore poll interval in nanoseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      }
     },
     "PlatformMemoryOptionsJson": {
       "description": "Memory runtime options.",
