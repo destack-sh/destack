@@ -109,6 +109,7 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
+        // inspect dir roots
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -233,12 +234,26 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
     /// Return true when the expression is a string literal or template.
     fn is_string_like(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         let expression = self.ctx.tree.get(expression_id);
-        matches!(
+        if matches!(
             expression,
             dir::Expression::ScalarLiteral {
                 value: dir::ScalarLiteral::String(_),
             } | dir::Expression::TemplateExpression { .. }
-        )
+        ) {
+            return true;
+        }
+
+        // treat `left + right` as string-like if either side is string-like
+        if let dir::Expression::Binary {
+            operator: dir::BinaryOperator::Add,
+            left,
+            right,
+        } = expression
+        {
+            return self.is_string_like(*left) || self.is_string_like(*right);
+        }
+
+        false
     }
 }
 
@@ -343,5 +358,19 @@ setTimeout(() => work(), 10);
 "#,
         );
         test.result(result).assert_no_lint("no-implied-eval");
+    }
+
+    /// Report timer calls with string concatenation.
+    #[test]
+    fn test_flags_string_concatenation_timer() {
+        let test = TestProgram::for_rule_with_prelude(NoImpliedEval);
+        let result = test.lint_dir(
+            "no_implied_eval/test_flags_string_concatenation_timer.ds",
+            r#"
+let expression = "work()";
+setTimeout("return " + expression, 10);
+"#,
+        );
+        test.result(result).assert_lint("no-implied-eval");
     }
 }

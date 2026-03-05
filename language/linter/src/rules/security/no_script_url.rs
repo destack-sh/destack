@@ -1,7 +1,8 @@
-use destack_ast::{self as ast, Expression, ScalarLiteral};
+use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::expression_static_string_literal_syntax;
+use crate::{LintDiagnostic, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `javascript:` URLs.
@@ -24,25 +25,25 @@ declare_lint! {
 }
 
 impl LintRule for NoScriptUrl {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoScriptUrl::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
-
-            // check string literals
-            let Expression::ScalarLiteral(ScalarLiteral::String(string_id)) = expression else {
+            // check static string-like expressions
+            let Some(string_id) = expression_static_string_literal_syntax(ctx.tree, node_id) else {
                 continue;
             };
 
-            let string_value = ctx.strings.get(*string_id);
+            // resolve string value
+            let string_value = ctx.strings.get(string_id);
             let string_str = string_value.as_ref();
 
-            // check for javascript: URL (case-insensitive)
+            // check for javascript: URL (case insensitive)
             let trimmed = string_str.trim();
             if trimmed.to_lowercase().starts_with("javascript:") {
                 let severity = ctx.get_effective_severity(meta, node_id);
@@ -138,6 +139,30 @@ let msg = "I love javascript programming"
             "no_script_url/test_allows_data_url.ds",
             r#"
 let url = "data:text/html,<h1>Hello</h1>"
+"#,
+        );
+        test.result(result).assert_no_lint("no-script-url");
+    }
+
+    #[test]
+    fn test_detects_template_script_url() {
+        let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
+        let result = test.lint_ast(
+            "no_script_url/test_detects_template_script_url.ds",
+            r#"
+let url = `javascript:alert('XSS')`
+"#,
+        );
+        test.result(result).assert_lint("no-script-url");
+    }
+
+    #[test]
+    fn test_allows_tagged_template_script_url() {
+        let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
+        let result = test.lint_ast(
+            "no_script_url/test_allows_tagged_template_script_url.ds",
+            r#"
+let url = safe`javascript:alert('XSS')`
 "#,
         );
         test.result(result).assert_no_lint("no-script-url");

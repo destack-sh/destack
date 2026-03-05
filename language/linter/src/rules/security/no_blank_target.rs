@@ -1,9 +1,10 @@
-use destack_ast::{self as ast, Argument, Expression, ScalarLiteral};
+use destack_ast::{self as ast, Argument, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::expression_static_string_literal_syntax;
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
-// TODO #Correctness: no-blank-target works but would be better with canonical DIR symbols?
+// TODO #Architecture: this rule works but would be better with canonical DIR symbols
 
 declare_lint! {
     /// Disallow `target="_blank"` without `rel="noopener noreferrer"`.
@@ -27,13 +28,14 @@ declare_lint! {
 }
 
 impl LintRule for NoBlankTarget {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoBlankTarget::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
 
@@ -47,8 +49,8 @@ impl LintRule for NoBlankTarget {
                 continue;
             };
 
-            // check if the tag is an anchor <a>
-            if !is_anchor_tag(ctx, *left) {
+            // check if the tag is supported for target checks
+            if !is_checked_target_element(ctx, *left) {
                 continue;
             }
 
@@ -105,8 +107,8 @@ impl LintRule for NoBlankTarget {
     }
 }
 
-/// Check if the left expression is an anchor tag `<a>`.
-fn is_anchor_tag(
+/// Check if the left expression is a checked element tag.
+fn is_checked_target_element(
     ctx: &LintModuleAstContext<'_>,
     left: Option<ast::LocalNodeId<Expression>>,
 ) -> bool {
@@ -114,6 +116,7 @@ fn is_anchor_tag(
         return false;
     };
 
+    // resolve left expr
     let left_expr = ctx.tree.get(left_id);
 
     // check for simple path like `a`
@@ -121,10 +124,10 @@ fn is_anchor_tag(
         return false;
     };
 
-    // check if the path has exactly one segment and it's "a"
+    // check if the path has exactly one segment and a checked tag name
     if path.segments.len() == 1 {
         let name_str = ctx.strings.get(path.segments[0]);
-        return name_str.as_ref() == "a";
+        return matches!(name_str.as_ref(), "a" | "area" | "form");
     }
 
     false
@@ -143,11 +146,12 @@ fn is_blank_target(ctx: &LintModuleAstContext<'_>, arg: &Argument) -> bool {
     }
 
     // check if the value is "_blank"
-    let value_expr = ctx.tree.get(*value);
-    let Expression::ScalarLiteral(ScalarLiteral::String(string_id)) = value_expr else {
+    let Some(string_id) = argument_static_string_id(ctx, *value) else {
         return false;
     };
-    let value_str = ctx.strings.get(*string_id);
+
+    // resolve value str
+    let value_str = ctx.strings.get(string_id);
     value_str.as_ref() == "_blank"
 }
 
@@ -163,15 +167,17 @@ fn is_safe_rel(ctx: &LintModuleAstContext<'_>, arg: &Argument) -> bool {
         return false;
     }
 
-    // check if the value contains "noopener" or "noreferrer"
-    let value_expr = ctx.tree.get(*value);
-    let Expression::ScalarLiteral(ScalarLiteral::String(string_id)) = value_expr else {
+    // check if one rel token is safe
+    let Some(string_id) = argument_static_string_id(ctx, *value) else {
         return false;
     };
 
-    let value_str = ctx.strings.get(*string_id);
-    let rel_value = value_str.as_ref();
-    rel_value.contains("noopener") || rel_value.contains("noreferrer")
+    // resolve rel value
+    let rel_value = ctx.strings.get(string_id);
+    rel_value
+        .as_ref()
+        .split_ascii_whitespace()
+        .any(|token| token == "noopener" || token == "noreferrer")
 }
 
 /// Check if an argument is any `rel=...` attribute.
@@ -180,8 +186,17 @@ fn is_rel_argument(ctx: &LintModuleAstContext<'_>, arg: &Argument) -> bool {
         return false;
     };
 
+    // resolve name str
     let name_str = ctx.strings.get(name.string());
     name_str.as_ref() == "rel"
+}
+
+/// Return one static string argument value.
+fn argument_static_string_id(
+    ctx: &LintModuleAstContext<'_>,
+    value: ast::LocalNodeId<Expression>,
+) -> Option<ast::StringId> {
+    expression_static_string_literal_syntax(ctx.tree, value)
 }
 
 /// Build a safe fix that injects rel noopener and noreferrer.
@@ -317,5 +332,41 @@ let elem = <div target="_blank">Content</div>
 "#,
         );
         test.result(result).assert_no_lint("no-blank-target");
+    }
+
+    #[test]
+    fn test_detects_area_target_without_rel() {
+        let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
+        let result = test.lint_ast(
+            "no_blank_target/test_detects_area_target_without_rel.ds",
+            r#"
+let area = <area href="https://example.com" target="_blank" />
+"#,
+        );
+        test.result(result).assert_lint("no-blank-target");
+    }
+
+    #[test]
+    fn test_detects_form_target_without_rel() {
+        let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
+        let result = test.lint_ast(
+            "no_blank_target/test_detects_form_target_without_rel.ds",
+            r#"
+let form = <form action="https://example.com" target="_blank"></form>
+"#,
+        );
+        test.result(result).assert_lint("no-blank-target");
+    }
+
+    #[test]
+    fn test_flags_rel_without_safe_token_boundary() {
+        let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
+        let result = test.lint_ast(
+            "no_blank_target/test_flags_rel_without_safe_token_boundary.ds",
+            r#"
+let link = <a href="https://example.com" target="_blank" rel="noopenernoreferrer">Click</a>
+"#,
+        );
+        test.result(result).assert_lint("no-blank-target");
     }
 }

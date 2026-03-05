@@ -3,7 +3,9 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
-use crate::rules::common::{expression_is_global_qualified_member, expression_target_symbol};
+use crate::rules::common::{
+    expression_is_symbol_or_global_qualified_member, expression_static_property_access,
+};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -141,6 +143,7 @@ impl<'a, 'b> NoWeakCryptoVisitor<'a, 'b> {
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
+        // inspect dir roots
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -222,37 +225,37 @@ impl<'a, 'b> NoWeakCryptoVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<(&'static str, bool)> {
-        let expression = self.ctx.tree.get(expression_id);
-
-        // must be a member expression
-        let dir::Expression::Member { left, name, .. } = expression else {
+        // match static property access for crypto methods
+        let Some((receiver_id, method_name)) =
+            expression_static_property_access(self.ctx.tree, expression_id)
+        else {
             return None;
         };
 
         // left must be the crypto object
-        if !self.is_crypto_object(*left) {
+        if !self.is_crypto_object(receiver_id) {
             return None;
         }
 
         // match hash methods
-        if *name == self.create_hash_name {
+        if method_name == self.create_hash_name {
             return Some(("createHash", false));
         }
-        if *name == self.create_hmac_name {
+        if method_name == self.create_hmac_name {
             return Some(("createHmac", false));
         }
 
         // match cipher methods
-        if *name == self.create_cipher_name {
+        if method_name == self.create_cipher_name {
             return Some(("createCipher", true));
         }
-        if *name == self.create_cipher_iv_name {
+        if method_name == self.create_cipher_iv_name {
             return Some(("createCipheriv", true));
         }
-        if *name == self.create_decipher_name {
+        if method_name == self.create_decipher_name {
             return Some(("createDecipher", true));
         }
-        if *name == self.create_decipher_iv_name {
+        if method_name == self.create_decipher_iv_name {
             return Some(("createDecipheriv", true));
         }
 
@@ -261,16 +264,10 @@ impl<'a, 'b> NoWeakCryptoVisitor<'a, 'b> {
 
     /// Return true when the expression references the crypto object.
     fn is_crypto_object(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        // match direct symbol reference
-        let target_symbol = expression_target_symbol(self.ctx.tree, expression_id);
-        if target_symbol == Some(self.crypto_symbol) {
-            return true;
-        }
-
-        // match globalThis.crypto
-        expression_is_global_qualified_member(
+        expression_is_symbol_or_global_qualified_member(
             self.ctx.tree,
             expression_id,
+            self.crypto_symbol,
             &self.global_qualifiers,
             self.crypto_name,
         )
@@ -402,5 +399,31 @@ let cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
 "#,
         );
         test.result(result).assert_no_lint("no-weak-crypto");
+    }
+
+    /// Flag computed weak hash algorithm.
+    #[test]
+    fn test_flags_computed_md5_hash() {
+        let test = TestProgram::for_rule_with_prelude(NoWeakCrypto);
+        let result = test.lint_dir(
+            "no_weak_crypto/test_flags_computed_md5_hash.ds",
+            r#"
+let hash = crypto["createHash"]("md5");
+"#,
+        );
+        test.result(result).assert_lint("no-weak-crypto");
+    }
+
+    /// Flag global computed weak hash algorithm.
+    #[test]
+    fn test_flags_global_computed_md5_hash() {
+        let test = TestProgram::for_rule_with_prelude(NoWeakCrypto);
+        let result = test.lint_dir(
+            "no_weak_crypto/test_flags_global_computed_md5_hash.ds",
+            r#"
+let hash = globalThis["crypto"]["createHash"]("md5");
+"#,
+        );
+        test.result(result).assert_lint("no-weak-crypto");
     }
 }

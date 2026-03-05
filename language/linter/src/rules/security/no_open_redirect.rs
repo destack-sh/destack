@@ -4,7 +4,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    TaintAnalysis, TaintCache, expression_is_global_qualified_member, expression_target_symbol,
+    TaintAnalysis, TaintCache, expression_is_global_qualified_member,
+    expression_is_symbol_or_global_qualified_member, expression_static_property_access,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -100,6 +101,7 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
+        // inspect dir roots
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -178,29 +180,29 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
 
     /// Return true when the expression is a location target.
     fn is_location_target(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        let expression = self.ctx.tree.get(expression_id);
-
         // match location directly
-        if let Some(symbol) = expression.target_symbol()
-            && symbol == self.location_symbol
-        {
+        if expression_is_symbol_or_global_qualified_member(
+            self.ctx.tree,
+            expression_id,
+            self.location_symbol,
+            &self.global_qualifiers,
+            self.location_name,
+        ) {
             return true;
         }
 
-        // match location.href
-        if let dir::Expression::Member { left, name, .. } = expression
-            && *name == self.href_name
-            && self.is_location_ref(*left)
+        // match location.href and window.location
+        if let Some((receiver_id, property_name)) =
+            expression_static_property_access(self.ctx.tree, expression_id)
         {
-            return true;
-        }
+            if property_name == self.href_name && self.is_location_ref(receiver_id) {
+                return true;
+            }
 
-        // match window.location
-        if let dir::Expression::Member { left, name, .. } = expression
-            && *name == self.location_name
-            && self.is_window_ref(*left)
-        {
-            return true;
+            // enforce this lint guard
+            if property_name == self.location_name && self.is_window_ref(receiver_id) {
+                return true;
+            }
         }
 
         false
@@ -208,41 +210,30 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
 
     /// Return true when the expression is a redirect method.
     fn is_redirect_method(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        let expression = self.ctx.tree.get(expression_id);
-
         // match location.assign or location.replace
-        if let dir::Expression::Member { left, name, .. } = expression
-            && (*name == self.assign_name || *name == self.replace_name)
-            && self.is_location_ref(*left)
-        {
-            return true;
-        }
-
-        false
+        expression_static_property_access(self.ctx.tree, expression_id).is_some_and(
+            |(receiver_id, property_name)| {
+                (property_name == self.assign_name || property_name == self.replace_name)
+                    && self.is_location_ref(receiver_id)
+            },
+        )
     }
 
     /// Return true when the expression references location.
     fn is_location_ref(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        // match direct symbol reference
-        if let Some(symbol) = expression_target_symbol(self.ctx.tree, expression_id)
-            && symbol == self.location_symbol
-        {
-            return true;
-        }
-
         // match window.location
-        let expression = self.ctx.tree.get(expression_id);
-        if let dir::Expression::Member { left, name, .. } = expression
-            && *name == self.location_name
-            && self.is_window_ref(*left)
+        if let Some((receiver_id, property_name)) =
+            expression_static_property_access(self.ctx.tree, expression_id)
+            && property_name == self.location_name
+            && self.is_window_ref(receiver_id)
         {
             return true;
         }
 
-        // match globalThis.location
-        expression_is_global_qualified_member(
+        expression_is_symbol_or_global_qualified_member(
             self.ctx.tree,
             expression_id,
+            self.location_symbol,
             &self.global_qualifiers,
             self.location_name,
         )
@@ -390,6 +381,34 @@ function readRedirect(): string {
 }
 
 location.assign(readRedirect());
+"#,
+        );
+        test.result(result).assert_lint("no-open-redirect");
+    }
+
+    /// Flag computed location href assignment with user input.
+    #[test]
+    fn test_flags_computed_location_href_assignment() {
+        let test = TestProgram::for_rule_with_prelude(NoOpenRedirect);
+        let result = test.lint_dir(
+            "no_open_redirect/test_flags_computed_location_href_assignment.ds",
+            r#"
+let url = location.search;
+location["href"] = url;
+"#,
+        );
+        test.result(result).assert_lint("no-open-redirect");
+    }
+
+    /// Flag computed location assign calls with user input.
+    #[test]
+    fn test_flags_computed_location_assign_call() {
+        let test = TestProgram::for_rule_with_prelude(NoOpenRedirect);
+        let result = test.lint_dir(
+            "no_open_redirect/test_flags_computed_location_assign_call.ds",
+            r#"
+let url = location.search;
+location["assign"](url);
 "#,
         );
         test.result(result).assert_lint("no-open-redirect");
