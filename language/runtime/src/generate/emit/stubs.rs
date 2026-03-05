@@ -626,15 +626,17 @@ pub(crate) fn render_simulation_native_stub(
     domain: &str,
     bindings: &BindingCatalogEntry,
 ) -> String {
+    let simulation_bindings = collect_simulation_bindings(bindings);
+
     // build a deterministic list of binding descriptors
-    let consts = build_binding_consts(domain, bindings);
+    let consts = build_binding_consts(domain, &simulation_bindings);
 
     // collect required imports for the simulation native stub
-    let usage = collect_native_usage(bindings);
+    let usage = collect_native_usage(&simulation_bindings);
 
     // collect domain-specific named types for imports
-    let named_types = collect_native_stub_named_types(domain, bindings);
-    let type_domains = collect_type_domains(domain, bindings);
+    let named_types = collect_native_stub_named_types(domain, &simulation_bindings);
+    let type_domains = collect_type_domains(domain, &simulation_bindings);
 
     // render the stub file content
     let mut output = String::new();
@@ -732,11 +734,13 @@ pub(crate) fn render_simulation_native_stub(
 
 /// Render stub simulation VM bindings for a runtime domain.
 pub(crate) fn render_simulation_vm_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
+    let simulation_bindings = collect_simulation_bindings(bindings);
+
     // build a deterministic list of binding descriptors
-    let consts = build_binding_consts(domain, bindings);
-    let vm_types = collect_vm_stub_named_types(domain, bindings);
-    let type_domains = collect_type_domains(domain, bindings);
-    let vm_usage = collect_vm_stub_usage(bindings);
+    let consts = build_binding_consts(domain, &simulation_bindings);
+    let vm_types = collect_vm_stub_named_types(domain, &simulation_bindings);
+    let type_domains = collect_type_domains(domain, &simulation_bindings);
+    let vm_usage = collect_vm_stub_usage(&simulation_bindings);
 
     // render the stub file content
     let mut output = String::new();
@@ -810,6 +814,18 @@ pub(crate) fn render_simulation_vm_stub(domain: &str, bindings: &BindingCatalogE
     output
 }
 
+/// Collect simulation-capable bindings for one domain.
+fn collect_simulation_bindings(bindings: &BindingCatalogEntry) -> BindingCatalogEntry {
+    let mut simulation_bindings = BindingCatalogEntry::new();
+    for (extern_name, entry) in bindings {
+        if entry.simulation == CatalogBindingSimulation::Unsupported {
+            continue;
+        }
+        simulation_bindings.insert(extern_name.clone(), entry.clone());
+    }
+    simulation_bindings
+}
+
 /// Render a simulation module re-export stub for a runtime domain.
 pub(crate) fn render_simulation_mod_stub() -> String {
     let mut output = String::new();
@@ -821,6 +837,7 @@ pub(crate) fn render_simulation_mod_stub() -> String {
 /// Render a top-level module stub for a runtime domain.
 pub(crate) fn render_domain_mod_stub(
     has_world_dispatch: bool,
+    has_simulation_dispatch: bool,
     has_runtime_dispatch: bool,
 ) -> String {
     let mut output = String::new();
@@ -839,7 +856,7 @@ pub(crate) fn render_domain_mod_stub(
     if has_runtime_dispatch {
         output.push_str("pub(crate) mod runtime;\n");
     }
-    if has_world_dispatch {
+    if has_simulation_dispatch {
         output.push_str("pub(crate) mod simulation;\n");
     }
     output.push_str("pub mod vm;\n");

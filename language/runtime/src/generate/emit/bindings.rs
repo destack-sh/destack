@@ -5,8 +5,8 @@ use destack_dir::{EnumBackingType, IntType};
 use crate::model::{
     BindingCatalog, BindingEntry, BindingEnumValue, BindingEnumVariant, BindingField,
     BindingParameter, BindingType, CatalogBindingBlocking, CatalogBindingReplayKind,
-    CatalogBindingScope, CatalogEffectClass, CatalogRandomEventKind, CatalogReplayPayload,
-    CatalogReplayPolicy, CatalogTimeEventKind,
+    CatalogBindingScope, CatalogBindingSimulation, CatalogEffectClass, CatalogRandomEventKind,
+    CatalogReplayPayload, CatalogReplayPolicy, CatalogTimeEventKind,
 };
 
 /// Catalog entry grouping bindings by extern name.
@@ -113,6 +113,10 @@ impl<'a> DomainSpec<'a> {
         let uses_world_dispatch = bindings
             .values()
             .any(|entry| entry.scope != CatalogBindingScope::Runtime);
+        let uses_simulation_dispatch = bindings.values().any(|entry| {
+            entry.scope != CatalogBindingScope::Runtime
+                && entry.simulation != CatalogBindingSimulation::Unsupported
+        });
         let uses_runtime_dispatch = bindings
             .values()
             .any(|entry| entry.scope == CatalogBindingScope::Runtime);
@@ -135,6 +139,7 @@ impl<'a> DomainSpec<'a> {
                 needs_decode,
                 needs_native_out,
                 uses_world_dispatch,
+                uses_simulation_dispatch,
                 uses_runtime_dispatch,
             },
             types: RenderTypes {
@@ -251,6 +256,8 @@ pub(super) struct RenderUsage {
     pub(super) needs_native_out: bool,
     /// Whether world dispatch should be emitted.
     pub(super) uses_world_dispatch: bool,
+    /// Whether simulation dispatch should be emitted.
+    pub(super) uses_simulation_dispatch: bool,
     /// Whether runtime dispatch should be emitted.
     pub(super) uses_runtime_dispatch: bool,
 }
@@ -702,7 +709,7 @@ impl<'a> DomainWriter<'a> {
                 "use crate::platform::{domain}::runtime::{{native as platform_runtime_native, vm as platform_runtime_vm}};\n"
             ));
         }
-        if usage.uses_world_dispatch {
+        if usage.uses_simulation_dispatch {
             self.output.push_str(&format!(
                 "use crate::platform::{domain}::simulation::{{native as platform_simulation_native, vm as platform_simulation_vm}};\n"
             ));
@@ -1271,6 +1278,7 @@ impl<'a> DomainWriter<'a> {
                         let call = render_native_checked_world_dispatch_expr(
                             &binding.const_name,
                             entry.scope,
+                            binding.entry.simulation,
                             implementation_fn_name,
                             &args,
                         );
@@ -1285,6 +1293,7 @@ impl<'a> DomainWriter<'a> {
                     let call = render_native_checked_world_dispatch_expr(
                         &binding.const_name,
                         entry.scope,
+                        binding.entry.simulation,
                         implementation_fn_name,
                         &args,
                     );
@@ -1302,6 +1311,7 @@ impl<'a> DomainWriter<'a> {
                         let call = render_native_checked_world_dispatch_expr(
                             &binding.const_name,
                             entry.scope,
+                            binding.entry.simulation,
                             implementation_fn_name,
                             &args,
                         );
@@ -1320,6 +1330,7 @@ impl<'a> DomainWriter<'a> {
                         let call = render_native_checked_world_dispatch_expr(
                             &binding.const_name,
                             entry.scope,
+                            binding.entry.simulation,
                             implementation_fn_name,
                             &args,
                         );
@@ -1339,6 +1350,7 @@ impl<'a> DomainWriter<'a> {
                         let call = render_native_checked_world_dispatch_expr(
                             &binding.const_name,
                             entry.scope,
+                            binding.entry.simulation,
                             implementation_fn_name,
                             &args,
                         );
@@ -1451,6 +1463,7 @@ impl<'a> DomainWriter<'a> {
                         let call = render_vm_checked_world_dispatch_expr(
                             &binding.const_name,
                             binding.entry.scope,
+                            binding.entry.simulation,
                             implementation_fn_name,
                             &invoke_args,
                         );
@@ -1465,6 +1478,7 @@ impl<'a> DomainWriter<'a> {
                     let call = render_vm_checked_world_dispatch_expr(
                         &binding.const_name,
                         binding.entry.scope,
+                        binding.entry.simulation,
                         implementation_fn_name,
                         &invoke_args,
                     );
@@ -1482,6 +1496,7 @@ impl<'a> DomainWriter<'a> {
                         let call = render_vm_checked_world_dispatch_expr(
                             &binding.const_name,
                             binding.entry.scope,
+                            binding.entry.simulation,
                             implementation_fn_name,
                             &invoke_args,
                         );
@@ -1505,6 +1520,7 @@ impl<'a> DomainWriter<'a> {
                         let call = render_vm_checked_world_dispatch_expr(
                             &binding.const_name,
                             binding.entry.scope,
+                            binding.entry.simulation,
                             implementation_fn_name,
                             &invoke_args,
                         );
@@ -1534,6 +1550,7 @@ impl<'a> DomainWriter<'a> {
                         let call = render_vm_checked_world_dispatch_expr(
                             &binding.const_name,
                             binding.entry.scope,
+                            binding.entry.simulation,
                             implementation_fn_name,
                             &invoke_args,
                         )
@@ -1603,6 +1620,7 @@ fn time_event_kind_value(kind: CatalogTimeEventKind) -> &'static str {
 fn render_native_checked_world_dispatch_expr(
     binding_const: &str,
     scope: CatalogBindingScope,
+    simulation: CatalogBindingSimulation,
     implementation_fn_name: &str,
     args: &[String],
 ) -> String {
@@ -1630,17 +1648,26 @@ fn render_native_checked_world_dispatch_expr(
         );
     }
 
-    let simulation = if args.is_empty() {
-        format!("unsafe {{ platform_simulation_native::{implementation_fn_name}(context) }}")
-    } else {
-        format!(
-            "unsafe {{ platform_simulation_native::{implementation_fn_name}(context, {}) }}",
-            args.join(", ")
-        )
+    let simulation_call = match simulation {
+        CatalogBindingSimulation::Unsupported => format!(
+            "Err(RuntimeError::from(PlatformError::not_supported({binding_const}.name)).boxed())"
+        ),
+        CatalogBindingSimulation::Stub | CatalogBindingSimulation::Model => {
+            if args.is_empty() {
+                format!(
+                    "unsafe {{ platform_simulation_native::{implementation_fn_name}(context) }}"
+                )
+            } else {
+                format!(
+                    "unsafe {{ platform_simulation_native::{implementation_fn_name}(context, {}) }}",
+                    args.join(", ")
+                )
+            }
+        }
     };
 
     format!(
-        "{{\n            let (world, _binding_hook_guard) = context.on_before_binding_resolve_world({binding_const})?;\n            match world {{\n                RuntimeWorld::Host => {call},\n                RuntimeWorld::Simulation => {simulation},\n            }}\n        }}"
+        "{{\n            let (world, _binding_hook_guard) = context.on_before_binding_resolve_world({binding_const})?;\n            match world {{\n                RuntimeWorld::Host => {call},\n                RuntimeWorld::Simulation => {simulation_call},\n            }}\n        }}"
     )
 }
 
@@ -1648,6 +1675,7 @@ fn render_native_checked_world_dispatch_expr(
 fn render_vm_checked_world_dispatch_expr(
     binding_const: &str,
     scope: CatalogBindingScope,
+    simulation: CatalogBindingSimulation,
     implementation_fn_name: &str,
     invoke_args: &str,
 ) -> String {
@@ -1661,11 +1689,19 @@ fn render_vm_checked_world_dispatch_expr(
         );
     }
 
-    let simulation =
-        format!("platform_simulation_vm::{implementation_fn_name}(binding, context{invoke_args})");
+    let simulation_call = match simulation {
+        CatalogBindingSimulation::Unsupported => format!(
+            "Err(RuntimeError::from(PlatformError::not_supported({binding_const}.name)).boxed())"
+        ),
+        CatalogBindingSimulation::Stub | CatalogBindingSimulation::Model => {
+            format!(
+                "platform_simulation_vm::{implementation_fn_name}(binding, context{invoke_args})"
+            )
+        }
+    };
 
     format!(
-        "{{\n                        let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world({binding_const})?;\n                        match world {{\n                            RuntimeWorld::Host => {call},\n                            RuntimeWorld::Simulation => {simulation},\n                        }}\n                    }}"
+        "{{\n                        let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world({binding_const})?;\n                        match world {{\n                            RuntimeWorld::Host => {call},\n                            RuntimeWorld::Simulation => {simulation_call},\n                        }}\n                    }}"
     )
 }
 

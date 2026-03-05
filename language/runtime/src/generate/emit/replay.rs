@@ -1,8 +1,8 @@
 use std::collections::BTreeSet;
 
 use crate::model::{
-    BindingEntry, BindingType, CatalogBindingReplayKind, CatalogEffectClass, CatalogReplayPayload,
-    CatalogReplayPolicy,
+    BindingEntry, BindingType, CatalogBindingReplayKind, CatalogBindingSimulation,
+    CatalogEffectClass, CatalogReplayPayload, CatalogReplayPolicy,
 };
 
 use super::*;
@@ -184,17 +184,25 @@ impl<'a> DomainWriter<'a> {
             if entry.scope == crate::model::CatalogBindingScope::Runtime {
                 output.push_str(&format!("        || {runtime_call},\n"));
             } else {
-                let simulation_call = if args.is_empty() {
-                    format!(
-                        "unsafe {{ platform_simulation_native::{}(binding) }}",
-                        implementation_fn_name
-                    )
-                } else {
-                    format!(
-                        "unsafe {{ platform_simulation_native::{}(binding, {}) }}",
-                        implementation_fn_name,
-                        args.join(", ")
-                    )
+                let simulation_call = match entry.simulation {
+                    CatalogBindingSimulation::Unsupported => format!(
+                        "Err(RuntimeError::from(PlatformError::not_supported({}.name)).boxed())",
+                        binding.const_name
+                    ),
+                    CatalogBindingSimulation::Stub | CatalogBindingSimulation::Model => {
+                        if args.is_empty() {
+                            format!(
+                                "unsafe {{ platform_simulation_native::{}(binding) }}",
+                                implementation_fn_name
+                            )
+                        } else {
+                            format!(
+                                "unsafe {{ platform_simulation_native::{}(binding, {}) }}",
+                                implementation_fn_name,
+                                args.join(", ")
+                            )
+                        }
+                    }
                 };
                 output.push_str("        || match world {\n");
                 output.push_str(&format!("            RuntimeWorld::Host => {host_call},\n"));
@@ -487,10 +495,18 @@ impl<'a> DomainWriter<'a> {
                     implementation_fn_name
                 ));
             } else {
-                let simulation_call = format!(
-                    "platform_simulation_vm::{}(binding, context{invoke_args})",
-                    implementation_fn_name
-                );
+                let simulation_call = match entry.simulation {
+                    CatalogBindingSimulation::Unsupported => format!(
+                        "Err(RuntimeError::from(PlatformError::not_supported({}.name)).boxed())",
+                        binding.const_name
+                    ),
+                    CatalogBindingSimulation::Stub | CatalogBindingSimulation::Model => {
+                        format!(
+                            "platform_simulation_vm::{}(binding, context{invoke_args})",
+                            implementation_fn_name
+                        )
+                    }
+                };
                 output.push_str("        |context| {\n");
                 output.push_str("            match world {\n");
                 output.push_str(&format!(
