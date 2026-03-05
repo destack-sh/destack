@@ -5,7 +5,7 @@ use crate::rules::common::expression_target_symbol;
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
-    /// Disallow `new RegExp()` inside loops.
+    /// Disallow `RegExp(...)` construction inside loops.
     ///
     /// Creating a RegExp object inside a loop causes unnecessary allocations
     /// on each iteration. Move the regex outside the loop or use a regex literal.
@@ -36,7 +36,7 @@ impl LintRule for NoRegexInLoop {
     }
 }
 
-/// Visitor that flags new RegExp() inside loops.
+/// Visitor that flags RegExp construction inside loops.
 struct NoRegexInLoopVisitor<'a, 'b> {
     /// The lint context.
     ctx: &'a mut LintModuleDirContext<'b>,
@@ -77,11 +77,11 @@ impl<'a, 'b> NoRegexInLoopVisitor<'a, 'b> {
         }
     }
 
-    /// Check a new expression for RegExp construction inside a loop.
-    fn check_new(
+    /// Check one constructor expression for RegExp construction inside a loop.
+    fn check_constructor(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        left: dir::LocalNodeId<dir::Expression>,
+        callee_id: dir::LocalNodeId<dir::Expression>,
     ) {
         // only check inside loops
         if !self.is_in_loop {
@@ -93,7 +93,7 @@ impl<'a, 'b> NoRegexInLoopVisitor<'a, 'b> {
             return;
         };
 
-        if expression_target_symbol(self.ctx.tree, left) != Some(regexp_symbol) {
+        if expression_target_symbol(self.ctx.tree, callee_id) != Some(regexp_symbol) {
             return;
         }
 
@@ -111,7 +111,7 @@ impl<'a, 'b> NoRegexInLoopVisitor<'a, 'b> {
                 NO_REGEX_IN_LOOP.code,
                 NO_REGEX_IN_LOOP.category,
                 severity,
-                "new RegExp() inside loop causes unnecessary allocations",
+                "RegExp construction inside loop causes unnecessary allocations",
                 self.ctx.module.file_id,
                 span,
             )
@@ -240,9 +240,9 @@ impl NodeVisitor for NoRegexInLoopVisitor<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        // check new expressions
-        if let dir::Expression::New { left, .. } = expression {
-            self.check_new(id, *left);
+        // check constructor calls
+        if let dir::Expression::Call { left, .. } | dir::Expression::New { left, .. } = expression {
+            self.check_constructor(id, *left);
         }
 
         // handle loop expressions with custom traversal
@@ -284,6 +284,23 @@ impl NodeVisitor for NoRegexInLoopVisitor<'_, '_> {
 mod tests {
     use super::*;
     use crate::linter::TestProgram;
+
+    /// Flag RegExp(...) inside for-of loop.
+    #[test]
+    fn test_flags_regexp_call_in_for_of() {
+        let test = TestProgram::for_rule_with_prelude(NoRegexInLoop);
+        let result = test.lint_dir(
+            "no_regex_in_loop/test_flags_regexp_call_in_for_of.ds",
+            r#"
+let patterns = ["a", "b", "c"];
+for (const p of patterns) {
+    let re = RegExp(p);
+    console.log(re.test("abc"));
+}
+"#,
+        );
+        test.result(result).assert_lint("no-regex-in-loop");
+    }
 
     /// Flag new RegExp inside for-of loop.
     #[test]
@@ -363,6 +380,22 @@ for (const item of ["a", "b", "c"]) {
     if (/test/.test(item)) {
         console.log(item);
     }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-regex-in-loop");
+    }
+
+    /// Allow RegExp outside loops.
+    #[test]
+    fn test_allows_regexp_call_outside_loop() {
+        let test = TestProgram::for_rule_with_prelude(NoRegexInLoop);
+        let result = test.lint_dir(
+            "no_regex_in_loop/test_allows_regexp_call_outside_loop.ds",
+            r#"
+let re = RegExp("test");
+for (const item of [1, 2, 3]) {
+    console.log(re.test(item));
 }
 "#,
         );

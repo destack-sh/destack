@@ -32,13 +32,36 @@ impl LintRule for NoAwaitInLoop {
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        // resolve lint metadata for per-node severity
         let meta = self.meta();
+
+        // inspect await-like expressions that can serialize loop execution
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
-            if !matches!(
-                expression,
-                ast::Expression::Await { .. } | ast::Expression::AwaitMaybe { .. }
-            ) {
+            let Some(candidate) = await_loop_candidate(expression) else {
+                continue;
+            };
+
+            // report `for (await using ... of ...)` directly
+            if candidate == AwaitLoopCandidate::ForEachAwaitUsingBinding {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
+                let (message, label) = await_loop_candidate_message(candidate);
+                ctx.report(
+                    LintDiagnostic::new(
+                        NO_AWAIT_IN_LOOP.id,
+                        NO_AWAIT_IN_LOOP.code,
+                        NO_AWAIT_IN_LOOP.category,
+                        severity,
+                        message,
+                        ctx.module.file_id,
+                        ctx.tree.get_span(node_id),
+                    )
+                    .with_label(label),
+                );
                 continue;
             }
 
@@ -65,17 +88,18 @@ impl LintRule for NoAwaitInLoop {
                     if !severity.is_enabled() {
                         break;
                     }
+                    let (message, label) = await_loop_candidate_message(candidate);
                     ctx.report(
                         LintDiagnostic::new(
                             NO_AWAIT_IN_LOOP.id,
                             NO_AWAIT_IN_LOOP.code,
                             NO_AWAIT_IN_LOOP.category,
                             severity,
-                            "`await` inside loop runs sequentially",
+                            message,
                             ctx.module.file_id,
                             ctx.tree.get_span(node_id),
                         )
-                        .with_label("consider using `Promise.all()` for parallel execution"),
+                        .with_label(label),
                     );
                     break;
                 }
@@ -83,6 +107,63 @@ impl LintRule for NoAwaitInLoop {
                 current = parent_id;
             }
         }
+    }
+}
+
+/// A kind of await-like candidate for no-await-in-loop reporting.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum AwaitLoopCandidate {
+    /// One `await` or `await?` expression.
+    AwaitExpression,
+    /// One `await using` declaration expression.
+    AwaitUsingDeclaration,
+    /// One `for (... await using ... of ...)` binding.
+    ForEachAwaitUsingBinding,
+}
+
+/// Return one await-like candidate when this expression can serialize loop execution.
+fn await_loop_candidate(expression: &ast::Expression) -> Option<AwaitLoopCandidate> {
+    // match await expressions
+    if matches!(
+        expression,
+        ast::Expression::Await { .. } | ast::Expression::AwaitMaybe { .. }
+    ) {
+        return Some(AwaitLoopCandidate::AwaitExpression);
+    }
+
+    // match await-using declarations
+    if let ast::Expression::Using { asynchrony, .. } = expression
+        && *asynchrony == ast::Asynchrony::Async
+    {
+        return Some(AwaitLoopCandidate::AwaitUsingDeclaration);
+    }
+
+    // match for-each bindings using await using
+    if let ast::Expression::ForEach { binding, .. } = expression
+        && let ast::ForEachBinding::Using { asynchrony, .. } = binding
+        && *asynchrony == ast::Asynchrony::Async
+    {
+        return Some(AwaitLoopCandidate::ForEachAwaitUsingBinding);
+    }
+
+    None
+}
+
+/// Return diagnostic message and label text for one await-like candidate.
+fn await_loop_candidate_message(candidate: AwaitLoopCandidate) -> (&'static str, &'static str) {
+    match candidate {
+        AwaitLoopCandidate::AwaitExpression => (
+            "`await` inside loop runs sequentially",
+            "consider using `Promise.all()` for parallel execution",
+        ),
+        AwaitLoopCandidate::AwaitUsingDeclaration => (
+            "`await using` inside loop acquires resources sequentially",
+            "consider acquiring resources outside the loop when possible",
+        ),
+        AwaitLoopCandidate::ForEachAwaitUsingBinding => (
+            "`await using` in loop bindings runs per iteration",
+            "consider restructuring resource acquisition to avoid per-iteration await",
+        ),
     }
 }
 
@@ -287,5 +368,22 @@ async function run(): Promise<void> {
 "#,
         );
         test.result(result).assert_no_lint("no-await-in-loop");
+    }
+
+    #[test]
+    fn test_detects_await_using_in_while_loop() {
+        let test = TestProgram::for_rule_without_prelude(NoAwaitInLoop);
+        let result = test.lint_ast(
+            "no_await_in_loop/test_detects_await_using_in_while_loop.ds",
+            r#"
+async function run(): Promise<void> {
+    while (true) {
+        await using resource = getResource();
+        break;
+    }
+}
+"#,
+        );
+        test.result(result).assert_lint("no-await-in-loop");
     }
 }

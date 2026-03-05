@@ -4,13 +4,13 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    const_i64, expression_unwrap_parenthesized, flip_binary_operator, is_array_type,
-    is_string_type, strip_dot_member_suffix,
+    const_i64, expression_regex_literal, expression_unwrap_parenthesized, flip_binary_operator,
+    is_array_type, is_string_type, single_quoted_string_literal, strip_dot_member_suffix,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
-    /// Prefer `includes()` over `indexOf()` comparisons.
+    /// Prefer `includes()` over `indexOf()` comparisons and simple regex tests.
     ///
     /// `includes()` communicates intent more clearly and avoids comparisons
     /// against sentinel values.
@@ -29,7 +29,7 @@ declare_lint! {
         stability = Stable
     )]
     pub PreferIncludes,
-    "Prefer includes() over indexOf() comparisons"
+    "Prefer includes() over indexOf() comparisons and simple regex test() calls"
 }
 
 impl LintRule for PreferIncludes {
@@ -102,6 +102,8 @@ struct PreferIncludesVisitor<'a, 'b> {
     last_index_of_name: StringId,
     /// The string id for the includes method name.
     includes_name: StringId,
+    /// The string id for the test method name.
+    test_name: StringId,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -114,6 +116,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         let index_of_name = ctx.program.strings.intern("indexOf");
         let last_index_of_name = ctx.program.strings.intern("lastIndexOf");
         let includes_name = ctx.program.strings.intern("includes");
+        let test_name = ctx.program.strings.intern("test");
 
         Self {
             ctx,
@@ -123,6 +126,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
             index_of_name,
             last_index_of_name,
             includes_name,
+            test_name,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -224,6 +228,98 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         .with_label(label);
         if self.ctx.include_fixes
             && let Some(fix) = self.includes_fix(expression_id, includes_match)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
+    }
+
+    /// Check one call expression for simple regex-test patterns.
+    fn check_regex_test(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+    ) {
+        // match call expression
+        let dir::Expression::Call {
+            left,
+            static_arguments,
+            dynamic_arguments,
+        } = expression
+        else {
+            return;
+        };
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return;
+        }
+        if dynamic_arguments.len() != 1 {
+            return;
+        }
+
+        // match `.test(...)` call
+        let member_expression = self.ctx.tree.get(*left);
+        let dir::Expression::Member {
+            left: regex_expression_id,
+            name,
+            static_arguments,
+        } = member_expression
+        else {
+            return;
+        };
+        if *name != self.test_name {
+            return;
+        }
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return;
+        }
+
+        // match a plain regex literal pattern
+        let Some(pattern_text) = self.regex_plain_pattern_text(*regex_expression_id) else {
+            return;
+        };
+
+        // require one positional string argument
+        let first_argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let dir::Argument::Positional {
+            value: argument_id, ..
+        } = first_argument
+        else {
+            return;
+        };
+        let Some(argument_type_id) = self.ctx.expression_type_id(*argument_id) else {
+            return;
+        };
+        if !is_string_type(self.ctx.types, argument_type_id, Some(self.string_symbol)) {
+            return;
+        }
+
+        // honor per node severity
+        let severity = self.ctx.get_effective_severity(self.meta, expression_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        // build the diagnostic and optional fix
+        let span = self.ctx.get_span(expression_id);
+        let mut diagnostic = LintDiagnostic::new(
+            PREFER_INCLUDES.id,
+            PREFER_INCLUDES.code,
+            PREFER_INCLUDES.category,
+            severity,
+            "prefer includes() over simple regex test()",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("use includes() for simple substring checks");
+        if self.ctx.include_fixes
+            && let Some(fix) = self.regex_test_fix(expression_id, *argument_id, &pattern_text)
         {
             diagnostic = diagnostic.with_fix(fix);
         }
@@ -385,6 +481,57 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
 
         is_string_type(self.ctx.types, type_id, Some(self.string_symbol))
     }
+
+    /// Return one plain substring pattern for a simple regex literal.
+    fn regex_plain_pattern_text(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<String> {
+        // unwrap parenthesized wrappers around the regex expression
+        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+
+        // match regex scalar literals
+        let (content, flags) = expression_regex_literal(self.ctx.tree, expression_id)?;
+
+        // reject all regex flags for this conservative rewrite
+        if let Some(flags_id) = flags {
+            let flags_text = self.ctx.program.strings.get(flags_id);
+            if !flags_text.is_empty() {
+                return None;
+            }
+        }
+
+        // require a plain literal body without regex operators
+        let pattern_text = self.ctx.program.strings.get(content);
+        plain_regex_substring(pattern_text.as_ref())
+    }
+
+    /// Build a safe fix from one simple regex-test call to includes.
+    fn regex_test_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        argument_id: dir::LocalNodeId<dir::Expression>,
+        pattern_text: &str,
+    ) -> Option<LintFix> {
+        // preserve source text for the searched string expression
+        let argument_span = self.ctx.get_span(argument_id);
+        let argument_text = self.ctx.get_span_text(argument_span);
+        if argument_text.trim().is_empty() {
+            return None;
+        }
+
+        // build replacement text
+        let quoted_pattern = single_quoted_string_literal(pattern_text);
+        let replacement = format!("({argument_text}).includes({quoted_pattern})");
+        let expression_span = self.ctx.get_span(expression_id);
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(expression_span, replacement)
+            .into_edits();
+
+        Some(LintFix::safe("Replace simple regex test() with includes()").with_edits(edits))
+    }
 }
 
 impl NodeVisitor for PreferIncludesVisitor<'_, '_> {
@@ -407,6 +554,9 @@ impl NodeVisitor for PreferIncludesVisitor<'_, '_> {
         {
             self.check_binary(id, *operator, *left, *right);
         }
+
+        // check simple regex test expressions
+        self.check_regex_test(id, expression);
 
         // walk expression children
         walk_expression(self, tree, id, expression);
@@ -431,6 +581,25 @@ fn check_index_of_comparison(
         dir::BinaryOperator::LessThanOrEqual if constant == -1 => Some(IncludesCheck::NoMatch),
         _ => None,
     }
+}
+
+/// Convert one regex source pattern to a plain substring when possible.
+fn plain_regex_substring(pattern: &str) -> Option<String> {
+    if pattern.is_empty() {
+        return None;
+    }
+
+    let is_plain = pattern.chars().all(|character| {
+        !matches!(
+            character,
+            '\\' | '^' | '$' | '*' | '+' | '?' | '.' | '(' | ')' | '[' | ']' | '{' | '}' | '|'
+        )
+    });
+    if !is_plain {
+        return None;
+    }
+
+    Some(pattern.to_string())
 }
 
 #[cfg(test)]
@@ -586,5 +755,68 @@ let has = (items.indexOf(2)) !== (-1);
 "#,
         );
         test.result(result).assert_lint("prefer-includes");
+    }
+
+    /// Report simple regex test calls on strings.
+    #[test]
+    fn test_flags_simple_regex_test() {
+        let test = TestProgram::for_rule_without_prelude(PreferIncludes);
+        let result = test.lint_dir(
+            "prefer_includes/test_flags_simple_regex_test.ds",
+            r#"
+let text = "hello";
+let has = /ell/.test(text);
+"#,
+        );
+        test.result(result).assert_lint("prefer-includes");
+    }
+
+    /// Safely rewrite simple regex test calls to includes.
+    #[test]
+    fn test_fix_simple_regex_test() {
+        let test = TestProgram::for_rule_without_prelude(PreferIncludes);
+        let result = test.lint_dir(
+            "prefer_includes/test_fix_simple_regex_test.ds",
+            r#"
+let text = "hello";
+let has = /ell/.test(text);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-includes")
+            .assert_safe_fixed(
+                r#"
+let text = "hello";
+let has = (text).includes('ell');
+"#,
+            );
+    }
+
+    /// Allow complex regex patterns that are not plain substrings.
+    #[test]
+    fn test_allows_complex_regex_test() {
+        let test = TestProgram::for_rule_without_prelude(PreferIncludes);
+        let result = test.lint_dir(
+            "prefer_includes/test_allows_complex_regex_test.ds",
+            r#"
+let text = "hello";
+let has = /e+l/.test(text);
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-includes");
+    }
+
+    /// Allow regex tests that use behavior changing flags.
+    #[test]
+    fn test_allows_regex_test_with_case_insensitive_flag() {
+        let test = TestProgram::for_rule_without_prelude(PreferIncludes);
+        let result = test.lint_dir(
+            "prefer_includes/test_allows_regex_test_with_case_insensitive_flag.ds",
+            r#"
+let text = "hello";
+let has = /ELL/i.test(text);
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-includes");
     }
 }

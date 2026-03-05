@@ -97,19 +97,11 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         let left = expression_unwrap_parenthesized(self.ctx.tree, left);
         let right = expression_unwrap_parenthesized(self.ctx.tree, right);
 
-        // only match equality comparisons
-        if !matches!(
-            operator,
-            dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict
-        ) {
-            return;
-        }
-
         // match filter length on the left
         if let Some(filter_match) = self.filter_length_match(left) {
             // confirm the lengths refer to the same receiver
             let is_same_length = self.is_same_array_length(&filter_match.receiver_path, right);
-            if is_same_length {
+            if is_same_length && operator_implies_all_match(operator, true) {
                 self.report_match(expression_id, &filter_match);
                 return;
             }
@@ -119,7 +111,7 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         if let Some(filter_match) = self.filter_length_match(right) {
             // confirm the lengths refer to the same receiver
             let is_same_length = self.is_same_array_length(&filter_match.receiver_path, left);
-            if is_same_length {
+            if is_same_length && operator_implies_all_match(operator, false) {
                 self.report_match(expression_id, &filter_match);
             }
         }
@@ -362,6 +354,22 @@ impl NodeVisitor for PreferArrayEveryVisitor<'_, '_> {
     }
 }
 
+/// Return true when this comparison direction implies all items matched.
+fn operator_implies_all_match(operator: dir::BinaryOperator, filter_on_left: bool) -> bool {
+    if matches!(
+        operator,
+        dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict
+    ) {
+        return true;
+    }
+
+    if filter_on_left && operator == dir::BinaryOperator::GreaterThanOrEqual {
+        return true;
+    }
+
+    !filter_on_left && operator == dir::BinaryOperator::LessThanOrEqual
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -514,6 +522,34 @@ let all = items.every((item) => item > 1);
             r#"
 let items = [1, 2, 3];
 let all = (items.filter(item => item > 1).length) === (items.length);
+"#,
+        );
+        test.result(result).assert_lint("prefer-array-every");
+    }
+
+    /// Detect filter-length greater-than-or-equal checks.
+    #[test]
+    fn test_flags_filter_length_greater_equal_length() {
+        let test = TestProgram::for_rule_without_prelude(PreferArrayEvery);
+        let result = test.lint_dir(
+            "prefer_array_every/test_flags_filter_length_greater_equal_length.ds",
+            r#"
+let items = [1, 2, 3];
+let all = items.filter(item => item > 1).length >= items.length;
+"#,
+        );
+        test.result(result).assert_lint("prefer-array-every");
+    }
+
+    /// Detect reversed less-than-or-equal filter-length checks.
+    #[test]
+    fn test_flags_length_less_equal_filter_length() {
+        let test = TestProgram::for_rule_without_prelude(PreferArrayEvery);
+        let result = test.lint_dir(
+            "prefer_array_every/test_flags_length_less_equal_filter_length.ds",
+            r#"
+let items = [1, 2, 3];
+let all = items.length <= items.filter(item => item > 1).length;
 "#,
         );
         test.result(result).assert_lint("prefer-array-every");

@@ -54,6 +54,10 @@ struct NoObjectSpreadInReduceVisitor<'a, 'b> {
     reduce_name: StringId,
     /// The string id for the reduceRight method name.
     reduce_right_name: StringId,
+    /// The global Object symbol for this module, when available.
+    object_symbol: Option<dir::GlobalSymbolId>,
+    /// The string id for the assign method name.
+    assign_name: StringId,
     /// The accumulator symbol when inside a reduce callback.
     accumulator_symbol: Option<dir::GlobalSymbolId>,
     /// The visitor options.
@@ -66,6 +70,9 @@ impl<'a, 'b> NoObjectSpreadInReduceVisitor<'a, 'b> {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
         let reduce_name = ctx.program.strings.intern("reduce");
         let reduce_right_name = ctx.program.strings.intern("reduceRight");
+        let object_name = ctx.program.strings.intern("Object");
+        let object_symbol = ctx.get_declared_lib_symbol(object_name);
+        let assign_name = ctx.program.strings.intern("assign");
 
         Self {
             ctx,
@@ -73,6 +80,8 @@ impl<'a, 'b> NoObjectSpreadInReduceVisitor<'a, 'b> {
             array_symbol,
             reduce_name,
             reduce_right_name,
+            object_symbol,
+            assign_name,
             accumulator_symbol: None,
             options: NodeVisitorOptions::default(),
         }
@@ -213,6 +222,98 @@ impl<'a, 'b> NoObjectSpreadInReduceVisitor<'a, 'b> {
             return;
         }
     }
+
+    /// Check for `Object.assign({}, acc, ...)` inside reduce callbacks.
+    fn check_object_assign(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
+        // only check when we have an accumulator context
+        let Some(accumulator_symbol) = self.accumulator_symbol else {
+            return;
+        };
+
+        // require Object symbol availability
+        let Some(object_symbol) = self.object_symbol else {
+            return;
+        };
+
+        // match method call pattern
+        let Some(method_call) = expression_method_call(self.ctx.tree, expression_id) else {
+            return;
+        };
+        if method_call.method_name != self.assign_name {
+            return;
+        }
+
+        // require Object.assign(...)
+        let receiver_expression = self.ctx.tree.get(method_call.receiver_id);
+        if receiver_expression.target_symbol() != Some(object_symbol) {
+            return;
+        }
+
+        // require at least two arguments and an empty object seed
+        let expression = self.ctx.tree.get(expression_id);
+        let dir::Expression::Call {
+            dynamic_arguments, ..
+        } = expression
+        else {
+            return;
+        };
+        if dynamic_arguments.len() < 2 {
+            return;
+        }
+
+        let first_argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let dir::Argument::Positional {
+            value: first_value, ..
+        } = first_argument
+        else {
+            return;
+        };
+        let first_value_expression = self.ctx.tree.get(*first_value);
+        let dir::Expression::ObjectExpression { properties } = first_value_expression else {
+            return;
+        };
+        if !properties.is_empty() {
+            return;
+        }
+
+        // require accumulator usage in following arguments
+        let mut has_accumulator_argument = false;
+        for argument_id in dynamic_arguments.iter().skip(1) {
+            let argument = self.ctx.tree.get(*argument_id);
+            let dir::Argument::Positional { value, .. } = argument else {
+                continue;
+            };
+            let value_expression = self.ctx.tree.get(*value);
+            if value_expression.target_symbol() == Some(accumulator_symbol) {
+                has_accumulator_argument = true;
+                break;
+            }
+        }
+        if !has_accumulator_argument {
+            return;
+        }
+
+        // honor per node severity
+        let severity = self.ctx.get_effective_severity(self.meta, expression_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        // report the diagnostic
+        let span = self.ctx.get_span(expression_id);
+        self.ctx.report(
+            LintDiagnostic::new(
+                NO_OBJECT_SPREAD_IN_REDUCE.id,
+                NO_OBJECT_SPREAD_IN_REDUCE.code,
+                NO_OBJECT_SPREAD_IN_REDUCE.category,
+                severity,
+                "Object.assign with accumulator clone in reduce causes O(n²) allocations",
+                self.ctx.module.file_id,
+                span,
+            )
+            .with_label("use direct assignment with mutation instead"),
+        );
+    }
 }
 
 impl NodeVisitor for NoObjectSpreadInReduceVisitor<'_, '_> {
@@ -229,6 +330,7 @@ impl NodeVisitor for NoObjectSpreadInReduceVisitor<'_, '_> {
         // check for reduce calls to enter reduce context
         if matches!(expression, dir::Expression::Call { .. }) {
             self.check_reduce_call(tree, id);
+            self.check_object_assign(id);
             // still walk children in case of nested reduces
         }
 
@@ -303,6 +405,21 @@ let items = [{ id: 1 }, { id: 2 }];
 let byId = items.reduce((acc, item) => {
     return { ...acc, [item.id]: item };
 }, {});
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-object-spread-in-reduce");
+    }
+
+    /// Flag Object.assign accumulator clones in reduce.
+    #[test]
+    fn test_flags_object_assign_clone_in_reduce() {
+        let test = TestProgram::for_rule_with_prelude(NoObjectSpreadInReduce);
+        let result = test.lint_dir(
+            "no_object_spread_in_reduce/test_flags_object_assign_clone_in_reduce.ds",
+            r#"
+let items = [{ id: 1 }, { id: 2 }];
+let byId = items.reduce((acc, item) => Object.assign({}, acc, { [item.id]: item }), {});
 "#,
         );
         test.result(result)

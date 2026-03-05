@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
     expression_is_global_qualified_member, expression_target_symbol,
-    expression_unwrap_parenthesized,
+    expression_unwrap_parenthesized, expression_unwrap_transparent,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -156,6 +156,9 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         name: StringId,
     ) -> bool {
+        // normalize transparent wrappers on the member expression
+        let expression_id = expression_unwrap_transparent(self.ctx.tree, expression_id);
+
         // match member access
         let expression = self.ctx.tree.get(expression_id);
         let dir::Expression::Member {
@@ -184,6 +187,9 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
 
     /// Return true when the expression is a JSON.stringify call.
     fn is_json_stringify_call(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
+        // normalize transparent wrappers on the call expression
+        let expression_id = expression_unwrap_transparent(self.ctx.tree, expression_id);
+
         // match call expressions
         let expression = self.ctx.tree.get(expression_id);
         let dir::Expression::Call { left, .. } = expression else {
@@ -198,6 +204,9 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::LocalNodeId<dir::Expression>> {
+        // normalize transparent wrappers on the call expression
+        let expression_id = expression_unwrap_transparent(self.ctx.tree, expression_id);
+
         // match call expressions
         let expression = self.ctx.tree.get(expression_id);
         let dir::Expression::Call {
@@ -383,6 +392,40 @@ const next = JSON.parse(JSON.stringify(value, replacer));
             "no_json_clone/test_mutation_fix_rewrites_global_json_clone.ds",
             r#"
 const next = globalThis.JSON.parse(globalThis.JSON.stringify(source));
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-json-clone")
+            .assert_unsafe_fixed(
+                r#"
+const next = structuredClone(source);
+"#,
+            );
+    }
+
+    /// Report parenthesized JSON.parse and JSON.stringify clone usage.
+    #[test]
+    fn test_flags_parenthesized_json_clone_callees() {
+        let test = TestProgram::for_rule_with_prelude(NoJsonClone);
+        let result = test.lint_dir(
+            "no_json_clone/test_flags_parenthesized_json_clone_callees.ds",
+            r#"
+const next = ((JSON.parse))(((JSON.stringify))(value));
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-json-clone")
+            .assert_has_fix("no-json-clone");
+    }
+
+    /// Unsafely rewrite parenthesized JSON clone calls to structuredClone.
+    #[test]
+    fn test_fix_rewrites_parenthesized_json_clone_callees() {
+        let test = TestProgram::for_rule_with_prelude(NoJsonClone);
+        let result = test.lint_dir(
+            "no_json_clone/test_fix_rewrites_parenthesized_json_clone_callees.ds",
+            r#"
+const next = ((JSON.parse))(((JSON.stringify))(source));
 "#,
         );
         test.result(result)

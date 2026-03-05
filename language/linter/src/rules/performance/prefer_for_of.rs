@@ -241,7 +241,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
         })
     }
 
-    /// Check if the increment is a simple i++ or i += 1.
+    /// Check if the increment is a simple ++i, i++, or i += 1.
     fn is_simple_increment(
         &self,
         incr_id: LocalNodeId<dir::Expression>,
@@ -249,11 +249,12 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
     ) -> bool {
         let incr = self.ctx.tree.get(incr_id);
 
-        // match i++
-        if let dir::Expression::Unary {
-            operator: dir::UnaryOperator::PostIncrement,
-            right,
-        } = incr
+        // match ++i and i++
+        if let dir::Expression::Unary { operator, right } = incr
+            && matches!(
+                operator,
+                dir::UnaryOperator::PreIncrement | dir::UnaryOperator::PostIncrement
+            )
         {
             let right_expr = self.ctx.tree.get(*right);
             return right_expr.target_symbol() == Some(index_symbol);
@@ -547,6 +548,22 @@ for (const item of items) {
             r#"
 let items = ["a", "b", "c"];
 for (let i = 0; i < items.length; i++) {
+    console.log(items[i]);
+}
+"#,
+        );
+        test.result(result).assert_lint("prefer-for-of");
+    }
+
+    /// Flag with ++i increment.
+    #[test]
+    fn test_flags_with_preincrement() {
+        let test = TestProgram::for_rule_with_prelude(PreferForOf);
+        let result = test.lint_dir(
+            "prefer_for_of/test_flags_with_preincrement.ds",
+            r#"
+let items = ["a", "b", "c"];
+for (let i = 0; i < items.length; ++i) {
     console.log(items[i]);
 }
 "#,

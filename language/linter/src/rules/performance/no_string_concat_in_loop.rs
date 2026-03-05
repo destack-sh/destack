@@ -116,12 +116,15 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
         };
 
         // require the rhs to contain the left reference
-        if !self.add_chain_contains_reference(*right, &left_path) {
+        let has_add_reference = self.add_chain_contains_reference(*right, &left_path);
+        let has_template_reference = self.template_concat_contains_reference(*right, &left_path);
+        if !has_add_reference && !has_template_reference {
             return;
         }
 
         // require at least one string operand
-        if !self.is_string_expression(*left) && !self.add_chain_has_string_operand(*right) {
+        let has_string_operand = self.add_chain_has_string_operand(*right);
+        if !self.is_string_expression(*left) && !has_string_operand {
             return;
         }
 
@@ -225,6 +228,52 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
 
         // fall back to the leaf expression
         self.is_string_like_expression(expression_id)
+    }
+
+    /// Return true when a template expression concatenates the target reference.
+    fn template_concat_contains_reference(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        reference: &ReferencePath,
+    ) -> bool {
+        // unwrap parenthesized expressions
+        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+
+        // match interpolated template expressions
+        let expression = self.ctx.tree.get(expression_id);
+        let dir::Expression::TemplateExpression {
+            value: dir::TemplateLiteral::InterpolatedString { strings, arguments },
+        } = expression
+        else {
+            return false;
+        };
+
+        // track whether the template references the assignment target
+        let mut has_target_reference = false;
+        let mut has_other_content = strings.iter().any(|segment| {
+            let segment_text = self.ctx.program.strings.get(*segment);
+            !segment_text.is_empty()
+        });
+
+        for argument_id in arguments {
+            let argument = self.ctx.tree.get(*argument_id);
+            let dir::Argument::Positional {
+                value: value_id, ..
+            } = argument
+            else {
+                return false;
+            };
+
+            let is_target_reference = expression_reference_path(self.ctx.tree, *value_id)
+                .is_some_and(|path| path == *reference);
+            if is_target_reference {
+                has_target_reference = true;
+            } else {
+                has_other_content = true;
+            }
+        }
+
+        has_target_reference && has_other_content
     }
 
     /// Visit a loop expression with loop context.
@@ -472,6 +521,41 @@ let suffix = "cd";
 let output = "";
 for (const char of source + suffix) {
     output = char;
+}
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-string-concat-in-loop");
+    }
+
+    /// Report template string concatenation inside loops.
+    #[test]
+    fn test_flags_template_concat_in_loop() {
+        let test = TestProgram::for_rule_without_prelude(NoStringConcatInLoop);
+        let result = test.lint_dir(
+            "no_string_concat_in_loop/test_flags_template_concat_in_loop.ds",
+            r#"
+let items = ["a", "b"];
+let result = "";
+for (const item of items) {
+    result = `${result}${item}`;
+}
+"#,
+        );
+        test.result(result).assert_lint("no-string-concat-in-loop");
+    }
+
+    /// Allow template assignments that only re-emit the same value.
+    #[test]
+    fn test_allows_identity_template_in_loop() {
+        let test = TestProgram::for_rule_without_prelude(NoStringConcatInLoop);
+        let result = test.lint_dir(
+            "no_string_concat_in_loop/test_allows_identity_template_in_loop.ds",
+            r#"
+let items = ["a", "b"];
+let result = "";
+for (const item of items) {
+    result = `${result}`;
 }
 "#,
         );

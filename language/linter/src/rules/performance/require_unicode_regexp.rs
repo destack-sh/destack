@@ -2,7 +2,8 @@ use destack_ast::{self as ast, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_path_segments, expression_unwrap_parenthesized_syntax, regex_pattern_info,
+    expression_path_segments, expression_unwrap_parenthesized_syntax, path_is_regexp_constructor,
+    regex_pattern_info, regexp_global_qualifier_names,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
@@ -42,16 +43,28 @@ impl LintRule for RequireUnicodeRegexp {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
         let regexp_name = ctx.strings.intern("RegExp");
+        let global_qualifier_names = regexp_global_qualifier_names(ctx.strings);
 
         // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             // resolve regex literals and static RegExp constructor patterns
-            let Some(regex_info) = regex_pattern_info(ctx.tree, node_id, regexp_name) else {
+            let Some(regex_info) = regex_pattern_info(
+                ctx.strings,
+                ctx.tree,
+                node_id,
+                regexp_name,
+                &global_qualifier_names,
+            ) else {
                 continue;
             };
 
             // skip constructor calls when flags are present but not statically known
-            if has_unknown_constructor_flags_argument(ctx, node_id, regexp_name) {
+            if has_unknown_constructor_flags_argument(
+                ctx,
+                node_id,
+                regexp_name,
+                &global_qualifier_names,
+            ) {
                 continue;
             }
 
@@ -81,7 +94,8 @@ impl LintRule for RequireUnicodeRegexp {
 
                 // compute fixes only when requested by the runner
                 if ctx.compute_fixes
-                    && let Some(fix) = unicode_regex_fix(ctx, node_id, regexp_name)
+                    && let Some(fix) =
+                        unicode_regex_fix(ctx, node_id, regexp_name, &global_qualifier_names)
                 {
                     diagnostic = diagnostic.with_fix(fix);
                 }
@@ -97,6 +111,7 @@ fn has_unknown_constructor_flags_argument(
     ctx: &LintModuleAstContext<'_>,
     expression_id: ast::LocalNodeId<Expression>,
     regexp_name: ast::StringId,
+    global_qualifier_names: &[ast::StringId],
 ) -> bool {
     let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
     let expression = ctx.tree.get(expression_id);
@@ -118,7 +133,11 @@ fn has_unknown_constructor_flags_argument(
     let Some(path_segments) = expression_path_segments(ctx.tree, callee_id) else {
         return false;
     };
-    if path_segments.as_slice() != [regexp_name] {
+    if !path_is_regexp_constructor(
+        path_segments.as_slice(),
+        regexp_name,
+        global_qualifier_names,
+    ) {
         return false;
     }
 
@@ -144,6 +163,7 @@ fn unicode_regex_fix(
     ctx: &LintModuleAstContext<'_>,
     expression_id: ast::LocalNodeId<Expression>,
     regexp_name: ast::StringId,
+    global_qualifier_names: &[ast::StringId],
 ) -> Option<LintFix> {
     let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
     let expression = ctx.tree.get(expression_id);
@@ -184,7 +204,11 @@ fn unicode_regex_fix(
         _ => return None,
     };
     let path_segments = expression_path_segments(ctx.tree, callee_id)?;
-    if path_segments.as_slice() != [regexp_name] {
+    if !path_is_regexp_constructor(
+        path_segments.as_slice(),
+        regexp_name,
+        global_qualifier_names,
+    ) {
         return None;
     }
     let first_argument_id = *arguments.first()?;
@@ -406,5 +430,23 @@ let re = RegExp("foo", flags);
 "#,
         );
         test.result(result).assert_no_lint("require-unicode-regexp");
+    }
+
+    #[test]
+    fn test_fix_adds_unicode_flag_to_global_this_regexp_constructor() {
+        let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
+        let result = test.lint_ast(
+            "require_unicode_regexp/test_fix_adds_unicode_flag_to_global_this_regexp_constructor.ds",
+            r#"
+let re = globalThis.RegExp("foo");
+"#,
+        );
+        test.result(result)
+            .assert_lint("require-unicode-regexp")
+            .assert_safe_fixed(
+                r#"
+let re = globalThis.RegExp("foo", "u");
+"#,
+            );
     }
 }

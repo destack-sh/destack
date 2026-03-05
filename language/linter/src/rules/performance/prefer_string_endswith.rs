@@ -4,7 +4,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    const_i64, expression_target_symbol, expression_unwrap_parenthesized, is_string_type,
+    const_i64, expression_regex_literal, expression_target_symbol, expression_unwrap_parenthesized,
+    is_string_type, regex_suffix_literal, single_quoted_string_literal,
     string_literal_utf16_length, strip_dot_member_suffix,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
@@ -56,6 +57,8 @@ struct PreferStringEndsWithVisitor<'a, 'b> {
     ends_with_name: StringId,
     /// The string id for the length property name.
     length_name: StringId,
+    /// The string id for the test method name.
+    test_name: StringId,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -70,6 +73,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         let slice_name = ctx.program.strings.intern("slice");
         let ends_with_name = ctx.program.strings.intern("endsWith");
         let length_name = ctx.program.strings.intern("length");
+        let test_name = ctx.program.strings.intern("test");
 
         // prepare visitor state
         Self {
@@ -79,6 +83,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
             slice_name,
             ends_with_name,
             length_name,
+            test_name,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -221,6 +226,95 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         self.ctx.report(diagnostic);
     }
 
+    /// Check one call expression for anchored regex test suffix patterns.
+    fn check_regex_test(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+    ) {
+        // match call expression
+        let dir::Expression::Call {
+            left,
+            static_arguments,
+            dynamic_arguments,
+        } = expression
+        else {
+            return;
+        };
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return;
+        }
+        if dynamic_arguments.len() != 1 {
+            return;
+        }
+
+        // match `.test(...)` call
+        let member_expression = self.ctx.tree.get(*left);
+        let dir::Expression::Member {
+            left: regex_expression_id,
+            name,
+            static_arguments,
+        } = member_expression
+        else {
+            return;
+        };
+        if *name != self.test_name {
+            return;
+        }
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return;
+        }
+
+        // require one static regex suffix pattern
+        let Some(suffix_text) = self.regex_suffix_text(*regex_expression_id) else {
+            return;
+        };
+
+        // require one positional string argument
+        let first_argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let dir::Argument::Positional {
+            value: argument_id, ..
+        } = first_argument
+        else {
+            return;
+        };
+        if !self.is_string_receiver(*argument_id) {
+            return;
+        }
+
+        // honor per node severity
+        let severity = self.ctx.get_effective_severity(self.meta, expression_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        // build diagnostic and attach safe fix
+        let span = self.ctx.get_span(expression_id);
+        let mut diagnostic = LintDiagnostic::new(
+            PREFER_STRING_ENDS_WITH.id,
+            PREFER_STRING_ENDS_WITH.code,
+            PREFER_STRING_ENDS_WITH.category,
+            severity,
+            "prefer endsWith() over regex test() suffix checks",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("use endsWith() for anchored suffix checks");
+        if self.ctx.include_fixes
+            && let Some(fix) = self.regex_ends_with_fix(expression_id, *argument_id, &suffix_text)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
+    }
+
     /// Return true when the receiver expression is a string type.
     fn is_string_receiver(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         // resolve the receiver type
@@ -296,6 +390,49 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
             .into_edits();
 
         Some(LintFix::safe("Replace slice() suffix check with endsWith()").with_edits(edits))
+    }
+
+    /// Return one simple suffix string from a regex literal expression.
+    fn regex_suffix_text(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<String> {
+        let (pattern_id, flags_id) = expression_regex_literal(self.ctx.tree, expression_id)?;
+
+        let pattern = self.ctx.program.strings.get(pattern_id);
+        let flags = flags_id
+            .map(|flags_id| self.ctx.program.strings.get(flags_id).to_string())
+            .unwrap_or_default();
+        regex_suffix_literal(pattern.as_ref(), &flags)
+    }
+
+    /// Build a safe fix from one regex test suffix check to endsWith.
+    fn regex_ends_with_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        argument_id: dir::LocalNodeId<dir::Expression>,
+        suffix_text: &str,
+    ) -> Option<LintFix> {
+        let argument_span = self.ctx.get_span(argument_id);
+        let argument_text = self.ctx.get_span_text(argument_span);
+        if argument_text.trim().is_empty() {
+            return None;
+        }
+
+        let quoted_suffix = single_quoted_string_literal(suffix_text);
+        let method_name = self.ctx.program.strings.get(self.ends_with_name);
+        let replacement = format!(
+            "({argument_text}).{}({quoted_suffix})",
+            method_name.as_ref()
+        );
+
+        let expression_span = self.ctx.get_span(expression_id);
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(expression_span, replacement)
+            .into_edits();
+        Some(LintFix::safe("Replace regex test() suffix check with endsWith()").with_edits(edits))
     }
 
     /// Return true when the argument is `-suffix.length`.
@@ -427,6 +564,9 @@ impl NodeVisitor for PreferStringEndsWithVisitor<'_, '_> {
         {
             self.check_binary(id, *operator, *left, *right);
         }
+
+        // check anchored regex test suffix patterns
+        self.check_regex_test(id, expression);
 
         // walk expression children
         walk_expression(self, tree, id, expression);
@@ -573,5 +713,55 @@ let ends = text.slice(text.length - suffix.length) === suffix;
 "#,
         );
         test.result(result).assert_lint("prefer-string-endswith");
+    }
+
+    /// Report anchored regex test suffix checks.
+    #[test]
+    fn test_flags_regex_test_suffix_check() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringEndsWith);
+        let result = test.lint_dir(
+            "prefer_string_endswith/test_flags_regex_test_suffix_check.ds",
+            r#"
+let text = "hello";
+let has = /lo$/.test(text);
+"#,
+        );
+        test.result(result).assert_lint("prefer-string-endswith");
+    }
+
+    /// Safely rewrite anchored regex suffix tests to endsWith.
+    #[test]
+    fn test_fix_regex_test_suffix_check() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringEndsWith);
+        let result = test.lint_dir(
+            "prefer_string_endswith/test_fix_regex_test_suffix_check.ds",
+            r#"
+let text = "hello";
+let has = /lo$/.test(text);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-string-endswith")
+            .assert_has_fix("prefer-string-endswith")
+            .assert_safe_fixed(
+                r#"
+let text = "hello";
+let has = (text).endsWith('lo');
+"#,
+            );
+    }
+
+    /// Allow regex test suffix checks with multiline flag.
+    #[test]
+    fn test_allows_regex_test_suffix_check_with_multiline_flag() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringEndsWith);
+        let result = test.lint_dir(
+            "prefer_string_endswith/test_allows_regex_test_suffix_check_with_multiline_flag.ds",
+            r#"
+let text = "hello";
+let has = /lo$/m.test(text);
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-string-endswith");
     }
 }
