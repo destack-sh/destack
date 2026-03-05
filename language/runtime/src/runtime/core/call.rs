@@ -9,7 +9,7 @@ use parking_lot::RwLock;
 
 use crate::diagnostic::{AgentDiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::Host;
-use crate::platform::{NativeArray, PlatformContext, PlatformError};
+use crate::platform::{NativeArray, PlatformError};
 use crate::runtime::bindings::{
     BindingDescriptor, BindingEngine, BindingPolicy, BindingReplayPayload, RuntimeWorld,
 };
@@ -196,12 +196,6 @@ impl BindingCallContext {
         unsafe { &*self.agent }
     }
 
-    /// Borrow the runtime state.
-    #[inline]
-    pub fn runtime(&self) -> &Agent {
-        self.agent()
-    }
-
     /// Borrow the runtime diagnostics store.
     #[inline]
     pub fn diagnostics(&self) -> &AgentDiagnosticStore {
@@ -245,10 +239,10 @@ impl BindingCallContext {
         unsafe { &*self.event_loop }
     }
 
-    /// Borrow the platform context.
+    /// Borrow immutable process arguments.
     #[inline]
-    pub fn platform(&self) -> &PlatformContext {
-        &self.agent().platform
+    pub fn platform_args(&self) -> &[String] {
+        self.agent().platform_args()
     }
 
     /// Borrow the replay state.
