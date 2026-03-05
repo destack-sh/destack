@@ -1,7 +1,9 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{BlockDuplicateTracker, ExpressionDuplicateTracker};
+use crate::rules::common::{
+    BlockDuplicateTracker, ExpressionDuplicateTracker, span_has_comment_trivia,
+};
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -17,7 +19,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -102,6 +104,10 @@ fn duplicate_match_arm_fix(
     case_id: ast::LocalNodeId<ast::MatchCase>,
 ) -> Option<LintFix> {
     let case_span = ctx.tree.get_span(case_id);
+    if span_has_comment_trivia(ctx.tree, case_span) {
+        return None;
+    }
+
     let edits = ctx.edit_builder().delete(case_span).into_edits();
     Some(LintFix::r#unsafe("Remove duplicate match arm").with_edits(edits))
 }
@@ -231,5 +237,28 @@ match (x) {
 }
 "#,
             );
+    }
+
+    #[test]
+    fn test_reports_without_fix_when_duplicate_arm_contains_comment() {
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateMatchArms);
+        let result = test.lint_ast(
+            "no_duplicate_match_arms/test_reports_without_fix_when_duplicate_arm_contains_comment.ds",
+            r#"
+match (x) {
+    1 => {
+        // keep
+        foo()
+    }
+    2 => {
+        // keep
+        foo()
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-duplicate-match-arms")
+            .assert_has_no_fix("no-duplicate-match-arms");
     }
 }

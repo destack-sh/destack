@@ -44,7 +44,8 @@ impl LintRule for NoThrowLiteral {
             // resolve the thrown expression
             let thrown_id = expression_unwrap_parenthesized(ctx.tree, *value);
             let thrown = ctx.tree.get(thrown_id);
-            if !is_literal_expression(thrown) {
+            let is_undefined_identifier = thrown_expression_is_undefined_identifier(ctx, thrown_id);
+            if !is_literal_expression(thrown) && !is_undefined_identifier {
                 continue;
             }
 
@@ -56,12 +57,17 @@ impl LintRule for NoThrowLiteral {
 
             // report the diagnostic
             let span = ctx.get_span(node_id);
+            let message = if is_undefined_identifier {
+                "do not throw undefined"
+            } else {
+                "throwing a literal value"
+            };
             let mut diagnostic = LintDiagnostic::new(
                 NO_THROW_LITERAL.id,
                 NO_THROW_LITERAL.code,
                 NO_THROW_LITERAL.category,
                 severity,
-                "throwing a literal value",
+                message,
                 ctx.module.file_id,
                 span,
             )
@@ -89,6 +95,15 @@ fn is_literal_expression(expression: &dir::Expression) -> bool {
             | dir::Expression::TupleExpression { .. }
             | dir::Expression::ObjectExpression { .. }
     )
+}
+
+/// Return true when the thrown expression is the bare identifier `undefined`.
+fn thrown_expression_is_undefined_identifier(
+    ctx: &LintModuleDirContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let expression_text = ctx.get_span_text(ctx.get_span(expression_id)).trim();
+    expression_text == "undefined"
 }
 
 /// Build one unsafe fix by wrapping a thrown literal in Error.
@@ -224,6 +239,25 @@ throw `failed: ${code}`;
             .assert_unsafe_fixed(
                 r#"
 throw new Error(`failed: ${code}`);
+"#,
+            );
+    }
+
+    /// Report and rewrite `throw undefined` for source parity.
+    #[test]
+    fn test_flags_undefined_identifier_throw() {
+        let test = TestProgram::for_rule_without_prelude(NoThrowLiteral);
+        let result = test.lint_dir(
+            "no_throw_literal/test_flags_undefined_identifier_throw.ds",
+            r#"
+throw undefined;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-throw-literal")
+            .assert_unsafe_fixed(
+                r#"
+throw new Error(String(undefined));
 "#,
             );
     }

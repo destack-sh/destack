@@ -1,6 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{expression_path_segments, expression_unwrap_parenthesized_syntax};
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -66,8 +67,16 @@ impl LintRule for NoUselessConstructor {
                 continue;
             }
 
-            // check if the body is empty
-            if is_empty_body(ctx, *body_id) && signature.dynamic_parameters.is_empty() {
+            // check source parity: constructors are useless when they are empty
+            // or only pass parameters through to `super(...)`
+            let is_useless_constructor = (is_empty_body(ctx, *body_id)
+                && signature.dynamic_parameters.is_empty())
+                || is_redundant_super_passthrough_constructor(
+                    ctx,
+                    signature.dynamic_parameters.as_slice(),
+                    *body_id,
+                );
+            if is_useless_constructor {
                 let severity = ctx.get_effective_severity(meta, *body_id);
                 if !severity.is_enabled() {
                     continue;
@@ -99,6 +108,104 @@ impl LintRule for NoUselessConstructor {
             }
         }
     }
+}
+
+/// Return true when a constructor only forwards parameters to one `super(...)` call.
+fn is_redundant_super_passthrough_constructor(
+    ctx: &LintModuleAstContext<'_>,
+    parameter_ids: &[ast::LocalNodeId<ast::Parameter>],
+    body_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    // resolve the single body expression
+    let body_expression = ctx.tree.get(body_id);
+    let ast::Expression::Block(block_id) = body_expression else {
+        return false;
+    };
+    let block = ctx.tree.get(*block_id);
+    if block.expressions.len() != 1 {
+        return false;
+    }
+
+    // unwrap statement wrappers
+    let mut expression_id = block.expressions[0];
+    if let ast::Expression::Statement(inner_id) = ctx.tree.get(expression_id) {
+        expression_id = *inner_id;
+    }
+
+    // require one `super(...)` call
+    let expression = ctx.tree.get(expression_id);
+    let ast::Expression::Call {
+        left,
+        dynamic_arguments,
+        ..
+    } = expression
+    else {
+        return false;
+    };
+    let left_id = expression_unwrap_parenthesized_syntax(ctx.tree, *left);
+    let left_expression = ctx.tree.get(left_id);
+    let is_super_callee = matches!(left_expression, ast::Expression::Super)
+        || expression_path_segments(ctx.tree, left_id).is_some_and(|path_segments| {
+            path_segments.len() == 1 && ctx.strings.get(path_segments[0]).as_ref() == "super"
+        });
+    if !is_super_callee {
+        return false;
+    }
+
+    // require one argument per parameter in source order
+    if parameter_ids.len() != dynamic_arguments.len() {
+        return false;
+    }
+    parameter_ids
+        .iter()
+        .zip(dynamic_arguments.iter())
+        .all(|(parameter_id, argument_id)| {
+            match (
+                constructor_parameter_name(ctx, *parameter_id),
+                constructor_argument_name(ctx, *argument_id),
+            ) {
+                (
+                    Some((parameter_name, parameter_is_variadic)),
+                    Some((argument_name, argument_is_spread)),
+                ) => parameter_name == argument_name && parameter_is_variadic == argument_is_spread,
+                _ => false,
+            }
+        })
+}
+
+/// Return parameter name and variadic flag for simple constructor parameters.
+fn constructor_parameter_name(
+    ctx: &LintModuleAstContext<'_>,
+    parameter_id: ast::LocalNodeId<ast::Parameter>,
+) -> Option<(ast::StringId, bool)> {
+    let parameter = ctx.tree.get(parameter_id);
+    match parameter {
+        ast::Parameter::Named { name, default, .. } if default.is_none() => Some((*name, false)),
+        ast::Parameter::VariadicNamed { name, .. } => Some((*name, true)),
+        _ => None,
+    }
+}
+
+/// Return argument name and spread flag for simple constructor arguments.
+fn constructor_argument_name(
+    ctx: &LintModuleAstContext<'_>,
+    argument_id: ast::LocalNodeId<ast::Argument>,
+) -> Option<(ast::StringId, bool)> {
+    let argument = ctx.tree.get(argument_id);
+    let (value_id, is_spread) = match argument {
+        ast::Argument::Positional { value, .. } => (*value, false),
+        ast::Argument::Spread { value, .. } => (*value, true),
+        _ => return None,
+    };
+
+    let Some(path_segments) = expression_path_segments(ctx.tree, value_id) else {
+        return None;
+    };
+    if path_segments.len() != 1 {
+        return None;
+    }
+
+    Some((path_segments[0], is_spread))
 }
 
 /// Return true when one constructor text may contain comments.
@@ -261,5 +368,37 @@ class Foo {
         test.result(result)
             .assert_lint("no-useless-constructor")
             .assert_has_no_fix("no-useless-constructor");
+    }
+
+    #[test]
+    fn test_detects_redundant_super_passthrough_constructor() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
+        let result = test.lint_ast(
+            "no_useless_constructor/test_detects_redundant_super_passthrough_constructor.ds",
+            r#"
+class Foo extends Base {
+    constructor(x: int32, y: string) {
+        super(x, y);
+    }
+}
+"#,
+        );
+        test.result(result).assert_lint("no-useless-constructor");
+    }
+
+    #[test]
+    fn test_allows_super_constructor_when_arguments_change() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
+        let result = test.lint_ast(
+            "no_useless_constructor/test_allows_super_constructor_when_arguments_change.ds",
+            r#"
+class Foo extends Base {
+    constructor(x: int32) {
+        super(x + 1);
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-useless-constructor");
     }
 }

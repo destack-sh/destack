@@ -1,6 +1,13 @@
 use destack_dir as dir;
-use destack_workspace::LintSeverity;
+use destack_dir::WellKnownSymbol;
+use destack_workspace::{LintSeverity, ReturnAwaitMode};
 
+use crate::rules::common::{
+    expression_affects_error_handling_context, expression_affects_resource_management_context,
+    expression_is_any_typed, expression_is_inside_async_callable, expression_is_promise_like,
+    expression_type_or_call_return_type_map, expression_unwrap_parenthesized,
+    well_known_symbol_candidates,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -31,6 +38,8 @@ impl LintRule for ReturnAwait {
 
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
+        let promise_symbols = resolve_promise_symbols(ctx);
+        let configuration = return_await_configuration(ctx.options.return_await_mode);
 
         // inspect return expressions
         for return_expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
@@ -42,19 +51,8 @@ impl LintRule for ReturnAwait {
                 continue;
             };
 
-            let Some((await_expression_id, awaited_value_id)) =
-                explicit_await_expression(ctx.tree, *value_expression_id)
-            else {
-                continue;
-            };
-
             // keep async callable returns only
-            if !return_is_inside_async_callable(ctx.tree, return_expression_id) {
-                continue;
-            }
-
-            // skip try contexts where await may affect control flow
-            if return_is_inside_try_context(ctx.tree, return_expression_id) {
+            if !expression_is_inside_async_callable(ctx.tree, return_expression_id) {
                 continue;
             }
 
@@ -63,32 +61,439 @@ impl LintRule for ReturnAwait {
                 continue;
             }
 
-            // report redundant return await
-            let await_span = ctx.get_span(await_expression_id);
-            let mut diagnostic = LintDiagnostic::new(
-                RETURN_AWAIT.id,
-                RETURN_AWAIT.code,
-                RETURN_AWAIT.category,
-                severity,
-                "redundant return await",
-                ctx.module.file_id,
-                await_span,
-            )
-            .with_label("this await is redundant in an async return outside try/catch/finally");
-            if ctx.include_fixes {
-                let awaited_span = ctx.get_span(awaited_value_id);
-                let awaited_text = ctx.get_span_text(awaited_span).to_string();
-                let edits = ctx
-                    .edit_builder()
-                    .replace(await_span, awaited_text)
-                    .into_edits();
-                let fix = LintFix::safe("Remove redundant await in return").with_edits(edits);
-                diagnostic = diagnostic.with_fix(fix);
+            // inspect all conditional return branches for this return statement
+            // keep try-catch and resource-management contexts aligned to source policy
+            let in_control_flow_sensitive_context =
+                expression_affects_error_handling_context(ctx.tree, return_expression_id)
+                    || expression_affects_resource_management_context(
+                        ctx.tree,
+                        return_expression_id,
+                    );
+            let mut possible_return_values = Vec::new();
+            collect_possible_return_values(
+                ctx.tree,
+                *value_expression_id,
+                &mut possible_return_values,
+            );
+            for possible_return_value_id in possible_return_values {
+                check_return_value_expression(
+                    ctx,
+                    meta,
+                    &promise_symbols,
+                    configuration,
+                    return_expression_id,
+                    possible_return_value_id,
+                    in_control_flow_sensitive_context,
+                );
             }
+        }
 
-            ctx.report(diagnostic);
+        // inspect concise async expression bodies as implicit returns
+        for body_expression_id in async_callable_expression_bodies(ctx.tree) {
+            // keep try-catch and resource-management contexts aligned to source policy
+            let in_control_flow_sensitive_context =
+                expression_affects_error_handling_context(ctx.tree, body_expression_id)
+                    || expression_affects_resource_management_context(ctx.tree, body_expression_id);
+            let mut possible_return_values = Vec::new();
+            collect_possible_return_values(
+                ctx.tree,
+                body_expression_id,
+                &mut possible_return_values,
+            );
+            for possible_return_value_id in possible_return_values {
+                check_return_value_expression(
+                    ctx,
+                    meta,
+                    &promise_symbols,
+                    configuration,
+                    body_expression_id,
+                    possible_return_value_id,
+                    in_control_flow_sensitive_context,
+                );
+            }
         }
     }
+}
+
+/// One await expectation for a return context.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AwaitExpectation {
+    /// Require `await` for Promise like returns.
+    Require,
+    /// Do not enforce either await or no-await.
+    DontCare,
+    /// Forbid `await` for Promise like returns.
+    Forbid,
+}
+
+/// One return-await policy configuration for error and ordinary contexts.
+#[derive(Debug, Clone, Copy)]
+struct ReturnAwaitConfiguration {
+    /// Await expectation when explicit error handling context is active.
+    error_handling_context: AwaitExpectation,
+    /// Await expectation in ordinary contexts.
+    ordinary_context: AwaitExpectation,
+}
+
+/// Resolve one return-await policy configuration from linter options.
+fn return_await_configuration(mode: ReturnAwaitMode) -> ReturnAwaitConfiguration {
+    match mode {
+        ReturnAwaitMode::Always => ReturnAwaitConfiguration {
+            error_handling_context: AwaitExpectation::Require,
+            ordinary_context: AwaitExpectation::Require,
+        },
+        ReturnAwaitMode::ErrorHandlingCorrectnessOnly => ReturnAwaitConfiguration {
+            error_handling_context: AwaitExpectation::Require,
+            ordinary_context: AwaitExpectation::DontCare,
+        },
+        ReturnAwaitMode::InTryCatch => ReturnAwaitConfiguration {
+            error_handling_context: AwaitExpectation::Require,
+            ordinary_context: AwaitExpectation::Forbid,
+        },
+        ReturnAwaitMode::Never => ReturnAwaitConfiguration {
+            error_handling_context: AwaitExpectation::Forbid,
+            ordinary_context: AwaitExpectation::Forbid,
+        },
+    }
+}
+
+/// One certainty level for whether an expression is Promise-like.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ThenableCertainty {
+    /// This expression is definitely Promise-like.
+    Always,
+    /// This expression may be Promise-like.
+    Maybe,
+    /// This expression is definitely not Promise-like.
+    Never,
+}
+
+/// One return value shape classification.
+#[derive(Debug, Clone, Copy)]
+enum ReturnValueKind {
+    /// The return value is explicitly awaited.
+    Awaited {
+        await_expression_id: dir::LocalNodeId<dir::Expression>,
+        awaited_value_id: dir::LocalNodeId<dir::Expression>,
+    },
+    /// The return value is not explicitly awaited.
+    Plain {
+        value_id: dir::LocalNodeId<dir::Expression>,
+    },
+}
+
+impl ReturnValueKind {
+    /// Return the effective return value expression id.
+    fn value_expression_id(self) -> dir::LocalNodeId<dir::Expression> {
+        match self {
+            ReturnValueKind::Awaited {
+                awaited_value_id, ..
+            } => awaited_value_id,
+            ReturnValueKind::Plain { value_id } => value_id,
+        }
+    }
+}
+
+/// Resolve Promise symbols for the current module profile.
+fn resolve_promise_symbols(ctx: &LintModuleDirContext<'_>) -> Vec<dir::GlobalSymbolId> {
+    let Some(well_known_symbols) = ctx.get_well_known_symbols() else {
+        return Vec::new();
+    };
+
+    well_known_symbol_candidates(&well_known_symbols, WellKnownSymbol::Promise)
+}
+
+/// Classify one return value expression as awaited or plain.
+fn classify_return_value(
+    tree: &dir::NodeTree,
+    value_expression_id: dir::LocalNodeId<dir::Expression>,
+) -> ReturnValueKind {
+    if let Some((await_expression_id, awaited_value_id)) =
+        explicit_await_expression(tree, value_expression_id)
+    {
+        return ReturnValueKind::Awaited {
+            await_expression_id,
+            awaited_value_id,
+        };
+    }
+
+    let value_id = expression_unwrap_parenthesized(tree, value_expression_id);
+    ReturnValueKind::Plain { value_id }
+}
+
+/// Check one return value expression against return-await policy.
+fn check_return_value_expression(
+    ctx: &mut LintModuleDirContext<'_>,
+    meta: &LintMeta,
+    promise_symbols: &[dir::GlobalSymbolId],
+    configuration: ReturnAwaitConfiguration,
+    report_node_id: dir::LocalNodeId<dir::Expression>,
+    value_expression_id: dir::LocalNodeId<dir::Expression>,
+    in_try_context: bool,
+) {
+    // honor per node severity before deeper analysis
+    let severity = ctx.get_effective_severity(meta, report_node_id);
+    if !severity.is_enabled() {
+        return;
+    }
+
+    // classify the returned expression shape
+    let returned_value_kind = classify_return_value(ctx.tree, value_expression_id);
+    let return_value_id = returned_value_kind.value_expression_id();
+    let thenable_certainty = expression_thenable_certainty(ctx, return_value_id, promise_symbols);
+
+    // always disallow awaiting non-thenables
+    if let ReturnValueKind::Awaited {
+        await_expression_id,
+        awaited_value_id,
+    } = returned_value_kind
+        && thenable_certainty == ThenableCertainty::Never
+    {
+        let mut diagnostic = LintDiagnostic::new(
+            RETURN_AWAIT.id,
+            RETURN_AWAIT.code,
+            RETURN_AWAIT.category,
+            severity,
+            "returning an awaited value that is not a promise is not allowed",
+            ctx.module.file_id,
+            ctx.get_span(await_expression_id),
+        )
+        .with_label("remove await from this non-promise return value");
+        if ctx.include_fixes {
+            let awaited_span = ctx.get_span(awaited_value_id);
+            let awaited_text = ctx.get_span_text(awaited_span).to_string();
+            let edits = ctx
+                .edit_builder()
+                .replace(ctx.get_span(await_expression_id), awaited_text)
+                .into_edits();
+            let fix = LintFix::safe("Remove await from non-promise return").with_edits(edits);
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        ctx.report(diagnostic);
+        return;
+    }
+
+    // keep uncertain thenables and non-thenables out of await policy checks
+    if thenable_certainty != ThenableCertainty::Always {
+        return;
+    }
+
+    // resolve await expectation for the current context
+    let expectation = if in_try_context {
+        configuration.error_handling_context
+    } else {
+        configuration.ordinary_context
+    };
+
+    // report missing await where policy requires it
+    if expectation == AwaitExpectation::Require
+        && let ReturnValueKind::Plain { value_id } = returned_value_kind
+    {
+        let return_value_span = ctx.get_span(value_id);
+        let mut diagnostic = LintDiagnostic::new(
+            RETURN_AWAIT.id,
+            RETURN_AWAIT.code,
+            RETURN_AWAIT.category,
+            severity,
+            "returning an awaited promise is required in this context",
+            ctx.module.file_id,
+            return_value_span,
+        )
+        .with_label("add await so this return follows configured await policy");
+        if ctx.include_fixes {
+            let return_value_text = ctx.get_span_text(return_value_span).to_string();
+            let replacement = format!("await ({return_value_text})");
+            let edits = ctx
+                .edit_builder()
+                .replace(return_value_span, replacement)
+                .into_edits();
+            let fix = LintFix::r#unsafe("Add await to returned promise").with_edits(edits);
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        ctx.report(diagnostic);
+        return;
+    }
+
+    // report redundant await where policy forbids it
+    if expectation == AwaitExpectation::Forbid
+        && let ReturnValueKind::Awaited {
+            await_expression_id,
+            awaited_value_id,
+        } = returned_value_kind
+    {
+        let await_span = ctx.get_span(await_expression_id);
+        let mut diagnostic = LintDiagnostic::new(
+            RETURN_AWAIT.id,
+            RETURN_AWAIT.code,
+            RETURN_AWAIT.category,
+            severity,
+            "returning an awaited promise is not allowed in this context",
+            ctx.module.file_id,
+            await_span,
+        )
+        .with_label("remove await so this return follows configured await policy");
+        if ctx.include_fixes {
+            let awaited_span = ctx.get_span(awaited_value_id);
+            let awaited_text = ctx.get_span_text(awaited_span).to_string();
+            let edits = ctx
+                .edit_builder()
+                .replace(await_span, awaited_text)
+                .into_edits();
+            let fix = LintFix::safe("Remove redundant await in return").with_edits(edits);
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        ctx.report(diagnostic);
+    }
+}
+
+/// Collect all branch expressions that may be returned by one expression.
+fn collect_possible_return_values(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    values: &mut Vec<dir::LocalNodeId<dir::Expression>>,
+) {
+    // normalize one parenthesized wrapper layer
+    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
+    let expression = tree.get(expression_id);
+
+    // split conditional expression branches
+    if let dir::Expression::If {
+        then_expression,
+        else_expression: Some(else_expression_id),
+        ..
+    } = expression
+    {
+        collect_possible_return_values(tree, *then_expression, values);
+        collect_possible_return_values(tree, *else_expression_id, values);
+        return;
+    }
+
+    values.push(expression_id);
+}
+
+/// Collect concise async callable bodies that behave as implicit returns.
+fn async_callable_expression_bodies(
+    tree: &dir::NodeTree,
+) -> Vec<dir::LocalNodeId<dir::Expression>> {
+    let mut bodies = Vec::new();
+
+    // collect function declaration expression bodies
+    for declaration_id in tree.iter_node_ids_of_type::<dir::Declaration>() {
+        let declaration = tree.get(declaration_id);
+        let dir::Declaration::Function {
+            signature,
+            body: Some(body_id),
+            ..
+        } = declaration
+        else {
+            continue;
+        };
+        if signature.asynchrony != dir::Asynchrony::Async {
+            continue;
+        }
+        if matches!(tree.get(*body_id), dir::Expression::Block { .. }) {
+            continue;
+        }
+
+        bodies.push(*body_id);
+    }
+
+    // collect member method expression bodies
+    for member_id in tree.iter_node_ids_of_type::<dir::Member>() {
+        let member = tree.get(member_id);
+        let dir::Member::Method {
+            signature,
+            body: Some(body_id),
+            ..
+        } = member
+        else {
+            continue;
+        };
+        if signature.asynchrony != dir::Asynchrony::Async {
+            continue;
+        }
+        if matches!(tree.get(*body_id), dir::Expression::Block { .. }) {
+            continue;
+        }
+
+        bodies.push(*body_id);
+    }
+
+    // collect object method expression bodies
+    for property_id in tree.iter_node_ids_of_type::<dir::Property>() {
+        let property = tree.get(property_id);
+        let dir::Property::Method {
+            signature,
+            body: Some(body_id),
+            ..
+        } = property
+        else {
+            continue;
+        };
+        if signature.asynchrony != dir::Asynchrony::Async {
+            continue;
+        }
+        if matches!(tree.get(*body_id), dir::Expression::Block { .. }) {
+            continue;
+        }
+
+        bodies.push(*body_id);
+    }
+
+    bodies
+}
+
+/// Return thenable certainty for one expression.
+fn expression_thenable_certainty(
+    ctx: &LintModuleDirContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    promise_symbols: &[dir::GlobalSymbolId],
+) -> ThenableCertainty {
+    // normalize wrappers once for type checks
+    let expression_id = expression_unwrap_parenthesized(ctx.tree, expression_id);
+
+    // keep known promise-like expressions at highest certainty
+    if promise_symbols.iter().any(|promise_symbol| {
+        expression_is_promise_like(
+            ctx.module_id(),
+            ctx.tree,
+            ctx.types,
+            *promise_symbol,
+            expression_id,
+        )
+    }) {
+        return ThenableCertainty::Always;
+    }
+
+    // keep unresolved and any-typed values as maybe
+    let has_type = expression_type_or_call_return_type_map(
+        &ctx.program,
+        ctx.profile_id,
+        ctx.module_id(),
+        ctx.tree,
+        ctx.symbols,
+        ctx.types,
+        expression_id,
+        |_types, _type_id| true,
+    )
+    .unwrap_or(false);
+    if !has_type {
+        return ThenableCertainty::Maybe;
+    }
+    if expression_is_any_typed(
+        ctx.module_id(),
+        ctx.tree,
+        ctx.symbols,
+        ctx.types,
+        expression_id,
+    ) {
+        return ThenableCertainty::Maybe;
+    }
+
+    ThenableCertainty::Never
 }
 
 /// Return the explicit await expression and its awaited value when present.
@@ -112,74 +517,6 @@ fn explicit_await_expression(
     };
 
     explicit_await_expression(tree, *expression)
-}
-
-/// Return true when one return expression belongs to an async callable.
-fn return_is_inside_async_callable(
-    tree: &dir::NodeTree,
-    return_expression_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    let mut current = tree.get_parent(return_expression_id.id);
-
-    // walk ancestors until the owning callable boundary
-    while let Some(parent_id) = current {
-        // async functions satisfy this check
-        if parent_id.ty == dir::NodeType::Declaration {
-            let declaration = tree.get(parent_id.into_typed::<dir::Declaration>());
-            if let dir::Declaration::Function { signature, .. } = declaration {
-                return signature.asynchrony == dir::Asynchrony::Async;
-            }
-        }
-
-        // async methods satisfy this check
-        if parent_id.ty == dir::NodeType::Member {
-            let member = tree.get(parent_id.into_typed::<dir::Member>());
-            if let dir::Member::Method { signature, .. } = member {
-                return signature.asynchrony == dir::Asynchrony::Async;
-            }
-        }
-
-        current = tree.get_parent(parent_id.id);
-    }
-
-    false
-}
-
-/// Return true when one return expression is nested in a try context.
-fn return_is_inside_try_context(
-    tree: &dir::NodeTree,
-    return_expression_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    let mut current = tree.get_parent(return_expression_id.id);
-
-    // walk ancestors and detect any enclosing try node
-    while let Some(parent_id) = current {
-        // enclosing try means keep return await
-        if parent_id.ty == dir::NodeType::Expression {
-            let expression = tree.get(parent_id.into_typed::<dir::Expression>());
-            if matches!(expression, dir::Expression::Try { .. }) {
-                return true;
-            }
-        }
-
-        // callable boundary without try means no try context
-        if parent_id.ty == dir::NodeType::Declaration {
-            let declaration = tree.get(parent_id.into_typed::<dir::Declaration>());
-            if matches!(declaration, dir::Declaration::Function { .. }) {
-                return false;
-            }
-        }
-        if parent_id.ty == dir::NodeType::Member {
-            let member = tree.get(parent_id.into_typed::<dir::Member>());
-            if matches!(member, dir::Member::Method { .. }) {
-                return false;
-            }
-        }
-
-        current = tree.get_parent(parent_id.id);
-    }
-
-    false
 }
 
 #[cfg(test)]
@@ -297,12 +634,12 @@ async function fetchValue(): Promise<int32> {
         test.result(result).assert_lint("return-await");
     }
 
-    /// Keep return-await in finally blocks inside try expressions.
+    /// Flag return-await in finally blocks in default mode.
     #[test]
-    fn test_allows_return_await_inside_finally() {
+    fn test_flags_return_await_inside_finally_in_default_mode() {
         let test = TestProgram::for_rule_with_prelude(ReturnAwait);
         let result = test.lint_dir(
-            "return_await/test_allows_return_await_inside_finally.ds",
+            "return_await/test_flags_return_await_inside_finally_in_default_mode.ds",
             r#"
 async function load(): Promise<int32> {
     try {
@@ -317,7 +654,7 @@ async function fetchValue(): Promise<int32> {
 }
 "#,
         );
-        test.result(result).assert_no_lint("return-await");
+        test.result(result).assert_lint("return-await");
     }
 
     /// Fix redundant return-await when wrapped in parentheses.
@@ -379,5 +716,319 @@ async function fetchValue(): Promise<int32> {
         test.result(result)
             .assert_lint("return-await")
             .assert_lint_count("return-await", 1);
+    }
+
+    /// Flag redundant return-await in async object methods.
+    #[test]
+    fn test_flags_redundant_return_await_in_async_object_method() {
+        let test = TestProgram::for_rule_with_prelude(ReturnAwait);
+        let result = test.lint_dir(
+            "return_await/test_flags_redundant_return_await_in_async_object_method.ds",
+            r#"
+let loader = {
+    async load(): Promise<int32> {
+        return await fetchValue();
+    }
+};
+
+async function fetchValue(): Promise<int32> {
+    return 1;
+}
+"#,
+        );
+        test.result(result).assert_lint("return-await");
+    }
+
+    /// Keep return-await in try blocks for async object methods.
+    #[test]
+    fn test_allows_return_await_in_async_object_method_try_block() {
+        let test = TestProgram::for_rule_with_prelude(ReturnAwait);
+        let result = test.lint_dir(
+            "return_await/test_allows_return_await_in_async_object_method_try_block.ds",
+            r#"
+let loader = {
+    async load(): Promise<int32> {
+        try {
+            return await fetchValue();
+        } catch (error) {
+            return 0;
+        }
+    }
+};
+
+async function fetchValue(): Promise<int32> {
+    return 1;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("return-await");
+    }
+
+    /// Require await for Promise returns inside try blocks.
+    #[test]
+    fn test_requires_await_for_promise_return_inside_try() {
+        let test = TestProgram::for_rule_with_prelude(ReturnAwait);
+        let result = test.lint_dir(
+            "return_await/test_requires_await_for_promise_return_inside_try.ds",
+            r#"
+async function load(): Promise<int32> {
+    try {
+        return fetchValue();
+    } catch (error) {
+        return 0;
+    }
+}
+
+async function fetchValue(): Promise<int32> {
+    return 1;
+}
+"#,
+        );
+        test.result(result).assert_lint("return-await");
+    }
+
+    /// Flag await on non-promise return values.
+    #[test]
+    fn test_flags_return_await_for_non_promise_value() {
+        let test = TestProgram::for_rule_with_prelude(ReturnAwait);
+        let result = test.lint_dir(
+            "return_await/test_flags_return_await_for_non_promise_value.ds",
+            r#"
+async function load(): Promise<int32> {
+    return await 1;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("return-await")
+            .assert_safe_fixed(
+                r#"
+async function load(): Promise<int32> {
+    return 1;
+}
+"#,
+            );
+    }
+
+    /// Allow bare non-promise returns in try blocks.
+    #[test]
+    fn test_allows_non_promise_return_inside_try_without_await() {
+        let test = TestProgram::for_rule_with_prelude(ReturnAwait);
+        let result = test.lint_dir(
+            "return_await/test_allows_non_promise_return_inside_try_without_await.ds",
+            r#"
+async function load(): Promise<int32> {
+    try {
+        return 1;
+    } catch (error) {
+        return 0;
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("return-await");
+    }
+
+    /// Allow Promise returns in catch blocks without finally in default mode.
+    #[test]
+    fn test_allows_plain_promise_return_in_catch_without_finally() {
+        let test = TestProgram::for_rule_with_prelude(ReturnAwait);
+        let result = test.lint_dir(
+            "return_await/test_allows_plain_promise_return_in_catch_without_finally.ds",
+            r#"
+async function load(): Promise<int32> {
+    try {
+        throw 1;
+    } catch (error) {
+        return fetchValue();
+    }
+}
+
+async function fetchValue(): Promise<int32> {
+    return 1;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("return-await");
+    }
+
+    /// Require await in catch blocks when finally is present.
+    #[test]
+    fn test_requires_await_in_catch_with_finally() {
+        let test = TestProgram::for_rule_with_prelude(ReturnAwait);
+        let result = test.lint_dir(
+            "return_await/test_requires_await_in_catch_with_finally.ds",
+            r#"
+async function load(): Promise<int32> {
+    try {
+        throw 1;
+    } catch (error) {
+        return fetchValue();
+    } finally {
+        return 0;
+    }
+}
+
+async function fetchValue(): Promise<int32> {
+    return 1;
+}
+"#,
+        );
+        test.result(result).assert_lint("return-await");
+    }
+
+    /// Require await in ordinary contexts when mode is always.
+    #[test]
+    fn test_always_mode_requires_await_in_ordinary_context() {
+        let test = TestProgram::for_rule_with_prelude(ReturnAwait).with_options(|options| {
+            options.return_await_mode = ReturnAwaitMode::Always;
+        });
+        let result = test.lint_dir(
+            "return_await/test_always_mode_requires_await_in_ordinary_context.ds",
+            r#"
+async function load(): Promise<int32> {
+    return fetchValue();
+}
+
+async function fetchValue(): Promise<int32> {
+    return 1;
+}
+"#,
+        );
+        test.result(result).assert_lint("return-await");
+    }
+
+    /// Forbid await in all contexts when mode is never.
+    #[test]
+    fn test_never_mode_forbids_await_in_try_context() {
+        let test = TestProgram::for_rule_with_prelude(ReturnAwait).with_options(|options| {
+            options.return_await_mode = ReturnAwaitMode::Never;
+        });
+        let result = test.lint_dir(
+            "return_await/test_never_mode_forbids_await_in_try_context.ds",
+            r#"
+async function load(): Promise<int32> {
+    try {
+        return await fetchValue();
+    } catch (error) {
+        return 0;
+    }
+}
+
+async function fetchValue(): Promise<int32> {
+    return 1;
+}
+"#,
+        );
+        test.result(result).assert_lint("return-await");
+    }
+
+    /// Allow both awaited and plain Promise returns outside error contexts in correctness mode.
+    #[test]
+    fn test_correctness_mode_allows_both_return_forms_outside_try() {
+        let test = TestProgram::for_rule_with_prelude(ReturnAwait).with_options(|options| {
+            options.return_await_mode = ReturnAwaitMode::ErrorHandlingCorrectnessOnly;
+        });
+        let result = test.lint_dir(
+            "return_await/test_correctness_mode_allows_both_return_forms_outside_try.ds",
+            r#"
+async function one(): Promise<int32> {
+    return await fetchValue();
+}
+
+async function two(): Promise<int32> {
+    return fetchValue();
+}
+
+async function fetchValue(): Promise<int32> {
+    return 1;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("return-await");
+    }
+
+    /// Flag awaited concise bodies in default mode.
+    #[test]
+    fn test_flags_awaited_async_concise_body_in_default_mode() {
+        let test = TestProgram::for_rule_with_prelude(ReturnAwait);
+        let result = test.lint_dir(
+            "return_await/test_flags_awaited_async_concise_body_in_default_mode.ds",
+            r#"
+const load = async (): Promise<int32> => await fetchValue();
+
+async function fetchValue(): Promise<int32> {
+    return 1;
+}
+"#,
+        );
+        test.result(result).assert_lint("return-await");
+    }
+
+    /// Require await in concise async bodies when mode is always.
+    #[test]
+    fn test_always_mode_requires_await_in_async_concise_body() {
+        let test = TestProgram::for_rule_with_prelude(ReturnAwait).with_options(|options| {
+            options.return_await_mode = ReturnAwaitMode::Always;
+        });
+        let result = test.lint_dir(
+            "return_await/test_always_mode_requires_await_in_async_concise_body.ds",
+            r#"
+const load = async (): Promise<int32> => fetchValue();
+
+async function fetchValue(): Promise<int32> {
+    return 1;
+}
+"#,
+        );
+        test.result(result).assert_lint("return-await");
+    }
+
+    /// Allow return await when explicit resource management is active.
+    #[test]
+    fn test_allows_return_await_with_prior_using_declaration() {
+        let test = TestProgram::for_rule_with_prelude(ReturnAwait);
+        let result = test.lint_dir(
+            "return_await/test_allows_return_await_with_prior_using_declaration.ds",
+            r#"
+async function load(): Promise<int32> {
+    using resource = makeResource();
+    return await fetchValue();
+}
+
+function makeResource(): int32 {
+    return 1;
+}
+
+async function fetchValue(): Promise<int32> {
+    return 1;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("return-await");
+    }
+
+    /// Require await for promise returns when explicit resource management is active.
+    #[test]
+    fn test_requires_await_with_prior_using_declaration() {
+        let test = TestProgram::for_rule_with_prelude(ReturnAwait);
+        let result = test.lint_dir(
+            "return_await/test_requires_await_with_prior_using_declaration.ds",
+            r#"
+async function load(): Promise<int32> {
+    using resource = makeResource();
+    return fetchValue();
+}
+
+function makeResource(): int32 {
+    return 1;
+}
+
+async function fetchValue(): Promise<int32> {
+    return 1;
+}
+"#,
+        );
+        test.result(result).assert_lint("return-await");
     }
 }

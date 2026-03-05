@@ -1,6 +1,7 @@
 use destack_ast::{self as ast, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_statement_span;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -133,21 +134,7 @@ fn constant_true_assertion_fix(
         return None;
     }
 
-    let parent_id = ctx.parents.get(call_expression_id)?;
-    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
-        return None;
-    }
-
-    let statement_expression_id = ast::LocalNodeId::<Expression>::new(parent_id);
-    let statement_expression = ctx.tree.get(statement_expression_id);
-    let ast::Expression::Statement(inner_expression_id) = statement_expression else {
-        return None;
-    };
-    if *inner_expression_id != call_expression_id {
-        return None;
-    }
-
-    let statement_span = ctx.tree.get_span(statement_expression_id);
+    let statement_span = expression_statement_span(ctx.tree, &ctx.parents, call_expression_id)?;
     let edits = ctx.edit_builder().delete(statement_span).into_edits();
     Some(LintFix::safe("Remove constant-true assertion").with_edits(edits))
 }

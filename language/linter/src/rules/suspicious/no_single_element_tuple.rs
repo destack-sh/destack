@@ -15,7 +15,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Off,
         stability = Stable
     )]
@@ -75,10 +75,8 @@ fn no_single_element_tuple_fix(
 ) -> Option<LintFix> {
     let argument = ctx.tree.get(element_id);
     let element_id = match argument {
-        ast::Argument::Named { value, .. }
-        | ast::Argument::Labeled { value, .. }
-        | ast::Argument::Positional { value, .. }
-        | ast::Argument::Spread { value, .. } => *value,
+        ast::Argument::Positional { value, .. } => *value,
+        _ => return None,
     };
 
     let element_span = ctx.tree.get_span(element_id);
@@ -188,5 +186,19 @@ const value = ((input + 1),)
 const value = ((input + 1));
 "#,
             );
+    }
+
+    #[test]
+    fn test_spread_single_element_tuple_has_no_fix() {
+        let test = TestProgram::for_rule_without_prelude(NoSingleElementTuple);
+        let result = test.lint_ast(
+            "no_single_element_tuple/test_spread_single_element_tuple_has_no_fix.ds",
+            r#"
+const value = (...items,)
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-single-element-tuple")
+            .assert_has_no_fix("no-single-element-tuple");
     }
 }

@@ -1,21 +1,31 @@
-use destack_ast::{self as ast, Asynchrony, Declaration, FunctionKind};
-use destack_workspace::LintSeverity;
+use destack_dir::{
+    self as dir, Asynchrony, Expression, FunctionCardinality, NodeVisitor, NodeVisitorOptions,
+    WellKnownSymbol, walk_expression,
+};
+use destack_source::{ModuleId, Span};
+use destack_workspace::{LintSeverity, ProfileId, Program};
+use std::collections::HashSet;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::{
+    collect_pattern_value_binding_symbols, expression_enters_nested_declaration_scope,
+    expression_is_promise_like, expression_type_or_call_return_type_map,
+    expression_unwrap_parenthesized, is_promise_type, well_known_symbol_candidates,
+};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow async functions with no await expression.
     ///
-    /// An async function without await is likely a mistake. The function
-    /// will still return a Promise, but won't actually do async work.
+    /// Async functions without await often indicate accidental async usage.
+    /// Functions that directly return Promise like values are allowed.
     #[lint(
         id = "require-await",
         code = "LU042",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -24,156 +34,600 @@ declare_lint! {
 }
 
 impl LintRule for RequireAwait {
-    fn meta(&self) -> &'static crate::LintMeta {
+    /// Return lint metadata.
+    fn meta(&self) -> &'static LintMeta {
         RequireAwait::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    /// Check module DIR nodes for async callables without await or Promise like returns.
+    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+        // resolve metadata and Promise symbols once
         let meta = self.meta();
+        let promise_symbols = resolve_promise_symbols(ctx);
+        let async_function_symbols = collect_async_function_symbols(ctx);
 
-        for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.tree.get(node_id);
-
-            let Declaration::Function {
+        // check function declarations
+        for (declaration_id, declaration) in ctx.tree.iter_nodes_of_type::<dir::Declaration>() {
+            let dir::Declaration::Function {
                 signature, body, ..
             } = declaration
             else {
                 continue;
             };
 
-            // only check async functions
-            if signature.asynchrony != Asynchrony::Async {
-                continue;
-            }
+            check_async_callable(
+                ctx,
+                meta,
+                declaration_id,
+                signature,
+                *body,
+                &promise_symbols,
+                &async_function_symbols,
+            );
+        }
 
-            // skip lambda functions (arrow functions)
-            if signature.kind == FunctionKind::Lambda {
-                continue;
-            }
-
-            // skip functions without a body
-            let Some(body_id) = body else {
+        // check class or struct methods
+        for (member_id, member) in ctx.tree.iter_nodes_of_type::<dir::Member>() {
+            let dir::Member::Method {
+                signature, body, ..
+            } = member
+            else {
                 continue;
             };
 
-            // check if body contains any await expression
-            let has_await = contains_await(ctx, *body_id);
+            check_async_callable(
+                ctx,
+                meta,
+                member_id,
+                signature,
+                *body,
+                &promise_symbols,
+                &async_function_symbols,
+            );
+        }
 
-            if !has_await {
-                let severity = ctx.get_effective_severity(meta, *body_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
+        // check object literal methods
+        for (property_id, property) in ctx.tree.iter_nodes_of_type::<dir::Property>() {
+            let dir::Property::Method {
+                signature, body, ..
+            } = property
+            else {
+                continue;
+            };
 
-                let decl_span = ctx.tree.get_span(node_id);
-                let decl_text = ctx.get_span_text(decl_span);
-
-                // make fix: remove "async " prefix (unsafe - changes return type)
-                let replacement = if let Some(rest) = decl_text.strip_prefix("async ") {
-                    rest.to_string()
-                } else if let Some(rest) = decl_text.strip_prefix("async\n") {
-                    rest.to_string()
-                } else {
-                    decl_text.to_string()
-                };
-                let edits = ctx
-                    .edit_builder()
-                    .replace(decl_span, replacement)
-                    .into_edits();
-                let fix = LintFix::r#unsafe("Remove async keyword").with_edits(edits);
-
-                ctx.report(
-                    LintDiagnostic::new(
-                        REQUIRE_AWAIT.id,
-                        REQUIRE_AWAIT.code,
-                        REQUIRE_AWAIT.category,
-                        severity,
-                        "async function has no await expression",
-                        ctx.module.file_id,
-                        decl_span,
-                    )
-                    .with_label("add await or remove async keyword")
-                    .with_fix(fix),
-                );
-            }
+            check_async_callable(
+                ctx,
+                meta,
+                property_id,
+                signature,
+                *body,
+                &promise_symbols,
+                &async_function_symbols,
+            );
         }
     }
 }
 
-/// Check if an expression contains an await (recursively, but stop at function boundaries).
-fn contains_await(
-    ctx: &LintModuleAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
-) -> bool {
-    let expr = ctx.tree.get(expr_id);
+/// Resolve concrete Promise symbols when the module has typed well known symbols.
+fn resolve_promise_symbols(ctx: &LintModuleDirContext<'_>) -> Vec<dir::GlobalSymbolId> {
+    let Some(well_known_symbols) = ctx.get_well_known_symbols() else {
+        return Vec::new();
+    };
 
-    match expr {
-        ast::Expression::Await { .. } => true,
-        ast::Expression::Block(block_id) => {
-            let block = ctx.tree.get(*block_id);
-            block.expressions.iter().any(|e| contains_await(ctx, *e))
+    well_known_symbol_candidates(&well_known_symbols, WellKnownSymbol::Promise)
+}
+
+/// Collect async callable symbols for Promise call fallback checks.
+fn collect_async_function_symbols(ctx: &LintModuleDirContext<'_>) -> HashSet<dir::GlobalSymbolId> {
+    let mut symbols = HashSet::new();
+
+    // keep named async function declarations only
+    for declaration_id in ctx.tree.iter_node_ids_of_type::<dir::Declaration>() {
+        let declaration = ctx.tree.get(declaration_id);
+        let dir::Declaration::Function { signature, .. } = declaration else {
+            continue;
+        };
+        if signature.asynchrony != Asynchrony::Async {
+            continue;
         }
-        ast::Expression::If {
-            condition,
-            then_expression,
-            else_expression,
-            ..
-        } => {
-            let condition_has_await = match condition {
-                ast::IfCondition::Expression { condition } => contains_await(ctx, *condition),
-                ast::IfCondition::Let { declarator, .. } => {
-                    let declarator = ctx.tree.get(*declarator);
-                    declarator
-                        .value
-                        .is_some_and(|value| contains_await(ctx, value))
-                }
-            };
-            condition_has_await
-                || contains_await(ctx, *then_expression)
-                || else_expression.is_some_and(|e| contains_await(ctx, e))
-        }
-        ast::Expression::Binary { left, right, .. } => {
-            contains_await(ctx, *left) || contains_await(ctx, *right)
-        }
-        ast::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
-        } => {
-            contains_await(ctx, *left)
-                || dynamic_arguments.iter().any(|arg_id| {
-                    let arg = ctx.tree.get(*arg_id);
-                    match arg {
-                        ast::Argument::Positional { value, .. }
-                        | ast::Argument::Spread { value, .. }
-                        | ast::Argument::Named { value, .. }
-                        | ast::Argument::Labeled { value, .. } => contains_await(ctx, *value),
-                    }
-                })
-        }
-        ast::Expression::Statement(inner) => contains_await(ctx, *inner),
-        ast::Expression::Parenthesized { expression } => contains_await(ctx, *expression),
-        ast::Expression::Let { declarators, .. } => declarators.iter().any(|d_id| {
-            let d = ctx.tree.get(*d_id);
-            d.value.is_some_and(|v| contains_await(ctx, v))
-        }),
-        ast::Expression::Using {
-            asynchrony,
-            declarators,
-            ..
-        } => {
-            if *asynchrony == ast::Asynchrony::Async {
-                return true;
-            }
-            declarators.iter().any(|d_id| {
-                let d = ctx.tree.get(*d_id);
-                d.value.is_some_and(|v| contains_await(ctx, v))
-            })
-        }
-        // stop at nested function declarations (they have their own async scope)
-        ast::Expression::Declaration(_) => false,
-        _ => false,
+        let symbol_id = declaration.symbol().into_global(ctx.module_id());
+        symbols.insert(symbol_id);
     }
+
+    // keep async function expression and arrow bindings
+    for declarator_id in ctx.tree.iter_node_ids_of_type::<dir::Declarator>() {
+        let declarator = ctx.tree.get(declarator_id);
+        let Some(value_id) = declarator.value else {
+            continue;
+        };
+        if !expression_is_async_callable_value(ctx.tree, value_id) {
+            continue;
+        }
+
+        let mut binding_symbols = HashSet::new();
+        collect_pattern_value_binding_symbols(
+            ctx.tree,
+            ctx.symbols,
+            declarator.pattern,
+            &mut binding_symbols,
+        );
+        for symbol_id in binding_symbols {
+            let symbol_id = symbol_id.into_global(ctx.module_id());
+            symbols.insert(symbol_id);
+        }
+    }
+
+    symbols
+}
+
+/// Check one async callable node for missing await usage.
+fn check_async_callable<T: dir::Node>(
+    ctx: &mut LintModuleDirContext<'_>,
+    meta: &LintMeta,
+    node_id: dir::LocalNodeId<T>,
+    signature: &dir::FunctionSignature,
+    body_id: Option<dir::LocalNodeId<dir::Expression>>,
+    promise_symbols: &[dir::GlobalSymbolId],
+    async_function_symbols: &HashSet<dir::GlobalSymbolId>,
+) {
+    // keep only async callables with bodies
+    if signature.asynchrony != Asynchrony::Async {
+        return;
+    }
+    let Some(body_id) = body_id else {
+        return;
+    };
+
+    // ignore empty async bodies like source behavior
+    if function_body_is_empty(ctx.tree, body_id) {
+        return;
+    }
+
+    // analyze await and Promise like return signals
+    let analysis = analyze_async_callable_body(
+        ctx.program.as_ref(),
+        ctx.profile_id,
+        ctx.module_id(),
+        ctx.tree,
+        ctx.symbols,
+        ctx.types,
+        body_id,
+        signature.cardinality == FunctionCardinality::Generator,
+        promise_symbols,
+        async_function_symbols,
+    );
+    if analysis.has_await || analysis.has_thenable_return {
+        return;
+    }
+    if signature.cardinality == FunctionCardinality::Generator && analysis.has_async_yield {
+        return;
+    }
+
+    // honor per node severity
+    let node_id_raw = node_id.id;
+    let severity = ctx.get_effective_severity(meta, dir::LocalNodeId::<T>::new(node_id_raw));
+    if !severity.is_enabled() {
+        return;
+    }
+
+    // build one diagnostic
+    let span = ctx.get_span(dir::LocalNodeId::<T>::new(node_id_raw));
+    let mut diagnostic = LintDiagnostic::new(
+        REQUIRE_AWAIT.id,
+        REQUIRE_AWAIT.code,
+        REQUIRE_AWAIT.category,
+        severity,
+        "async function has no await expression",
+        ctx.module.file_id,
+        span,
+    )
+    .with_label("add await or remove async keyword");
+
+    // attach one unsafe async removal fix when token shape is known
+    if ctx.include_fixes
+        && let Some(fix) = require_await_fix(ctx, span)
+    {
+        diagnostic = diagnostic.with_fix(fix);
+    }
+
+    ctx.report(diagnostic);
+}
+
+/// Return true when a function body is an empty explicit block.
+fn function_body_is_empty(
+    tree: &dir::NodeTree,
+    body_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let body = tree.get(body_id);
+    let dir::Expression::Block { block } = body else {
+        return false;
+    };
+    let block = tree.get(*block);
+    block.expressions.is_empty()
+}
+
+/// Analyze one async function body for await and Promise like return signals.
+fn analyze_async_callable_body(
+    program: &Program,
+    profile_id: ProfileId,
+    module_id: ModuleId,
+    tree: &dir::NodeTree,
+    symbols: &dir::SymbolTable,
+    types: &dir::TypeTable,
+    body_id: dir::LocalNodeId<dir::Expression>,
+    is_generator: bool,
+    promise_symbols: &[dir::GlobalSymbolId],
+    async_function_symbols: &HashSet<dir::GlobalSymbolId>,
+) -> RequireAwaitBodyAnalysis {
+    // run body traversal analysis
+    let mut visitor = RequireAwaitBodyVisitor::new(
+        program,
+        profile_id,
+        module_id,
+        symbols,
+        types,
+        is_generator,
+        promise_symbols,
+        async_function_symbols,
+    );
+    visitor.run(tree, body_id);
+
+    // treat expression bodies as implicit returns
+    if !visitor.has_thenable_return
+        && expression_is_implicit_thenable_return(
+            program,
+            profile_id,
+            module_id,
+            tree,
+            symbols,
+            types,
+            promise_symbols,
+            async_function_symbols,
+            body_id,
+        )
+    {
+        visitor.has_thenable_return = true;
+    }
+
+    RequireAwaitBodyAnalysis {
+        has_await: visitor.has_await,
+        has_thenable_return: visitor.has_thenable_return,
+        has_async_yield: visitor.has_async_yield,
+    }
+}
+
+/// One body analysis result for require await.
+struct RequireAwaitBodyAnalysis {
+    /// Whether this callable body contains an await signal.
+    has_await: bool,
+    /// Whether this callable body returns a Promise like value.
+    has_thenable_return: bool,
+    /// Whether this async generator yields Promise like values.
+    has_async_yield: bool,
+}
+
+/// One visitor that collects await and Promise like returns in one body scope.
+struct RequireAwaitBodyVisitor<'a> {
+    /// Node visitor options.
+    options: NodeVisitorOptions,
+    /// Program for symbol backed type lookups.
+    program: &'a Program,
+    /// Active profile id for symbol backed type lookups.
+    profile_id: ProfileId,
+    /// Current module id for type lookups.
+    module_id: ModuleId,
+    /// Symbol table used for symbol backed type lookups.
+    symbols: &'a dir::SymbolTable,
+    /// Type table used for Promise like checks.
+    types: &'a dir::TypeTable,
+    /// Whether this callable is a generator.
+    is_generator: bool,
+    /// Known Promise symbols in this module profile.
+    promise_symbols: &'a [dir::GlobalSymbolId],
+    /// Async callable symbols in this module.
+    async_function_symbols: &'a HashSet<dir::GlobalSymbolId>,
+    /// Whether an await signal has been seen.
+    has_await: bool,
+    /// Whether a Promise like return has been seen.
+    has_thenable_return: bool,
+    /// Whether a Promise like yield has been seen.
+    has_async_yield: bool,
+    /// Nested declaration depth to skip inner function scopes.
+    nested_declaration_depth: usize,
+}
+
+impl<'a> RequireAwaitBodyVisitor<'a> {
+    /// Build one body visitor.
+    fn new(
+        program: &'a Program,
+        profile_id: ProfileId,
+        module_id: ModuleId,
+        symbols: &'a dir::SymbolTable,
+        types: &'a dir::TypeTable,
+        is_generator: bool,
+        promise_symbols: &'a [dir::GlobalSymbolId],
+        async_function_symbols: &'a HashSet<dir::GlobalSymbolId>,
+    ) -> Self {
+        Self {
+            options: NodeVisitorOptions::default(),
+            program,
+            profile_id,
+            module_id,
+            symbols,
+            types,
+            is_generator,
+            promise_symbols,
+            async_function_symbols,
+            has_await: false,
+            has_thenable_return: false,
+            has_async_yield: false,
+            nested_declaration_depth: 0,
+        }
+    }
+
+    /// Walk one function body expression.
+    fn run(&mut self, tree: &dir::NodeTree, body_id: dir::LocalNodeId<dir::Expression>) {
+        let body = tree.get(body_id);
+        self.visit_expression(tree, body_id, body);
+    }
+}
+
+impl NodeVisitor for RequireAwaitBodyVisitor<'_> {
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &dir::NodeTree,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        expression: &Expression,
+    ) {
+        // track nested declarations to avoid counting inner scope control flow
+        let enters_nested_scope = expression_enters_nested_declaration_scope(tree, expression);
+        if enters_nested_scope {
+            self.nested_declaration_depth += 1;
+        }
+
+        // collect signals only in the current callable scope
+        if self.nested_declaration_depth == 0 {
+            if expression_has_await_signal(expression) {
+                self.has_await = true;
+            }
+
+            if self.is_generator
+                && let Expression::Yield {
+                    value: Some(value_id),
+                    ..
+                } = expression
+                && expression_is_thenable_return_value(
+                    self.program,
+                    self.profile_id,
+                    self.module_id,
+                    tree,
+                    self.symbols,
+                    self.types,
+                    self.promise_symbols,
+                    self.async_function_symbols,
+                    *value_id,
+                )
+            {
+                self.has_async_yield = true;
+            }
+
+            if let Expression::Return {
+                value: Some(value_id),
+            } = expression
+                && expression_is_thenable_return_value(
+                    self.program,
+                    self.profile_id,
+                    self.module_id,
+                    tree,
+                    self.symbols,
+                    self.types,
+                    self.promise_symbols,
+                    self.async_function_symbols,
+                    *value_id,
+                )
+            {
+                self.has_thenable_return = true;
+            }
+        }
+
+        // walk child expressions
+        walk_expression(self, tree, expression_id, expression);
+
+        // leave nested declaration scope
+        if enters_nested_scope {
+            self.nested_declaration_depth -= 1;
+        }
+    }
+}
+
+/// Return true when one expression kind satisfies await usage for this lint.
+fn expression_has_await_signal(expression: &Expression) -> bool {
+    matches!(
+        expression,
+        Expression::Await { .. } | Expression::AwaitMaybe { .. }
+    ) || matches!(expression, Expression::ForEach { asynchrony, .. } if *asynchrony == Asynchrony::Async)
+        || matches!(expression, Expression::Using { asynchrony, .. } if *asynchrony == Asynchrony::Async)
+}
+
+/// Return true when one return value expression is Promise like.
+fn expression_is_thenable_return_value(
+    program: &Program,
+    profile_id: ProfileId,
+    module_id: ModuleId,
+    tree: &dir::NodeTree,
+    symbols: &dir::SymbolTable,
+    types: &dir::TypeTable,
+    promise_symbols: &[dir::GlobalSymbolId],
+    async_function_symbols: &HashSet<dir::GlobalSymbolId>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    // keep typed Promise like checks first
+    if promise_symbols.iter().any(|promise_symbol| {
+        expression_is_promise_like(module_id, tree, types, *promise_symbol, expression_id)
+    }) {
+        return true;
+    }
+
+    // keep symbol backed Promise checks for unresolved expression types
+    let has_symbol_backed_promise_type = promise_symbols.iter().any(|promise_symbol| {
+        expression_type_or_call_return_type_map(
+            program,
+            profile_id,
+            module_id,
+            tree,
+            symbols,
+            types,
+            expression_id,
+            |types, type_id| is_promise_type(types, type_id, Some(*promise_symbol)),
+        )
+        .unwrap_or(false)
+    });
+    if has_symbol_backed_promise_type {
+        return true;
+    }
+
+    // keep one syntax fallback for async declaration calls
+    expression_is_async_symbol_call(tree, expression_id, async_function_symbols)
+}
+
+/// Return true when a function body expression is an implicit Promise like return.
+fn expression_is_implicit_thenable_return(
+    program: &Program,
+    profile_id: ProfileId,
+    module_id: ModuleId,
+    tree: &dir::NodeTree,
+    symbols: &dir::SymbolTable,
+    types: &dir::TypeTable,
+    promise_symbols: &[dir::GlobalSymbolId],
+    async_function_symbols: &HashSet<dir::GlobalSymbolId>,
+    body_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    // ignore block bodies because explicit return handling covers them
+    if matches!(tree.get(body_id), Expression::Block { .. }) {
+        return false;
+    }
+
+    expression_is_thenable_return_value(
+        program,
+        profile_id,
+        module_id,
+        tree,
+        symbols,
+        types,
+        promise_symbols,
+        async_function_symbols,
+        body_id,
+    )
+}
+
+/// Return true when one expression is a direct call to one known async callable symbol.
+fn expression_is_async_symbol_call(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    async_function_symbols: &HashSet<dir::GlobalSymbolId>,
+) -> bool {
+    // normalize expression wrappers
+    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
+    let expression = tree.get(expression_id);
+    let Expression::Call { left, .. } = expression else {
+        return false;
+    };
+
+    // resolve one direct callee symbol
+    let callee_id = expression_unwrap_parenthesized(tree, *left);
+    let callee = tree.get(callee_id);
+    let Some(symbol_id) = callee.target_symbol() else {
+        return false;
+    };
+
+    async_function_symbols.contains(&symbol_id)
+}
+
+/// Return true when one expression is an async callable value expression.
+fn expression_is_async_callable_value(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
+    let expression = tree.get(expression_id);
+    let Expression::Declaration { declaration } = expression else {
+        return false;
+    };
+
+    let declaration = tree.get(*declaration);
+    let dir::Declaration::Function { signature, .. } = declaration else {
+        return false;
+    };
+
+    signature.asynchrony == Asynchrony::Async
+}
+
+/// Build one unsafe fix that removes the `async` keyword token.
+fn require_await_fix(ctx: &LintModuleDirContext<'_>, callable_span: Span) -> Option<LintFix> {
+    // resolve callable source text
+    let callable_text = ctx.get_span_text(callable_span);
+    let (async_start, async_end) = first_async_keyword_range(callable_text)?;
+
+    // remove the async token range
+    let mut replacement = String::with_capacity(callable_text.len());
+    replacement.push_str(&callable_text[..async_start]);
+    replacement.push_str(&callable_text[async_end..]);
+    if replacement == callable_text {
+        return None;
+    }
+
+    // build one edit set
+    let edits = ctx
+        .edit_builder()
+        .replace(callable_span, replacement)
+        .into_edits();
+    Some(LintFix::r#unsafe("Remove async keyword").with_edits(edits))
+}
+
+/// Resolve the first standalone `async` keyword token and trailing whitespace.
+fn first_async_keyword_range(text: &str) -> Option<(usize, usize)> {
+    // scan each `async` occurrence and keep the first standalone token
+    let mut search_start = 0;
+    while let Some(relative_index) = text[search_start..].find("async") {
+        let async_start = search_start + relative_index;
+        let async_end = async_start + "async".len();
+
+        // require one non identifier boundary before and after `async`
+        let before_is_identifier = text[..async_start]
+            .chars()
+            .next_back()
+            .is_some_and(is_identifier_character);
+        let after_is_identifier = text[async_end..]
+            .chars()
+            .next()
+            .is_some_and(is_identifier_character);
+        if before_is_identifier || after_is_identifier {
+            search_start = async_end;
+            continue;
+        }
+
+        // include trailing whitespace in the removed range
+        let mut remove_end = async_end;
+        while let Some(character) = text[remove_end..].chars().next() {
+            if !character.is_whitespace() {
+                break;
+            }
+            remove_end += character.len_utf8();
+        }
+
+        return Some((async_start, remove_end));
+    }
+
+    None
+}
+
+/// Return true when one character can appear in an identifier token.
+fn is_identifier_character(character: char) -> bool {
+    character == '_' || character == '$' || character.is_ascii_alphanumeric()
 }
 
 #[cfg(test)]
@@ -183,8 +637,8 @@ mod tests {
 
     #[test]
     fn test_async_without_await_detected() {
-        let test = TestProgram::for_rule_without_prelude(RequireAwait);
-        let result = test.lint_ast(
+        let test = TestProgram::for_rule_with_prelude(RequireAwait);
+        let result = test.lint_dir(
             "require_await/test_async_without_await_detected.ds",
             r#"
 async function foo() {
@@ -197,8 +651,8 @@ async function foo() {
 
     #[test]
     fn test_async_with_await_allowed() {
-        let test = TestProgram::for_rule_without_prelude(RequireAwait);
-        let result = test.lint_ast(
+        let test = TestProgram::for_rule_with_prelude(RequireAwait);
+        let result = test.lint_dir(
             "require_await/test_async_with_await_allowed.ds",
             r#"
 async function foo() {
@@ -212,8 +666,8 @@ async function foo() {
 
     #[test]
     fn test_non_async_function_allowed() {
-        let test = TestProgram::for_rule_without_prelude(RequireAwait);
-        let result = test.lint_ast(
+        let test = TestProgram::for_rule_with_prelude(RequireAwait);
+        let result = test.lint_dir(
             "require_await/test_non_async_function_allowed.ds",
             r#"
 function foo() {
@@ -226,8 +680,8 @@ function foo() {
 
     #[test]
     fn test_fix_removes_async() {
-        let test = TestProgram::for_rule_without_prelude(RequireAwait);
-        let result = test.lint_ast(
+        let test = TestProgram::for_rule_with_prelude(RequireAwait);
+        let result = test.lint_dir(
             "require_await/test_fix_removes_async.ds",
             r#"
 async function foo() {
@@ -244,5 +698,172 @@ function foo() {
 }
 "#,
             );
+    }
+
+    #[test]
+    fn test_allows_empty_async_function() {
+        let test = TestProgram::for_rule_with_prelude(RequireAwait);
+        let result = test.lint_dir(
+            "require_await/test_allows_empty_async_function.ds",
+            r#"
+async function foo() {}
+"#,
+        );
+        test.result(result).assert_no_lint("require-await");
+    }
+
+    #[test]
+    fn test_allows_promise_return_without_await() {
+        let test = TestProgram::for_rule_with_prelude(RequireAwait);
+        let result = test.lint_dir(
+            "require_await/test_allows_promise_return_without_await.ds",
+            r#"
+async function foo() {
+    return Promise.resolve(42)
+}
+"#,
+        );
+        test.result(result).assert_no_lint("require-await");
+    }
+
+    #[test]
+    fn test_flags_async_method_without_await() {
+        let test = TestProgram::for_rule_with_prelude(RequireAwait);
+        let result = test.lint_dir(
+            "require_await/test_flags_async_method_without_await.ds",
+            r#"
+class Worker {
+    async run() {
+        return 1
+    }
+}
+"#,
+        );
+        test.result(result).assert_lint("require-await");
+    }
+
+    #[test]
+    fn test_allows_async_generator_with_promise_yield() {
+        let test = TestProgram::for_rule_with_prelude(RequireAwait);
+        let result = test.lint_dir(
+            "require_await/test_allows_async_generator_with_promise_yield.ds",
+            r#"
+async function* numbers() {
+    yield Promise.resolve(1)
+}
+"#,
+        );
+        test.result(result).assert_no_lint("require-await");
+    }
+
+    #[test]
+    fn test_flags_async_generator_without_await_or_promise_yield() {
+        let test = TestProgram::for_rule_with_prelude(RequireAwait);
+        let result = test.lint_dir(
+            "require_await/test_flags_async_generator_without_await_or_promise_yield.ds",
+            r#"
+async function* numbers() {
+    yield 1
+}
+"#,
+        );
+        test.result(result).assert_lint("require-await");
+    }
+
+    #[test]
+    fn test_allows_async_function_expression_return_call() {
+        let test = TestProgram::for_rule_with_prelude(RequireAwait);
+        let result = test.lint_dir(
+            "require_await/test_allows_async_function_expression_return_call.ds",
+            r#"
+const fetch_value = async function (): Promise<int32> {
+    return await Promise.resolve(1)
+}
+
+async function load(): Promise<int32> {
+    return fetch_value()
+}
+"#,
+        );
+        test.result(result).assert_no_lint("require-await");
+    }
+
+    #[test]
+    fn test_allows_async_arrow_return_call() {
+        let test = TestProgram::for_rule_with_prelude(RequireAwait);
+        let result = test.lint_dir(
+            "require_await/test_allows_async_arrow_return_call.ds",
+            r#"
+const fetch_value = async (): Promise<int32> => Promise.resolve(1)
+
+async function load(): Promise<int32> {
+    return fetch_value()
+}
+"#,
+        );
+        test.result(result).assert_no_lint("require-await");
+    }
+
+    #[test]
+    fn test_allows_async_arrow_expression_body_promise_return() {
+        let test = TestProgram::for_rule_with_prelude(RequireAwait);
+        let result = test.lint_dir(
+            "require_await/test_allows_async_arrow_expression_body_promise_return.ds",
+            r#"
+const fetch_value = async (): Promise<int32> => Promise.resolve(1)
+const load = async (): Promise<int32> => fetch_value()
+"#,
+        );
+        test.result(result).assert_no_lint("require-await");
+    }
+
+    #[test]
+    fn test_flags_async_arrow_expression_body_without_await_or_promise_return() {
+        let test = TestProgram::for_rule_with_prelude(RequireAwait);
+        let result = test.lint_dir(
+            "require_await/test_flags_async_arrow_expression_body_without_await_or_promise_return.ds",
+            r#"
+const load = async (): Promise<int32> => 1
+"#,
+        );
+        test.result(result).assert_lint("require-await");
+    }
+
+    #[test]
+    fn test_allows_async_function_with_await_using() {
+        let test = TestProgram::for_rule_with_prelude(RequireAwait);
+        let result = test.lint_dir(
+            "require_await/test_allows_async_function_with_await_using.ds",
+            r#"
+async function load(): Promise<int32> {
+    await using resource = makeResource()
+    return 1
+}
+
+function makeResource(): int32 {
+    return 1
+}
+"#,
+        );
+        test.result(result).assert_no_lint("require-await");
+    }
+
+    #[test]
+    fn test_flags_async_function_with_plain_using_only() {
+        let test = TestProgram::for_rule_with_prelude(RequireAwait);
+        let result = test.lint_dir(
+            "require_await/test_flags_async_function_with_plain_using_only.ds",
+            r#"
+async function load(): Promise<int32> {
+    using resource = makeResource()
+    return 1
+}
+
+function makeResource(): int32 {
+    return 1
+}
+"#,
+        );
+        test.result(result).assert_lint("require-await");
     }
 }

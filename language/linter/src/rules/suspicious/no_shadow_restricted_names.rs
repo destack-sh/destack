@@ -5,6 +5,7 @@ use destack_builtin::LanguageSymbol;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_is_unqualified_path_name;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -47,6 +48,7 @@ const JS_GLOBALS: &[&str] = &[
     "console",
     "eval",
     "globalThis",
+    "undefined",
 ];
 
 /// Sorted list of all restricted names (JS globals + language items).
@@ -61,6 +63,11 @@ static RESTRICTED_NAMES: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
 /// Check if a name is a restricted name.
 fn is_restricted_name(name: &str) -> bool {
     RESTRICTED_NAMES.binary_search(&name).is_ok()
+}
+
+/// Return true when one string id is `undefined`.
+fn name_is_undefined(ctx: &LintModuleAstContext<'_>, name: ast::StringId) -> bool {
+    ctx.strings.get(name).as_ref() == "undefined"
 }
 
 impl LintRule for NoShadowRestrictedNames {
@@ -82,6 +89,12 @@ impl LintRule for NoShadowRestrictedNames {
 
             let name_str = ctx.strings.get(name).to_string();
             if !is_restricted_name(&name_str) {
+                continue;
+            }
+
+            // keep source parity: allow safe shadowing of `undefined`
+            if name_is_undefined(ctx, name) && binding_safely_shadows_undefined(ctx, node_id, name)
+            {
                 continue;
             }
 
@@ -237,11 +250,7 @@ fn restricted_name_replacement(ctx: &LintModuleAstContext<'_>, name: &str) -> St
 /// Return true when one unqualified path references this identifier.
 fn has_unqualified_path_reference(ctx: &LintModuleAstContext<'_>, name: ast::StringId) -> bool {
     for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
-        let expression = ctx.tree.get(expression_id);
-        if let ast::Expression::Path { path, .. } = expression
-            && path.segments.len() == 1
-            && path.segments[0] == name
-        {
+        if expression_is_unqualified_path_name(ctx.tree, expression_id, name) {
             return true;
         }
     }
@@ -291,10 +300,63 @@ fn identifier_name_exists_in_ast(ctx: &LintModuleAstContext<'_>, name: ast::Stri
     }
 
     for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
+        if expression_is_unqualified_path_name(ctx.tree, expression_id, name) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Return true when one `undefined` binding follows ESLint safe-shadow semantics.
+fn binding_safely_shadows_undefined(
+    ctx: &LintModuleAstContext<'_>,
+    pattern_id: ast::LocalNodeId<ast::Pattern>,
+    name: ast::StringId,
+) -> bool {
+    // keep only simple declarator bindings
+    let Some(parent_id) = ctx.parents.get(pattern_id) else {
+        return false;
+    };
+    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Declarator {
+        return false;
+    }
+
+    let declarator_id = ast::LocalNodeId::<ast::Declarator>::new(parent_id);
+    let declarator = ctx.tree.get(declarator_id);
+    if declarator.pattern != pattern_id {
+        return false;
+    }
+    if declarator.value.is_some() {
+        return false;
+    }
+
+    // require no write usage of the same unqualified name
+    !identifier_has_write_usage(ctx, name)
+}
+
+/// Return true when one unqualified identifier has assignment-like writes.
+fn identifier_has_write_usage(ctx: &LintModuleAstContext<'_>, name: ast::StringId) -> bool {
+    for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
         let expression = ctx.tree.get(expression_id);
-        if let ast::Expression::Path { path, .. } = expression
-            && path.segments.len() == 1
-            && path.segments[0] == name
+
+        // capture direct assignment writes
+        if let ast::Expression::Assign { left, .. } = expression
+            && expression_is_unqualified_path_name(ctx.tree, *left, name)
+        {
+            return true;
+        }
+
+        // capture unary increment and decrement writes
+        if let ast::Expression::Unary { operator, right } = expression
+            && matches!(
+                operator,
+                ast::UnaryOperator::PreIncrement
+                    | ast::UnaryOperator::PostIncrement
+                    | ast::UnaryOperator::PreDecrement
+                    | ast::UnaryOperator::PostDecrement
+            )
+            && expression_is_unqualified_path_name(ctx.tree, *right, name)
         {
             return true;
         }
@@ -420,6 +482,33 @@ class Object {}
             "no_shadow_restricted_names/test_detects_array_function.ds",
             r#"
 function Array() {}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-shadow-restricted-names");
+    }
+
+    #[test]
+    fn test_allows_safe_undefined_shadow_without_initializer() {
+        let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
+        let result = test.lint_ast(
+            "no_shadow_restricted_names/test_allows_safe_undefined_shadow_without_initializer.ds",
+            r#"
+let undefined
+doSomething(undefined)
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-shadow-restricted-names");
+    }
+
+    #[test]
+    fn test_detects_undefined_shadow_with_initializer() {
+        let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
+        let result = test.lint_ast(
+            "no_shadow_restricted_names/test_detects_undefined_shadow_with_initializer.ds",
+            r#"
+let undefined = 1
 "#,
         );
         test.result(result)
@@ -563,7 +652,7 @@ let NaNLocal2 = 0;
         let result = test.lint_ast(
             "no_shadow_restricted_names/test_fix_ignores_comment_occurrences_of_restricted_name.ds",
             r#"
-// NaN appears in a comment but should not block the rename fix
+// nan appears in a comment but should not block the rename fix
 let NaN = 0
 "#,
         );
@@ -575,7 +664,7 @@ let NaN = 0
         assert_eq!(
             fixed.trim(),
             r#"
-// NaN appears in a comment but should not block the rename fix
+// nan appears in a comment but should not block the rename fix
 let NaNLocal = 0;
 "#
             .trim()

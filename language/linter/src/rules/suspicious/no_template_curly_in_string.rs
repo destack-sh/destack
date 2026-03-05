@@ -178,6 +178,24 @@ const x = "Hello ${name}"
     }
 
     #[test]
+    fn test_detects_template_in_single_quoted_string() {
+        let test = TestProgram::for_rule_without_prelude(NoTemplateCurlyInString);
+        let result = test.lint_ast(
+            "no_template_curly_in_string/test_detects_template_in_single_quoted_string.ds",
+            r#"
+const x = 'Hello ${name}'
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-template-curly-in-string")
+            .assert_unsafe_fixed(
+                r#"
+const x = `Hello ${name}`;
+"#,
+            );
+    }
+
+    #[test]
     fn test_detects_multiple_templates() {
         let test = TestProgram::for_rule_without_prelude(NoTemplateCurlyInString);
         let result = test.lint_ast(

@@ -529,4 +529,35 @@ for (let i = 0; i < 2; i += 1) {
         );
         test.result(result).assert_no_lint("no-loop-func");
     }
+
+    /// Flag arrow functions in loops that capture mutable loop bindings.
+    #[test]
+    fn test_flags_arrow_function_capture_in_loop() {
+        let test = TestProgram::for_rule_without_prelude(NoLoopFunc);
+        let result = test.lint_dir(
+            "no_loop_func/test_flags_arrow_function_capture_in_loop.ds",
+            r#"
+for (let i = 0; i < 3; i += 1) {
+    const read = (): int32 => i;
+    read();
+}
+"#,
+        );
+        test.result(result).assert_lint("no-loop-func");
+    }
+
+    /// Allow immediately invoked arrow functions in loops.
+    #[test]
+    fn test_allows_immediately_invoked_arrow_function_in_loop() {
+        let test = TestProgram::for_rule_without_prelude(NoLoopFunc);
+        let result = test.lint_dir(
+            "no_loop_func/test_allows_immediately_invoked_arrow_function_in_loop.ds",
+            r#"
+for (let i = 0; i < 3; i += 1) {
+    (() => i)();
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-loop-func");
+    }
 }

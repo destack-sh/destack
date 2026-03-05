@@ -1,6 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_contains_assignment;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -41,46 +42,73 @@ impl LintRule for NoReturnAssign {
             };
 
             // check if the return value is an assignment
-            if contains_assignment(ctx, *value_id) {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-
-                let mut diagnostic = LintDiagnostic::new(
-                    NO_RETURN_ASSIGN.id,
-                    NO_RETURN_ASSIGN.code,
-                    NO_RETURN_ASSIGN.category,
-                    severity,
-                    "assignment in return statement",
-                    ctx.module.file_id,
-                    ctx.tree.get_span(node_id),
-                )
-                .with_label("separate assignment from return");
-
-                // compute fixes only when requested by the runner
-                if ctx.compute_fixes
-                    && let Some(fix) = no_return_assign_fix(ctx, node_id, *value_id)
-                {
-                    diagnostic = diagnostic.with_fix(fix);
-                }
-
-                ctx.report(diagnostic);
+            if !expression_contains_assignment(ctx.tree, *value_id) {
+                continue;
             }
-        }
-    }
-}
 
-/// Return whether the expression contains an assignment.
-fn contains_assignment(
-    ctx: &LintModuleAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
-) -> bool {
-    let expression = ctx.tree.get(expr_id);
-    match expression {
-        ast::Expression::Assign { .. } => true,
-        ast::Expression::Parenthesized { expression } => contains_assignment(ctx, *expression),
-        _ => false,
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
+            let mut diagnostic = LintDiagnostic::new(
+                NO_RETURN_ASSIGN.id,
+                NO_RETURN_ASSIGN.code,
+                NO_RETURN_ASSIGN.category,
+                severity,
+                "assignment in return statement",
+                ctx.module.file_id,
+                ctx.tree.get_span(node_id),
+            )
+            .with_label("separate assignment from return");
+
+            // compute fixes only when requested by the runner
+            if ctx.compute_fixes
+                && let Some(fix) = no_return_assign_fix(ctx, node_id, *value_id)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
+        }
+
+        // inspect implicit return function bodies for assignment expressions
+        for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
+            let declaration = ctx.tree.get(declaration_id);
+            let ast::Declaration::Function {
+                body: Some(body_expression_id),
+                ..
+            } = declaration
+            else {
+                continue;
+            };
+
+            let body_expression = ctx.tree.get(*body_expression_id);
+            if matches!(body_expression, ast::Expression::Block(_)) {
+                continue;
+            }
+
+            if !expression_contains_assignment(ctx.tree, *body_expression_id) {
+                continue;
+            }
+
+            let severity = ctx.get_effective_severity(meta, *body_expression_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
+            let diagnostic = LintDiagnostic::new(
+                NO_RETURN_ASSIGN.id,
+                NO_RETURN_ASSIGN.code,
+                NO_RETURN_ASSIGN.category,
+                severity,
+                "assignment in implicit return expression",
+                ctx.module.file_id,
+                ctx.tree.get_span(*body_expression_id),
+            )
+            .with_label("extract assignment before returning from this expression body");
+            ctx.report(diagnostic);
+        }
     }
 }
 
@@ -272,5 +300,33 @@ function foo() {
 }
 "#,
             );
+    }
+
+    #[test]
+    fn test_detects_nested_assignment_inside_return_expression() {
+        let test = TestProgram::for_rule_without_prelude(NoReturnAssign);
+        let result = test.lint_ast(
+            "no_return_assign/test_detects_nested_assignment_inside_return_expression.ts",
+            r#"
+function foo() {
+    return wrap(x = 1)
+}
+"#,
+        );
+        test.result(result).assert_lint("no-return-assign");
+    }
+
+    #[test]
+    fn test_detects_assignment_in_implicit_return_function_body() {
+        let test = TestProgram::for_rule_without_prelude(NoReturnAssign);
+        let result = test.lint_ast(
+            "no_return_assign/test_detects_assignment_in_implicit_return_function_body.ts",
+            r#"
+const foo = (): int32 => x = 1
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-return-assign")
+            .assert_has_no_fix("no-return-assign");
     }
 }

@@ -2,6 +2,10 @@ use destack_ast as ast;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{
+    match_case_selector, match_selector_guard_expression_id, match_selector_pattern_id,
+    span_has_comment_trivia,
+};
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -37,21 +41,15 @@ impl LintRule for NoRedundantMatchGuard {
 
         for node_id in ctx.tree.iter_nodes::<ast::MatchCase>() {
             let match_case = ctx.tree.get(node_id);
-
-            let selector = match match_case {
-                ast::MatchCase::Expression { selector, .. } => selector,
-                ast::MatchCase::Block { selector, .. } => selector,
+            let selector = match_case_selector(match_case);
+            let Some(pattern_id) = match_selector_pattern_id(selector) else {
+                continue;
             };
-
-            let ast::MatchSelector::Pattern { pattern, guard } = selector else {
+            let Some(guard_id) = match_selector_guard_expression_id(selector) else {
                 continue;
             };
 
-            let Some(guard_id) = guard else {
-                continue;
-            };
-
-            let Some(is_truthy) = ctx.const_bool(*guard_id) else {
+            let Some(is_truthy) = ctx.const_bool(guard_id) else {
                 continue;
             };
 
@@ -73,14 +71,14 @@ impl LintRule for NoRedundantMatchGuard {
                 severity,
                 message,
                 ctx.module.file_id,
-                ctx.tree.get_span(*guard_id),
+                ctx.tree.get_span(guard_id),
             )
             .with_label(label);
 
             // remove guards that are always true
             if is_truthy
                 && ctx.compute_fixes
-                && let Some(fix) = redundant_true_guard_fix(ctx, *pattern, *guard_id)
+                && let Some(fix) = redundant_true_guard_fix(ctx, pattern_id, guard_id)
             {
                 diagnostic = diagnostic.with_fix(fix);
             }
@@ -104,6 +102,9 @@ fn redundant_true_guard_fix(
 
     let remove_span = Span::new(pattern_span.file, pattern_span.end, guard_span.end);
     if remove_span.is_empty() {
+        return None;
+    }
+    if span_has_comment_trivia(ctx.tree, remove_span) {
         return None;
     }
 
@@ -258,5 +259,22 @@ match (x) {
         );
         test.result(result)
             .assert_no_lint("no-redundant-match-guard");
+    }
+
+    #[test]
+    fn test_true_guard_with_comment_has_no_fix() {
+        let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
+        let result = test.lint_ast(
+            "no_redundant_match_guard/test_true_guard_with_comment_has_no_fix.ds",
+            r#"
+match (x) {
+    1 if /* keep */ true => "one"
+    _ => "other"
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-redundant-match-guard")
+            .assert_has_no_fix("no-redundant-match-guard");
     }
 }
