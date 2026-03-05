@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    const_i64, expression_method_call, is_array_type, strip_dot_member_suffix,
+    const_i64, expression_method_call, is_array_type, member_receiver_text,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -286,11 +286,15 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         let first_argument_id = *map_arguments.first()?;
         let last_argument_id = *map_arguments.last()?;
 
-        // derive receiver text from member expression text
+        // derive receiver text from the map member expression
+        let map_member_expression = self.ctx.tree.get(map_member_id);
+        let dir::Expression::Member { left, name, .. } = map_member_expression else {
+            return None;
+        };
         let map_member_span = self.ctx.get_span(map_member_id);
         let map_member_text = self.ctx.get_span_text(map_member_span);
-        let map_member_text = map_member_text.as_ref();
-        let receiver_text = strip_dot_member_suffix(map_member_text, "map")?;
+        let receiver_text =
+            member_receiver_text(self.ctx, *left, map_member_text.as_ref(), *name, false)?;
 
         // preserve original map argument source range
         let first_span = self.ctx.get_span(first_argument_id);

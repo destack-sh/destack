@@ -1,6 +1,7 @@
 use destack_ast::{self as ast, BinaryOperator, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::span_has_comment_trivia;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -32,113 +33,315 @@ impl LintRule for PreferTemplate {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expr = ctx.tree.get(node_id);
+            let expression = ctx.tree.get(node_id);
 
-            // look for binary + operator
+            // match add expressions only
             let Expression::Binary {
-                left,
                 operator: BinaryOperator::Add,
-                right,
-            } = expr
+                ..
+            } = expression
             else {
                 continue;
             };
 
-            let left_expr = ctx.tree.get(*left);
-            let right_expr = ctx.tree.get(*right);
+            // report only on top level concat chains
+            if is_nested_add_expression(ctx, node_id) {
+                continue;
+            }
 
-            // check if either operand is a string literal
-            let left_is_string = is_string_expression(left_expr);
-            let right_is_string = is_string_expression(right_expr);
+            // require one string like part and one non string part
+            let has_string_part = concat_has_string_part(ctx, node_id);
+            let has_non_string_part = concat_has_non_string_part(ctx, node_id);
+            if !(has_string_part && has_non_string_part) {
+                continue;
+            }
 
-            // flag if at least one side is a string and the other is not
-            // (if both are strings, no-useless-concat should catch it)
-            if (left_is_string || right_is_string) && !(left_is_string && right_is_string) {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
+            // honor effective severity
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
 
-                let expression_span = ctx.tree.get_span(node_id);
+            let expression_span = ctx.tree.get_span(node_id);
+            let mut diagnostic = LintDiagnostic::new(
+                PREFER_TEMPLATE.id,
+                PREFER_TEMPLATE.code,
+                PREFER_TEMPLATE.category,
+                severity,
+                "prefer template literal for string concatenation",
+                ctx.module.file_id,
+                expression_span,
+            )
+            .with_label("use template literal: `` `...${x}...` ``");
 
-                // make the fix: convert to template literal
-                let replacement = if left_is_string {
-                    // "str" + expr -> `str${expr}`
-                    let str_content = get_string_content(ctx, *left);
-                    let right_span = ctx.tree.get_span(*right);
-                    let right_text = ctx.get_span_text(right_span);
-                    let escaped = escape_for_template(&str_content);
-                    format!("`{escaped}${{{right_text}}}`")
-                } else {
-                    // expr + "str" -> `${expr}str`
-                    let str_content = get_string_content(ctx, *right);
-                    let left_span = ctx.tree.get_span(*left);
-                    let left_text = ctx.get_span_text(left_span);
-                    let escaped = escape_for_template(&str_content);
-                    format!("`${{{left_text}}}{escaped}`")
-                };
+            // keep fix generation conservative for comments and unsupported numeric escapes
+            if !span_has_comment_trivia(ctx.tree, expression_span)
+                && !concat_has_unsupported_numeric_escape(ctx, node_id)
+            {
+                let template_body = concat_to_template_body(ctx, node_id);
+                let replacement = format!("`{template_body}`");
                 let edits = ctx
                     .edit_builder()
                     .replace(expression_span, replacement)
                     .into_edits();
                 let fix = LintFix::safe("Convert to template literal").with_edits(edits);
-
-                ctx.report(
-                    LintDiagnostic::new(
-                        PREFER_TEMPLATE.id,
-                        PREFER_TEMPLATE.code,
-                        PREFER_TEMPLATE.category,
-                        severity,
-                        "prefer template literal for string concatenation",
-                        ctx.module.file_id,
-                        expression_span,
-                    )
-                    .with_label("use template literal: `` `...${x}...` ``")
-                    .with_fix(fix),
-                );
+                diagnostic = diagnostic.with_fix(fix);
             }
+
+            ctx.report(diagnostic);
         }
     }
 }
 
-/// Check if an expression is a string literal.
-fn is_string_expression(expr: &Expression) -> bool {
+/// Return true when one expression is a string literal or template literal.
+fn is_string_expression(expression: &Expression) -> bool {
     matches!(
-        expr,
+        expression,
         Expression::ScalarLiteral(ScalarLiteral::String(_)) | Expression::TemplateExpression { .. }
     )
 }
 
-/// Get the string content from a string literal expression.
-fn get_string_content(
+/// Return true when this add expression is nested under another add expression.
+fn is_nested_add_expression(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let Some(parent_id) = ctx.parents.get(expression_id) else {
+        return false;
+    };
+    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
+        return false;
+    }
+
+    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+    let parent_expression = ctx.tree.get(parent_expression_id);
+    matches!(
+        parent_expression,
+        Expression::Binary {
+            left,
+            operator: BinaryOperator::Add,
+            right,
+        } if *left == expression_id || *right == expression_id
+    )
+}
+
+/// Return true when one concat chain contains any string-like part.
+fn concat_has_string_part(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let expression = ctx.tree.get(expression_id);
+    match expression {
+        Expression::Binary {
+            left,
+            operator: BinaryOperator::Add,
+            right,
+        } => concat_has_string_part(ctx, *left) || concat_has_string_part(ctx, *right),
+        _ => is_string_expression(expression),
+    }
+}
+
+/// Return true when one concat chain contains any non-string part.
+fn concat_has_non_string_part(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let expression = ctx.tree.get(expression_id);
+    match expression {
+        Expression::Binary {
+            left,
+            operator: BinaryOperator::Add,
+            right,
+        } => concat_has_non_string_part(ctx, *left) || concat_has_non_string_part(ctx, *right),
+        _ => !is_string_expression(expression),
+    }
+}
+
+/// Return true when a concat chain contains unsupported numeric string escapes.
+fn concat_has_unsupported_numeric_escape(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let expression = ctx.tree.get(expression_id);
+    match expression {
+        Expression::Binary {
+            left,
+            operator: BinaryOperator::Add,
+            right,
+        } => {
+            concat_has_unsupported_numeric_escape(ctx, *left)
+                || concat_has_unsupported_numeric_escape(ctx, *right)
+        }
+        Expression::ScalarLiteral(ScalarLiteral::String(_)) => {
+            let span = ctx.tree.get_span(expression_id);
+            let text = ctx.get_span_text(span);
+            string_literal_has_unsupported_numeric_escape(text)
+        }
+        _ => false,
+    }
+}
+
+/// Return true when one string literal text contains legacy numeric escapes.
+fn string_literal_has_unsupported_numeric_escape(literal_text: &str) -> bool {
+    let mut chars = literal_text.chars().peekable();
+    let mut backslash_run = 0usize;
+
+    while let Some(character) = chars.next() {
+        if character == '\\' {
+            backslash_run += 1;
+            continue;
+        }
+
+        let had_odd_backslash = backslash_run % 2 == 1;
+        backslash_run = 0;
+        if !had_odd_backslash {
+            continue;
+        }
+
+        if matches!(character, '1'..='9') {
+            return true;
+        }
+
+        if character == '0' && chars.peek().is_some_and(|next| next.is_ascii_digit()) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Build one template body string from a concat chain expression.
+fn concat_to_template_body(
     ctx: &LintModuleAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> String {
-    let expr = ctx.tree.get(expression_id);
-    match expr {
+    let expression = ctx.tree.get(expression_id);
+    match expression {
+        Expression::Binary {
+            left,
+            operator: BinaryOperator::Add,
+            right,
+        } => {
+            let left_text = concat_to_template_body(ctx, *left);
+            let right_text = concat_to_template_body(ctx, *right);
+            format!("{left_text}{right_text}")
+        }
+
+        // keep scalar string values as plain template content
         Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
-            ctx.strings.get(*string_id).as_ref().to_string()
-        }
-        // template expressions: just get the raw text minus backticks
-        Expression::TemplateExpression { .. } => {
             let span = ctx.tree.get_span(expression_id);
-            let text = ctx.get_span_text(span);
-            // remove leading and trailing backticks
-            if text.starts_with('`') && text.ends_with('`') && text.len() >= 2 {
-                text[1..text.len() - 1].to_string()
-            } else {
-                text.to_string()
+            let literal_text = ctx.get_span_text(span);
+            if let Some(template_text) = template_text_from_string_literal_source(literal_text) {
+                return template_text;
             }
+
+            let content = ctx.strings.get(*string_id).as_ref().to_string();
+            escape_for_template(&content)
         }
-        _ => String::new(),
+
+        // preserve inner template placeholders when merging template operands
+        Expression::TemplateExpression { .. } => template_expression_body(ctx, expression_id),
+
+        // wrap non-string operands in `${...}`
+        _ => {
+            let expression_span = ctx.tree.get_span(expression_id);
+            let expression_text = ctx.get_span_text(expression_span);
+            format!("${{{expression_text}}}")
+        }
     }
 }
 
 /// Escape special characters for use in a template literal.
-fn escape_for_template(s: &str) -> String {
-    s.replace('\\', "\\\\")
+fn escape_for_template(text: &str) -> String {
+    text.replace('\\', "\\\\")
         .replace('`', "\\`")
         .replace("${", "\\${")
+}
+
+/// Convert one source string literal token into template-literal-safe text.
+fn template_text_from_string_literal_source(literal_text: &str) -> Option<String> {
+    let mut chars = literal_text.chars();
+    let quote = chars.next()?;
+    if !matches!(quote, '\'' | '"') {
+        return None;
+    }
+    if !literal_text.ends_with(quote) || literal_text.len() < 2 {
+        return None;
+    }
+
+    let inner = &literal_text[1..literal_text.len() - 1];
+    let inner_bytes = inner.as_bytes();
+    let mut output = String::with_capacity(inner.len() + 8);
+    let mut index = 0usize;
+
+    while index < inner.len() {
+        let tail = &inner[index..];
+        let mut tail_chars = tail.chars();
+        let character = tail_chars.next()?;
+        let character_len = character.len_utf8();
+
+        // unescape the source-quote escape that is no longer needed in templates
+        if character == '\\'
+            && let Some(next_character) = tail_chars.next()
+            && next_character == quote
+        {
+            output.push(quote);
+            index += character_len + next_character.len_utf8();
+            continue;
+        }
+
+        // escape backticks unless they are already escaped by an odd backslash run
+        if character == '`' {
+            if count_backslashes_before(inner_bytes, index) % 2 == 0 {
+                output.push('\\');
+            }
+            output.push('`');
+            index += character_len;
+            continue;
+        }
+
+        // escape `${` unless it is already escaped by an odd backslash run
+        if character == '$' && tail.as_bytes().get(1) == Some(&b'{') {
+            if count_backslashes_before(inner_bytes, index) % 2 == 0 {
+                output.push('\\');
+            }
+            output.push('$');
+            output.push('{');
+            index += 2;
+            continue;
+        }
+
+        // preserve non-special characters as-is
+        output.push(character);
+        index += character_len;
+    }
+
+    Some(output)
+}
+
+/// Count backslashes immediately before a byte index in one source string body.
+fn count_backslashes_before(text: &[u8], mut index: usize) -> usize {
+    let mut backslashes = 0usize;
+    while index > 0 && text[index - 1] == b'\\' {
+        backslashes += 1;
+        index -= 1;
+    }
+
+    backslashes
+}
+
+/// Return the inner content of one template literal expression.
+fn template_expression_body(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> String {
+    let span = ctx.tree.get_span(expression_id);
+    let text = ctx.get_span_text(span);
+    if text.starts_with('`') && text.ends_with('`') && text.len() >= 2 {
+        return text[1..text.len() - 1].to_string();
+    }
+
+    text.to_string()
 }
 
 #[cfg(test)]
@@ -197,7 +400,6 @@ const sum = a + b
     #[test]
     fn test_allows_two_strings() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
-        // two string literals should be caught by no-useless-concat
         let result = test.lint_ast(
             "prefer_template/test_allows_two_strings.ds",
             r#"
@@ -241,5 +443,134 @@ const greeting = name + " says hi"
 const greeting = `${name} says hi`;
 "#,
             );
+    }
+
+    #[test]
+    fn test_fix_concat_chain_with_string_ends() {
+        let test = TestProgram::for_rule_without_prelude(PreferTemplate);
+        let result = test.lint_ast(
+            "prefer_template/test_fix_concat_chain_with_string_ends.ds",
+            r#"
+const greeting = "Hello " + name + "!"
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-template")
+            .assert_safe_fixed(
+                r#"
+const greeting = `Hello ${name}!`;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_concat_chain_with_expression_ends() {
+        let test = TestProgram::for_rule_without_prelude(PreferTemplate);
+        let result = test.lint_ast(
+            "prefer_template/test_fix_concat_chain_with_expression_ends.ds",
+            r#"
+const summary = left + ":" + right
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-template")
+            .assert_safe_fixed(
+                r#"
+const summary = `${left}:${right}`;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_preserves_template_placeholders() {
+        let test = TestProgram::for_rule_without_prelude(PreferTemplate);
+        let result = test.lint_ast(
+            "prefer_template/test_fix_preserves_template_placeholders.ds",
+            r#"
+const summary = prefix + `${value} units`
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-template")
+            .assert_safe_fixed(
+                r#"
+const summary = `${prefix}${value} units`;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_preserves_template_placeholders_on_left() {
+        let test = TestProgram::for_rule_without_prelude(PreferTemplate);
+        let result = test.lint_ast(
+            "prefer_template/test_fix_preserves_template_placeholders_on_left.ds",
+            r#"
+const summary = `${value} units` + suffix
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-template")
+            .assert_safe_fixed(
+                r#"
+const summary = `${value} units${suffix}`;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_detects_unsupported_numeric_escape_sequences() {
+        assert!(string_literal_has_unsupported_numeric_escape("'\\033'"));
+        assert!(string_literal_has_unsupported_numeric_escape("'\\8'"));
+        assert!(!string_literal_has_unsupported_numeric_escape("'\\\\033'"));
+    }
+
+    #[test]
+    fn test_fix_escapes_unescaped_template_placeholder_text() {
+        let test = TestProgram::for_rule_without_prelude(PreferTemplate);
+        let result = test.lint_ast(
+            "prefer_template/test_fix_escapes_unescaped_template_placeholder_text.ds",
+            r#"
+const summary = '0 backslashes: ${bar}' + suffix
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-template")
+            .assert_safe_fixed(
+                r#"
+const summary = `0 backslashes: \${bar}${suffix}`;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_preserves_escaped_template_placeholder_text() {
+        let test = TestProgram::for_rule_without_prelude(PreferTemplate);
+        let result = test.lint_ast(
+            "prefer_template/test_fix_preserves_escaped_template_placeholder_text.ds",
+            r#"
+const summary = '1 backslash: \${bar}' + suffix
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-template")
+            .assert_safe_fixed(
+                r#"
+const summary = `1 backslash: \${bar}${suffix}`;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_no_fix_when_concat_contains_comments() {
+        let test = TestProgram::for_rule_without_prelude(PreferTemplate);
+        let result = test.lint_ast(
+            "prefer_template/test_no_fix_when_concat_contains_comments.ds",
+            r#"
+const summary = "left" /* side */ + value
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-template")
+            .assert_has_no_fix("prefer-template");
     }
 }

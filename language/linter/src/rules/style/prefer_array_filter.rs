@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     expand_span_to_statement_terminator, expression_method_call, is_array_type,
-    strip_dot_member_suffix,
+    member_receiver_text,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -465,8 +465,27 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
         let dir::Expression::Call { left, .. } = expression else {
             return None;
         };
-        let member_text = self.ctx.get_span_text(self.ctx.get_span(*left)).to_string();
-        let receiver_text = strip_dot_member_suffix(&member_text, "forEach")?.to_string();
+        let member_expression = self.ctx.tree.get(*left);
+        let dir::Expression::Member {
+            left: receiver_expression_id,
+            name,
+            ..
+        } = member_expression
+        else {
+            return None;
+        };
+        if *name != self.for_each_name {
+            return None;
+        }
+        let member_span = self.ctx.get_span(*left);
+        let member_text = self.ctx.get_span_text(member_span);
+        let receiver_text = member_receiver_text(
+            self.ctx,
+            *receiver_expression_id,
+            member_text.as_ref(),
+            *name,
+            false,
+        )?;
 
         // read condition text for predicate callback expression
         let condition_text = self

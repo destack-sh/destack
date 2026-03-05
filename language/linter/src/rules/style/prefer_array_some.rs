@@ -4,10 +4,10 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{
-    const_i64, flip_binary_operator, is_array_type, strip_dot_member_suffix,
+use crate::rules::common::{const_i64, flip_binary_operator, is_array_type, member_receiver_text};
+use crate::{
+    ConstValue, LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `some()` over `filter().length` or `findIndex()` comparisons.
@@ -50,6 +50,8 @@ enum ArraySomeKind {
     FilterLength,
     /// `array.findIndex(...)` comparison.
     FindIndex,
+    /// `array.find(...)` comparison against nullish values.
+    Find,
 }
 
 /// Expected match direction for prefer-array-some checks.
@@ -86,6 +88,10 @@ struct PreferArraySomeVisitor<'a, 'b> {
     find_index_name: StringId,
     /// The string id for the findLastIndex method name.
     find_last_index_name: StringId,
+    /// The string id for the find method name.
+    find_name: StringId,
+    /// The string id for the findLast method name.
+    find_last_name: StringId,
     /// The string id for the some method name.
     some_name: StringId,
     /// The string id for the length property name.
@@ -101,6 +107,8 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         let filter_name = ctx.program.strings.intern("filter");
         let find_index_name = ctx.program.strings.intern("findIndex");
         let find_last_index_name = ctx.program.strings.intern("findLastIndex");
+        let find_name = ctx.program.strings.intern("find");
+        let find_last_name = ctx.program.strings.intern("findLast");
         let some_name = ctx.program.strings.intern("some");
         let length_name = ctx.program.strings.intern("length");
 
@@ -111,6 +119,8 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
             filter_name,
             find_index_name,
             find_last_index_name,
+            find_name,
+            find_last_name,
             some_name,
             length_name,
             options: NodeVisitorOptions::default(),
@@ -158,7 +168,6 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
     ) -> Option<ArraySomeMatch> {
         // resolve constant comparisons
         let constant_value = self.ctx.const_value(constant_id)?;
-        let constant = const_i64(&constant_value)?;
 
         // normalize operators when constants are on the left
         let operator = if flipped {
@@ -169,6 +178,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
 
         // check for filter length comparisons
         if self.is_filter_length(candidate_id) {
+            let constant = const_i64(&constant_value)?;
             let check = check_filter_length_comparison(operator, constant)?;
             return Some(ArraySomeMatch {
                 kind: ArraySomeKind::FilterLength,
@@ -179,9 +189,20 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
 
         // check for findIndex and findLastIndex comparisons
         if self.is_find_index_like_call(candidate_id) {
+            let constant = const_i64(&constant_value)?;
             let check = check_find_index_comparison(operator, constant)?;
             return Some(ArraySomeMatch {
                 kind: ArraySomeKind::FindIndex,
+                check,
+                candidate_expression_id: candidate_id,
+            });
+        }
+
+        // check for find and findLast comparisons against nullish values
+        if self.is_find_like_call(candidate_id) {
+            let check = check_find_nullish_comparison(operator, &constant_value)?;
+            return Some(ArraySomeMatch {
+                kind: ArraySomeKind::Find,
                 check,
                 candidate_expression_id: candidate_id,
             });
@@ -206,6 +227,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         let target = match match_info.kind {
             ArraySomeKind::FilterLength => "filter().length",
             ArraySomeKind::FindIndex => "findIndex()",
+            ArraySomeKind::Find => "find()",
         };
         let label = match match_info.check {
             ArraySomeCheck::AnyMatch => "use array.some(...) to check for any match",
@@ -224,8 +246,10 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
             span,
         )
         .with_label(label);
-        if match_info.kind == ArraySomeKind::FindIndex
-            && let Some(fix) = self.find_index_fix(expression_id, match_info)
+        if matches!(
+            match_info.kind,
+            ArraySomeKind::FindIndex | ArraySomeKind::Find
+        ) && let Some(fix) = self.find_call_comparison_fix(expression_id, match_info)
         {
             diagnostic = diagnostic.with_fix(fix);
         }
@@ -233,8 +257,8 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         self.ctx.report(diagnostic);
     }
 
-    /// Build a safe fix from findIndex comparison to some.
-    fn find_index_fix(
+    /// Build a safe fix from one find style comparison to some.
+    fn find_call_comparison_fix(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         match_info: ArraySomeMatch,
@@ -269,6 +293,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         // resolve `.findIndex` member expression
         let member_expression = self.ctx.tree.get(*left);
         let dir::Expression::Member {
+            left: receiver_expression_id,
             name,
             static_arguments,
             ..
@@ -276,13 +301,19 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         else {
             return None;
         };
-        let method_name = if *name == self.find_index_name {
-            "findIndex"
-        } else if *name == self.find_last_index_name {
-            "findLastIndex"
-        } else {
-            return None;
-        };
+        match match_info.kind {
+            ArraySomeKind::FindIndex => {
+                if *name != self.find_index_name && *name != self.find_last_index_name {
+                    return None;
+                }
+            }
+            ArraySomeKind::Find => {
+                if *name != self.find_name && *name != self.find_last_name {
+                    return None;
+                }
+            }
+            ArraySomeKind::FilterLength => return None,
+        }
         if static_arguments
             .as_ref()
             .is_some_and(|arguments| !arguments.is_empty())
@@ -293,8 +324,13 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         // derive receiver text from member expression text
         let member_span = self.ctx.get_span(*left);
         let member_text = self.ctx.get_span_text(member_span);
-        let member_text = member_text.as_ref();
-        let receiver_text = strip_dot_member_suffix(member_text, method_name)?;
+        let receiver_text = member_receiver_text(
+            self.ctx,
+            *receiver_expression_id,
+            member_text.as_ref(),
+            *name,
+            false,
+        )?;
 
         // preserve callback and optional this-arg source range
         let first_argument_id = *dynamic_arguments.first()?;
@@ -319,7 +355,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
             .replace(expression_span, replacement)
             .into_edits();
 
-        Some(LintFix::safe("Replace findIndex comparison with some()").with_edits(edits))
+        Some(LintFix::safe("Replace find style comparison with some()").with_edits(edits))
     }
 
     /// Return true when the expression is a filter().length chain on an array.
@@ -387,6 +423,35 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
             return false;
         };
         if *name != self.find_index_name && *name != self.find_last_index_name {
+            return false;
+        }
+
+        self.is_array_receiver(*left)
+    }
+
+    /// Return true when the expression is an array find or findLast call.
+    fn is_find_like_call(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
+        let expression = self.ctx.tree.get(expression_id);
+
+        // match call expression
+        let dir::Expression::Call {
+            left,
+            dynamic_arguments,
+            ..
+        } = expression
+        else {
+            return false;
+        };
+        if dynamic_arguments.is_empty() {
+            return false;
+        }
+
+        // match `.find(...)` call
+        let member_expression = self.ctx.tree.get(*left);
+        let dir::Expression::Member { left, name, .. } = member_expression else {
+            return false;
+        };
+        if *name != self.find_name && *name != self.find_last_name {
             return false;
         }
 
@@ -466,6 +531,26 @@ fn check_find_index_comparison(
         }
         dir::BinaryOperator::LessThan if constant == 0 => Some(ArraySomeCheck::NoMatch),
         dir::BinaryOperator::LessThanOrEqual if constant == -1 => Some(ArraySomeCheck::NoMatch),
+        _ => None,
+    }
+}
+
+/// Check find and findLast comparisons against nullish values.
+fn check_find_nullish_comparison(
+    operator: dir::BinaryOperator,
+    constant: &ConstValue,
+) -> Option<ArraySomeCheck> {
+    if !matches!(constant, ConstValue::Null | ConstValue::Undefined) {
+        return None;
+    }
+
+    match operator {
+        dir::BinaryOperator::NotEqual | dir::BinaryOperator::NotEqualStrict => {
+            Some(ArraySomeCheck::AnyMatch)
+        }
+        dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict => {
+            Some(ArraySomeCheck::NoMatch)
+        }
         _ => None,
     }
 }
@@ -592,6 +677,50 @@ let has = items.some((item) => item > 1);
             r#"
 let items = [1, 2, 3];
 let missing = items.findLastIndex(item => item > 5) == -1;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-array-some")
+            .assert_has_fix("prefer-array-some")
+            .assert_safe_fixed(
+                r#"
+let items = [1, 2, 3];
+let missing = !items.some((item) => item > 5);
+"#,
+            );
+    }
+
+    /// Safely rewrite find nullish any-match checks.
+    #[test]
+    fn test_fix_find_not_null_check() {
+        let test = TestProgram::for_rule_with_prelude(PreferArraySome);
+        let result = test.lint_dir(
+            "prefer_array_some/test_fix_find_not_null_check.ds",
+            r#"
+let items = [1, 2, 3];
+let has = items.find(item => item > 1) != null;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-array-some")
+            .assert_has_fix("prefer-array-some")
+            .assert_safe_fixed(
+                r#"
+let items = [1, 2, 3];
+let has = items.some((item) => item > 1);
+"#,
+            );
+    }
+
+    /// Safely rewrite find undefined no-match checks.
+    #[test]
+    fn test_fix_find_equal_undefined_check() {
+        let test = TestProgram::for_rule_with_prelude(PreferArraySome);
+        let result = test.lint_dir(
+            "prefer_array_some/test_fix_find_equal_undefined_check.ds",
+            r#"
+let items = [1, 2, 3];
+let missing = items.find(item => item > 5) === undefined;
 "#,
         );
         test.result(result)
