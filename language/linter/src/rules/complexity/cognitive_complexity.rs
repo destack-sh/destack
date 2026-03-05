@@ -1,24 +1,20 @@
 use destack_ast::{
-    self as ast, BinaryOperator, Expression, LocalNodeId, NodeTree, NodeVisitor,
-    NodeVisitorOptions, walk_expression,
+    self as ast, BinaryOperator, Expression, LocalNodeId, NodeParentIndex, NodeTree, NodeVisitor,
+    NodeVisitorOptions, walk_expression, walk_member, walk_property,
 };
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{
+    CallableOwnerId, expression_starts_nested_declaration_scope,
+    expression_unwrap_statement_syntax, for_each_callable_signature,
+};
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit cognitive complexity of functions.
     ///
-    /// Cognitive complexity measures how difficult code is to understand,
-    /// not just how many paths exist. It penalizes nested structures more
-    /// heavily than flat ones.
-    ///
-    /// Complexity is incremented for:
-    /// - Control flow: `if`, `else if`, `for`, `while`, `loop`, `match`
-    /// - Logical operators: `&&`, `||`, `??` (sequences of same operator count as 1)
-    /// - Catch clauses and ternary expressions
-    ///
-    /// Additionally, nesting increases the penalty for each structure.
+    /// Cognitive complexity measures how difficult code is to understand.
+    /// Nested control flow receives additional penalties.
     #[lint(
         id = "cognitive-complexity",
         code = "LX001",
@@ -40,92 +36,186 @@ impl LintRule for CognitiveComplexity {
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        // resolve lint metadata and threshold
         let meta = self.meta();
         let max_complexity = ctx.options.max_cognitive_complexity;
 
-        // check each function declaration
-        for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.tree.get(declaration_id);
-            let ast::Declaration::Function { body, .. } = declaration else {
-                continue;
-            };
-            let Some(body_id) = body else {
-                continue;
+        // check all callable bodies
+        for_each_callable_signature(ctx.tree, |owner_id, _signature, body_id| {
+            // skip declaration only signatures
+            let Some(body_id) = body_id else {
+                return;
             };
 
-            // calculate cognitive complexity for this function
-            let mut visitor = CognitiveVisitor {
-                options: NodeVisitorOptions::default(),
-                complexity: 0,
-                nesting: 0,
-                last_operator: None,
-            };
+            // compute cognitive complexity for this callable body
+            let complexity = compute_callable_cognitive_complexity(ctx.tree, &ctx.parents, body_id);
+            if complexity <= max_complexity {
+                return;
+            }
 
-            let body_expression = ctx.tree.get(*body_id);
-            visitor.visit_expression(ctx.tree, *body_id, body_expression);
+            // report declaration owner violations
+            if let CallableOwnerId::Declaration(declaration_id) = owner_id {
+                report_cognitive_complexity_violation(
+                    ctx,
+                    meta,
+                    declaration_id,
+                    body_id,
+                    complexity,
+                    max_complexity,
+                );
+                return;
+            }
 
-            if visitor.complexity > max_complexity {
-                let severity = ctx.get_effective_severity(meta, declaration_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-                ctx.report(
-                    LintDiagnostic::new(
-                        COGNITIVE_COMPLEXITY.id,
-                        COGNITIVE_COMPLEXITY.code,
-                        COGNITIVE_COMPLEXITY.category,
-                        severity,
-                        format!(
-                            "cognitive complexity {} exceeds maximum of {}",
-                            visitor.complexity, max_complexity
-                        ),
-                        ctx.module.file_id,
-                        ctx.tree.get_span(*body_id),
-                    )
-                    .with_label("consider simplifying or extracting logic"),
+            // report member owner violations
+            if let CallableOwnerId::Member(member_id) = owner_id {
+                report_cognitive_complexity_violation(
+                    ctx,
+                    meta,
+                    member_id,
+                    body_id,
+                    complexity,
+                    max_complexity,
+                );
+                return;
+            }
+
+            // report property owner violations
+            if let CallableOwnerId::Property(property_id) = owner_id {
+                report_cognitive_complexity_violation(
+                    ctx,
+                    meta,
+                    property_id,
+                    body_id,
+                    complexity,
+                    max_complexity,
                 );
             }
-        }
+        });
     }
 }
 
-/// Logical operators that contribute to cognitive complexity.
-/// Sequences of the same operator only count once.
-#[derive(Clone, Copy, PartialEq)]
-enum LogicalOperator {
-    /// Logical AND (`&&`).
+/// Report one cognitive complexity overflow diagnostic.
+fn report_cognitive_complexity_violation<T: ast::Node>(
+    ctx: &mut LintModuleAstContext<'_>,
+    meta: &'static crate::LintMeta,
+    owner_id: ast::LocalNodeId<T>,
+    body_id: ast::LocalNodeId<ast::Expression>,
+    complexity: usize,
+    max_complexity: usize,
+) {
+    // resolve effective severity
+    let severity = ctx.get_effective_severity(meta, owner_id);
+    if !severity.is_enabled() {
+        return;
+    }
+
+    // emit one cognitive complexity overflow diagnostic
+    ctx.report(
+        LintDiagnostic::new(
+            COGNITIVE_COMPLEXITY.id,
+            COGNITIVE_COMPLEXITY.code,
+            COGNITIVE_COMPLEXITY.category,
+            severity,
+            format!("cognitive complexity {complexity} exceeds maximum of {max_complexity}"),
+            ctx.module.file_id,
+            ctx.tree.get_span(body_id),
+        )
+        .with_label("consider simplifying or extracting logic"),
+    );
+}
+
+/// Compute cognitive complexity for one callable body.
+fn compute_callable_cognitive_complexity(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    body_expression_id: LocalNodeId<Expression>,
+) -> usize {
+    // initialize visitor state
+    let mut visitor = CognitiveComplexityVisitor {
+        options: NodeVisitorOptions::default(),
+        parents,
+        root_expression_id: body_expression_id,
+        complexity: 0,
+        nesting: 0,
+    };
+
+    // walk callable body subtree
+    let body_expression = tree.get(body_expression_id);
+    visitor.visit_expression(tree, body_expression_id, body_expression);
+
+    visitor.complexity
+}
+
+/// Logical operator kind tracked for sequence counting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LogicalOperatorKind {
+    /// `&&`.
     And,
-    /// Logical OR (`||`).
+    /// `||`.
     Or,
-    /// Nullish coalescing (`??`).
+    /// `??`.
     Coalesce,
 }
 
-/// Visitor that calculates cognitive complexity for a function body.
-struct CognitiveVisitor {
-    /// Node visitor options.
+/// Visitor that computes cognitive complexity for one callable body.
+struct CognitiveComplexityVisitor<'a> {
+    /// Traversal options.
     options: NodeVisitorOptions,
+    /// Parent index for operator sequence checks.
+    parents: &'a NodeParentIndex,
+    /// Root callable body expression.
+    root_expression_id: LocalNodeId<Expression>,
     /// Accumulated complexity score.
     complexity: usize,
-    /// Current nesting depth for control structures.
+    /// Current nesting level.
     nesting: usize,
-    /// Last logical operator seen, for sequence deduplication.
-    last_operator: Option<LogicalOperator>,
 }
 
-impl CognitiveVisitor {
-    /// Add complexity with a nesting bonus.
-    fn add_complexity(&mut self, base: usize) {
-        self.complexity += base + self.nesting;
+impl CognitiveComplexityVisitor<'_> {
+    /// Add structural complexity with nesting penalty.
+    fn add_nesting_complexity(&mut self) {
+        self.complexity += 1 + self.nesting;
     }
 
-    /// Add complexity without a nesting bonus (for logical operators).
-    fn add_flat_complexity(&mut self, amount: usize) {
-        self.complexity += amount;
+    /// Add structural complexity without nesting penalty.
+    fn add_flat_complexity(&mut self) {
+        self.complexity += 1;
+    }
+
+    /// Return the logical operator kind for one binary operator.
+    fn logical_operator_kind(operator: BinaryOperator) -> Option<LogicalOperatorKind> {
+        match operator {
+            BinaryOperator::And => Some(LogicalOperatorKind::And),
+            BinaryOperator::Or => Some(LogicalOperatorKind::Or),
+            BinaryOperator::Coalesce => Some(LogicalOperatorKind::Coalesce),
+            _ => None,
+        }
+    }
+
+    /// Return the logical operator kind of one parent expression.
+    fn parent_logical_operator_kind(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> Option<LogicalOperatorKind> {
+        // require expression parent node
+        let parent_id = self.parents.get(expression_id)?;
+        if tree.get_node_type(parent_id) != ast::NodeType::Expression {
+            return None;
+        }
+
+        // resolve parent expression and logical operator
+        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+        let parent_expression = tree.get(parent_expression_id);
+        let ast::Expression::Binary { operator, .. } = parent_expression else {
+            return None;
+        };
+
+        Self::logical_operator_kind(*operator)
     }
 }
 
-impl NodeVisitor for CognitiveVisitor {
+impl NodeVisitor for CognitiveComplexityVisitor<'_> {
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
     }
@@ -133,89 +223,178 @@ impl NodeVisitor for CognitiveVisitor {
     fn visit_expression(
         &mut self,
         tree: &NodeTree,
-        id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
-        // reset logical operator tracking for non-binary expressions
-        let is_binary = matches!(expression, Expression::Binary { .. });
-        if !is_binary {
-            self.last_operator = None;
+        // keep nested declaration scopes out of parent callable complexity
+        if expression_id != self.root_expression_id {
+            let normalized_expression_id = expression_unwrap_statement_syntax(tree, expression_id);
+            let normalized_expression = tree.get(normalized_expression_id);
+            if expression_starts_nested_declaration_scope(normalized_expression) {
+                return;
+            }
         }
 
-        match expression {
-            // if/else chains: if adds complexity with nesting penalty
-            Expression::If { .. } => {
-                // the if itself adds complexity (with nesting bonus)
-                self.add_complexity(1);
+        // handle if and else if chains explicitly
+        if let Expression::If {
+            condition,
+            then_expression,
+            else_expression,
+            ..
+        } = expression
+        {
+            // every if adds structural and nesting complexity
+            self.add_nesting_complexity();
 
-                // increase nesting for children
-                self.nesting += 1;
-
-                // walk condition and then branch normally
-                walk_expression(self, tree, id, expression);
-
-                self.nesting -= 1;
-
-                // don't walk again
-                return;
-            }
-            // loops add complexity with nesting
-            Expression::While { .. }
-            | Expression::For { .. }
-            | Expression::ForEach { .. }
-            | Expression::Loop { .. } => {
-                self.add_complexity(1);
-                self.nesting += 1;
-                walk_expression(self, tree, id, expression);
-                self.nesting -= 1;
-                return;
-            }
-            // match adds complexity with nesting
-            Expression::Match { .. } => {
-                self.add_complexity(1);
-                self.nesting += 1;
-                walk_expression(self, tree, id, expression);
-                self.nesting -= 1;
-                return;
-            }
-            // try/catch: catch adds complexity
-            Expression::Try {
-                catch_expression, ..
-            } => {
-                // try block increases nesting
-                self.nesting += 1;
-                walk_expression(self, tree, id, expression);
-                self.nesting -= 1;
-
-                // catch adds complexity if present
-                if catch_expression.is_some() {
-                    self.add_complexity(1);
+            // visit condition expression at current nesting
+            match condition {
+                ast::IfCondition::Expression {
+                    condition: condition_expression_id,
+                } => {
+                    let condition_expression = tree.get(*condition_expression_id);
+                    self.visit_expression(tree, *condition_expression_id, condition_expression);
                 }
-
-                return;
+                ast::IfCondition::Let { declarator, .. } => {
+                    let declarator_id = *declarator;
+                    let declarator = tree.get(declarator_id);
+                    self.visit_declarator(tree, declarator_id, declarator);
+                }
             }
-            // logical operators: sequences of same operator count as 1
-            Expression::Binary { operator, .. } => {
-                let logical_operator = match operator {
-                    BinaryOperator::And => Some(LogicalOperator::And),
-                    BinaryOperator::Or => Some(LogicalOperator::Or),
-                    BinaryOperator::Coalesce => Some(LogicalOperator::Coalesce),
-                    _ => None,
-                };
 
-                if let Some(logical_operator) = logical_operator {
-                    // only add complexity if this is a different operator or first in sequence
-                    if self.last_operator != Some(logical_operator) {
-                        self.add_flat_complexity(1);
-                        self.last_operator = Some(logical_operator);
+            // then branch receives one nesting level
+            self.nesting += 1;
+            let then_expression_id = *then_expression;
+            let then_expression = tree.get(then_expression_id);
+            self.visit_expression(tree, then_expression_id, then_expression);
+            self.nesting -= 1;
+
+            // else if stays at this nesting level, plain else adds flat complexity
+            if let Some(else_expression_id) = else_expression {
+                let else_expression = tree.get(*else_expression_id);
+                if matches!(
+                    else_expression,
+                    Expression::If {
+                        kind: ast::IfKind::If,
+                        ..
                     }
+                ) {
+                    self.visit_expression(tree, *else_expression_id, else_expression);
+                } else {
+                    self.add_flat_complexity();
+                    self.nesting += 1;
+                    self.visit_expression(tree, *else_expression_id, else_expression);
+                    self.nesting -= 1;
                 }
             }
-            _ => {}
+
+            return;
         }
 
-        // default: walk children
-        walk_expression(self, tree, id, expression);
+        // handle loops and match with nesting penalties
+        if matches!(
+            expression,
+            Expression::While { .. }
+                | Expression::For { .. }
+                | Expression::ForEach { .. }
+                | Expression::Loop { .. }
+                | Expression::Match { .. }
+        ) {
+            self.add_nesting_complexity();
+            self.nesting += 1;
+            walk_expression(self, tree, expression_id, expression);
+            self.nesting -= 1;
+            return;
+        }
+
+        // handle try catch finally with catch and finally penalties
+        if let Expression::Try {
+            try_expression,
+            catch_expression,
+            finally_expression,
+            ..
+        } = expression
+        {
+            // visit try body under one nesting level
+            self.nesting += 1;
+            let try_expression_id = *try_expression;
+            let try_expression = tree.get(try_expression_id);
+            self.visit_expression(tree, try_expression_id, try_expression);
+            self.nesting -= 1;
+
+            // catch receives structural and nesting penalties
+            if let Some(catch_expression_id) = catch_expression {
+                self.add_nesting_complexity();
+                self.nesting += 1;
+                let catch_expression = tree.get(*catch_expression_id);
+                self.visit_expression(tree, *catch_expression_id, catch_expression);
+                self.nesting -= 1;
+            }
+
+            // finally receives structural flat penalty
+            if let Some(finally_expression_id) = finally_expression {
+                self.add_flat_complexity();
+                self.nesting += 1;
+                let finally_expression = tree.get(*finally_expression_id);
+                self.visit_expression(tree, *finally_expression_id, finally_expression);
+                self.nesting -= 1;
+            }
+
+            return;
+        }
+
+        // handle logical operator sequences
+        if let Expression::Binary { operator, .. } = expression
+            && let Some(operator_kind) = Self::logical_operator_kind(*operator)
+            && self.parent_logical_operator_kind(tree, expression_id) != Some(operator_kind)
+        {
+            self.add_flat_complexity();
+        }
+
+        // handle labelled break and continue as structural complexity
+        if matches!(
+            expression,
+            Expression::Break { label: Some(_), .. } | Expression::Continue { label: Some(_) }
+        ) {
+            self.add_flat_complexity();
+        }
+
+        // recurse into expression subtree
+        walk_expression(self, tree, expression_id, expression);
+    }
+
+    fn visit_property(
+        &mut self,
+        tree: &NodeTree,
+        property_id: LocalNodeId<ast::Property>,
+        property: &ast::Property,
+    ) {
+        // keep nested object methods out of parent callable complexity
+        if matches!(property, ast::Property::Method { .. }) {
+            return;
+        }
+
+        // recurse into non method properties
+        walk_property(self, tree, property_id, property);
+    }
+
+    fn visit_member(
+        &mut self,
+        tree: &NodeTree,
+        member_id: LocalNodeId<ast::Member>,
+        member: &ast::Member,
+    ) {
+        // keep nested member callables out of parent callable complexity
+        if matches!(
+            member,
+            ast::Member::Method { .. }
+                | ast::Member::StaticBlock { .. }
+                | ast::Member::ComptimeBlock { .. }
+        ) {
+            return;
+        }
+
+        // recurse into non callable members
+        walk_member(self, tree, member_id, member);
     }
 }
 
@@ -227,8 +406,7 @@ mod tests {
     #[test]
     fn test_detects_high_cognitive_complexity() {
         let test = TestProgram::for_rule_without_prelude(CognitiveComplexity)
-            .with_options(|options| options.max_cognitive_complexity = 15);
-        // nested structures have higher cognitive complexity
+            .with_options(|options| options.max_cognitive_complexity = 5);
         let result = test.lint_ast(
             "cognitive_complexity/test_detects_high_cognitive_complexity.ds",
             r#"
@@ -236,27 +414,17 @@ function complex(a: bool, b: bool, c: bool) {
     if (a) {
         if (b) {
             if (c) {
-                if (a) {
-                    if (b) {
-                        doSomething()
-                    }
-                }
+                run()
             }
         }
-    }
-    if (a) {
-        if (b) {
-            if (c) {
-                doMore()
-            }
-        }
+    } else if (b) {
+        run()
+    } else {
+        run()
     }
 }
 "#,
         );
-        // deeply nested ifs accumulate: 1+0, 1+1, 1+2, 1+3, 1+4 = 15 for first block
-        // then: 1+0, 1+1, 1+2 = 6 for second block
-        // total = 21 > 15
         test.result(result).assert_lint("cognitive-complexity");
     }
 
@@ -274,109 +442,89 @@ function simple(x: int32): int32 {
 }
 "#,
         );
-        // just 1 if = 1 complexity
         test.result(result).assert_no_lint("cognitive-complexity");
     }
 
     #[test]
-    fn test_nesting_increases_complexity() {
-        let test = TestProgram::for_rule_without_prelude(CognitiveComplexity);
+    fn test_else_if_chain_does_not_double_nest() {
+        let test = TestProgram::for_rule_without_prelude(CognitiveComplexity)
+            .with_options(|options| options.max_cognitive_complexity = 3);
         let result = test.lint_ast(
-            "cognitive_complexity/test_nesting_increases_complexity.ds",
+            "cognitive_complexity/test_else_if_chain_does_not_double_nest.ds",
             r#"
-function nested(a: bool) {
-    if (a) {
-        if (a) {
-            if (a) {
-                if (a) {
-                    if (a) {
-                        x()
-                    }
-                }
+function check(x: int32) {
+    if (x == 0) {
+        run()
+    } else if (x == 1) {
+        run()
+    } else if (x == 2) {
+        run()
+    } else {
+        run()
+    }
+}
+"#,
+        );
+        test.result(result).assert_lint("cognitive-complexity");
+    }
+
+    #[test]
+    fn test_logical_operator_sequences_count_once_per_sequence() {
+        let test = TestProgram::for_rule_without_prelude(CognitiveComplexity)
+            .with_options(|options| options.max_cognitive_complexity = 1);
+        let result = test.lint_ast(
+            "cognitive_complexity/test_logical_operator_sequences_count_once_per_sequence.ds",
+            r#"
+function check(a: bool, b: bool, c: bool, d: bool): bool {
+    return a && b && c || d
+}
+"#,
+        );
+        test.result(result).assert_lint("cognitive-complexity");
+    }
+
+    #[test]
+    fn test_ignores_nested_callable_complexity_for_parent_callable() {
+        let test = TestProgram::for_rule_without_prelude(CognitiveComplexity)
+            .with_options(|options| options.max_cognitive_complexity = 1);
+        let result = test.lint_ast(
+            "cognitive_complexity/test_ignores_nested_callable_complexity_for_parent_callable.ds",
+            r#"
+function outer() {
+    function inner(flag: bool) {
+        if (flag) {
+            if (flag) {
+                run()
+            }
+        }
+    }
+    run()
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("cognitive-complexity")
+            .assert_lint_count("cognitive-complexity", 1);
+    }
+
+    #[test]
+    fn test_detects_object_method_cognitive_complexity() {
+        let test = TestProgram::for_rule_without_prelude(CognitiveComplexity)
+            .with_options(|options| options.max_cognitive_complexity = 2);
+        let result = test.lint_ast(
+            "cognitive_complexity/test_detects_object_method_cognitive_complexity.ds",
+            r#"
+const service = {
+    run(flag: bool) {
+        if (flag) {
+            if (flag) {
+                process()
             }
         }
     }
 }
 "#,
         );
-        // 1+0 + 1+1 + 1+2 + 1+3 + 1+4 = 1+2+3+4+5 = 15, exactly at limit
-        test.result(result).assert_no_lint("cognitive-complexity");
-    }
-
-    #[test]
-    fn test_flat_ifs_lower_complexity() {
-        let test = TestProgram::for_rule_without_prelude(CognitiveComplexity);
-        let result = test.lint_ast(
-            "cognitive_complexity/test_flat_ifs_lower_complexity.ds",
-            r#"
-function flat(a: bool) {
-    if (a) { x() }
-    if (a) { x() }
-    if (a) { x() }
-    if (a) { x() }
-    if (a) { x() }
-    if (a) { x() }
-    if (a) { x() }
-    if (a) { x() }
-    if (a) { x() }
-    if (a) { x() }
-}
-"#,
-        );
-        // 10 flat ifs = 10 complexity < 15
-        test.result(result).assert_no_lint("cognitive-complexity");
-    }
-
-    #[test]
-    fn test_logical_operator_sequences() {
-        let test = TestProgram::for_rule_without_prelude(CognitiveComplexity);
-        let result = test.lint_ast(
-            "cognitive_complexity/test_logical_operator_sequences.ds",
-            r#"
-function logical(a: bool): bool {
-    return a && a && a && a && a
-}
-"#,
-        );
-        // sequence of same operator counts as 1
-        test.result(result).assert_no_lint("cognitive-complexity");
-    }
-
-    #[test]
-    fn test_mixed_logical_operators() {
-        let test = TestProgram::for_rule_without_prelude(CognitiveComplexity);
-        let result = test.lint_ast(
-            "cognitive_complexity/test_mixed_logical_operators.ds",
-            r#"
-function mixed(a: bool): bool {
-    return a && a || a && a || a && a || a
-}
-"#,
-        );
-        // alternating && and || each count: && || && || && || = 6
-        test.result(result).assert_no_lint("cognitive-complexity");
-    }
-
-    #[test]
-    fn test_loops_add_complexity() {
-        let test = TestProgram::for_rule_without_prelude(CognitiveComplexity);
-        let result = test.lint_ast(
-            "cognitive_complexity/test_loops_add_complexity.ds",
-            r#"
-function loops() {
-    while (true) {
-        for (let i = 0; i < 10; i++) {
-            for (const x of items) {
-                loop {
-                    if (done) { break }
-                }
-            }
-        }
-    }
-}
-"#,
-        );
-        // while: 1+0, for: 1+1, foreach: 1+2, loop: 1+3, if: 1+4 = 1+2+3+4+5 = 15
-        test.result(result).assert_no_lint("cognitive-complexity");
+        test.result(result).assert_lint("cognitive-complexity");
     }
 }

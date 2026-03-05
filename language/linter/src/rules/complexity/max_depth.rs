@@ -1,10 +1,11 @@
 use destack_ast::{
     self as ast, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
-    walk_expression,
+    walk_expression, walk_member,
 };
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_is_else_if_branch;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -39,7 +40,8 @@ impl LintRule for MaxDepth {
         // collect violations
         let mut visitor = DepthNodeVisitor {
             options: NodeVisitorOptions::default(),
-            depth: 0,
+            parents: ctx.parents,
+            depth_stack: vec![0],
             max_depth,
             violations: Vec::new(),
         };
@@ -82,14 +84,52 @@ struct DepthViolation {
 }
 
 /// NodeVisitor for checking the depth of nested blocks.
-struct DepthNodeVisitor {
+struct DepthNodeVisitor<'a> {
+    /// Visitor options.
     options: NodeVisitorOptions,
-    depth: usize,
+    /// Parent index for else-if normalization.
+    parents: &'a ast::NodeParentIndex,
+    /// Depth stack per callable boundary.
+    depth_stack: Vec<usize>,
+    /// Configured maximum nesting depth.
     max_depth: usize,
+    /// Collected depth violations.
     violations: Vec<DepthViolation>,
 }
 
-impl NodeVisitor for DepthNodeVisitor {
+impl DepthNodeVisitor<'_> {
+    /// Increase depth in the current callable and return the new value.
+    fn increment_depth(&mut self) -> usize {
+        if let Some(depth) = self.depth_stack.last_mut() {
+            *depth += 1;
+            return *depth;
+        }
+
+        0
+    }
+
+    /// Decrease depth in the current callable.
+    fn decrement_depth(&mut self) {
+        if let Some(depth) = self.depth_stack.last_mut() {
+            *depth = depth.saturating_sub(1);
+        }
+    }
+
+    /// Push one new callable boundary depth frame.
+    fn push_callable_depth(&mut self) {
+        self.depth_stack.push(0);
+    }
+
+    /// Pop one callable boundary depth frame.
+    fn pop_callable_depth(&mut self) {
+        self.depth_stack.pop();
+        if self.depth_stack.is_empty() {
+            self.depth_stack.push(0);
+        }
+    }
+}
+
+impl NodeVisitor for DepthNodeVisitor<'_> {
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
     }
@@ -100,53 +140,91 @@ impl NodeVisitor for DepthNodeVisitor {
         id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
-        // check if this expression increases nesting depth
-        let increases_depth = matches!(
-            expression,
-            Expression::If { .. }
-                | Expression::While { .. }
-                | Expression::For { .. }
-                | Expression::ForEach { .. }
-                | Expression::Loop { .. }
-                | Expression::Try { .. }
-                | Expression::Match { .. }
-        );
-
-        if increases_depth {
-            self.depth += 1;
-            if self.depth > self.max_depth {
-                self.violations.push(DepthViolation {
-                    node_id: id,
-                    span: tree.get_span(id),
-                    depth: self.depth,
-                });
-            }
-        }
-
-        // for function declarations, reset depth for the body
+        // keep callable boundaries isolated like eslint functionStack semantics
         if let Expression::Declaration(declaration_id) = expression {
             let declaration = tree.get(*declaration_id);
-            if let ast::Declaration::Function { body, .. } = declaration
-                && let Some(body_id) = body
+            if let ast::Declaration::Function {
+                body: Some(body_id),
+                ..
+            } = declaration
             {
-                let saved_depth = self.depth;
-                self.depth = 0;
+                self.push_callable_depth();
+
                 let body_expression = tree.get(*body_id);
                 self.visit_expression(tree, *body_id, body_expression);
-                self.depth = saved_depth;
-                if increases_depth {
-                    self.depth -= 1;
-                }
+
+                self.pop_callable_depth();
                 return;
             }
         }
 
-        // walk children
+        // check whether this expression increases the current depth
+        let increases_depth = expression_increases_depth(tree, self.parents, id, expression);
+        if increases_depth {
+            let depth = self.increment_depth();
+            if depth > self.max_depth {
+                self.violations.push(DepthViolation {
+                    node_id: id,
+                    span: tree.get_span(id),
+                    depth,
+                });
+            }
+        }
+
+        // recurse into expression children
         walk_expression(self, tree, id, expression);
 
+        // leave this depth frame when needed
         if increases_depth {
-            self.depth -= 1;
+            self.decrement_depth();
         }
+    }
+
+    fn visit_member(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<ast::Member>,
+        member: &ast::Member,
+    ) {
+        // keep method and static-block callable scopes isolated from outer depth
+        let body_id = match member {
+            ast::Member::Method {
+                body: Some(body), ..
+            } => Some(*body),
+            ast::Member::StaticBlock { body, .. } => Some(*body),
+            _ => None,
+        };
+
+        let Some(body_id) = body_id else {
+            walk_member(self, tree, id, member);
+            return;
+        };
+
+        self.push_callable_depth();
+
+        let body_expression = tree.get(body_id);
+        self.visit_expression(tree, body_id, body_expression);
+
+        self.pop_callable_depth();
+    }
+}
+
+/// Return true when one expression increases nesting depth.
+fn expression_increases_depth(
+    tree: &NodeTree,
+    parents: &ast::NodeParentIndex,
+    expression_id: LocalNodeId<Expression>,
+    expression: &Expression,
+) -> bool {
+    match expression {
+        Expression::If { .. } => !expression_is_else_if_branch(tree, parents, expression_id),
+        Expression::While { .. }
+        | Expression::For { .. }
+        | Expression::ForEach { .. }
+        | Expression::Loop { .. }
+        | Expression::Try { .. }
+        | Expression::Match { .. } => true,
+        _ => false,
     }
 }
 
@@ -294,5 +372,51 @@ function foo() {
 "#,
         );
         test.result(result).assert_no_lint("max-depth");
+    }
+
+    #[test]
+    fn test_static_block_depth_resets_from_outer_if() {
+        let test = TestProgram::for_rule_without_prelude(MaxDepth)
+            .with_options(|options| options.max_depth = 2);
+        let result = test.lint_ast(
+            "max_depth/test_static_block_depth_resets_from_outer_if.ds",
+            r#"
+if (a) {
+    class C {
+        static {
+            if (b) {
+                if (c) {
+                    value()
+                }
+            }
+        }
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("max-depth");
+    }
+
+    #[test]
+    fn test_reports_static_block_depth_over_limit() {
+        let test = TestProgram::for_rule_without_prelude(MaxDepth)
+            .with_options(|options| options.max_depth = 2);
+        let result = test.lint_ast(
+            "max_depth/test_reports_static_block_depth_over_limit.ds",
+            r#"
+class C {
+    static {
+        if (a) {
+            if (b) {
+                if (c) {
+                    value()
+                }
+            }
+        }
+    }
+}
+"#,
+        );
+        test.result(result).assert_lint("max-depth");
     }
 }

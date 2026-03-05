@@ -1,7 +1,9 @@
 use destack_ast::{self as ast, BinaryOperator, Expression, UnaryOperator};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_is_equal;
+use crate::rules::common::{
+    expression_is_equal, expression_is_type_annotation, expression_unwrap_parenthesized_syntax,
+};
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -37,13 +39,19 @@ impl LintRule for NoComplexBooleanExpression {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
 
+            // skip type expression contexts
+            if expression_is_type_annotation(ctx.tree, &ctx.parents, node_id) {
+                continue;
+            }
+
             // check for double negation: !!x
             if let Expression::Unary {
                 operator: UnaryOperator::Not,
                 right,
             } = expression
             {
-                let inner = ctx.tree.get(*right);
+                let inner_id = expression_unwrap_parenthesized_syntax(ctx.tree, *right);
+                let inner = ctx.tree.get(inner_id);
                 if let Expression::Unary {
                     operator: UnaryOperator::Not,
                     ..
@@ -147,13 +155,16 @@ fn is_negation_of(
     left_id: ast::LocalNodeId<Expression>,
     right_id: ast::LocalNodeId<Expression>,
 ) -> bool {
+    let right_id = expression_unwrap_parenthesized_syntax(ctx.tree, right_id);
     let right = ctx.tree.get(right_id);
     if let Expression::Unary {
         operator: UnaryOperator::Not,
         right: inner_id,
     } = right
     {
-        expression_is_equal(ctx, left_id, *inner_id)
+        let left_id = expression_unwrap_parenthesized_syntax(ctx.tree, left_id);
+        let inner_id = expression_unwrap_parenthesized_syntax(ctx.tree, *inner_id);
+        expression_is_equal(ctx, left_id, inner_id)
     } else {
         false
     }

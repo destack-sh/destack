@@ -1,14 +1,17 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{
+    expression_outer_parenthesized_syntax, expression_statement_ancestor,
+    expression_unwrap_parenthesized_syntax,
+};
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow chained assignment expressions.
     ///
-    /// Chained assignments like `a = b = c` can be confusing about which
-    /// variables are being modified. Write each assignment on its own line
-    /// for clarity.
+    /// Chained assignments like `a = b = c` can be confusing about which variables are being modified.
+    /// Write each assignment on its own line for clarity.
     #[lint(
         id = "no-multi-assign",
         code = "LX019",
@@ -30,43 +33,139 @@ impl LintRule for NoMultiAssign {
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        // resolve lint metadata and option policy
         let meta = self.meta();
+        let ignore_non_declaration = ctx.options.no_multi_assign_ignore_non_declaration;
 
+        // inspect each assignment expression for chained-assignment contexts
         for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Assign { right, .. } = ctx.tree.get(expression_id) else {
+            let ast::Expression::Assign { .. } = ctx.tree.get(expression_id) else {
                 continue;
             };
 
-            // check if the right-hand side is also an assignment
-            if is_assignment(ctx, *right) {
-                let severity = ctx.get_effective_severity(meta, expression_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-
-                let span = ctx.tree.get_span(expression_id);
-                let mut diagnostic = LintDiagnostic::new(
-                    NO_MULTI_ASSIGN.id,
-                    NO_MULTI_ASSIGN.code,
-                    NO_MULTI_ASSIGN.category,
-                    severity,
-                    "chained assignment expression",
-                    ctx.module.file_id,
-                    span,
-                )
-                .with_label("write each assignment on its own line");
-
-                // compute fixes only when requested by the runner
-                if ctx.compute_fixes
-                    && let Some(fix) = no_multi_assign_fix(ctx, expression_id)
-                {
-                    diagnostic = diagnostic.with_fix(fix);
-                }
-
-                ctx.report(diagnostic);
+            // keep only source-equivalent report contexts
+            if !assignment_should_report(ctx, expression_id, ignore_non_declaration) {
+                continue;
             }
+
+            // resolve effective severity for this assignment expression
+            let severity = ctx.get_effective_severity(meta, expression_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
+            // build the base diagnostic for this chain node
+            let span = ctx.tree.get_span(expression_id);
+            let mut diagnostic = LintDiagnostic::new(
+                NO_MULTI_ASSIGN.id,
+                NO_MULTI_ASSIGN.code,
+                NO_MULTI_ASSIGN.category,
+                severity,
+                "chained assignment expression",
+                ctx.module.file_id,
+                span,
+            )
+            .with_label("write each assignment on its own line");
+
+            // compute fixes only when requested by the runner
+            if ctx.compute_fixes
+                && let Some(fix) = no_multi_assign_fix(ctx, expression_id)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
+}
+
+/// Return true when one assignment should be reported by no-multi-assign.
+fn assignment_should_report(
+    ctx: &LintModuleAstContext<'_>,
+    assignment_expression_id: ast::LocalNodeId<ast::Expression>,
+    ignore_non_declaration: bool,
+) -> bool {
+    // always report declaration initializer assignments
+    if assignment_is_declaration_initializer(ctx, assignment_expression_id) {
+        return true;
+    }
+
+    // optionally ignore non-declaration chains for source-compatible behavior
+    if ignore_non_declaration {
+        return false;
+    }
+
+    // report non-declaration chains on outer assignment nodes
+    assignment_has_assignment_right(ctx, assignment_expression_id)
+}
+
+/// Return true when one assignment is in a declaration initializer slot.
+fn assignment_is_declaration_initializer(
+    ctx: &LintModuleAstContext<'_>,
+    assignment_expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    // lift assignment through parenthesized wrappers for parent checks
+    let wrapped_expression_id =
+        expression_outer_parenthesized_syntax(ctx.tree, &ctx.parents, assignment_expression_id);
+
+    // require one concrete parent node
+    let Some(parent_id) = ctx.parents.get(wrapped_expression_id) else {
+        return false;
+    };
+
+    // match declarator initializers
+    if ctx.tree.get_node_type(parent_id) == ast::NodeType::Declarator {
+        let declarator = ctx
+            .tree
+            .get(ast::LocalNodeId::<ast::Declarator>::new(parent_id));
+        if matches!(declarator, ast::Declarator { value: Some(value_id), .. } if *value_id == wrapped_expression_id)
+        {
+            return true;
+        }
+    }
+
+    // match class or interface field defaults
+    if ctx.tree.get_node_type(parent_id) == ast::NodeType::Member {
+        let member = ctx
+            .tree
+            .get(ast::LocalNodeId::<ast::Member>::new(parent_id));
+        if matches!(member, ast::Member::Field { default: Some(default_id), .. } if *default_id == wrapped_expression_id)
+        {
+            return true;
+        }
+    }
+
+    // match object or type-literal field defaults
+    if ctx.tree.get_node_type(parent_id) == ast::NodeType::Property {
+        let property = ctx
+            .tree
+            .get(ast::LocalNodeId::<ast::Property>::new(parent_id));
+        if matches!(property, ast::Property::Field { default: Some(default_id), .. } if *default_id == wrapped_expression_id)
+        {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Return true when one assignment has an assignment expression on the right.
+fn assignment_has_assignment_right(
+    ctx: &LintModuleAstContext<'_>,
+    assignment_expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    // normalize the assignment expression before right-side checks
+    let assignment_expression_id =
+        expression_unwrap_parenthesized_syntax(ctx.tree, assignment_expression_id);
+    let assignment_expression = ctx.tree.get(assignment_expression_id);
+    let ast::Expression::Assign { right, .. } = assignment_expression else {
+        return false;
+    };
+
+    // keep only right sides that resolve to another assignment expression
+    let right_expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, *right);
+    let right_expression = ctx.tree.get(right_expression_id);
+    matches!(right_expression, ast::Expression::Assign { .. })
 }
 
 /// Build a safe fix for one chained assignment statement with simple paths.
@@ -75,18 +174,8 @@ fn no_multi_assign_fix(
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<LintFix> {
     // keep statement scoped assignments only
-    let parent_id = ctx.parents.get(expression_id)?;
-    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
-        return None;
-    }
-    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
-    let parent_expression = ctx.tree.get(parent_expression_id);
-    let ast::Expression::Statement(statement_id) = parent_expression else {
-        return None;
-    };
-    if *statement_id != expression_id {
-        return None;
-    }
+    let parent_expression_id =
+        expression_statement_ancestor(ctx.tree, &ctx.parents, expression_id)?;
 
     // collect chained assignments and final rhs
     let mut left_ids = Vec::new();
@@ -133,7 +222,7 @@ fn collect_assignment_chain(
     expression_id: ast::LocalNodeId<ast::Expression>,
     left_ids: &mut Vec<ast::LocalNodeId<ast::Expression>>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
-    let expression_id = unwrap_parenthesized_expression(ctx, expression_id);
+    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
     let expression = ctx.tree.get(expression_id);
     let ast::Expression::Assign { left, right, .. } = expression else {
         return Some(expression_id);
@@ -141,36 +230,6 @@ fn collect_assignment_chain(
 
     left_ids.push(*left);
     collect_assignment_chain(ctx, *right, left_ids)
-}
-
-/// Unwrap parenthesized expressions.
-fn unwrap_parenthesized_expression(
-    ctx: &LintModuleAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> ast::LocalNodeId<ast::Expression> {
-    let mut current = expression_id;
-
-    // peel parenthesized layers to access nested assignments
-    loop {
-        let expression = ctx.tree.get(current);
-        let ast::Expression::Parenthesized { expression } = expression else {
-            return current;
-        };
-        current = *expression;
-    }
-}
-
-/// check if an expression is an assignment (possibly wrapped in parentheses)
-fn is_assignment(
-    ctx: &LintModuleAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> bool {
-    let expression = ctx.tree.get(expression_id);
-    match expression {
-        ast::Expression::Assign { .. } => true,
-        ast::Expression::Parenthesized { expression } => is_assignment(ctx, *expression),
-        _ => false,
-    }
 }
 
 #[cfg(test)]
@@ -325,5 +384,49 @@ let x = (a = (b = 1));
         test.result(result)
             .assert_lint("no-multi-assign")
             .assert_has_no_fix("no-multi-assign");
+    }
+
+    #[test]
+    fn test_detects_assignment_in_declaration_initializer() {
+        let test = TestProgram::for_rule_without_prelude(NoMultiAssign);
+        let result = test.lint_ast(
+            "no_multi_assign/test_detects_assignment_in_declaration_initializer.ds",
+            r#"
+let a: int32;
+let x = (a = 1);
+"#,
+        );
+        test.result(result).assert_lint("no-multi-assign");
+    }
+
+    #[test]
+    fn test_ignore_non_declaration_option_ignores_assignment_chain() {
+        let test = TestProgram::for_rule_without_prelude(NoMultiAssign).with_options(|options| {
+            options.no_multi_assign_ignore_non_declaration = true;
+        });
+        let result = test.lint_ast(
+            "no_multi_assign/test_ignore_non_declaration_option_ignores_assignment_chain.ds",
+            r#"
+let a: int32;
+let b: int32;
+a = (b = 1);
+"#,
+        );
+        test.result(result).assert_no_lint("no-multi-assign");
+    }
+
+    #[test]
+    fn test_ignore_non_declaration_option_still_reports_declaration_initializer() {
+        let test = TestProgram::for_rule_without_prelude(NoMultiAssign).with_options(|options| {
+            options.no_multi_assign_ignore_non_declaration = true;
+        });
+        let result = test.lint_ast(
+            "no_multi_assign/test_ignore_non_declaration_option_still_reports_declaration_initializer.ds",
+            r#"
+let a: int32;
+let x = (a = 1);
+"#,
+        );
+        test.result(result).assert_lint("no-multi-assign");
     }
 }

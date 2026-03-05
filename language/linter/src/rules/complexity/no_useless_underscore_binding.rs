@@ -1,14 +1,16 @@
-use destack_ast::{self as ast, Pattern};
+use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_has_side_effects;
+use crate::rules::common::{
+    expression_has_side_effects, pattern_is_underscore_binding_or_wildcard,
+};
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Warn on underscore bindings with no side effects.
     ///
-    /// Binding to `_` or `_name` is useful when you want to ignore a value
-    /// from an expression with side effects. If the expression has no side
+    /// Binding to `_` or `_name` is useful when you want to ignore a value from an expression with side effects.
+    /// If the expression has no side
     /// effects, the binding is useless and can be removed.
     #[lint(
         id = "no-useless-underscore-binding",
@@ -23,22 +25,6 @@ declare_lint! {
     )]
     pub NoUselessUnderscoreBinding,
     "Warn on useless underscore bindings"
-}
-
-/// Check if a pattern is an underscore pattern (wildcard or binding starting with _).
-fn is_underscore_pattern(
-    ctx: &LintModuleAstContext<'_>,
-    pattern_id: ast::LocalNodeId<Pattern>,
-) -> bool {
-    let pattern = ctx.tree.get(pattern_id);
-    match pattern {
-        Pattern::Wildcard => true,
-        Pattern::Binding { name, .. } => {
-            let name_str = ctx.strings.get(*name);
-            name_str.as_ref().starts_with('_')
-        }
-        _ => false,
-    }
 }
 
 impl LintRule for NoUselessUnderscoreBinding {
@@ -61,17 +47,17 @@ impl LintRule for NoUselessUnderscoreBinding {
             for declarator_id in declarators {
                 let declarator = ctx.tree.get(*declarator_id);
 
-                // skip if no value (just declaration without initialization)
+                // skip declarations without initializer values
                 let Some(value_id) = declarator.value else {
                     continue;
                 };
 
-                // check if pattern is underscore
-                if !is_underscore_pattern(ctx, declarator.pattern) {
+                // keep only wildcard or underscore style bindings
+                if !pattern_is_underscore_binding_or_wildcard(ctx, declarator.pattern) {
                     continue;
                 }
 
-                // check if value has side effects
+                // allow underscore bindings for side effect values
                 if expression_has_side_effects(ctx, value_id) {
                     continue;
                 }

@@ -8,9 +8,8 @@ use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lin
 declare_lint! {
     /// Disallow multiple declarators in a single let/const statement.
     ///
-    /// Multiple declarators in a single statement like `let a = 1, b = 2` can be
-    /// harder to read and maintain. Each binding should be its own statement for
-    /// better clarity and easier modification.
+    /// Multiple declarators in a single statement like `let a = 1, b = 2` can be harder to read and maintain.
+    /// Each binding should be its own statement for better clarity and easier modification.
     #[lint(
         id = "no-multi-declarators",
         code = "LX020",
@@ -45,6 +44,11 @@ impl LintRule for NoMultiDeclarators {
 
             // check if there are multiple declarators
             if declarators.len() > 1 {
+                // keep one-var parity: skip for-loop initializers
+                if is_for_initializer(ctx, expression_id) {
+                    continue;
+                }
+
                 let severity = ctx.get_effective_severity(meta, expression_id);
                 if !severity.is_enabled() {
                     continue;
@@ -247,17 +251,15 @@ let b: int32 = 2;
     }
 
     #[test]
-    fn test_no_fix_for_for_initializer() {
+    fn test_allows_multi_declarators_in_for_initializer() {
         let test = TestProgram::for_rule_without_prelude(NoMultiDeclarators);
         let result = test.lint_ast(
-            "no_multi_declarators/test_no_fix_for_for_initializer.ds",
+            "no_multi_declarators/test_allows_multi_declarators_in_for_initializer.ds",
             r#"
 for (let a = 0, b = 1; a < 10; a++) {}
 "#,
         );
-        test.result(result)
-            .assert_lint("no-multi-declarators")
-            .assert_has_no_fix("no-multi-declarators");
+        test.result(result).assert_no_lint("no-multi-declarators");
     }
 
     #[test]

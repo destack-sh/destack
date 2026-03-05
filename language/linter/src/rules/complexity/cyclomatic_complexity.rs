@@ -1,17 +1,21 @@
 use destack_ast::{
-    self as ast, BinaryOperator, Expression, LocalNodeId, NodeTree, NodeVisitor,
-    NodeVisitorOptions, walk_expression,
+    self as ast, AssignOperator, BinaryOperator, Expression, FunctionSignature, LocalNodeId,
+    MatchKind, NodeTree, NodeVisitor, NodeVisitorOptions, PatternField, walk_expression,
+    walk_parameter, walk_pattern_field,
 };
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{
+    expression_starts_nested_declaration_scope, match_case_selector, match_selector_is_default,
+    parameter_default_expression_id, pattern_field_default_expression_id,
+};
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit cyclomatic complexity of functions.
     ///
-    /// Cyclomatic complexity measures the number of linearly independent paths
-    /// through a function. High complexity indicates code that is difficult to
-    /// test and maintain.
+    /// Cyclomatic complexity measures the number of linearly independent paths through a function.
+    /// High complexity indicates code that is difficult to test and maintain.
     ///
     /// Complexity is incremented for each decision point:
     /// - `if`, `else if`, `while`, `for`, `loop`
@@ -41,52 +45,105 @@ impl LintRule for CyclomaticComplexity {
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        // resolve one shared max-threshold and lint meta
         let meta = self.meta();
         let max_complexity = ctx.options.max_cyclomatic_complexity;
 
-        // check each function declaration
+        // check function declarations
         for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(declaration_id);
-            let ast::Declaration::Function { body, .. } = declaration else {
+            let ast::Declaration::Function {
+                signature, body, ..
+            } = declaration
+            else {
                 continue;
             };
-
             let Some(body_id) = body else {
                 continue;
             };
 
-            // calculate complexity for this function
-            let mut visitor = ComplexityVisitor {
-                options: NodeVisitorOptions::default(),
-                complexity: 1, // base complexity
+            report_body_complexity(
+                ctx,
+                meta,
+                declaration_id,
+                *body_id,
+                Some(signature),
+                max_complexity,
+            );
+        }
+
+        // check methods and static blocks
+        for member_id in ctx.tree.iter_nodes::<ast::Member>() {
+            let member = ctx.tree.get(member_id);
+            let (body_id, signature) = match member {
+                ast::Member::Method {
+                    signature,
+                    body: Some(body),
+                    ..
+                } => (*body, Some(signature)),
+                ast::Member::StaticBlock { body, .. } => (*body, None),
+                _ => continue,
             };
 
-            let body_expression = ctx.tree.get(*body_id);
-            visitor.visit_expression(ctx.tree, *body_id, body_expression);
-
-            if visitor.complexity > max_complexity {
-                let severity = ctx.get_effective_severity(meta, declaration_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-                ctx.report(
-                    LintDiagnostic::new(
-                        CYCLOMATIC_COMPLEXITY.id,
-                        CYCLOMATIC_COMPLEXITY.code,
-                        CYCLOMATIC_COMPLEXITY.category,
-                        severity,
-                        format!(
-                            "cyclomatic complexity {} exceeds maximum of {}",
-                            visitor.complexity, max_complexity
-                        ),
-                        ctx.module.file_id,
-                        ctx.tree.get_span(*body_id),
-                    )
-                    .with_label("consider breaking into smaller functions"),
-                );
-            }
+            report_body_complexity(ctx, meta, member_id, body_id, signature, max_complexity);
         }
     }
+}
+
+/// Report complexity when one callable body exceeds the configured maximum.
+fn report_body_complexity<T: ast::Node>(
+    ctx: &mut LintModuleAstContext<'_>,
+    meta: &'static crate::LintMeta,
+    owner_id: LocalNodeId<T>,
+    body_expression_id: LocalNodeId<Expression>,
+    signature: Option<&FunctionSignature>,
+    max_complexity: usize,
+) {
+    // calculate body complexity from one root expression
+    let mut visitor = ComplexityVisitor {
+        options: NodeVisitorOptions::default(),
+        complexity: 1,
+        root_expression_id: body_expression_id,
+    };
+
+    // account for parameter defaults as assignment-pattern branches
+    if let Some(signature) = signature {
+        for parameter_id in &signature.dynamic_parameters {
+            let parameter = ctx.tree.get(*parameter_id);
+            visitor.visit_parameter(ctx.tree, *parameter_id, parameter);
+        }
+    }
+
+    let body_expression = ctx.tree.get(body_expression_id);
+    visitor.visit_expression(ctx.tree, body_expression_id, body_expression);
+
+    // skip bodies that are within configured threshold
+    if visitor.complexity <= max_complexity {
+        return;
+    }
+
+    // honor effective severity at the callable owner node
+    let severity = ctx.get_effective_severity(meta, owner_id);
+    if !severity.is_enabled() {
+        return;
+    }
+
+    // report one complexity overflow diagnostic
+    ctx.report(
+        LintDiagnostic::new(
+            CYCLOMATIC_COMPLEXITY.id,
+            CYCLOMATIC_COMPLEXITY.code,
+            CYCLOMATIC_COMPLEXITY.category,
+            severity,
+            format!(
+                "cyclomatic complexity {} exceeds maximum of {}",
+                visitor.complexity, max_complexity
+            ),
+            ctx.module.file_id,
+            ctx.tree.get_span(body_expression_id),
+        )
+        .with_label("consider breaking into smaller functions"),
+    );
 }
 
 /// Visitor that calculates cyclomatic complexity for a function body.
@@ -95,6 +152,8 @@ struct ComplexityVisitor {
     options: NodeVisitorOptions,
     /// Accumulated complexity score, starting at 1 (base complexity).
     complexity: usize,
+    /// Root body expression for this callable.
+    root_expression_id: LocalNodeId<Expression>,
 }
 
 impl NodeVisitor for ComplexityVisitor {
@@ -108,25 +167,25 @@ impl NodeVisitor for ComplexityVisitor {
         id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
+        // keep nested callable declarations scoped to their own complexity pass
+        if id != self.root_expression_id && expression_starts_nested_declaration_scope(expression) {
+            return;
+        }
+
+        // increment complexity for branching expressions
         match expression {
-            // if statements and ternary add complexity
             Expression::If { .. } => {
                 self.complexity += 1;
             }
-            // loops add complexity
             Expression::While { .. }
             | Expression::For { .. }
             | Expression::ForEach { .. }
             | Expression::Loop { .. } => {
                 self.complexity += 1;
             }
-            // each match case except the first adds complexity
-            Expression::Match { cases, .. } => {
-                if cases.len() > 1 {
-                    self.complexity += cases.len() - 1;
-                }
+            Expression::Match { kind, cases, .. } => {
+                self.complexity += match_case_complexity(tree, *kind, cases);
             }
-            // catch clauses add complexity
             Expression::Try {
                 catch_expression, ..
             } => {
@@ -134,7 +193,6 @@ impl NodeVisitor for ComplexityVisitor {
                     self.complexity += 1;
                 }
             }
-            // logical operators add complexity (short-circuit evaluation)
             Expression::Binary { operator, .. } => {
                 if matches!(
                     operator,
@@ -143,16 +201,78 @@ impl NodeVisitor for ComplexityVisitor {
                     self.complexity += 1;
                 }
             }
-            // optional chaining creates a branch
+            Expression::Assign { operator, .. } => {
+                if matches!(
+                    operator,
+                    AssignOperator::AndAssign
+                        | AssignOperator::OrAssign
+                        | AssignOperator::CoalesceAssign
+                ) {
+                    self.complexity += 1;
+                }
+            }
             Expression::Maybe { .. } => {
                 self.complexity += 1;
             }
             _ => {}
         }
 
-        // walk children
+        // recurse into expression children
         walk_expression(self, tree, id, expression);
     }
+
+    fn visit_parameter(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<ast::Parameter>,
+        parameter: &ast::Parameter,
+    ) {
+        // defaulted parameters are assignment-pattern branches
+        if parameter_default_expression_id(parameter).is_some() {
+            self.complexity += 1;
+        }
+
+        // recurse into parameter children
+        walk_parameter(self, tree, id, parameter);
+    }
+
+    fn visit_pattern_field(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<PatternField>,
+        pattern_field: &PatternField,
+    ) {
+        // defaulted destructuring fields are assignment-pattern branches
+        if pattern_field_default_expression_id(pattern_field).is_some() {
+            self.complexity += 1;
+        }
+
+        // recurse into pattern-field children
+        walk_pattern_field(self, tree, id, pattern_field);
+    }
+}
+
+/// Return complexity increment from one match expression case set.
+fn match_case_complexity(
+    tree: &NodeTree,
+    kind: MatchKind,
+    cases: &[LocalNodeId<ast::MatchCase>],
+) -> usize {
+    // keep switch counting aligned to eslint classic variant
+    if kind == MatchKind::Switch {
+        return cases
+            .iter()
+            .copied()
+            .filter(|case_id| {
+                let case = tree.get(*case_id);
+                let selector = match_case_selector(case);
+                !match_selector_is_default(selector)
+            })
+            .count();
+    }
+
+    // keep match-expression branch counting as a stable destack baseline
+    cases.len().saturating_sub(1)
 }
 
 #[cfg(test)]
@@ -284,5 +404,114 @@ function withTry() {
         );
         // 1 base + 1 catch = 2, under default 20
         test.result(result).assert_no_lint("cyclomatic-complexity");
+    }
+
+    #[test]
+    fn test_counts_logical_assignment_operators() {
+        let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity)
+            .with_options(|options| options.max_cyclomatic_complexity = 1);
+        let result = test.lint_ast(
+            "cyclomatic_complexity/test_counts_logical_assignment_operators.ds",
+            r#"
+function logicalAssign(x: bool, y: bool): bool {
+    x &&= y
+    return x
+}
+"#,
+        );
+        test.result(result).assert_lint("cyclomatic-complexity");
+    }
+
+    #[test]
+    fn test_counts_default_parameter_as_branch() {
+        let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity)
+            .with_options(|options| options.max_cyclomatic_complexity = 1);
+        let result = test.lint_ast(
+            "cyclomatic_complexity/test_counts_default_parameter_as_branch.ds",
+            r#"
+function withDefault(value = 1): int32 {
+    return value
+}
+"#,
+        );
+        test.result(result).assert_lint("cyclomatic-complexity");
+    }
+
+    #[test]
+    fn test_counts_destructuring_default_as_branch() {
+        let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity)
+            .with_options(|options| options.max_cyclomatic_complexity = 1);
+        let result = test.lint_ast(
+            "cyclomatic_complexity/test_counts_destructuring_default_as_branch.ds",
+            r#"
+function withPattern(value): int32 {
+    let { count = 1 } = value
+    return count
+}
+"#,
+        );
+        test.result(result).assert_lint("cyclomatic-complexity");
+    }
+
+    #[test]
+    fn test_counts_method_body_complexity() {
+        let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity)
+            .with_options(|options| options.max_cyclomatic_complexity = 1);
+        let result = test.lint_ast(
+            "cyclomatic_complexity/test_counts_method_body_complexity.ds",
+            r#"
+class Demo {
+    run(value: bool): int32 {
+        if (value) {
+            return 1
+        }
+        return 0
+    }
+}
+"#,
+        );
+        test.result(result).assert_lint("cyclomatic-complexity");
+    }
+
+    #[test]
+    fn test_does_not_count_nested_function_complexity_in_parent() {
+        let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity)
+            .with_options(|options| options.max_cyclomatic_complexity = 1);
+        let result = test.lint_ast(
+            "cyclomatic_complexity/test_does_not_count_nested_function_complexity_in_parent.ds",
+            r#"
+function outer(): int32 {
+    function inner(value: bool): int32 {
+        if (value) {
+            return 1
+        }
+        return 0
+    }
+    return inner(false)
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("cyclomatic-complexity")
+            .assert_lint_count("cyclomatic-complexity", 1);
+    }
+
+    #[test]
+    fn test_counts_switch_cases_without_default_case() {
+        let test = TestProgram::for_rule_without_prelude(CyclomaticComplexity)
+            .with_options(|options| options.max_cyclomatic_complexity = 3);
+        let result = test.lint_ast(
+            "cyclomatic_complexity/test_counts_switch_cases_without_default_case.ds",
+            r#"
+function withSwitch(value: int32): int32 {
+    switch (value) {
+        case 1: return 1;
+        case 2: return 2;
+        case 3: return 3;
+    }
+}
+"#,
+        );
+        test.result(result).assert_lint("cyclomatic-complexity");
     }
 }

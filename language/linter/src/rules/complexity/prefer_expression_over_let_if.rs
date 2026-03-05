@@ -1,13 +1,15 @@
 use destack_ast::{self as ast, Pattern};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{
+    expression_is_unqualified_path_name, expression_unwrap_statement_syntax,
+};
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest expression syntax over let-if sequences.
     ///
-    /// Instead of declaring a variable and then assigning in branches,
-    /// use an if expression or ternary to initialize directly.
+    /// Instead of declaring a variable and then assigning in branches, use an if expression or ternary to initialize directly.
     #[lint(
         id = "prefer-expression-over-let-if",
         code = "LX024",
@@ -110,10 +112,10 @@ impl LintRule for PreferExpressionOverLetIf {
                 let second_id = block.expressions[i + 1];
 
                 // unwrap statement wrappers
-                let first_expr = unwrap_statement(ctx, first_id);
-                let second_expr = unwrap_statement(ctx, second_id);
-                let let_expression_id = unwrap_statement_expression_id(ctx, first_id);
-                let if_expression_id = unwrap_statement_expression_id(ctx, second_id);
+                let let_expression_id = expression_unwrap_statement_syntax(ctx.tree, first_id);
+                let if_expression_id = expression_unwrap_statement_syntax(ctx.tree, second_id);
+                let first_expr = ctx.tree.get(let_expression_id);
+                let second_expr = ctx.tree.get(if_expression_id);
 
                 // first must be a let without initializer
                 let ast::Expression::Let { declarators, .. } = first_expr else {
@@ -256,11 +258,13 @@ fn assignment_value_text(
     }
 
     let branch_statement_id = block.expressions[0];
-    let assignment_expression = unwrap_statement(ctx, branch_statement_id);
+    let assignment_expression_id =
+        expression_unwrap_statement_syntax(ctx.tree, branch_statement_id);
+    let assignment_expression = ctx.tree.get(assignment_expression_id);
     let ast::Expression::Assign { left, right, .. } = assignment_expression else {
         return None;
     };
-    if !is_path_to_name(ctx, *left, target_name) {
+    if !expression_is_unqualified_path_name(ctx.tree, *left, target_name) {
         return None;
     }
 
@@ -270,43 +274,6 @@ fn assignment_value_text(
     }
 
     Some(right_text)
-}
-
-/// Return true when an expression is a path to the given name.
-fn is_path_to_name(
-    ctx: &LintModuleAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-    target_name: destack_base::StringId,
-) -> bool {
-    let expression = unwrap_statement(ctx, expression_id);
-    match expression {
-        ast::Expression::Path { path, .. } => {
-            path.segments.len() == 1 && path.segments[0] == target_name
-        }
-        _ => false,
-    }
-}
-
-fn unwrap_statement<'a>(
-    ctx: &'a LintModuleAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
-) -> &'a ast::Expression {
-    let expr = ctx.tree.get(expr_id);
-    match expr {
-        ast::Expression::Statement(inner) => ctx.tree.get(*inner),
-        other => other,
-    }
-}
-
-/// Return one expression id with one statement wrapper removed.
-fn unwrap_statement_expression_id(
-    ctx: &LintModuleAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> ast::LocalNodeId<ast::Expression> {
-    match ctx.tree.get(expression_id) {
-        ast::Expression::Statement(inner) => *inner,
-        _ => expression_id,
-    }
 }
 
 #[cfg(test)]
