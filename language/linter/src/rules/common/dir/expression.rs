@@ -177,6 +177,26 @@ pub fn expression_static_string_literal(
     Some(*string)
 }
 
+/// Return one static regex literal pair as `(pattern, flags)`.
+pub fn expression_regex_literal(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<(StringId, Option<StringId>)> {
+    // normalize transparent wrappers first
+    let expression_id = expression_unwrap_transparent(tree, expression_id);
+    let expression = tree.get(expression_id);
+
+    // match direct regex literals
+    let dir::Expression::ScalarLiteral {
+        value: dir::ScalarLiteral::RegexString { content, flags },
+    } = expression
+    else {
+        return None;
+    };
+
+    Some((*content, *flags))
+}
+
 /// Return one static property access pair as `(left, property_name)`.
 pub fn expression_static_property_access(
     tree: &dir::NodeTree,
@@ -470,39 +490,312 @@ pub fn expression_unwrap_transparent(
     }
 }
 
+/// Return one parent expression id when the parent node is an expression.
+pub fn expression_parent_id(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    // resolve one parent node
+    let parent = tree.get_parent(expression_id.id)?;
+    if parent.ty != dir::NodeType::Expression {
+        return None;
+    }
+
+    // return one typed parent expression id
+    Some(parent.into_typed::<dir::Expression>())
+}
+
+/// Return true when one expression belongs to an async callable boundary.
+pub fn expression_is_inside_async_callable(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let mut current_parent_id = tree.get_parent(expression_id.id);
+
+    // walk ancestors until one callable boundary is reached
+    while let Some(parent_id) = current_parent_id {
+        let Some(asynchrony) = callable_boundary_asynchrony(tree, parent_id) else {
+            current_parent_id = tree.get_parent(parent_id.id);
+            continue;
+        };
+
+        return asynchrony == dir::Asynchrony::Async;
+    }
+
+    false
+}
+
+/// Return true when one expression is in an error handling context.
+pub fn expression_affects_error_handling_context(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let mut current_child_id = expression_id.into_any();
+    let mut current_parent_id = tree.get_parent(current_child_id.id);
+
+    // walk ancestors and keep try context semantics scoped per callable
+    while let Some(parent_id) = current_parent_id {
+        // stop at callable boundaries and keep context local
+        if callable_boundary_asynchrony(tree, parent_id).is_some() {
+            return false;
+        }
+
+        // inspect direct try ancestry for this child path
+        if parent_id.ty == dir::NodeType::Expression {
+            let parent_expression_id = parent_id.into_typed::<dir::Expression>();
+            let parent_expression = tree.get(parent_expression_id);
+            if let dir::Expression::Try {
+                try_expression,
+                catch_expression,
+                finally_expression,
+                ..
+            } = parent_expression
+            {
+                let try_context = try_context_from_direct_child(
+                    *try_expression,
+                    *catch_expression,
+                    *finally_expression,
+                    current_child_id,
+                );
+                match try_context {
+                    Some(TryContext::Try) => {
+                        return true;
+                    }
+                    Some(TryContext::Catch) => {
+                        if finally_expression.is_some() {
+                            return true;
+                        }
+
+                        current_child_id = parent_expression_id.into_any();
+                        current_parent_id = tree.get_parent(current_child_id.id);
+                        continue;
+                    }
+                    Some(TryContext::Finally) => {
+                        current_child_id = parent_expression_id.into_any();
+                        current_parent_id = tree.get_parent(current_child_id.id);
+                        continue;
+                    }
+                    None => {}
+                }
+            }
+        }
+
+        current_child_id = parent_id;
+        current_parent_id = tree.get_parent(current_child_id.id);
+    }
+
+    false
+}
+
+/// Return true when one expression is in a resource-management-sensitive context.
+pub fn expression_affects_resource_management_context(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let mut current_child_id = expression_id.into_any();
+    let mut current_parent_id = tree.get_parent(current_child_id.id);
+
+    // walk ancestors and keep resource context semantics scoped per callable
+    while let Some(parent_id) = current_parent_id {
+        // stop at callable boundaries and keep context local
+        if callable_boundary_asynchrony(tree, parent_id).is_some() {
+            return false;
+        }
+
+        // inspect enclosing blocks for earlier using declarations
+        if parent_id.ty == dir::NodeType::Block && current_child_id.ty == dir::NodeType::Expression
+        {
+            let block_id = parent_id.into_typed::<dir::Block>();
+            let block = tree.get(block_id);
+            let child_expression_id = current_child_id.into_typed::<dir::Expression>();
+            let child_index = block
+                .expressions
+                .iter()
+                .position(|expression_id| *expression_id == child_expression_id);
+
+            // report when a prior using declaration exists in this block scope
+            if let Some(child_index) = child_index {
+                let has_prior_using_declaration = block.expressions[..child_index]
+                    .iter()
+                    .copied()
+                    .any(|statement_expression_id| {
+                        expression_is_using_declaration(tree, statement_expression_id)
+                    });
+                if has_prior_using_declaration {
+                    return true;
+                }
+            }
+        }
+
+        current_child_id = parent_id;
+        current_parent_id = tree.get_parent(current_child_id.id);
+    }
+
+    false
+}
+
+/// One direct child try context classification.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TryContext {
+    /// The child belongs to the try branch.
+    Try,
+    /// The child belongs to the catch branch.
+    Catch,
+    /// The child belongs to the finally branch.
+    Finally,
+}
+
+/// Return the async marker for one callable boundary node.
+fn callable_boundary_asynchrony(
+    tree: &dir::NodeTree,
+    node_id: dir::LocalNodeIdAny,
+) -> Option<dir::Asynchrony> {
+    match node_id.ty {
+        dir::NodeType::Declaration => {
+            let declaration = tree.get(node_id.into_typed::<dir::Declaration>());
+            let dir::Declaration::Function { signature, .. } = declaration else {
+                return None;
+            };
+            Some(signature.asynchrony)
+        }
+        dir::NodeType::Member => {
+            let member = tree.get(node_id.into_typed::<dir::Member>());
+            let dir::Member::Method { signature, .. } = member else {
+                return None;
+            };
+            Some(signature.asynchrony)
+        }
+        dir::NodeType::Property => {
+            let property = tree.get(node_id.into_typed::<dir::Property>());
+            let dir::Property::Method { signature, .. } = property else {
+                return None;
+            };
+            Some(signature.asynchrony)
+        }
+        _ => None,
+    }
+}
+
+/// Return one direct try branch for a child node.
+fn try_context_from_direct_child(
+    try_expression_id: dir::LocalNodeId<dir::Expression>,
+    catch_expression_id: Option<dir::LocalNodeId<dir::Expression>>,
+    finally_expression_id: Option<dir::LocalNodeId<dir::Expression>>,
+    child_id: dir::LocalNodeIdAny,
+) -> Option<TryContext> {
+    // classify the direct try branch from expression ids
+    if child_id == try_expression_id.into_any() {
+        return Some(TryContext::Try);
+    }
+    if catch_expression_id.is_some_and(|id| child_id == id.into_any()) {
+        return Some(TryContext::Catch);
+    }
+    if finally_expression_id.is_some_and(|id| child_id == id.into_any()) {
+        return Some(TryContext::Finally);
+    }
+
+    None
+}
+
+/// Return true when one statement expression is a using declaration.
+fn expression_is_using_declaration(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let expression = tree.get(expression_id);
+
+    // match direct using declarations
+    if matches!(expression, dir::Expression::Using { .. }) {
+        return true;
+    }
+
+    // recurse through transparent statement wrappers
+    if let dir::Expression::Statement { statement } = expression {
+        return expression_is_using_declaration(tree, *statement);
+    }
+    if let dir::Expression::Parenthesized { expression } = expression {
+        return expression_is_using_declaration(tree, *expression);
+    }
+
+    false
+}
+
+/// Return the outermost transparent wrapper that still contains this expression.
+pub fn expression_outer_transparent_ancestor(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> dir::LocalNodeId<dir::Expression> {
+    // walk through transparent parent wrappers
+    let mut current_expression_id = expression_id;
+    loop {
+        let Some(parent_expression_id) = expression_parent_id(tree, current_expression_id) else {
+            return current_expression_id;
+        };
+
+        let parent_expression = tree.get(parent_expression_id);
+        if !expression_is_transparent_parent_of(parent_expression, current_expression_id) {
+            return current_expression_id;
+        }
+
+        current_expression_id = parent_expression_id;
+    }
+}
+
+/// Return true when the parent expression transparently wraps the child expression.
+fn expression_is_transparent_parent_of(
+    parent_expression: &dir::Expression,
+    child_expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    matches!(
+        parent_expression,
+        dir::Expression::Parenthesized { expression } if *expression == child_expression_id
+    ) || matches!(
+        parent_expression,
+        dir::Expression::Maybe { left } if *left == child_expression_id
+    ) || matches!(
+        parent_expression,
+        dir::Expression::Must { left } if *left == child_expression_id
+    ) || matches!(
+        parent_expression,
+        dir::Expression::Instantiation { left, .. } if *left == child_expression_id
+    ) || matches!(
+        parent_expression,
+        dir::Expression::Cast { value, .. } if *value == child_expression_id
+    ) || matches!(
+        parent_expression,
+        dir::Expression::OwnershipCast { value, .. } if *value == child_expression_id
+    ) || matches!(
+        parent_expression,
+        dir::Expression::ValueOf { right, .. } if *right == child_expression_id
+    ) || matches!(
+        parent_expression,
+        dir::Expression::ReferenceOf { right, .. } if *right == child_expression_id
+    ) || matches!(
+        parent_expression,
+        dir::Expression::PointerOf { right, .. } if *right == child_expression_id
+    )
+}
+
 /// Return the surrounding statement expression for a standalone expression.
 pub fn statement_expression_ancestor(
     tree: &dir::NodeTree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
-    // start from the target expression
-    let mut current_id = expression_id;
+    // normalize transparent wrappers before checking statement ownership
+    let outer_expression_id = expression_outer_transparent_ancestor(tree, expression_id);
 
-    // walk through parenthesized wrappers to one statement boundary
-    loop {
-        let parent = tree.get_parent(current_id.id)?;
-        if parent.ty != dir::NodeType::Expression {
-            return None;
-        }
+    // resolve one parent expression
+    let parent_expression_id = expression_parent_id(tree, outer_expression_id)?;
+    let parent_expression = tree.get(parent_expression_id);
 
-        let parent_id = parent.into_typed::<dir::Expression>();
-        let parent_expression = tree.get(parent_id);
-
-        if let dir::Expression::Parenthesized { expression } = parent_expression
-            && *expression == current_id
-        {
-            current_id = parent_id;
-            continue;
-        }
-
-        if let dir::Expression::Statement { statement } = parent_expression
-            && *statement == current_id
-        {
-            return Some(parent_id);
-        }
-
-        return None;
+    // return one statement wrapper parent
+    if let dir::Expression::Statement { statement } = parent_expression
+        && *statement == outer_expression_id
+    {
+        return Some(parent_expression_id);
     }
+
+    None
 }
 
 /// Return the enclosing statement span for a standalone expression.
@@ -519,7 +812,7 @@ pub fn statement_expression_span(
 
 /// Return true when an expression is a standalone statement value.
 ///
-/// This accepts parenthesized wrappers around the expression before the
+/// This accepts transparent wrappers around the expression before the
 /// surrounding statement node.
 pub fn expression_is_standalone_statement(
     tree: &dir::NodeTree,
@@ -1165,6 +1458,46 @@ pub struct MethodCallInfo {
     pub receiver_id: dir::LocalNodeId<dir::Expression>,
     /// The method name.
     pub method_name: StringId,
+}
+
+/// Info about one call-like expression (`call(...)` or `new call(...)`).
+#[derive(Debug, Clone, Copy)]
+pub struct CallLikeExpressionInfo<'a> {
+    /// The call target expression.
+    pub left: dir::LocalNodeId<dir::Expression>,
+    /// Optional static arguments.
+    pub static_arguments: Option<&'a [dir::LocalNodeId<dir::Argument>]>,
+    /// Dynamic arguments.
+    pub dynamic_arguments: &'a [dir::LocalNodeId<dir::Argument>],
+    /// Whether this expression is `new`.
+    pub is_new: bool,
+}
+
+/// Match one call-like expression and extract call target and arguments.
+pub fn expression_call_like(expression: &dir::Expression) -> Option<CallLikeExpressionInfo<'_>> {
+    match expression {
+        dir::Expression::Call {
+            left,
+            static_arguments,
+            dynamic_arguments,
+        } => Some(CallLikeExpressionInfo {
+            left: *left,
+            static_arguments: static_arguments.as_deref(),
+            dynamic_arguments,
+            is_new: false,
+        }),
+        dir::Expression::New {
+            left,
+            static_arguments,
+            dynamic_arguments,
+        } => Some(CallLikeExpressionInfo {
+            left: *left,
+            static_arguments: static_arguments.as_deref(),
+            dynamic_arguments,
+            is_new: true,
+        }),
+        _ => None,
+    }
 }
 
 /// Match a method call expression and extract its parts.

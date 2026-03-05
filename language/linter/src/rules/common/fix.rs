@@ -51,3 +51,23 @@ pub fn statement_prefix_span(span: Span, text: &str) -> Option<Span> {
         span.start + statement_length as u32,
     ))
 }
+
+/// Build a single quoted string literal with escaped control characters.
+pub fn single_quoted_string_literal(text: &str) -> String {
+    let mut escaped = String::new();
+    for character in text.chars() {
+        match character {
+            '\\' => escaped.push_str("\\\\"),
+            '\'' => escaped.push_str("\\'"),
+            '\0' => escaped.push_str("\\0"),
+            '\n' => escaped.push_str("\\n"),
+            '\r' => escaped.push_str("\\r"),
+            '\u{000B}' => escaped.push_str("\\v"),
+            '\u{000C}' => escaped.push_str("\\f"),
+            '\t' => escaped.push_str("\\t"),
+            _ => escaped.push(character),
+        }
+    }
+
+    format!("'{escaped}'")
+}

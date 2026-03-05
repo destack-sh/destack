@@ -31,6 +31,19 @@ pub fn match_selector_pattern_id(
     }
 }
 
+/// Return the guard expression id for a pattern selector.
+pub fn match_selector_guard_expression_id(
+    selector: &ast::MatchSelector,
+) -> Option<ast::LocalNodeId<ast::Expression>> {
+    match selector {
+        ast::MatchSelector::Pattern {
+            guard: Some(guard_id),
+            ..
+        } => Some(*guard_id),
+        _ => None,
+    }
+}
+
 /// Return the expression id when a selector is an expression pattern.
 pub fn match_selector_expression_id(
     ctx: &LintModuleAstContext<'_>,
