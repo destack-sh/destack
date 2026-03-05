@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use crate::query::{QueryExecutionMode, QueryMethodId};
 use destack_source::FileId;
 
 use super::WorkspaceHandleId;
@@ -55,6 +56,25 @@ pub enum LanguageServiceError {
     },
     /// The query expected revision is missing for mutating requests.
     MissingExpectedRevision,
+    /// The read query path received an unexpected revision precondition.
+    UnexpectedExpectedRevisionOnRead {
+        /// The unexpected revision carried on the request.
+        expected_revision: u64,
+    },
+    /// The query execution mode does not match the called API.
+    QueryExecutionModeMismatch {
+        /// The query method identifier.
+        method: QueryMethodId,
+        /// The expected query execution mode.
+        expected: QueryExecutionMode,
+        /// The actual query execution mode.
+        actual: QueryExecutionMode,
+    },
+    /// The query read path is blocked by an active workspace mutation.
+    QueryBusy {
+        /// The workspace handle that is currently mutating.
+        handle: WorkspaceHandleId,
+    },
     /// The query expected revision does not match the current workspace revision.
     StaleRevision {
         /// The caller expected revision.
@@ -129,6 +149,25 @@ impl std::fmt::Display for LanguageServiceError {
             }
             LanguageServiceError::MissingExpectedRevision => {
                 write!(formatter, "missing expected revision for mutating query")
+            }
+            LanguageServiceError::UnexpectedExpectedRevisionOnRead { expected_revision } => {
+                write!(
+                    formatter,
+                    "read query must not carry expected revision: {expected_revision}"
+                )
+            }
+            LanguageServiceError::QueryExecutionModeMismatch {
+                method,
+                expected,
+                actual,
+            } => {
+                write!(
+                    formatter,
+                    "query execution mode mismatch for {method:?}: expected {expected:?}, actual {actual:?}"
+                )
+            }
+            LanguageServiceError::QueryBusy { handle } => {
+                write!(formatter, "query busy for workspace handle: {handle:?}")
             }
             LanguageServiceError::StaleRevision { expected, current } => {
                 write!(

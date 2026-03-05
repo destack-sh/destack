@@ -30,7 +30,7 @@ impl LanguageService {
     pub fn analyze_path(&self, path: &Path) -> Result<AnalyzeOutcome, LanguageServiceError> {
         // resolve and lock the owning workspace handle
         let handle = self.workspace_handle_for_path(path)?;
-        let _compile_guard = handle.compile_lock.lock();
+        let _compile_guard = handle.enter_mutation();
         let program = handle.program.clone();
         let compiler = handle.compiler.clone();
 
@@ -366,7 +366,7 @@ fn merge_invalidation_plans(updates: &[ServiceUpdate]) -> InvalidationPlan {
         graphs_dropped.extend(update.invalidation.graphs_dropped.iter().copied());
     }
 
-    // preserve a stable fallback kind when no kinds are present
+    // preserve a stable default kind when no kinds are present
     if kinds.is_empty() {
         kinds.insert(InvalidationKind::Unknown);
     }

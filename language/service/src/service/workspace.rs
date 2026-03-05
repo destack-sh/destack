@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use destack_compiler::Compiler;
 use destack_source::{Diagnostic, File, FileContent, FileId, ModuleId};
 use destack_workspace::{InvalidationPlan, Program};
-use parking_lot::Mutex;
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use super::{
     FileSnapshot, LanguageServiceError, WorkspaceHandleId, WorkspaceMessage, WorkspaceMessageKind,
@@ -25,8 +25,10 @@ pub(super) struct WorkspaceHandle {
     pub(super) program: Arc<Program>,
     /// Compiler for this root.
     pub(super) compiler: Arc<Compiler>,
-    /// Serialize compilation per root.
-    pub(super) compile_lock: Mutex<()>,
+    /// Serialize mutations while allowing guarded read query access per root.
+    pub(super) compile_lock: RwLock<()>,
+    /// Track whether a writer is pending or active for this workspace.
+    mutation_intent: AtomicBool,
 }
 
 impl WorkspaceHandle {
@@ -43,7 +45,8 @@ impl WorkspaceHandle {
             revision: AtomicU64::new(1),
             program,
             compiler,
-            compile_lock: Mutex::new(()),
+            compile_lock: RwLock::new(()),
+            mutation_intent: AtomicBool::new(false),
         }
     }
 
@@ -55,6 +58,43 @@ impl WorkspaceHandle {
     /// Increment and return the semantic revision.
     pub(super) fn bump_revision(&self) -> u64 {
         self.revision.fetch_add(1, Ordering::Relaxed) + 1
+    }
+
+    /// Try entering a read query section for this workspace.
+    pub(super) fn try_enter_query(&self) -> Option<RwLockReadGuard<'_, ()>> {
+        // reject new readers when a writer is pending or active
+        if self.mutation_intent.load(Ordering::Acquire) {
+            return None;
+        }
+
+        self.compile_lock.try_read()
+    }
+
+    /// Enter a mutation section for this workspace.
+    pub(super) fn enter_mutation(&self) -> WorkspaceMutationGuard<'_> {
+        // block new readers before waiting for the write lock
+        self.mutation_intent.store(true, Ordering::Release);
+        let guard = self.compile_lock.write();
+
+        WorkspaceMutationGuard {
+            mutation_intent: &self.mutation_intent,
+            _guard: guard,
+        }
+    }
+}
+
+/// Guard for one active workspace mutation section.
+#[derive(Debug)]
+pub(super) struct WorkspaceMutationGuard<'a> {
+    /// Mutation-intent marker shared by the workspace handle.
+    mutation_intent: &'a AtomicBool,
+    /// Write lock guard for the mutation section.
+    _guard: RwLockWriteGuard<'a, ()>,
+}
+
+impl Drop for WorkspaceMutationGuard<'_> {
+    fn drop(&mut self) {
+        self.mutation_intent.store(false, Ordering::Release);
     }
 }
 

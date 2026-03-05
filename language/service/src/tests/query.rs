@@ -16,7 +16,7 @@ fn test_workspace_service_query_document_symbols() {
 
     let response = test
         .service
-        .execute_query_for_path(
+        .execute_read_query_for_path(
             &path,
             query::QueryRequest::DocumentSymbols(query::DocumentSymbolsRequest { uri }),
         )
@@ -73,7 +73,7 @@ fn test_workspace_service_query_requires_revision_for_mutation() {
     };
     let missing_error = test
         .service
-        .execute_query_envelope_for_path(&path, missing_revision)
+        .execute_write_query_envelope_for_path(&path, missing_revision)
         .expect_err("expected missing revision error");
     assert!(matches!(
         missing_error,
@@ -93,7 +93,7 @@ fn test_workspace_service_query_requires_revision_for_mutation() {
     };
     let stale_error = test
         .service
-        .execute_query_envelope_for_path(&path, stale_revision)
+        .execute_write_query_envelope_for_path(&path, stale_revision)
         .expect_err("expected stale revision error");
     assert!(matches!(
         stale_error,
@@ -109,6 +109,93 @@ fn test_workspace_service_query_requires_revision_for_mutation() {
     };
     let _ = test
         .service
-        .execute_query_envelope_for_path(&path, matching_revision)
+        .execute_write_query_envelope_for_path(&path, matching_revision)
         .expect("expected mutating query with matching revision");
+}
+
+/// Reject write queries on the read query API.
+#[test]
+fn test_workspace_service_read_query_rejects_write_execution_mode() {
+    let test = TestLanguageService::new("workspace_service_read_mode_mismatch");
+    let source = "export const value = 1;\n";
+    let path = test.write_text("main.ds", source);
+
+    let _ = test.update_virtual_text(&path, source);
+
+    let envelope = query::QueryRequestEnvelope {
+        expected_revision: None,
+        request: query::QueryRequest::RenameFiles(query::RenameFilesRequest {
+            renames: Vec::new(),
+        }),
+    };
+    let error = test
+        .service
+        .execute_read_query_envelope_for_path(&path, envelope)
+        .expect_err("expected read mode mismatch");
+    assert!(matches!(
+        error,
+        LanguageServiceError::QueryExecutionModeMismatch {
+            expected: query::QueryExecutionMode::Read,
+            actual: query::QueryExecutionMode::Write,
+            ..
+        }
+    ));
+}
+
+/// Reject expected revisions on read query APIs.
+#[test]
+fn test_workspace_service_read_query_rejects_expected_revision() {
+    let test = TestLanguageService::new("workspace_service_read_expected_revision");
+    let source = "export const value = 1;\n";
+    let path = test.write_text("main.ds", source);
+    let uri = test.uri_for_path(&path);
+
+    let _ = test.update_virtual_text(&path, source);
+
+    let envelope = query::QueryRequestEnvelope {
+        expected_revision: Some(1),
+        request: query::QueryRequest::DocumentSymbols(query::DocumentSymbolsRequest { uri }),
+    };
+    let error = test
+        .service
+        .execute_read_query_envelope_for_path(&path, envelope)
+        .expect_err("expected unexpected revision error");
+    assert!(matches!(
+        error,
+        LanguageServiceError::UnexpectedExpectedRevisionOnRead {
+            expected_revision: 1
+        }
+    ));
+}
+
+/// Return a busy error when a read query arrives during an active mutation guard.
+#[test]
+fn test_workspace_service_read_query_returns_busy_during_mutation() {
+    let test = TestLanguageService::new("workspace_service_read_busy");
+    let source = "export const value = 1;\n";
+    let path = test.write_text("main.ds", source);
+    let uri = test.uri_for_path(&path);
+
+    let _ = test.update_virtual_text(&path, source);
+
+    let query_error = test
+        .service
+        .with_workspace_handles_for_path(&path, |_program, _compiler| {
+            let envelope = query::QueryRequestEnvelope {
+                expected_revision: None,
+                request: query::QueryRequest::DocumentSymbols(query::DocumentSymbolsRequest {
+                    uri: uri.clone(),
+                }),
+            };
+
+            test.service
+                .execute_read_query_envelope_for_path(&path, envelope)
+                .expect_err("expected read query busy error")
+        })
+        .expect("expected mutation guard callback result");
+
+    assert!(matches!(
+        query_error,
+        LanguageServiceError::QueryBusy { .. }
+    ));
 }
