@@ -1,6 +1,6 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::host::Host;
 use crate::platform::resource;
-use crate::runtime::HookState;
 use crate::runtime::engine::{Engine, EngineContinuation, EngineOutcome, EngineOutput};
 use crate::runtime::poller::HostPoller;
 use crate::runtime::replay::{QueueEventKind, ReplayEvent, TaskQueue, TaskQueueEvent, TaskSubject};
@@ -17,25 +17,28 @@ impl Agent {
     /// Run an entrypoint through the event loop.
     pub fn run_entrypoint<E: Engine>(
         &mut self,
+        host: &Host,
         engine: &mut E,
         entry: &E::Entry,
         args: &[heap::Value],
     ) -> RuntimeResult<EngineOutput> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
-        self.run_entrypoint_with_poller(engine, entry, args, &mut poller)
+        self.run_entrypoint_with_host_and_poller(host, engine, entry, args, &mut poller)
     }
 
     /// Run an entrypoint through the event loop with one external poller.
-    pub(crate) fn run_entrypoint_with_poller<E: Engine>(
+    pub(crate) fn run_entrypoint_with_host_and_poller<E: Engine>(
         &mut self,
+        host: &Host,
         engine: &mut E,
         entry: &E::Entry,
         args: &[heap::Value],
         poller: &mut Option<Box<dyn HostPoller>>,
     ) -> RuntimeResult<EngineOutput> {
-        let runtime = self as *const Agent;
+        let agent_ptr = self as *const Agent;
         let event_loop = self.event_loop.as_ref() as *const _;
-        let _context_guard = enter_current_agent_context(runtime, event_loop);
+        let host_ptr = host as *const Host;
+        let _context_guard = enter_current_agent_context(agent_ptr, event_loop, host_ptr);
 
         // execute the entrypoint with yielding enabled
         let _guard = enter_event_loop_scope(EventLoopScope::empty());
@@ -52,7 +55,9 @@ impl Agent {
                 let task_id = self.event_loop.next_task_id();
                 self.enqueue_task(task_id, continuation, value)?;
 
-                self.run_loop_until_task_complete_with_poller(engine, task_id, poller)
+                self.run_loop_until_task_complete_with_host_and_poller(
+                    host, engine, task_id, poller,
+                )
             }
         }
     }
@@ -60,21 +65,29 @@ impl Agent {
     /// Run the loop until the specified task completes.
     pub fn run_loop_until_task_complete<E: Engine>(
         &mut self,
+        host: &Host,
         engine: &mut E,
         target_task: TaskId,
     ) -> RuntimeResult<EngineOutput> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
-        self.run_loop_until_task_complete_with_poller(engine, target_task, &mut poller)
+        self.run_loop_until_task_complete_with_host_and_poller(
+            host,
+            engine,
+            target_task,
+            &mut poller,
+        )
     }
 
     /// Run the loop until the specified task completes with one external poller.
-    pub(crate) fn run_loop_until_task_complete_with_poller<E: Engine>(
+    pub(crate) fn run_loop_until_task_complete_with_host_and_poller<E: Engine>(
         &mut self,
+        host: &Host,
         engine: &mut E,
         target_task: TaskId,
         poller: &mut Option<Box<dyn HostPoller>>,
     ) -> RuntimeResult<EngineOutput> {
-        let output = self.run_loop_until_task_complete_with_timeout_and_poller(
+        let output = self.run_loop_until_task_complete_with_timeout_and_host_and_poller(
+            host,
             engine,
             target_task,
             None,
@@ -91,12 +104,14 @@ impl Agent {
     /// Run the loop until the specified task completes or one timeout elapses.
     pub fn run_loop_until_task_complete_with_timeout<E: Engine>(
         &mut self,
+        host: &Host,
         engine: &mut E,
         target_task: TaskId,
         timeout_nanos: Option<u64>,
     ) -> RuntimeResult<Option<EngineOutput>> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
-        self.run_loop_until_task_complete_with_timeout_and_poller(
+        self.run_loop_until_task_complete_with_timeout_and_host_and_poller(
+            host,
             engine,
             target_task,
             timeout_nanos,
@@ -105,22 +120,23 @@ impl Agent {
     }
 
     /// Run the loop until one task completes or one timeout elapses with one external poller.
-    pub(crate) fn run_loop_until_task_complete_with_timeout_and_poller<E: Engine>(
+    pub(crate) fn run_loop_until_task_complete_with_timeout_and_host_and_poller<E: Engine>(
         &mut self,
+        host: &Host,
         engine: &mut E,
         target_task: TaskId,
         timeout_nanos: Option<u64>,
         poller: &mut Option<Box<dyn HostPoller>>,
     ) -> RuntimeResult<Option<EngineOutput>> {
         // capture one monotonic start timestamp for timeout accounting
-        let start_mono_nanos = self.world.clock().mono_nanos();
+        let start_mono_nanos = self.world().clock().mono_nanos();
 
         // run the loop until the target task completes
         loop {
             // stop once the configured timeout elapses
             if let Some(timeout_nanos) = timeout_nanos {
                 let elapsed = self
-                    .world
+                    .world()
                     .clock()
                     .mono_nanos()
                     .saturating_sub(start_mono_nanos);
@@ -130,7 +146,7 @@ impl Agent {
             }
 
             // run one loop tick for the engine
-            let (progressed, output) = self.tick_loop(engine, Some(target_task), poller)?;
+            let (progressed, output) = self.tick_loop(host, engine, Some(target_task), poller)?;
             if let Some(output) = output {
                 return Ok(Some(output));
             }
@@ -138,7 +154,7 @@ impl Agent {
             // wait for the next wakeup when no work progressed this tick
             if !progressed
                 && self.event_loop.has_pending_work()
-                && self.wait_for_next_turn(poller)?
+                && self.wait_for_next_turn(host, poller)?
             {
                 continue;
             }
@@ -154,19 +170,20 @@ impl Agent {
     }
 
     /// Run runtime ticks until no work remains.
-    pub fn tick_until_idle<E: Engine>(&mut self, engine: &mut E) -> RuntimeResult<()> {
+    pub fn tick_until_idle<E: Engine>(&mut self, host: &Host, engine: &mut E) -> RuntimeResult<()> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
-        self.tick_until_idle_with_poller(engine, &mut poller)
+        self.tick_until_idle_with_host_and_poller(host, engine, &mut poller)
     }
 
     /// Run runtime ticks until no work remains with one external poller.
-    pub(crate) fn tick_until_idle_with_poller<E: Engine>(
+    pub(crate) fn tick_until_idle_with_host_and_poller<E: Engine>(
         &mut self,
+        host: &Host,
         engine: &mut E,
         poller: &mut Option<Box<dyn HostPoller>>,
     ) -> RuntimeResult<()> {
         loop {
-            let progressed = self.tick_once_with_poller(engine, poller)?;
+            let progressed = self.tick_once_with_host_and_poller(host, engine, poller)?;
             if !progressed {
                 break;
             }
@@ -176,19 +193,20 @@ impl Agent {
     }
 
     /// Execute one runtime tick.
-    pub fn tick_once<E: Engine>(&mut self, engine: &mut E) -> RuntimeResult<bool> {
+    pub fn tick_once<E: Engine>(&mut self, host: &Host, engine: &mut E) -> RuntimeResult<bool> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
-        self.tick_once_with_poller(engine, &mut poller)
+        self.tick_once_with_host_and_poller(host, engine, &mut poller)
     }
 
     /// Execute one runtime tick with one external poller.
-    pub(crate) fn tick_once_with_poller<E: Engine>(
+    pub(crate) fn tick_once_with_host_and_poller<E: Engine>(
         &mut self,
+        host: &Host,
         engine: &mut E,
         poller: &mut Option<Box<dyn HostPoller>>,
     ) -> RuntimeResult<bool> {
         // run one event loop tick and capture progress
-        let (mut progressed, _) = self.tick_loop(engine, None, poller)?;
+        let (mut progressed, _) = self.tick_loop(host, engine, None, poller)?;
 
         // run one gc cycle when pacing says a cycle is due
         if self.heap.should_collect() {
@@ -202,31 +220,34 @@ impl Agent {
     /// Tick the loop once and return output for the target task.
     pub fn tick_loop_once<E: Engine>(
         &mut self,
+        host: &Host,
         engine: &mut E,
         target_task: TaskId,
     ) -> RuntimeResult<Option<EngineOutput>> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
-        let (_, output) = self.tick_loop(engine, Some(target_task), &mut poller)?;
+        let (_, output) = self.tick_loop(host, engine, Some(target_task), &mut poller)?;
         Ok(output)
     }
 
     /// Tick the loop once and return progress and optional target output.
     fn tick_loop<E: Engine>(
         &mut self,
+        host: &Host,
         engine: &mut E,
         target_task: Option<TaskId>,
         poller: &mut Option<Box<dyn HostPoller>>,
     ) -> RuntimeResult<(bool, Option<EngineOutput>)> {
-        let runtime = self as *const Agent;
+        let agent_ptr = self as *const Agent;
         let event_loop = self.event_loop.as_ref() as *const _;
-        let _context_guard = enter_current_agent_context(runtime, event_loop);
+        let host_ptr = host as *const Host;
+        let _context_guard = enter_current_agent_context(agent_ptr, event_loop, host_ptr);
 
         // track whether this tick processed any event loop work
         let mut progressed = false;
-        let tick_start_mono_nanos = self.world.clock().mono_nanos();
+        let tick_start_mono_nanos = self.world().clock().mono_nanos();
 
         // poll host events before poller events
-        let host_event_count = self.poll_host_events(Some(0))?;
+        let host_event_count = self.poll_host_events(host, Some(0))?;
         if host_event_count > 0 {
             progressed = true;
             self.emit_host_event_enqueue_hooks(host_event_count);
@@ -259,8 +280,8 @@ impl Agent {
         }
 
         // run the next scheduled item if available
-        let wall_now = self.world.clock().wall_nanos();
-        let mono_now = self.world.clock().mono_nanos();
+        let wall_now = self.world().clock().wall_nanos();
+        let mono_now = self.world().clock().mono_nanos();
         let max_microtask_depth = self
             .event_loop
             .options()
@@ -278,21 +299,15 @@ impl Agent {
                     }
                 }
                 Runnable::Microtask(microtask) => {
-                    self.hooks.on_scheduler_dequeue(HookState {
-                        microtask_id: Some(microtask.id),
-                        ..HookState::empty()
-                    });
+                    self.hooks.on_scheduler_dequeue();
                     // run the microtask to completion
                     self.execute_microtask(engine, microtask, max_microtask_depth)?;
                 }
                 Runnable::Timer(timer) => {
-                    self.hooks.on_scheduler_timer_fire(HookState {
-                        resource_id: Some(timer.handle),
-                        ..HookState::empty()
-                    });
+                    self.hooks.on_scheduler_timer_fire();
                     let should_dispatch = crate::runtime::time::timer::on_event_loop_timer_fire(
                         &self.resources,
-                        self.world.clock(),
+                        self.world().clock(),
                         resource::TimerHandle(timer.handle),
                     )?;
                     if should_dispatch {
@@ -376,10 +391,7 @@ impl Agent {
             TaskQueue::Macrotask,
             QueueEventKind::Dequeue,
         )?;
-        self.hooks.on_scheduler_dequeue(HookState {
-            task_id: Some(task.id),
-            ..HookState::empty()
-        });
+        self.hooks.on_scheduler_dequeue();
 
         self.execute_task(engine, task, target_task)
     }
@@ -438,12 +450,8 @@ impl Agent {
         )?;
 
         // enqueue the task into the event loop
-        let task_id = task.id;
         self.event_loop.enqueue_task(task);
-        self.hooks.on_scheduler_enqueue(HookState {
-            task_id: Some(task_id),
-            ..HookState::empty()
-        });
+        self.hooks.on_scheduler_enqueue();
 
         Ok(())
     }
@@ -522,10 +530,7 @@ impl Agent {
                 TaskQueue::Microtask,
                 QueueEventKind::Dequeue,
             )?;
-            self.hooks.on_scheduler_dequeue(HookState {
-                microtask_id: Some(microtask.id),
-                ..HookState::empty()
-            });
+            self.hooks.on_scheduler_dequeue();
             self.execute_microtask(engine, microtask, max_microtask_depth)?;
             num_drained_microtasks = num_drained_microtasks.saturating_add(1);
         }
@@ -559,7 +564,7 @@ impl Agent {
             sequence,
         });
 
-        self.world.replay().record_event(event)?;
+        self.world().replay().record_event(event)?;
 
         Ok(())
     }
@@ -567,22 +572,23 @@ impl Agent {
     /// Wait for one scheduler wakeup when the loop has pending but not-ready work.
     fn wait_for_next_turn(
         &mut self,
+        host: &Host,
         poller: &mut Option<Box<dyn HostPoller>>,
     ) -> RuntimeResult<bool> {
         // virtual mode never blocks: callers must advance virtual time explicitly
-        if self.world.clock().mode() == TimeMode::Virtual {
+        if self.world().clock().mode() == TimeMode::Virtual {
             return Ok(false);
         }
 
         // compute one timeout from the next scheduled timer deadline
-        let wall_now_nanos = self.world.clock().wall_nanos();
-        let mono_now_nanos = self.world.clock().mono_nanos();
+        let wall_now_nanos = self.world().clock().wall_nanos();
+        let mono_now_nanos = self.world().clock().mono_nanos();
         let timeout_nanos = self
             .event_loop
             .timeout_until_next_timer(wall_now_nanos, mono_now_nanos);
 
         // poll host events before blocking or sleeping
-        let host_event_count = self.poll_host_events(Some(0))?;
+        let host_event_count = self.poll_host_events(host, Some(0))?;
         if host_event_count > 0 {
             self.emit_host_event_enqueue_hooks(host_event_count);
 
@@ -604,7 +610,7 @@ impl Agent {
         // otherwise wait for the next timer deadline when one is scheduled
         if let Some(timeout_nanos) = timeout_nanos {
             if timeout_nanos > 0 {
-                self.world.clock().sleep_nanos(timeout_nanos);
+                self.world().clock().sleep_nanos(timeout_nanos);
             }
 
             return Ok(true);
@@ -614,9 +620,13 @@ impl Agent {
     }
 
     /// Poll host events and enqueue host semantic events.
-    fn poll_host_events(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<usize> {
+    fn poll_host_events(
+        &mut self,
+        host: &Host,
+        timeout_nanos: Option<u64>,
+    ) -> RuntimeResult<usize> {
         // drain host events for this tick
-        let poll_result = self.host.poll_events(timeout_nanos)?;
+        let poll_result = host.poll_events(timeout_nanos)?;
         let host_events = poll_result.events;
 
         // record dropped host queue events from host-side queue policy
@@ -639,7 +649,7 @@ impl Agent {
     /// Emit one host-event enqueue hook per enqueued external event.
     fn emit_host_event_enqueue_hooks(&self, count: usize) {
         for _ in 0..count {
-            self.hooks.on_host_event_enqueue(HookState::empty());
+            self.hooks.on_host_event_enqueue();
         }
     }
 
@@ -649,7 +659,7 @@ impl Agent {
             return false;
         };
 
-        let now = self.world.clock().mono_nanos();
+        let now = self.world().clock().mono_nanos();
         now.saturating_sub(tick_start_mono_nanos) >= tick_budget_nanos
     }
 }

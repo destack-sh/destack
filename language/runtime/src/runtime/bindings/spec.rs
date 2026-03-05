@@ -54,7 +54,7 @@ impl BindingEffectClass {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BindingReplayKind {
     /// Record a generic binding call payload.
-    Regular,
+    BindingCall,
     /// Record a time event with a specific kind.
     Time(TimeEventKind),
     /// Record a random event with a specific kind.
@@ -377,7 +377,7 @@ impl BindingDescriptor {
             signature,
             codec,
             effect_class,
-            BindingReplayKind::Regular,
+            BindingReplayKind::BindingCall,
             BindingReplayPayload::Results,
             requires,
         )
@@ -435,7 +435,7 @@ impl BindingDescriptor {
             signature,
             CODEC_POSTCARD_V1,
             BindingEffectClass::Pure,
-            BindingReplayKind::Regular,
+            BindingReplayKind::BindingCall,
             BindingReplayPayload::Results,
             requires,
             scope,
@@ -476,7 +476,7 @@ impl BindingDescriptor {
             signature,
             CODEC_POSTCARD_V1,
             BindingEffectClass::Deterministic,
-            BindingReplayKind::Regular,
+            BindingReplayKind::BindingCall,
             BindingReplayPayload::Results,
             requires,
             scope,

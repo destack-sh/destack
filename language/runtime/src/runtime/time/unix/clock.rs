@@ -6,11 +6,15 @@ use std::mem::MaybeUninit;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::time::{ClockId, ClockMetadata, ClockSource};
 use crate::platform::{PlatformError, core as core_platform};
-#[cfg(not(any(target_os = "linux", target_os = "android")))]
-use crate::runtime::time::core as time_core;
 
 /// Number of nanoseconds in one second.
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
+
+/// Return one unsupported host-operation error.
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+fn unsupported_host_operation_error(operation: &str) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::not_supported(operation)).boxed()
+}
 
 /// Convert one libc timespec into a saturated nanosecond value.
 fn timespec_to_nanos(spec: libc::timespec, field: &str) -> RuntimeResult<u64> {
@@ -107,7 +111,7 @@ fn process_cpu_nanos() -> RuntimeResult<u64> {
         target_os = "solaris"
     )))]
     {
-        Err(time_core::unsupported_host_operation_error(
+        Err(unsupported_host_operation_error(
             "runtime.time.host.clock.process_cpu_nanos",
         ))
     }
@@ -140,7 +144,7 @@ fn thread_cpu_nanos() -> RuntimeResult<u64> {
         target_os = "solaris"
     )))]
     {
-        Err(time_core::unsupported_host_operation_error(
+        Err(unsupported_host_operation_error(
             "runtime.time.host.clock.thread_cpu_nanos",
         ))
     }
@@ -155,7 +159,7 @@ fn boot_nanos() -> RuntimeResult<u64> {
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
-        Err(time_core::unsupported_host_operation_error(
+        Err(unsupported_host_operation_error(
             "runtime.time.host.clock.now_nanos",
         ))
     }
@@ -170,7 +174,7 @@ fn monotonic_raw_nanos() -> RuntimeResult<u64> {
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
-        Err(time_core::unsupported_host_operation_error(
+        Err(unsupported_host_operation_error(
             "runtime.time.host.clock.now_nanos",
         ))
     }
@@ -203,7 +207,7 @@ fn process_cpu_resolution() -> RuntimeResult<u64> {
         target_os = "solaris"
     )))]
     {
-        Err(time_core::unsupported_host_operation_error(
+        Err(unsupported_host_operation_error(
             "runtime.time.host.clock.info",
         ))
     }
@@ -236,7 +240,7 @@ fn thread_cpu_resolution() -> RuntimeResult<u64> {
         target_os = "solaris"
     )))]
     {
-        Err(time_core::unsupported_host_operation_error(
+        Err(unsupported_host_operation_error(
             "runtime.time.host.clock.info",
         ))
     }
@@ -251,7 +255,7 @@ fn boot_resolution() -> RuntimeResult<u64> {
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
-        Err(time_core::unsupported_host_operation_error(
+        Err(unsupported_host_operation_error(
             "runtime.time.host.clock.info",
         ))
     }
@@ -266,7 +270,7 @@ fn monotonic_raw_resolution() -> RuntimeResult<u64> {
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
-        Err(time_core::unsupported_host_operation_error(
+        Err(unsupported_host_operation_error(
             "runtime.time.host.clock.info",
         ))
     }

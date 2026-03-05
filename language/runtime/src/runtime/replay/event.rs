@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use crate::platform::ResourceId;
 use crate::runtime::bindings::{BindingId, CodecId};
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::scheduler::{MicrotaskId, TaskId};
@@ -16,8 +15,11 @@ pub enum ReplayEvent {
     RandomEvent(RandomEvent),
     /// External binding call and result.
     BindingCall(BindingCallEvent),
-    /// External resource attach or detach.
-    ResourceEvent(ResourceEvent),
+    /// Application of one world command.
+    WorldCommand {
+        /// Encoded world command payload.
+        payload: Vec<u8>,
+    },
     /// Checkpoint marker for snapshot references.
     Checkpoint(CheckpointEvent),
     /// Branch marker for replaying from checkpoints.
@@ -217,41 +219,6 @@ pub struct BindingCallEvent {
     pub codec: CodecId,
     /// Encoded payload for replay.
     pub payload: Vec<u8>,
-}
-
-/// External resource event captured for replay.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ResourceEvent {
-    /// Resource identifier.
-    pub resource_id: ResourceId,
-    /// Resource kind descriptor.
-    pub kind: ResourceKind,
-    /// Resource event kind.
-    pub action: ResourceEventKind,
-}
-
-/// Resource kind descriptor.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum ResourceKind {
-    /// Unknown or opaque resource type.
-    Unknown,
-    /// File or directory handle.
-    File,
-    /// Network socket.
-    Socket,
-    /// Process handle.
-    Process,
-    /// Timer handle.
-    Timer,
-}
-
-/// Resource event kind captured for replay.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum ResourceEventKind {
-    /// Resource was attached to the runtime.
-    Attach,
-    /// Resource was detached from the runtime.
-    Detach,
 }
 
 /// Checkpoint event for snapshot references.

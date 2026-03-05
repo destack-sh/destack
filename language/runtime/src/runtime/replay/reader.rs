@@ -5,9 +5,9 @@ use parking_lot::Mutex;
 use super::{LogSequence, ReplayEvent, ReplayTrailer};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::replay::codec::decode_event;
-use crate::runtime::replay::log::{
-    ReplayChunk, ReplayLogState, compute_chunk_checksum, compute_log_hash,
-};
+use crate::runtime::replay::log::{ReplayLogState, compute_log_hash};
+
+use super::chunk::ReplayChunk;
 
 /// Replay reader interface for deterministic replay.
 pub trait ReplayReader {
@@ -22,6 +22,8 @@ struct ReplayCursor {
     read_chunk: usize,
     /// Current event index inside the chunk.
     read_index: usize,
+    /// Current byte offset inside the chunk payload.
+    read_offset: usize,
     /// Next expected sequence number.
     next_sequence: LogSequence,
     /// Last chunk index that was validated.
@@ -66,6 +68,7 @@ impl ReplayLogReader {
             cursor: Mutex::new(ReplayCursor {
                 read_chunk: 0,
                 read_index: 0,
+                read_offset: 0,
                 next_sequence,
                 validated_chunk: None,
             }),
@@ -98,7 +101,7 @@ impl ReplayLogReader {
                 validate_chunk(chunk, state.trailer())?;
                 cursor.validated_chunk = Some(chunk_index);
             }
-            if cursor.read_index < chunk.events.len() {
+            if cursor.read_index < chunk.event_lengths.len() {
                 let sequence = cursor.next_sequence;
                 if cursor.read_index == 0 && chunk.header.sequence_start != sequence {
                     return Err(RuntimeError::ReplayMismatch {
@@ -107,9 +110,9 @@ impl ReplayLogReader {
                     .boxed());
                 }
 
-                let entry = chunk.events[cursor.read_index];
-                let start = entry.offset as usize;
-                let end = start + entry.length as usize;
+                let event_length = chunk.event_lengths[cursor.read_index] as usize;
+                let start = cursor.read_offset;
+                let end = start + event_length;
                 let encoded = &chunk.data[start..end];
                 let event = decode_event(encoded).map_err(|_| {
                     RuntimeError::ReplayDecodeFailed {
@@ -117,7 +120,7 @@ impl ReplayLogReader {
                     }
                     .boxed()
                 })?;
-                if cursor.read_index + 1 == chunk.events.len()
+                if cursor.read_index + 1 == chunk.event_lengths.len()
                     && chunk.header.sequence_end != sequence
                 {
                     return Err(RuntimeError::ReplayMismatch {
@@ -126,6 +129,7 @@ impl ReplayLogReader {
                     .boxed());
                 }
                 cursor.read_index += 1;
+                cursor.read_offset = end;
                 cursor.next_sequence = sequence.next();
                 return Ok(Some(event));
             }
@@ -133,6 +137,7 @@ impl ReplayLogReader {
             // move to the next chunk
             cursor.read_chunk += 1;
             cursor.read_index = 0;
+            cursor.read_offset = 0;
         }
 
         Ok(None)
@@ -147,7 +152,7 @@ impl ReplayReader for ReplayLogReader {
 
 /// Validate chunk integrity against stored metadata.
 fn validate_chunk(chunk: &ReplayChunk, trailer: &ReplayTrailer) -> RuntimeResult<()> {
-    if chunk.header.event_count as usize != chunk.events.len() {
+    if chunk.header.event_count as usize != chunk.event_lengths.len() {
         return Err(RuntimeError::ReplayMismatch {
             name: "chunk_events".to_string(),
         }
@@ -159,7 +164,19 @@ fn validate_chunk(chunk: &ReplayChunk, trailer: &ReplayTrailer) -> RuntimeResult
         }
         .boxed());
     }
-    let checksum = compute_chunk_checksum(&chunk.data);
+    let total_event_bytes: usize = chunk
+        .event_lengths
+        .iter()
+        .map(|value| *value as usize)
+        .sum();
+    if total_event_bytes != chunk.data.len() {
+        return Err(RuntimeError::ReplayMismatch {
+            name: "chunk_offsets".to_string(),
+        }
+        .boxed());
+    }
+
+    let checksum = chunk.payload_checksum();
     if checksum != chunk.header.checksum {
         return Err(RuntimeError::ReplayMismatch {
             name: "chunk_checksum".to_string(),

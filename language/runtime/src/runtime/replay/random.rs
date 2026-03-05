@@ -3,15 +3,23 @@ use crate::runtime::random::RandomStreamId;
 use crate::runtime::replay::{RandomEvent, RandomEventKind, ReplayController, ReplayEvent};
 use destack_workspace::ExecutionMode;
 
+/// Replay channel name for random events.
+const RANDOM_CHANNEL: &str = "random";
+
+/// Return one replay mismatch error for the random channel.
+fn random_mismatch_error() -> Box<RuntimeError> {
+    RuntimeError::ReplayMismatch {
+        name: RANDOM_CHANNEL.to_string(),
+    }
+    .boxed()
+}
+
 impl ReplayController {
     /// Read the next random event for replay.
     pub fn next_random_event(&self, expected: RandomEventKind) -> RuntimeResult<RandomEvent> {
         // reject reads outside replay execution
         if self.mode() != ExecutionMode::Replay {
-            return Err(RuntimeError::ReplayMismatch {
-                name: "random".to_string(),
-            }
-            .boxed());
+            return Err(random_mismatch_error());
         }
 
         // read the next event from the log
@@ -22,18 +30,12 @@ impl ReplayController {
 
         // validate the random event
         let ReplayEvent::RandomEvent(random_event) = event else {
-            return Err(RuntimeError::ReplayMismatch {
-                name: "random".to_string(),
-            }
-            .boxed());
+            return Err(random_mismatch_error());
         };
 
         // validate the random event kind
         if random_event.kind != expected {
-            return Err(RuntimeError::ReplayMismatch {
-                name: "random".to_string(),
-            }
-            .boxed());
+            return Err(random_mismatch_error());
         }
 
         Ok(random_event)
@@ -44,40 +46,38 @@ impl ReplayController {
     where
         Call: FnOnce() -> RuntimeResult<u64>,
     {
-        // fast path
-        if !cfg!(feature = "replay") || self.mode() == ExecutionMode::Fast {
-            return call();
-        }
+        let mode = self.mode();
 
-        // replay path
-        if self.mode() == ExecutionMode::Replay {
-            let event = self.next_random_event(RandomEventKind::NextU64)?;
-            if event.stream_id != stream_id {
-                return Err(RuntimeError::ReplayMismatch {
-                    name: "random".to_string(),
+        match mode {
+            // fast and deterministic modes execute directly
+            ExecutionMode::Fast | ExecutionMode::Deterministic => call(),
+            // replay mode decodes one recorded u64 sample
+            ExecutionMode::Replay => {
+                let event = self.next_random_event(RandomEventKind::NextU64)?;
+                if event.stream_id != stream_id {
+                    return Err(random_mismatch_error());
                 }
-                .boxed());
+
+                let bytes: [u8; 8] = event
+                    .bytes
+                    .as_slice()
+                    .try_into()
+                    .map_err(|_| random_mismatch_error())?;
+
+                Ok(u64::from_le_bytes(bytes))
             }
-            let bytes: [u8; 8] = event.bytes.as_slice().try_into().map_err(|_| {
-                RuntimeError::ReplayMismatch {
-                    name: "random".to_string(),
-                }
-                .boxed()
-            })?;
-            return Ok(u64::from_le_bytes(bytes));
-        }
+            // record mode executes and records one u64 sample
+            ExecutionMode::Record => {
+                let value = call()?;
+                self.record_event(ReplayEvent::RandomEvent(RandomEvent {
+                    stream_id,
+                    kind: RandomEventKind::NextU64,
+                    bytes: value.to_le_bytes().to_vec(),
+                }))?;
 
-        // record path
-        let value = call()?;
-        if self.mode() == ExecutionMode::Record {
-            self.record_event(ReplayEvent::RandomEvent(RandomEvent {
-                stream_id,
-                kind: RandomEventKind::NextU64,
-                bytes: value.to_le_bytes().to_vec(),
-            }))?;
+                Ok(value)
+            }
         }
-
-        Ok(value)
     }
 
     /// Run a random binding that allocates a stream.
@@ -85,34 +85,32 @@ impl ReplayController {
     where
         Call: FnOnce() -> RuntimeResult<u64>,
     {
-        // fast path
-        if !cfg!(feature = "replay") || self.mode() == ExecutionMode::Fast {
-            return call();
-        }
+        let mode = self.mode();
 
-        // replay path
-        if self.mode() == ExecutionMode::Replay {
-            let event = self.next_random_event(RandomEventKind::Stream)?;
-            if !event.bytes.is_empty() {
-                return Err(RuntimeError::ReplayMismatch {
-                    name: "random".to_string(),
+        match mode {
+            // fast and deterministic modes execute directly
+            ExecutionMode::Fast | ExecutionMode::Deterministic => call(),
+            // replay mode decodes one recorded stream allocation
+            ExecutionMode::Replay => {
+                let event = self.next_random_event(RandomEventKind::Stream)?;
+                if !event.bytes.is_empty() {
+                    return Err(random_mismatch_error());
                 }
-                .boxed());
+
+                Ok(event.stream_id.get())
             }
-            return Ok(event.stream_id.get());
-        }
+            // record mode executes and records one stream allocation
+            ExecutionMode::Record => {
+                let value = call()?;
+                self.record_event(ReplayEvent::RandomEvent(RandomEvent {
+                    stream_id: RandomStreamId::new(value),
+                    kind: RandomEventKind::Stream,
+                    bytes: Vec::new(),
+                }))?;
 
-        // record path
-        let value = call()?;
-        if self.mode() == ExecutionMode::Record {
-            self.record_event(ReplayEvent::RandomEvent(RandomEvent {
-                stream_id: RandomStreamId::new(value),
-                kind: RandomEventKind::Stream,
-                bytes: Vec::new(),
-            }))?;
+                Ok(value)
+            }
         }
-
-        Ok(value)
     }
 
     /// Run a random binding that yields or fills bytes.
@@ -128,34 +126,33 @@ impl ReplayController {
         Encode: FnOnce() -> RuntimeResult<Vec<u8>>,
         Decode: FnOnce(Vec<u8>) -> RuntimeResult<()>,
     {
-        // fast path
-        if !cfg!(feature = "replay") || self.mode() == ExecutionMode::Fast {
-            return call();
-        }
+        let mode = self.mode();
 
-        // replay path
-        if self.mode() == ExecutionMode::Replay {
-            let event = self.next_random_event(RandomEventKind::Bytes)?;
-            if event.stream_id != stream_id {
-                return Err(RuntimeError::ReplayMismatch {
-                    name: "random".to_string(),
+        match mode {
+            // fast and deterministic modes execute directly
+            ExecutionMode::Fast | ExecutionMode::Deterministic => call(),
+            // replay mode decodes one recorded byte payload
+            ExecutionMode::Replay => {
+                let event = self.next_random_event(RandomEventKind::Bytes)?;
+                if event.stream_id != stream_id {
+                    return Err(random_mismatch_error());
                 }
-                .boxed());
+
+                decode(event.bytes)
             }
-            return decode(event.bytes);
-        }
+            // record mode executes and records one byte payload
+            ExecutionMode::Record => {
+                call()?;
 
-        // record path
-        call()?;
-        if self.mode() == ExecutionMode::Record {
-            let bytes = encode()?;
-            self.record_event(ReplayEvent::RandomEvent(RandomEvent {
-                stream_id,
-                kind: RandomEventKind::Bytes,
-                bytes,
-            }))?;
-        }
+                let bytes = encode()?;
+                self.record_event(ReplayEvent::RandomEvent(RandomEvent {
+                    stream_id,
+                    kind: RandomEventKind::Bytes,
+                    bytes,
+                }))?;
 
-        Ok(())
+                Ok(())
+            }
+        }
     }
 }

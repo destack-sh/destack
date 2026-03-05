@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Simulation state for runtime-backed and OS-backed simulation worlds.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct Simulation {
     /// Simulation schema version.
     pub version: u32,
@@ -20,25 +20,25 @@ pub struct Simulation {
 }
 
 /// Simulation clock subsystem state.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SimulationClockState {}
 
 /// Simulation random subsystem state.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SimulationRandomState {}
 
 /// Simulation event loop subsystem state.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SimulationEventLoopState {}
 
 /// Simulation filesystem subsystem state.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SimulationFsState {}
 
 /// Simulation network subsystem state.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SimulationNetState {}
 
 /// Simulation process subsystem state.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SimulationProcessState {}

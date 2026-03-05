@@ -1,7 +1,7 @@
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
 use crate::platform::time::{ClockId, ClockMetadata, ClockSource, SleepClock};
-use crate::runtime::time::core as time_core;
-use crate::runtime::{BindingCallContext, HookState};
+use crate::runtime::BindingCallContext;
 
 #[cfg(unix)]
 #[path = "../unix/mod.rs"]
@@ -52,6 +52,11 @@ fn virtual_clock_metadata(clock: ClockId) -> Option<ClockMetadata> {
     }
 }
 
+/// Return one invalid-pointer error.
+fn null_pointer_error(field: &str) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::null_pointer(field)).boxed()
+}
+
 /// Query one selected clock metadata.
 pub(crate) unsafe fn host_clock_metadata(
     context: &BindingCallContext,
@@ -60,11 +65,11 @@ pub(crate) unsafe fn host_clock_metadata(
 ) -> RuntimeResult<()> {
     // validate the output pointer
     if out.is_null() {
-        return Err(time_core::null_pointer_error("out"));
+        return Err(null_pointer_error("out"));
     }
 
     // route metadata reads through runtime policy and host backend
-    let info = if time_core::is_virtual_clock(context) {
+    let info = if context.is_virtual_clock() {
         virtual_clock_metadata(clock).unwrap_or(host_time::host_clock_metadata(clock)?)
     } else {
         host_time::host_clock_metadata(clock)?
@@ -85,11 +90,11 @@ pub(crate) unsafe fn host_mono_nanos(
 ) -> RuntimeResult<()> {
     // validate the output pointer
     if out.is_null() {
-        return Err(time_core::null_pointer_error("out"));
+        return Err(null_pointer_error("out"));
     }
 
     // read monotonic time from the runtime clock service
-    let value = time_core::runtime_mono_nanos(context);
+    let value = context.mono_nanos();
 
     // write the monotonic timestamp
     unsafe {
@@ -107,18 +112,18 @@ pub(crate) unsafe fn host_now_nanos(
 ) -> RuntimeResult<()> {
     // validate the output pointer
     if out.is_null() {
-        return Err(time_core::null_pointer_error("out"));
+        return Err(null_pointer_error("out"));
     }
 
     // route the selected clock through runtime policy and host backend
     let value = match clock {
-        ClockId::Wall => time_core::runtime_wall_nanos(context),
-        ClockId::Monotonic => time_core::runtime_mono_nanos(context),
+        ClockId::Wall => context.wall_nanos(),
+        ClockId::Monotonic => context.mono_nanos(),
         ClockId::ProcessCpu => host_time::host_process_cpu_nanos()?,
         ClockId::ThreadCpu => host_time::host_thread_cpu_nanos()?,
         ClockId::Boot | ClockId::MonotonicRaw => {
-            if time_core::is_virtual_clock(context) {
-                time_core::runtime_mono_nanos(context)
+            if context.is_virtual_clock() {
+                context.mono_nanos()
             } else {
                 host_time::host_now_nanos(clock)?
             }
@@ -140,12 +145,10 @@ pub(crate) unsafe fn host_process_cpu_nanos(
 ) -> RuntimeResult<()> {
     // validate the output pointer
     if out.is_null() {
-        return Err(time_core::null_pointer_error("out"));
+        return Err(null_pointer_error("out"));
     }
 
-    context
-        .hooks()
-        .on_time_read(HookState::from_engine(Some(context.engine())));
+    context.hooks().on_time_read(Some(context.engine()));
 
     // sample process cpu time from the host backend
     let value = host_time::host_process_cpu_nanos()?;
@@ -165,12 +168,10 @@ pub(crate) unsafe fn host_thread_cpu_nanos(
 ) -> RuntimeResult<()> {
     // validate the output pointer
     if out.is_null() {
-        return Err(time_core::null_pointer_error("out"));
+        return Err(null_pointer_error("out"));
     }
 
-    context
-        .hooks()
-        .on_time_read(HookState::from_engine(Some(context.engine())));
+    context.hooks().on_time_read(Some(context.engine()));
 
     // sample thread cpu time from the host backend
     let value = host_time::host_thread_cpu_nanos()?;
@@ -190,11 +191,11 @@ pub(crate) unsafe fn host_wall_nanos(
 ) -> RuntimeResult<()> {
     // validate the output pointer
     if out.is_null() {
-        return Err(time_core::null_pointer_error("out"));
+        return Err(null_pointer_error("out"));
     }
 
     // read wall time from the runtime clock service
-    let value = time_core::runtime_wall_nanos(context);
+    let value = context.wall_nanos();
 
     // write the wall timestamp
     unsafe {
@@ -210,8 +211,8 @@ pub(crate) unsafe fn host_sleep_nanos(
     duration: u64,
 ) -> RuntimeResult<()> {
     // route sleep through virtual or host mode behavior
-    if time_core::is_virtual_clock(context) {
-        time_core::runtime_sleep_nanos(context, duration);
+    if context.is_virtual_clock() {
+        context.sleep_nanos(duration);
         return Ok(());
     }
 
@@ -225,11 +226,9 @@ pub(crate) unsafe fn host_sleep_on_nanos(
     clock: SleepClock,
 ) -> RuntimeResult<()> {
     // route clock-domain sleep through runtime policy
-    if time_core::is_virtual_clock(context) {
+    if context.is_virtual_clock() {
         match clock {
-            SleepClock::Wall | SleepClock::Monotonic => {
-                time_core::runtime_sleep_nanos(context, duration)
-            }
+            SleepClock::Wall | SleepClock::Monotonic => context.sleep_nanos(duration),
         }
 
         return Ok(());
@@ -244,13 +243,13 @@ pub(crate) unsafe fn host_sleep_until_nanos(
     deadline: u64,
 ) -> RuntimeResult<()> {
     // route wall-deadline sleep through runtime policy
-    if time_core::is_virtual_clock(context) {
-        time_core::runtime_sleep_until_wall_nanos(context, deadline);
+    if context.is_virtual_clock() {
+        context.sleep_until_wall_nanos(deadline);
         return Ok(());
     }
 
     // convert absolute wall deadline to one host sleep duration
-    let now = time_core::runtime_wall_nanos(context);
+    let now = context.wall_nanos();
     if deadline <= now {
         return Ok(());
     }
@@ -266,10 +265,10 @@ pub(crate) unsafe fn host_sleep_until_on_nanos(
     clock: SleepClock,
 ) -> RuntimeResult<()> {
     // route domain deadline sleep through runtime policy
-    if time_core::is_virtual_clock(context) {
+    if context.is_virtual_clock() {
         match clock {
-            SleepClock::Wall => time_core::runtime_sleep_until_wall_nanos(context, deadline),
-            SleepClock::Monotonic => time_core::runtime_sleep_until_mono_nanos(context, deadline),
+            SleepClock::Wall => context.sleep_until_wall_nanos(deadline),
+            SleepClock::Monotonic => context.sleep_until_mono_nanos(deadline),
         }
 
         return Ok(());
@@ -277,8 +276,8 @@ pub(crate) unsafe fn host_sleep_until_on_nanos(
 
     // convert absolute domain deadline to one host sleep duration
     let now = match clock {
-        SleepClock::Wall => time_core::runtime_wall_nanos(context),
-        SleepClock::Monotonic => time_core::runtime_mono_nanos(context),
+        SleepClock::Wall => context.wall_nanos(),
+        SleepClock::Monotonic => context.mono_nanos(),
     };
     if deadline <= now {
         return Ok(());
