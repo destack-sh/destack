@@ -75,14 +75,14 @@ struct BindingDecorator {
 fn binding_replay_kind_for_name(name: &str) -> CatalogBindingReplayKind {
     let mut segments = name.split('.');
     let Some(prefix) = segments.next() else {
-        return CatalogBindingReplayKind::Regular;
+        return CatalogBindingReplayKind::BindingCall;
     };
     if prefix != "destack" {
-        return CatalogBindingReplayKind::Regular;
+        return CatalogBindingReplayKind::BindingCall;
     }
 
     let Some(domain) = segments.next() else {
-        return CatalogBindingReplayKind::Regular;
+        return CatalogBindingReplayKind::BindingCall;
     };
     let operation = segments.next_back().unwrap_or_default();
 
@@ -95,7 +95,7 @@ fn binding_replay_kind_for_name(name: &str) -> CatalogBindingReplayKind {
             return CatalogBindingReplayKind::Time(CatalogTimeEventKind::MonotonicSample);
         }
 
-        return CatalogBindingReplayKind::Regular;
+        return CatalogBindingReplayKind::BindingCall;
     }
 
     if domain == "random" {
@@ -116,7 +116,7 @@ fn binding_replay_kind_for_name(name: &str) -> CatalogBindingReplayKind {
         }
     }
 
-    CatalogBindingReplayKind::Regular
+    CatalogBindingReplayKind::BindingCall
 }
 
 /// Collect platform bindings from builtin modules.

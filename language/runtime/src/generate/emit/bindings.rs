@@ -77,7 +77,7 @@ impl<'a> DomainSpec<'a> {
                 CatalogEffectClass::External {
                     replay: CatalogReplayPolicy::Recordable
                 }
-            ) && entry.replay_kind == CatalogBindingReplayKind::Regular
+            ) && entry.replay_kind == CatalogBindingReplayKind::BindingCall
         });
         let uses_time_replay_kind = bindings
             .values()
@@ -89,7 +89,7 @@ impl<'a> DomainSpec<'a> {
             matches!(
                 entry.replay_payload,
                 CatalogReplayPayload::ArgumentsAndResults
-            ) && entry.replay_kind == CatalogBindingReplayKind::Regular
+            ) && entry.replay_kind == CatalogBindingReplayKind::BindingCall
         });
         let uses_replay_payload = bindings.values().any(|entry| {
             matches!(
@@ -97,7 +97,7 @@ impl<'a> DomainSpec<'a> {
                 CatalogEffectClass::External {
                     replay: CatalogReplayPolicy::Recordable
                 }
-            ) && entry.replay_kind == CatalogBindingReplayKind::Regular
+            ) && entry.replay_kind == CatalogBindingReplayKind::BindingCall
         });
         let needs_vm = bindings.values().any(|entry| {
             entry
@@ -358,7 +358,7 @@ fn collect_vm_decode_usage(bindings: &BindingCatalogEntry) -> VmDecodeUsage {
             CatalogEffectClass::External {
                 replay: CatalogReplayPolicy::Recordable
             }
-        ) && entry.replay_kind == CatalogBindingReplayKind::Regular;
+        ) && entry.replay_kind == CatalogBindingReplayKind::BindingCall;
         let supports_args = matches!(
             entry.replay_payload,
             CatalogReplayPayload::ArgumentsAndResults
@@ -1188,7 +1188,7 @@ impl<'a> DomainWriter<'a> {
             );
             let replay_kind = entry.replay_kind;
             let uses_binding_replay =
-                is_recordable && replay_kind == CatalogBindingReplayKind::Regular;
+                is_recordable && replay_kind == CatalogBindingReplayKind::BindingCall;
             let mut params = Vec::new();
             let mut args = Vec::new();
             if entry.return_binding != BindingType::Void {
@@ -1233,7 +1233,7 @@ impl<'a> DomainWriter<'a> {
             }
             output.push_str("\n");
             match replay_kind {
-                CatalogBindingReplayKind::Regular => {
+                CatalogBindingReplayKind::BindingCall => {
                     if uses_binding_replay {
                         if entry.scope == CatalogBindingScope::Runtime {
                             output.push_str(&format!(
@@ -1391,7 +1391,7 @@ impl<'a> DomainWriter<'a> {
             );
             let replay_kind = binding.entry.replay_kind;
             let uses_binding_replay =
-                is_recordable && replay_kind == CatalogBindingReplayKind::Regular;
+                is_recordable && replay_kind == CatalogBindingReplayKind::BindingCall;
             let invoke_args = render_invoke_args_with_prefix(binding.entry);
             let decode_helper = decode_helper_name(&decode_base_name);
             let encode_helper = encode_helper_name(&decode_base_name);
@@ -1427,7 +1427,7 @@ impl<'a> DomainWriter<'a> {
             }
             output.push_str("                // execute binding\n");
             match replay_kind {
-                CatalogBindingReplayKind::Regular => {
+                CatalogBindingReplayKind::BindingCall => {
                     if uses_binding_replay {
                         let replay_fn = vm_replay_fn_name(domain, binding.extern_name);
                         if binding.entry.scope == CatalogBindingScope::Runtime {
@@ -1680,7 +1680,7 @@ fn random_event_kind_value(kind: CatalogRandomEventKind) -> &'static str {
 
 fn render_binding_replay_kind(kind: CatalogBindingReplayKind) -> String {
     match kind {
-        CatalogBindingReplayKind::Regular => "BindingReplayKind::Regular".to_string(),
+        CatalogBindingReplayKind::BindingCall => "BindingReplayKind::BindingCall".to_string(),
         CatalogBindingReplayKind::Time(time_kind) => format!(
             "BindingReplayKind::Time({})",
             time_event_kind_value(time_kind)

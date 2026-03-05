@@ -4,6 +4,7 @@ use destack_vm as vm;
 use destack_workspace::{ExecutionMode, RandomMode, RandomOptions, RuntimeOptions};
 
 use crate::diagnostic::{RuntimeError, RuntimeErrorId, RuntimeResult, RuntimeStatus};
+use crate::host::Host;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::random::{
     RandomStream, destack_random_stream_next_u64, destack_random_stream_next_u64_from,
@@ -19,6 +20,8 @@ use crate::runtime::{
 pub(crate) struct TestRuntime {
     /// Agent under test.
     pub agent: Box<Agent>,
+    /// Host under test.
+    host: Host,
     /// VM isolate backing VM bindings in tests.
     vm_isolate: std::cell::RefCell<vm::Isolate>,
 }
@@ -68,8 +71,9 @@ impl TestRuntime {
     /// Build a test runtime from explicit runtime options.
     fn from_runtime_options(options: RuntimeOptions) -> Self {
         // build runtime state from explicit options
-        let agent = Agent::from_options(PlatformContext::new(Vec::new()), &options)
+        let agent = Agent::new(PlatformContext::new(Vec::new()), &options)
             .expect("runtime test agent should build");
+        let host = Host::from_runtime_options(&options);
 
         let tree = NodeTree::new();
         let strings = LocalStringPool::new().into_immutable();
@@ -77,6 +81,7 @@ impl TestRuntime {
 
         Self {
             agent: Box::new(agent),
+            host,
             vm_isolate: std::cell::RefCell::new(vm_isolate),
         }
     }
@@ -94,12 +99,14 @@ impl TestRuntime {
         // install current agent context for vm callback bridges
         let runtime = self.agent.as_ref() as *const Agent;
         let event_loop = self.agent.event_loop.as_ref() as *const _;
-        let _agent_guard = enter_current_agent_context(runtime, event_loop);
+        let host = &self.host as *const Host;
+        let _agent_guard = enter_current_agent_context(runtime, event_loop, host);
 
         // enter a native call context for the binding
         let call_context = BindingCallContext::new(
             &self.agent,
             self.agent.event_loop.as_ref(),
+            &self.host,
             self.agent.bindings.policy_snapshot(),
         );
         let _guard = enter_binding_call_context(&call_context);
@@ -116,7 +123,8 @@ impl TestRuntime {
         // install current agent context for vm callback bridges
         let runtime = self.agent.as_ref() as *const Agent;
         let event_loop = self.agent.event_loop.as_ref() as *const _;
-        let _agent_guard = enter_current_agent_context(runtime, event_loop);
+        let host = &self.host as *const Host;
+        let _agent_guard = enter_current_agent_context(runtime, event_loop, host);
 
         // run the VM call with a fresh runtime call context
         let mut isolate = self.vm_isolate.borrow_mut();
@@ -124,6 +132,7 @@ impl TestRuntime {
             let call_context = BindingCallContext::new(
                 &self.agent,
                 self.agent.event_loop.as_ref(),
+                &self.host,
                 self.agent.bindings.policy_snapshot(),
             );
             let _guard = enter_binding_call_context(&call_context);

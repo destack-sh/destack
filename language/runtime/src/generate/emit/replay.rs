@@ -23,7 +23,7 @@ impl<'a> DomainWriter<'a> {
             else {
                 continue;
             };
-            if entry.replay_kind != CatalogBindingReplayKind::Regular {
+            if entry.replay_kind != CatalogBindingReplayKind::BindingCall {
                 continue;
             }
 
@@ -82,7 +82,7 @@ impl<'a> DomainWriter<'a> {
                 CatalogEffectClass::External {
                     replay: CatalogReplayPolicy::Recordable
                 }
-            ) && binding.entry.replay_kind == CatalogBindingReplayKind::Regular
+            ) && binding.entry.replay_kind == CatalogBindingReplayKind::BindingCall
         });
 
         let mut emitted_header = false;
@@ -430,7 +430,7 @@ impl<'a> DomainWriter<'a> {
                 CatalogEffectClass::External {
                     replay: CatalogReplayPolicy::Recordable
                 }
-            ) && binding.entry.replay_kind == CatalogBindingReplayKind::Regular
+            ) && binding.entry.replay_kind == CatalogBindingReplayKind::BindingCall
         });
 
         let mut emitted_header = false;
@@ -698,7 +698,7 @@ pub(super) fn collect_replay_named_types(
         else {
             continue;
         };
-        if entry.replay_kind != CatalogBindingReplayKind::Regular {
+        if entry.replay_kind != CatalogBindingReplayKind::BindingCall {
             continue;
         }
 
@@ -729,7 +729,7 @@ pub(super) fn collect_replay_vm_named_types(
         else {
             continue;
         };
-        if entry.replay_kind != CatalogBindingReplayKind::Regular {
+        if entry.replay_kind != CatalogBindingReplayKind::BindingCall {
             continue;
         }
 

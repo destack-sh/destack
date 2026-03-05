@@ -223,7 +223,7 @@ mod tests {
             },
             return_is_result: true,
             effect_class: CatalogEffectClass::Deterministic,
-            replay_kind: CatalogBindingReplayKind::Regular,
+            replay_kind: CatalogBindingReplayKind::BindingCall,
             replay_payload: CatalogReplayPayload::ResultsOnly,
             requires: vec!["test.read".to_string()],
             host_platforms: vec!["linux".to_string()],

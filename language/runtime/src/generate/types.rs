@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use destack_base::StringPool;
+use destack_base::{StringPool, fnv1a_64};
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
     self as dir, Annotation, Argument, Declaration, Expression, GlobalSymbolId, PrimitiveType,
@@ -1145,15 +1145,6 @@ fn tuple_struct_name(type_text: Option<&str>, arity: usize) -> String {
     }
     let hash = fnv1a_64(type_text.as_bytes());
     format!("Tuple_{hash:016x}")
-}
-
-fn fnv1a_64(bytes: &[u8]) -> u64 {
-    let mut hash = 0xcbf29ce484222325;
-    for byte in bytes {
-        hash ^= *byte as u64;
-        hash = hash.wrapping_mul(0x100000001b3);
-    }
-    hash
 }
 
 /// Infer an enum backing type from its field values.
