@@ -45,11 +45,11 @@
         "type": "string"
       }
     },
-    "compilerOptions": {
+    "compiler": {
       "description": "Compiler options.",
-      "$ref": "#/$defs/CompilerOptionsJson"
+      "$ref": "#/$defs/DsConfigCompilerOptionsJson"
     },
-    "runtimeOptions": {
+    "runtime": {
       "description": "Runtime options.",
       "$ref": "#/$defs/DsConfigRuntimeOptionsJson",
       "default": {
@@ -65,7 +65,6 @@
         "random": null,
         "scheduler": null,
         "gc": null,
-        "diagnostic": null,
         "fs": null,
         "net": null,
         "process": null,
@@ -155,7 +154,7 @@
         }
       ]
     },
-    "CompilerOptionsJson": {
+    "DsConfigCompilerOptionsJson": {
       "description": "Destack configuration compiler options.",
       "type": "object",
       "properties": {
@@ -1005,13 +1004,13 @@
           ]
         },
         "rules": {
-          "description": "Ordered static runtime policy rules.",
+          "description": "Ordered static runtime rules.",
           "type": [
             "array",
             "null"
           ],
           "items": {
-            "$ref": "#/$defs/RuntimePolicyRuleJson"
+            "$ref": "#/$defs/RuntimeRuleJson"
           }
         },
         "replay": {
@@ -1063,17 +1062,6 @@
           "anyOf": [
             {
               "$ref": "#/$defs/GcOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "diagnostic": {
-          "description": "Runtime diagnostics configuration.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RuntimeDiagnosticOptionsJson"
             },
             {
               "type": "null"
@@ -1402,22 +1390,67 @@
         }
       ]
     },
-    "RuntimePolicyRuleJson": {
-      "description": "Runtime static policy rule for JSON deserialization.",
+    "RuntimeRuleJson": {
+      "description": "Runtime static rule for JSON deserialization.",
       "type": "object",
       "properties": {
         "when": {
           "description": "Rule filter clause.",
-          "$ref": "#/$defs/RuntimeSelectorJson"
+          "$ref": "#/$defs/RuntimeRuleWhenJson"
         },
-        "action": {
-          "description": "Rule action payload.",
-          "$ref": "#/$defs/RuntimePolicyActionJson"
+        "access": {
+          "description": "Access decision for matching bindings.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeAccessJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "world": {
+          "description": "World decision for matching bindings.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeWorldJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "replay": {
+          "description": "Replay payload decision for matching bindings.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReplayPayloadModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
-        "when",
-        "action"
+        "when"
+      ]
+    },
+    "RuntimeRuleWhenJson": {
+      "description": "Runtime rule selector clause for JSON deserialization.",
+      "anyOf": [
+        {
+          "description": "Shorthand binding glob selector.",
+          "type": "string"
+        },
+        {
+          "description": "Shorthand function glob selector.",
+          "type": "string"
+        },
+        {
+          "description": "Full selector object.",
+          "$ref": "#/$defs/RuntimeSelectorJson"
+        }
       ]
     },
     "RuntimeSelectorJson": {
@@ -1426,6 +1459,13 @@
       "properties": {
         "binding": {
           "description": "Glob selector for full binding names.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "function": {
+          "description": "Glob selector for full userland function names.",
           "type": [
             "string",
             "null"
@@ -1465,13 +1505,14 @@
         },
         "execution": {
           "description": "Execution mode selector.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/$defs/ExecutionModeJson"
-          }
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeExecutionSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "platforms": {
           "description": "Platform selector.",
@@ -1552,6 +1593,22 @@
           "description": "Match native engine execution.",
           "type": "string",
           "const": "native"
+        }
+      ]
+    },
+    "RuntimeExecutionSelectorJson": {
+      "description": "Runtime execution-mode selector for JSON deserialization.",
+      "anyOf": [
+        {
+          "description": "Match one execution mode.",
+          "$ref": "#/$defs/ExecutionModeJson"
+        },
+        {
+          "description": "Match any execution mode in this list.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ExecutionModeJson"
+          }
         }
       ]
     },
@@ -1716,44 +1773,18 @@
         }
       ]
     },
-    "RuntimePolicyActionJson": {
-      "description": "Runtime static policy action for JSON deserialization.",
+    "ReplayPayloadModeJson": {
+      "description": "Replay payload mode for JSON deserialization.",
       "oneOf": [
         {
-          "description": "Set the matching binding access mode.",
-          "type": "object",
-          "properties": {
-            "access": {
-              "description": "The selected access mode for matching bindings.",
-              "$ref": "#/$defs/RuntimeAccessJson"
-            },
-            "kind": {
-              "type": "string",
-              "const": "setAccess"
-            }
-          },
-          "required": [
-            "kind",
-            "access"
-          ]
+          "description": "Record only the result value.",
+          "type": "string",
+          "const": "resultsOnly"
         },
         {
-          "description": "Set the matching binding world.",
-          "type": "object",
-          "properties": {
-            "world": {
-              "description": "The selected world for matching bindings.",
-              "$ref": "#/$defs/RuntimeWorldJson"
-            },
-            "kind": {
-              "type": "string",
-              "const": "setWorld"
-            }
-          },
-          "required": [
-            "kind",
-            "world"
-          ]
+          "description": "Record arguments and results for verification.",
+          "type": "string",
+          "const": "argumentsAndResults"
         }
       ]
     },
@@ -1796,21 +1827,6 @@
           ]
         }
       }
-    },
-    "ReplayPayloadModeJson": {
-      "description": "Replay payload mode for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Record only the result value.",
-          "type": "string",
-          "const": "resultsonly"
-        },
-        {
-          "description": "Record arguments and results for verification.",
-          "type": "string",
-          "const": "argumentsandresults"
-        }
-      ]
     },
     "TimeOptionsJson": {
       "description": "Runtime time options for JSON deserialization.",
@@ -1918,7 +1934,7 @@
       ]
     },
     "SchedulerOptionsJson": {
-      "description": "Runtime scheduler options for JSON deserialization.",
+      "description": "Runtime garbage collector configuration.\nRuntime scheduler options for JSON deserialization.",
       "type": "object",
       "properties": {
         "tickBudgetNs": {
@@ -2170,67 +2186,6 @@
         }
       ]
     },
-    "RuntimeDiagnosticOptionsJson": {
-      "description": "Runtime diagnostics options for JSON deserialization.",
-      "type": "object",
-      "properties": {
-        "level": {
-          "description": "Minimum diagnostic level recorded by the runtime.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RuntimeDiagnosticLevelJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "capacity": {
-          "description": "Maximum number of diagnostic entries retained in the runtime ring buffer.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        }
-      }
-    },
-    "RuntimeDiagnosticLevelJson": {
-      "description": "Runtime diagnostic level for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Disable runtime diagnostics collection.",
-          "type": "string",
-          "const": "off"
-        },
-        {
-          "description": "Record only error diagnostics.",
-          "type": "string",
-          "const": "error"
-        },
-        {
-          "description": "Record warning and error diagnostics.",
-          "type": "string",
-          "const": "warn"
-        },
-        {
-          "description": "Record informational diagnostics and above.",
-          "type": "string",
-          "const": "info"
-        },
-        {
-          "description": "Record debug diagnostics and above.",
-          "type": "string",
-          "const": "debug"
-        },
-        {
-          "description": "Record trace diagnostics and above.",
-          "type": "string",
-          "const": "trace"
-        }
-      ]
-    },
     "PlatformFsOptionsJson": {
       "description": "Filesystem runtime options.",
       "type": "object",
@@ -2315,24 +2270,6 @@
           "items": {
             "type": "string"
           }
-        },
-        "waitPollInitialBackoffNs": {
-          "description": "Optional initial backoff interval for timeout polling in process wait lanes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "waitPollMaxBackoffNs": {
-          "description": "Optional maximum backoff interval for timeout polling in process wait lanes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
         }
       }
     },
@@ -2378,69 +2315,6 @@
           ],
           "format": "uint32",
           "minimum": 0
-        },
-        "workerPollIntervalNs": {
-          "description": "Optional poll interval override for backend worker loops.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "eventMonitorPollIntervalNs": {
-          "description": "Optional poll interval override for monitor event watcher loops.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "streamWaitSliceNs": {
-          "description": "Optional wait-slice override used by blocking stream reads and writes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "eventQueueCapacity": {
-          "description": "Optional default queue capacity for audio event stream opens with zero queue capacity.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "defaultEventPollIntervalNs": {
-          "description": "Optional default poll interval for audio event stream opens with zero poll interval.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "maxStreamReadBytes": {
-          "description": "Optional maximum bytes accepted per audio stream read call.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "maxQueuedFrames": {
-          "description": "Optional maximum queued stream frames budget.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
         }
       }
     },
@@ -2457,87 +2331,6 @@
         },
         "eventQueueCapacity": {
           "description": "Optional input event queue capacity override.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "monitorPollIntervalNs": {
-          "description": "Optional monitor wait poll interval override for blocking monitor reads.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "xinputPollIntervalNs": {
-          "description": "Optional xinput poll interval override for blocking xinput reads on Windows.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "macosEventQueueCapacity": {
-          "description": "Optional macOS event tap queue capacity override.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "windowsConsoleRecordQueueCapacity": {
-          "description": "Optional Windows console record queue capacity override.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "windowsConsoleCompositionQueueCapacity": {
-          "description": "Optional Windows console composition queue capacity override.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "windowsRawInputQueueCapacity": {
-          "description": "Optional Windows raw-input queue capacity override.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "windowsRawMonitorQueueCapacity": {
-          "description": "Optional Windows raw-monitor queue capacity override.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "windowsRawHidQueueCapacity": {
-          "description": "Optional Windows raw-hid queue capacity override.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "windowsRawTouchQueueCapacity": {
-          "description": "Optional Windows raw-touch queue capacity override.",
           "type": [
             "integer",
             "null"
@@ -2722,24 +2515,6 @@
             "string",
             "null"
           ]
-        },
-        "defaultKeyListLimit": {
-          "description": "Optional default key list page size for zero-limit key listing requests.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "defaultCertificateListLimit": {
-          "description": "Optional default certificate list page size for zero-limit certificate listing requests.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
         }
       }
     },
@@ -2769,27 +2544,7 @@
     },
     "PlatformDisplayOptionsJson": {
       "description": "Display runtime options.",
-      "type": "object",
-      "properties": {
-        "defaultEventQueueCapacity": {
-          "description": "Optional default queue capacity for display event stream opens with zero queue capacity.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "windowEventWaitSliceNs": {
-          "description": "Optional wait-slice interval for blocking window event reads.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        }
-      }
+      "type": "object"
     },
     "PlatformErrorOptionsJson": {
       "description": "Error runtime options.",
@@ -2801,33 +2556,11 @@
     },
     "PlatformIoOptionsJson": {
       "description": "I/O runtime options.",
-      "type": "object",
-      "properties": {
-        "windowsIocpPendingPollSliceNs": {
-          "description": "Optional wait-slice interval for pending-poll checks in Windows IOCP poll loops.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        }
-      }
+      "type": "object"
     },
     "PlatformIpcOptionsJson": {
       "description": "IPC runtime options.",
-      "type": "object",
-      "properties": {
-        "unixSemaphorePollIntervalNs": {
-          "description": "Optional poll interval for timed semaphore waits on Unix hosts.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        }
-      }
+      "type": "object"
     },
     "PlatformMemoryOptionsJson": {
       "description": "Memory runtime options.",
@@ -4094,7 +3827,7 @@
             }
           ]
         },
-        "runtime": {
+        "runtimeEnvironment": {
           "description": "Runtime environment (e.g., Browser, Node, Deno, Bun, Worker, Workerd).",
           "type": [
             "string",
@@ -4444,7 +4177,7 @@
             }
           ]
         },
-        "runtimeOptions": {
+        "runtime": {
           "description": "Runtime options overrides for this target.",
           "anyOf": [
             {
