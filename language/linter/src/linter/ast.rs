@@ -161,7 +161,7 @@ impl<'a> LintModuleAstContext<'a> {
 
     /// Get effective severity for a rule at a specific node.
     ///
-    /// Checks for `@allow`/`@deny`/`@warn`/`@forbid` decorators on the node
+    /// Checks for `@allow`/`@deny`/`@warn`/`@forbid` decorators on the node.
     /// and its ancestors, returning the effective severity at that location.
     /// Rules should call this before reporting to respect per-node suppressions.
     pub fn get_effective_severity<T: ast::Node>(
@@ -365,6 +365,16 @@ impl<'a> LintModuleAstContext<'a> {
         self.analysis.regex_parse(self.strings, id)
     }
 
+    /// Return cached regex parse info for a pattern and optional flags.
+    pub fn regex_parse_with_flags(
+        &mut self,
+        pattern_id: ast::StringId,
+        flags_id: Option<ast::StringId>,
+    ) -> LintRegexParse {
+        self.analysis
+            .regex_parse_with_flags(self.strings, pattern_id, flags_id)
+    }
+
     /// Return a control character found in the pattern string.
     pub fn regex_control_character(&self, id: ast::StringId) -> Option<char> {
         let pattern = self.strings.get(id);
@@ -391,11 +401,18 @@ impl<'a> LintModuleAstContext<'a> {
     }
 
     /// Return a useless backreference description for the pattern string.
-    pub fn regex_useless_backreference(&mut self, id: ast::StringId) -> Option<String> {
-        let parse = self.regex_parse(id);
+    pub fn regex_useless_backreference(
+        &mut self,
+        pattern_id: ast::StringId,
+        flags_id: Option<ast::StringId>,
+    ) -> Option<String> {
+        let parse = self.regex_parse_with_flags(pattern_id, flags_id);
         let error_kind = parse.error.as_ref().map(|error| &error.kind);
-        let pattern = self.strings.get(id);
-        find_useless_backreference(pattern.as_ref(), error_kind)
+        let pattern = self.strings.get(pattern_id);
+        let flags = flags_id.map(|id| self.strings.get(id));
+        let flags = flags.as_deref();
+
+        find_useless_backreference(pattern.as_ref(), flags, error_kind)
     }
 }
 
