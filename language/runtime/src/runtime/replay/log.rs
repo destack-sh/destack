@@ -4,20 +4,18 @@ use parking_lot::Mutex;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::replay::{
-    BranchId, CheckpointEvent, LogSequence, ReplayCheckpointIndex, ReplayChunkHeader,
-    ReplayChunkIndex, ReplayEvent, ReplayHeader, ReplayLogReader, ReplayTrailer, ReplayWriter,
+    BranchId, CheckpointEvent, LogSequence, ReplayCheckpointIndex, ReplayChunkIndex, ReplayEvent,
+    ReplayHeader, ReplayLogReader, ReplayTrailer, ReplayWriter,
 };
 use destack_base::{FNV_OFFSET_BASIS_128, fnv1a_128_update};
 use postcard::experimental::serialized_size;
+
+use super::chunk::ReplayChunk;
 
 /// Default maximum number of events in a chunk.
 const DEFAULT_MAX_EVENTS_PER_CHUNK: usize = 1024;
 /// Default maximum chunk size in bytes.
 const DEFAULT_MAX_CHUNK_BYTES: u64 = 4 * 1024 * 1024;
-/// FNV-1a 64-bit offset basis.
-const FNV_OFFSET_BASIS_64: u64 = 0xcbf29ce484222325;
-/// FNV-1a 64-bit prime.
-const FNV_PRIME_64: u64 = 0x100000001b3;
 
 /// In-memory replay log state.
 #[derive(Debug, Clone)]
@@ -45,26 +43,6 @@ impl ReplayLogState {
     pub(super) fn trailer(&self) -> &ReplayTrailer {
         &self.trailer
     }
-}
-
-/// Replay log chunk payload.
-#[derive(Debug, Clone)]
-pub(super) struct ReplayChunk {
-    /// Chunk header metadata.
-    pub(super) header: ReplayChunkHeader,
-    /// Chunk payload bytes.
-    pub(super) data: Vec<u8>,
-    /// Recorded event offsets.
-    pub(super) events: Vec<ReplayChunkEvent>,
-}
-
-/// Offset metadata for a chunked replay event.
-#[derive(Debug, Clone, Copy)]
-pub(super) struct ReplayChunkEvent {
-    /// Offset into the chunk buffer.
-    pub(super) offset: u64,
-    /// Byte length of the encoded event.
-    pub(super) length: u32,
 }
 
 /// Record and replay log for deterministic execution.
@@ -96,7 +74,7 @@ impl ReplayLog {
         let max_chunk_bytes = header.max_chunk_bytes;
 
         // seed the first chunk and trailer entry
-        let chunk = new_chunk(0, LogSequence::new(0));
+        let chunk = ReplayChunk::new(0, LogSequence::new(0));
         let trailer = ReplayTrailer {
             chunks: vec![ReplayChunkIndex {
                 index: 0,
@@ -175,19 +153,21 @@ impl ReplayLog {
         state.next_sequence = state.next_sequence.next();
 
         // append the event payload
-        if should_rotate_chunk(
-            state.chunks.last(),
-            encoded_len,
-            state.max_events_per_chunk,
-            state.max_chunk_bytes,
-        ) {
+        let is_rotation_required = state.chunks.last().is_none_or(|chunk| {
+            chunk.should_rotate_for_event(
+                encoded_len,
+                state.max_events_per_chunk,
+                state.max_chunk_bytes,
+            )
+        });
+        if is_rotation_required {
             // finalize the current chunk before creating a new one
             finalize_chunk(&mut state);
 
             // create the next chunk and trailer entry
             let next_index = state.chunks.len() as u32;
             let offset = state.next_offset;
-            let chunk = new_chunk(next_index, sequence);
+            let chunk = ReplayChunk::new(next_index, sequence);
             state.chunks.push(chunk);
             state.trailer.chunks.push(ReplayChunkIndex {
                 index: next_index,
@@ -205,20 +185,24 @@ impl ReplayLog {
         let start = chunk.data.len();
         let end = start + encoded_len as usize;
         chunk.data.resize(end, 0);
-        postcard::to_slice(&event, &mut chunk.data[start..end]).map_err(|_| {
-            RuntimeError::ReplayEncodeFailed {
-                name: "event".to_string(),
-            }
-            .boxed()
-        })?;
-        let encoded = &chunk.data[start..end];
-        chunk.header.checksum = update_checksum(chunk.header.checksum, encoded);
+        let encoded_len = postcard::to_slice(&event, &mut chunk.data[start..end])
+            .map_err(|_| {
+                RuntimeError::ReplayEncodeFailed {
+                    name: "event".to_string(),
+                }
+                .boxed()
+            })?
+            .len();
+        let encoded_end = start + encoded_len;
+
+        // checksum only the encoded event bytes
+        chunk.update_checksum_for_range(start, encoded_end);
+
+        // trim trailing capacity when serialized_size overestimates
+        chunk.data.truncate(encoded_end);
         chunk.header.byte_length = chunk.data.len() as u64;
-        chunk.events.push(ReplayChunkEvent {
-            offset: start as u64,
-            length: encoded_len as u32,
-        });
-        chunk.header.event_count = chunk.events.len() as u32;
+        chunk.event_lengths.push(encoded_len as u32);
+        chunk.header.event_count = chunk.event_lengths.len() as u32;
         chunk.header.sequence_end = sequence;
 
         // keep the trailer entry in sync
@@ -247,42 +231,7 @@ impl ReplayLog {
     }
 }
 
-fn new_chunk(index: u32, sequence_start: LogSequence) -> ReplayChunk {
-    // seed a new chunk with default metadata
-    ReplayChunk {
-        header: ReplayChunkHeader {
-            index,
-            sequence_start,
-            sequence_end: sequence_start,
-            event_count: 0,
-            byte_length: 0,
-            checksum: FNV_OFFSET_BASIS_64,
-        },
-        data: Vec::new(),
-        events: Vec::new(),
-    }
-}
-
-fn should_rotate_chunk(
-    chunk: Option<&ReplayChunk>,
-    encoded_len: u64,
-    max_events_per_chunk: usize,
-    max_chunk_bytes: u64,
-) -> bool {
-    // rotate if there is no active chunk
-    let Some(chunk) = chunk else {
-        return true;
-    };
-
-    // rotate if we hit the event limit
-    if chunk.events.len() >= max_events_per_chunk {
-        return true;
-    }
-
-    // rotate if the chunk would exceed its byte limit
-    chunk.header.byte_length.saturating_add(encoded_len) > max_chunk_bytes
-}
-
+/// Finalize the active chunk trailer metadata before rotating.
 fn finalize_chunk(state: &mut ReplayLogState) {
     // capture metadata for the trailing chunk entry
     let Some(chunk) = state.chunks.last() else {
@@ -297,6 +246,7 @@ fn finalize_chunk(state: &mut ReplayLogState) {
     state.next_offset = state.next_offset.saturating_add(chunk.header.byte_length);
 }
 
+/// Refresh the trailing chunk trailer entry after one append.
 fn update_trailer_entry(state: &mut ReplayLogState) {
     // update the trailing chunk index entry
     let Some(chunk) = state.chunks.last() else {
@@ -306,16 +256,6 @@ fn update_trailer_entry(state: &mut ReplayLogState) {
         entry.length = chunk.header.byte_length;
         entry.checksum = chunk.header.checksum;
     }
-}
-
-pub(super) fn update_checksum(current: u64, bytes: &[u8]) -> u64 {
-    // compute the next checksum state
-    let mut hash = current;
-    for byte in bytes {
-        hash ^= *byte as u64;
-        hash = hash.wrapping_mul(FNV_PRIME_64);
-    }
-    hash
 }
 
 pub(super) fn compute_log_hash(
@@ -341,11 +281,6 @@ pub(super) fn compute_log_hash(
         hash = fnv1a_128_update(hash, checkpoint.path.as_bytes());
     }
     hash
-}
-
-/// Compute a checksum for a chunk payload.
-pub(super) fn compute_chunk_checksum(bytes: &[u8]) -> u64 {
-    update_checksum(FNV_OFFSET_BASIS_64, bytes)
 }
 
 impl ReplayWriter for ReplayLog {

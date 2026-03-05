@@ -1,29 +1,29 @@
-use std::collections::BTreeMap;
-use std::sync::Arc;
-
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::host::Host;
 use crate::platform::PlatformContext;
 use crate::runtime::engine::{Engine, EngineOutput};
 use crate::runtime::poller::HostPoller;
-use crate::runtime::world::World;
+use crate::runtime::world::{RuntimeId, World};
 use destack_heap as heap;
 use destack_workspace::RuntimeOptions;
+use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use super::poller::poller_for_options;
 use super::{Agent, AgentId};
 
 /// Runtime container that owns one or more agents in one shared world.
 pub struct Runtime {
-    /// Stable runtime name for selector matching.
-    name: String,
-    /// Runtime labels for selector matching.
-    labels: BTreeMap<String, String>,
+    /// Runtime identifier in world topology.
+    id: RuntimeId,
     /// Platform context shared by newly spawned agents.
     platform: PlatformContext,
     /// Runtime options used for agent creation.
     options: RuntimeOptions,
     /// Shared world attached to every agent in this runtime.
     world: Arc<World>,
+    /// Shared host integration for all agents in this runtime.
+    host: Host,
     /// Shared platform poller for external events.
     poller: Option<Box<dyn HostPoller>>,
     /// All active agents keyed by identifier.
@@ -35,11 +35,11 @@ pub struct Runtime {
 impl std::fmt::Debug for Runtime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Runtime")
-            .field("name", &self.name)
-            .field("labels", &self.labels)
+            .field("runtime_id", &self.id)
             .field("platform", &self.platform)
             .field("options", &self.options)
             .field("world", &self.world)
+            .field("host", &self.host)
             .field("agents", &self.agents)
             .field("primary_agent_id", &self.primary_agent_id)
             .field("poller", &"<shared platform poller>")
@@ -53,7 +53,7 @@ impl Runtime {
         platform: PlatformContext,
         options: &RuntimeOptions,
     ) -> RuntimeResult<Self> {
-        let primary_agent = Agent::from_options(platform.clone(), options)?;
+        let primary_agent = Agent::new(platform.clone(), options)?;
         let mut runtime = Self::new(platform, options, primary_agent);
         if let Some(poller) = poller_for_options(options)? {
             runtime.set_poller(poller);
@@ -66,9 +66,9 @@ impl Runtime {
     pub fn from_options_in_world(
         platform: PlatformContext,
         options: &RuntimeOptions,
-        world: Arc<World>,
+        world: impl Into<Arc<World>>,
     ) -> RuntimeResult<Self> {
-        let primary_agent = Agent::from_options_in_world(platform.clone(), options, world)?;
+        let primary_agent = Agent::new_in_world(platform.clone(), options, world)?;
         let mut runtime = Self::new(platform, options, primary_agent);
         if let Some(poller) = poller_for_options(options)? {
             runtime.set_poller(poller);
@@ -82,19 +82,37 @@ impl Runtime {
         self.world.as_ref()
     }
 
-    /// Return the stable runtime name.
-    pub fn name(&self) -> &str {
-        self.name.as_str()
+    /// Return the shared host integration for this runtime.
+    pub fn host(&self) -> &Host {
+        &self.host
     }
 
-    /// Return runtime labels.
-    pub fn labels(&self) -> &BTreeMap<String, String> {
-        &self.labels
+    /// Return the callback runtime id for native host callback routing.
+    pub fn host_callback_runtime_id(&self) -> Option<u64> {
+        self.host.callback_runtime_id()
     }
 
     /// Return the current primary agent id.
     pub fn primary_agent_id(&self) -> AgentId {
         self.primary_agent_id
+    }
+
+    /// Return the world topology runtime id.
+    pub fn runtime_id(&self) -> RuntimeId {
+        self.id
+    }
+
+    /// Set one explicit primary agent.
+    pub fn set_primary_agent(&mut self, agent_id: AgentId) -> RuntimeResult<()> {
+        if self.agents.contains_key(&agent_id) {
+            self.primary_agent_id = agent_id;
+            return Ok(());
+        }
+
+        Err(RuntimeError::Internal {
+            message: format!("runtime agent {} does not exist", agent_id.0),
+        }
+        .boxed())
     }
 
     /// Return all active agent ids.
@@ -121,12 +139,13 @@ impl Runtime {
     pub fn spawn_agent_with_options(&mut self, options: &RuntimeOptions) -> RuntimeResult<AgentId> {
         // force runtime identity to stay shared across all agents in this runtime
         let mut options = options.clone();
-        options.name = Some(self.name.clone());
-        options.labels = self.labels.clone();
+        options.name = self.options.name.clone();
+        options.labels = self.options.labels.clone();
+        self.align_spawn_options_with_runtime(&mut options);
 
         // create one new agent attached to the runtime world
         let agent =
-            Agent::from_options_in_world(self.platform.clone(), &options, self.world.clone())?;
+            Agent::new_in_runtime(self.platform.clone(), &options, self.world.clone(), self.id)?;
 
         Ok(self.insert_agent(agent))
     }
@@ -154,8 +173,8 @@ impl Runtime {
         entry: &E::Entry,
         args: &[heap::Value],
     ) -> RuntimeResult<EngineOutput> {
-        let (agent, poller) = self.agent_and_poller_mut(agent_id)?;
-        agent.run_entrypoint_with_poller(engine, entry, args, poller)
+        let (agent, host, poller) = self.agent_and_poller_mut(agent_id)?;
+        agent.run_entrypoint_with_host_and_poller(host, engine, entry, args, poller)
     }
 
     /// Remove one agent from this runtime and return its boxed handle.
@@ -177,15 +196,13 @@ impl Runtime {
             .boxed());
         }
 
-        // rebind primary agent if the removed agent was primary
+        // reject implicit primary fallback to keep ownership explicit
         if self.primary_agent_id == agent_id {
-            let next_primary_agent_id = self
-                .agents
-                .keys()
-                .copied()
-                .next()
-                .unwrap_or_else(|| panic!("runtime agent registry became empty unexpectedly"));
-            self.primary_agent_id = next_primary_agent_id;
+            self.agents.insert(agent_id, removed_agent);
+            return Err(RuntimeError::Internal {
+                message: "cannot remove primary agent: set a new primary agent first".to_string(),
+            }
+            .boxed());
         }
 
         Ok(removed_agent)
@@ -195,23 +212,20 @@ impl Runtime {
     fn new(platform: PlatformContext, options: &RuntimeOptions, primary_agent: Agent) -> Self {
         // seed runtime identity from runtime options
         let world = primary_agent.world.clone();
-        let name = options
-            .name
-            .clone()
-            .unwrap_or_else(|| "runtime".to_string());
-        let labels = options.labels.clone();
+        let host = Host::from_runtime_options(options);
         let primary_agent = Box::new(primary_agent);
         let primary_agent_id = primary_agent.id;
+        let runtime_id = primary_agent.runtime_id;
         let mut agents = BTreeMap::new();
         agents.insert(primary_agent_id, primary_agent);
 
         // store runtime state
         Self {
-            name,
-            labels,
+            id: runtime_id,
             platform,
             options: options.clone(),
             world,
+            host,
             poller: None,
             agents,
             primary_agent_id,
@@ -230,12 +244,26 @@ impl Runtime {
         agent_id
     }
 
+    /// Align world-scoped options for agents spawned in one existing runtime.
+    fn align_spawn_options_with_runtime(&self, options: &mut RuntimeOptions) {
+        // world scoped settings: all agents in one runtime share one world
+        options.execution = self.options.execution;
+        options.world = self.options.world;
+        options.access = self.options.access;
+        options.replay = self.options.replay.clone();
+        options.time = self.options.time.clone();
+        options.random = self.options.random.clone();
+        options.rules = self.options.rules.clone();
+    }
+
     /// Return mutable references to one agent and the shared runtime poller.
+    #[allow(clippy::type_complexity)]
     fn agent_and_poller_mut(
         &mut self,
         agent_id: AgentId,
-    ) -> RuntimeResult<(&mut Agent, &mut Option<Box<dyn HostPoller>>)> {
+    ) -> RuntimeResult<(&mut Agent, &Host, &mut Option<Box<dyn HostPoller>>)> {
         // resolve the agent before returning shared runtime references
+        let host = &self.host;
         let poller = &mut self.poller;
         let agent = self
             .agents
@@ -248,6 +276,6 @@ impl Runtime {
                 .boxed()
             })?;
 
-        Ok((agent, poller))
+        Ok((agent, host, poller))
     }
 }

@@ -1,19 +1,21 @@
+use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, RwLock};
 
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::ResourceId;
+use crate::platform::{ResourceId, ResourceKind};
 use crate::runtime::AgentId;
 use crate::runtime::bindings::{BindingDescriptor, BindingEngine};
-use crate::runtime::random::RandomStreamId;
-use crate::runtime::scheduler::{MicrotaskId, TaskId};
-use crate::runtime::world::World;
+use crate::runtime::world::{
+    RuntimeId, World, WorldCommand, WorldEntityKind, WorldResource, WorldResourceId,
+};
 use destack_source::matches as glob_matches;
 use destack_workspace::ExecutionMode;
 
-use super::{PolicyDecision, PolicyIdentity};
+use super::{Effect, FaultTarget, PolicyDecision};
 
 /// Hook for runtime effect rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -41,11 +43,237 @@ pub enum Hook {
     ResourceDetach,
 }
 
+/// Stable identifier for one binding call policy event pair.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PolicyCallId(pub u64);
+
+/// Policy event payload emitted by one runtime hook point.
+#[derive(Debug, Clone, Copy)]
+pub enum HookEvent {
+    /// Event fired before invoking one binding.
+    BindingBefore {
+        /// Agent identifier for this event.
+        agent_id: AgentId,
+        /// Binding call identifier for before and after correlation.
+        call_id: PolicyCallId,
+        /// Binding metadata for this event.
+        descriptor: BindingDescriptor,
+        /// Engine kind for this event.
+        engine: Option<BindingEngine>,
+        /// Virtual timestamp for this event.
+        virtual_time_ns: u64,
+    },
+    /// Event fired after invoking one binding.
+    BindingAfter {
+        /// Agent identifier for this event.
+        agent_id: AgentId,
+        /// Binding call identifier for before and after correlation.
+        call_id: PolicyCallId,
+        /// Binding metadata for this event.
+        descriptor: BindingDescriptor,
+        /// Engine kind for this event.
+        engine: Option<BindingEngine>,
+        /// Virtual timestamp for this event.
+        virtual_time_ns: u64,
+    },
+    /// Event fired when one task is enqueued.
+    SchedulerEnqueue {
+        /// Agent identifier for this event.
+        agent_id: AgentId,
+        /// Virtual timestamp for this event.
+        virtual_time_ns: u64,
+    },
+    /// Event fired when one task is dequeued.
+    SchedulerDequeue {
+        /// Agent identifier for this event.
+        agent_id: AgentId,
+        /// Virtual timestamp for this event.
+        virtual_time_ns: u64,
+    },
+    /// Event fired when one timer is dispatched.
+    SchedulerTimerFire {
+        /// Agent identifier for this event.
+        agent_id: AgentId,
+        /// Virtual timestamp for this event.
+        virtual_time_ns: u64,
+    },
+    /// Event fired when one host event is enqueued.
+    HostEventEnqueue {
+        /// Agent identifier for this event.
+        agent_id: AgentId,
+        /// Virtual timestamp for this event.
+        virtual_time_ns: u64,
+    },
+    /// Event fired when time is read.
+    TimeRead {
+        /// Agent identifier for this event.
+        agent_id: AgentId,
+        /// Engine kind for this event.
+        engine: Option<BindingEngine>,
+        /// Virtual timestamp for this event.
+        virtual_time_ns: u64,
+    },
+    /// Event fired when random data is read.
+    RandomRead {
+        /// Agent identifier for this event.
+        agent_id: AgentId,
+        /// Engine kind for this event.
+        engine: Option<BindingEngine>,
+        /// Virtual timestamp for this event.
+        virtual_time_ns: u64,
+    },
+    /// Event fired when one resource is attached.
+    ResourceAttach {
+        /// Agent identifier for this event.
+        agent_id: AgentId,
+        /// Virtual timestamp for this event.
+        virtual_time_ns: u64,
+    },
+    /// Event fired when one resource is detached.
+    ResourceDetach {
+        /// Agent identifier for this event.
+        agent_id: AgentId,
+        /// Virtual timestamp for this event.
+        virtual_time_ns: u64,
+    },
+}
+
+impl HookEvent {
+    /// Return the hook kind for this event.
+    pub(crate) const fn hook(&self) -> Hook {
+        match self {
+            Self::BindingBefore { .. } => Hook::BindingBefore,
+            Self::BindingAfter { .. } => Hook::BindingAfter,
+            Self::SchedulerEnqueue { .. } => Hook::SchedulerEnqueue,
+            Self::SchedulerDequeue { .. } => Hook::SchedulerDequeue,
+            Self::SchedulerTimerFire { .. } => Hook::SchedulerTimerFire,
+            Self::HostEventEnqueue { .. } => Hook::HostEventEnqueue,
+            Self::TimeRead { .. } => Hook::TimeRead,
+            Self::RandomRead { .. } => Hook::RandomRead,
+            Self::ResourceAttach { .. } => Hook::ResourceAttach,
+            Self::ResourceDetach { .. } => Hook::ResourceDetach,
+        }
+    }
+
+    /// Return the agent identifier for this event.
+    pub(crate) const fn agent_id(&self) -> AgentId {
+        match self {
+            Self::BindingBefore { agent_id, .. }
+            | Self::BindingAfter { agent_id, .. }
+            | Self::SchedulerEnqueue { agent_id, .. }
+            | Self::SchedulerDequeue { agent_id, .. }
+            | Self::SchedulerTimerFire { agent_id, .. }
+            | Self::HostEventEnqueue { agent_id, .. }
+            | Self::TimeRead { agent_id, .. }
+            | Self::RandomRead { agent_id, .. }
+            | Self::ResourceAttach { agent_id, .. }
+            | Self::ResourceDetach { agent_id, .. } => *agent_id,
+        }
+    }
+
+    /// Return one binding descriptor when present.
+    pub(crate) const fn binding_descriptor(&self) -> Option<BindingDescriptor> {
+        match self {
+            Self::BindingBefore { descriptor, .. } | Self::BindingAfter { descriptor, .. } => {
+                Some(*descriptor)
+            }
+            _ => None,
+        }
+    }
+
+    /// Return one call id when this event is one binding call event.
+    pub(crate) const fn call_id(&self) -> Option<PolicyCallId> {
+        match self {
+            Self::BindingBefore { call_id, .. } | Self::BindingAfter { call_id, .. } => {
+                Some(*call_id)
+            }
+            _ => None,
+        }
+    }
+
+    /// Return one engine kind when present.
+    pub(crate) const fn engine(&self) -> Option<BindingEngine> {
+        match self {
+            Self::BindingBefore { engine, .. }
+            | Self::BindingAfter { engine, .. }
+            | Self::TimeRead { engine, .. }
+            | Self::RandomRead { engine, .. } => *engine,
+            _ => None,
+        }
+    }
+
+    /// Return whether this event increments call-scoped trigger counters.
+    pub(crate) const fn counts_as_call_event(&self) -> bool {
+        matches!(self, Self::BindingBefore { .. })
+    }
+
+    /// Return the virtual timestamp for this event.
+    pub(crate) const fn virtual_time_ns(&self) -> u64 {
+        match self {
+            Self::BindingBefore {
+                virtual_time_ns, ..
+            }
+            | Self::BindingAfter {
+                virtual_time_ns, ..
+            }
+            | Self::SchedulerEnqueue {
+                virtual_time_ns, ..
+            }
+            | Self::SchedulerDequeue {
+                virtual_time_ns, ..
+            }
+            | Self::SchedulerTimerFire {
+                virtual_time_ns, ..
+            }
+            | Self::HostEventEnqueue {
+                virtual_time_ns, ..
+            }
+            | Self::TimeRead {
+                virtual_time_ns, ..
+            }
+            | Self::RandomRead {
+                virtual_time_ns, ..
+            }
+            | Self::ResourceAttach {
+                virtual_time_ns, ..
+            }
+            | Self::ResourceDetach {
+                virtual_time_ns, ..
+            } => *virtual_time_ns,
+        }
+    }
+}
+
 /// Selector clauses for hook callback matching.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct HookSelector {
     /// Glob selector for one binding name.
     pub binding: Option<String>,
+    /// Glob selector for one function name.
+    pub function: Option<String>,
+}
+
+impl HookSelector {
+    /// Match all events for the selected hook.
+    pub fn any() -> Self {
+        Self::default()
+    }
+
+    /// Match one binding glob for binding hook events.
+    pub fn binding(pattern: impl Into<String>) -> Self {
+        Self {
+            binding: Some(pattern.into()),
+            function: None,
+        }
+    }
+
+    /// Match one function glob for call hook events.
+    pub fn function(pattern: impl Into<String>) -> Self {
+        Self {
+            binding: None,
+            function: Some(pattern.into()),
+        }
+    }
 }
 
 /// Callback decision for one hook event.
@@ -60,68 +288,33 @@ pub enum HookDecision {
     },
 }
 
+/// Runtime context passed to one custom effect handler callback.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CustomEffectInvocation {
+    /// Stable rule identifier that produced this effect.
+    pub rule_id: String,
+    /// Hook that produced this effect.
+    pub hook: Hook,
+    /// Agent identifier for this effect.
+    pub agent_id: AgentId,
+    /// Binding call identifier when this effect comes from one call event.
+    pub call_id: Option<PolicyCallId>,
+    /// Stable custom effect handler key.
+    pub handler: String,
+    /// Optional custom effect payload.
+    pub payload: Option<String>,
+}
+
 /// Stable identifier for one registered hook callback.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HookCallbackId(pub u64);
 
 /// Hook callback function signature.
-pub(crate) type HookCallback = Arc<dyn Fn(&HookEvent) -> HookDecision + Send + Sync + 'static>;
+pub type HookCallback = Arc<dyn Fn(&HookEvent) -> HookDecision + Send + Sync + 'static>;
 
-/// Hook state payload for one runtime hook callback.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct HookState {
-    /// Engine kind for this hook.
-    pub engine: Option<BindingEngine>,
-    /// Task identifier for scheduler hooks.
-    pub task_id: Option<TaskId>,
-    /// Microtask identifier for scheduler hooks.
-    pub microtask_id: Option<MicrotaskId>,
-    /// Random stream identifier for random hooks.
-    pub random_stream_id: Option<RandomStreamId>,
-    /// Resource identifier for resource hooks.
-    pub resource_id: Option<ResourceId>,
-}
-
-impl HookState {
-    /// Create empty hook state.
-    pub const fn empty() -> Self {
-        Self {
-            engine: None,
-            task_id: None,
-            microtask_id: None,
-            random_stream_id: None,
-            resource_id: None,
-        }
-    }
-
-    /// Create hook state with one engine.
-    pub const fn from_engine(engine: Option<BindingEngine>) -> Self {
-        Self {
-            engine,
-            task_id: None,
-            microtask_id: None,
-            random_stream_id: None,
-            resource_id: None,
-        }
-    }
-}
-
-/// Hook event payload emitted by one runtime hook point.
-#[derive(Debug, Clone, Copy)]
-pub struct HookEvent {
-    /// Hook point for this event.
-    pub hook: Hook,
-    /// Agent identifier for this event.
-    pub agent_id: AgentId,
-    /// Binding metadata when this event originated from one binding.
-    pub descriptor: Option<BindingDescriptor>,
-    /// Per-hook metadata payload.
-    pub state: HookState,
-    /// Whether this event is one binding call event.
-    pub is_call_event: bool,
-    /// Virtual timestamp for this event.
-    pub virtual_time_ns: u64,
-}
+/// Custom effect callback function signature.
+pub type CustomEffectHandler =
+    Arc<dyn Fn(&CustomEffectInvocation) -> RuntimeResult<()> + Send + Sync + 'static>;
 
 /// One callback registration in the hook registry.
 struct HookRegistration {
@@ -208,14 +401,17 @@ impl HookRegistry {
 
     /// Return true when one callback registration matches one event.
     fn callback_matches_event(&self, callback: &HookRegistration, event: &HookEvent) -> bool {
-        if callback.hook != event.hook {
+        if callback.hook != event.hook() {
             return false;
         }
 
+        if callback.selector.function.is_some() {
+            return false;
+        }
         let Some(binding_pattern) = &callback.selector.binding else {
             return true;
         };
-        let Some(descriptor) = event.descriptor else {
+        let Some(descriptor) = event.binding_descriptor() else {
             return false;
         };
 
@@ -224,43 +420,60 @@ impl HookRegistry {
 }
 
 /// Runtime hook dispatch and effect state.
-#[derive(Debug)]
 pub struct Hooks {
+    /// Runtime identifier for selector matching.
+    runtime_id: RuntimeId,
     /// Agent identifier for selector matching.
     agent_id: AgentId,
-    /// Runtime and agent identity for selector matching.
-    identity: PolicyIdentity,
     /// Shared world for policy trigger counters.
     world: Arc<World>,
     /// Execution mode used for rule matching.
     mode: ExecutionMode,
     /// Callback-style hook registry.
     registry: RwLock<HookRegistry>,
+    /// Custom effect handlers keyed by custom effect kind.
+    custom_effect_handlers: RwLock<HashMap<String, CustomEffectHandler>>,
+    /// Next policy call identifier sequence.
+    next_call_id: AtomicU64,
     /// Total policy decisions accepted but not yet executed.
     unapplied_policy_decisions: AtomicU64,
+}
+
+impl std::fmt::Debug for Hooks {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let callback_count = self.registry.read().callbacks.len();
+        let custom_effect_handler_count = self.custom_effect_handlers.read().len();
+        let unapplied_policy_decisions = self.unapplied_policy_decisions.load(Ordering::Relaxed);
+
+        f.debug_struct("Hooks")
+            .field("runtime_id", &self.runtime_id)
+            .field("agent_id", &self.agent_id)
+            .field("mode", &self.mode)
+            .field("callback_count", &callback_count)
+            .field("custom_effect_handler_count", &custom_effect_handler_count)
+            .field("unapplied_policy_decisions", &unapplied_policy_decisions)
+            .finish()
+    }
 }
 
 impl Hooks {
     /// Create runtime hooks for one agent in one world.
     pub(crate) fn new(
         world: Arc<World>,
+        runtime_id: RuntimeId,
         agent_id: AgentId,
-        identity: PolicyIdentity,
         mode: ExecutionMode,
     ) -> Self {
         Self {
+            runtime_id,
             agent_id,
-            identity,
             world,
             mode,
             registry: RwLock::new(HookRegistry::default()),
+            custom_effect_handlers: RwLock::new(HashMap::new()),
+            next_call_id: AtomicU64::new(1),
             unapplied_policy_decisions: AtomicU64::new(0),
         }
-    }
-
-    /// Return runtime and agent identity for policy matching.
-    pub(crate) fn policy_identity(&self) -> &PolicyIdentity {
-        &self.identity
     }
 
     /// Return execution mode for policy matching.
@@ -270,81 +483,197 @@ impl Hooks {
 
     /// Register one callback for one hook point.
     pub fn on(&self, hook: Hook, selector: HookSelector, callback: HookCallback) -> HookCallbackId {
-        let mut registry = self
-            .registry
-            .write()
-            .unwrap_or_else(|poisoned_lock| poisoned_lock.into_inner());
+        let mut registry = self.registry.write();
 
         registry.register(hook, selector, callback)
     }
 
+    /// Register one callback for one hook point with one closure.
+    pub fn on_fn(
+        &self,
+        hook: Hook,
+        selector: HookSelector,
+        callback: impl Fn(&HookEvent) -> HookDecision + Send + Sync + 'static,
+    ) -> HookCallbackId {
+        self.on(hook, selector, Arc::new(callback))
+    }
+
+    /// Register one callback for binding-before hook events.
+    pub fn on_before(
+        &self,
+        selector: HookSelector,
+        callback: impl Fn(&HookEvent) -> HookDecision + Send + Sync + 'static,
+    ) -> HookCallbackId {
+        self.on_fn(Hook::BindingBefore, selector, callback)
+    }
+
+    /// Register one callback for binding-after hook events.
+    pub fn on_after(
+        &self,
+        selector: HookSelector,
+        callback: impl Fn(&HookEvent) -> HookDecision + Send + Sync + 'static,
+    ) -> HookCallbackId {
+        self.on_fn(Hook::BindingAfter, selector, callback)
+    }
+
     /// Remove one callback by id.
     pub fn off(&self, callback_id: HookCallbackId) -> bool {
-        let mut registry = self
-            .registry
-            .write()
-            .unwrap_or_else(|poisoned_lock| poisoned_lock.into_inner());
+        let mut registry = self.registry.write();
 
         registry.unregister(callback_id)
     }
 
+    /// Register one custom effect callback by handler key.
+    pub fn on_custom_effect(
+        &self,
+        handler: impl Into<String>,
+        callback: impl Fn(&CustomEffectInvocation) -> RuntimeResult<()> + Send + Sync + 'static,
+    ) {
+        let mut handlers = self.custom_effect_handlers.write();
+
+        handlers.insert(handler.into(), Arc::new(callback));
+    }
+
+    /// Remove one custom effect callback by handler key.
+    pub fn off_custom_effect(&self, handler: &str) -> bool {
+        let mut handlers = self.custom_effect_handlers.write();
+
+        handlers.remove(handler).is_some()
+    }
+
     /// Evaluate pre-call runtime effects for one binding invocation.
-    pub fn on_before_binding(
+    pub(crate) fn on_before_binding(
         &self,
         descriptor: BindingDescriptor,
-        state: HookState,
-    ) -> RuntimeResult<()> {
-        let decision = self.on_hook(Hook::BindingBefore, Some(descriptor), state, true);
+        engine: Option<BindingEngine>,
+    ) -> RuntimeResult<PolicyCallId> {
+        // allocate one call id for before and after correlation
+        let call_id = PolicyCallId(self.next_call_id.fetch_add(1, Ordering::Relaxed));
+
+        let decision = self.on_policy_event(HookEvent::BindingBefore {
+            agent_id: self.agent_id,
+            call_id,
+            descriptor,
+            engine,
+            virtual_time_ns: self.world.clock().mono_nanos(),
+        });
         if let HookDecision::Deny { message } = decision {
             return Err(RuntimeError::Internal { message }.boxed());
         }
 
-        Ok(())
+        Ok(call_id)
     }
 
     /// Evaluate post-call runtime effects for one binding invocation.
-    pub fn on_after_binding(&self, descriptor: BindingDescriptor, state: HookState) {
-        self.on_hook(Hook::BindingAfter, Some(descriptor), state, false);
+    pub(crate) fn on_after_binding(
+        &self,
+        descriptor: BindingDescriptor,
+        engine: Option<BindingEngine>,
+        call_id: PolicyCallId,
+    ) {
+        self.on_policy_event(HookEvent::BindingAfter {
+            agent_id: self.agent_id,
+            call_id,
+            descriptor,
+            engine,
+            virtual_time_ns: self.world.clock().mono_nanos(),
+        });
     }
 
     /// Evaluate runtime effects for one scheduler enqueue event.
-    pub fn on_scheduler_enqueue(&self, state: HookState) {
-        self.on_hook(Hook::SchedulerEnqueue, None, state, false);
+    pub fn on_scheduler_enqueue(&self) {
+        self.on_policy_event(HookEvent::SchedulerEnqueue {
+            agent_id: self.agent_id,
+            virtual_time_ns: self.world.clock().mono_nanos(),
+        });
     }
 
     /// Evaluate runtime effects for one scheduler dequeue event.
-    pub fn on_scheduler_dequeue(&self, state: HookState) {
-        self.on_hook(Hook::SchedulerDequeue, None, state, false);
+    pub fn on_scheduler_dequeue(&self) {
+        self.on_policy_event(HookEvent::SchedulerDequeue {
+            agent_id: self.agent_id,
+            virtual_time_ns: self.world.clock().mono_nanos(),
+        });
     }
 
     /// Evaluate runtime effects for one scheduler timer fire event.
-    pub fn on_scheduler_timer_fire(&self, state: HookState) {
-        self.on_hook(Hook::SchedulerTimerFire, None, state, false);
+    pub fn on_scheduler_timer_fire(&self) {
+        self.on_policy_event(HookEvent::SchedulerTimerFire {
+            agent_id: self.agent_id,
+            virtual_time_ns: self.world.clock().mono_nanos(),
+        });
     }
 
     /// Evaluate runtime effects for one host event enqueue.
-    pub fn on_host_event_enqueue(&self, state: HookState) {
-        self.on_hook(Hook::HostEventEnqueue, None, state, false);
+    pub fn on_host_event_enqueue(&self) {
+        self.on_policy_event(HookEvent::HostEventEnqueue {
+            agent_id: self.agent_id,
+            virtual_time_ns: self.world.clock().mono_nanos(),
+        });
     }
 
     /// Evaluate runtime effects for one time read.
-    pub fn on_time_read(&self, state: HookState) {
-        self.on_hook(Hook::TimeRead, None, state, false);
+    pub fn on_time_read(&self, engine: Option<BindingEngine>) {
+        self.on_policy_event(HookEvent::TimeRead {
+            agent_id: self.agent_id,
+            engine,
+            virtual_time_ns: self.world.clock().mono_nanos(),
+        });
     }
 
     /// Evaluate runtime effects for one random read.
-    pub fn on_random_read(&self, state: HookState) {
-        self.on_hook(Hook::RandomRead, None, state, false);
+    pub fn on_random_read(&self, engine: Option<BindingEngine>) {
+        self.on_policy_event(HookEvent::RandomRead {
+            agent_id: self.agent_id,
+            engine,
+            virtual_time_ns: self.world.clock().mono_nanos(),
+        });
     }
 
     /// Evaluate runtime effects for one resource attach.
-    pub fn on_resource_attach(&self, state: HookState) {
-        self.on_hook(Hook::ResourceAttach, None, state, false);
+    pub fn on_resource_attach(
+        &self,
+        resource_id: ResourceId,
+        resource_kind: ResourceKind,
+        resource_label: Option<&str>,
+        _engine: Option<BindingEngine>,
+    ) -> RuntimeResult<()> {
+        let resource = WorldResource::new(
+            WorldResourceId::new(self.agent_id, resource_id),
+            WorldEntityKind::from(resource_kind.kind_id()),
+            resource_label.map(ToString::to_string),
+        );
+        let _ = self
+            .world
+            .apply(WorldCommand::CreateResource { resource })?;
+
+        self.on_policy_event(HookEvent::ResourceAttach {
+            agent_id: self.agent_id,
+            virtual_time_ns: self.world.clock().mono_nanos(),
+        });
+
+        Ok(())
     }
 
     /// Evaluate runtime effects for one resource detach.
-    pub fn on_resource_detach(&self, state: HookState) {
-        self.on_hook(Hook::ResourceDetach, None, state, false);
+    pub fn on_resource_detach(
+        &self,
+        resource_id: ResourceId,
+        _resource_kind: ResourceKind,
+        resource_label: Option<&str>,
+        _engine: Option<BindingEngine>,
+    ) -> RuntimeResult<()> {
+        let _ = resource_label;
+        let _ = self.world.apply(WorldCommand::DestroyResource {
+            resource_id: WorldResourceId::new(self.agent_id, resource_id),
+        });
+
+        self.on_policy_event(HookEvent::ResourceDetach {
+            agent_id: self.agent_id,
+            virtual_time_ns: self.world.clock().mono_nanos(),
+        });
+
+        Ok(())
     }
 
     /// Return the total number of unapplied policy decisions.
@@ -352,56 +681,117 @@ impl Hooks {
         self.unapplied_policy_decisions.load(Ordering::Relaxed)
     }
 
-    /// Evaluate one effect hook.
-    fn on_hook(
-        &self,
-        hook: Hook,
-        descriptor: Option<BindingDescriptor>,
-        state: HookState,
-        is_call_event: bool,
-    ) -> HookDecision {
-        let event = HookEvent {
-            hook,
-            agent_id: self.agent_id,
-            descriptor,
-            state,
-            is_call_event,
-            virtual_time_ns: self.world.clock().mono_nanos(),
-        };
-
+    /// Evaluate one policy event.
+    fn on_policy_event(&self, event: HookEvent) -> HookDecision {
+        // apply callback hook interceptors first
         let hook_decision = self.dispatch_hook_event(&event);
+        if matches!(hook_decision, HookDecision::Deny { .. }) {
+            return hook_decision;
+        }
 
         // TODO #Incomplete: execute policy decisions after trigger evaluation
-        let decisions = self
-            .world
-            .evaluate_policy_event(self.mode, &self.identity, &event);
+        let decisions = match self.world.evaluate_policy_event(
+            self.mode,
+            self.runtime_id,
+            self.agent_id,
+            &event,
+        ) {
+            Ok(decisions) => decisions,
+            Err(error) => {
+                return HookDecision::Deny {
+                    message: format!("policy evaluation failed: {error}"),
+                };
+            }
+        };
 
         self.apply_policy_decisions(&decisions);
         hook_decision
     }
 
-    /// Apply policy decisions for one hook event.
+    /// Apply policy decisions for one policy event.
     fn apply_policy_decisions(&self, decisions: &[PolicyDecision]) {
         // short circuit when no effects fired
         if decisions.is_empty() {
             return;
         }
 
-        // track unapplied decisions until execution wiring lands
-        let unapplied = u64::try_from(decisions.len()).unwrap_or(u64::MAX);
-        self.unapplied_policy_decisions
-            .fetch_add(unapplied, Ordering::Relaxed);
-
-        // TODO #Incomplete: execute decisions through host and simulation backends
-        let _ = decisions;
+        // route each decision through its target dispatch path
+        for decision in decisions {
+            self.route_policy_decision(decision);
+        }
     }
 
-    /// Dispatch one hook event to all matching user callbacks.
+    /// Route one policy decision to host or simulation execution lanes.
+    fn route_policy_decision(&self, decision: &PolicyDecision) {
+        match &decision.effect {
+            Effect::Fault { fault } => match &fault.target {
+                FaultTarget::Call {} => self.route_call_fault(decision),
+                FaultTarget::Entity { kind, .. } => {
+                    self.route_simulation_entity_fault(kind.as_str(), decision)
+                }
+                FaultTarget::Edge { kind, .. } => {
+                    self.route_simulation_edge_fault(kind.as_str(), decision)
+                }
+            },
+            Effect::Custom { custom } => self.route_custom_effect(decision, custom),
+            // NOTE #Incomplete: non-fault trigger effects are not wired yet
+            _ => self.record_unapplied_policy_decision(),
+        }
+    }
+
+    /// Route one call-target fault decision.
+    fn route_call_fault(&self, _decision: &PolicyDecision) {
+        // TODO #Incomplete: execute call-target faults through host binding interception lanes
+        self.record_unapplied_policy_decision();
+    }
+
+    /// Route one entity-target fault decision.
+    fn route_simulation_entity_fault(&self, _kind: &str, _decision: &PolicyDecision) {
+        // TODO #Incomplete: execute entity-target faults through simulation entity handlers
+        self.record_unapplied_policy_decision();
+    }
+
+    /// Route one edge-target fault decision.
+    fn route_simulation_edge_fault(&self, _kind: &str, _decision: &PolicyDecision) {
+        // TODO #Incomplete: execute edge-target faults through simulation edge handlers
+        self.record_unapplied_policy_decision();
+    }
+
+    /// Route one custom-effect decision to one registered custom handler.
+    fn route_custom_effect(&self, decision: &PolicyDecision, custom: &super::CustomEffect) {
+        let handler = {
+            let handlers = self.custom_effect_handlers.read();
+            handlers.get(custom.handler.as_str()).cloned()
+        };
+        let Some(handler) = handler else {
+            self.record_unapplied_policy_decision();
+            return;
+        };
+
+        let invocation = CustomEffectInvocation {
+            rule_id: decision.rule_id.0.clone(),
+            hook: decision.hook,
+            agent_id: decision.agent_id,
+            call_id: decision.call_id,
+            handler: custom.handler.clone(),
+            payload: custom.payload.clone(),
+        };
+
+        if handler(&invocation).is_err() {
+            self.record_unapplied_policy_decision();
+        }
+    }
+
+    /// Record one policy decision that has not been applied yet.
+    fn record_unapplied_policy_decision(&self) {
+        // count unapplied decisions until execution wiring lands
+        self.unapplied_policy_decisions
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Dispatch one policy event to all matching user callbacks.
     fn dispatch_hook_event(&self, event: &HookEvent) -> HookDecision {
-        let registry = self
-            .registry
-            .read()
-            .unwrap_or_else(|poisoned_lock| poisoned_lock.into_inner());
+        let registry = self.registry.read();
 
         registry.dispatch(event)
     }

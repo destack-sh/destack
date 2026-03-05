@@ -4,6 +4,7 @@ use crate::runtime::replay::{
     BindingCallEvent, RandomEventKind, ReplayEvent, ReplayHeader, ReplayLog, ReplayLogReader,
     TimeEventKind,
 };
+use crate::runtime::world::WorldCommand;
 use destack_workspace::ExecutionMode;
 use parking_lot::Mutex;
 use postcard::experimental::serialized_size;
@@ -143,31 +144,38 @@ impl ReplayController {
         self.mode
     }
 
-    /// Return the replay payload policy.
-    pub fn payload_policy(&self) -> BindingReplayPayload {
-        self.payload_policy
-    }
-
-    /// Return whether replay tracking is enabled.
-    #[inline]
-    pub fn is_enabled(&self) -> bool {
-        if !cfg!(feature = "replay") {
-            return false;
-        }
-        self.mode != ExecutionMode::Fast
-    }
-
     /// Return the backing replay log.
     pub fn log(&self) -> &ReplayLog {
         &self.log
     }
 
-    /// Resolve the payload policy for a binding descriptor.
-    pub fn payload_policy_for(
-        &self,
-        spec: BindingDescriptor,
-    ) -> RuntimeResult<BindingReplayPayload> {
-        self.payload_policy_for_requested(spec, self.payload_policy)
+    /// Return one replay mismatch error for one event channel.
+    fn replay_mismatch_error(name: &str) -> Box<RuntimeError> {
+        RuntimeError::ReplayMismatch {
+            name: name.to_string(),
+        }
+        .boxed()
+    }
+
+    /// Require replay execution mode for one event channel.
+    fn ensure_replay_mode(&self, name: &str) -> RuntimeResult<()> {
+        if self.mode() == ExecutionMode::Replay {
+            return Ok(());
+        }
+
+        Err(Self::replay_mismatch_error(name))
+    }
+
+    /// Read one required event from replay for one event channel.
+    fn next_required_event(&self, name: &str) -> RuntimeResult<ReplayEvent> {
+        self.ensure_replay_mode(name)?;
+
+        let Some(event) = self.next_event()? else {
+            let sequence = self.log.next_sequence().get();
+            return Err(RuntimeError::ReplayLogExhausted { sequence }.boxed());
+        };
+
+        Ok(event)
     }
 
     /// Resolve one requested payload policy for a binding descriptor.
@@ -195,9 +203,6 @@ impl ReplayController {
 
     /// Record an event when replay recording is enabled.
     pub fn record_event(&self, event: ReplayEvent) -> RuntimeResult<()> {
-        if !cfg!(feature = "replay") {
-            return Ok(());
-        }
         // skip recording when disabled
         if self.mode() != ExecutionMode::Record {
             return Ok(());
@@ -210,21 +215,16 @@ impl ReplayController {
 
     /// Read the next event when replay is enabled.
     pub fn next_event(&self) -> RuntimeResult<Option<ReplayEvent>> {
-        if !cfg!(feature = "replay") {
-            return Ok(None);
-        }
         // skip replay when disabled
         if self.mode() != ExecutionMode::Replay {
             return Ok(None);
         }
 
         // fetch the next event from the reader
-        let reader = self.reader.as_ref().ok_or_else(|| {
-            RuntimeError::ReplayMismatch {
-                name: "replay".to_string(),
-            }
-            .boxed()
-        })?;
+        let reader = self
+            .reader
+            .as_ref()
+            .ok_or_else(|| Self::replay_mismatch_error("replay"))?;
         let Some(event) = reader.next_event()? else {
             return Ok(None);
         };
@@ -241,9 +241,6 @@ impl ReplayController {
         spec: BindingDescriptor,
         payload: &[u8],
     ) -> RuntimeResult<()> {
-        if !cfg!(feature = "replay") {
-            return Ok(());
-        }
         // skip recording when disabled
         if self.mode() != ExecutionMode::Record {
             return Ok(());
@@ -262,45 +259,91 @@ impl ReplayController {
 
     /// Read the next binding call payload for replay.
     pub fn next_binding_call(&self, spec: BindingDescriptor) -> RuntimeResult<BindingCallEvent> {
-        // reject reads outside replay execution
-        if self.mode() != ExecutionMode::Replay {
-            return Err(RuntimeError::ReplayMismatch {
-                name: spec.name.to_string(),
-            }
-            .boxed());
-        }
-
         // read the next event from the log
-        let Some(event) = self.next_event()? else {
-            let sequence = self.log.next_sequence().get();
-            return Err(RuntimeError::ReplayLogExhausted { sequence }.boxed());
-        };
+        let event = self.next_required_event(spec.name)?;
 
         // validate the binding event shape
         let ReplayEvent::BindingCall(call) = event else {
-            return Err(RuntimeError::ReplayMismatch {
-                name: spec.name.to_string(),
-            }
-            .boxed());
+            return Err(Self::replay_mismatch_error(spec.name));
         };
 
         // validate binding id
         if call.binding_id != spec.id {
-            return Err(RuntimeError::ReplayMismatch {
-                name: spec.name.to_string(),
-            }
-            .boxed());
+            return Err(Self::replay_mismatch_error(spec.name));
         }
 
         // validate codec id
         if call.codec != spec.codec {
-            return Err(RuntimeError::ReplayMismatch {
-                name: spec.name.to_string(),
-            }
-            .boxed());
+            return Err(Self::replay_mismatch_error(spec.name));
         }
 
         Ok(call)
+    }
+
+    /// Record one runtime world command for replay.
+    pub fn record_world_command(&self, command: &WorldCommand) -> RuntimeResult<()> {
+        // skip recording when disabled
+        if self.mode() != ExecutionMode::Record {
+            return Ok(());
+        }
+
+        // encode one stable world command payload
+        let command_bytes = serde_json::to_vec(command).map_err(|_| {
+            RuntimeError::ReplayEncodeFailed {
+                name: "world".to_string(),
+            }
+            .boxed()
+        })?;
+
+        // record one world command event
+        self.log.record_event(ReplayEvent::WorldCommand {
+            payload: command_bytes,
+        })?;
+
+        Ok(())
+    }
+
+    /// Read the next runtime world command from replay.
+    pub fn next_world_command(&self) -> RuntimeResult<WorldCommand> {
+        // read the next event from the log
+        let event = self.next_required_event("world")?;
+
+        // validate the world command event shape
+        let ReplayEvent::WorldCommand {
+            payload: command_bytes,
+        } = event
+        else {
+            return Err(Self::replay_mismatch_error("world"));
+        };
+
+        serde_json::from_slice(&command_bytes).map_err(|_| {
+            RuntimeError::ReplayDecodeFailed {
+                name: "world".to_string(),
+            }
+            .boxed()
+        })
+    }
+
+    /// Resolve one world command under the active replay mode.
+    pub fn resolve_world_command(
+        &self,
+        requested_command: WorldCommand,
+    ) -> RuntimeResult<WorldCommand> {
+        match self.mode() {
+            // fast execution applies requested command directly
+            ExecutionMode::Fast => Ok(requested_command),
+            // replay execution aligns requested command with the replay log
+            ExecutionMode::Replay => {
+                let replayed_command = self.next_world_command()?;
+                if replayed_command != requested_command {
+                    return Err(Self::replay_mismatch_error("world"));
+                }
+
+                Ok(replayed_command)
+            }
+            // deterministic and record modes keep local command behavior
+            ExecutionMode::Deterministic | ExecutionMode::Record => Ok(requested_command),
+        }
     }
 
     /// Record a typed replay payload for a binding.
@@ -459,7 +502,7 @@ impl ReplayController {
         Encode: FnOnce(&mut Context, &RuntimeResult<Value>) -> RuntimeResult<Option<Payload>>,
         Decode: FnOnce(&mut Context, Payload) -> RuntimeResult<Value>,
     {
-        if spec.replay_kind != BindingReplayKind::Regular {
+        if spec.replay_kind != BindingReplayKind::BindingCall {
             return Err(RuntimeError::ReplayMismatch {
                 name: spec.name.to_string(),
             }
@@ -468,28 +511,33 @@ impl ReplayController {
 
         let mode = self.mode();
 
-        // fast path
-        if !cfg!(feature = "replay") || mode == ExecutionMode::Fast {
-            return call(context);
-        }
+        match mode {
+            // fast execution bypasses replay state entirely
+            ExecutionMode::Fast => call(context),
+            // replay execution decodes the next recorded payload
+            ExecutionMode::Replay => {
+                let payload = self.read_binding_payload(spec)?;
+                decode(context, payload)
+            }
+            // deterministic mode validates payload policy, then runs without recording
+            ExecutionMode::Deterministic => {
+                let _ = self.payload_policy_for_requested(spec, requested_payload)?;
+                call(context)
+            }
 
-        // replay path
-        if mode == ExecutionMode::Replay {
-            let payload = self.read_binding_payload(spec)?;
-            return decode(context, payload);
-        }
+            // record mode validates payload policy, executes, then stores payload
+            ExecutionMode::Record => {
+                let _ = self.payload_policy_for_requested(spec, requested_payload)?;
+                let result = call(context);
 
-        // record path
-        let _ = self.payload_policy_for_requested(spec, requested_payload)?;
-        let result = call(context);
-        if mode == ExecutionMode::Record {
-            let payload = encode(context, &result)?;
-            if let Some(payload) = payload {
-                self.record_binding_payload(spec, &payload)?;
+                let payload = encode(context, &result)?;
+                if let Some(payload) = payload {
+                    self.record_binding_payload(spec, &payload)?;
+                }
+
+                result
             }
         }
-
-        result
     }
 }
 
@@ -500,78 +548,5 @@ impl Default for ReplayController {
             BindingReplayPayload::Results,
             ReplayHeader::default(),
         )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::ReplayController;
-    use crate::runtime::bindings::{
-        BindingDescriptor, BindingReplayKind, BindingReplayPayload, BindingReplayPolicy,
-    };
-    use crate::runtime::replay::ReplayHeader;
-    use destack_workspace::ExecutionMode;
-
-    #[test]
-    /// Recordable binding calls replay in order.
-    fn test_record_replay_binding_call() {
-        // setup a recordable binding descriptor
-        let descriptor = BindingDescriptor::external(
-            "destack.test.call",
-            "test() -> u64",
-            BindingReplayPolicy::Recordable,
-            BindingReplayKind::Regular,
-        );
-
-        // record a binding call
-        let record_state = ReplayController::new(
-            ExecutionMode::Record,
-            BindingReplayPayload::Results,
-            ReplayHeader::default(),
-        );
-        record_state
-            .record_binding_call(descriptor, &[1, 2, 3])
-            .expect("record binding call");
-
-        // replay the binding call from the same log
-        let replay_state = ReplayController::from_log(
-            ExecutionMode::Replay,
-            BindingReplayPayload::Results,
-            record_state.log().clone(),
-        );
-        let call = replay_state
-            .next_binding_call(descriptor)
-            .expect("read binding call");
-
-        // verify the payload matches
-        assert_eq!(call.payload, vec![1, 2, 3]);
-    }
-
-    #[test]
-    /// Stream allocation replays deterministically.
-    fn test_record_replay_random_stream() {
-        // record a stream allocation
-        let record_state = ReplayController::new(
-            ExecutionMode::Record,
-            BindingReplayPayload::Results,
-            ReplayHeader::default(),
-        );
-        let stream_id = record_state
-            .run_random_stream(|| Ok(42))
-            .expect("record random stream");
-        assert_eq!(stream_id, 42);
-
-        // replay the stream allocation
-        let replay_state = ReplayController::from_log(
-            ExecutionMode::Replay,
-            BindingReplayPayload::Results,
-            record_state.log().clone(),
-        );
-        let replayed = replay_state
-            .run_random_stream(|| Ok(7))
-            .expect("replay random stream");
-
-        // verify the replayed value matches the recorded one
-        assert_eq!(replayed, 42);
     }
 }

@@ -1,5 +1,4 @@
 mod clock;
-mod core;
 pub(crate) mod host;
 pub(crate) mod timer;
 mod r#virtual;

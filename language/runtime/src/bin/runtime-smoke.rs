@@ -14,7 +14,7 @@ fn run_runtime_smoke() -> Result<String, String> {
         .ok_or_else(|| format!("runtime agent {} does not exist", primary_agent_id.0))?;
 
     // poll host events in nonblocking mode
-    let host_events = primary_agent
+    let host_events = runtime
         .host()
         .poll_events(Some(0))
         .map_err(|error| format!("{error}"))?;
@@ -35,8 +35,8 @@ fn run_runtime_smoke() -> Result<String, String> {
 
     // return smoke summary
     Ok(format!(
-        "runtime-smoke-ok host_events={host_event_count} callback_agent_id={:?}",
-        primary_agent.host_callback_agent_id(),
+        "runtime-smoke-ok host_events={host_event_count} callback_runtime_id={:?}",
+        runtime.host_callback_runtime_id(),
     ))
 }
 
