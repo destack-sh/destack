@@ -77,50 +77,27 @@ struct BindingDecorator {
 
 /// Resolve replay routing for a binding name.
 fn binding_replay_kind_for_name(name: &str) -> CatalogBindingReplayKind {
-    let mut segments = name.split('.');
-    let Some(prefix) = segments.next() else {
-        return CatalogBindingReplayKind::BindingCall;
-    };
-    if prefix != "destack" {
-        return CatalogBindingReplayKind::BindingCall;
+    match name {
+        "destack.time.clock.wallNs" => {
+            CatalogBindingReplayKind::Time(CatalogTimeEventKind::WallClockRead)
+        }
+        "destack.time.clock.monoNs" => {
+            CatalogBindingReplayKind::Time(CatalogTimeEventKind::MonotonicSample)
+        }
+        "destack.random.stream.create" | "destack.random.stream.in" => {
+            CatalogBindingReplayKind::Random(CatalogRandomEventKind::Stream)
+        }
+        "destack.random.stream.nextU64" | "destack.random.stream.nextU64From" => {
+            CatalogBindingReplayKind::Random(CatalogRandomEventKind::NextU64)
+        }
+        "destack.random.stream.fillBytes"
+        | "destack.random.stream.fillBytesFrom"
+        | "destack.random.secure.bytes"
+        | "destack.random.secure.bytesTry" => {
+            CatalogBindingReplayKind::Random(CatalogRandomEventKind::Bytes)
+        }
+        _ => CatalogBindingReplayKind::BindingCall,
     }
-
-    let Some(domain) = segments.next() else {
-        return CatalogBindingReplayKind::BindingCall;
-    };
-    let operation = segments.next_back().unwrap_or_default();
-
-    if domain == "time" {
-        if operation == "wallNs" {
-            return CatalogBindingReplayKind::Time(CatalogTimeEventKind::WallClockRead);
-        }
-
-        if operation == "monoNs" {
-            return CatalogBindingReplayKind::Time(CatalogTimeEventKind::MonotonicSample);
-        }
-
-        return CatalogBindingReplayKind::BindingCall;
-    }
-
-    if domain == "random" {
-        if operation == "stream" || operation == "streamIn" {
-            return CatalogBindingReplayKind::Random(CatalogRandomEventKind::Stream);
-        }
-
-        if operation == "nextU64" || operation == "nextU64From" {
-            return CatalogBindingReplayKind::Random(CatalogRandomEventKind::NextU64);
-        }
-
-        if operation == "fillBytes"
-            || operation == "fillBytesFrom"
-            || operation == "secureBytes"
-            || operation == "bytes"
-        {
-            return CatalogBindingReplayKind::Random(CatalogRandomEventKind::Bytes);
-        }
-    }
-
-    CatalogBindingReplayKind::BindingCall
 }
 
 /// Collect platform bindings from builtin modules.
@@ -1287,9 +1264,12 @@ fn scalar_string_literal(
 
 #[cfg(test)]
 mod tests {
-    use crate::model::BindingType;
+    use crate::model::{BindingType, CatalogBindingReplayKind, CatalogRandomEventKind};
 
-    use super::{binding_type_supports_integer_constants, module_platform_domain};
+    use super::{
+        binding_replay_kind_for_name, binding_type_supports_integer_constants,
+        module_platform_domain,
+    };
 
     /// Parse platform domain names from builtin platform module uris.
     #[test]
@@ -1318,5 +1298,27 @@ mod tests {
         };
         assert!(binding_type_supports_integer_constants(&integer_newtype));
         assert!(!binding_type_supports_integer_constants(&BindingType::Bool));
+    }
+
+    /// Route random stream allocation bindings through stream replay events.
+    #[test]
+    fn test_binding_replay_kind_for_name_maps_random_stream_allocations() {
+        assert_eq!(
+            binding_replay_kind_for_name("destack.random.stream.create"),
+            CatalogBindingReplayKind::Random(CatalogRandomEventKind::Stream)
+        );
+        assert_eq!(
+            binding_replay_kind_for_name("destack.random.stream.in"),
+            CatalogBindingReplayKind::Random(CatalogRandomEventKind::Stream)
+        );
+    }
+
+    /// Route secure bytesTry bindings through random bytes replay events.
+    #[test]
+    fn test_binding_replay_kind_for_name_maps_secure_bytes_try() {
+        assert_eq!(
+            binding_replay_kind_for_name("destack.random.secure.bytesTry"),
+            CatalogBindingReplayKind::Random(CatalogRandomEventKind::Bytes)
+        );
     }
 }
