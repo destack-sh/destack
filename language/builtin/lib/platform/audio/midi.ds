@@ -60,6 +60,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.midi"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -87,6 +88,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.midi"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -113,6 +115,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.midi"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -139,6 +142,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.midi"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -169,6 +173,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.midi"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -195,6 +200,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.midi"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -221,6 +227,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.midi"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })

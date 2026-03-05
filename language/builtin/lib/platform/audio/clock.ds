@@ -87,6 +87,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -119,6 +120,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })

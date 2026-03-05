@@ -85,6 +85,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.media.read"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -111,6 +112,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.media.read"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -137,6 +139,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.media.write"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -163,6 +166,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.media.write"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })

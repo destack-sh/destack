@@ -50,7 +50,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.uds.udsConnect", { effect: "external", replay: "recordable", capabilities: ["net.connect"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.uds.udsConnect", { effect: "external", replay: "recordable", capabilities: ["net.connect"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
     export function udsConnect(address: UdsAddress): Result<SocketHandle, PlatformError>;
 
     /// Listen on a UDS address.
@@ -70,7 +70,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.uds.udsListen", { effect: "external", replay: "recordable", capabilities: ["net.listen"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.uds.udsListen", { effect: "external", replay: "recordable", capabilities: ["net.listen"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
     export function udsListen(
         address: UdsAddress,
         backlog: uint32,
@@ -93,7 +93,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.uds.udsAccept", { effect: "external", replay: "recordable", capabilities: ["net.accept"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.uds.udsAccept", { effect: "external", replay: "recordable", capabilities: ["net.accept"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
     export function udsAccept(listener: ListenerHandle): Result<SocketHandle, PlatformError>;
 
     /// Close a UDS listener handle.
@@ -113,7 +113,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.uds.udsCloseListener", { effect: "external", replay: "recordable", capabilities: ["net.close"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.uds.udsCloseListener", { effect: "external", replay: "recordable", capabilities: ["net.close"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
     export function udsCloseListener(handle: ListenerHandle): Result<void, PlatformError>;
 
     /// Create a connected UDS socket pair.
@@ -133,6 +133,6 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.uds.udsSocketPair", { effect: "external", replay: "recordable", capabilities: ["net.connect"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.uds.udsSocketPair", { effect: "external", replay: "recordable", capabilities: ["net.connect"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
     export function udsSocketPair(socketType: SocketType): Result<SocketPair, PlatformError>;
 }

@@ -225,6 +225,7 @@ declare namespace os {
         replay: "recordable",
         capabilities: ["os.notification.permission"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -251,6 +252,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.notification.permission"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -277,6 +279,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.notification.post"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -303,6 +306,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.notification.post"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -329,6 +333,7 @@ declare namespace os {
         replay: "recordable",
         capabilities: ["os.notification.post"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -355,6 +360,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.notification.post"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -381,6 +387,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.notification.post"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -407,6 +414,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.notification.post"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -433,6 +441,7 @@ declare namespace os {
         replay: "recordable",
         capabilities: ["os.notification.post"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -459,6 +468,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.notification.post"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -485,6 +495,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.notification.post"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -511,6 +522,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.notification.permission"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -537,6 +549,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.notification.permission"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -563,6 +576,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.notification.permission"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -592,6 +606,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.notification.permission"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "never",
     })

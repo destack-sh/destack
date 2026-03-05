@@ -191,6 +191,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.device.monitor"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -221,6 +222,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.device"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -249,6 +251,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.device"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -280,6 +283,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.device"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -310,6 +314,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.device"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -337,6 +342,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.device"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })

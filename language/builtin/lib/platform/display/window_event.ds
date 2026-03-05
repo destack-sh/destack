@@ -603,6 +603,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window.events"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -629,6 +630,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window.events"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -655,6 +657,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window.events"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -682,6 +685,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window.events"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -708,6 +712,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window.events"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -738,6 +743,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window.events"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })

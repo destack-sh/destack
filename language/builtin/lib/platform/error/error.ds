@@ -539,6 +539,7 @@ export declare namespace error {
             replay: "nonrecordable",
             capabilities: ["diagnostic.read"],
             platforms: ["windows", "unix", "wasi"],
+            simulation: "unsupported",
             scope: "runtime",
             blocking: "never",
         },

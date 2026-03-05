@@ -182,6 +182,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -212,6 +213,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -239,6 +241,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -270,6 +273,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -301,6 +305,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -333,6 +338,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -360,6 +366,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -387,6 +394,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -417,6 +425,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -444,6 +453,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -471,6 +481,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -501,6 +512,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -528,6 +540,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -558,6 +571,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.memory"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })

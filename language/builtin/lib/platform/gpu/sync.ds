@@ -106,6 +106,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -136,6 +137,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -163,6 +165,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -194,6 +197,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -226,6 +230,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -256,6 +261,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -284,6 +290,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -314,6 +321,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -341,6 +349,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -368,6 +377,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -399,6 +409,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -430,6 +441,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -457,6 +469,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync.pipeline.statistics"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -488,6 +501,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync.pipeline.statistics"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -517,6 +531,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync.pipeline.statistics"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -548,6 +563,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync.pipeline.statistics"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -577,6 +593,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.sync"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
