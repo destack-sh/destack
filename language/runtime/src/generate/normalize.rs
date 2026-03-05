@@ -75,7 +75,7 @@ mod tests {
     use crate::model::{
         BindingCatalog, BindingEntry, BindingField, BindingParameter, BindingTaggedUnionVariant,
         BindingType, CatalogBindingBlocking, CatalogBindingReplayKind, CatalogBindingScope,
-        CatalogEffectClass, CatalogReplayPayload,
+        CatalogBindingSimulation, CatalogEffectClass, CatalogReplayPayload,
     };
 
     use super::normalize_binding_catalog;
@@ -134,6 +134,7 @@ mod tests {
                 host_platforms: vec!["linux".to_string()],
                 scope: CatalogBindingScope::Runtime,
                 blocking: CatalogBindingBlocking::Never,
+                simulation: CatalogBindingSimulation::Unsupported,
             },
         );
         catalog.insert("test".to_string(), domain);
@@ -178,6 +179,7 @@ mod tests {
                 host_platforms: vec!["linux".to_string()],
                 scope: CatalogBindingScope::Runtime,
                 blocking: CatalogBindingBlocking::Never,
+                simulation: CatalogBindingSimulation::Unsupported,
             },
         );
         catalog.insert("test".to_string(), domain);

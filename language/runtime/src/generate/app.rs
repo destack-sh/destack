@@ -30,7 +30,7 @@ use crate::emit::{
     runtime_domain_unix_mod_path, runtime_domain_unsupported_path, runtime_domain_vm_path,
     runtime_domain_windows_mod_path, runtime_platform_generated_path, write_domain_bindings,
 };
-use crate::model::{BindingEntry, CatalogBindingScope};
+use crate::model::{BindingEntry, CatalogBindingScope, CatalogBindingSimulation};
 use crate::normalize::normalize_binding_catalog;
 use crate::option::parse_generator_options;
 use crate::refresh::{write_missing_stub_file, write_stub_file};
@@ -387,12 +387,20 @@ fn generate_bindings(
             let has_host_dispatch = bindings
                 .values()
                 .any(|entry| entry.scope != CatalogBindingScope::Runtime);
+            let has_simulation_dispatch = bindings.values().any(|entry| {
+                entry.scope != CatalogBindingScope::Runtime
+                    && entry.simulation != CatalogBindingSimulation::Unsupported
+            });
             let has_runtime_dispatch = bindings
                 .values()
                 .any(|entry| entry.scope == CatalogBindingScope::Runtime);
 
             let mod_path = runtime_domain_mod_path(domain);
-            let stub = render_domain_mod_stub(has_host_dispatch, has_runtime_dispatch);
+            let stub = render_domain_mod_stub(
+                has_host_dispatch,
+                has_simulation_dispatch,
+                has_runtime_dispatch,
+            );
             write_missing_stub_file(&mod_path, &stub);
 
             let generated = render_domain_bindings(domain, bindings);
@@ -424,17 +432,21 @@ fn generate_bindings(
                 let stub = render_host_stub(domain, bindings);
                 write_stub_file(&unsupported_path, &stub, refresh_stubs);
 
-                let simulation_mod_path = runtime_domain_simulation_mod_path(domain);
-                let stub = render_simulation_mod_stub();
-                write_stub_file(&simulation_mod_path, &stub, refresh_stubs);
+                if has_simulation_dispatch {
+                    let simulation_mod_path = runtime_domain_simulation_mod_path(domain);
+                    let stub = render_simulation_mod_stub();
+                    write_stub_file(&simulation_mod_path, &stub, refresh_stubs);
 
-                let simulation_native_path = runtime_domain_simulation_native_path(domain);
-                let stub = render_simulation_native_stub(domain, bindings);
-                write_stub_file(&simulation_native_path, &stub, refresh_stubs);
+                    let simulation_native_path = runtime_domain_simulation_native_path(domain);
+                    let stub = render_simulation_native_stub(domain, bindings);
+                    write_stub_file(&simulation_native_path, &stub, refresh_stubs);
 
-                let simulation_vm_path = runtime_domain_simulation_vm_path(domain);
-                let stub = render_simulation_vm_stub(domain, bindings);
-                write_stub_file(&simulation_vm_path, &stub, refresh_stubs);
+                    let simulation_vm_path = runtime_domain_simulation_vm_path(domain);
+                    let stub = render_simulation_vm_stub(domain, bindings);
+                    write_stub_file(&simulation_vm_path, &stub, refresh_stubs);
+                } else {
+                    remove_domain_simulation_stubs(domain);
+                }
             }
 
             if has_runtime_dispatch {
@@ -464,6 +476,24 @@ fn generate_bindings(
         let platform_path = runtime_platform_generated_path();
         write_domain_bindings(&platform_path, &platform_generated);
     }
+}
+
+/// Remove stale simulation stubs for one domain.
+fn remove_domain_simulation_stubs(domain: &str) {
+    let simulation_mod_path = runtime_domain_simulation_mod_path(domain);
+    let Some(simulation_directory) = simulation_mod_path.parent() else {
+        panic!("failed to resolve simulation directory for domain {domain}");
+    };
+    if !simulation_directory.exists() {
+        return;
+    }
+
+    fs::remove_dir_all(simulation_directory).unwrap_or_else(|error| {
+        panic!(
+            "failed to remove stale simulation directory {}: {error}",
+            simulation_directory.display()
+        )
+    });
 }
 
 /// Ensure one domain module declares its test module.

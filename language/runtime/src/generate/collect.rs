@@ -12,9 +12,9 @@ use destack_workspace::{Platform, ProfileId, Program};
 
 use crate::model::{
     BindingCatalog, BindingEntry, BindingReturn, BindingType, CatalogBindingBlocking,
-    CatalogBindingReplayKind, CatalogBindingScope, CatalogEffectClass, CatalogRandomEventKind,
-    CatalogReplayPayload, CatalogReplayPolicy, CatalogTimeEventKind, ConstantCatalog,
-    ConstantEntry, ConstantValue,
+    CatalogBindingReplayKind, CatalogBindingScope, CatalogBindingSimulation, CatalogEffectClass,
+    CatalogRandomEventKind, CatalogReplayPayload, CatalogReplayPolicy, CatalogTimeEventKind,
+    ConstantCatalog, ConstantEntry, ConstantValue,
 };
 use crate::types::{
     binding_type_from_type_id, binding_type_symbols, collect_binding_params,
@@ -50,6 +50,8 @@ struct BindingRecord {
     scope: CatalogBindingScope,
     /// Blocking behavior for this binding.
     blocking: CatalogBindingBlocking,
+    /// Simulation capability for this binding.
+    simulation: CatalogBindingSimulation,
 }
 
 /// Binding decorator payload extracted from an annotation.
@@ -69,6 +71,8 @@ struct BindingDecorator {
     scope: CatalogBindingScope,
     /// Blocking behavior for this binding.
     blocking: CatalogBindingBlocking,
+    /// Simulation capability for this binding.
+    simulation: CatalogBindingSimulation,
 }
 
 /// Resolve replay routing for a binding name.
@@ -246,6 +250,7 @@ pub(crate) fn collect_platform_bindings(
                 binding.host_platforms,
                 binding.scope,
                 binding.blocking,
+                binding.simulation,
             ) {
                 insert_binding(&mut domains, entry);
             }
@@ -573,6 +578,7 @@ fn binding_from_node(
     host_platforms: Vec<String>,
     scope: CatalogBindingScope,
     blocking: CatalogBindingBlocking,
+    simulation: CatalogBindingSimulation,
 ) -> Option<BindingRecord> {
     let implementation_name = implementation_name?;
     let extern_name = extern_name?;
@@ -594,6 +600,7 @@ fn binding_from_node(
         host_platforms,
         scope,
         blocking,
+        simulation,
     })
 }
 
@@ -618,6 +625,7 @@ fn insert_binding(domains: &mut BindingCatalog, record: BindingRecord) {
         host_platforms: record.host_platforms,
         scope: record.scope,
         blocking: record.blocking,
+        simulation: record.simulation,
     };
 
     // insert the entry and validate signature stability
@@ -631,7 +639,8 @@ fn insert_binding(domains: &mut BindingCatalog, record: BindingRecord) {
             || existing.requires != entry.requires
             || existing.host_platforms != entry.host_platforms
             || existing.scope != entry.scope
-            || existing.blocking != entry.blocking)
+            || existing.blocking != entry.blocking
+            || existing.simulation != entry.simulation)
     {
         panic!(
             "binding signature mismatch for {}: {:?} vs {:?}",
@@ -790,6 +799,7 @@ fn decorator_binding_argument(
         host_platforms: spec.host_platforms,
         scope: spec.scope,
         blocking: spec.blocking,
+        simulation: spec.simulation,
     }
 }
 
@@ -807,6 +817,8 @@ struct BindingEffectSpec {
     scope: CatalogBindingScope,
     /// Blocking behavior for this binding.
     blocking: CatalogBindingBlocking,
+    /// Simulation capability for this binding.
+    simulation: CatalogBindingSimulation,
 }
 
 /// Parse effect options from a binding decorator.
@@ -830,6 +842,7 @@ fn parse_effect_spec(
     let mut host_platforms = Vec::new();
     let mut scope = None;
     let mut blocking = None;
+    let mut simulation = None;
 
     // read each property value
     for property_id in properties {
@@ -886,6 +899,12 @@ fn parse_effect_spec(
                 };
                 blocking = Some(value);
             }
+            "simulation" => {
+                let Some(value) = scalar_string_literal(tree, *value_id, strings) else {
+                    panic!("@binding simulation must be a string literal");
+                };
+                simulation = Some(value);
+            }
             _ => {
                 panic!("unsupported @binding option {key}");
             }
@@ -906,6 +925,7 @@ fn parse_effect_spec(
     let replay_payload = parse_replay_payload(payload.as_deref());
     let scope = parse_binding_scope(scope.as_deref());
     let blocking = parse_binding_blocking(blocking.as_deref());
+    let simulation = parse_binding_simulation(simulation.as_deref());
 
     if log.is_some() {
         panic!("@binding log is runtime-owned and should not be specified");
@@ -931,6 +951,7 @@ fn parse_effect_spec(
         host_platforms,
         scope,
         blocking,
+        simulation,
     }
 }
 
@@ -959,6 +980,21 @@ fn parse_binding_blocking(value: Option<&str>) -> CatalogBindingBlocking {
         }
         None => {
             panic!("@binding requires an explicit blocking classification");
+        }
+    }
+}
+
+/// Parse a binding simulation capability from a string.
+fn parse_binding_simulation(value: Option<&str>) -> CatalogBindingSimulation {
+    match value {
+        Some("unsupported") => CatalogBindingSimulation::Unsupported,
+        Some("stub") => CatalogBindingSimulation::Stub,
+        Some("model") => CatalogBindingSimulation::Model,
+        Some(value) => {
+            panic!("unsupported @binding simulation value {value}");
+        }
+        None => {
+            panic!("@binding requires an explicit simulation classification");
         }
     }
 }

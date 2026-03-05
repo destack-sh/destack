@@ -21,6 +21,17 @@ pub(crate) enum CatalogBindingBlocking {
     /// Binding may block depending on flags, readiness, or host state.
     Sometimes,
 }
+
+/// Simulation capability classification for bindings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CatalogBindingSimulation {
+    /// Binding cannot execute in simulation world.
+    Unsupported,
+    /// Binding supports simulation routing through a stub backend.
+    Stub,
+    /// Binding supports simulation routing through a modeled backend.
+    Model,
+}
 /// Replay routing for generated bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CatalogBindingReplayKind {
@@ -129,6 +140,8 @@ pub(crate) struct BindingEntry {
     pub scope: CatalogBindingScope,
     /// Blocking behavior for this binding.
     pub blocking: CatalogBindingBlocking,
+    /// Simulation capability for this binding.
+    pub simulation: CatalogBindingSimulation,
 }
 
 /// Return metadata extracted from a binding signature.
