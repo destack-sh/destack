@@ -26,10 +26,12 @@ declare_lint! {
 }
 
 impl LintRule for NoUnnecessaryCondition {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoUnnecessaryCondition::meta()
     }
 
+    /// Check module DIR nodes for always-fixed conditions.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
         let mut visitor = UnnecessaryConditionVisitor::new(ctx, meta);
@@ -62,6 +64,7 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
+        // inspect dir roots
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -79,6 +82,7 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
         };
         let truthiness = type_truthiness(self.ctx.types, &self.ctx.program.strings, type_id);
 
+        // resolve values for this check
         let (message, label) = match truthiness {
             TypeTruthiness::AlwaysTruthy => (
                 format!("{context_label} is always truthy"),
@@ -91,11 +95,13 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
             TypeTruthiness::Unknown => return,
         };
 
+        // resolve effective lint severity
         let severity = self.ctx.get_effective_severity(self.meta, expression_id);
         if !severity.is_enabled() {
             return;
         }
 
+        // resolve diagnostic span
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
             LintDiagnostic::new(
@@ -122,6 +128,7 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
         };
         let nullishness = type_nullishness(self.ctx.types, type_id);
 
+        // resolve values for this check
         let (message, label) = match nullishness {
             TypeNullishness::Never => (
                 "left side of ?? is never nullish".to_string(),
@@ -134,11 +141,13 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
             TypeNullishness::Maybe => return,
         };
 
+        // skip disabled diagnostics
         let severity = self.ctx.get_effective_severity(self.meta, expression_id);
         if !severity.is_enabled() {
             return;
         }
 
+        // report the full expression span
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
             LintDiagnostic::new(
@@ -154,7 +163,7 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
         );
     }
 
-    /// Check one logical short-circuit expression.
+    /// Check one logical short circuit expression.
     fn check_logical(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
@@ -166,6 +175,7 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
         };
         let truthiness = type_truthiness(self.ctx.types, &self.ctx.program.strings, type_id);
 
+        // map operator and truthiness to one unreachable or redundant branch message
         let (message, label) = match (operator, truthiness) {
             (dir::BinaryOperator::And, TypeTruthiness::AlwaysFalsy) => (
                 "left side of && is always falsy".to_string(),
@@ -186,11 +196,13 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
             _ => return,
         };
 
+        // skip disabled diagnostics
         let severity = self.ctx.get_effective_severity(self.meta, expression_id);
         if !severity.is_enabled() {
             return;
         }
 
+        // report the full expression span
         let span = self.ctx.get_span(expression_id);
         self.ctx.report(
             LintDiagnostic::new(
@@ -206,13 +218,8 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
         );
     }
 
-    /// Check one loop condition, allowing intentional `while (true)` forms.
+    /// Check one loop condition expression.
     fn check_loop_condition(&mut self, condition_id: dir::LocalNodeId<dir::Expression>) {
-        // allow explicit constant true loop conditions
-        if self.ctx.const_bool(condition_id) == Some(true) {
-            return;
-        }
-
         self.check_condition(condition_id, "loop condition");
     }
 }
@@ -520,20 +527,19 @@ let b = value || "fallback";
             .assert_no_lint("no-unnecessary-condition");
     }
 
-    /// Allow explicit `while (true)` loop conditions.
+    /// Flag explicit `while (true)` loop conditions.
     #[test]
-    fn test_allows_loop_condition_true_literal() {
+    fn test_flags_loop_condition_true_literal() {
         let test = TestProgram::for_rule_without_prelude(NoUnnecessaryCondition);
         let result = test.lint_dir(
-            "no_unnecessary_condition/test_allows_loop_condition_true_literal.ts",
+            "no_unnecessary_condition/test_flags_loop_condition_true_literal.ts",
             r#"
 while (true) {
     break;
 }
 "#,
         );
-        test.result(result)
-            .assert_no_lint("no-unnecessary-condition");
+        test.result(result).assert_lint("no-unnecessary-condition");
     }
 
     /// Flag explicit `while (false)` loop conditions.

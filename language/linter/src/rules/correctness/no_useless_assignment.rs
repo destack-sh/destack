@@ -5,6 +5,7 @@ use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     collect_expression_read_symbol_usage, collect_pattern_value_binding_symbols,
+    statement_expression_span,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -67,6 +68,7 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
+        // inspect dir roots
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -75,6 +77,12 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
 
     /// Check a block for consecutive assignments to the same variable.
     fn check_block(&mut self, block_id: dir::LocalNodeId<dir::Block>) {
+        // skip try bodies: exceptional control flow can bypass local overwrite ordering
+        if block_is_try_body(self.ctx.tree, block_id) {
+            return;
+        }
+
+        // resolve block
         let block = self.ctx.tree.get(block_id);
 
         // track the last assignment expression for each variable
@@ -82,6 +90,7 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
             HashMap::new();
         let mut to_report: HashSet<u32> = HashSet::new();
 
+        // inspect candidate syntax nodes
         for expr_id in &block.expressions {
             let expression = self.ctx.tree.get(*expr_id);
 
@@ -124,6 +133,7 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
     fn assignment_targets(&self, expression: &dir::Expression) -> Vec<GlobalSymbolId> {
         let mut targets = Vec::new();
 
+        // branch by expression kind
         match expression {
             // regular assignments like `x = 1` and `x += 1`
             dir::Expression::Assign { left, .. } | dir::Expression::AssignBinary { left, .. } => {
@@ -188,6 +198,38 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
     }
 }
 
+/// Return true when one block appears in a try body chain.
+fn block_is_try_body(tree: &dir::NodeTree, block_id: dir::LocalNodeId<dir::Block>) -> bool {
+    let Some(parent) = tree.get_parent(block_id.id) else {
+        return false;
+    };
+    if parent.ty != dir::NodeType::Expression {
+        return false;
+    }
+
+    // resolve current expression id
+    let mut current_expression_id = parent.into_typed::<dir::Expression>();
+    loop {
+        let Some(parent) = tree.get_parent(current_expression_id.id) else {
+            return false;
+        };
+        if parent.ty != dir::NodeType::Expression {
+            return false;
+        }
+
+        // walk up expression parents and check for an enclosing try block
+        let parent_expression_id = parent.into_typed::<dir::Expression>();
+        let parent_expression = tree.get(parent_expression_id);
+        if let dir::Expression::Try { try_expression, .. } = parent_expression
+            && *try_expression == current_expression_id
+        {
+            return true;
+        }
+
+        current_expression_id = parent_expression_id;
+    }
+}
+
 /// Return true when this expression unconditionally stops block execution.
 fn expression_stops_execution(expression: &dir::Expression) -> bool {
     matches!(
@@ -209,31 +251,10 @@ fn useless_assignment_fix(
         return None;
     }
 
-    let statement_span = parent_statement_span(ctx, expression_id)?;
+    // remove the full statement that contains this overwritten assignment
+    let statement_span = statement_expression_span(ctx, expression_id)?;
     let edits = ctx.edit_builder().delete(statement_span).into_edits();
     Some(LintFix::r#unsafe("Remove overwritten assignment").with_edits(edits))
-}
-
-/// Return the parent statement span for one expression.
-fn parent_statement_span(
-    ctx: &LintModuleDirContext<'_>,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<destack_source::Span> {
-    let parent_id = ctx.tree.get_parent(expression_id.id)?;
-    if parent_id.ty != dir::NodeType::Expression {
-        return None;
-    }
-
-    let parent_expression_id = parent_id.into_typed::<dir::Expression>();
-    let parent_expression = ctx.tree.get(parent_expression_id);
-    if !matches!(
-        parent_expression,
-        dir::Expression::Statement { statement } if *statement == expression_id
-    ) {
-        return None;
-    }
-
-    Some(ctx.get_span(parent_expression_id))
 }
 
 /// Collect read symbols in one expression subtree.
@@ -430,6 +451,27 @@ function test(value: int32): int32 {
     let current = value;
     return current;
     current = 0;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-useless-assignment");
+    }
+
+    /// Ignore overwritten assignments inside try bodies.
+    #[test]
+    fn test_ignores_try_body_overwrite() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessAssignment);
+        let result = test.lint_dir(
+            "no_useless_assignment/test_ignores_try_body_overwrite.ds",
+            r#"
+function test(): int32 {
+    let value = 0;
+    try {
+        value = 1;
+        value = 2;
+    } catch {
+    }
+    return value;
 }
 "#,
         );

@@ -27,13 +27,16 @@ declare_lint! {
 }
 
 impl LintRule for NoUnsafeFinally {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoUnsafeFinally::meta()
     }
 
+    /// Check module AST nodes for unsafe control flow inside finally blocks.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect try expressions that include finally blocks
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let ast::Expression::Try {
                 finally_expression: Some(finally_id),
@@ -43,7 +46,10 @@ impl LintRule for NoUnsafeFinally {
                 continue;
             };
 
+            // resolve effective lint severity
             let severity = ctx.get_effective_severity(meta, node_id);
+
+            // skip disabled diagnostics
             if !severity.is_enabled() {
                 continue;
             }
@@ -59,9 +65,11 @@ impl LintRule for NoUnsafeFinally {
                 labels: Vec::new(),
             };
 
+            // resolve finally expression
             let finally_expression = ctx.tree.get(*finally_id);
             visitor.visit_expression(ctx.tree, *finally_id, finally_expression);
 
+            // report all unsafe control-flow diagnostics from this finally traversal
             for diagnostic in visitor.diagnostics {
                 ctx.report(diagnostic);
             }
@@ -69,6 +77,7 @@ impl LintRule for NoUnsafeFinally {
     }
 }
 
+/// Visitor that detects unsafe control-flow exits within one finally traversal.
 struct FinallyVisitor {
     /// The visitor options.
     options: NodeVisitorOptions,
@@ -99,24 +108,22 @@ impl FinallyVisitor {
     /// Return true when one break target is inside the current finally traversal.
     fn break_is_local_target(&self, label: Option<ast::StringId>) -> bool {
         // unlabeled breaks target the nearest breakable scope
-        if label.is_none() {
+        let Some(label) = label else {
             return self.breakable_scope_depth > 0;
-        }
+        };
 
         // labeled breaks are local only when label exists in this finally traversal
-        let label = label.expect("label is checked above");
         self.labels.iter().rev().any(|scope| scope.name == label)
     }
 
     /// Return true when one continue target is inside the current finally traversal.
     fn continue_is_local_target(&self, label: Option<ast::StringId>) -> bool {
         // unlabeled continues target the nearest loop scope
-        if label.is_none() {
+        let Some(label) = label else {
             return self.continuable_scope_depth > 0;
-        }
+        };
 
         // labeled continues are local only for in finally loop labels
-        let label = label.expect("label is checked above");
         self.labels
             .iter()
             .rev()
@@ -254,15 +261,21 @@ impl NodeVisitor for FinallyVisitor {
             );
         }
 
+        // walk child expressions in this subtree
         walk_expression(self, tree, id, expression);
 
         // restore traversal scopes after children
+        // leave one label scope
         if entered_label {
             self.labels.pop();
         }
+
+        // leave one continuable scope
         if entered_continuable_scope {
             self.continuable_scope_depth -= 1;
         }
+
+        // leave one breakable scope
         if entered_break_scope {
             self.breakable_scope_depth -= 1;
         }

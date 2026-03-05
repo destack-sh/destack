@@ -44,10 +44,12 @@ declare_lint! {
 }
 
 impl LintRule for NoIteratorInvalidation {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoIteratorInvalidation::meta()
     }
 
+    /// Check module DIR nodes for iterator invalidation mutations.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
         let mut visitor = IteratorInvalidationVisitor::new(ctx, meta);
@@ -83,6 +85,7 @@ impl<'a, 'b> IteratorInvalidationVisitor<'a, 'b> {
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
+        // inspect dir roots
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -168,6 +171,7 @@ impl<'a, 'b> IteratorInvalidationVisitor<'a, 'b> {
             return;
         };
 
+        // resolve declarator
         let declarator = self.ctx.tree.get(declarator_id);
         let Some(value_id) = declarator.value else {
             return;
@@ -208,7 +212,7 @@ impl NodeVisitor for IteratorInvalidationVisitor<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        // check for for-of loops
+        // check for for of loops
         if let dir::Expression::ForEach {
             kind: dir::ForEachKind::Of,
             iterator,
@@ -258,7 +262,7 @@ mod tests {
     use super::*;
     use crate::linter::TestProgram;
 
-    /// Flag push during for-of iteration.
+    /// Flag push during for of iteration.
     #[test]
     fn test_flags_push_in_for_of() {
         let test = TestProgram::for_rule_with_prelude(NoIteratorInvalidation);
@@ -274,7 +278,7 @@ for (const x of arr) {
         test.result(result).assert_lint("no-iterator-invalidation");
     }
 
-    /// Flag pop during for-of iteration.
+    /// Flag pop during for of iteration.
     #[test]
     fn test_flags_pop_in_for_of() {
         let test = TestProgram::for_rule_with_prelude(NoIteratorInvalidation);
@@ -290,7 +294,7 @@ for (const x of arr) {
         test.result(result).assert_lint("no-iterator-invalidation");
     }
 
-    /// Flag splice during for-of iteration.
+    /// Flag splice during for of iteration.
     #[test]
     fn test_flags_splice_in_for_of() {
         let test = TestProgram::for_rule_with_prelude(NoIteratorInvalidation);

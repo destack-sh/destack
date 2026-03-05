@@ -1,6 +1,7 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{expression_unwrap_transparent, expressions_have_equivalent_syntax};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -63,6 +64,7 @@ impl<'a, 'b> UselessIncrementVisitor<'a, 'b> {
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
+        // inspect dir roots
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -94,7 +96,59 @@ impl<'a, 'b> UselessIncrementVisitor<'a, 'b> {
             return;
         }
 
-        // report the diagnostic
+        self.report_useless_postfix_update(expression_id, *operator, *right, severity, "in return");
+    }
+
+    /// Check one assignment for a useless postfix update on the right side.
+    fn check_useless_postfix_assignment(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        left_id: dir::LocalNodeId<dir::Expression>,
+        right_id: dir::LocalNodeId<dir::Expression>,
+    ) {
+        let normalized_right_id = expression_unwrap_transparent(self.ctx.tree, right_id);
+        let right_expression = self.ctx.tree.get(normalized_right_id);
+        let dir::Expression::Unary { operator, right } = right_expression else {
+            return;
+        };
+
+        // enforce this lint guard
+        if !matches!(
+            operator,
+            dir::UnaryOperator::PostIncrement | dir::UnaryOperator::PostDecrement
+        ) {
+            return;
+        }
+
+        // enforce this lint guard
+        if !expressions_have_equivalent_syntax(self.ctx, left_id, *right) {
+            return;
+        }
+
+        // resolve effective lint severity
+        let severity = self.ctx.get_effective_severity(self.meta, expression_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        self.report_useless_postfix_update(
+            normalized_right_id,
+            *operator,
+            *right,
+            severity,
+            "in self-assignment",
+        );
+    }
+
+    /// Report one useless postfix update.
+    fn report_useless_postfix_update(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        operator: dir::UnaryOperator,
+        operand_id: dir::LocalNodeId<dir::Expression>,
+        severity: LintSeverity,
+        context: &str,
+    ) {
         let span = self.ctx.get_span(expression_id);
         let op_name = match operator {
             dir::UnaryOperator::PostIncrement => "increment",
@@ -106,15 +160,15 @@ impl<'a, 'b> UselessIncrementVisitor<'a, 'b> {
             NO_USELESS_INCREMENT.code,
             NO_USELESS_INCREMENT.category,
             severity,
-            format!("postfix {op_name} in return has no effect"),
+            format!("postfix {op_name} {context} has no effect"),
             self.ctx.module.file_id,
             span,
         )
         .with_label("the updated value is discarded");
 
-        // compute fixes only when requested by the runner
+        // attach fix when enabled
         if self.ctx.include_fixes
-            && let Some(fix) = self.no_useless_increment_fix(expression_id, *operator, *right)
+            && let Some(fix) = self.no_useless_increment_fix(expression_id, operator, operand_id)
         {
             diagnostic = diagnostic.with_fix(fix);
         }
@@ -135,12 +189,14 @@ impl<'a, 'b> UselessIncrementVisitor<'a, 'b> {
             return None;
         }
 
+        // rewrite postfix operators to prefix operators
         let replacement = match operator {
             dir::UnaryOperator::PostIncrement => format!("++{operand_text}"),
             dir::UnaryOperator::PostDecrement => format!("--{operand_text}"),
             _ => return None,
         };
 
+        // replace the full update expression text
         let expression_span = self.ctx.get_span(expression_id);
         let edits = self
             .ctx
@@ -162,11 +218,23 @@ impl NodeVisitor for UselessIncrementVisitor<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
+        // check assignments where postfix right side targets the same reference
+        if let dir::Expression::Assign { left, right } = expression {
+            self.check_useless_postfix_assignment(id, *left, *right);
+        }
+
         // check return statements with postfix increment/decrement
         if let dir::Expression::Return { value: Some(value) } = expression {
-            if let Some(postfix_update_id) = unwrap_return_postfix_update(tree, *value) {
-                let postfix_update = tree.get(postfix_update_id);
-                self.check_useless_in_return(postfix_update_id, postfix_update);
+            let normalized_value_id = expression_unwrap_transparent(tree, *value);
+            let normalized_value = tree.get(normalized_value_id);
+            if matches!(
+                normalized_value,
+                dir::Expression::Unary {
+                    operator: dir::UnaryOperator::PostIncrement | dir::UnaryOperator::PostDecrement,
+                    ..
+                }
+            ) {
+                self.check_useless_in_return(normalized_value_id, normalized_value);
             }
         }
 
@@ -340,34 +408,22 @@ function next(items: int32[], index: int32): int32 {
 "#,
             );
     }
-}
 
-/// Unwrap one return value down to a postfix update expression when present.
-fn unwrap_return_postfix_update(
-    tree: &dir::NodeTree,
-    mut expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<dir::LocalNodeId<dir::Expression>> {
-    loop {
-        let expression = tree.get(expression_id);
-        match expression {
-            dir::Expression::Parenthesized { expression } => {
-                expression_id = *expression;
-            }
-            dir::Expression::Cast { value, .. } | dir::Expression::OwnershipCast { value, .. } => {
-                expression_id = *value;
-            }
-            dir::Expression::Maybe { left } | dir::Expression::Must { left } => {
-                expression_id = *left;
-            }
-            dir::Expression::Unary {
-                operator: dir::UnaryOperator::PostIncrement | dir::UnaryOperator::PostDecrement,
-                ..
-            } => {
-                return Some(expression_id);
-            }
-            _ => {
-                return None;
-            }
-        }
+    /// Flag useless postfix updates in self assignments.
+    #[test]
+    fn test_flags_postfix_update_in_self_assignment() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessIncrement);
+        let result = test.lint_dir(
+            "no_useless_increment/test_flags_postfix_update_in_self_assignment.ds",
+            r#"
+function keep(value: int32): int32 {
+    value = value++;
+    return value;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-increment")
+            .assert_has_fix("no-useless-increment");
     }
 }

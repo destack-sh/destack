@@ -162,7 +162,7 @@ enum TypeBooleanQuery<'a> {
         /// Optional string symbol for declared library references.
         string_symbol: Option<dir::GlobalSymbolId>,
     },
-    /// Check floating-point compatibility.
+    /// Check floating point compatibility.
     Float,
     /// Check function compatibility.
     Function,
@@ -216,7 +216,7 @@ enum TypeBooleanQuery<'a> {
     NumericPropertyKey,
     /// Check symbol-like property key compatibility.
     SymbolLikePropertyKey,
-    /// Check definite non-error value compatibility.
+    /// Check definite non error value compatibility.
     DefinitelyNonErrorValue {
         /// Optional `Error` symbol.
         error_symbol: Option<dir::GlobalSymbolId>,
@@ -225,7 +225,7 @@ enum TypeBooleanQuery<'a> {
     },
     /// Check potential nullishness compatibility.
     MaybeNullish,
-    /// Check potential non-nullish falsy compatibility.
+    /// Check potential non nullish falsy compatibility.
     HasNonNullishFalsy {
         /// Program string table for string literal checks.
         strings: &'a StringPool,
@@ -545,10 +545,29 @@ fn evaluate_terminal_boolean_type_query(
                         | dir::TypeLiteral::ScalarLiteral(_)
                 )
             }
-            dir::Type::Array { .. }
-            | dir::Type::ArraySized { .. }
-            | dir::Type::Tuple { .. }
-            | dir::Type::Function { .. } => true,
+            dir::Type::Array { element, .. } => element.is_none_or(|element_type_id| {
+                evaluate_boolean_type_query_inner(
+                    types,
+                    element_type_id,
+                    TypeBooleanQuery::HasUsefulToString,
+                    state,
+                )
+            }),
+            dir::Type::ArraySized { element, .. } => evaluate_boolean_type_query_inner(
+                types,
+                *element,
+                TypeBooleanQuery::HasUsefulToString,
+                state,
+            ),
+            dir::Type::Tuple { elements, .. } => elements.iter().all(|element| {
+                evaluate_boolean_type_query_inner(
+                    types,
+                    element.ty,
+                    TypeBooleanQuery::HasUsefulToString,
+                    state,
+                )
+            }),
+            dir::Type::Function { .. } => true,
             dir::Type::Object { .. } => false,
             _ => false,
         },
@@ -1002,7 +1021,7 @@ pub fn is_string_type(
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::String { string_symbol })
 }
 
-/// Return true when the type is a floating-point type.
+/// Return true when the type is a floating point type.
 pub fn is_float_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::Float)
 }
@@ -1210,7 +1229,7 @@ pub fn is_symbol_like_property_key_type(types: &dir::TypeTable, type_id: dir::Lo
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::SymbolLikePropertyKey)
 }
 
-/// Return true when the type is definitely a non-error runtime value.
+/// Return true when the type is definitely a non error runtime value.
 pub fn is_definitely_non_error_value_type(
     types: &dir::TypeTable,
     type_id: dir::LocalTypeId,
@@ -1236,7 +1255,7 @@ pub fn is_maybe_nullish_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) 
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::MaybeNullish)
 }
 
-/// Return true when the type can evaluate to a non-nullish falsy value.
+/// Return true when the type can evaluate to a non nullish falsy value.
 pub fn has_non_nullish_falsy_type(
     types: &dir::TypeTable,
     strings: &StringPool,
@@ -1267,7 +1286,7 @@ pub enum TypeNullishness {
     Never,
     /// The type is always nullish.
     Always,
-    /// The type may be nullish or non-nullish.
+    /// The type may be nullish or non nullish.
     Maybe,
 }
 
@@ -1574,7 +1593,7 @@ fn combine_nullishness(values: impl Iterator<Item = TypeNullishness>) -> TypeNul
     }
 }
 
-/// Resolve the parameter type at an index for a function like type.
+/// Resolve the parameter type at an index for a function-like type.
 pub fn function_parameter_type_at(
     types: &dir::TypeTable,
     type_id: dir::LocalTypeId,
@@ -1585,13 +1604,13 @@ pub fn function_parameter_type_at(
     function_parameter_type_at_inner(types, normalized_type_id, index, &mut state)
 }
 
-/// Resolve all parameter types at an index for a function like type.
+/// Resolve all parameter types at an index for a function-like type.
 pub fn function_parameter_types_at(
     types: &dir::TypeTable,
     type_id: dir::LocalTypeId,
     index: usize,
 ) -> Vec<dir::LocalTypeId> {
-    // prefer flow-normalized types when available
+    // prefer flow normalized types when available
     let normalized_type_id = normalized_flow_type_id(types, type_id);
 
     let mut state = TypeQueryState::new();
@@ -1601,7 +1620,7 @@ pub fn function_parameter_types_at(
     results
 }
 
-/// Resolve the return type for a function like type.
+/// Resolve the return type for a function-like type.
 pub fn function_return_type(
     types: &dir::TypeTable,
     type_id: dir::LocalTypeId,
@@ -1621,7 +1640,7 @@ fn type_may_be_nominal_symbol(
         return false;
     };
 
-    // prefer flow-normalized types when available
+    // prefer flow normalized types when available
     let normalized_type_id = normalized_flow_type_id(types, type_id);
 
     // track visited type ids to avoid recursion cycles

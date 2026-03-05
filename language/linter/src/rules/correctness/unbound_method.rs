@@ -3,7 +3,8 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    has_non_void_this_parameter_type, resolution_target_symbols, symbol_primary_declaration_for,
+    call_like_invocation_is_receiver_bound, has_non_void_this_parameter_type, member_receiver_text,
+    parent_is_receiver_helper, resolution_target_symbols, symbol_primary_declaration_for,
     symbol_value_type_id_for,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
@@ -30,16 +31,19 @@ declare_lint! {
 }
 
 impl LintRule for UnboundMethod {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         UnboundMethod::meta()
     }
 
+    /// Check module DIR nodes for unbound method references.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
         let bind_name = ctx.program.strings.intern("bind");
         let call_name = ctx.program.strings.intern("call");
         let apply_name = ctx.program.strings.intern("apply");
 
+        // resolve visitor
         let mut visitor = UnboundMethodVisitor::new(ctx, meta, bind_name, call_name, apply_name);
         visitor.run();
     }
@@ -85,6 +89,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
+        // inspect dir roots
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -97,12 +102,14 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
             return;
         }
 
+        // resolve global id
         let global_id = expression_id.into_global_any(self.ctx.module_id());
         let Some(resolution_id) = self.ctx.types.get_resolution_for_node(global_id) else {
             return;
         };
         let resolution = self.ctx.types.get_resolution(resolution_id);
 
+        // resolve is unbound method
         let is_unbound_method = resolution_target_symbols(resolution)
             .into_iter()
             .any(|symbol| self.is_this_bound_method_symbol(symbol));
@@ -110,11 +117,13 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
             return;
         }
 
+        // resolve effective lint severity
         let severity = self.ctx.get_effective_severity(self.meta, expression_id);
         if !severity.is_enabled() {
             return;
         }
 
+        // report the full method reference span
         let span = self.ctx.get_span(expression_id);
         let mut diagnostic = LintDiagnostic::new(
             UNBOUND_METHOD.id,
@@ -172,9 +181,9 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
             return None;
         }
 
-        // keep direct expression text for robust source-preserving rewrites
+        // keep direct expression text for robust source preserving rewrites
         let method_text = self.ctx.get_span_text(method_text_span).to_string();
-        let left_text = receiver_text_for_member_expression(
+        let left_text = member_receiver_text(
             self.ctx,
             left_expression_id,
             &method_text,
@@ -185,6 +194,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
             return None;
         }
 
+        // bind the method to its receiver expression
         let replacement = format!("{method_text}.bind({left_text})");
         let edits = self
             .ctx
@@ -209,6 +219,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                 return false;
             }
 
+            // inspect the next parent expression usage
             let parent_id = parent.into_typed::<dir::Expression>();
             let parent_expression = self.ctx.tree.get(parent_id);
             match parent_expression {
@@ -237,7 +248,14 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                     current_id = parent_id;
                 }
                 dir::Expression::Call { left, .. } | dir::Expression::New { left, .. }
-                    if *left == current_id && self.is_safe_call_like_invocation(parent_id) =>
+                    if *left == current_id
+                        && call_like_invocation_is_receiver_bound(
+                            self.ctx.tree,
+                            parent_id,
+                            self.bind_name,
+                            self.call_name,
+                            self.apply_name,
+                        ) =>
                 {
                     return true;
                 }
@@ -283,10 +301,12 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                         return true;
                     }
 
+                    // short circuit and with method reference on left is safe
                     if *operator == dir::BinaryOperator::And && *left == current_id {
                         return true;
                     }
 
+                    // continue through logical operators to inspect outer usage
                     if matches!(
                         operator,
                         dir::BinaryOperator::And
@@ -329,40 +349,6 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
         }
     }
 
-    /// Return true when a call-like invocation safely binds method receivers.
-    fn is_safe_call_like_invocation(
-        &self,
-        call_like_id: dir::LocalNodeId<dir::Expression>,
-    ) -> bool {
-        let expression = self.ctx.tree.get(call_like_id);
-        let (callee_id, dynamic_arguments) = match expression {
-            dir::Expression::Call {
-                left,
-                dynamic_arguments,
-                ..
-            }
-            | dir::Expression::New {
-                left,
-                dynamic_arguments,
-                ..
-            } => (*left, dynamic_arguments.as_slice()),
-            _ => return false,
-        };
-
-        let callee = self.ctx.tree.get(callee_id);
-        let uses_receiver_helper = matches!(
-            callee,
-            dir::Expression::Member { name, .. } | dir::Expression::PrivateMember { name, .. }
-                if *name == self.bind_name || *name == self.call_name || *name == self.apply_name
-        );
-
-        if !uses_receiver_helper {
-            return true;
-        }
-
-        !dynamic_arguments.is_empty()
-    }
-
     /// Return true when a symbol is a method that needs a bound `this`.
     fn is_this_bound_method_symbol(&self, symbol_id: dir::GlobalSymbolId) -> bool {
         // prefer declarations to identify method symbols and skip static members
@@ -376,6 +362,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
             return self.symbol_has_this_parameter(symbol_id);
         };
 
+        // inspect member declarations and reject static methods
         if primary_declaration.local_id.ty == dir::NodeType::Member {
             let module_ref = self.ctx.program.modules.get(primary_declaration.module_id);
             let module = module_ref.read();
@@ -394,6 +381,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                 .is_some_and(|anchor| anchor == dir::BindingAnchor::Static);
         }
 
+        // inspect property declarations for method values
         if primary_declaration.local_id.ty == dir::NodeType::Property {
             let module_ref = self.ctx.program.modules.get(primary_declaration.module_id);
             let module = module_ref.read();
@@ -421,10 +409,12 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
             return false;
         };
 
+        // fast path when the type information is in this module
         if symbol_type_id.module_id == self.ctx.module_id() {
             return has_non_void_this_parameter_type(self.ctx.types, symbol_type_id.type_id);
         }
 
+        // load foreign module types for the `this` parameter check
         let module_ref = self.ctx.program.modules.get(symbol_type_id.module_id);
         let module = module_ref.read();
         let Some(module_dir) = module.dir_maybe(self.ctx.profile_id) else {
@@ -433,65 +423,6 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
         let types = module_dir.types.read();
         has_non_void_this_parameter_type(&types, symbol_type_id.type_id)
     }
-}
-
-/// Return receiver text for one method expression.
-fn receiver_text_for_member_expression(
-    ctx: &LintModuleDirContext<'_>,
-    left_expression_id: dir::LocalNodeId<dir::Expression>,
-    method_text: &str,
-    method_name: StringId,
-    is_private: bool,
-) -> Option<String> {
-    let method_name = ctx.program.strings.get(method_name);
-    let suffix = if is_private {
-        format!(".#{}", method_name.as_ref())
-    } else {
-        format!(".{}", method_name.as_ref())
-    };
-
-    // prefer parsing from full method text for best source fidelity
-    if let Some(receiver) = method_text.strip_suffix(&suffix) {
-        let receiver = receiver.trim();
-        if !receiver.is_empty() {
-            return Some(receiver.to_string());
-        }
-    }
-
-    // fall back to left expression span text
-    let left_span = ctx.get_span(left_expression_id);
-    let left_text = ctx.get_span_text(left_span).trim().to_string();
-    if left_text.is_empty() {
-        return None;
-    }
-
-    Some(left_text)
-}
-
-/// Return true when this expression is used as receiver helper target.
-fn parent_is_receiver_helper(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-    bind_name: StringId,
-    call_name: StringId,
-    apply_name: StringId,
-) -> bool {
-    let Some(parent) = tree.get_parent(expression_id.id) else {
-        return false;
-    };
-    if parent.ty != dir::NodeType::Expression {
-        return false;
-    }
-
-    let parent_id = parent.into_typed::<dir::Expression>();
-    let parent_expression = tree.get(parent_id);
-    matches!(
-        parent_expression,
-        dir::Expression::Member { left, name, .. }
-            | dir::Expression::PrivateMember { left, name, .. }
-            if *left == expression_id
-                && (*name == bind_name || *name == call_name || *name == apply_name)
-    )
 }
 
 /// Return one expression id when an if condition is a plain expression.
@@ -759,6 +690,62 @@ class Counter {
 
 let counter = new Counter();
 const functionName = counter.increment.name;
+"#,
+        );
+        test.result(result).assert_no_lint("unbound-method");
+    }
+
+    /// Allow method references in left side logical-and checks.
+    #[test]
+    fn test_allows_method_reference_in_left_logical_and() {
+        let test = TestProgram::for_rule_with_prelude(UnboundMethod);
+        let result = test.lint_dir(
+            "unbound_method/test_allows_method_reference_in_left_logical_and.ts",
+            r#"
+class Counter {
+    increment() {}
+}
+
+let counter = new Counter();
+counter.increment && counter.increment();
+"#,
+        );
+        test.result(result).assert_no_lint("unbound-method");
+    }
+
+    /// Allow method references in delete expressions.
+    #[test]
+    fn test_allows_method_reference_in_delete_expression() {
+        let test = TestProgram::for_rule_with_prelude(UnboundMethod);
+        let result = test.lint_dir(
+            "unbound_method/test_allows_method_reference_in_delete_expression.ts",
+            r#"
+class Counter {
+    increment() {}
+}
+
+let counter = new Counter();
+delete counter.increment;
+"#,
+        );
+        test.result(result).assert_no_lint("unbound-method");
+    }
+
+    /// Allow method references as tagged template tags.
+    #[test]
+    fn test_allows_method_reference_in_tagged_template() {
+        let test = TestProgram::for_rule_with_prelude(UnboundMethod);
+        let result = test.lint_dir(
+            "unbound_method/test_allows_method_reference_in_tagged_template.ts",
+            r#"
+class Counter {
+    increment(messageParts: string[]): string {
+        return messageParts[0];
+    }
+}
+
+let counter = new Counter();
+counter.increment`ok`;
 "#,
         );
         test.result(result).assert_no_lint("unbound-method");

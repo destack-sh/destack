@@ -24,13 +24,16 @@ declare_lint! {
 }
 
 impl LintRule for NoUnsafeNegation {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoUnsafeNegation::meta()
     }
 
+    /// Check module AST nodes for unsafe negation on relational operators.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             // check for Binary expressions with in/instanceof
             if let ast::Expression::Binary {
@@ -51,6 +54,7 @@ impl LintRule for NoUnsafeNegation {
                         continue;
                     }
 
+                    // resolve operator name
                     let operator_name = binary_operator_name(operator);
 
                     // make fix: convert `!a in b` to `!(a in b)`
@@ -91,12 +95,7 @@ impl LintRule for NoUnsafeNegation {
 fn is_unsafe_negation_operator(operator: &ast::BinaryOperator) -> bool {
     matches!(
         operator,
-        ast::BinaryOperator::In
-            | ast::BinaryOperator::InstanceOf
-            | ast::BinaryOperator::LessThan
-            | ast::BinaryOperator::LessThanOrEqual
-            | ast::BinaryOperator::GreaterThan
-            | ast::BinaryOperator::GreaterThanOrEqual
+        ast::BinaryOperator::In | ast::BinaryOperator::InstanceOf
     )
 }
 
@@ -264,35 +263,15 @@ let result = !(x instanceof Foo);
     }
 
     #[test]
-    fn test_detects_negation_in_less_than() {
+    fn test_allows_negation_in_less_than_by_default() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
         let result = test.lint_ast(
-            "no_unsafe_negation/test_detects_negation_in_less_than.ds",
+            "no_unsafe_negation/test_allows_negation_in_less_than_by_default.ds",
             r#"
 let threshold = 2;
 !value < threshold;
 "#,
         );
-        test.result(result).assert_lint("no-unsafe-negation");
-    }
-
-    #[test]
-    fn test_fix_less_than_operator() {
-        let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
-        let result = test.lint_ast(
-            "no_unsafe_negation/test_fix_less_than_operator.ds",
-            r#"
-let threshold = 2
-let result = !value < threshold
-"#,
-        );
-        test.result(result)
-            .assert_lint("no-unsafe-negation")
-            .assert_safe_fixed(
-                r#"
-let threshold = 2;
-let result = !(value < threshold);
-"#,
-            );
+        test.result(result).assert_no_lint("no-unsafe-negation");
     }
 }

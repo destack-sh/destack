@@ -42,6 +42,7 @@ static LINT_SPECIFIERS: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
     specifiers
 });
 
+/// Return true when one decorator specifier is a known lint id or code.
 fn is_valid_lint_specifier(specifier: &str) -> bool {
     LINT_SPECIFIERS.binary_search(&specifier).is_ok()
 }
@@ -68,13 +69,16 @@ fn decorator_lint_specifiers(argument_text: &str) -> Vec<&str> {
 const RULE_DECORATORS: &[&str] = &["allow", "deny", "forbid", "warn"];
 
 impl LintRule for NoUnknownRuleDecorator {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoUnknownRuleDecorator::meta()
     }
 
+    /// Check module AST nodes for unknown lint decorators.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect candidate syntax nodes
         for node_id in ctx.tree.iter_nodes::<ast::Annotation>() {
             let annotation = ctx.tree.get(node_id);
             let ast::Annotation::Decorator { node, .. } = annotation else {
@@ -89,6 +93,7 @@ impl LintRule for NoUnknownRuleDecorator {
                 continue;
             };
 
+            // resolve name
             let name = ctx.strings.get(*last_segment);
             if !RULE_DECORATORS.contains(&name.as_ref()) {
                 continue;
@@ -100,6 +105,7 @@ impl LintRule for NoUnknownRuleDecorator {
             };
             let argument_ids = arguments.to_vec();
 
+            // inspect candidate syntax nodes
             for argument_id in argument_ids {
                 let argument = ctx.tree.get(argument_id);
                 let ast::Argument::Positional { value, .. } = argument else {
@@ -114,6 +120,7 @@ impl LintRule for NoUnknownRuleDecorator {
                 let argument_text = ctx.strings.get(*string_id).to_string();
                 let specifiers = decorator_lint_specifiers(argument_text.as_ref());
 
+                // inspect candidate syntax nodes
                 for specifier in specifiers {
                     // check if the specifier is a valid lint rule ID or code
                     if is_valid_lint_specifier(specifier) {

@@ -1,9 +1,10 @@
-use destack_source::{ModuleId, Span};
+use destack_source::ModuleId;
 use destack_workspace::LintSeverity;
 use {destack_ast as ast, destack_dir as dir};
 
 use crate::rules::common::{
     argument_expression_id, expression_structural_signature, symbol_primary_declaration_for,
+    trailing_argument_removal_span,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -28,10 +29,12 @@ declare_lint! {
 }
 
 impl LintRule for NoUnnecessaryTypeArguments {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoUnnecessaryTypeArguments::meta()
     }
 
+    /// Check module DIR nodes for redundant trailing type arguments.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
 
@@ -48,6 +51,7 @@ impl LintRule for NoUnnecessaryTypeArguments {
                 continue;
             }
 
+            // require optional structure
             let Some(target_symbol) = target_symbol_for_expression(ctx, expression_id, expression)
             else {
                 continue;
@@ -61,6 +65,7 @@ impl LintRule for NoUnnecessaryTypeArguments {
                 continue;
             }
 
+            // require optional structure
             let Some(first_redundant_index) = first_redundant_trailing_argument_index(
                 ctx,
                 static_arguments,
@@ -69,11 +74,13 @@ impl LintRule for NoUnnecessaryTypeArguments {
                 continue;
             };
 
+            // resolve effective lint severity
             let severity = ctx.get_effective_severity(meta, expression_id);
             if !severity.is_enabled() {
                 continue;
             }
 
+            // resolve redundant argument id
             let redundant_argument_id = static_arguments[first_redundant_index];
             let span = ctx.get_span(redundant_argument_id);
             let mut diagnostic = LintDiagnostic::new(
@@ -87,6 +94,7 @@ impl LintRule for NoUnnecessaryTypeArguments {
             )
             .with_label("these trailing type arguments repeat declared defaults");
 
+            // attach fix when enabled
             if ctx.include_fixes
                 && let Some(fix) = redundant_type_arguments_fix(
                     ctx,
@@ -119,6 +127,7 @@ fn target_symbol_for_expression(
     let resolution_id = ctx.types.get_resolution_for_node(global_expression_id)?;
     let resolution = ctx.types.get_resolution(resolution_id);
 
+    // extract one target symbol from static resolution results
     match resolution {
         dir::Resolution::Static { candidate, .. } => Some(candidate.target_symbol),
         _ => None,
@@ -147,6 +156,7 @@ fn static_parameter_defaults_for_symbol(
         symbol_id,
     )?;
 
+    // resolve defaults from the current module when possible
     if declaration_id.module_id == ctx.module_id() {
         let static_parameters =
             static_parameters_for_declaration(ctx.tree, declaration_id.local_id)?;
@@ -161,6 +171,7 @@ fn static_parameter_defaults_for_symbol(
         );
     }
 
+    // fall back to loading declaration defaults from the owning module
     let module_ref = ctx.program.modules.get(declaration_id.module_id);
     let module = module_ref.read();
     let module_dir = module.dir_maybe(ctx.profile_id)?;
@@ -182,11 +193,13 @@ fn static_parameters_for_declaration(
     tree: &dir::NodeTree,
     declaration_id: dir::LocalNodeIdAny,
 ) -> Option<Vec<dir::LocalNodeId<dir::Parameter>>> {
+    // handle declaration symbols directly
     if declaration_id.ty == dir::NodeType::Declaration {
         let declaration = tree.get(declaration_id.into_typed::<dir::Declaration>());
         return declaration.static_parameters().cloned();
     }
 
+    // handle member symbols that can declare static parameters
     if declaration_id.ty == dir::NodeType::Member {
         let member = tree.get(declaration_id.into_typed::<dir::Member>());
         return match member {
@@ -223,6 +236,7 @@ fn first_redundant_trailing_argument_index(
             break;
         };
 
+        // stop once one trailing argument no longer matches its default
         if !argument_matches_default(
             ctx,
             argument_expression,
@@ -301,6 +315,7 @@ fn expression_ast_signature_for_module(
             return None;
         }
 
+        // map local source node to an ast expression id
         let ast_expression_id = ast::LocalNodeId::<ast::Expression>::new(source_id);
         return Some(expression_structural_signature(
             &ast.tree,
@@ -309,6 +324,7 @@ fn expression_ast_signature_for_module(
         ));
     }
 
+    // load the referenced module when the expression comes from another module
     let module_ref = ctx.program.modules.get(module_id);
     let module = module_ref.read();
     let module_dir = module.dir_maybe(ctx.profile_id)?;
@@ -321,6 +337,7 @@ fn expression_ast_signature_for_module(
         return None;
     }
 
+    // map cross module source node to an ast expression id
     let ast_expression_id = ast::LocalNodeId::<ast::Expression>::new(source_id);
     Some(expression_structural_signature(
         &ast.tree,
@@ -348,96 +365,27 @@ fn redundant_type_arguments_fix(
     static_arguments: &[dir::LocalNodeId<dir::Argument>],
     first_redundant_index: usize,
 ) -> Option<LintFix> {
-    let remove_span = trailing_type_argument_removal_span(
-        ctx,
-        expression_id,
-        static_arguments,
+    // resolve spans for the expression and static arguments
+    let expression_span = ctx.get_span(expression_id);
+    let argument_spans: Vec<_> = static_arguments
+        .iter()
+        .map(|argument_id| ctx.get_span(*argument_id))
+        .collect();
+
+    // resolve the trailing argument removal span
+    let remove_span = trailing_argument_removal_span(
+        ctx.source_text(),
+        expression_span,
+        &argument_spans,
         first_redundant_index,
     )?;
     if remove_span.is_empty() {
         return None;
     }
 
+    // delete the redundant trailing type argument segment
     let edits = ctx.edit_builder().delete(remove_span).into_edits();
     Some(LintFix::safe("Remove redundant trailing type arguments").with_edits(edits))
-}
-
-/// Resolve the source span to delete for redundant trailing type arguments.
-fn trailing_type_argument_removal_span(
-    ctx: &LintModuleDirContext<'_>,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-    static_arguments: &[dir::LocalNodeId<dir::Argument>],
-    first_redundant_index: usize,
-) -> Option<Span> {
-    let last_argument_id = *static_arguments.last()?;
-    let last_argument_span = ctx.get_span(last_argument_id);
-    let expression_span = ctx.get_span(expression_id);
-    let source = ctx.source_text().as_bytes();
-
-    // remove from the comma before first redundant argument to the end of the last argument
-    if first_redundant_index > 0 {
-        let previous_argument_id = static_arguments[first_redundant_index - 1];
-        let previous_argument_span = ctx.get_span(previous_argument_id);
-        let first_redundant_argument_span = ctx.get_span(static_arguments[first_redundant_index]);
-        if previous_argument_span.end >= last_argument_span.end {
-            return None;
-        }
-
-        let comma_start = find_comma_between(
-            source,
-            previous_argument_span.end as usize,
-            first_redundant_argument_span.start as usize,
-        )?;
-
-        return Some(Span::new(
-            previous_argument_span.file,
-            comma_start as u32,
-            last_argument_span.end,
-        ));
-    }
-
-    // remove the whole static argument list: `<...>`
-    let first_argument_span = ctx.get_span(static_arguments[0]);
-
-    let mut left = first_argument_span.start as usize;
-    while left > expression_span.start as usize {
-        left -= 1;
-        if source[left] == b'<' {
-            break;
-        }
-    }
-    if source[left] != b'<' {
-        return None;
-    }
-
-    let mut right = last_argument_span.end as usize;
-    while right < expression_span.end as usize && source[right] != b'>' {
-        right += 1;
-    }
-    if right >= expression_span.end as usize || source[right] != b'>' {
-        return None;
-    }
-
-    Some(Span::new(
-        expression_span.file,
-        left as u32,
-        right.saturating_add(1) as u32,
-    ))
-}
-
-/// Find the first comma between two byte offsets.
-fn find_comma_between(source: &[u8], start: usize, end: usize) -> Option<usize> {
-    if start >= end || end > source.len() {
-        return None;
-    }
-
-    for (offset, byte) in source[start..end].iter().enumerate() {
-        if *byte == b',' {
-            return Some(start + offset);
-        }
-    }
-
-    None
 }
 
 #[cfg(test)]

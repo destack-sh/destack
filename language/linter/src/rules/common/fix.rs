@@ -29,3 +29,25 @@ pub fn expand_span_to_statement_terminator(source: &str, span: Span) -> Span {
 
     Span::new(span.file, span.start, end as u32)
 }
+
+/// Return one statement prefix span ending at semicolon or first newline.
+pub fn statement_prefix_span(span: Span, text: &str) -> Option<Span> {
+    // find the statement terminator in declaration text
+    let statement_length = text
+        .find(';')
+        .map(|offset| offset + 1)
+        .or_else(|| text.find('\n'))
+        .unwrap_or(text.len());
+
+    // reject empty spans
+    if statement_length == 0 {
+        return None;
+    }
+
+    // return the leading statement span
+    Some(Span::new(
+        span.file,
+        span.start,
+        span.start + statement_length as u32,
+    ))
+}

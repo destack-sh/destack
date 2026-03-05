@@ -6,7 +6,7 @@ use crate::rules::common::{
     match_case_selector, match_selector_has_guard, match_selector_is_default,
     match_selector_pattern_id, pattern_matches_all, pattern_subsumes,
 };
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow match or switch arms that are subsumed by previous arms.
@@ -29,10 +29,12 @@ declare_lint! {
 }
 
 impl LintRule for NoOverlappingMatchArms {
-    fn meta(&self) -> &'static crate::LintMeta {
+    /// Return lint metadata.
+    fn meta(&self) -> &'static LintMeta {
         NoOverlappingMatchArms::meta()
     }
 
+    /// Check module AST nodes for overlapping match arms.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
@@ -48,6 +50,7 @@ impl LintRule for NoOverlappingMatchArms {
                 let case = ctx.tree.get(*case_id);
                 let selector = match_case_selector(case);
 
+                // resolve overlapping prior case id
                 let overlapping_prior_case_id =
                     subsuming_prior_case_id(ctx, prior_coverages.as_slice(), selector);
                 if let Some(prior_case_id) = overlapping_prior_case_id {
@@ -56,6 +59,7 @@ impl LintRule for NoOverlappingMatchArms {
                         continue;
                     }
 
+                    // build diagnostic payload
                     let mut diagnostic = LintDiagnostic::new(
                         NO_OVERLAPPING_MATCH_ARMS.id,
                         NO_OVERLAPPING_MATCH_ARMS.code,
@@ -125,6 +129,7 @@ fn subsuming_prior_case_id(
             .map(|prior| prior.case_id);
     }
 
+    // resolve pattern id
     let pattern_id = match_selector_pattern_id(selector)?;
 
     // find any prior unguarded selector that subsumes this pattern
@@ -149,6 +154,7 @@ fn selector_coverage(
         return Some(SelectorCoverage::Any);
     }
 
+    // resolve pattern id
     let pattern_id = match_selector_pattern_id(selector)?;
 
     // guarded selectors are not unconditional subsumers

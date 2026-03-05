@@ -1,8 +1,8 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::ast_regex_pattern_info;
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::regex_pattern_info;
+use crate::{LintDiagnostic, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow control characters in regular expressions.
@@ -27,26 +27,27 @@ declare_lint! {
 
 impl LintRule for NoControlRegex {
     /// Return lint metadata.
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoControlRegex::meta()
     }
 
     /// Check module AST nodes for regex patterns containing control characters.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
-        // resolve lint metadata
         let meta = self.meta();
         let regexp_name = ctx.strings.intern("RegExp");
 
         // walk expression nodes
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let Some(pattern_info) = ast_regex_pattern_info(ctx.tree, node_id, regexp_name) else {
+            let Some(pattern_info) = regex_pattern_info(ctx.tree, node_id, regexp_name) else {
                 continue;
             };
 
-            // resolve control character from pattern text
-            let Some(control_char) = ctx.regex_control_character(pattern_info.pattern_id) else {
+            // resolve all control characters from pattern and flag semantics
+            let control_characters =
+                ctx.regex_control_characters(pattern_info.pattern_id, pattern_info.flags_id);
+            if control_characters.is_empty() {
                 continue;
-            };
+            }
 
             // resolve effective severity
             let severity = ctx.get_effective_severity(meta, node_id);
@@ -62,8 +63,8 @@ impl LintRule for NoControlRegex {
                     NO_CONTROL_REGEX.category,
                     severity,
                     format!(
-                        "unexpected control character in regular expression: \\x{:02X}",
-                        control_char as u8
+                        "unexpected control character(s) in regular expression: {}",
+                        control_characters.join(", ")
                     ),
                     ctx.module.file_id,
                     ctx.tree.get_span(node_id),
@@ -115,15 +116,15 @@ let re = /\n\t\r/
     }
 
     #[test]
-    fn test_allows_hex_escapes() {
+    fn test_detects_hex_escapes() {
         let test = TestProgram::for_rule_without_prelude(NoControlRegex);
         let result = test.lint_ast(
-            "no_control_regex/test_allows_hex_escapes.ds",
+            "no_control_regex/test_detects_hex_escapes.ds",
             r#"
 let re = /\x00\x1F/
 "#,
         );
-        test.result(result).assert_no_lint("no-control-regex");
+        test.result(result).assert_lint("no-control-regex");
     }
 
     #[test]
@@ -144,6 +145,55 @@ let re = /\x00\x1F/
             "new RegExp(\"\x01\");",
         );
         test.result(result).assert_lint("no-control-regex");
+    }
+
+    #[test]
+    fn test_detects_unicode_escape_in_regex_literal() {
+        let test = TestProgram::for_rule_without_prelude(NoControlRegex);
+        let result = test.lint_ast(
+            "no_control_regex/test_detects_unicode_escape_in_regex_literal.ds",
+            r#"
+let re = /\u001F/
+"#,
+        );
+        test.result(result).assert_lint("no-control-regex");
+    }
+
+    #[test]
+    fn test_allows_unicode_code_point_escape_without_unicode_flag() {
+        let test = TestProgram::for_rule_without_prelude(NoControlRegex);
+        let result = test.lint_ast(
+            "no_control_regex/test_allows_unicode_code_point_escape_without_unicode_flag.ds",
+            r#"
+let re = /\u{1F}/
+"#,
+        );
+        test.result(result).assert_no_lint("no-control-regex");
+    }
+
+    #[test]
+    fn test_detects_unicode_code_point_escape_with_u_flag() {
+        let test = TestProgram::for_rule_without_prelude(NoControlRegex);
+        let result = test.lint_ast(
+            "no_control_regex/test_detects_unicode_code_point_escape_with_u_flag.ds",
+            r#"
+let re = /\u{1F}/u
+"#,
+        );
+        test.result(result).assert_lint("no-control-regex");
+    }
+
+    #[test]
+    fn test_allows_unicode_code_point_escape_with_unknown_constructor_flags() {
+        let test = TestProgram::for_rule_without_prelude(NoControlRegex);
+        let result = test.lint_ast(
+            "no_control_regex/test_allows_unicode_code_point_escape_with_unknown_constructor_flags.ds",
+            r#"
+let flags = "u";
+RegExp("\u{1F}", flags);
+"#,
+        );
+        test.result(result).assert_no_lint("no-control-regex");
     }
 
     #[test]

@@ -2,10 +2,10 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    ast_expression_unwrap_parenthesized, expression_constant_to_bool, expression_has_side_effects,
-    expression_is_equal,
+    expression_constant_to_bool, expression_has_side_effects, expression_is_equal,
+    expression_path_segments, expression_unwrap_parenthesized_syntax,
 };
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow expressions where the operation doesn't affect the value.
@@ -30,13 +30,12 @@ declare_lint! {
 
 impl LintRule for NoConstantBinaryExpression {
     /// Return lint metadata.
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoConstantBinaryExpression::meta()
     }
 
     /// Check module AST nodes for binary expressions with constant outcomes.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
-        // resolve lint metadata
         let meta = self.meta();
 
         // walk binary expressions
@@ -82,14 +81,14 @@ fn check_constant_result(
     right_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<&'static str> {
     // normalize expression shape
-    let left_id = ast_expression_unwrap_parenthesized(ctx.tree, left_id);
-    let right_id = ast_expression_unwrap_parenthesized(ctx.tree, right_id);
+    let left_id = expression_unwrap_parenthesized_syntax(ctx.tree, left_id);
+    let right_id = expression_unwrap_parenthesized_syntax(ctx.tree, right_id);
 
     // resolve expression references
     let left = ctx.tree.get(left_id);
     let right = ctx.tree.get(right_id);
 
-    // detect no-op logical operations on the same side effect free value
+    // detect no op logical operations on the same side effect free value
     if matches!(
         operator,
         ast::BinaryOperator::Or | ast::BinaryOperator::And | ast::BinaryOperator::Coalesce
@@ -100,12 +99,13 @@ fn check_constant_result(
         return Some("logical operation on identical operands");
     }
 
-    // detect constant short-circuit behavior from the left operand truthiness
-    if let Some(left_boolean) = expression_constant_to_bool(ctx, left) {
+    // detect constant short circuit behavior from the left operand truthiness
+    if let Some(left_boolean) = expression_constant_truthiness(ctx, left_id) {
         if operator == ast::BinaryOperator::Or && left_boolean {
             return Some("logical OR short-circuits to a constant result");
         }
 
+        // enforce this lint guard
         if operator == ast::BinaryOperator::And && !left_boolean {
             return Some("logical AND short-circuits to a constant result");
         }
@@ -113,11 +113,14 @@ fn check_constant_result(
 
     // detect nullish coalescing with statically known left nullishness
     if operator == ast::BinaryOperator::Coalesce {
-        if expression_is_definitely_nullish(left) {
+        if expression_has_constant_nullishness(ctx, left_id, false)
+            && !expression_has_constant_nullishness(ctx, left_id, true)
+        {
             return Some("nullish coalescing left operand is always nullish");
         }
 
-        if expression_is_definitely_non_nullish(left) {
+        // enforce this lint guard
+        if expression_has_constant_nullishness(ctx, left_id, true) {
             return Some("nullish coalescing left operand is never nullish");
         }
     }
@@ -180,6 +183,33 @@ fn check_constant_result(
     None
 }
 
+/// Return one constant truthiness value when known by construction.
+fn expression_constant_truthiness(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<bool> {
+    // normalize expression shape
+    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let expression = ctx.tree.get(expression_id);
+
+    // resolve direct constant values
+    if let Some(boolean_value) = expression_constant_to_bool(ctx, expression) {
+        return Some(boolean_value);
+    }
+
+    // resolve truthiness from expression shapes that are always truthy
+    match expression {
+        ast::Expression::ArrayExpression { .. }
+        | ast::Expression::ObjectExpression { .. }
+        | ast::Expression::New { .. }
+        | ast::Expression::Declaration(_)
+        | ast::Expression::Path { .. }
+        | ast::Expression::This
+        | ast::Expression::Super => Some(true),
+        _ => None,
+    }
+}
+
 /// Check if an expression is nullish (null or undefined).
 fn is_nullish(expression: &ast::Expression) -> bool {
     matches!(
@@ -188,25 +218,66 @@ fn is_nullish(expression: &ast::Expression) -> bool {
     )
 }
 
-/// Return true when the expression is statically nullish.
-fn expression_is_definitely_nullish(expression: &ast::Expression) -> bool {
-    is_nullish(expression)
+/// Return true when nullishness of one expression is statically fixed.
+fn expression_has_constant_nullishness(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+    require_non_nullish: bool,
+) -> bool {
+    // normalize expression shape
+    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let expression = ctx.tree.get(expression_id);
+
+    // keep non nullish mode strict for nullish literals
+    if require_non_nullish && is_nullish(expression) {
+        return false;
+    }
+
+    // branch by expression kind
+    match expression {
+        // literals have fixed nullishness
+        ast::Expression::ScalarLiteral(_)
+        | ast::Expression::TypeLiteral(_)
+        | ast::Expression::ArrayExpression { .. }
+        | ast::Expression::ObjectExpression { .. }
+        | ast::Expression::TemplateExpression { .. }
+        | ast::Expression::New { .. }
+        | ast::Expression::Declaration(_) => true,
+
+        // global casts have fixed nullishness like in source behavior
+        ast::Expression::Call { left, .. } => expression_is_global_cast_call(ctx, *left),
+
+        // unary operators produce non nullish scalar results
+        ast::Expression::Unary { operator, .. } => *operator != ast::UnaryOperator::Void,
+
+        // most binary expressions produce non nullish scalar results
+        ast::Expression::Binary {
+            operator: ast::BinaryOperator::Coalesce,
+            right,
+            ..
+        } => expression_has_constant_nullishness(ctx, *right, true),
+        ast::Expression::Binary { .. } => true,
+
+        _ => false,
+    }
 }
 
-/// Return true when the expression is statically non-nullish.
-fn expression_is_definitely_non_nullish(expression: &ast::Expression) -> bool {
-    matches!(
-        expression,
-        ast::Expression::ScalarLiteral(_)
-            | ast::Expression::TemplateExpression { .. }
-            | ast::Expression::ArrayExpression { .. }
-            | ast::Expression::ObjectExpression { .. }
-            | ast::Expression::New { .. }
-            | ast::Expression::Declaration(_)
-            | ast::Expression::Path { .. }
-            | ast::Expression::This
-            | ast::Expression::Super
-    )
+/// Return true when one call target is a global cast builtin.
+fn expression_is_global_cast_call(
+    ctx: &LintModuleAstContext<'_>,
+    callee_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    // resolve path segments
+    let Some(path_segments) = expression_path_segments(ctx.tree, callee_id) else {
+        return false;
+    };
+    let [name] = path_segments.as_slice() else {
+        return false;
+    };
+
+    // match the known global cast names
+    let name = ctx.strings.get(*name);
+    name.as_ref() == "Boolean" || name.as_ref() == "String" || name.as_ref() == "Number"
 }
 
 #[cfg(test)]
@@ -423,5 +494,44 @@ compute() || compute();
         );
         test.result(result)
             .assert_no_lint("no-constant-binary-expression");
+    }
+
+    #[test]
+    fn test_detects_nullish_coalesce_unary_not_left() {
+        let test = TestProgram::for_rule_without_prelude(NoConstantBinaryExpression);
+        let result = test.lint_ast(
+            "no_constant_binary_expression/test_detects_nullish_coalesce_unary_not_left.ds",
+            r#"
+!foo ?? fallback;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-constant-binary-expression");
+    }
+
+    #[test]
+    fn test_detects_nullish_coalesce_binary_left() {
+        let test = TestProgram::for_rule_without_prelude(NoConstantBinaryExpression);
+        let result = test.lint_ast(
+            "no_constant_binary_expression/test_detects_nullish_coalesce_binary_left.ds",
+            r#"
+(a + b) ?? fallback;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-constant-binary-expression");
+    }
+
+    #[test]
+    fn test_detects_logical_or_with_array_left() {
+        let test = TestProgram::for_rule_without_prelude(NoConstantBinaryExpression);
+        let result = test.lint_ast(
+            "no_constant_binary_expression/test_detects_logical_or_with_array_left.ds",
+            r#"
+[] || fallback;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-constant-binary-expression");
     }
 }

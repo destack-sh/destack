@@ -33,10 +33,12 @@ declare_lint! {
 }
 
 impl LintRule for NoMisusedPromises {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoMisusedPromises::meta()
     }
 
+    /// Check module DIR nodes for Promise misuse in sync-only contexts.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
         let mut visitor = MisusedPromiseVisitor::new(ctx, meta);
@@ -85,6 +87,7 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
+        // inspect dir roots
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -181,11 +184,13 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
             return;
         };
 
+        // inspect indexed candidates
         for (index, argument_id) in arguments.iter().enumerate() {
             let argument = self.ctx.tree.get(*argument_id);
             let is_spread = matches!(argument, dir::Argument::Spread { .. });
             let value_id = argument.value();
 
+            // require optional structure
             let Some(argument_type_id) = expression_declared_or_inferred_type_id(
                 self.ctx.module_id(),
                 self.ctx.tree,
@@ -248,6 +253,7 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
             let mut has_synchronous_callback_expectation = false;
             let mut allows_async_callback = false;
 
+            // inspect candidate syntax nodes
             for parameter_type_id in parameter_type_ids {
                 if !is_function_type(self.ctx.types, parameter_type_id)
                     || is_any_type(self.ctx.types, parameter_type_id)
@@ -265,6 +271,7 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
                 }
             }
 
+            // enforce this lint guard
             if has_synchronous_callback_expectation && !allows_async_callback {
                 self.report(
                     expression_id,

@@ -28,10 +28,12 @@ declare_lint! {
 }
 
 impl LintRule for NoUnnecessaryTypeAssertion {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoUnnecessaryTypeAssertion::meta()
     }
 
+    /// Check module DIR nodes for redundant type assertions.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
 
@@ -41,6 +43,7 @@ impl LintRule for NoUnnecessaryTypeAssertion {
                 continue;
             };
 
+            // resolve effective lint severity
             let severity = ctx.get_effective_severity(meta, expression_id);
             if !severity.is_enabled() {
                 continue;
@@ -61,11 +64,13 @@ impl LintRule for NoUnnecessaryTypeAssertion {
                 continue;
             }
 
+            // require optional structure
             let Some(target_type_id) = assertion_operand_type_id(ctx, assertion.target_expression)
             else {
                 continue;
             };
 
+            // resolve is redundant
             let is_redundant = source_expression_matches_target_type(
                 ctx,
                 assertion.source_expression,
@@ -73,10 +78,12 @@ impl LintRule for NoUnnecessaryTypeAssertion {
                 target_type_id,
             );
 
+            // enforce this lint guard
             if !is_redundant {
                 continue;
             }
 
+            // resolve diagnostic span
             let span = ctx.get_span(expression_id);
             let diagnostic = redundant_assertion_diagnostic(
                 ctx,
@@ -147,6 +154,7 @@ fn source_expression_matches_target_type(
         return false;
     }
 
+    // read source module types to validate `any as any` cross module
     let module_ref = ctx.program.modules.get(source_value_type_id.module_id);
     let module = module_ref.read();
     let Some(module_dir) = module.dir_maybe(ctx.profile_id) else {
@@ -192,10 +200,12 @@ fn redundant_assertion_diagnostic(
     )
     .with_label(label);
 
+    // keep a no fix diagnostic when fixes are disabled
     if !include_fixes {
         return diagnostic;
     }
 
+    // replace the full assertion with the source expression text
     let source_span = ctx.get_span(source_expression);
     let source_text = ctx.get_span_text(source_span).to_string();
     let edits = ctx

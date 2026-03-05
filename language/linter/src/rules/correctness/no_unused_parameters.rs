@@ -4,7 +4,8 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    collect_module_read_symbol_usage, collect_parameter_value_binding_symbols,
+    collect_module_resolved_read_symbol_usage, collect_parameter_value_binding_symbols,
+    parameter_binding_span,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -29,13 +30,16 @@ declare_lint! {
 }
 
 impl LintRule for NoUnusedParameters {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoUnusedParameters::meta()
     }
 
+    /// Check module DIR nodes for unused function and method parameters.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let read_symbols = collect_module_read_symbol_usage(ctx.tree, &ctx.roots);
+        let read_symbols =
+            collect_module_resolved_read_symbol_usage(ctx.module_id(), ctx.tree, ctx.types);
 
         // inspect all parameters
         for parameter_id in ctx.tree.iter_node_ids_of_type::<dir::Parameter>() {
@@ -70,6 +74,7 @@ impl LintRule for NoUnusedParameters {
                         continue;
                     }
 
+                    // resolve effective lint severity
                     let severity = ctx.get_effective_severity(meta, parameter_id);
                     if !severity.is_enabled() {
                         continue;
@@ -108,7 +113,7 @@ impl LintRule for NoUnusedParameters {
                         &mut bindings,
                     );
 
-                    // keep only pattern-local bindings
+                    // keep only pattern local bindings
                     bindings.remove(&symbol_id);
 
                     // report each unused binding in the parameter pattern
@@ -122,12 +127,14 @@ impl LintRule for NoUnusedParameters {
                             .map_or(u32::MAX, |node_id| node_id.local_id.id)
                     });
 
+                    // inspect candidate syntax nodes
                     for binding_symbol in binding_symbols {
                         // skip used pattern bindings
                         if read_symbols.contains(&binding_symbol.into_global(ctx.module_id())) {
                             continue;
                         }
 
+                        // resolve symbol
                         let symbol = ctx.symbols.get_symbol(binding_symbol);
                         let Some(name) = symbol.name() else {
                             continue;
@@ -138,6 +145,7 @@ impl LintRule for NoUnusedParameters {
                             continue;
                         }
 
+                        // require optional structure
                         let Some(node_id) = symbol.primary_declaration else {
                             continue;
                         };
@@ -147,6 +155,7 @@ impl LintRule for NoUnusedParameters {
                             continue;
                         }
 
+                        // resolve local node id
                         let local_node_id = node_id.local_id;
                         if local_node_id.ty != dir::NodeType::Pattern
                             && local_node_id.ty != dir::NodeType::PatternField
@@ -154,6 +163,7 @@ impl LintRule for NoUnusedParameters {
                             continue;
                         }
 
+                        // resolve effective lint severity
                         let severity = ctx.get_effective_severity(meta, parameter_id);
                         if !severity.is_enabled() {
                             continue;
@@ -200,10 +210,12 @@ fn unused_named_parameter_fix(
         insert_offset += 1;
     }
 
+    // stop when there is no parameter name
     if insert_offset >= bytes.len() {
         return None;
     }
 
+    // inspect the first character of the name token
     let first_char = bytes[insert_offset] as char;
 
     // skip already ignored bindings
@@ -216,32 +228,13 @@ fn unused_named_parameter_fix(
         return None;
     }
 
+    // insert one leading underscore at the parameter name position
     let insert_position = parameter_span.start + insert_offset as u32;
     let edits = ctx.edit_builder().insert(insert_position, "_").into_edits();
     Some(LintFix::safe("Prefix unused parameter with `_`").with_edits(edits))
 }
 
-/// Resolve a precise report span for one unused binding inside a parameter pattern.
-fn parameter_binding_span(
-    ctx: &LintModuleDirContext<'_>,
-    parameter_id: dir::LocalNodeId<dir::Parameter>,
-    local_node_id: dir::LocalNodeIdAny,
-) -> destack_source::Span {
-    // prefer pattern node spans when available
-    if local_node_id.ty == dir::NodeType::Pattern {
-        return ctx.get_span(local_node_id.into_typed::<dir::Pattern>());
-    }
-
-    // then prefer pattern field spans
-    if local_node_id.ty == dir::NodeType::PatternField {
-        return ctx.get_span(local_node_id.into_typed::<dir::PatternField>());
-    }
-
-    // otherwise report at parameter span
-    ctx.get_span(parameter_id)
-}
-
-/// Return true when this symbol is a value-space binding.
+/// Return true when this symbol is a value space binding.
 fn symbol_is_value_binding(ctx: &LintModuleDirContext<'_>, symbol_id: dir::LocalSymbolId) -> bool {
     let symbol = ctx.symbols.get_symbol(symbol_id);
     matches!(
@@ -527,6 +520,38 @@ function run({ value }: { value: int32 }): int32 {
             r#"
 function run(value: int32): int32 {
     value = 1;
+    return 2;
+}
+"#,
+        );
+        test.result(result).assert_lint("no-unused-parameters");
+    }
+
+    /// Flag standalone compound assignment as write-only parameter usage.
+    #[test]
+    fn test_flags_compound_write_only_parameter() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedParameters);
+        let result = test.lint_dir(
+            "no_unused_parameters/test_flags_compound_write_only_parameter.ds",
+            r#"
+function run(value: int32): int32 {
+    value += 1;
+    return 2;
+}
+"#,
+        );
+        test.result(result).assert_lint("no-unused-parameters");
+    }
+
+    /// Flag standalone increment as write-only parameter usage.
+    #[test]
+    fn test_flags_increment_write_only_parameter() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedParameters);
+        let result = test.lint_dir(
+            "no_unused_parameters/test_flags_increment_write_only_parameter.ds",
+            r#"
+function run(value: int32): int32 {
+    value++;
     return 2;
 }
 "#,

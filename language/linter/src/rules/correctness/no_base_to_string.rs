@@ -41,6 +41,7 @@ impl LintRule for NoBaseToString {
         let meta = self.meta();
         let to_string_name = ctx.program.strings.intern("toString");
         let to_locale_string_name = ctx.program.strings.intern("toLocaleString");
+        let join_name = ctx.program.strings.intern("join");
         let string_symbol = ctx.get_well_known_symbol(WellKnownSymbol::String);
 
         // walk module expressions
@@ -49,6 +50,7 @@ impl LintRule for NoBaseToString {
             meta,
             to_string_name,
             to_locale_string_name,
+            join_name,
             string_symbol,
         );
         visitor.run();
@@ -65,6 +67,8 @@ struct BaseToStringVisitor<'a, 'b> {
     to_string_name: StringId,
     /// The interned "toLocaleString" name.
     to_locale_string_name: StringId,
+    /// The interned "join" name.
+    join_name: StringId,
     /// The optional well known String symbol.
     string_symbol: Option<dir::GlobalSymbolId>,
     /// The visitor options.
@@ -78,6 +82,7 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
         meta: &'a LintMeta,
         to_string_name: StringId,
         to_locale_string_name: StringId,
+        join_name: StringId,
         string_symbol: Option<dir::GlobalSymbolId>,
     ) -> Self {
         Self {
@@ -85,6 +90,7 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
             meta,
             to_string_name,
             to_locale_string_name,
+            join_name,
             string_symbol,
             options: NodeVisitorOptions::default(),
         }
@@ -95,6 +101,7 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
+        // inspect dir roots
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -209,6 +216,90 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
             .with_label("this value has no useful toString representation"),
         );
     }
+
+    /// Check join() calls for array element stringification.
+    fn check_join_call(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
+        // match method call pattern
+        let Some(method_call) = expression_method_call(self.ctx.tree, expression_id) else {
+            return;
+        };
+        if method_call.method_name != self.join_name {
+            return;
+        }
+
+        // resolve receiver type
+        let Some(type_id) = self.ctx.expression_type_id(method_call.receiver_id) else {
+            return;
+        };
+        if has_useful_to_string_type(self.ctx.types, type_id) {
+            return;
+        }
+
+        // honor per node severity
+        let severity = self.ctx.get_effective_severity(self.meta, expression_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        // report the diagnostic
+        let span = self.ctx.get_span(expression_id);
+        self.ctx.report(
+            LintDiagnostic::new(
+                NO_BASE_TO_STRING.id,
+                NO_BASE_TO_STRING.code,
+                NO_BASE_TO_STRING.category,
+                severity,
+                "join() may stringify elements as '[object Object]'",
+                self.ctx.module.file_id,
+                span,
+            )
+            .with_label("array elements should have useful toString representations"),
+        );
+    }
+
+    /// Check template interpolations for base object stringification.
+    fn check_template_expression(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        template: &dir::TemplateLiteral,
+    ) {
+        let dir::TemplateLiteral::InterpolatedString { arguments, .. } = template else {
+            return;
+        };
+
+        // inspect candidate syntax nodes
+        for argument_id in arguments {
+            let argument = self.ctx.tree.get(*argument_id);
+            let value_expression_id = argument.value();
+            let Some(type_id) = self.ctx.expression_type_id(value_expression_id) else {
+                continue;
+            };
+            if has_useful_to_string_type(self.ctx.types, type_id) {
+                continue;
+            }
+
+            // honor per node severity
+            let severity = self.ctx.get_effective_severity(self.meta, expression_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
+            // report the diagnostic
+            let span = self.ctx.get_span(value_expression_id);
+            self.ctx.report(
+                LintDiagnostic::new(
+                    NO_BASE_TO_STRING.id,
+                    NO_BASE_TO_STRING.code,
+                    NO_BASE_TO_STRING.category,
+                    severity,
+                    "template interpolation may produce '[object Object]'",
+                    self.ctx.module.file_id,
+                    span,
+                )
+                .with_label("this value has no useful toString representation"),
+            );
+        }
+    }
 }
 
 impl NodeVisitor for BaseToStringVisitor<'_, '_> {
@@ -228,6 +319,12 @@ impl NodeVisitor for BaseToStringVisitor<'_, '_> {
         if matches!(expression, dir::Expression::Call { .. }) {
             self.check_to_string_like(id);
             self.check_string_call(id);
+            self.check_join_call(id);
+        }
+
+        // check template interpolations
+        if let dir::Expression::TemplateExpression { value } = expression {
+            self.check_template_expression(id, value);
         }
 
         // walk expression children
@@ -365,6 +462,62 @@ let String = (value: { x: int32 }): string => {
 
 let value = { x: 1 };
 let str = String(value);
+"#,
+        );
+        test.result(result).assert_no_lint("no-base-to-string");
+    }
+
+    /// Flag template interpolation for plain object values.
+    #[test]
+    fn test_flags_template_interpolation_object() {
+        let test = TestProgram::for_rule_without_prelude(NoBaseToString);
+        let result = test.lint_dir(
+            "no_base_to_string/test_flags_template_interpolation_object.ds",
+            r#"
+let obj = { x: 1, y: 2 };
+let text = `${obj}`;
+"#,
+        );
+        test.result(result).assert_lint("no-base-to-string");
+    }
+
+    /// Allow template interpolation for string values.
+    #[test]
+    fn test_allows_template_interpolation_string() {
+        let test = TestProgram::for_rule_without_prelude(NoBaseToString);
+        let result = test.lint_dir(
+            "no_base_to_string/test_allows_template_interpolation_string.ds",
+            r#"
+let value = "hello";
+let text = `${value}`;
+"#,
+        );
+        test.result(result).assert_no_lint("no-base-to-string");
+    }
+
+    /// Flag join() on object arrays.
+    #[test]
+    fn test_flags_join_on_object_array() {
+        let test = TestProgram::for_rule_without_prelude(NoBaseToString);
+        let result = test.lint_dir(
+            "no_base_to_string/test_flags_join_on_object_array.ds",
+            r#"
+let values = [{ x: 1 }, { x: 2 }];
+let text = values.join(",");
+"#,
+        );
+        test.result(result).assert_lint("no-base-to-string");
+    }
+
+    /// Allow join() on string arrays.
+    #[test]
+    fn test_allows_join_on_string_array() {
+        let test = TestProgram::for_rule_without_prelude(NoBaseToString);
+        let result = test.lint_dir(
+            "no_base_to_string/test_allows_join_on_string_array.ds",
+            r#"
+let values = ["a", "b"];
+let text = values.join(",");
 "#,
         );
         test.result(result).assert_no_lint("no-base-to-string");

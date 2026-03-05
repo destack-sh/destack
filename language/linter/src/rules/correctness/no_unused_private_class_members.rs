@@ -1,8 +1,11 @@
+use std::collections::HashSet;
+
+use destack_base::StringId;
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    collect_module_symbol_usage, expression_is_standalone_statement, resolution_target_symbols,
+    collect_module_resolved_read_symbol_usage, collect_module_symbol_usage,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -27,13 +30,49 @@ declare_lint! {
 }
 
 impl LintRule for NoUnusedPrivateClassMembers {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoUnusedPrivateClassMembers::meta()
     }
 
+    /// Check module DIR nodes for unused private class members.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
         let usage = collect_module_symbol_usage(ctx.module_id(), ctx.tree, ctx.types);
+        let read_symbols =
+            collect_module_resolved_read_symbol_usage(ctx.module_id(), ctx.tree, ctx.types);
+        let mut used_private_accessor_keys = HashSet::new();
+        let mut reported_private_accessor_keys = HashSet::new();
+
+        // collect used private accessor keys before reporting
+        for declaration_id in ctx.tree.iter_node_ids_of_type::<dir::Declaration>() {
+            let declaration = ctx.tree.get(declaration_id);
+            let dir::Declaration::Class { members, .. } = declaration else {
+                continue;
+            };
+
+            // inspect candidate syntax nodes
+            for member_id in members {
+                let member = ctx.tree.get(*member_id);
+                if !member_is_private(member) || !member_is_accessor(member) {
+                    continue;
+                }
+
+                // require optional structure
+                let Some(accessor_key) = member_private_accessor_key(member) else {
+                    continue;
+                };
+                let Some(symbol_id) = candidate_member_symbol(member) else {
+                    continue;
+                };
+
+                // resolve global symbol
+                let global_symbol = symbol_id.into_global(ctx.module_id());
+                if usage.references_symbol(global_symbol) {
+                    used_private_accessor_keys.insert(accessor_key);
+                }
+            }
+        }
 
         // walk class declarations and report unused private members
         for declaration_id in ctx.tree.iter_node_ids_of_type::<dir::Declaration>() {
@@ -56,14 +95,31 @@ impl LintRule for NoUnusedPrivateClassMembers {
                     continue;
                 }
 
-                // skip non-referenced members quickly
-                let global_symbol = symbol_id.into_global(ctx.module_id());
-                if usage.references_symbol(global_symbol)
-                    && member_symbol_has_read_usage(ctx, global_symbol)
+                // collapse accessor pairs into one tracked private member identity
+                if member_is_accessor(member)
+                    && let Some(accessor_key) = member_private_accessor_key(member)
                 {
+                    if used_private_accessor_keys.contains(&accessor_key) {
+                        continue;
+                    }
+                    if reported_private_accessor_keys.contains(&accessor_key) {
+                        continue;
+                    }
+                    reported_private_accessor_keys.insert(accessor_key);
+                }
+
+                // skip not referenced members quickly
+                let global_symbol = symbol_id.into_global(ctx.module_id());
+                let is_member_used = if member_is_accessor(member) {
+                    usage.references_symbol(global_symbol)
+                } else {
+                    read_symbols.contains(&global_symbol)
+                };
+                if is_member_used {
                     continue;
                 }
 
+                // resolve effective lint severity
                 let severity = ctx.get_effective_severity(meta, *member_id);
                 if !severity.is_enabled() {
                     continue;
@@ -95,108 +151,6 @@ impl LintRule for NoUnusedPrivateClassMembers {
     }
 }
 
-/// Return true when one symbol has at least one read usage in this module.
-fn member_symbol_has_read_usage(
-    ctx: &LintModuleDirContext<'_>,
-    symbol_id: dir::GlobalSymbolId,
-) -> bool {
-    for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
-        if !expression_references_symbol(ctx, expression_id, symbol_id) {
-            continue;
-        }
-
-        if expression_reference_is_read(ctx.tree, expression_id) {
-            return true;
-        }
-    }
-
-    false
-}
-
-/// Return true when one expression resolves to the requested symbol.
-fn expression_references_symbol(
-    ctx: &LintModuleDirContext<'_>,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-    symbol_id: dir::GlobalSymbolId,
-) -> bool {
-    let expression = ctx.tree.get(expression_id);
-    if expression.target_symbol() == Some(symbol_id) {
-        return true;
-    }
-
-    let global_expression_id = expression_id.into_global_any(ctx.module_id());
-    let Some(resolution_id) = ctx.types.get_resolution_for_node(global_expression_id) else {
-        return false;
-    };
-    let resolution = ctx.types.get_resolution(resolution_id);
-
-    resolution_target_symbols(resolution).contains(&symbol_id)
-}
-
-/// Return true when one symbol reference expression is used in a read context.
-fn expression_reference_is_read(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    let mut current_id = expression_id;
-
-    loop {
-        let Some(parent) = tree.get_parent(current_id.id) else {
-            return true;
-        };
-        if parent.ty != dir::NodeType::Expression {
-            return true;
-        }
-
-        let parent_id = parent.into_typed::<dir::Expression>();
-        let parent_expression = tree.get(parent_id);
-
-        match parent_expression {
-            // unwrap transparent wrappers and continue
-            dir::Expression::Parenthesized { expression } if *expression == current_id => {
-                current_id = parent_id;
-            }
-            dir::Expression::Cast { value, .. } | dir::Expression::OwnershipCast { value, .. }
-                if *value == current_id =>
-            {
-                current_id = parent_id;
-            }
-            dir::Expression::Maybe { left } | dir::Expression::Must { left }
-                if *left == current_id =>
-            {
-                current_id = parent_id;
-            }
-
-            // plain assignment left side is write only
-            dir::Expression::Assign { left, .. } if *left == current_id => {
-                return false;
-            }
-
-            // update assignments read previous value only when the result is consumed
-            dir::Expression::AssignBinary { left, .. } if *left == current_id => {
-                return !expression_is_standalone_statement(tree, parent_id);
-            }
-
-            // standalone increments and decrements are treated as write only
-            dir::Expression::Unary {
-                operator:
-                    dir::UnaryOperator::PreIncrement
-                    | dir::UnaryOperator::PostIncrement
-                    | dir::UnaryOperator::PreDecrement
-                    | dir::UnaryOperator::PostDecrement,
-                right,
-            } if *right == current_id => {
-                return !expression_is_standalone_statement(tree, parent_id);
-            }
-
-            // all other parent contexts consume this value
-            _ => {
-                return true;
-            }
-        }
-    }
-}
-
 /// Build an unsafe fix for removable unused private members.
 fn unused_private_member_fix(
     ctx: &LintModuleDirContext<'_>,
@@ -213,6 +167,7 @@ fn unused_private_member_fix(
         return None;
     }
 
+    // resolve diagnostic span
     let member_span = ctx.get_span(member_id);
     let edits = ctx.edit_builder().delete(member_span).into_edits();
     Some(LintFix::r#unsafe("Remove unused private method").with_edits(edits))
@@ -221,7 +176,7 @@ fn unused_private_member_fix(
 /// Return the symbol id for members this rule should inspect.
 fn candidate_member_symbol(member: &dir::Member) -> Option<dir::LocalSymbolId> {
     match member {
-        // inspect only value-space member forms
+        // inspect only value space member forms
         dir::Member::Field { symbol, .. } => Some(*symbol),
         dir::Member::Method {
             signature, symbol, ..
@@ -249,6 +204,44 @@ fn member_is_private(member: &dir::Member) -> bool {
             is_private_by_modifier || is_private_by_key
         }
         _ => false,
+    }
+}
+
+/// Return true when a class member is an accessor pair member.
+fn member_is_accessor(member: &dir::Member) -> bool {
+    match member {
+        dir::Member::Method { signature, .. } => {
+            matches!(
+                signature.mode,
+                Some(dir::FunctionMode::Getter | dir::FunctionMode::Setter)
+            )
+        }
+        _ => false,
+    }
+}
+
+/// One normalized key for private accessor pair tracking.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum AccessorKey {
+    /// Identifier-like key.
+    Name(StringId),
+    /// Numeric key.
+    Number(StringId),
+    /// Private key.
+    Private(StringId),
+}
+
+/// Return one normalized private accessor key for getter/setter grouping.
+fn member_private_accessor_key(member: &dir::Member) -> Option<AccessorKey> {
+    let dir::Member::Method { key, .. } = member else {
+        return None;
+    };
+    let key = key.as_ref()?;
+    match key {
+        dir::DynamicKey::Name(name) => Some(AccessorKey::Name(*name)),
+        dir::DynamicKey::Number(number) => Some(AccessorKey::Number(*number)),
+        dir::DynamicKey::Private(name) => Some(AccessorKey::Private(*name)),
+        dir::DynamicKey::Expression(_) | dir::DynamicKey::NamedExpression { .. } => None,
     }
 }
 
@@ -516,5 +509,33 @@ class Service {
         );
         test.result(result)
             .assert_lint("no-unused-private-class-members");
+    }
+
+    /// Allow standalone updates for private accessors.
+    #[test]
+    fn test_allows_standalone_update_on_private_accessor() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedPrivateClassMembers);
+        let result = test.lint_dir(
+            "no_unused_private_class_members/test_allows_standalone_update_on_private_accessor.ds",
+            r#"
+class Service {
+    private valueBacking: int32 = 0;
+
+    private get value(): int32 {
+        return this.valueBacking;
+    }
+
+    private set value(next: int32) {
+        this.valueBacking = next;
+    }
+
+    touch(): void {
+        this.value++;
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-unused-private-class-members");
     }
 }

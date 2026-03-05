@@ -1,14 +1,10 @@
 use std::collections::HashMap;
 
 use destack_dir as dir;
-use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::collect_module_symbol_usage;
-use crate::{
-    LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, ModuleSymbolUsage,
-    declare_lint,
-};
+use crate::rules::common::{collect_module_resolved_read_symbol_usage, import_item_removal_span};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow imported bindings that are never used.
@@ -31,13 +27,16 @@ declare_lint! {
 }
 
 impl LintRule for NoUnusedImports {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoUnusedImports::meta()
     }
 
+    /// Check module DIR nodes for unused import bindings.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let usage = collect_module_symbol_usage(ctx.module_id(), ctx.tree, ctx.types);
+        let read_symbols =
+            collect_module_resolved_read_symbol_usage(ctx.module_id(), ctx.tree, ctx.types);
         let import_clauses = collect_import_clauses(ctx);
         let canonical_counts = canonical_import_symbol_counts(ctx, &import_clauses);
 
@@ -49,15 +48,18 @@ impl LintRule for NoUnusedImports {
                     continue;
                 };
 
-                if import_symbol_is_used(ctx, symbol_id, &usage, &canonical_counts) {
+                // enforce this lint guard
+                if import_symbol_is_used(ctx, symbol_id, &read_symbols, &canonical_counts) {
                     continue;
                 }
 
+                // resolve effective lint severity
                 let severity = ctx.get_effective_severity(meta, *item_id);
                 if !severity.is_enabled() {
                     continue;
                 }
 
+                // resolve diagnostic span
                 let span = ctx.get_span(*item_id);
                 let mut diagnostic = LintDiagnostic::new(
                     NO_UNUSED_IMPORTS.id,
@@ -70,6 +72,7 @@ impl LintRule for NoUnusedImports {
                 )
                 .with_label("this import is never used");
 
+                // attach fix when enabled
                 if ctx.include_fixes
                     && let Some(fix) = unused_import_fix(ctx, clause, index)
                 {
@@ -145,11 +148,11 @@ fn canonical_import_symbol_counts(
 fn import_symbol_is_used(
     ctx: &LintModuleDirContext<'_>,
     symbol_id: dir::LocalSymbolId,
-    usage: &ModuleSymbolUsage,
+    read_symbols: &std::collections::HashSet<dir::GlobalSymbolId>,
     canonical_counts: &HashMap<dir::GlobalSymbolId, usize>,
 ) -> bool {
     // direct local usage
-    if usage.references_local_symbol(ctx.module_id(), symbol_id) {
+    if read_symbols.contains(&symbol_id.into_global(ctx.module_id())) {
         return true;
     }
 
@@ -165,7 +168,7 @@ fn import_symbol_is_used(
         return false;
     }
 
-    usage.references_symbol(canonical_id)
+    read_symbols.contains(&canonical_id)
 }
 
 /// Build a safe fix for one unused import binding when removal is syntactically local.
@@ -174,58 +177,28 @@ fn unused_import_fix(
     clause: &ImportClause,
     item_index: usize,
 ) -> Option<LintFix> {
-    let remove_span = unused_import_item_removal_span(ctx, clause, item_index)?;
+    // resolve source spans for the import expression and all clause items
+    let import_expression_span = ctx.get_span(clause.expression_id);
+    let item_spans: Vec<_> = clause
+        .items
+        .iter()
+        .map(|item_id| ctx.get_span(*item_id))
+        .collect();
+
+    // resolve the span to remove one import item safely
+    let remove_span = import_item_removal_span(
+        ctx.source_text(),
+        import_expression_span,
+        &item_spans,
+        item_index,
+    )?;
     if remove_span.is_empty() {
         return None;
     }
 
+    // build fix edits
     let edits = ctx.edit_builder().delete(remove_span).into_edits();
     Some(LintFix::safe("Remove unused import binding").with_edits(edits))
-}
-
-/// Resolve a source span that safely removes one import item.
-fn unused_import_item_removal_span(
-    ctx: &LintModuleDirContext<'_>,
-    clause: &ImportClause,
-    item_index: usize,
-) -> Option<Span> {
-    if item_index >= clause.items.len() {
-        return None;
-    }
-
-    // single binding import: remove the whole import expression statement
-    if clause.items.len() == 1 {
-        return Some(ctx.get_span(clause.expression_id));
-    }
-
-    let item_span = ctx.get_span(clause.items[item_index]);
-
-    // first binding: remove this item and the separator up to the next item
-    if item_index == 0 {
-        let next_span = ctx.get_span(clause.items[1]);
-        if item_span.end > next_span.start {
-            return None;
-        }
-
-        let between = &ctx.source_text()[item_span.end as usize..next_span.start as usize];
-        if !between.contains(',') || between.contains('{') || between.contains('}') {
-            return None;
-        }
-
-        return Some(Span::new(item_span.file, item_span.start, next_span.start));
-    }
-
-    // non first binding: remove from previous end through this binding
-    let previous_span = ctx.get_span(clause.items[item_index - 1]);
-    if previous_span.end > item_span.start {
-        return None;
-    }
-    let between = &ctx.source_text()[previous_span.end as usize..item_span.start as usize];
-    if !between.contains(',') || between.contains('{') || between.contains('}') {
-        return None;
-    }
-
-    Some(Span::new(item_span.file, previous_span.end, item_span.end))
 }
 
 #[cfg(test)]

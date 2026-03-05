@@ -1,10 +1,13 @@
 use destack_ast::{self as ast};
+use destack_source::Span;
 
-use crate::rules::common::{stable_hash_debug, stable_hash_token, stable_hash_token_hashed_value};
+use crate::rules::common::{
+    span_has_comment_trivia, stable_hash_debug, stable_hash_token, stable_hash_token_hashed_value,
+};
 use crate::{ConstValue, LintModuleAstContext};
 
 /// Return the AST expression id with parenthesized nodes unwrapped.
-pub fn ast_expression_unwrap_parenthesized(
+pub fn expression_unwrap_parenthesized_syntax(
     tree: &ast::NodeTree,
     mut expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> ast::LocalNodeId<ast::Expression> {
@@ -20,7 +23,7 @@ pub fn ast_expression_unwrap_parenthesized(
 }
 
 /// Return the surrounding statement expression for a standalone expression.
-pub fn ast_expression_statement_ancestor(
+pub fn expression_statement_ancestor(
     tree: &ast::NodeTree,
     parents: &ast::NodeParentIndex,
     expression_id: ast::LocalNodeId<ast::Expression>,
@@ -55,13 +58,215 @@ pub fn ast_expression_statement_ancestor(
     }
 }
 
+/// Return the enclosing statement span for a standalone expression.
+pub fn expression_statement_span(
+    tree: &ast::NodeTree,
+    parents: &ast::NodeParentIndex,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<Span> {
+    // resolve the enclosing statement wrapper
+    let statement_expression_id = expression_statement_ancestor(tree, parents, expression_id)?;
+
+    // return the statement span
+    Some(tree.get_span(statement_expression_id))
+}
+
+/// Return true when one block has no expressions and no comment trivia.
+pub fn block_is_empty_without_comment(
+    tree: &ast::NodeTree,
+    block_id: ast::LocalNodeId<ast::Block>,
+) -> bool {
+    let block = tree.get(block_id);
+    if !block.expressions.is_empty() {
+        return false;
+    }
+
+    let block_span = tree.get_span(block_id);
+    !span_has_comment_trivia(tree, block_span)
+}
+
+/// Return the block expression id for one block node.
+pub fn block_expression_ancestor(
+    tree: &ast::NodeTree,
+    parents: &ast::NodeParentIndex,
+    block_id: ast::LocalNodeId<ast::Block>,
+) -> Option<ast::LocalNodeId<ast::Expression>> {
+    let parent_id = parents.get(block_id)?;
+    if tree.get_node_type(parent_id) != ast::NodeType::Expression {
+        return None;
+    }
+
+    let expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+    let expression = tree.get(expression_id);
+    if !matches!(expression, ast::Expression::Block(current_id) if *current_id == block_id) {
+        return None;
+    }
+
+    Some(expression_id)
+}
+
+/// Return true when one block expression is the body of a function or method.
+pub fn block_is_function_body(
+    tree: &ast::NodeTree,
+    parents: &ast::NodeParentIndex,
+    block_id: ast::LocalNodeId<ast::Block>,
+) -> bool {
+    // resolve the expression that owns this block
+    let Some(block_expression_id) = block_expression_ancestor(tree, parents, block_id) else {
+        return false;
+    };
+
+    // resolve the parent node that owns the expression
+    let Some(owner_id) = parents.get(block_expression_id) else {
+        return false;
+    };
+
+    // allow direct function declaration bodies
+    if tree.get_node_type(owner_id) == ast::NodeType::Declaration {
+        let declaration = tree.get(ast::LocalNodeId::<ast::Declaration>::new(owner_id));
+        if matches!(
+            declaration,
+            ast::Declaration::Function {
+                body: Some(body_id),
+                ..
+            } if *body_id == block_expression_id
+        ) {
+            return true;
+        }
+    }
+
+    // allow method bodies
+    if tree.get_node_type(owner_id) == ast::NodeType::Member {
+        let member = tree.get(ast::LocalNodeId::<ast::Member>::new(owner_id));
+        if matches!(
+            member,
+            ast::Member::Method {
+                body: Some(body_id),
+                ..
+            } if *body_id == block_expression_id
+        ) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Return true when one block expression belongs to a static block member.
+pub fn block_is_static_block_body(
+    tree: &ast::NodeTree,
+    parents: &ast::NodeParentIndex,
+    block_id: ast::LocalNodeId<ast::Block>,
+) -> bool {
+    // resolve the expression that wraps this block
+    let Some(block_expression_id) = block_expression_ancestor(tree, parents, block_id) else {
+        return false;
+    };
+
+    // require a member owner for static blocks
+    let Some(owner_id) = parents.get(block_expression_id) else {
+        return false;
+    };
+    if tree.get_node_type(owner_id) != ast::NodeType::Member {
+        return false;
+    }
+
+    // accept only static block members with the same body expression
+    let member = tree.get(ast::LocalNodeId::<ast::Member>::new(owner_id));
+    matches!(
+        member,
+        ast::Member::StaticBlock { body, .. } if *body == block_expression_id
+    )
+}
+
+/// Return one declaration wrapper expression id for a declaration node.
+pub fn declaration_expression(
+    tree: &ast::NodeTree,
+    parents: &ast::NodeParentIndex,
+    declaration_id: ast::LocalNodeId<ast::Declaration>,
+) -> Option<ast::LocalNodeId<ast::Expression>> {
+    // resolve the declaration parent node
+    let parent_id = parents.get(declaration_id)?;
+    if tree.get_node_type(parent_id) != ast::NodeType::Expression {
+        return None;
+    }
+
+    // require an expression::declaration wrapper with the same declaration id
+    let expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+    let expression = tree.get(expression_id);
+    if !matches!(expression, ast::Expression::Declaration(current) if *current == declaration_id) {
+        return None;
+    }
+
+    Some(expression_id)
+}
+
+/// Return true when one declaration expression is at an allowed root location.
+pub fn declaration_at_allowed_root(
+    tree: &ast::NodeTree,
+    parents: &ast::NodeParentIndex,
+    declaration_expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    // default to allowed when parent structure is missing
+    let Some(parent_id) = parents.get(declaration_expression_id) else {
+        return true;
+    };
+
+    // declarations are allowed only when directly under a block
+    if tree.get_node_type(parent_id) != ast::NodeType::Block {
+        return false;
+    }
+    let block_id = ast::LocalNodeId::<ast::Block>::new(parent_id);
+    let block = tree.get(block_id);
+    if block.format != ast::BlockFormat::Explicit {
+        return true;
+    }
+
+    // resolve the expression that owns this block
+    let Some(block_expression_id) = block_expression_ancestor(tree, parents, block_id) else {
+        return false;
+    };
+
+    // default to allowed when the block expression has no owner
+    let Some(owner_id) = parents.get(block_expression_id) else {
+        return true;
+    };
+
+    // allow function declaration roots
+    if tree.get_node_type(owner_id) == ast::NodeType::Declaration {
+        let declaration = tree.get(ast::LocalNodeId::<ast::Declaration>::new(owner_id));
+        if matches!(
+            declaration,
+            ast::Declaration::Function {
+                body: Some(body_id),
+                ..
+            } if *body_id == block_expression_id
+        ) {
+            return true;
+        }
+    }
+
+    // allow static block roots
+    if tree.get_node_type(owner_id) == ast::NodeType::Member {
+        let member = tree.get(ast::LocalNodeId::<ast::Member>::new(owner_id));
+        if matches!(
+            member,
+            ast::Member::StaticBlock { body, .. } if *body == block_expression_id
+        ) {
+            return true;
+        }
+    }
+
+    false
+}
+
 /// Return path segments when the expression is a non-generic path.
 pub fn expression_path_segments(
     tree: &ast::NodeTree,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<Vec<ast::StringId>> {
     // normalize expression shape
-    let expression_id = ast_expression_unwrap_parenthesized(tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_syntax(tree, expression_id);
     let expression = tree.get(expression_id);
 
     // require a non generic path expression
@@ -81,6 +286,55 @@ pub fn expression_path_segments(
 
     // return path segments in source order
     Some(path.segments.to_vec())
+}
+
+/// Return one static string literal value from an expression.
+pub fn expression_static_string_literal_syntax(
+    tree: &ast::NodeTree,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<ast::StringId> {
+    // normalize expression shape
+    let expression_id = expression_unwrap_parenthesized_syntax(tree, expression_id);
+    let expression = tree.get(expression_id);
+
+    // match direct string literals
+    if let ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(value)) = expression {
+        return Some(*value);
+    }
+
+    // match template literals without interpolations
+    let ast::Expression::TemplateExpression { value } = expression else {
+        return None;
+    };
+    let ast::TemplateLiteral::String { string } = value else {
+        return None;
+    };
+
+    Some(*string)
+}
+
+/// Return one static property access pair as `(left, property_name)`.
+pub fn expression_static_property_access_syntax(
+    tree: &ast::NodeTree,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<(ast::LocalNodeId<ast::Expression>, ast::StringId)> {
+    // normalize expression shape
+    let expression_id = expression_unwrap_parenthesized_syntax(tree, expression_id);
+    let expression = tree.get(expression_id);
+
+    // match dot member access
+    if let ast::Expression::Member { left, name, .. } = expression {
+        return Some((*left, *name));
+    }
+
+    // match bracket member access with static string keys
+    let ast::Expression::Index { left, index, .. } = expression else {
+        return None;
+    };
+    let index_id = index.as_ref().copied()?;
+    let property_name = expression_static_string_literal_syntax(tree, index_id)?;
+
+    Some((*left, property_name))
 }
 
 /// Return the value expression id for one argument node.
@@ -120,7 +374,7 @@ pub fn expression_numeric_value(
     }
 
     // normalize expression shape and require a binary expression
-    let expression_id = ast_expression_unwrap_parenthesized(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
     let expression = ctx.tree.get(expression_id);
     let ast::Expression::Binary {
         operator,
@@ -185,8 +439,8 @@ pub fn expression_is_equal(
     left_id: ast::LocalNodeId<ast::Expression>,
     right_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
-    let left_id = ast_expression_unwrap_parenthesized(ctx.tree, left_id);
-    let right_id = ast_expression_unwrap_parenthesized(ctx.tree, right_id);
+    let left_id = expression_unwrap_parenthesized_syntax(ctx.tree, left_id);
+    let right_id = expression_unwrap_parenthesized_syntax(ctx.tree, right_id);
     let left = ctx.tree.get(left_id);
     let right = ctx.tree.get(right_id);
     match (left, right) {

@@ -3,7 +3,7 @@ use destack_source::Span;
 
 use crate::{LintFix, LintModuleDirContext};
 
-/// Build an unsafe module-local rename fix for one local symbol.
+/// Build an unsafe module local rename fix for one local symbol.
 pub fn rename_local_symbol_fix(
     ctx: &LintModuleDirContext<'_>,
     symbol_id: dir::LocalSymbolId,
@@ -67,6 +67,41 @@ pub fn fresh_name_in_symbol_scope(
         candidate = format!("{base_name}_shadow_{suffix}");
         suffix += 1;
         if suffix > 1024 {
+            return None;
+        }
+    }
+}
+
+/// Return a fresh name in one expression scope using one suffix strategy.
+pub fn fresh_name_in_expression_scope(
+    ctx: &LintModuleDirContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    base_name: &str,
+    suffix: &str,
+) -> Option<String> {
+    if !is_simple_identifier(base_name) {
+        return None;
+    }
+
+    // resolve scope and mark at the insertion expression
+    let (_, scope, mark) = ctx.symbols.get_scope(expression_id, ctx.tree);
+    let mut candidate = format!("{base_name}{suffix}");
+    let mut suffix_index = 2usize;
+
+    loop {
+        let candidate_id = ctx.program.strings.intern(&candidate);
+        let candidate_key = dir::StaticKey::Name(candidate_id);
+        let is_taken = ctx
+            .symbols
+            .find_active_symbol_up_to(scope, candidate_key, mark)
+            .is_some();
+        if !is_taken {
+            return Some(candidate);
+        }
+
+        candidate = format!("{base_name}{suffix}{suffix_index}");
+        suffix_index += 1;
+        if suffix_index > 1024 {
             return None;
         }
     }

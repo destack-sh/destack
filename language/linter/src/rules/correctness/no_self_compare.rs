@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expressions_have_equivalent_syntax;
+use crate::rules::common::{expressions_have_equivalent_syntax, is_binary_comparison_operator};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -24,28 +24,17 @@ declare_lint! {
     "Disallow comparing a value to itself"
 }
 
-fn is_comparison_operator(op: dir::BinaryOperator) -> bool {
-    matches!(
-        op,
-        dir::BinaryOperator::Equal
-            | dir::BinaryOperator::NotEqual
-            | dir::BinaryOperator::EqualStrict
-            | dir::BinaryOperator::NotEqualStrict
-            | dir::BinaryOperator::LessThan
-            | dir::BinaryOperator::LessThanOrEqual
-            | dir::BinaryOperator::GreaterThan
-            | dir::BinaryOperator::GreaterThanOrEqual
-    )
-}
-
 impl LintRule for NoSelfCompare {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoSelfCompare::meta()
     }
 
+    /// Check module DIR nodes for self comparisons.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
 
+        // inspect expression nodes for self comparisons
         for (node_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
             // filter to comparison binary expressions
             let dir::Expression::Binary {
@@ -56,7 +45,9 @@ impl LintRule for NoSelfCompare {
             else {
                 continue;
             };
-            if !is_comparison_operator(*operator) {
+
+            // keep only comparison operators
+            if !is_binary_comparison_operator(*operator) {
                 continue;
             }
 
@@ -65,11 +56,15 @@ impl LintRule for NoSelfCompare {
                 continue;
             }
 
+            // resolve effective lint severity
             let severity = ctx.get_effective_severity(meta, node_id);
+
+            // skip disabled diagnostics
             if !severity.is_enabled() {
                 continue;
             }
 
+            // report self comparison diagnostic
             let span = ctx.get_span(node_id);
             ctx.report(
                 LintDiagnostic::new(

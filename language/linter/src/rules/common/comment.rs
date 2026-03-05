@@ -238,6 +238,57 @@ pub fn has_doc_terminal_punctuation(line: &str) -> bool {
     without_parenthesis.ends_with(['.', '!', '?', ':'])
 }
 
+/// Return true when one comment contains one warning term using word boundaries.
+pub fn comment_contains_warning_term(comment: &str, term: &str) -> bool {
+    let term = term.trim();
+    if term.is_empty() {
+        return false;
+    }
+
+    // normalize one lowercase term and comment buffer
+    let term_lower = term.to_ascii_lowercase();
+    let comment_lower = comment.to_ascii_lowercase();
+    let starts_with_word = term_lower
+        .chars()
+        .next()
+        .is_some_and(is_warning_term_word_character);
+    let ends_with_word = term_lower
+        .chars()
+        .last()
+        .is_some_and(is_warning_term_word_character);
+
+    // scan all occurrences and enforce optional boundaries
+    let mut search_start = 0usize;
+    while search_start <= comment_lower.len() {
+        let Some(relative_match_index) = comment_lower[search_start..].find(term_lower.as_str())
+        else {
+            return false;
+        };
+        let match_start = search_start + relative_match_index;
+        let match_end = match_start + term_lower.len();
+
+        let previous_character = comment_lower[..match_start].chars().next_back();
+        let next_character = comment_lower[match_end..].chars().next();
+        let has_prefix_boundary = !starts_with_word
+            || previous_character
+                .is_none_or(|character| !is_warning_term_word_character(character));
+        let has_suffix_boundary = !ends_with_word
+            || next_character.is_none_or(|character| !is_warning_term_word_character(character));
+        if has_prefix_boundary && has_suffix_boundary {
+            return true;
+        }
+
+        search_start = match_end;
+    }
+
+    false
+}
+
+/// Return true when one character counts as a warning term word character.
+fn is_warning_term_word_character(character: char) -> bool {
+    character.is_ascii_alphanumeric() || character == '_'
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -357,5 +408,25 @@ mod tests {
         assert!(!is_fallthrough_comment(
             "// eslint-disable-next-line no-fallthrough"
         ));
+    }
+
+    /// Match warning terms as whole words.
+    #[test]
+    fn test_comment_contains_warning_term_matches_whole_word() {
+        assert!(comment_contains_warning_term(
+            "TODO: finish this path",
+            "todo"
+        ));
+        assert!(comment_contains_warning_term("fixme!", "fixme"));
+    }
+
+    /// Skip warning terms that only appear as substrings.
+    #[test]
+    fn test_comment_contains_warning_term_skips_substring() {
+        assert!(!comment_contains_warning_term(
+            "TodoMVC integration",
+            "todo"
+        ));
+        assert!(!comment_contains_warning_term("prefixfixmesuffix", "fixme"));
     }
 }
