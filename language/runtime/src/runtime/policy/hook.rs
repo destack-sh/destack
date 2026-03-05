@@ -555,7 +555,7 @@ impl Hooks {
             call_id,
             descriptor,
             engine,
-            virtual_time_ns: self.world.clock().mono_nanos(),
+            virtual_time_ns: self.world.mono_nanos(),
         });
         if let HookDecision::Deny { message } = decision {
             return Err(RuntimeError::Internal { message }.boxed());
@@ -576,7 +576,7 @@ impl Hooks {
             call_id,
             descriptor,
             engine,
-            virtual_time_ns: self.world.clock().mono_nanos(),
+            virtual_time_ns: self.world.mono_nanos(),
         });
     }
 
@@ -584,7 +584,7 @@ impl Hooks {
     pub fn on_scheduler_enqueue(&self) {
         self.on_policy_event(HookEvent::SchedulerEnqueue {
             agent_id: self.agent_id,
-            virtual_time_ns: self.world.clock().mono_nanos(),
+            virtual_time_ns: self.world.mono_nanos(),
         });
     }
 
@@ -592,7 +592,7 @@ impl Hooks {
     pub fn on_scheduler_dequeue(&self) {
         self.on_policy_event(HookEvent::SchedulerDequeue {
             agent_id: self.agent_id,
-            virtual_time_ns: self.world.clock().mono_nanos(),
+            virtual_time_ns: self.world.mono_nanos(),
         });
     }
 
@@ -600,7 +600,7 @@ impl Hooks {
     pub fn on_scheduler_timer_fire(&self) {
         self.on_policy_event(HookEvent::SchedulerTimerFire {
             agent_id: self.agent_id,
-            virtual_time_ns: self.world.clock().mono_nanos(),
+            virtual_time_ns: self.world.mono_nanos(),
         });
     }
 
@@ -608,7 +608,7 @@ impl Hooks {
     pub fn on_host_event_enqueue(&self) {
         self.on_policy_event(HookEvent::HostEventEnqueue {
             agent_id: self.agent_id,
-            virtual_time_ns: self.world.clock().mono_nanos(),
+            virtual_time_ns: self.world.mono_nanos(),
         });
     }
 
@@ -617,7 +617,7 @@ impl Hooks {
         self.on_policy_event(HookEvent::TimeRead {
             agent_id: self.agent_id,
             engine,
-            virtual_time_ns: self.world.clock().mono_nanos(),
+            virtual_time_ns: self.world.mono_nanos(),
         });
     }
 
@@ -626,7 +626,7 @@ impl Hooks {
         self.on_policy_event(HookEvent::RandomRead {
             agent_id: self.agent_id,
             engine,
-            virtual_time_ns: self.world.clock().mono_nanos(),
+            virtual_time_ns: self.world.mono_nanos(),
         });
     }
 
@@ -649,7 +649,7 @@ impl Hooks {
 
         self.on_policy_event(HookEvent::ResourceAttach {
             agent_id: self.agent_id,
-            virtual_time_ns: self.world.clock().mono_nanos(),
+            virtual_time_ns: self.world.mono_nanos(),
         });
 
         Ok(())
@@ -670,7 +670,7 @@ impl Hooks {
 
         self.on_policy_event(HookEvent::ResourceDetach {
             agent_id: self.agent_id,
-            virtual_time_ns: self.world.clock().mono_nanos(),
+            virtual_time_ns: self.world.mono_nanos(),
         });
 
         Ok(())

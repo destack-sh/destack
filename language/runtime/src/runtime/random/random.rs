@@ -1,24 +1,18 @@
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
-
-use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
-use destack_workspace::{RandomMode, RandomOptions};
+use crate::diagnostic::RuntimeResult;
+use destack_workspace::RandomOptions;
+
+use super::HostRandom;
+use super::r#virtual::{StreamStateDecodeError, VirtualRandom};
 
 /// Runtime randomness and entropy providers.
 #[derive(Debug)]
 pub struct Random {
-    /// Root seed for deterministic streams.
-    pub root_seed: u64,
-    /// Internal stream state.
-    state: AtomicU64,
-    /// Next user-defined stream identifier.
-    next_stream_id: AtomicU64,
-    /// Per-stream deterministic state.
-    streams: Mutex<HashMap<RandomStreamId, u64>>,
-    /// Randomness mode selection.
-    mode: RandomMode,
+    /// Host randomness for secure and host-mode draws.
+    host_random: HostRandom,
+    /// Deterministic randomness for virtualized runtime draws.
+    virtual_random: VirtualRandom,
 }
 
 /// Identifier for a deterministic random stream.
@@ -40,21 +34,6 @@ impl RandomStreamId {
     }
 }
 
-/// Step size for deterministic random streams.
-const STREAM_INCREMENT: u64 = 0x9e3779b97f4a7c15;
-
-/// Policy for entropy access in deterministic modes.
-#[derive(Debug, Clone, Copy, Default)]
-pub enum EntropyPolicy {
-    /// Entropy reads are forbidden.
-    #[default]
-    Disabled,
-    /// Entropy reads are allowed but logged.
-    Logged,
-    /// Entropy reads pass through without logging.
-    Passthrough,
-}
-
 impl Default for Random {
     fn default() -> Self {
         Self::from_options(&RandomOptions::default())
@@ -64,22 +43,24 @@ impl Default for Random {
 impl Random {
     /// Create a random source from runtime options.
     pub fn from_options(options: &RandomOptions) -> Self {
-        // resolve seed and mode
+        // resolve seed
         let root_seed = options.seed.unwrap_or(0);
 
         // construct the random source
-        Self::new(root_seed, options.mode)
+        Self::new(root_seed)
     }
 
-    /// Create a random source from a root seed and mode.
-    pub fn new(root_seed: u64, mode: RandomMode) -> Self {
+    /// Create a random source from a root seed.
+    pub fn new(root_seed: u64) -> Self {
         Self {
-            root_seed,
-            state: AtomicU64::new(root_seed),
-            next_stream_id: AtomicU64::new(1),
-            streams: Mutex::new(HashMap::new()),
-            mode,
+            host_random: HostRandom::new(),
+            virtual_random: VirtualRandom::new(root_seed),
         }
+    }
+
+    /// Return the deterministic root seed.
+    pub fn root_seed(&self) -> u64 {
+        self.virtual_random.root_seed()
     }
 
     /// Return the next random u64 value.
@@ -94,210 +75,115 @@ impl Random {
 
     /// Return the next random u64 value for a stream.
     pub fn next_stream_u64(&self, stream_id: RandomStreamId) -> u64 {
-        // select the source based on mode
-        match self.mode {
-            RandomMode::Host => {
-                host_u64().unwrap_or_else(|_| self.next_stream_deterministic_u64(stream_id))
-            }
-            RandomMode::Deterministic => self.next_stream_deterministic_u64(stream_id),
-        }
+        self.virtual_random.next_stream_u64(stream_id)
     }
 
     /// Fill a buffer with random bytes from a stream.
     pub fn fill_stream_bytes(&self, stream_id: RandomStreamId, buffer: &mut [u8]) {
-        // select the source based on mode
-        match self.mode {
-            RandomMode::Host => {
-                // attempt host entropy and fall back on failure
-                if host_fill_bytes(buffer).is_ok() {
-                    return;
-                }
-
-                self.fill_stream_deterministic_bytes(stream_id, buffer);
-            }
-            RandomMode::Deterministic => self.fill_stream_deterministic_bytes(stream_id, buffer),
-        }
+        self.virtual_random.fill_stream_bytes(stream_id, buffer);
     }
 
-    /// Reseed the random stream.
+    /// Fill a buffer with secure host entropy bytes.
+    pub fn fill_secure_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()> {
+        self.host_random.fill_bytes(buffer)
+    }
+
+    /// Try to fill a buffer with secure host entropy bytes without blocking.
+    pub fn try_fill_secure_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()> {
+        self.host_random.try_fill_bytes(buffer)
+    }
+
+    /// Return one secure host entropy u64.
+    pub fn next_secure_u64(&self) -> RuntimeResult<u64> {
+        self.host_random.next_u64()
+    }
+
+    /// Return one stable backend label for secure host entropy.
+    pub fn secure_backend_name(&self) -> &'static str {
+        self.host_random.backend_name()
+    }
+
+    /// Return whether secure host entropy may block.
+    pub fn secure_may_block(&self) -> bool {
+        self.host_random.may_block()
+    }
+
+    /// Reseed the deterministic random stream.
     pub fn reseed(&self, seed: u64) {
-        // update the shared state
-        self.state.store(seed, Ordering::Relaxed);
-        self.next_stream_id.store(1, Ordering::Relaxed);
-        // reset deterministic streams
-        self.streams.lock().clear();
+        self.virtual_random.reseed(seed);
+    }
+
+    /// Resolve one scoped implicit random stream id.
+    pub fn scoped_stream_id(
+        &self,
+        runtime_id: u64,
+        agent_id: u64,
+        task_id: Option<u64>,
+        microtask_id: Option<u64>,
+    ) -> RandomStreamId {
+        self.virtual_random
+            .scoped_stream_id(runtime_id, agent_id, task_id, microtask_id)
     }
 
     /// Allocate a new deterministic random stream id.
     pub fn new_stream_id(&self) -> RandomStreamId {
-        // reserve the high tag bits for user-defined streams
-        const STREAM_ID_MASK: u64 = (1u64 << 62) - 1;
-        const USER_TAG: u64 = 3u64 << 62;
-
-        let value = self.next_stream_id.fetch_add(1, Ordering::Relaxed) & STREAM_ID_MASK;
-        RandomStreamId::new(USER_TAG | value)
+        self.virtual_random.new_stream_id()
     }
 
     /// Advance a deterministic stream by a fixed jump count.
     pub fn jump_stream(&self, stream_id: RandomStreamId, jump: u64) {
-        // no-op for zero jump
-        if jump == 0 {
-            return;
-        }
-
-        // compute the deterministic increment once
-        let increment = STREAM_INCREMENT.wrapping_mul(jump);
-
-        // fast path the default stream without locking
-        if stream_id == RandomStreamId::DEFAULT {
-            self.state.fetch_add(increment, Ordering::Relaxed);
-            return;
-        }
-
-        // advance the deterministic state for the requested stream
-        let mut streams = self.streams.lock();
-        let seed = streams
-            .entry(stream_id)
-            .or_insert_with(|| derive_stream_seed(self.root_seed, stream_id));
-        *seed = seed.wrapping_add(increment);
+        self.virtual_random.jump_stream(stream_id, jump);
     }
 
     /// Split a deterministic stream and return a child stream id.
     pub fn split_stream(&self, parent_stream_id: RandomStreamId) -> RandomStreamId {
-        // allocate the child stream id first
-        let child_stream_id = self.new_stream_id();
+        self.virtual_random.split_stream(parent_stream_id)
+    }
 
-        // derive a deterministic child seed from parent state
-        let parent_seed = if parent_stream_id == RandomStreamId::DEFAULT {
-            self.state.load(Ordering::Relaxed)
-        } else {
-            let mut streams = self.streams.lock();
-            let seed = streams
-                .entry(parent_stream_id)
-                .or_insert_with(|| derive_stream_seed(self.root_seed, parent_stream_id));
-            *seed
-        };
+    /// Export one stream state into one versioned byte payload.
+    pub(crate) fn export_stream_state_bytes(&self, stream_id: RandomStreamId) -> Vec<u8> {
+        self.virtual_random.export_stream_state_bytes(stream_id)
+    }
 
-        // store the child stream seed
-        let child_seed = mix64(parent_seed ^ child_stream_id.get().wrapping_mul(STREAM_INCREMENT));
-        self.streams.lock().insert(child_stream_id, child_seed);
-
-        child_stream_id
+    /// Import one stream state from one versioned byte payload.
+    pub(crate) fn import_stream_state_bytes(
+        &self,
+        stream_id: RandomStreamId,
+        bytes: &[u8],
+    ) -> Result<(), StreamStateDecodeError> {
+        self.virtual_random
+            .import_stream_state_bytes(stream_id, bytes)
     }
 
     /// Return the next deterministic u64 value.
     pub fn next_deterministic_u64(&self) -> u64 {
-        // advance the state and mix the output
-        let value = self
-            .state
-            .fetch_add(STREAM_INCREMENT, Ordering::Relaxed)
-            .wrapping_add(STREAM_INCREMENT);
-
-        mix64(value)
+        self.virtual_random.next_u64()
     }
 
     /// Fill a buffer with deterministic random bytes.
     pub fn fill_deterministic_bytes(&self, buffer: &mut [u8]) {
-        // fill bytes from the deterministic stream
-        fill_bytes_from_seed(buffer, || self.next_deterministic_u64());
+        self.virtual_random.fill_bytes(buffer);
     }
 
     /// Return the next deterministic u64 value for a stream.
     pub fn next_stream_deterministic_u64(&self, stream_id: RandomStreamId) -> u64 {
-        // fast path the default stream without locking
-        if stream_id == RandomStreamId::DEFAULT {
-            return self.next_deterministic_u64();
-        }
-
-        // update the stream seed
-        let mut streams = self.streams.lock();
-        let seed = streams
-            .entry(stream_id)
-            .or_insert_with(|| derive_stream_seed(self.root_seed, stream_id));
-
-        *seed = seed.wrapping_add(STREAM_INCREMENT);
-        mix64(*seed)
+        self.virtual_random.next_stream_u64(stream_id)
     }
 
     /// Fill a buffer with deterministic random bytes from a stream.
     pub fn fill_stream_deterministic_bytes(&self, stream_id: RandomStreamId, buffer: &mut [u8]) {
-        // fast path the default stream without locking
-        if stream_id == RandomStreamId::DEFAULT {
-            self.fill_deterministic_bytes(buffer);
-            return;
-        }
-
-        // update the stream seed and fill the buffer
-        let mut streams = self.streams.lock();
-        let seed = streams
-            .entry(stream_id)
-            .or_insert_with(|| derive_stream_seed(self.root_seed, stream_id));
-
-        fill_bytes_from_seed(buffer, || {
-            *seed = seed.wrapping_add(STREAM_INCREMENT);
-            mix64(*seed)
-        });
+        self.virtual_random.fill_stream_bytes(stream_id, buffer);
     }
-}
-
-/// Mix a 64-bit value using splitmix64.
-fn mix64(mut value: u64) -> u64 {
-    // splitmix64 mixing pipeline
-    value ^= value >> 30;
-    value = value.wrapping_mul(0xbf58476d1ce4e5b9);
-    value ^= value >> 27;
-    value = value.wrapping_mul(0x94d049bb133111eb);
-    value ^= value >> 31;
-    value
-}
-
-/// Derive a deterministic stream seed from the root seed and stream id.
-fn derive_stream_seed(root_seed: u64, stream_id: RandomStreamId) -> u64 {
-    // combine root seed and stream id
-    let mut seed = root_seed ^ stream_id.get().wrapping_mul(0x9e3779b97f4a7c15);
-
-    // mix the combined seed
-    seed = mix64(seed);
-    seed
-}
-
-/// Fill a buffer from a deterministic 64-bit generator.
-fn fill_bytes_from_seed(buffer: &mut [u8], mut next: impl FnMut() -> u64) {
-    // fill the buffer with repeated 64-bit draws
-    let mut offset = 0;
-    while offset < buffer.len() {
-        let value = next().to_le_bytes();
-        let remaining = buffer.len() - offset;
-        let copy_len = remaining.min(value.len());
-        buffer[offset..offset + copy_len].copy_from_slice(&value[..copy_len]);
-        offset += copy_len;
-    }
-}
-
-/// Read a u64 from host entropy.
-fn host_u64() -> Result<u64, getrandom::Error> {
-    // read host entropy for a single u64
-    let mut bytes = [0u8; 8];
-    getrandom::fill(&mut bytes)?;
-
-    Ok(u64::from_le_bytes(bytes))
-}
-
-/// Fill a buffer with host entropy.
-fn host_fill_bytes(buffer: &mut [u8]) -> Result<(), getrandom::Error> {
-    // fill bytes from host entropy
-    getrandom::fill(buffer)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Random, RandomStreamId};
-    use destack_workspace::RandomMode;
+    use super::{Random, RandomStreamId, StreamStateDecodeError};
 
     #[test]
     fn test_streams_are_isolated() {
         // allocate two streams and interleave draws
-        let random = Random::new(0xdead_beef, RandomMode::Deterministic);
+        let random = Random::new(0xdead_beef);
         let stream_a = random.new_stream_id();
         let stream_b = random.new_stream_id();
 
@@ -307,7 +193,7 @@ mod tests {
         let b2 = random.next_stream_deterministic_u64(stream_b);
 
         // draw each stream without interleaving
-        let random = Random::new(0xdead_beef, RandomMode::Deterministic);
+        let random = Random::new(0xdead_beef);
         let stream_a = random.new_stream_id();
         let stream_b = random.new_stream_id();
 
@@ -324,13 +210,13 @@ mod tests {
     #[test]
     fn test_jump_stream_matches_manual_advance() {
         // advance one stream with jump
-        let random = Random::new(0xdead_beef, RandomMode::Deterministic);
+        let random = Random::new(0xdead_beef);
         let stream = random.new_stream_id();
         random.jump_stream(stream, 3);
         let jumped_value = random.next_stream_deterministic_u64(stream);
 
         // advance one stream manually
-        let random = Random::new(0xdead_beef, RandomMode::Deterministic);
+        let random = Random::new(0xdead_beef);
         let stream = random.new_stream_id();
         let _ = random.next_stream_deterministic_u64(stream);
         let _ = random.next_stream_deterministic_u64(stream);
@@ -344,14 +230,14 @@ mod tests {
     #[test]
     fn test_split_stream_is_deterministic() {
         // derive parent and child streams in one runtime
-        let random = Random::new(0xdead_beef, RandomMode::Deterministic);
+        let random = Random::new(0xdead_beef);
         let parent = random.new_stream_id();
         let _ = random.next_stream_deterministic_u64(parent);
         let child = random.split_stream(parent);
         let child_value = random.next_stream_deterministic_u64(child);
 
         // repeat the same sequence in a fresh runtime
-        let random = Random::new(0xdead_beef, RandomMode::Deterministic);
+        let random = Random::new(0xdead_beef);
         let parent_repeated = random.new_stream_id();
         let _ = random.next_stream_deterministic_u64(parent_repeated);
         let child_repeated = random.split_stream(parent_repeated);
@@ -361,5 +247,76 @@ mod tests {
         assert_eq!(child, child_repeated);
         assert_eq!(child_value, child_value_repeated);
         assert_ne!(child, RandomStreamId::DEFAULT);
+    }
+
+    #[test]
+    fn test_scoped_stream_id_is_stable_for_same_scope() {
+        // resolve one scoped stream id twice for one runtime and agent scope
+        let random = Random::new(0xdead_beef);
+        let first = random.scoped_stream_id(1, 7, Some(3), None);
+        let second = random.scoped_stream_id(1, 7, Some(3), None);
+
+        // ensure scoped stream mapping is stable
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn test_scoped_stream_id_differs_across_agents_with_same_task_id() {
+        // resolve one scoped stream id for two agents with the same task id
+        let random = Random::new(0xdead_beef);
+        let first_agent_stream = random.scoped_stream_id(1, 7, Some(3), None);
+        let second_agent_stream = random.scoped_stream_id(1, 8, Some(3), None);
+
+        // ensure runtime and agent identity separates scoped streams
+        assert_ne!(first_agent_stream, second_agent_stream);
+    }
+
+    #[test]
+    fn test_stream_state_export_import_roundtrip_for_default_stream() {
+        // step deterministic state and export one stream snapshot
+        let random = Random::new(0xdead_beef);
+        let _ = random.next_stream_deterministic_u64(RandomStreamId::DEFAULT);
+        let state = random.export_stream_state_bytes(RandomStreamId::DEFAULT);
+
+        // capture one next value and restore the exported state
+        let expected = random.next_stream_deterministic_u64(RandomStreamId::DEFAULT);
+        random
+            .import_stream_state_bytes(RandomStreamId::DEFAULT, &state)
+            .expect("default stream import should succeed");
+
+        // imported stream state should replay the same next value
+        let actual = random.next_stream_deterministic_u64(RandomStreamId::DEFAULT);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_stream_state_export_import_roundtrip_for_named_stream() {
+        // allocate one named stream and advance deterministic state
+        let random = Random::new(0xdead_beef);
+        let stream = random.new_stream_id();
+        let _ = random.next_stream_deterministic_u64(stream);
+        let state = random.export_stream_state_bytes(stream);
+
+        // capture one next value and restore the exported state
+        let expected = random.next_stream_deterministic_u64(stream);
+        random
+            .import_stream_state_bytes(stream, &state)
+            .expect("named stream import should succeed");
+
+        // imported stream state should replay the same next value
+        let actual = random.next_stream_deterministic_u64(stream);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_stream_state_import_rejects_invalid_payload_length() {
+        // construct one deterministic random runtime
+        let random = Random::new(0xdead_beef);
+
+        // import should reject malformed payload lengths
+        let error = random
+            .import_stream_state_bytes(RandomStreamId::DEFAULT, &[1u8, 1u8, 2u8])
+            .expect_err("stream import should fail for malformed payload");
+        assert_eq!(error, StreamStateDecodeError::InvalidLength);
     }
 }

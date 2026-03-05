@@ -358,12 +358,12 @@ impl TestRuntime {
 
     /// Return current runtime wall time in nanoseconds.
     pub(super) fn wall_nanos(&self) -> u64 {
-        self.agent.world().clock().wall_nanos()
+        self.agent.world().wall_nanos()
     }
 
     /// Return current runtime monotonic time in nanoseconds.
     pub(super) fn mono_nanos(&self) -> u64 {
-        self.agent.world().clock().mono_nanos()
+        self.agent.world().mono_nanos()
     }
 }
 

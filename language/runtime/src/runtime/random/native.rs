@@ -1,11 +1,13 @@
-#![allow(dead_code)]
-
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::random::{
-    RandomStream, RandomStreamDomain, RandomStreamState, SecureRandomMetadata,
+    RandomStream, RandomStreamDomain, RandomStreamState, SecureRandomMetadata, SecureRandomSource,
 };
-use crate::runtime::random::native as runtime_random;
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::platform::{NativeSlice, NativeStringRef, PlatformError};
+use crate::runtime::BindingCallContext;
+use crate::runtime::random::{RandomStreamId, StreamStateDecodeError};
+
+/// Serialized stream state payload version.
+const STREAM_STATE_VERSION: u32 = 1;
 
 /// Fill a slice with cryptographically secure random bytes.
 ///
@@ -28,7 +30,15 @@ pub(crate) unsafe fn destack_random_secure_bytes(
     binding: &BindingCallContext,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    unsafe { runtime_random::destack_random_secure_bytes(binding, buffer) }
+    binding.hooks().on_random_read(Some(binding.engine()));
+
+    // resolve one mutable native slice
+    let bytes = unsafe { buffer.as_mut_slice()? };
+
+    // fill secure bytes from the world-routed random service
+    binding.world().fill_secure_bytes(bytes)?;
+
+    Ok(())
 }
 
 /// Fill a slice with secure random bytes without blocking.
@@ -52,7 +62,15 @@ pub(crate) unsafe fn destack_random_secure_bytes_try(
     binding: &BindingCallContext,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    unsafe { runtime_random::destack_random_secure_bytes_try(binding, buffer) }
+    binding.hooks().on_random_read(Some(binding.engine()));
+
+    // resolve one mutable native slice
+    let bytes = unsafe { buffer.as_mut_slice()? };
+
+    // request secure bytes in nonblocking mode when supported
+    binding.world().try_fill_secure_bytes(bytes)?;
+
+    Ok(())
 }
 
 /// Query secure randomness source metadata.
@@ -76,7 +94,32 @@ pub(crate) unsafe fn destack_random_secure_metadata(
     binding: &BindingCallContext,
     out: *mut SecureRandomMetadata,
 ) -> RuntimeResult<()> {
-    unsafe { runtime_random::destack_random_secure_metadata(binding, out) }
+    // validate out pointer for native ABI writes
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve world-routed secure random metadata
+    let backend_name = binding.world().random().secure_backend_name();
+    let may_block = binding.world().random().secure_may_block();
+
+    // construct conservative metadata for the current secure source
+    let info = SecureRandomMetadata {
+        source: SecureRandomSource::Kernel,
+        backend_name: NativeStringRef::from(backend_name),
+        may_block,
+        is_cryptographic: true,
+        is_seeded: true,
+        is_fips_approved: false,
+        entropy_bits_per_byte: 8.0,
+    };
+
+    // write one metadata payload to the native out pointer
+    unsafe {
+        std::ptr::write(out, info);
+    }
+
+    Ok(())
 }
 
 /// Export deterministic stream state.
@@ -101,7 +144,27 @@ pub(crate) unsafe fn destack_random_stream_export(
     out: *mut RandomStreamState,
     stream: RandomStream,
 ) -> RuntimeResult<()> {
-    unsafe { runtime_random::destack_random_stream_export(binding, out, stream) }
+    // validate out pointer for native ABI writes
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // serialize stream state into one versioned byte payload
+    let bytes = binding
+        .world()
+        .random()
+        .export_stream_state_bytes(RandomStreamId::new(stream.0));
+    let state = RandomStreamState {
+        version: STREAM_STATE_VERSION,
+        bytes: binding.store_array(bytes),
+    };
+
+    // write stream state to the native ABI out pointer
+    unsafe {
+        std::ptr::write(out, state);
+    }
+
+    Ok(())
 }
 
 /// Fill a slice with deterministic random bytes from the default stream.
@@ -125,7 +188,16 @@ pub(crate) unsafe fn destack_random_fill_bytes(
     binding: &BindingCallContext,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    unsafe { runtime_random::destack_random_fill_bytes(binding, buffer) }
+    binding.hooks().on_random_read(Some(binding.engine()));
+
+    // resolve one mutable native slice
+    let bytes = unsafe { buffer.as_mut_slice()? };
+
+    // fill bytes from the runtime stream for this call binding
+    let stream_id = binding.random_stream_id();
+    binding.world().fill_stream_bytes(stream_id, bytes)?;
+
+    Ok(())
 }
 
 /// Fill a slice with deterministic random bytes from a specific stream.
@@ -150,7 +222,17 @@ pub(crate) unsafe fn destack_random_fill_bytes_from(
     stream: RandomStream,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    unsafe { runtime_random::destack_random_fill_bytes_from(binding, stream, buffer) }
+    binding.hooks().on_random_read(Some(binding.engine()));
+
+    // resolve one mutable native slice
+    let bytes = unsafe { buffer.as_mut_slice()? };
+
+    // fill bytes from the requested runtime stream
+    binding
+        .world()
+        .fill_stream_bytes(RandomStreamId::new(stream.0), bytes)?;
+
+    Ok(())
 }
 
 /// Import deterministic stream state.
@@ -175,7 +257,29 @@ pub(crate) unsafe fn destack_random_stream_import(
     stream: RandomStream,
     state: RandomStreamState,
 ) -> RuntimeResult<()> {
-    unsafe { runtime_random::destack_random_stream_import(binding, stream, state) }
+    // validate stream state payload version
+    if state.version != STREAM_STATE_VERSION {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "state.version",
+            format!(
+                "unsupported random stream state version: expected {STREAM_STATE_VERSION}, got {}",
+                state.version
+            ),
+        ))
+        .boxed());
+    }
+
+    // decode bytes from the ABI payload
+    let bytes = unsafe { state.bytes.as_slice()? };
+
+    // import the serialized stream state into the runtime random service
+    binding
+        .world()
+        .random()
+        .import_stream_state_bytes(RandomStreamId::new(stream.0), bytes)
+        .map_err(|error| stream_state_decode_error("state", error))?;
+
+    Ok(())
 }
 
 /// Allocate a deterministic random stream in one domain.
@@ -200,7 +304,25 @@ pub(crate) unsafe fn destack_random_stream_in(
     out: *mut RandomStream,
     domain: RandomStreamDomain,
 ) -> RuntimeResult<()> {
-    unsafe { runtime_random::destack_random_stream_in(binding, out, domain) }
+    // validate out pointer for native ABI writes
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // allocate the stream by domain
+    let stream_id = match domain {
+        RandomStreamDomain::Process => binding.world().random().new_stream_id(),
+        RandomStreamDomain::Task => binding
+            .world()
+            .random()
+            .split_stream(binding.random_stream_id()),
+    };
+    // write the stream handle to the ABI out pointer
+    unsafe {
+        std::ptr::write(out, RandomStream(stream_id.get()));
+    }
+
+    Ok(())
 }
 
 /// Advance a deterministic stream by one jump count.
@@ -225,7 +347,13 @@ pub(crate) unsafe fn destack_random_stream_jump(
     stream: RandomStream,
     jump: u64,
 ) -> RuntimeResult<()> {
-    unsafe { runtime_random::destack_random_stream_jump(binding, stream, jump) }
+    // advance the deterministic stream state
+    binding
+        .world()
+        .random()
+        .jump_stream(RandomStreamId::new(stream.0), jump);
+
+    Ok(())
 }
 
 /// Return a deterministic random uint64 from the default stream.
@@ -249,7 +377,24 @@ pub(crate) unsafe fn destack_random_next_u64(
     binding: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    unsafe { runtime_random::destack_random_next_u64(binding, out) }
+    // validate out pointer for native ABI writes
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    binding.hooks().on_random_read(Some(binding.engine()));
+
+    // sample one value from the current runtime stream
+    let value = binding
+        .world()
+        .next_stream_u64(binding.random_stream_id())?;
+
+    // write the sampled value to the ABI out pointer
+    unsafe {
+        std::ptr::write(out, value);
+    }
+
+    Ok(())
 }
 
 /// Return a deterministic random uint64 from a specific stream.
@@ -274,7 +419,24 @@ pub(crate) unsafe fn destack_random_next_u64_from(
     out: *mut u64,
     stream: RandomStream,
 ) -> RuntimeResult<()> {
-    unsafe { runtime_random::destack_random_next_u64_from(binding, out, stream) }
+    // validate out pointer for native ABI writes
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    binding.hooks().on_random_read(Some(binding.engine()));
+
+    // sample one value from the requested runtime stream
+    let value = binding
+        .world()
+        .next_stream_u64(RandomStreamId::new(stream.0))?;
+
+    // write the sampled value to the ABI out pointer
+    unsafe {
+        std::ptr::write(out, value);
+    }
+
+    Ok(())
 }
 
 /// Split a deterministic stream into one child stream.
@@ -299,7 +461,22 @@ pub(crate) unsafe fn destack_random_stream_split(
     out: *mut RandomStream,
     parent: RandomStream,
 ) -> RuntimeResult<()> {
-    unsafe { runtime_random::destack_random_stream_split(binding, out, parent) }
+    // validate out pointer for native ABI writes
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // derive one child stream from the parent stream
+    let child_stream = binding
+        .world()
+        .random()
+        .split_stream(RandomStreamId::new(parent.0));
+    // write the child stream handle to the ABI out pointer
+    unsafe {
+        std::ptr::write(out, RandomStream(child_stream.get()));
+    }
+
+    Ok(())
 }
 
 /// Allocate a deterministic random stream identifier.
@@ -323,5 +500,35 @@ pub(crate) unsafe fn destack_random_stream(
     binding: &BindingCallContext,
     out: *mut RandomStream,
 ) -> RuntimeResult<()> {
-    unsafe { runtime_random::destack_random_stream(binding, out) }
+    // validate out pointer for native ABI writes
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // allocate one process-scoped stream id
+    let stream_id = binding.world().random().new_stream_id();
+    // write the stream handle to the ABI out pointer
+    unsafe {
+        std::ptr::write(out, RandomStream(stream_id.get()));
+    }
+
+    Ok(())
+}
+
+/// Build one invalid stream-state error from one decode error.
+fn stream_state_decode_error(
+    field: &'static str,
+    error: StreamStateDecodeError,
+) -> Box<RuntimeError> {
+    let reason = match error {
+        StreamStateDecodeError::InvalidLength => {
+            "stream state payload length does not match expected format"
+        }
+        StreamStateDecodeError::UnsupportedVersion => "stream state payload version is unsupported",
+        StreamStateDecodeError::InvalidInitializedFlag => {
+            "stream state payload initialized flag is invalid"
+        }
+    };
+
+    RuntimeError::from(PlatformError::invalid_argument_value(field, reason)).boxed()
 }

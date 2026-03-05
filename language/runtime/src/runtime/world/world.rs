@@ -4,13 +4,14 @@ use std::sync::Arc;
 use parking_lot::{RwLock, RwLockReadGuard};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
 use crate::runtime::AgentId;
 use crate::runtime::bindings::{BindingDescriptor, BindingEngine, BindingReplayPayload};
 use crate::runtime::policy::{
     BindingDispatchDecision, HookEvent, Policy, PolicyDecision, PolicyState, Rule, RuleId,
     RuleSubject,
 };
-use crate::runtime::random::Random;
+use crate::runtime::random::{Random, RandomStreamId};
 use crate::runtime::replay::{ReplayController, ReplayHeader};
 use crate::runtime::time::{Clock, HostClockSource};
 use crate::simulation::Simulation;
@@ -34,6 +35,10 @@ const BYTES_PER_MB: u64 = 1024 * 1024;
 pub struct World {
     /// Shared simulation state for all agents using this world.
     simulation: RwLock<Simulation>,
+    /// Effective world time mode after execution-mode resolution.
+    time_mode: TimeMode,
+    /// Effective world random mode after execution-mode resolution.
+    random_mode: RandomMode,
     /// Shared world clock.
     clock: Clock,
     /// Shared world randomness state.
@@ -86,15 +91,11 @@ impl World {
 
         // world state
         let clock = if let Some(host_clock_source) = host_clock_source {
-            Clock::from_mode_and_options_with_host_clock_source(
-                time_mode,
-                &options.time,
-                host_clock_source,
-            )
+            Clock::from_options_with_host_clock_source(&options.time, host_clock_source)
         } else {
-            Clock::from_mode_and_options(time_mode, &options.time)
+            Clock::from_options(&options.time)
         };
-        let random = Random::new(options.random.seed.unwrap_or(0), random_mode);
+        let random = Random::new(options.random.seed.unwrap_or(0));
         let policy = Policy::from_workspace_rules(&options.rules);
         let replay = ReplayController::new(options.execution, replay_payload, replay_header);
         let topology = Topology::with_builtin_kinds()
@@ -104,6 +105,8 @@ impl World {
         // final world state
         Ok(Self {
             simulation: RwLock::new(Simulation::default()),
+            time_mode,
+            random_mode,
             clock,
             random,
             replay,
@@ -168,9 +171,100 @@ impl World {
         &self.clock
     }
 
+    /// Return the effective world time mode.
+    pub fn time_mode(&self) -> TimeMode {
+        self.time_mode
+    }
+
+    /// Return the effective world random mode.
+    pub fn random_mode(&self) -> RandomMode {
+        self.random_mode
+    }
+
+    /// Return the current world wall time in nanoseconds.
+    pub fn wall_nanos(&self) -> u64 {
+        match self.time_mode {
+            TimeMode::Host => self.clock.host_wall_nanos(),
+            TimeMode::Virtual => self.clock.virtual_wall_nanos(),
+        }
+    }
+
+    /// Return the current world monotonic time in nanoseconds.
+    pub fn mono_nanos(&self) -> u64 {
+        match self.time_mode {
+            TimeMode::Host => self.clock.host_mono_nanos(),
+            TimeMode::Virtual => self.clock.virtual_mono_nanos(),
+        }
+    }
+
+    /// Sleep for one world duration in nanoseconds.
+    pub fn sleep_nanos(&self, duration_nanos: u64) {
+        match self.time_mode {
+            TimeMode::Host => self.clock.host_sleep_nanos(duration_nanos),
+            TimeMode::Virtual => self.clock.virtual_sleep_nanos(duration_nanos),
+        }
+    }
+
+    /// Sleep until one world wall deadline in nanoseconds.
+    pub fn sleep_until_nanos(&self, deadline_nanos: u64) {
+        match self.time_mode {
+            TimeMode::Host => self.clock.host_sleep_until_nanos(deadline_nanos),
+            TimeMode::Virtual => self.clock.virtual_sleep_until_nanos(deadline_nanos),
+        }
+    }
+
     /// Borrow the shared world randomness state.
     pub fn random(&self) -> &Random {
         &self.random
+    }
+
+    /// Fill one buffer with secure world-routed random bytes.
+    pub fn fill_secure_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()> {
+        // deterministic worlds reject secure host entropy by default
+        if self.random_mode == RandomMode::Deterministic {
+            return Err(RuntimeError::from(PlatformError::not_supported(
+                "destack.random.secure.bytes",
+            ))
+            .boxed());
+        }
+
+        self.random.fill_secure_bytes(buffer)
+    }
+
+    /// Try to fill one buffer with secure world-routed random bytes without blocking.
+    pub fn try_fill_secure_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()> {
+        // deterministic worlds reject secure host entropy by default
+        if self.random_mode == RandomMode::Deterministic {
+            return Err(RuntimeError::from(PlatformError::not_supported(
+                "destack.random.secure.bytesTry",
+            ))
+            .boxed());
+        }
+
+        self.random.try_fill_secure_bytes(buffer)
+    }
+
+    /// Return one world-routed random u64 from one stream.
+    pub fn next_stream_u64(&self, stream_id: RandomStreamId) -> RuntimeResult<u64> {
+        match self.random_mode {
+            RandomMode::Host => self.random.next_secure_u64(),
+            RandomMode::Deterministic => Ok(self.random.next_stream_u64(stream_id)),
+        }
+    }
+
+    /// Fill one buffer with world-routed random bytes from one stream.
+    pub fn fill_stream_bytes(
+        &self,
+        stream_id: RandomStreamId,
+        buffer: &mut [u8],
+    ) -> RuntimeResult<()> {
+        match self.random_mode {
+            RandomMode::Host => self.random.fill_secure_bytes(buffer),
+            RandomMode::Deterministic => {
+                self.random.fill_stream_bytes(stream_id, buffer);
+                Ok(())
+            }
+        }
     }
 
     /// Borrow the shared replay controller.
