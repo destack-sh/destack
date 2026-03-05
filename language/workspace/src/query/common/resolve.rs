@@ -661,23 +661,14 @@ pub(crate) fn resolve_type_symbol_from_imports(
     let dir_tree = ctx.tree();
     for item_id in dir_tree.iter_node_ids_of_type::<DependencyItem>() {
         let item = dir_tree.get::<DependencyItem>(item_id);
-        let (mode, name, alias, target, target_module) = match item {
+        let (mode, name, alias, target_module) = match item {
             DependencyItem::Remote {
                 mode,
                 name,
                 alias,
-                target,
                 target_module,
                 ..
-            } => (*mode, *name, *alias, Some(*target), Some(*target_module)),
-            DependencyItem::UnresolvedRemote {
-                mode,
-                name,
-                alias,
-                target_module,
-                target,
-                ..
-            } => (*mode, *name, *alias, Some(*target), *target_module),
+            } => (*mode, *name, *alias, Some(*target_module)),
             _ => continue,
         };
 
@@ -691,17 +682,9 @@ pub(crate) fn resolve_type_symbol_from_imports(
             return Some(target_symbol);
         }
 
-        let mut target_module_id = target_module
+        let target_module_id = target_module
             .and_then(|targets| targets.ty.or(targets.value))
             .and_then(|target| target.module_id());
-        if target_module_id.is_none()
-            && let Some(target) = target
-        {
-            let target_text = session.strings.get(target).to_string();
-            target_module_id =
-                resolve_module_id_for_import_target(session, ctx, target_text.as_str());
-        }
-
         let Some(target_module_id) = target_module_id else {
             continue;
         };
@@ -735,32 +718,21 @@ pub(crate) fn resolve_value_symbol_from_module(
     let dir_tree = ctx.tree();
     for (_expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
         let items = match expr {
-            Expression::ReExport { items, .. } | Expression::UnresolvedReExport { items, .. } => {
-                items
-            }
+            Expression::ReExport { items, .. } => items,
             Expression::Export { items, .. } => items,
             _ => continue,
         };
 
         for item_id in items {
             let item = dir_tree.get::<DependencyItem>(*item_id);
-            let (mode, name, alias, target, target_module) = match item {
+            let (mode, name, alias, target_module) = match item {
                 DependencyItem::Remote {
                     mode,
                     name,
                     alias,
-                    target,
                     target_module,
                     ..
-                } => (*mode, *name, *alias, Some(*target), Some(*target_module)),
-                DependencyItem::UnresolvedRemote {
-                    mode,
-                    name,
-                    alias,
-                    target_module,
-                    target,
-                    ..
-                } => (*mode, *name, *alias, Some(*target), *target_module),
+                } => (*mode, *name, *alias, Some(*target_module)),
                 _ => continue,
             };
             if !dependency_item_matches_name(name_id, name, alias, mode, true) {
@@ -773,17 +745,9 @@ pub(crate) fn resolve_value_symbol_from_module(
                 return Some(target_symbol);
             }
 
-            let mut target_module_id = target_module
+            let target_module_id = target_module
                 .and_then(|targets| targets.value.or(targets.ty))
                 .and_then(|target| target.module_id());
-            if target_module_id.is_none()
-                && let Some(target) = target
-            {
-                let target_text = session.strings.get(target).to_string();
-                target_module_id =
-                    resolve_module_id_for_import_target(session, &ctx, target_text.as_str());
-            }
-
             let Some(target_module_id) = target_module_id else {
                 continue;
             };
@@ -824,14 +788,6 @@ pub(crate) fn resolve_namespace_alias_symbol(
         let item = dir_tree.get::<DependencyItem>(item_id);
         let (mode, kind, name, alias, symbol) = match item {
             DependencyItem::Remote {
-                mode,
-                kind,
-                name,
-                alias,
-                symbol,
-                ..
-            }
-            | DependencyItem::UnresolvedRemote {
                 mode,
                 kind,
                 name,
@@ -950,48 +906,23 @@ fn resolve_namespace_member_symbol_inner(
     // resolve the namespace import target module
     let dir_tree = alias_ctx.tree();
     let item = dir_tree.get::<DependencyItem>(item_id);
-    let (mode, kind, name, alias, target, target_module) = match item {
+    let (mode, kind, name, alias, target_module) = match item {
         DependencyItem::Remote {
             mode,
             kind,
             name,
             alias,
-            target,
             target_module,
             ..
-        } => (
-            *mode,
-            *kind,
-            *name,
-            *alias,
-            Some(*target),
-            Some(*target_module),
-        ),
-        DependencyItem::UnresolvedRemote {
-            mode,
-            kind,
-            name,
-            alias,
-            target,
-            target_module,
-            ..
-        } => (*mode, *kind, *name, *alias, Some(*target), *target_module),
+        } => (*mode, *kind, *name, *alias, Some(*target_module)),
         _ => return None,
     };
 
     if mode != DependencyMode::Namespace || kind != DependencyKind::Value {
         let mut imported_namespace_symbol = None;
-        let mut target_module_id = target_module
+        let target_module_id = target_module
             .and_then(|targets| targets.value.or(targets.ty))
             .and_then(|target| target.module_id());
-        if target_module_id.is_none()
-            && let Some(target) = target
-        {
-            let target_text = session.strings.get(target).to_string();
-            target_module_id =
-                resolve_module_id_for_import_target(session, &alias_ctx, target_text.as_str());
-        }
-
         let import_name_id = alias.or(name.map(|name| name.string()));
         if let Some(import_name_id) = import_name_id
             && let Some(target_module_id) = target_module_id
@@ -1037,17 +968,9 @@ fn resolve_namespace_member_symbol_inner(
         return None;
     }
 
-    let mut target_module_id = target_module
+    let target_module_id = target_module
         .and_then(|targets| targets.value.or(targets.ty))
         .and_then(|target| target.module_id());
-    if target_module_id.is_none()
-        && let Some(target) = target
-    {
-        let target_text = session.strings.get(target).to_string();
-        target_module_id =
-            resolve_module_id_for_import_target(session, &alias_ctx, target_text.as_str());
-    }
-
     let target_module_id = target_module_id?;
     let mut visited = HashSet::new();
     resolve_value_symbol_from_module(session, target_module_id, member_name, &mut visited)
@@ -1078,32 +1001,15 @@ pub(crate) fn resolve_namespace_member_symbol_from_name(
     let dir_tree = ctx.tree();
     for item_id in dir_tree.iter_node_ids_of_type::<DependencyItem>() {
         let item = dir_tree.get::<DependencyItem>(item_id);
-        let (mode, kind, name, alias, target, target_module) = match item {
+        let (mode, kind, name, alias, target_module) = match item {
             DependencyItem::Remote {
                 mode,
                 kind,
                 name,
                 alias,
-                target,
                 target_module,
                 ..
-            } => (
-                *mode,
-                *kind,
-                *name,
-                *alias,
-                Some(*target),
-                Some(*target_module),
-            ),
-            DependencyItem::UnresolvedRemote {
-                mode,
-                kind,
-                name,
-                alias,
-                target,
-                target_module,
-                ..
-            } => (*mode, *kind, *name, *alias, Some(*target), *target_module),
+            } => (*mode, *kind, *name, *alias, Some(*target_module)),
             _ => continue,
         };
 
@@ -1117,17 +1023,9 @@ pub(crate) fn resolve_namespace_member_symbol_from_name(
             continue;
         }
 
-        let mut target_module_id = target_module
+        let target_module_id = target_module
             .and_then(|targets| targets.value.or(targets.ty))
             .and_then(|target| target.module_id());
-        if target_module_id.is_none()
-            && let Some(target) = target
-        {
-            let target_text = session.strings.get(target).to_string();
-            target_module_id =
-                resolve_module_id_for_import_target(session, ctx, target_text.as_str());
-        }
-
         let Some(target_module_id) = target_module_id else {
             continue;
         };
@@ -1223,32 +1121,21 @@ pub(crate) fn resolve_type_symbol_from_module(
     let dir_tree = ctx.tree();
     for (_expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
         let items = match expr {
-            Expression::ReExport { items, .. } | Expression::UnresolvedReExport { items, .. } => {
-                items
-            }
+            Expression::ReExport { items, .. } => items,
             Expression::Export { items, .. } => items,
             _ => continue,
         };
 
         for item_id in items {
             let item = dir_tree.get::<DependencyItem>(*item_id);
-            let (mode, name, alias, target, target_module) = match item {
+            let (mode, name, alias, target_module) = match item {
                 DependencyItem::Remote {
                     mode,
                     name,
                     alias,
-                    target,
                     target_module,
                     ..
-                } => (*mode, *name, *alias, Some(*target), Some(*target_module)),
-                DependencyItem::UnresolvedRemote {
-                    mode,
-                    name,
-                    alias,
-                    target_module,
-                    target,
-                    ..
-                } => (*mode, *name, *alias, Some(*target), *target_module),
+                } => (*mode, *name, *alias, Some(*target_module)),
                 _ => continue,
             };
             if !dependency_item_matches_name(name_id, name, alias, mode, true) {
@@ -1261,17 +1148,9 @@ pub(crate) fn resolve_type_symbol_from_module(
                 return Some(target_symbol);
             }
 
-            let mut target_module_id = target_module
+            let target_module_id = target_module
                 .and_then(|targets| targets.ty.or(targets.value))
                 .and_then(|target| target.module_id());
-            if target_module_id.is_none()
-                && let Some(target) = target
-            {
-                let target_text = session.strings.get(target).to_string();
-                target_module_id =
-                    resolve_module_id_for_import_target(session, &ctx, target_text.as_str());
-            }
-
             let Some(target_module_id) = target_module_id else {
                 continue;
             };
@@ -1306,23 +1185,14 @@ pub(crate) fn resolve_type_symbol_from_module(
 
         if let Some(item_id) = export.item {
             let item = dir_tree.get::<DependencyItem>(item_id);
-            let (mode, name, alias, target, target_module) = match item {
+            let (mode, name, alias, target_module) = match item {
                 DependencyItem::Remote {
                     mode,
                     name,
                     alias,
-                    target,
                     target_module,
                     ..
-                } => (*mode, *name, *alias, Some(*target), Some(*target_module)),
-                DependencyItem::UnresolvedRemote {
-                    mode,
-                    name,
-                    alias,
-                    target_module,
-                    target,
-                    ..
-                } => (*mode, *name, *alias, Some(*target), *target_module),
+                } => (*mode, *name, *alias, Some(*target_module)),
                 _ => continue,
             };
 
@@ -1336,17 +1206,9 @@ pub(crate) fn resolve_type_symbol_from_module(
                 return Some(target_symbol);
             }
 
-            let mut target_module_id = target_module
+            let target_module_id = target_module
                 .and_then(|targets| targets.ty.or(targets.value))
                 .and_then(|target| target.module_id());
-            if target_module_id.is_none()
-                && let Some(target) = target
-            {
-                let target_text = session.strings.get(target).to_string();
-                target_module_id =
-                    resolve_module_id_for_import_target(session, &ctx, target_text.as_str());
-            }
-
             let Some(target_module_id) = target_module_id else {
                 continue;
             };

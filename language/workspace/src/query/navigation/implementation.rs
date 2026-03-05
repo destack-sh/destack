@@ -427,29 +427,6 @@ fn collect_target_symbols(session: &Session, symbol_id: GlobalSymbolId) -> HashS
                         target_symbol = Some(target);
                         break;
                     }
-
-                    let target_module = match item {
-                        DependencyItem::Remote { target_module, .. } => {
-                            target_module.ty.or(target_module.value)
-                        }
-                        DependencyItem::UnresolvedRemote { target_module, .. } => {
-                            target_module.and_then(|targets| targets.ty.or(targets.value))
-                        }
-                        _ => None,
-                    };
-
-                    if let Some(target_module_id) =
-                        target_module.and_then(|target| target.module_id())
-                        && let Some(resolved_symbol) = resolve_type_symbol_from_module(
-                            session,
-                            target_module_id,
-                            name_id,
-                            &mut HashSet::new(),
-                        )
-                    {
-                        target_symbol = Some(resolved_symbol);
-                        break;
-                    }
                 }
             }
         }
