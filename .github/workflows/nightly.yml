@@ -32,11 +32,11 @@ jobs:
           rust_components: rustfmt clippy
           install_js_dependencies: "true"
 
-      - name: Run language fast gates
+      - name: Run language quick gates
         run: |
           just language/ci-format
           just language/ci-lint
-          just language/test-quick
+          just language/quick
 
   nightly-integration:
     name: Nightly Integration
@@ -70,10 +70,6 @@ jobs:
             language/test/fixtures/parser/conformance/biome
           key: ${{ runner.os }}-language-conformance-${{ hashFiles('language/test/fixtures/parser/conformance/*-fetch.sh') }}
 
-      - name: Install conformance fixtures
-        if: steps.language-conformance-cache.outputs.cache-hit != 'true'
-        run: just language/install-parser-conformance
-
       - name: Cache formatter conformance fixtures
         id: language-formatter-conformance-cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
@@ -83,30 +79,20 @@ jobs:
             language/test/fixtures/formatter/conformance/staging/oxfmt
           key: ${{ runner.os }}-language-formatter-conformance-${{ hashFiles('language/test/fixtures/formatter/conformance/*-fetch.sh') }}
 
-      - name: Install formatter conformance fixtures
-        if: steps.language-formatter-conformance-cache.outputs.cache-hit != 'true'
-        run: just language/install-formatter-conformance
-
-      - name: Install resolver fixtures
-        run: just language/install-resolver
-
-      - name: Install ecosystem fixtures
-        run: just language/ecosystem-fetch
-
       - name: Run language nightly tests
-        run: just language/test-nightly
+        run: just language/nightly
 
       - name: Run library nightly tests
-        run: just library/test-nightly
+        run: just library/nightly
 
       - name: Run service nightly tests
-        run: just service/test-nightly
+        run: just service/nightly
 
       - name: Run app nightly tests
-        run: just app/test-nightly
+        run: just app/nightly
 
       - name: Run bridge nightly tests
-        run: just bridge/test-nightly
+        run: just bridge/nightly
 
   nightly-fuzz-smoke:
     name: Nightly Fuzz Smoke

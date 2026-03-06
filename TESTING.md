@@ -8,15 +8,22 @@ Our goal is a 100% bullet-proof stack and toolchain with the best possible perfo
 ## Gate Levels
 
 Use the same gate model locally and in GitHub Actions.
-Run blocking gates before every push.
-Run thorough suites when validating larger or riskier changes.
+Run `quick` during local iteration.
+Run `commit` before every push.
+Run `nightly` for deep validation.
 
 | Level | Purpose | Local command |
 |-------|---------|---------------|
-| **Blocking CI** | Required for PR merge | `just precommit` (or `just ci`) |
-| **Scoped blocking CI** | Faster local iteration in one area | `just language/ci`, `just library/ci`, `just service/ci`, `just app/ci`, `just bridge/ci` |
-| **Full local matrix** | Broader validation before larger changes | `just test` |
-| **Nightly depth** | Heavy suites and deeper regression detection | Covered by `.github/workflows/nightly.yml` |
+| **Quick** | Fast, high-signal deterministic correctness | `just quick` |
+| **Commit** | Blocking local and CI gate with additional deterministic assurance | `just commit` or `just precommit` |
+| **Nightly** | Deep validation and release verification depth | `just nightly` |
+
+Scoped lanes follow the same vocabulary.
+Use `just language/quick`, `just language/commit`, `just language/nightly`, and the equivalent commands under `library/`, `service/`, `app/`, and `bridge/`.
+Release reuses the `nightly` verification depth and then adds packaging, signatures, and publishing.
+For the language stack, `quick` carries the core correctness suites.
+`commit` currently reuses that deterministic lane.
+`nightly` adds ecosystem canaries and stress.
 
 ## Reliability
 
@@ -31,15 +38,17 @@ The only way to ensure 100% reliability is to test everything, and test it thoro
 | **Conformance** | [language/test/fixtures/parser/conformance/](language/test/fixtures/parser/conformance/) | Parser conformance against established test suites |
 | **Formatter** | [language/test/fixtures/formatter/](language/test/fixtures/formatter/) | Format roundtrip stability |
 | **Resolver** | [language/test/fixtures/resolver/](language/test/fixtures/resolver/) | Module resolution (node_modules, pnpm, yarn, tsconfig paths) |
-| **Ecosystem** | [language/test/fixtures/ecosystem/](language/test/fixtures/ecosystem/) | Real-world package parsing |
+| **Interop canary** | [language/test/fixtures/ecosystem/](language/test/fixtures/ecosystem/) | Curated TS-first Node, backend, and tooling packages |
 | **Stress** | [language/test/fixtures/stress/](language/test/fixtures/stress/) | Scale limits: large files, many modules, deep nesting |
 | **Fuzz** | [language/parser/fuzz/](language/parser/fuzz/), [language/formatter/fuzz/](language/formatter/fuzz/) | Random input exploration |
 
 Run these commands from the repository root.
 
 ```bash
-# all tests
-just test
+# primary lanes
+just quick
+just commit
+just nightly
 
 # individual language suites
 just language/ecosystem-fetch
@@ -56,14 +65,14 @@ just language/test-stress
 ```
 
 ```bash
-just bench                      # parser benchmarks
+just bench                       # parser benchmarks
 just language/bench-compiler     # compiler benchmarks
 just language/bench-lexer        # lexer only
 just language/bench-parser       # parser only
 ```
 
 ```bash
-just fuzz                       # all fuzzers
+just fuzz                        # all fuzzers
 just language/fuzz-lexer         # lexer only
 just language/fuzz-parser        # parser only
 just language/fuzz-formatter     # formatter only

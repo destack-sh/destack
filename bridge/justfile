@@ -38,7 +38,7 @@ ci-lint:
 
 # run bridge test gate
 ci-tests:
-    just test-ci
+    just commit
 
 # run all blocking bridge ci gates locally
 ci:
@@ -123,8 +123,8 @@ clean:
 
 # --- test ---
 
-# run quick tests for local development
-test-quick:
+# run quick local bridge tests
+quick:
     cargo test --release --all-targets {{ test-packages }}
     bun run --cwd napi test
     bun run --cwd wasm test
@@ -132,24 +132,23 @@ test-quick:
     just test-vscode
     just test-zed
 
-# run blocking ci test gates
-test-ci:
-    just test-quick
+# run blocking bridge test lanes
+commit:
+    just quick
     just check-zed-grammars
     just test-language-bridges
 
-# run nightly test gates
-test-nightly:
-    just test-ci
+# run deep bridge test lanes
+nightly:
+    just commit
     just test-vscode-bridge
 
-# run release test gates
-test-release:
-    just test-ci
-
-# run quick tests alias
-test:
-    just test-quick
+# backwards compatibility aliases
+alias test-quick := quick
+alias test-ci := commit
+alias test-nightly := nightly
+alias test-release := nightly
+alias test := quick
 
 # test vscode grammar
 test-vscode:

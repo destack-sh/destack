@@ -23,9 +23,9 @@ We value clarity, correctness, and performance.
 
 ## Code Style
 
-Before opening a PR, run `just precommit` from the repository root.
+Before opening a PR, run `just commit` from the repository root.
 This runs the same blocking gates that CI runs for language, library, service, app, and bridge.
-Use `just fmt` for formatting, `just check` for broad checks, and `just test` for the full local test matrix.
+Use `just quick` for fast local confidence, `just fmt` for formatting, `just check` for broad checks, and `just nightly` for the deepest local verification sweep.
 See [TESTING.md](TESTING.md) for the full test matrix and suite details.
 
 ## Commit Style
@@ -67,12 +67,15 @@ To contribute to Destack and build it yourself locally you will need at least `c
 
 We use `justfile`s as the source of truth for all commands:
 ```sh
-just precommit      # canonical pre-PR gate, mirrors blocking CI
-just ci             # blocking CI gates only
+just precommit      # compatibility alias for just commit
+just commit         # canonical blocking gate
+just ci             # compatibility alias for just commit
 just install        # setup everything
 just check          # check & lint everything
 just fmt            # format all code
-just test           # run all tests
+just quick          # fast local test lane
+just test           # compatibility alias for just quick
+just nightly        # deep local verification lane
 just bench          # run all benchmarks
 just fuzz           # run all fuzzers
 just clean          # clean all build artifacts
@@ -81,11 +84,13 @@ just publish        # publish all packages
 
 If you are working in one area only, use scoped gates:
 ```sh
-just language/ci
-just library/ci
-just service/ci
-just app/ci
-just bridge/ci
+just language/quick
+just language/commit
+just language/nightly
+just library/commit
+just service/commit
+just app/commit
+just bridge/commit
 ```
 
 ## Release

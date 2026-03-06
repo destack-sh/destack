@@ -11,46 +11,48 @@ Integration and fixture-based tests for the Destack language toolchain.
 | **Smoke** | `fixtures/smoke/` | Parser and compiler don't crash, no errors on valid input |
 | **Codegen** | `fixtures/codegen/` | Transpilation output matches expected snapshots |
 | **Specification** | `fixtures/specification/` | MDTest-driven type checking and diagnostics |
-| **Query** | `fixtures/query/` | MDTest-driven IDE/LSP queries (goto definition, completion, rename) |
+| **Query** | `fixtures/query/` | MDTest-driven IDE/LSP queries |
 | **Conformance** | `fixtures/parser/conformance/` | Parser conformance against established test suites |
 | **Formatter** | `fixtures/formatter/` | Format roundtrip stability |
-| **Resolver** | `fixtures/resolver/` | Module resolution (from enhanced-resolve) |
-| **Ecosystem** | `fixtures/ecosystem/` | Real-world package tests |
+| **Resolver** | `fixtures/resolver/` | Module resolution from Node-style and TypeScript-style layouts |
+| **Interop canary** | `fixtures/ecosystem/` | Curated TS-first Node, backend, and tooling packages |
 | **Stress** | `fixtures/stress/` | Scale limits: large files, many modules, deep nesting |
 
 ## Testing
 
 Run these from `language/` unless noted otherwise.
-Use `just test` as an alias for `just test-quick`.
+Use `just test` as an alias for `just quick`.
+`quick` is the main high-signal correctness lane.
+`commit` currently reuses that deterministic lane.
+`nightly` adds ecosystem canaries and stress.
 
 ```bash
 # shared gate lanes
 just test
-just test-quick
-just test-ci
-just test-nightly
-just test-release
+just quick
+just commit
+just nightly
 
 # run all tests via cargo
 cargo test -p destack_test
 
 # run specific test suites
-cargo test --test smoke           # smoke tests only
-cargo test --test codegen         # codegen tests only
-cargo test --test specification   # type checking specification tests
-cargo test --test query           # IDE query tests
-cargo test --test parser-conformance     # parser conformance tests
-cargo test --test formatter       # formatter tests
-cargo test --test ecosystem       # ecosystem tests (requires fetched packages)
-cargo test --test stress          # stress tests (requires generated fixtures)
+cargo test --test smoke
+cargo test --test codegen
+cargo test --test specification
+cargo test --test query
+cargo test --test parser-conformance
+cargo test --test formatter
+cargo test --test ecosystem
+cargo test --test stress
 
-# resolver tests (separate crate)
+# resolver tests
 cargo test -p destack_resolver
 
 # filter by name
-cargo test --test smoke -- parser      # only parser smoke tests
-cargo test --test smoke -- compiler    # only compiler smoke tests
-cargo test --test specification -- basics       # filter specification tests by path
+cargo test --test smoke -- parser
+cargo test --test smoke -- compiler
+cargo test --test specification -- basics
 
 # list tests without running
 cargo test --test smoke -- --list
@@ -63,28 +65,25 @@ cargo test --test smoke -- --verbose
 
 The MDTest framework powers both **Specification** and **Query** tests using markdown-driven test definitions.
 
-### Specification Tests (`fixtures/specification/`)
+### Specification Tests
 
-Type checking specification tests. Tests are markdown files with code blocks and expected error messages.
+Type checking specification tests live in `fixtures/specification/`.
+They are markdown files with code blocks and expected error messages.
 See `fixtures/specification/README.md` for format details.
 
-### Query Tests (`fixtures/query/`)
+### Query Tests
 
-IDE/LSP query tests using marker annotations (`def:`, `use:`, `$0`) to specify locations and expected results.
-Supports:
-- `navigation/` - goto definition
-- `assist/` - code completion
-- `refactor/` - rename
+IDE and LSP query tests live in `fixtures/query/`.
+They use marker annotations such as `def:`, `use:`, and `$0` to specify locations and expected results.
+They cover navigation, completion, and rename workflows.
 
 ## Stress Tests
 
-Stress tests verify the toolchain handles extreme scale. Fixtures are generated on-demand:
+Stress tests verify that the toolchain handles extreme scale.
+Fixtures are generated on-demand:
 
 ```bash
-# generate stress fixtures (not checked into git)
 just generate-stress
-
-# run stress tests
 just test-stress
 ```
 

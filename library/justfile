@@ -21,7 +21,7 @@ ci-lint:
 
 # run library test gate
 ci-tests:
-    just test-ci
+    just commit
 
 # run all blocking library ci gates locally
 ci:
@@ -38,25 +38,24 @@ check:
 lint:
     just check
 
-# run quick tests for local development
-test-quick:
+# run quick local library tests
+quick:
     @echo "No library tests defined"
 
-# run blocking ci test gates
-test-ci:
-    just test-quick
+# run blocking library test lanes
+commit:
+    just quick
 
-# run nightly test gates
-test-nightly:
-    just test-ci
+# run deep library test lanes
+nightly:
+    just commit
 
-# run release test gates
-test-release:
-    just test-ci
-
-# run quick tests (alias for test-quick)
-test:
-    just test-quick
+# backwards compatibility aliases
+alias test-quick := quick
+alias test-ci := commit
+alias test-nightly := nightly
+alias test-release := nightly
+alias test := quick
 
 # format code
 format:
