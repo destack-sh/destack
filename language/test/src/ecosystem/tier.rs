@@ -1582,6 +1582,9 @@ fn load_manifest_entry_sources(
     let mut sources = Vec::new();
     let mut seen_manifest_paths = HashSet::new();
 
+    // track whether the root manifest manages workspace package discovery
+    let has_workspace_configuration = root_package_json.workspaces.is_some();
+
     // include root and workspace manifests when roots are not configured
     if roots.is_empty() {
         let root_entry_targets = root_package_json.entry_targets();
@@ -1623,9 +1626,13 @@ fn load_manifest_entry_sources(
         }
     }
 
-    // include manifests from explicit roots or candidate source ownership
+    // use candidate ownership fallback only when the root manifest does not declare workspaces
     let candidate_manifest_paths = if roots.is_empty() {
-        collect_candidate_manifest_paths(package_dir, candidates)
+        if has_workspace_configuration {
+            Vec::new()
+        } else {
+            collect_candidate_manifest_paths(package_dir, candidates)
+        }
     } else {
         collect_root_manifest_paths(package_dir, roots)?
     };
