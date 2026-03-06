@@ -4,14 +4,15 @@ use std::time::Duration;
 
 use destack_compiler::CompilerOptions;
 use destack_lsp_server::jsonrpc::{Request, Response};
-use destack_lsp_server::{ClientSocket, LanguageServer, LspService, UriExt};
+use destack_lsp_server::{ClientSocket, ExitedError, LanguageServer, LspService, UriExt};
 use destack_lsp_types as lsp;
 use destack_source::TemporaryPhysicalFileSystem;
 use futures::{SinkExt, StreamExt};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use tokio::sync::mpsc::{self, UnboundedReceiver};
-use tower::Service;
+use tokio::task::JoinHandle;
+use tower::{Service, ServiceExt};
 
 use crate::DestackLanguageServer;
 
@@ -28,7 +29,6 @@ pub enum LspHarnessMode {
 }
 
 /// LSP test harness for driving the server.
-#[derive(Debug)]
 pub struct LspHarness {
     /// The LSP service under test.
     service: LspService<DestackLanguageServer>,
@@ -42,6 +42,24 @@ pub struct LspHarness {
     pending_diagnostics: VecDeque<lsp::PublishDiagnosticsParams>,
     /// Latest diagnostics snapshot by uri.
     diagnostics_state_by_uri: HashMap<String, lsp::PublishDiagnosticsParams>,
+    /// In-flight request futures keyed by protocol request id.
+    pending_requests: HashMap<i64, JoinHandle<Result<Option<Response>, ExitedError>>>,
+}
+
+impl std::fmt::Debug for LspHarness {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("LspHarness")
+            .field("root", &self.root)
+            .field("next_request_id", &self.next_request_id)
+            .field("pending_diagnostics_len", &self.pending_diagnostics.len())
+            .field(
+                "diagnostics_state_by_uri_len",
+                &self.diagnostics_state_by_uri.len(),
+            )
+            .field("pending_requests_len", &self.pending_requests.len())
+            .finish()
+    }
 }
 
 impl LspHarness {
@@ -77,6 +95,7 @@ impl LspHarness {
             next_request_id: 10,
             pending_diagnostics: VecDeque::new(),
             diagnostics_state_by_uri: HashMap::new(),
+            pending_requests: HashMap::new(),
         }
     }
 
@@ -106,6 +125,71 @@ impl LspHarness {
             .cloned()
             .expect("response should contain result");
         serde_json::from_value(result).expect("typed response decode")
+    }
+
+    /// Start one request and keep its response future pending.
+    pub async fn start_request<T>(&mut self, method: &str, params: T) -> i64
+    where
+        T: Serialize,
+    {
+        // allocate a stable request id and build the request payload
+        let request_id = self.next_request_id;
+        self.next_request_id += 1;
+        let request = request_with_params(method, request_id, params);
+
+        // launch the request and retain the pending response task
+        let pending = self
+            .service
+            .ready()
+            .await
+            .expect("lsp service ready")
+            .call(request);
+        let pending = tokio::spawn(pending);
+        self.pending_requests.insert(request_id, pending);
+
+        // yield once so the spawned request task is polled before follow-up fixture steps
+        tokio::task::yield_now().await;
+
+        request_id
+    }
+
+    /// Start one request with pre-encoded JSON params and keep it pending.
+    pub async fn start_request_raw(&mut self, method: &str, params: serde_json::Value) -> i64 {
+        self.start_request(method, params).await
+    }
+
+    /// Await one previously started request response.
+    pub async fn await_request(&mut self, request_id: i64) -> Option<Response> {
+        // resolve and remove one pending response future
+        let pending = self
+            .pending_requests
+            .remove(&request_id)
+            .unwrap_or_else(|| panic!("pending request id {request_id} not found"));
+
+        // await the response payload
+        let response = pending.await.expect("lsp pending request task failed");
+        response.expect("lsp pending request failed")
+    }
+
+    /// Send a protocol cancel request for one request id.
+    pub async fn cancel_request(&mut self, request_id: i64) {
+        // convert request id to LSP cancel params payload
+        let request_id = i32::try_from(request_id)
+            .unwrap_or_else(|_| panic!("request id {request_id} exceeds lsp cancel range"));
+        let params = lsp::CancelParams {
+            id: lsp::NumberOrString::Number(request_id),
+        };
+
+        // send protocol cancellation notification
+        let notification = notification_with_params("$/cancelRequest", params);
+        self.notify(notification).await;
+    }
+
+    /// Send a protocol work-done progress cancellation notification.
+    pub async fn cancel_work_done_progress(&mut self, token: lsp::ProgressToken) {
+        let params = lsp::WorkDoneProgressCancelParams { token };
+        let notification = notification_with_params("window/workDoneProgress/cancel", params);
+        self.notify(notification).await;
     }
 
     /// Send a JSON-RPC notification to the server.
@@ -251,16 +335,42 @@ impl LspHarness {
 
     /// Send a didOpen notification with full text.
     pub async fn did_open(&mut self, uri: lsp::Uri, text: &str) {
+        self.did_open_with_version(uri, text, 1).await;
+    }
+
+    /// Send a didOpen notification with full text and an explicit version.
+    pub async fn did_open_with_version(&mut self, uri: lsp::Uri, text: &str, version: i32) {
         // build didOpen params
         let params = lsp::DidOpenTextDocumentParams {
             text_document: lsp::TextDocumentItem::new(
                 uri,
                 "destack".to_string(),
-                1,
+                version,
                 text.to_string(),
             ),
         };
         let notification = notification_with_params("textDocument/didOpen", params);
+        self.notify(notification).await;
+    }
+
+    /// Send a didClose notification.
+    pub async fn did_close(&mut self, uri: lsp::Uri) {
+        // build didClose params
+        let params = lsp::DidCloseTextDocumentParams {
+            text_document: lsp::TextDocumentIdentifier::new(uri),
+        };
+        let notification = notification_with_params("textDocument/didClose", params);
+        self.notify(notification).await;
+    }
+
+    /// Send a didSave notification.
+    pub async fn did_save(&mut self, uri: lsp::Uri, text: Option<String>) {
+        // build didSave params
+        let params = lsp::DidSaveTextDocumentParams {
+            text_document: lsp::TextDocumentIdentifier::new(uri),
+            text,
+        };
+        let notification = notification_with_params("textDocument/didSave", params);
         self.notify(notification).await;
     }
 
@@ -360,6 +470,14 @@ impl LspHarness {
 
         // send the notification
         let notification = notification_with_params("workspace/didChangeWorkspaceFolders", params);
+        self.notify(notification).await;
+    }
+
+    /// Send a didChangeConfiguration notification.
+    pub async fn did_change_configuration(&mut self, settings: serde_json::Value) {
+        // build didChangeConfiguration params
+        let params = lsp::DidChangeConfigurationParams { settings };
+        let notification = notification_with_params("workspace/didChangeConfiguration", params);
         self.notify(notification).await;
     }
 

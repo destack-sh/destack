@@ -19,10 +19,6 @@ impl WorkDoneProgressTracker {
         title: &str,
         message: &str,
     ) -> Self {
-        if let Some(token) = token.as_ref() {
-            server.clear_progress_cancel(token);
-        }
-
         let mut progress = None;
         if let Some(token) = token.as_ref() {
             let _ = server
@@ -61,11 +57,11 @@ impl WorkDoneProgressTracker {
         message: impl FnOnce(usize) -> String,
         cancel_message: &str,
     ) -> jsonrpc::Result<()> {
-        if !processed.is_multiple_of(chunk_size) {
-            return Ok(());
+        if processed.is_multiple_of(chunk_size) {
+            self.report(message(processed)).await;
         }
 
-        self.report(message(processed)).await;
+        // keep cancellation responsive for fast conversion loops on the async executor
         tokio::task::yield_now().await;
         self.check_cancelled(server, cancel_message).await
     }
@@ -99,5 +95,17 @@ impl WorkDoneProgressTracker {
         if let Some(token) = self.token.as_ref() {
             server.clear_progress_cancel(token);
         }
+    }
+
+    /// Finish a progress stream or return cancellation when the token was cancelled after the last chunk.
+    pub(super) async fn finish_or_cancelled(
+        &mut self,
+        server: &DestackLanguageServer,
+        finish_message: &str,
+        cancel_message: &str,
+    ) -> jsonrpc::Result<()> {
+        self.check_cancelled(server, cancel_message).await?;
+        self.finish(server, finish_message).await;
+        Ok(())
     }
 }
