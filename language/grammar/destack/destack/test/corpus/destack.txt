@@ -448,7 +448,7 @@ const result = try {
 Annotation call expression
 ==================================
 
-const message = Error(`bad number`))
+const message = @Error(`bad number`)
 
 ---
 
@@ -456,14 +456,11 @@ const message = Error(`bad number`))
   (lexical_declaration
     (variable_declarator
       (identifier)
-      (call_expression
+      (annotation_call_expression
         (identifier)
         (arguments
-          (annotation_call_expression
-            (identifier)
-            (arguments
-              (string
-                (string_fragment)))))))))
+          (template_string
+            (string_fragment)))))))
 
 ==================================
 Match with decorated comma arms
@@ -549,11 +546,10 @@ const value = try {
                 (call_expression
                   (identifier)
                   (arguments
-                    (annotation_call_expression
-                      (identifier)
-                      (arguments
-                        (string
-                          (string_fragment))))))))
+                    (template_string
+                      (string_fragment)
+                      (template_substitution
+                        (identifier)))))))
             (match_arm
               (match_pattern
                 (identifier))
@@ -561,11 +557,10 @@ const value = try {
                 (call_expression
                   (identifier)
                   (arguments
-                    (annotation_call_expression
-                      (identifier)
-                      (arguments
-                        (string
-                          (string_fragment))))))))
+                    (template_string
+                      (string_fragment)
+                      (template_substitution
+                        (identifier)))))))
             (match_arm
               (match_pattern
                 (identifier))
@@ -573,11 +568,10 @@ const value = try {
                 (call_expression
                   (identifier)
                   (arguments
-                    (annotation_call_expression
-                      (identifier)
-                      (arguments
-                        (string
-                          (string_fragment))))))))))))))
+                    (template_string
+                      (string_fragment)
+                      (template_substitution
+                        (identifier)))))))))))))
 
 ==================================
 Match variant wildcard pattern
