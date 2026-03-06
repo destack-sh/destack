@@ -14,7 +14,7 @@ use destack_formatter::{
     DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions,
     FormatterCacheStatsSnapshot, FormatterCounterEntry, FormatterTimingEntry, statement_list,
 };
-use destack_parser::Parser as DestackParser;
+use destack_parser::{Parser as DestackParser, ParserSpeculationStats};
 use destack_source::{File, FileId, FileType, IgnoreSet, LanguageType, Uri};
 
 const DEFAULT_ROOT: &str = "test/fixtures/ecosystem/checkouts";
@@ -113,6 +113,10 @@ struct Args {
     /// Number of top timing tags to print when timings are enabled.
     #[arg(long, default_value_t = 20)]
     timings_top: usize,
+
+    /// Enable parser control-flow counters in the unified output.
+    #[arg(long)]
+    parser_counters: bool,
 
     /// Parse only and skip formatter and printer stages.
     #[arg(long)]
@@ -522,7 +526,14 @@ fn main() -> Result<(), String> {
     }
 
     for warmup_index in 0..args.warmup_runs {
-        let run = run_single_benchmark(&files, args.workers, args.timings, args.mode, stages)?;
+        let run = run_single_benchmark(
+            &files,
+            args.workers,
+            args.timings,
+            args.parser_counters,
+            args.mode,
+            stages,
+        )?;
         if progress {
             eprintln!(
                 "  run {}/{} warmup   total {}",
@@ -535,7 +546,14 @@ fn main() -> Result<(), String> {
 
     let mut measured_runs = Vec::with_capacity(args.runs);
     for run_index in 0..args.runs {
-        let run = run_single_benchmark(&files, args.workers, args.timings, args.mode, stages)?;
+        let run = run_single_benchmark(
+            &files,
+            args.workers,
+            args.timings,
+            args.parser_counters,
+            args.mode,
+            stages,
+        )?;
         if progress {
             eprintln!(
                 "  run {}/{} measured total {}",
@@ -697,6 +715,7 @@ fn run_single_benchmark(
     files: &[CorpusFile],
     workers: usize,
     timings_enabled: bool,
+    parser_counters_enabled: bool,
     mode: BenchMode,
     stages: BenchStages,
 ) -> Result<BenchRunStats, String> {
@@ -737,8 +756,14 @@ fn run_single_benchmark(
     if worker_count == 1 {
         let mut file_stats = Vec::with_capacity(files.len());
         for (index, corpus_file) in files.iter().enumerate() {
-            let file_stat =
-                benchmark_file(index as u32, corpus_file, timings_enabled, mode, stages)?;
+            let file_stat = benchmark_file(
+                index as u32,
+                corpus_file,
+                timings_enabled,
+                parser_counters_enabled,
+                mode,
+                stages,
+            )?;
             file_stats.push(file_stat);
         }
 
@@ -765,6 +790,7 @@ fn run_single_benchmark(
                         file_index as u32,
                         corpus_file,
                         timings_enabled,
+                        parser_counters_enabled,
                         mode,
                         stages,
                     ) {
@@ -955,6 +981,7 @@ fn benchmark_file(
     file_id: u32,
     corpus_file: &CorpusFile,
     timings_enabled: bool,
+    parser_counters_enabled: bool,
     mode: BenchMode,
     stages: BenchStages,
 ) -> Result<FileRunStat, String> {
@@ -972,6 +999,7 @@ fn benchmark_file(
     ));
     let language = LanguageType::from(corpus_file.file_type);
     let mut parser = DestackParser::lex_file(file.clone(), language);
+    parser.set_collect_speculation_stats(parser_counters_enabled);
     let parse_setup = parse_started_at.elapsed();
 
     let parse_main_started_at = Instant::now();
@@ -993,6 +1021,15 @@ fn benchmark_file(
         Vec::new()
     };
     let parse_post_timing_snapshot = parse_post_timing_snapshot_started_at.elapsed();
+
+    let parser_counter_entries = if parser_counters_enabled {
+        parser
+            .speculation_snapshot()
+            .map(parser_counter_entries)
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
 
     let (parse_post_side_span, side_span) = if stages.format {
         let parse_post_side_span_started_at = Instant::now();
@@ -1129,6 +1166,7 @@ fn benchmark_file(
                 }),
         );
     }
+    counters.extend(parser_counter_entries);
 
     let total = total_started_at.elapsed();
 
@@ -1158,6 +1196,132 @@ fn benchmark_file(
         timings,
         counters,
     })
+}
+
+/// Convert parser speculation counters into the shared counter output format.
+fn parser_counter_entries(stats: ParserSpeculationStats) -> Vec<FormatterCounterEntry> {
+    vec![
+        FormatterCounterEntry {
+            name: "parser.with_options",
+            value: stats.with_options_calls as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.rewind",
+            value: stats.rewind_calls as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.restore",
+            value: stats.restore_calls as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.current_scanner_cursor",
+            value: stats.current_scanner_cursor_calls as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.advance_to_scanner_cursor",
+            value: stats.advance_to_scanner_cursor_calls as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.parenthesized_follow.calls",
+            value: stats.parenthesized_follow_token_calls as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.parenthesized_follow.hits",
+            value: stats.parenthesized_follow_token_hits as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.delimiter_analysis.lookups",
+            value: stats.delimiter_analysis_lookups as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.delimiter_analysis.cache_hits",
+            value: stats.delimiter_analysis_cache_hits as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.delimiter_analysis.snapshot_lookups",
+            value: stats.delimiter_analysis_snapshot_lookups as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.delimiter_analysis.scans",
+            value: stats.delimiter_analysis_scans as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.statement_dispatch.calls",
+            value: stats.statement_keyword_dispatch_calls as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.statement_dispatch.prefilter_rejects",
+            value: stats.statement_keyword_dispatch_prefilter_rejects as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.statement_dispatch.keyword_rejects",
+            value: stats.statement_keyword_dispatch_keyword_rejects as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.statement_dispatch.direct_hits",
+            value: stats.statement_keyword_dispatch_direct_hits as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.statement_dispatch.direct_misses",
+            value: stats.statement_keyword_dispatch_direct_misses as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.statement_dispatch.fallback_hits",
+            value: stats.statement_keyword_dispatch_fallback_hits as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.statement_dispatch.fallback_misses",
+            value: stats.statement_keyword_dispatch_fallback_misses as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.parenthesized_plain.calls",
+            value: stats.parenthesized_expression_plain_calls as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.parenthesized_plain.hits",
+            value: stats.parenthesized_expression_plain_hits as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.parenthesized_plain.misses",
+            value: stats.parenthesized_expression_plain_misses as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.parenthesized_lambda_plain.calls",
+            value: stats.parenthesized_lambda_plain_calls as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.parenthesized_lambda_plain.hits",
+            value: stats.parenthesized_lambda_plain_hits as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.parenthesized_lambda_plain.misses",
+            value: stats.parenthesized_lambda_plain_misses as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.identifier_lambda_plain.calls",
+            value: stats.identifier_lambda_plain_calls as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.identifier_lambda_plain.hits",
+            value: stats.identifier_lambda_plain_hits as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.identifier_lambda_plain.misses",
+            value: stats.identifier_lambda_plain_misses as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.async_keyword_speculative.attempts",
+            value: stats.async_keyword_speculative_attempts as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.async_keyword_speculative.successes",
+            value: stats.async_keyword_speculative_successes as usize,
+        },
+        FormatterCounterEntry {
+            name: "parser.async_keyword_speculative.rollbacks",
+            value: stats.async_keyword_speculative_rollbacks as usize,
+        },
+    ]
 }
 
 /// Summarize all measured runs.
