@@ -13,5 +13,5 @@
         "skipLibCheck": true,
         "types": ["node", "mocha", "vscode"]
     },
-    "include": ["src/tests-lsp/**/*.ts"]
+    "include": ["src/tests-bridge/**/*.ts"]
 }

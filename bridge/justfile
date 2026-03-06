@@ -141,7 +141,7 @@ test-ci:
 # run nightly test gates
 test-nightly:
     just test-ci
-    just test-vscode-lsp
+    just test-vscode-bridge
 
 # run release test gates
 test-release:
@@ -155,9 +155,9 @@ test:
 test-vscode:
     cd vscode && bun run test:grammar
 
-# test vscode lsp smoke suite
-test-vscode-lsp:
-    cd vscode && bun run test:lsp
+# test vscode bridge smoke suite
+test-vscode-bridge:
+    cd vscode && bun run test:bridge
 
 # test zed extension and shared tree sitter overlays
 test-zed:
@@ -186,7 +186,7 @@ check-zed-grammars-pinned:
 # test the core ide integration surface
 test-ide:
     just test-vscode
-    just test-vscode-lsp
+    just test-vscode-bridge
     just test-zed
 
 # backward compatibility alias
