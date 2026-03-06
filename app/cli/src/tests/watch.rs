@@ -4,7 +4,9 @@ use std::time::Duration;
 
 use destack_compiler::CompilerOptions;
 use destack_daemon::{Daemon, WatchPolicy};
-use destack_source::{File, FileType, FileWatchEvent, FileWatchEventKind, MemoryFileWatcher, Uri};
+use destack_source::{
+    File, FileSystem, FileType, FileWatchEvent, FileWatchEventKind, MemoryFileWatcher, Uri,
+};
 use destack_workspace::Program;
 
 use crate::common::WatchCompileReason;
@@ -207,6 +209,9 @@ fn test_apply_watch_event_deletes_file() {
     );
 
     let daemon = daemon_with_single_worker(test.session.clone());
+    test.fs
+        .remove_file(&path)
+        .expect("deleted file should be removed from the filesystem");
     let event = FileWatchEvent {
         path: path.clone(),
         previous_path: None,
@@ -247,6 +252,9 @@ fn test_apply_watch_event_renames_file() {
     );
 
     let daemon = daemon_with_single_worker(test.session.clone());
+    test.fs
+        .remove_file(&old_path)
+        .expect("renamed file should be removed from the old path");
     let event = FileWatchEvent {
         path: new_path.clone(),
         previous_path: Some(old_path.clone()),
