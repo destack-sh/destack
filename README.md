@@ -55,14 +55,14 @@ There is great promise in turning more things _into_ correct, optimal, integrate
 
 ## Why You Should Not Use Destack
 
-Destack has been in development for years and went through a _lot_ of iteration, and Destack intentionally follows known good standards like TypeScript, TSX, Node and Web-shaped APIs.
-However, obviously, it is still rather early, it is definitely quite different, and there are sound arguments against the Destack-shaped "universal software engine" way:
+Destack has been in development for years and went through a _lot_ of iteration, and we intentionally follow good standards like TypeScript, TSX, Node and Web-shaped APIs.
+However, it is still rather early, it is definitely quite radical, and there are sound arguments against the Destack-shaped "universal software engine" way:
 
-1. **Maybe the existing stack is already good enough**: The existing "stack", its layers and components exist for a good reason and have withstood significant evolutionary pressure, thus trying to combine or even rearrange them in a very different way may very well turn out net negative.
+1. **Maybe the existing stack is already good enough**: The existing "stack", its layers and components exist for a good reason and have withstood significant evolutionary pressure, thus trying to combine or even rearrange them in a substantially different way may very well turn out net negative.
 
 2. **Maybe Destack is too Destack-special**: Destack is compatible with JS/TS, yes, and runs modern TS, yes, but many of the most interesting features only work with "modern" TS, and especially when integrating with more of the "destack" stack, which is a larger shift of development processes.
 
-3. **Maybe any ecosystem split is too expensive now**: The web ecosystem fork implied by any new language and paradigm is costly, and while transforming code is now significantly cheaper than it used to be, transforming understanding and habits and the "hard" ecosystem bits is still highly non-trivial.
+3. **Maybe any ecosystem split is too expensive now**: The web ecosystem fork implied by any new language and paradigm is costly, and while transforming code is now significantly cheaper than it used to be, transforming understanding and habits and the "hard" ecosystem bits still has high friction.
 
 4. **Maybe Destack should be more radical**: The existing (web) standards could be followed _less_ and since code transformation is now relatively cheap, and this is a unique time of disruption, maybe Destack should be even _more_ adventorous and experimtal in its design to finally do software in the "most optimal" way.
 
@@ -72,9 +72,9 @@ However, obviously, it is still rather early, it is definitely quite different, 
 
 7. **Maybe Destack is too complex and weird** Following TS/TSX/Node/Web standards is nice, but there is still a novel combination of features and technologies here, and the ways of working and new processes required to make the most of Destack are unconventional and unestablished.
 
-8. **Maybe Destack is actually good but it's too late**: A substantial part of the value of the common "stack", much like with other hard-to-evaluate technologies, comes from having been around for a while and thus to have stood the test of time; any new way of doing things is thus inherently suspicious, _even if_ it is "objectively" better overall according to some theoretical ideal.
+8. **Maybe Destack is actually good but it's too late**: Part of the value of the common software "stack" comes from having been around for a while and thus to have stood the test of time; any new way of doing things is thus inherently suspicious, _even if_ it is "objectively" better according to some theoretical ideal.
 
-9. **Maybe Destack is good _today_ but eventually "best of breed" will win again**: Having a "fully integrated" solution win out over special solutions at the onset of a technological change due to the benefits of integration is quite common, and then losing out against the benefits of specialisation is also quite common.
+9. **Maybe Destack is good _today_ but "best of breed" wins eventually**: Having a fully integrated solution win out early at the onset of a technological revolution due to the benefits of integration is quite common, and then losing out against the benefits of specialisation is also quite common.
 
 ### If you _really_ insist on using Destack
 
