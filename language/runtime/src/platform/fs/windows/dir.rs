@@ -116,10 +116,11 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
         .with_handle(handle as _)
         .with_payload(directory)
         .with_finalizer(HandleFinalizer::new(handle));
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = DirectoryHandle(resource_id);
     }
@@ -190,10 +191,11 @@ pub(crate) unsafe fn destack_fs_opendir_utf16(
         .with_handle(handle as _)
         .with_payload(directory)
         .with_finalizer(HandleFinalizer::new(handle));
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = DirectoryHandle(resource_id);
     }

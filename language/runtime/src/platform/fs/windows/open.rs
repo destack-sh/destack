@@ -96,10 +96,11 @@ pub(crate) unsafe fn destack_fs_open_bytes(
             status_flags: Arc::new(Mutex::new(0)),
         })
         .with_finalizer(HandleFinalizer::new(handle));
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = FileHandle(resource_id);
     }
@@ -179,10 +180,11 @@ pub(crate) unsafe fn destack_fs_open_utf16(
             status_flags: Arc::new(Mutex::new(0)),
         })
         .with_finalizer(HandleFinalizer::new(handle));
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = FileHandle(resource_id);
     }
@@ -268,10 +270,11 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
             status_flags: Arc::new(Mutex::new(0)),
         })
         .with_finalizer(HandleFinalizer::new(handle));
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = FileHandle(resource_id);
     }
@@ -357,10 +360,11 @@ pub(crate) unsafe fn destack_fs_openat_utf16(
             status_flags: Arc::new(Mutex::new(0)),
         })
         .with_finalizer(HandleFinalizer::new(handle));
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = FileHandle(resource_id);
     }

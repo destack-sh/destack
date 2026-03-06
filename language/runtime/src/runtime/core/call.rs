@@ -3,9 +3,6 @@
 use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::ptr;
-use std::sync::Arc;
-
-use parking_lot::RwLock;
 
 use crate::diagnostic::{AgentDiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::Host;
@@ -44,6 +41,8 @@ struct CurrentAgentContext {
     event_loop: *const EventLoop,
     /// Host pointer for callback dispatch.
     host: *const Host,
+    /// World pointer for replay, time, random, and policy.
+    world: *const World,
 }
 
 impl CurrentAgentContext {
@@ -53,12 +52,16 @@ impl CurrentAgentContext {
             agent: ptr::null(),
             event_loop: ptr::null(),
             host: ptr::null(),
+            world: ptr::null(),
         }
     }
 
     /// Return whether this execution context is available.
     const fn is_empty(self) -> bool {
-        self.agent.is_null() || self.event_loop.is_null() || self.host.is_null()
+        self.agent.is_null()
+            || self.event_loop.is_null()
+            || self.host.is_null()
+            || self.world.is_null()
     }
 }
 
@@ -81,11 +84,13 @@ pub(crate) fn enter_current_agent_context(
     agent: *const Agent,
     event_loop: *const EventLoop,
     host: *const Host,
+    world: *const World,
 ) -> CurrentAgentContextGuard {
     let next = CurrentAgentContext {
         agent,
         event_loop,
         host,
+        world,
     };
     let previous = CURRENT_AGENT_CONTEXT.with(|slot| {
         let previous = slot.get();
@@ -117,8 +122,8 @@ pub struct BindingCallContext {
     event_loop: *const EventLoop,
     /// Host state for platform callbacks.
     host: *const Host,
-    /// Binding policy for external calls.
-    policy: Arc<RwLock<BindingPolicy>>,
+    /// Shared world for replay, time, random, and policy.
+    world: *const World,
     /// Engine kind for this binding call.
     engine: BindingEngine,
     /// Event loop scope metadata for the current call.
@@ -145,12 +150,12 @@ impl Drop for BindingHookGuard<'_> {
 
 impl BindingCallContext {
     /// Create a binding call context for TLS.
-    pub fn new(agent: &Agent, event_loop: &EventLoop, host: &Host, policy: BindingPolicy) -> Self {
+    pub fn new(agent: &Agent, event_loop: &EventLoop, host: &Host, world: &World) -> Self {
         Self {
             agent,
             event_loop,
             host,
-            policy: Arc::new(RwLock::new(policy)),
+            world,
             engine: BindingEngine::Native,
             scope: current_event_loop_scope(),
         }
@@ -161,30 +166,28 @@ impl BindingCallContext {
         agent: *const Agent,
         event_loop: *const EventLoop,
         host: *const Host,
-        policy: Arc<RwLock<BindingPolicy>>,
+        world: *const World,
         engine: BindingEngine,
     ) -> Self {
         Self {
             agent,
             event_loop,
             host,
-            policy,
+            world,
             engine,
             scope: current_event_loop_scope(),
         }
     }
 
     /// Create one VM binding call context from the current-agent execution scope.
-    pub(crate) fn from_current_agent_for_vm(
-        policy: Arc<RwLock<BindingPolicy>>,
-    ) -> RuntimeResult<Self> {
+    pub(crate) fn from_current_agent_for_vm() -> RuntimeResult<Self> {
         let context = current_agent_context()
             .ok_or_else(|| RuntimeError::BindingCallContextMissing.boxed())?;
         Ok(Self::from_raw(
             context.agent,
             context.event_loop,
             context.host,
-            policy,
+            context.world,
             BindingEngine::Vm,
         ))
     }
@@ -251,6 +254,12 @@ impl BindingCallContext {
         self.world().replay()
     }
 
+    /// Borrow the binding policy for this agent.
+    #[inline]
+    fn policy(&self) -> parking_lot::RwLockReadGuard<'_, BindingPolicy> {
+        self.agent().bindings.policy().read()
+    }
+
     /// Build one entropy replay subject for the current call and one binding.
     pub fn entropy_subject(&self, spec: BindingDescriptor) -> EntropySubject {
         EntropySubject {
@@ -279,7 +288,8 @@ impl BindingCallContext {
     /// Borrow the shared runtime world.
     #[inline]
     pub fn world(&self) -> &World {
-        self.agent().world.as_ref()
+        // safety: pointer is owned by the runtime caller
+        unsafe { &*self.world }
     }
 
     /// Borrow one read guard for the simulation state.
@@ -349,25 +359,26 @@ impl BindingCallContext {
     /// Notify policy hooks about one clock-read operation.
     #[inline]
     pub fn on_time_read(&self) {
-        self.hooks().on_time_read(Some(self.engine()));
+        self.hooks().on_time_read(self.world(), Some(self.engine()));
     }
 
     /// Notify policy hooks about one random-read operation.
     #[inline]
     pub fn on_random_read(&self) {
-        self.hooks().on_random_read(Some(self.engine()));
+        self.hooks()
+            .on_random_read(self.world(), Some(self.engine()));
     }
 
     /// Sleep one runtime-backed duration.
     #[inline]
     pub fn sleep_nanos(&self, duration: u64) {
-        self.world().sleep_nanos(duration);
+        self.world().clock().host_sleep_nanos(duration);
     }
 
     /// Sleep until one runtime-backed wall deadline.
     #[inline]
     pub fn sleep_until_wall_nanos(&self, deadline: u64) {
-        self.world().sleep_until_nanos(deadline);
+        self.world().clock().host_sleep_until_nanos(deadline);
     }
 
     /// Sleep until one runtime-backed monotonic deadline.
@@ -444,7 +455,7 @@ impl BindingCallContext {
         spec: BindingDescriptor,
     ) -> RuntimeResult<BindingDispatchDecision> {
         // run policy checks before evaluating hooks
-        let policy = self.policy.read();
+        let policy = self.policy();
         policy.ensure_allowed_for_engine(spec, Some(self.engine))?;
         let decision = self.world().resolve_binding_dispatch(
             self.hooks().execution_mode(),
@@ -468,7 +479,9 @@ impl BindingCallContext {
         spec: BindingDescriptor,
     ) -> RuntimeResult<BindingHookGuard<'_>> {
         let _ = self.preflight_binding_call(spec)?;
-        let call_id = self.hooks().on_before_binding(spec, Some(self.engine))?;
+        let call_id = self
+            .hooks()
+            .on_before_binding(self.world(), spec, Some(self.engine))?;
 
         Ok(BindingHookGuard {
             context: self,
@@ -491,7 +504,9 @@ impl BindingCallContext {
             return Err(RuntimeError::from(PlatformError::not_supported(spec.name)).boxed());
         }
 
-        let call_id = self.hooks().on_before_binding(spec, Some(self.engine))?;
+        let call_id = self
+            .hooks()
+            .on_before_binding(self.world(), spec, Some(self.engine))?;
 
         let hook_guard = BindingHookGuard {
             context: self,
@@ -505,13 +520,13 @@ impl BindingCallContext {
     #[inline]
     fn on_after_binding(&self, spec: BindingDescriptor, call_id: PolicyCallId) {
         self.hooks()
-            .on_after_binding(spec, Some(self.engine), call_id);
+            .on_after_binding(self.world(), spec, Some(self.engine), call_id);
     }
 
     /// Resolve the binding world for this call context.
     #[inline]
     pub fn resolve_world(&self, spec: BindingDescriptor) -> RuntimeResult<RuntimeWorld> {
-        let policy = self.policy.read();
+        let policy = self.policy();
         let decision = self.world().resolve_binding_dispatch(
             self.hooks().execution_mode(),
             self.agent().runtime_id,
@@ -532,7 +547,7 @@ impl BindingCallContext {
         &self,
         spec: BindingDescriptor,
     ) -> RuntimeResult<BindingReplayPayload> {
-        let policy = self.policy.read();
+        let policy = self.policy();
         let decision = self.world().resolve_binding_dispatch(
             self.hooks().execution_mode(),
             self.agent().runtime_id,

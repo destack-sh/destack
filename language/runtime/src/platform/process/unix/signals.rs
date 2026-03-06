@@ -203,10 +203,11 @@ pub(crate) unsafe fn destack_process_signal_subscribe(
         .with_payload(core_process::SignalSubscription {
             signals: vec![signal],
         });
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         *out = resource::SignalHandle(resource_id);
@@ -306,10 +307,11 @@ pub(crate) unsafe fn destack_process_signal_unsubscribe(
 ) -> RuntimeResult<()> {
     let _ = core_process::resolve_signal_subscription(binding, handle)?;
 
-    let removed = binding
-        .agent()
-        .resources
-        .remove_and_finalize(handle.0, Some(binding.engine()));
+    let removed = binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    );
     if !removed {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",

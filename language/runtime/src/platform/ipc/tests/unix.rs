@@ -74,34 +74,30 @@ fn test_unix_ancillary_send_receive_roundtrip() {
             .with_finalizer(UnixDescriptorFinalizer {
                 descriptor: sockets[1],
             });
-        let left = resource::SocketHandle(
-            context
-                .call_context
-                .agent()
-                .resources
-                .insert(left_entry, Some(context.call_context.engine())),
-        );
-        let right = resource::SocketHandle(
-            context
-                .call_context
-                .agent()
-                .resources
-                .insert(right_entry, Some(context.call_context.engine())),
-        );
+        let left = resource::SocketHandle(context.call_context.agent().resources.insert(
+            context.call_context.world(),
+            left_entry,
+            Some(context.call_context.engine()),
+        ));
+        let right = resource::SocketHandle(context.call_context.agent().resources.insert(
+            context.call_context.world(),
+            right_entry,
+            Some(context.call_context.engine()),
+        ));
 
         // register one transferable descriptor
         let duplicated = unsafe { libc::dup(sockets[0]) };
         if duplicated < 0 {
-            context
-                .call_context
-                .agent()
-                .resources
-                .remove_and_finalize(left.0, Some(context.call_context.engine()));
-            context
-                .call_context
-                .agent()
-                .resources
-                .remove_and_finalize(right.0, Some(context.call_context.engine()));
+            context.call_context.agent().resources.remove_and_finalize(
+                context.call_context.world(),
+                left.0,
+                Some(context.call_context.engine()),
+            );
+            context.call_context.agent().resources.remove_and_finalize(
+                context.call_context.world(),
+                right.0,
+                Some(context.call_context.engine()),
+            );
             return Err(unix_test_error(
                 "dup",
                 "failed to duplicate one test descriptor for transfer",
@@ -112,13 +108,12 @@ fn test_unix_ancillary_send_receive_roundtrip() {
             .with_finalizer(UnixDescriptorFinalizer {
                 descriptor: duplicated,
             });
-        let transferred = resource::TransferredHandle(
-            context
-                .call_context
-                .agent()
-                .resources
-                .insert(transferred_entry, Some(context.call_context.engine())),
-        );
+        let transferred =
+            resource::TransferredHandle(context.call_context.agent().resources.insert(
+                context.call_context.world(),
+                transferred_entry,
+                Some(context.call_context.engine()),
+            ));
 
         // send one payload and descriptor over unix ancillary bindings
         let payload = context.bytes_value(b"ancillary-payload")?;
@@ -133,26 +128,26 @@ fn test_unix_ancillary_send_receive_roundtrip() {
         assert_eq!(handles.len(), 1);
 
         // cleanup all registered resources
-        context
-            .call_context
-            .agent()
-            .resources
-            .remove_and_finalize(left.0, Some(context.call_context.engine()));
-        context
-            .call_context
-            .agent()
-            .resources
-            .remove_and_finalize(right.0, Some(context.call_context.engine()));
-        context
-            .call_context
-            .agent()
-            .resources
-            .remove_and_finalize(transferred.0, Some(context.call_context.engine()));
-        context
-            .call_context
-            .agent()
-            .resources
-            .remove_and_finalize(handles[0].0, Some(context.call_context.engine()));
+        context.call_context.agent().resources.remove_and_finalize(
+            context.call_context.world(),
+            left.0,
+            Some(context.call_context.engine()),
+        );
+        context.call_context.agent().resources.remove_and_finalize(
+            context.call_context.world(),
+            right.0,
+            Some(context.call_context.engine()),
+        );
+        context.call_context.agent().resources.remove_and_finalize(
+            context.call_context.world(),
+            transferred.0,
+            Some(context.call_context.engine()),
+        );
+        context.call_context.agent().resources.remove_and_finalize(
+            context.call_context.world(),
+            handles[0].0,
+            Some(context.call_context.engine()),
+        );
 
         Ok(())
     });

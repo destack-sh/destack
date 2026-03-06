@@ -98,10 +98,11 @@ fn register_stdio_tty(
         .with_finalizer(UnixDescriptorFinalizer {
             descriptor: duplicated,
         });
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         out.write(resource::TtyHandle(resource_id));

@@ -115,10 +115,11 @@ pub(crate) unsafe fn destack_process_try_wait(
     let status = process_wait_pid(process_id.0, PROCESS_WAIT_FLAG_NOHANG)?;
 
     if is_terminal_wait_status(&status) {
-        let _ = binding
-            .agent()
-            .resources
-            .remove_and_finalize(handle.0, Some(binding.engine()));
+        let _ = binding.agent().resources.remove_and_finalize(
+            binding.world(),
+            handle.0,
+            Some(binding.engine()),
+        );
     }
 
     unsafe {
@@ -158,10 +159,11 @@ pub(crate) unsafe fn destack_process_wait(
     let status = process_wait_pid(process_id.0, flags.0)?;
 
     if is_terminal_wait_status(&status) {
-        let _ = binding
-            .agent()
-            .resources
-            .remove_and_finalize(handle.0, Some(binding.engine()));
+        let _ = binding.agent().resources.remove_and_finalize(
+            binding.world(),
+            handle.0,
+            Some(binding.engine()),
+        );
     }
 
     unsafe {

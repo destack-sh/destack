@@ -51,11 +51,11 @@ pub(crate) unsafe fn destack_fs_close(
     }
 
     // remove the resource and close the descriptor
-    if !binding
-        .agent()
-        .resources
-        .remove_and_finalize(handle.0, Some(binding.engine()))
-    {
+    if !binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    ) {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
             "unknown file handle",
@@ -102,11 +102,11 @@ pub(crate) unsafe fn destack_fs_closedir(
     }
 
     // remove the resource entry
-    if !binding
-        .agent()
-        .resources
-        .remove_and_finalize(handle.0, Some(binding.engine()))
-    {
+    if !binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    ) {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
             "unknown directory handle",
@@ -444,10 +444,11 @@ pub(crate) unsafe fn destack_fs_dup(
     let entry = ResourceEntry::new(ResourceKind::File)
         .with_fd(dup_fd)
         .with_finalizer(FdFinalizer { fd: dup_fd });
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = FileHandle(resource_id);
     }
@@ -491,20 +492,23 @@ pub(crate) unsafe fn destack_fs_dup2(
     }
 
     // replace the target resource entry
-    if let Some(entry) = binding
-        .agent()
-        .resources
-        .remove(target.0, Some(binding.engine()))
+    if let Some(entry) =
+        binding
+            .agent()
+            .resources
+            .remove(binding.world(), target.0, Some(binding.engine()))
     {
         entry.finalize(target.0);
     }
     let entry = ResourceEntry::new(ResourceKind::File)
         .with_fd(dup_fd)
         .with_finalizer(FdFinalizer { fd: dup_fd });
-    binding
-        .agent()
-        .resources
-        .insert_with_id(target.0, entry, Some(binding.engine()));
+    binding.agent().resources.insert_with_id(
+        binding.world(),
+        target.0,
+        entry,
+        Some(binding.engine()),
+    );
     unsafe {
         *out = target;
     }
@@ -560,20 +564,23 @@ pub(crate) unsafe fn destack_fs_dup3(
     }
 
     // replace the target resource entry
-    if let Some(entry) = binding
-        .agent()
-        .resources
-        .remove(target.0, Some(binding.engine()))
+    if let Some(entry) =
+        binding
+            .agent()
+            .resources
+            .remove(binding.world(), target.0, Some(binding.engine()))
     {
         entry.finalize(target.0);
     }
     let entry = ResourceEntry::new(ResourceKind::File)
         .with_fd(dup_fd)
         .with_finalizer(FdFinalizer { fd: dup_fd });
-    binding
-        .agent()
-        .resources
-        .insert_with_id(target.0, entry, Some(binding.engine()));
+    binding.agent().resources.insert_with_id(
+        binding.world(),
+        target.0,
+        entry,
+        Some(binding.engine()),
+    );
     unsafe {
         *out = target;
     }
@@ -652,10 +659,11 @@ pub(crate) unsafe fn destack_fs_dirfd(
         let resource = ResourceEntry::new(ResourceKind::File)
             .with_fd(file_fd)
             .with_finalizer(FdFinalizer { fd: file_fd });
-        let resource_id = binding
-            .agent()
-            .resources
-            .insert(resource, Some(binding.engine()));
+        let resource_id =
+            binding
+                .agent()
+                .resources
+                .insert(binding.world(), resource, Some(binding.engine()));
         unsafe {
             *out = FileHandle(resource_id);
         }

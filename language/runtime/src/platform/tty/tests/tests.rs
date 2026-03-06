@@ -155,10 +155,11 @@ pub(crate) fn close_tty_worker_resource(
     binding: &BindingCallContext,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    let removed = binding
-        .agent()
-        .resources
-        .remove_and_finalize(handle.0, Some(binding.engine()));
+    let removed = binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    );
     if !removed {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",

@@ -1,32 +1,38 @@
-/// Entry point handle for VM engines.
+/// Shared runtime entry descriptor for all engines.
 #[derive(Debug, Clone)]
-pub struct VmEntry {
-    /// Fully qualified entry name.
-    pub name: String,
+pub enum Entry {
+    /// VM entrypoint resolved by name.
+    Vm {
+        /// Fully qualified entry name.
+        name: String,
+    },
+    /// Native entrypoint resolved by symbol.
+    Native {
+        /// Fully qualified entry name.
+        name: String,
+        /// Raw function symbol pointer.
+        symbol: *const (),
+    },
 }
 
-impl VmEntry {
-    /// Create a VM entry point by name.
-    pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into() }
+impl Entry {
+    /// Create one VM entry descriptor by name.
+    pub fn vm(name: impl Into<String>) -> Self {
+        Self::Vm { name: name.into() }
     }
-}
 
-/// Entry point handle for native engines.
-#[derive(Debug, Clone)]
-pub struct NativeEntry {
-    /// Fully qualified entry name.
-    pub name: String,
-    /// Raw function symbol pointer.
-    pub symbol: *const (),
-}
-
-impl NativeEntry {
-    /// Create a native entry point by symbol.
-    pub fn new(name: impl Into<String>, symbol: *const ()) -> Self {
-        Self {
+    /// Create one native entry descriptor by symbol.
+    pub fn native(name: impl Into<String>, symbol: *const ()) -> Self {
+        Self::Native {
             name: name.into(),
             symbol,
+        }
+    }
+
+    /// Return the fully qualified entry name.
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Vm { name } | Self::Native { name, .. } => name,
         }
     }
 }

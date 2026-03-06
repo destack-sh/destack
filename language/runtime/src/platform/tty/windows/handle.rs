@@ -121,10 +121,11 @@ fn register_stdio_tty(
         .with_label(label)
         .with_handle(duplicated as _)
         .with_finalizer(WindowsHandleFinalizer { handle: duplicated });
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         out.write(resource::TtyHandle(resource_id));

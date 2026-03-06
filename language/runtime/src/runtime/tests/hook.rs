@@ -15,8 +15,8 @@ fn test_on_before_binding_allows_hook_callback_deny() {
     // create one agent in one shared world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent = Agent::new_in_world(Vec::new(), &options, world.clone())
-        .expect("agent should construct in world");
+    let agent =
+        Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
     let host = Host::from_runtime_options(&options);
 
     // register one deny callback for matching binding names
@@ -30,12 +30,7 @@ fn test_on_before_binding_allows_hook_callback_deny() {
             });
 
     // matching binding calls should fail with the callback message
-    let call_context = BindingCallContext::new(
-        &agent,
-        agent.event_loop.as_ref(),
-        &host,
-        agent.bindings.policy_snapshot(),
-    );
+    let call_context = BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world);
     let descriptor = BindingDescriptor::pure("destack.test.hook.block", "()");
     let result = call_context.on_before_binding(descriptor);
     assert!(result.is_err());
@@ -47,12 +42,7 @@ fn test_on_before_binding_allows_hook_callback_deny() {
 
     // unregistering the callback should restore allow behavior
     assert!(agent.hooks.off(callback_id));
-    let call_context = BindingCallContext::new(
-        &agent,
-        agent.event_loop.as_ref(),
-        &host,
-        agent.bindings.policy_snapshot(),
-    );
+    let call_context = BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world);
     let result = call_context.on_before_binding(descriptor);
     assert!(result.is_ok());
 }
@@ -63,8 +53,8 @@ fn test_on_before_binding_respects_hook_selector_binding_glob() {
     // create one agent in one shared world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent = Agent::new_in_world(Vec::new(), &options, world.clone())
-        .expect("agent should construct in world");
+    let agent =
+        Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
     let host = Host::from_runtime_options(&options);
 
     // register one deny callback with one non-matching binding pattern
@@ -76,12 +66,7 @@ fn test_on_before_binding_respects_hook_selector_binding_glob() {
     );
 
     // non-matching binding calls should continue normally
-    let call_context = BindingCallContext::new(
-        &agent,
-        agent.event_loop.as_ref(),
-        &host,
-        agent.bindings.policy_snapshot(),
-    );
+    let call_context = BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world);
     let descriptor = BindingDescriptor::pure("destack.test.hook.allowed", "()");
     let result = call_context.on_before_binding(descriptor);
     assert!(result.is_ok());
@@ -96,8 +81,8 @@ fn test_on_before_binding_dispatches_custom_effect_handler() {
     // create one agent in one shared world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent = Agent::new_in_world(Vec::new(), &options, world.clone())
-        .expect("agent should construct in world");
+    let agent =
+        Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
     let host = Host::from_runtime_options(&options);
 
     // install one custom-effect rule for one binding pattern
@@ -126,12 +111,7 @@ fn test_on_before_binding_dispatches_custom_effect_handler() {
         });
 
     // matching binding call should dispatch one custom effect invocation
-    let call_context = BindingCallContext::new(
-        &agent,
-        agent.event_loop.as_ref(),
-        &host,
-        agent.bindings.policy_snapshot(),
-    );
+    let call_context = BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world);
     let descriptor = BindingDescriptor::pure("destack.test.hook.custom.call", "()");
     let result = call_context.on_before_binding(descriptor);
     assert!(result.is_ok());

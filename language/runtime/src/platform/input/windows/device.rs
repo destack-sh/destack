@@ -152,10 +152,11 @@ pub(super) fn open_device(
                         release_console_lane: true,
                         runtime_state: Some(Arc::clone(&runtime_state)),
                     });
-                let resource_id = binding
-                    .agent()
-                    .resources
-                    .insert(entry, Some(binding.engine()));
+                let resource_id = binding.agent().resources.insert(
+                    binding.world(),
+                    entry,
+                    Some(binding.engine()),
+                );
                 Ok(resource::InputDeviceHandle(resource_id))
             })();
 
@@ -209,10 +210,11 @@ pub(super) fn open_device(
                     device_id: raw_device.id.clone(),
                     runtime_state: raw_runtime_state,
                 });
-            let resource_id = binding
-                .agent()
-                .resources
-                .insert(entry, Some(binding.engine()));
+            let resource_id =
+                binding
+                    .agent()
+                    .resources
+                    .insert(binding.world(), entry, Some(binding.engine()));
             Ok(resource::InputDeviceHandle(resource_id))
         }
         input_core::WindowsInputOpenSpec::XInput(user_index) => {
@@ -251,10 +253,11 @@ pub(super) fn open_device(
                     sensor_enabled_kinds: HashSet::new(),
                     sensor_effective_configs: HashMap::new(),
                 });
-            let resource_id = binding
-                .agent()
-                .resources
-                .insert(entry, Some(binding.engine()));
+            let resource_id =
+                binding
+                    .agent()
+                    .resources
+                    .insert(binding.world(), entry, Some(binding.engine()));
             Ok(resource::InputDeviceHandle(resource_id))
         }
     }
@@ -270,10 +273,11 @@ pub(super) fn close_device(
     input_core::resolve_input(binding, handle, operation)?;
 
     // remove from resource table and run finalizer
-    let removed = binding
-        .agent()
-        .resources
-        .remove_and_finalize(handle.0, Some(binding.engine()));
+    let removed = binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    );
     if !removed {
         return Err(input_core::input_not_found(operation, handle));
     }

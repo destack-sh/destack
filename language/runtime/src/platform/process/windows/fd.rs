@@ -163,10 +163,11 @@ fn register_stdio_handle(
         .with_label(label)
         .with_handle(duplicated as _)
         .with_finalizer(StdioHandleFinalizer::new(duplicated));
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         *out = resource::FileHandle(resource_id);
@@ -631,10 +632,11 @@ pub(crate) unsafe fn destack_process_process_fd_close(
 ) -> RuntimeResult<()> {
     ensure_process_fd_handle(binding, handle)?;
 
-    let removed = binding
-        .agent()
-        .resources
-        .remove_and_finalize(handle.0, Some(binding.engine()));
+    let removed = binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    );
     if !removed {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
@@ -686,10 +688,11 @@ pub(crate) unsafe fn destack_process_process_fd_open(
         .with_payload(core_process::ProcessFdBinding { pid })
         .with_handle(process_handle as _)
         .with_finalizer(ProcessHandleFinalizer::new(process_handle));
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         *out = resource::ProcessFdHandle(resource_id);
@@ -829,10 +832,11 @@ pub(crate) unsafe fn destack_process_signal_fd_close(
 ) -> RuntimeResult<()> {
     ensure_signal_fd_handle(binding, handle)?;
 
-    let removed = binding
-        .agent()
-        .resources
-        .remove_and_finalize(handle.0, Some(binding.engine()));
+    let removed = binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    );
     if !removed {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
@@ -882,10 +886,11 @@ pub(crate) unsafe fn destack_process_signal_fd_open(
     let entry = resource::ResourceEntry::new(resource::ResourceKind::SignalFd)
         .with_label("process.signal.fd")
         .with_payload(core_process::SignalFdBinding { signals });
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         *out = resource::SignalFdHandle(resource_id);

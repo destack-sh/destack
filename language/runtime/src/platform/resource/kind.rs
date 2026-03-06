@@ -1,5 +1,26 @@
 use serde::{Deserialize, Serialize};
 
+/// Semantic topology facet for one builtin resource kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ResourceFacet {
+    /// Persistent storage object with durability semantics.
+    Storage,
+    /// Ordered or byte-oriented data stream.
+    Stream,
+    /// Event delivery source or subscription stream.
+    EventSource,
+    /// Process lifecycle object.
+    Process,
+    /// Thread lifecycle object.
+    Thread,
+    /// Timer scheduling object.
+    Timer,
+    /// Clock-bearing object.
+    Clock,
+    /// Memory-bearing object.
+    Memory,
+}
+
 /// Enumerate the canonical handle-to-kind registry entries.
 macro_rules! for_each_resource_handle_kind {
     ($macro:ident) => {
@@ -130,6 +151,106 @@ macro_rules! define_resource_kind {
             pub const fn label(self) -> &'static str {
                 match self {
                     $(Self::$kind => $label,)+
+                }
+            }
+
+            /// Return the semantic topology facets for this resource kind.
+            pub const fn facets(self) -> &'static [ResourceFacet] {
+                match self {
+                    Self::File | Self::Directory | Self::CryptoStore => &[ResourceFacet::Storage],
+
+                    Self::Socket
+                    | Self::Listener
+                    | Self::Pipe
+                    | Self::Pty
+                    | Self::Tty
+                    | Self::AudioStream
+                    | Self::CameraStream
+                    | Self::TlsSession => &[ResourceFacet::Stream],
+
+                    Self::Signal
+                    | Self::SignalFd
+                    | Self::MessageQueue
+                    | Self::AudioEvent
+                    | Self::InputMonitor
+                    | Self::BackgroundEvent
+                    | Self::BluetoothSubscription
+                    | Self::LocationWatch
+                    | Self::NetworkWatch
+                    | Self::NotificationEvent
+                    | Self::UsbWatch
+                    | Self::WindowEvent
+                    | Self::DisplayEvent
+                    | Self::Watch => &[ResourceFacet::EventSource],
+
+                    Self::Process => &[ResourceFacet::Process],
+
+                    Self::Thread => &[ResourceFacet::Thread],
+
+                    Self::Timer | Self::TimerFd => &[ResourceFacet::Timer, ResourceFacet::Clock],
+
+                    Self::SharedMemory => &[ResourceFacet::Memory],
+
+                    Self::ProcessFd
+                    | Self::Poll
+                    | Self::Completion
+                    | Self::Event
+                    | Self::Uring
+                    | Self::Library
+                    | Self::Symbol
+                    | Self::Semaphore
+                    | Self::Device
+                    | Self::Mutex
+                    | Self::RwLock
+                    | Self::CondVar
+                    | Self::ThreadSemaphore
+                    | Self::Barrier
+                    | Self::ThreadLocal
+                    | Self::Sandbox
+                    | Self::Inspector
+                    | Self::Profile
+                    | Self::Trace
+                    | Self::Transferred
+                    | Self::AudioDevice
+                    | Self::Display
+                    | Self::Window
+                    | Self::InputDevice
+                    | Self::GpuAdapter
+                    | Self::GpuDevice
+                    | Self::GpuQueue
+                    | Self::GpuSurface
+                    | Self::GpuCommandList
+                    | Self::GpuComputePass
+                    | Self::GpuRenderPass
+                    | Self::GpuRenderBundle
+                    | Self::GpuRenderBundleEncoder
+                    | Self::GpuPipelineLayout
+                    | Self::GpuBindGroupLayout
+                    | Self::GpuBindGroup
+                    | Self::GpuFence
+                    | Self::GpuQuerySet
+                    | Self::GpuMemory
+                    | Self::GpuBuffer
+                    | Self::GpuTexture
+                    | Self::GpuTextureView
+                    | Self::GpuSampler
+                    | Self::GpuShader
+                    | Self::GpuPipeline
+                    | Self::CryptoCertificate
+                    | Self::CryptoDigest
+                    | Self::CryptoMac
+                    | Self::CryptoCipher
+                    | Self::CryptoKey
+                    | Self::TlsContext
+                    | Self::BluetoothDevice
+                    | Self::BluetoothScan
+                    | Self::CameraDevice
+                    | Self::Document
+                    | Self::Intent
+                    | Self::LifecycleEvent
+                    | Self::MidiPort
+                    | Self::SerialPort
+                    | Self::UsbDevice => &[],
                 }
             }
         }

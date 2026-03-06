@@ -552,7 +552,8 @@ pub(crate) unsafe fn window_open(
     }));
 
     // insert resource entry and publish created event
-    let resource_id = context.runtime().resources.insert(
+    let resource_id = context.agent().resources.insert(
+        context.world(),
         display_resource::window_resource_entry(
             Arc::clone(&connection_state),
             Arc::clone(&binding),
@@ -635,7 +636,7 @@ pub(crate) unsafe fn window_close(
     let removed = context
         .runtime()
         .resources
-        .remove(window_handle.0, Some(context.engine()))
+        .remove(context.world(), window_handle.0, Some(context.engine()))
         .is_some();
     // evaluate this condition
     if !removed {

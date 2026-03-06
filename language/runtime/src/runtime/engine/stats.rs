@@ -1,6 +1,6 @@
-/// Execution telemetry produced when execution completes.
+/// Execution statistics produced when execution completes.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct EngineTelemetry {
+pub struct EngineStats {
     /// Total number of MIR instructions executed.
     pub mir_instructions_executed: u64,
     /// Total number of threaded instructions executed.

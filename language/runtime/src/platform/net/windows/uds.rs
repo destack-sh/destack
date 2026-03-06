@@ -186,10 +186,11 @@ pub(crate) unsafe fn destack_net_uds_connect(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(socket as _)
         .with_finalizer(SocketFinalizer::new(socket));
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -269,10 +270,11 @@ pub(crate) unsafe fn destack_net_uds_listen(
     let entry = ResourceEntry::new(ResourceKind::Listener)
         .with_socket(socket as _)
         .with_finalizer(SocketFinalizer::new(socket));
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = ListenerHandle(resource_id);
     }
@@ -467,19 +469,21 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
     let first_entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(client_socket as _)
         .with_finalizer(SocketFinalizer::new(client_socket));
-    let first_id = binding
-        .agent()
-        .resources
-        .insert(first_entry, Some(binding.engine()));
+    let first_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), first_entry, Some(binding.engine()));
 
     // register the second socket
     let second_entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(server_socket as _)
         .with_finalizer(SocketFinalizer::new(server_socket));
-    let second_id = binding
-        .agent()
-        .resources
-        .insert(second_entry, Some(binding.engine()));
+    let second_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), second_entry, Some(binding.engine()));
 
     // write the pair output
     unsafe {

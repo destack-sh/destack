@@ -56,10 +56,11 @@ pub(crate) unsafe fn destack_net_accept(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(client_fd)
         .with_finalizer(SocketFinalizer { fd: client_fd });
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -103,11 +104,11 @@ pub(crate) unsafe fn destack_net_close(
     }
 
     // remove the resource and close it
-    if !binding
-        .agent()
-        .resources
-        .remove_and_finalize(handle.0, Some(binding.engine()))
-    {
+    if !binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    ) {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
             "unknown socket handle",
@@ -154,11 +155,11 @@ pub(crate) unsafe fn destack_net_close_listener(
     }
 
     // remove the resource and close it
-    if !binding
-        .agent()
-        .resources
-        .remove_and_finalize(handle.0, Some(binding.engine()))
-    {
+    if !binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    ) {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
             "unknown listener handle",
@@ -308,10 +309,11 @@ pub(crate) unsafe fn destack_net_listen_raw(
         let entry = ResourceEntry::new(ResourceKind::Listener)
             .with_listener(fd)
             .with_finalizer(DescriptorFinalizer { fd });
-        let resource_id = binding
-            .agent()
-            .resources
-            .insert(entry, Some(binding.engine()));
+        let resource_id =
+            binding
+                .agent()
+                .resources
+                .insert(binding.world(), entry, Some(binding.engine()));
         unsafe {
             *out = ListenerHandle(resource_id);
         }
@@ -366,10 +368,11 @@ pub(crate) unsafe fn destack_net_socket(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(fd)
         .with_finalizer(DescriptorFinalizer { fd });
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -437,18 +440,20 @@ pub(crate) unsafe fn destack_net_socket_pair(
     let first_entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(pair[0])
         .with_finalizer(DescriptorFinalizer { fd: pair[0] });
-    let first_id = binding
-        .agent()
-        .resources
-        .insert(first_entry, Some(binding.engine()));
+    let first_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), first_entry, Some(binding.engine()));
 
     let second_entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(pair[1])
         .with_finalizer(DescriptorFinalizer { fd: pair[1] });
-    let second_id = binding
-        .agent()
-        .resources
-        .insert(second_entry, Some(binding.engine()));
+    let second_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), second_entry, Some(binding.engine()));
 
     unsafe {
         *out = SocketPair {

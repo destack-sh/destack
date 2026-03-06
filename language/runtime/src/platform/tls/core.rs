@@ -190,10 +190,11 @@ pub(crate) fn insert_context_resource(
     let entry = ResourceEntry::new(TLS_CONTEXT_RESOURCE_KIND)
         .with_label("tls.context")
         .with_payload(Arc::new(Mutex::new(value)));
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::TlsContextHandle(resource_id)
 }
@@ -231,10 +232,11 @@ pub(crate) fn remove_context_resource(
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<()> {
     // remove one binding payload
-    let Some(entry) = binding
-        .agent()
-        .resources
-        .remove(handle.0, Some(binding.engine()))
+    let Some(entry) =
+        binding
+            .agent()
+            .resources
+            .remove(binding.world(), handle.0, Some(binding.engine()))
     else {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
@@ -275,10 +277,11 @@ pub(crate) fn insert_session_resource(
     let entry = ResourceEntry::new(TLS_SESSION_RESOURCE_KIND)
         .with_label("tls.session")
         .with_payload(Arc::new(resource));
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::TlsSessionHandle(resource_id)
 }
@@ -316,10 +319,11 @@ pub(crate) fn remove_session_resource(
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
     // remove one session payload
-    let Some(entry) = binding
-        .agent()
-        .resources
-        .remove(handle.0, Some(binding.engine()))
+    let Some(entry) =
+        binding
+            .agent()
+            .resources
+            .remove(binding.world(), handle.0, Some(binding.engine()))
     else {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",

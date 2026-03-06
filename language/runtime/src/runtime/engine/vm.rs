@@ -3,17 +3,21 @@ use {destack_heap as heap, destack_vm as vm};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineOutcome, EngineOutput, EngineTelemetry, VmEntry,
+    Engine, EngineContinuation, EngineOutcome, EngineOutput, EngineStats, Entry,
 };
 
 /// VM engine implementation for one agent.
 impl Engine for Isolate {
-    type Entry = VmEntry;
-
     /// Run a VM entrypoint by name.
-    fn run(&mut self, entry: &VmEntry, args: &[heap::Value]) -> RuntimeResult<EngineOutcome> {
+    fn run(&mut self, entry: &Entry, args: &[heap::Value]) -> RuntimeResult<EngineOutcome> {
+        let Entry::Vm { name } = entry else {
+            return Err(RuntimeError::Internal {
+                message: format!("vm engine cannot run non-vm entry '{}'", entry.name()),
+            }
+            .boxed());
+        };
         let outcome = self
-            .run_function_by_name_yielding(&entry.name, args)
+            .run_function_by_name_yielding(name, args)
             .map_err(Box::<RuntimeError>::from)?;
         Ok(map_vm_outcome(outcome))
     }
@@ -54,7 +58,7 @@ fn map_vm_outcome(outcome: vm::ExecutionOutcome) -> EngineOutcome {
 fn map_vm_output(output: vm::ExecutionOutput) -> EngineOutput {
     EngineOutput {
         value: output.value,
-        telemetry: EngineTelemetry {
+        stats: EngineStats {
             mir_instructions_executed: output.statistics.mir_instructions_executed,
             threaded_instructions_executed: output.statistics.threaded_instructions_executed,
             calls_made: output.statistics.calls_made,

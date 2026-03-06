@@ -47,10 +47,11 @@ pub(crate) fn destack_resource_close(
     id: ResourceId,
 ) -> RuntimeResult<()> {
     // remove the entry and run finalization
-    let removed = binding
-        .agent()
-        .resources
-        .remove_and_finalize(id, Some(binding.engine()));
+    let removed =
+        binding
+            .agent()
+            .resources
+            .remove_and_finalize(binding.world(), id, Some(binding.engine()));
     if !removed {
         return Err(resource_not_found("destack.resource.id.close", id));
     }
@@ -115,10 +116,11 @@ pub(crate) fn destack_resource_remove(
     id: ResourceId,
 ) -> RuntimeResult<()> {
     // remove the entry and run finalization
-    let removed = binding
-        .agent()
-        .resources
-        .remove_and_finalize(id, Some(binding.engine()));
+    let removed =
+        binding
+            .agent()
+            .resources
+            .remove_and_finalize(binding.world(), id, Some(binding.engine()));
     if !removed {
         return Err(resource_not_found("destack.resource.id.remove", id));
     }

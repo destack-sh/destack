@@ -53,6 +53,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_event_open(
 
     // register resource and subscriber entry
     let resource_id = binding.agent().resources.insert(
+        binding.world(),
         ResourceEntry::new(ResourceKind::Display)
             .with_label(core::DISPLAY_EVENT_RESOURCE_LABEL)
             .with_payload(Arc::clone(&resolved_binding)),
@@ -97,7 +98,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_event_close(
     let removed = binding
         .agent()
         .resources
-        .remove(handle.0, Some(binding.engine()))
+        .remove(binding.world(), handle.0, Some(binding.engine()))
         .is_some();
     // evaluate this condition
     if !removed {
@@ -381,6 +382,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_event_open(
 
     // register resource and subscriber entry
     let resource_id = binding.agent().resources.insert(
+        binding.world(),
         ResourceEntry::new(ResourceKind::Window)
             .with_label(core::WINDOW_EVENT_RESOURCE_LABEL)
             .with_payload(Arc::clone(&resolved_binding)),
@@ -426,7 +428,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_event_close(
     let removed = binding
         .agent()
         .resources
-        .remove(handle.0, Some(binding.engine()))
+        .remove(binding.world(), handle.0, Some(binding.engine()))
         .is_some();
     // evaluate this condition
     if !removed {

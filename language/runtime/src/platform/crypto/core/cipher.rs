@@ -150,10 +150,11 @@ pub(crate) fn cipher_open(
         let entry = ResourceEntry::new(CRYPTO_CIPHER_RESOURCE_KIND)
             .with_label(CRYPTO_CIPHER_LABEL)
             .with_payload(Arc::new(Mutex::new(resource_value)));
-        let resource_id = binding
-            .agent()
-            .resources
-            .insert(entry, Some(binding.engine()));
+        let resource_id =
+            binding
+                .agent()
+                .resources
+                .insert(binding.world(), entry, Some(binding.engine()));
 
         return Ok(resource::CryptoCipherHandle(resource_id));
     }
@@ -172,10 +173,11 @@ pub(crate) fn cipher_open(
     let entry = ResourceEntry::new(CRYPTO_CIPHER_RESOURCE_KIND)
         .with_label(CRYPTO_CIPHER_LABEL)
         .with_payload(Arc::new(Mutex::new(resource_value)));
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     Ok(resource::CryptoCipherHandle(resource_id))
 }
@@ -427,10 +429,11 @@ pub(crate) fn cipher_close(
     handle: resource::CryptoCipherHandle,
 ) -> RuntimeResult<()> {
     // remove cipher resource entry
-    let Some(entry) = binding
-        .agent()
-        .resources
-        .remove(handle.0, Some(binding.engine()))
+    let Some(entry) =
+        binding
+            .agent()
+            .resources
+            .remove(binding.world(), handle.0, Some(binding.engine()))
     else {
         return Err(core_platform::io_not_found(
             "destack.crypto.cipher.close",
