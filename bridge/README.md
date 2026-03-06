@@ -1,7 +1,6 @@
 # Bridge
 
-Destack bridge packages and integrations.
-This layer provides publishable SDK surfaces, editor extensions, and host toolchain integrations.
+Destack bridge into and out of the existing universe.
 
 ## Components
 

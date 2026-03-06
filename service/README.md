@@ -1,7 +1,6 @@
 # Service
 
-Destack runtime and developer services.
-This layer contains long-running daemons and language services.
+First-party services for most things most software needs, including some Destack-specific background services.
 
 ## Components
 
@@ -9,8 +8,6 @@ This layer contains long-running daemons and language services.
 |-----------|-------------|------|
 | `daemon` | Background service for watch mode, orchestration, and caching. | [daemon/README.md](daemon/README.md) |
 | `lsp` | Language Server Protocol service implementation. | [lsp/README.md](lsp/README.md) |
-| `lsp/server` | Shared JSON-RPC and transport server framework for LSP. | [lsp/server/README.md](lsp/server/README.md) |
-| `lsp/types` | LSP type definitions used across server and clients. | [lsp/types/README.md](lsp/types/README.md) |
 
 ## Commands
 
