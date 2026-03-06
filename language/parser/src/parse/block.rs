@@ -6,6 +6,9 @@ use destack_ast::{
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
+/// The recursion interval for stack growth checks in statement parsing.
+const STATEMENT_STACK_GROW_CHECK_INTERVAL: u32 = if cfg!(debug_assertions) { 1 } else { 256 };
+
 impl Parser {
     /// Return true when the current token sequence starts a block.
     #[inline]
@@ -67,7 +70,7 @@ impl Parser {
         start: &ParserMark,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         // labels only start on `identifier:`
-        if !self.peek_is(TokenType::Identifier) || !self.peek_next_is(TokenType::Colon) {
+        if !self.peek_next_is(TokenType::Colon) {
             return Ok(None);
         }
 
@@ -199,8 +202,16 @@ impl Parser {
             speculation_stats.statement_keyword_dispatch_keyword_rejects += 1;
         }
 
-        // parse plain identifier paths without entering generic keyword dispatch
-        if let Some(expression_id) = self.try_parse_plain_identifier_expression(start)? {
+        // parse plain identifier paths without re-running generic identifier entry checks
+        let pos_index = self.pos_index();
+        let next_raw_index = self.index_for_next();
+        let next_raw_token_type = self.token_type_at(next_raw_index);
+        if let Some(expression_id) = self.try_parse_plain_identifier_expression_from_identifier(
+            start,
+            pos_index,
+            next_raw_index,
+            next_raw_token_type,
+        )? {
             return Ok(Some(expression_id));
         }
 
@@ -250,9 +261,19 @@ impl Parser {
         &mut self,
         token_type: TokenType,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        destack_base::ensure_sufficient_stack(|| {
+        let depth = self.statement_stack_depth;
+        self.statement_stack_depth = depth + 1;
+        let should_check_stack =
+            depth != 0 && (depth & (STATEMENT_STACK_GROW_CHECK_INTERVAL - 1)) == 0;
+        let result = if should_check_stack {
+            destack_base::ensure_sufficient_stack(|| {
+                self.eat_statement_expression_from_token_kind_inner(token_type)
+            })
+        } else {
             self.eat_statement_expression_from_token_kind_inner(token_type)
-        })
+        };
+        self.statement_stack_depth = depth;
+        result
     }
 
     /// Eat one statement expression when the parser cursor is already normalized.

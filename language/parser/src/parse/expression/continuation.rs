@@ -151,28 +151,13 @@ impl Parser {
                 // load scanner state for this postfix step
                 let cursor = self.current_scanner_cursor();
                 let token_type = cursor.token_type;
-
                 if token_type == TokenType::End {
                     break;
                 }
 
                 let cursor_index = cursor.index;
-                let has_pending_newline_tokens = cursor.index != self.pos_index();
+                let has_pending_newline_tokens = cursor_index != self.pos_index();
                 let has_line_break_before = cursor.has_line_break_before;
-                let allows_newline_prefixed_postfix_static_arguments =
-                    !is_in_type && matches!(token_type, TokenType::LessThan | TokenType::ShiftLeft);
-                let next_token_type = if matches!(token_type, TokenType::Dot | TokenType::Maybe) {
-                    self.token_type_at(cursor_index.saturating_add(1))
-                } else {
-                    TokenType::End
-                };
-                let next_token_type_after_newlines = if token_type == TokenType::Dot {
-                    let next_index =
-                        self.first_non_newline_index_from(cursor_index.saturating_add(1));
-                    self.token_type_at(next_index)
-                } else {
-                    next_token_type
-                };
 
                 // most postfix operators are not allowed across newline tokens
                 if has_pending_newline_tokens
@@ -180,7 +165,8 @@ impl Parser {
                         token_type,
                         TokenType::OpenParenthesis | TokenType::Dot | TokenType::Maybe
                     )
-                    && !allows_newline_prefixed_postfix_static_arguments
+                    && !(matches!(token_type, TokenType::LessThan | TokenType::ShiftLeft)
+                        && !is_in_type)
                 {
                     break;
                 }
@@ -189,75 +175,14 @@ impl Parser {
                 if is_in_ternary_or_match && token_type == TokenType::Colon {
                     break;
                 }
+
                 // stop before static boundary so postfix parsing does not consume '>'
                 if is_in_static && token_type == TokenType::GreaterThan {
                     break;
                 }
 
-                let postfix_unary_operator = UnaryOperator::from_postfix_token(token_type);
-                let is_template_start_token = matches!(
-                    token_type,
-                    TokenType::TemplateString | TokenType::TemplateStringStart
-                );
-                let can_enter_postfix_continuation = postfix_unary_operator.is_some()
-                    || is_template_start_token
-                    || matches!(
-                        token_type,
-                        TokenType::OpenParenthesis
-                            | TokenType::Dot
-                            | TokenType::OpenBracket
-                            | TokenType::Maybe
-                            | TokenType::Not
-                            | TokenType::Comma
-                            | TokenType::LessThan
-                            | TokenType::ShiftLeft
-                            | TokenType::Identifier
-                    );
-                if !can_enter_postfix_continuation {
-                    break;
-                }
-
-                if is_template_start_token && self.is_template_literal_start() {
-                    // tagged template receivers must be left hand side expressions
-                    if !self.tagged_template_tag_is_valid(left_expression_id) {
-                        return Err(ParseError::unexpected(self.peek()?.span));
-                    }
-
-                    let template_literal = self.eat_tagged_template_literal()?;
-                    left_expression_id = self.tree.insert(
-                        Expression::TaggedTemplateExpression {
-                            tag: left_expression_id,
-                            value: template_literal,
-                        },
-                        self.get_span_from(start),
-                    );
-                    continue;
-                }
-
-                let left_is_maybe =
-                    matches!(self.tree.get(left_expression_id), Expression::Maybe { .. });
-
-                // call
-                let has_direct_call =
-                    token_type == TokenType::OpenParenthesis && !has_line_break_before;
-                let has_direct_call_after_newlines =
-                    token_type == TokenType::OpenParenthesis && has_line_break_before;
-                let should_terminate_newline_direct_call = has_direct_call_after_newlines
-                    && self
-                        .newline_direct_call_terminates_statement(left_expression_id, cursor_index);
-                let has_indirect_call = token_type == TokenType::Dot
-                    && next_token_type_after_newlines == TokenType::OpenParenthesis;
-                let can_direct_call = (has_direct_call
-                    || has_direct_call_after_newlines && !should_terminate_newline_direct_call)
-                    && !is_in_type
-                    && !left_is_maybe
-                    && !is_in_new_receiver;
-
-                // direct and indirect call dispatch share the same continuation path
-                let should_parse_call = (can_direct_call || has_indirect_call) && !is_in_type;
-
                 // unary postfix operations
-                if let Some(operator) = postfix_unary_operator {
+                if let Some(operator) = UnaryOperator::from_postfix_token(token_type) {
                     let operator_start = self.mark_span();
                     self.bump(); // eat unary operator
                     let operator_span = self.get_span_from(&operator_start);
@@ -269,61 +194,179 @@ impl Parser {
                         self.get_span_from(start),
                     );
                     self.tree.set_main_span(left_expression_id, operator_span);
+                    continue;
                 }
-                // type unary postfix operations
-                else if matches!(token_type, TokenType::Maybe | TokenType::Identifier)
-                    && let Some(operator) = self.peek_type_unary_postfix_operator_maybe()
-                {
-                    // avoid consuming conditional type ? as a type maybe
-                    let operator_start = self.mark_span();
-                    self.bump(); // eat type unary operator
-                    if matches!(
-                        operator,
-                        TypeUnaryOperator::AsConst | TypeUnaryOperator::AsComptime
-                    ) {
-                        self.eat_newlines_maybe()?;
-                        self.bump(); // eat second token
-                    }
-                    let operator_span = self.get_span_from(&operator_start);
-                    left_expression_id = self.tree.insert(
-                        Expression::TypeUnary {
-                            operator,
-                            right: left_expression_id,
-                        },
-                        self.get_span_from(start),
-                    );
-                    self.tree.set_main_span(left_expression_id, operator_span);
-                }
-                // dot member and private member dispatch via scanner cursor
-                else if token_type == TokenType::Dot
-                    && next_token_type_after_newlines != TokenType::OpenParenthesis
-                    && next_token_type_after_newlines != TokenType::OpenBracket
-                    && next_token_type_after_newlines != TokenType::Maybe
-                    && next_token_type_after_newlines != TokenType::Not
-                    && let Some((member_index, is_private_member)) =
-                        self.peek_dot_member_target(cursor_index, left_expression_id)
-                {
-                    let member_distance = member_index
-                        .saturating_sub(self.pos_index())
-                        .saturating_add(1);
-                    let member_distance = u8::try_from(member_distance).unwrap_or(u8::MAX);
+                match token_type {
+                    // tagged template literals
+                    TokenType::TemplateString | TokenType::TemplateStringStart => {
+                        if !self.is_template_literal_start() {
+                            break;
+                        }
 
-                    if has_pending_newline_tokens {
-                        self.advance_to(cursor_index);
+                        if !self.tagged_template_tag_is_valid(left_expression_id) {
+                            return Err(ParseError::unexpected(self.peek()?.span));
+                        }
+
+                        let template_literal = self.eat_tagged_template_literal()?;
+                        left_expression_id = self.tree.insert(
+                            Expression::TaggedTemplateExpression {
+                                tag: left_expression_id,
+                                value: template_literal,
+                            },
+                            self.get_span_from(start),
+                        );
                     }
 
-                    // consume the dot and jump to member token index when needed
-                    self.bump(); // eat .
-                    if self.pos_index() != member_index {
-                        self.advance_to(member_index);
+                    // postfix calls
+                    TokenType::OpenParenthesis => {
+                        let left_is_maybe =
+                            matches!(self.tree.get(left_expression_id), Expression::Maybe { .. });
+                        if is_in_type || left_is_maybe || is_in_new_receiver {
+                            break;
+                        }
+
+                        let should_terminate_newline_direct_call = has_line_break_before
+                            && self.newline_direct_call_terminates_statement(
+                                left_expression_id,
+                                cursor_index,
+                            );
+                        if should_terminate_newline_direct_call {
+                            break;
+                        }
+
+                        if self.is_unparenthesized_lambda_expression(left_expression_id) {
+                            return Err(ParseError::unexpected(self.peek()?.span));
+                        }
+
+                        let _call_timing = self.timing_scope(tags::PARSE_EXPRESSION_POSTFIX_CALL);
+                        if has_pending_newline_tokens {
+                            self.advance_to(cursor_index);
+                        }
+                        left_expression_id =
+                            self.eat_call(left_expression_id, None, PostfixPosition::Direct)?;
                     }
 
-                    if is_private_member {
-                        self.bump(); // eat #
-                        let (name, name_span) = self.eat_identifier_with_span()?;
+                    // dot driven continuations
+                    TokenType::Dot => {
+                        let next_token_type = self.token_type_at(cursor_index.saturating_add(1));
+                        let next_index_after_newlines =
+                            self.first_non_newline_index_from(cursor_index.saturating_add(1));
+                        let next_token_type_after_newlines =
+                            self.token_type_at(next_index_after_newlines);
+
+                        if next_token_type_after_newlines == TokenType::OpenParenthesis {
+                            if is_in_type {
+                                break;
+                            }
+
+                            let _call_timing =
+                                self.timing_scope(tags::PARSE_EXPRESSION_POSTFIX_CALL);
+                            if has_pending_newline_tokens {
+                                self.advance_to(cursor_index);
+                            }
+                            self.bump(); // eat .
+                            self.eat_newlines_maybe()?;
+                            left_expression_id =
+                                self.eat_call(left_expression_id, None, PostfixPosition::Indirect)?;
+                            continue;
+                        }
+
+                        if next_token_type_after_newlines == TokenType::OpenBracket {
+                            if has_pending_newline_tokens {
+                                self.advance_to(cursor_index);
+                            }
+                            self.bump(); // eat .
+                            self.eat_newlines_maybe()?;
+                            left_expression_id =
+                                self.eat_index(left_expression_id, PostfixPosition::Indirect)?;
+                            continue;
+                        }
+
+                        if next_token_type == TokenType::Maybe {
+                            if is_in_type {
+                                break;
+                            }
+
+                            if has_pending_newline_tokens {
+                                self.advance_to(cursor_index);
+                            }
+
+                            self.bump(); // eat .
+                            self.bump(); // eat ?
+                            left_expression_id = self.tree.insert(
+                                Expression::Maybe {
+                                    left: left_expression_id,
+                                    position: PostfixPosition::Indirect,
+                                },
+                                self.get_span_from(start),
+                            );
+                            continue;
+                        }
+
+                        if next_token_type == TokenType::Not {
+                            if has_pending_newline_tokens {
+                                self.advance_to(cursor_index);
+                            }
+
+                            self.bump(); // eat .
+                            self.bump(); // eat !
+                            left_expression_id = self.tree.insert(
+                                Expression::Must {
+                                    position: PostfixPosition::Indirect,
+                                    left: left_expression_id,
+                                },
+                                self.get_span_from(start),
+                            );
+                            continue;
+                        }
+
+                        let Some((member_index, is_private_member)) =
+                            self.peek_dot_member_target(cursor_index, left_expression_id)
+                        else {
+                            break;
+                        };
+
+                        let member_distance = member_index
+                            .saturating_sub(self.pos_index())
+                            .saturating_add(1);
+                        let member_distance = u8::try_from(member_distance).unwrap_or(u8::MAX);
+
+                        if has_pending_newline_tokens {
+                            self.advance_to(cursor_index);
+                        }
+
+                        self.bump(); // eat .
+                        if self.pos_index() != member_index {
+                            self.advance_to(member_index);
+                        }
+
+                        if is_private_member {
+                            self.bump(); // eat #
+                            let (name, name_span) = self.eat_identifier_with_span()?;
+                            let static_arguments = self.eat_static_arguments_in_expression(false);
+                            left_expression_id = self.tree.insert(
+                                Expression::PrivateMember {
+                                    left: left_expression_id,
+                                    name,
+                                    static_arguments,
+                                },
+                                self.get_span_from(start),
+                            );
+                            self.tree.set_main_span(left_expression_id, name_span);
+                            continue;
+                        }
+
+                        if self.invalid_decimal_integer_member_access(
+                            left_expression_id,
+                            member_distance,
+                        ) {
+                            return Err(ParseError::unexpected(self.prev().expect("peeked").span));
+                        }
+
+                        let (name, name_span) = self.eat_member_name_with_span()?;
                         let static_arguments = self.eat_static_arguments_in_expression(false);
                         left_expression_id = self.tree.insert(
-                            Expression::PrivateMember {
+                            Expression::Member {
                                 left: left_expression_id,
                                 name,
                                 static_arguments,
@@ -331,88 +374,37 @@ impl Parser {
                             self.get_span_from(start),
                         );
                         self.tree.set_main_span(left_expression_id, name_span);
-                        continue;
                     }
 
-                    // decimal integer literals need a separator before member access
-                    if self
-                        .invalid_decimal_integer_member_access(left_expression_id, member_distance)
-                    {
-                        return Err(ParseError::unexpected(self.prev().expect("peeked").span));
+                    // direct indexing
+                    TokenType::OpenBracket => {
+                        let left_is_maybe =
+                            matches!(self.tree.get(left_expression_id), Expression::Maybe { .. });
+                        if left_is_maybe {
+                            break;
+                        }
+
+                        left_expression_id =
+                            self.eat_index(left_expression_id, PostfixPosition::Direct)?;
                     }
 
-                    let (name, name_span) = self.eat_member_name_with_span()?;
-                    let static_arguments = self.eat_static_arguments_in_expression(false);
-                    left_expression_id = self.tree.insert(
-                        Expression::Member {
-                            left: left_expression_id,
-                            name,
-                            static_arguments,
-                        },
-                        self.get_span_from(start),
-                    );
-                    self.tree.set_main_span(left_expression_id, name_span);
-                    continue;
-                }
-                // index (like `[]`)
-                else if token_type == TokenType::OpenBracket && !left_is_maybe
-                    || token_type == TokenType::Dot
-                        && next_token_type_after_newlines == TokenType::OpenBracket
-                {
-                    if has_pending_newline_tokens {
-                        self.advance_to(cursor_index);
-                    }
-                    let position = if token_type == TokenType::Dot {
-                        self.bump(); // eat .
-                        self.eat_newlines_maybe()?;
-                        PostfixPosition::Indirect
-                    } else {
-                        PostfixPosition::Direct
-                    };
-                    left_expression_id = self.eat_index(left_expression_id, position)?;
-                }
-                // call (like `()`)
-                else if should_parse_call {
-                    // unparenthesized arrow functions cannot be direct call receivers
-                    if has_direct_call
-                        && self.is_unparenthesized_lambda_expression(left_expression_id)
-                    {
-                        return Err(ParseError::unexpected(self.peek()?.span));
-                    }
+                    // postfix static arguments
+                    TokenType::LessThan | TokenType::ShiftLeft => {
+                        if has_pending_newline_tokens {
+                            self.advance_to(cursor_index);
+                        }
 
-                    let _call_timing = self.timing_scope(tags::PARSE_EXPRESSION_POSTFIX_CALL);
-                    if has_pending_newline_tokens {
-                        self.advance_to(cursor_index);
-                    }
-                    let position = if token_type == TokenType::Dot {
-                        self.bump(); // eat .
-                        self.eat_newlines_maybe()?;
-                        PostfixPosition::Indirect
-                    } else {
-                        PostfixPosition::Direct
-                    };
-                    left_expression_id = self.eat_call(left_expression_id, None, position)?;
-                }
-                // statically parameterized call or instantiation expression (like `(expr)<T>()` or `(expr)<T>`)
-                else if self.can_start_postfix_static_arguments(left_expression_id)
-                    || has_pending_newline_tokens
-                        && allows_newline_prefixed_postfix_static_arguments
-                {
-                    // normalize pending newline trivia before static argument parsing
-                    if has_pending_newline_tokens {
-                        self.advance_to(cursor_index);
-                    }
+                        if !self.can_start_postfix_static_arguments(left_expression_id) {
+                            break;
+                        }
 
-                    // static argument parsing is still gated by regular postfix eligibility
-                    if !self.can_start_postfix_static_arguments(left_expression_id) {
-                        break;
-                    }
+                        let has_indirect_static = self.has_indirect_postfix_static_arguments();
+                        let is_optional_chain =
+                            matches!(self.tree.get(left_expression_id), Expression::Maybe { .. });
+                        if has_indirect_static != is_optional_chain {
+                            break;
+                        }
 
-                    // direct static arguments and optional chain static arguments are exclusive
-                    let has_indirect_static = self.has_indirect_postfix_static_arguments();
-                    let is_optional_chain =
-                        matches!(self.tree.get(left_expression_id), Expression::Maybe { .. });
-                    if has_indirect_static == is_optional_chain {
                         let next_expression_id = self.eat_postfix_static_call_or_instantiation(
                             start,
                             left_expression_id,
@@ -423,66 +415,84 @@ impl Parser {
                         };
 
                         left_expression_id = next_expression_id;
-                    } else {
-                        break;
                     }
-                }
-                // optional chaining or type conditional boundary
-                // (like `x?`, `x.?`, `x?.`)
-                else if token_type == TokenType::Maybe
-                    || token_type == TokenType::Dot && next_token_type == TokenType::Maybe
-                {
-                    if has_pending_newline_tokens {
-                        self.advance_to(cursor_index);
-                    }
-                    // capture type conditional operands when in type contexts
-                    let type_conditional_operands = if is_in_type {
-                        self.split_type_conditional_operands(left_expression_id)
-                    } else {
-                        None
-                    };
-                    let is_type_conditional = type_conditional_operands.is_some();
 
-                    // classify optional chain and postfix maybe
-                    let is_optional_chain_after_maybe = self.is_optional_chain_after_maybe();
-                    let is_direct_postfix_maybe = is_destack_language
-                        && (self.is_next_any_stop()
-                            && self.prev_token_type() != TokenType::Newline
-                            || self.is_next_any_close_parenthesis()
-                            || self.peek_next_assign_operator_is());
-                    let is_postfix_maybe = !is_in_type
-                        && self.peek_is(TokenType::Maybe)
-                        && (is_optional_chain_after_maybe || is_direct_postfix_maybe);
+                    // type unary postfix operators
+                    TokenType::Identifier | TokenType::Maybe => {
+                        if let Some(operator) = self.peek_type_unary_postfix_operator_maybe() {
+                            let operator_start = self.mark_span();
+                            self.bump(); // eat type unary operator
+                            if matches!(
+                                operator,
+                                TypeUnaryOperator::AsConst | TypeUnaryOperator::AsComptime
+                            ) {
+                                self.eat_newlines_maybe()?;
+                                self.bump(); // eat second token
+                            }
+                            let operator_span = self.get_span_from(&operator_start);
+                            left_expression_id = self.tree.insert(
+                                Expression::TypeUnary {
+                                    operator,
+                                    right: left_expression_id,
+                                },
+                                self.get_span_from(start),
+                            );
+                            self.tree.set_main_span(left_expression_id, operator_span);
+                            continue;
+                        }
 
-                    // postfix maybe
-                    if is_postfix_maybe {
-                        self.bump(); // eat ?
-                        // (don't consume delimiter/stop)
-                        left_expression_id = self.tree.insert(
-                            Expression::Maybe {
-                                left: left_expression_id,
-                                position: PostfixPosition::Direct,
-                            },
-                            self.get_span_from(start),
-                        );
-                    }
-                    // dot maybe
-                    else if !is_in_type
-                        && self.peek_is(TokenType::Dot)
-                        && self.peek_next_is(TokenType::Maybe)
-                    {
-                        self.bump(); // eat .
-                        self.bump(); // eat ?
-                        left_expression_id = self.tree.insert(
-                            Expression::Maybe {
-                                left: left_expression_id,
-                                position: PostfixPosition::Indirect,
-                            },
-                            self.get_span_from(start),
-                        );
-                    }
-                    // type conditional expressions in type contexts
-                    else {
+                        if token_type != TokenType::Maybe {
+                            break;
+                        }
+
+                        let type_conditional_operands = if is_in_type {
+                            self.split_type_conditional_operands(left_expression_id)
+                        } else {
+                            None
+                        };
+                        let is_type_conditional = type_conditional_operands.is_some();
+                        if has_pending_newline_tokens {
+                            self.advance_to(cursor_index);
+                        }
+                        let is_direct_current_maybe = self.peek_is(TokenType::Maybe);
+                        let is_indirect_current_maybe = !is_direct_current_maybe
+                            && self.peek_is(TokenType::Dot)
+                            && self.peek_next_is(TokenType::Maybe);
+                        let is_optional_chain_after_maybe = self.is_optional_chain_after_maybe();
+                        let is_direct_postfix_maybe = is_destack_language
+                            && (self.is_next_any_stop()
+                                && self.prev_token_type() != TokenType::Newline
+                                || self.is_next_any_close_parenthesis()
+                                || self.peek_next_assign_operator_is());
+                        let is_postfix_maybe = !is_in_type
+                            && is_direct_current_maybe
+                            && (is_optional_chain_after_maybe || is_direct_postfix_maybe);
+
+                        if is_postfix_maybe {
+                            self.bump(); // eat ?
+                            left_expression_id = self.tree.insert(
+                                Expression::Maybe {
+                                    left: left_expression_id,
+                                    position: PostfixPosition::Direct,
+                                },
+                                self.get_span_from(start),
+                            );
+                            continue;
+                        }
+
+                        if !is_in_type && is_indirect_current_maybe {
+                            self.bump(); // eat .
+                            self.bump(); // eat ?
+                            left_expression_id = self.tree.insert(
+                                Expression::Maybe {
+                                    left: left_expression_id,
+                                    position: PostfixPosition::Indirect,
+                                },
+                                self.get_span_from(start),
+                            );
+                            continue;
+                        }
+
                         if !self.options.is_in_type() || !is_type_conditional {
                             break;
                         }
@@ -492,7 +502,6 @@ impl Parser {
                         let Some((left, right)) = type_conditional_operands else {
                             break;
                         };
-                        // type conditional expression
                         let then_options = self
                             .options
                             .not_in_position()
@@ -518,88 +527,74 @@ impl Parser {
                         left_expression_id =
                             self.tree.insert(expression, self.get_span_from(start));
                     }
-                }
-                // must
-                else if token_type == TokenType::Not
-                    || token_type == TokenType::Dot && next_token_type == TokenType::Not
-                {
-                    let position = if token_type == TokenType::Dot {
-                        self.bump(); // eat .
-                        PostfixPosition::Indirect
-                    } else {
-                        PostfixPosition::Direct
-                    };
-                    self.bump(); // eat !
-                    left_expression_id = self.tree.insert(
-                        Expression::Must {
-                            position,
-                            left: left_expression_id,
-                        },
-                        self.get_span_from(start),
-                    );
-                }
-                // tuple (Destack) or sequence expression (JS/TS)
-                // (if we have a delimiter following an expression inside parentheses)
-                else if self.options.is_in_parenthesis() && token_type == TokenType::Comma {
-                    self.bump(); // eat comma
-                    self.eat_newlines_maybe()?;
-                    if self.language.is_destack() {
-                        // build a tuple
-                        let first_element_id = self.tree.insert(
-                            Argument::Positional {
-                                modifiers: None,
-                                value: left_expression_id,
-                            },
-                            self.get_span_from(start),
-                        );
-                        // parse remaining elements
-                        let tuple_options = self.options.not_in_position();
-                        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                            speculation_stats.with_options_calls += 1;
-                        }
-                        let old_options = self.swap_options(tuple_options);
-                        let tuple_elements = self.eat_sequence_literal_body(
-                            Some(first_element_id),
-                            TokenType::CloseParenthesis,
-                        )?;
-                        self.restore_options(old_options);
-                        // build tuple literal
+
+                    // direct must postfix
+                    TokenType::Not => {
+                        self.bump(); // eat !
                         left_expression_id = self.tree.insert(
-                            Expression::TupleExpression {
-                                elements: tuple_elements,
+                            Expression::Must {
+                                position: PostfixPosition::Direct,
+                                left: left_expression_id,
                             },
-                            self.get_span_from(start),
-                        );
-                    } else {
-                        // build a sequence expression (comma operator)
-                        let mut expressions = vec![left_expression_id];
-                        // parse remaining expressions until we see the close parenthesis
-                        // (mirrors eat_sequence_literal_body behavior for consistency)
-                        while !self.peek_is(TokenType::CloseParenthesis) {
-                            // consume any comma delimiter
-                            if self.peek_is(TokenType::Comma) {
-                                self.bump(); // eat comma
-                                self.eat_newlines_maybe()?;
-                                continue;
-                            }
-                            // parse next expression
-                            let expression_options =
-                                self.options.not_in_position().not_in_sequence_expression();
-                            let expr_id =
-                                self.eat_expression_with_options_unchecked(expression_options)?;
-                            expressions.push(expr_id);
-                            self.eat_newlines_maybe()?;
-                        }
-                        // build sequence expression
-                        left_expression_id = self.tree.insert(
-                            Expression::SequenceExpression { expressions },
                             self.get_span_from(start),
                         );
                     }
-                }
-                // done
-                else {
-                    break;
+
+                    // tuple or sequence continuations inside parenthesis
+                    TokenType::Comma if self.options.is_in_parenthesis() => {
+                        self.bump(); // eat comma
+                        self.eat_newlines_maybe()?;
+                        if self.language.is_destack() {
+                            let first_element_id = self.tree.insert(
+                                Argument::Positional {
+                                    modifiers: None,
+                                    value: left_expression_id,
+                                },
+                                self.get_span_from(start),
+                            );
+                            let tuple_options = self.options.not_in_position();
+                            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+                                speculation_stats.with_options_calls += 1;
+                            }
+                            let old_options = self.swap_options(tuple_options);
+                            let tuple_elements = self.eat_sequence_literal_body(
+                                Some(first_element_id),
+                                TokenType::CloseParenthesis,
+                            )?;
+                            self.restore_options(old_options);
+                            left_expression_id = self.tree.insert(
+                                Expression::TupleExpression {
+                                    elements: tuple_elements,
+                                },
+                                self.get_span_from(start),
+                            );
+                        } else {
+                            let mut expressions = vec![left_expression_id];
+                            while !self.peek_is(TokenType::CloseParenthesis) {
+                                if self.peek_is(TokenType::Comma) {
+                                    self.bump(); // eat comma
+                                    self.eat_newlines_maybe()?;
+                                    continue;
+                                }
+
+                                let expression_options =
+                                    self.options.not_in_position().not_in_sequence_expression();
+                                let expr_id =
+                                    self.eat_expression_with_options_unchecked(expression_options)?;
+                                expressions.push(expr_id);
+                                self.eat_newlines_maybe()?;
+                            }
+                            left_expression_id = self.tree.insert(
+                                Expression::SequenceExpression { expressions },
+                                self.get_span_from(start),
+                            );
+                        }
+                    }
+
+                    // done
+                    _ => {
+                        break;
+                    }
                 }
             }
         }

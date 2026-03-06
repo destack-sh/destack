@@ -768,6 +768,8 @@ pub struct Parser {
     is_finished: bool,
     /// Expression recursion depth for periodic stack growth checks.
     pub(crate) expression_stack_depth: u32,
+    /// Statement recursion depth for periodic stack growth checks.
+    pub(crate) statement_stack_depth: u32,
     /// The parser options.
     pub(crate) options: ParserOptions,
 
@@ -923,6 +925,7 @@ impl Parser {
             scanner: ParserScannerState::new(),
             is_finished: false,
             expression_stack_depth: 0,
+            statement_stack_depth: 0,
             options: ParserOptions::default(),
             language,
             tree: NodeTree::with_capacity(estimated_nodes),
@@ -987,6 +990,7 @@ impl Parser {
         self.scanner.reset();
         self.token_stream.clear_split_token();
         self.expression_stack_depth = 0;
+        self.statement_stack_depth = 0;
         let mut options = ParserOptions::default();
         options.set_disallow_ambiguous_tree_literal(
             self.language.supports_jsx() && self.language.is_typescript(),
