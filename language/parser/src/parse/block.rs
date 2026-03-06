@@ -3,6 +3,7 @@ use destack_ast::{
     LocalNodeId, NodeType, TokenType, YieldCardinality,
 };
 
+use crate::parse::parser::ParserOptions;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
@@ -10,6 +11,14 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 const STATEMENT_STACK_GROW_CHECK_INTERVAL: u32 = if cfg!(debug_assertions) { 1 } else { 256 };
 
 impl Parser {
+    /// Return parser contexts for statement-position parsing.
+    #[inline]
+    pub(crate) fn statement_position_contexts(&self) -> (ParserOptions, ParserOptions) {
+        let ambient_context = self.options.nested().with_statement_context(true);
+        let expression_context = self.options.nested().with_statement_position(true);
+        (ambient_context, expression_context)
+    }
+
     /// Return true when the current token sequence starts a block.
     #[inline]
     pub(crate) fn is_block_start(&mut self) -> bool {
@@ -28,20 +37,10 @@ impl Parser {
                 && self.token_type_at(self.index_for_next_next()) == TokenType::OpenBrace
     }
 
-    /// Eat an expression in statement position with explicit parser options.
-    #[inline]
-    pub(crate) fn eat_statement_expression_with_options(
-        &mut self,
-        options: ParserOptions,
-    ) -> ParseResult<LocalNodeId<Expression>> {
-        let options = options.in_statement_position();
-        self.with_options(options, |parser| parser.eat_statement_expression())
-    }
-
     /// Eat an expression in a non-position context.
     #[inline]
     fn eat_expression_not_in_position(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        self.eat_expression(self.options.not_in_position())
+        self.eat_expression_with_context_unchecked(self.options.not_in_position())
     }
 
     /// Return true when a token ends the current block body.
@@ -100,12 +99,11 @@ impl Parser {
         // labelled blocks are only allowed in statement position
         let is_labelled_block =
             label_target_token.is_some_and(|token| token.token.ty == TokenType::OpenBrace);
-        let can_parse_label = if self.options.is_in_statement_position()
-            && !self.language.is_destack()
-        {
+        let is_in_statement_position = self.options.is_in_statement_position();
+        let can_parse_label = if is_in_statement_position && !self.language.is_destack() {
             true
         } else {
-            is_labelled_expression || (self.options.is_in_statement_position() && is_labelled_block)
+            is_labelled_expression || (is_in_statement_position && is_labelled_block)
         };
 
         if !can_parse_label {
@@ -167,9 +165,9 @@ impl Parser {
 
         // direct keyword dispatch in statement position
         if let Some(keyword) = self.keyword_for_index(self.pos_index()) {
-            let scanner_lookahead = self.peek_scanner_lookahead();
-            let next_raw_token_type = scanner_lookahead.next_raw_token_type;
-            let next_cursor = scanner_lookahead.next_cursor;
+            let next_raw_index = self.index_for_next();
+            let next_raw_token_type = self.token_type_at(next_raw_index);
+            let next_cursor = self.scanner_cursor_from(next_raw_index);
             if let Some(expression_id) = self.try_eat_direct_statement_keyword_expression(
                 start,
                 keyword,
@@ -250,8 +248,9 @@ impl Parser {
     #[inline]
     pub(crate) fn eat_statement_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         // normalize to the next non-newline token once per dispatch
-        let cursor = self.advance_to_scanner_cursor();
-        self.eat_statement_expression_from_token_kind(cursor.token_type)
+        self.eat_newlines_maybe()?;
+        let token_type = self.peek_token_type();
+        self.eat_statement_expression_from_token_kind(token_type)
     }
 
     /// Eat one statement expression when the parser cursor is already normalized.
@@ -343,10 +342,13 @@ impl Parser {
         }
 
         // otherwise, eat a single statement and wrap it in a block
-        let statement_options = self.options.nested().in_statement_position();
-        let expression_id = self.with_options(statement_options, |parser| {
-            parser.eat_statement_expression()
-        })?;
+        let (ambient_context, expression_context) = self.statement_position_contexts();
+        let expression_id = self.with_options(
+            self.options
+                .with_ambient_context(ambient_context)
+                .with_expression_context(expression_context),
+            |parser| parser.eat_statement_expression(),
+        )?;
 
         // reject declaration statements in single statement contexts
         if !self.language.is_destack() && self.is_single_statement_declaration(expression_id) {
@@ -472,18 +474,20 @@ impl Parser {
         let _timing = self.timing_scope(tags::PARSE_BLOCK_BODY);
 
         // keep statement options for the whole body to avoid per statement option churn
-        let statement_options = self.options.nested().in_statement_position();
-        if self.options == statement_options {
+        let (ambient_context, expression_context) = self.statement_position_contexts();
+        if self.options == ambient_context && self.options == expression_context {
             return self.eat_block_body_in_statement_position(format, block_context);
         }
 
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             speculation_stats.with_options_calls += 1;
         }
-        let old_options = self.swap_options(statement_options);
-        let result = self.eat_block_body_in_statement_position(format, block_context);
-        self.restore_options(old_options);
-        result
+        self.with_options(
+            self.options
+                .with_ambient_context(ambient_context)
+                .with_expression_context(expression_context),
+            |parser| parser.eat_block_body_in_statement_position(format, block_context),
+        )
     }
 
     /// Eat a block body while already in statement position.
@@ -498,8 +502,8 @@ impl Parser {
 
         loop {
             // normalize block body cursor once per iteration
-            let cursor = self.advance_to_scanner_cursor();
-            let token_type = cursor.token_type;
+            self.eat_newlines_maybe()?;
+            let token_type = self.peek_token_type();
 
             // stop at block terminators
             // NOTE #Cleanup: recover block parse more explicitly?
@@ -566,10 +570,13 @@ impl Parser {
     pub fn try_eat_statement_expression_with_flag(
         &mut self,
     ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
-        let statement_options = self.options.nested().in_statement_position();
-        self.with_options(statement_options, |parser| {
-            parser.try_eat_statement_expression_with_flag_in_statement_position()
-        })
+        let (ambient_context, expression_context) = self.statement_position_contexts();
+        self.with_options(
+            self.options
+                .with_ambient_context(ambient_context)
+                .with_expression_context(expression_context),
+            |parser| parser.try_eat_statement_expression_with_flag_in_statement_position(),
+        )
     }
 
     /// Try to eat a statement expression while already in statement position.
@@ -616,11 +623,8 @@ impl Parser {
         let expression = self.tree.get(expression_id);
         let is_statement =
             matches!(expression, Expression::Statement(_)) || expression.is_top_level_statement();
-        let separator_cursor = self.current_scanner_cursor();
-        let has_separator = matches!(
-            separator_cursor.token_type,
-            TokenType::Semicolon | TokenType::CloseBrace | TokenType::End
-        ) || separator_cursor.has_line_break_before;
+        let separator_cursor = self.scanner_cursor_from(self.pos_index());
+        let has_separator = separator_cursor.starts_after_statement_boundary();
 
         // require statement separators after expressions to avoid token glue
         if !is_statement && !has_separator {
@@ -642,12 +646,7 @@ impl Parser {
     fn next_token_ends_label_statement(&mut self) -> bool {
         let next_index = self.index_for_next();
         let next_cursor = self.scanner_cursor_from(next_index);
-        next_cursor.index != next_index
-            || next_cursor.has_line_break_before
-            || matches!(
-                next_cursor.token_type,
-                TokenType::Semicolon | TokenType::End | TokenType::CloseBrace
-            )
+        next_cursor.index != next_index || next_cursor.starts_after_statement_boundary()
     }
 
     /// Eat a break expression.
@@ -804,9 +803,14 @@ impl Parser {
         // body expression
         self.eat_newlines_maybe()?;
         // parse body with comptime statement options
-        let comptime_options = self.options.not_in_position().in_comptime();
-        let body_id =
-            self.with_options(comptime_options, |parser| parser.eat_statement_expression())?;
+        let ambient_context = self.options.with_comptime(true);
+        let expression_context = self.options.not_in_position();
+        let body_id = self.with_options(
+            self.options
+                .with_ambient_context(ambient_context)
+                .with_expression_context(expression_context),
+            |parser| parser.eat_statement_expression(),
+        )?;
 
         // comptime
         let comptime_id = self.tree.insert(
@@ -832,7 +836,8 @@ impl Parser {
         self.eat_keyword(Keyword::Yield)?;
 
         // stop when yield has no explicit operand in this position
-        if self.yield_operand_is_omitted() {
+        let mut operand_is_omitted = self.yield_operand_is_omitted();
+        if operand_is_omitted {
             let yield_id = self.tree.insert(
                 Expression::Yield {
                     cardinality: YieldCardinality::Scalar,
@@ -846,6 +851,7 @@ impl Parser {
         // cardinality: `yield*` or `yield *` (space before *, but no newline)
         let cardinality = if self.peek_is(TokenType::Multiply) {
             self.bump(); // eat *
+            operand_is_omitted = self.yield_operand_is_omitted();
             YieldCardinality::Generator
         } else {
             YieldCardinality::Scalar
@@ -853,7 +859,7 @@ impl Parser {
 
         // value (optional, like return/throw)
         // yield without value is valid: `function* a() { yield }`
-        let value_id = if self.has_more_tokens() && !self.yield_operand_is_omitted() {
+        let value_id = if self.has_more_tokens() && !operand_is_omitted {
             let value_id = self.eat_expression_not_in_position()?;
             Some(value_id)
         } else {
@@ -882,32 +888,14 @@ impl Parser {
     /// Return true when yield has no explicit operand in this context.
     #[inline]
     fn yield_operand_is_omitted(&mut self) -> bool {
-        let cursor = self.current_scanner_cursor();
-
-        // line breaks and statement delimiters terminate bare yield
-        if cursor.has_line_break_before
-            || matches!(
-                cursor.token_type,
-                TokenType::Semicolon | TokenType::End | TokenType::CloseBrace
-            )
-        {
-            return true;
-        }
-
-        // punctuation that closes the surrounding expression also terminates bare yield
-        matches!(
-            cursor.token_type,
-            TokenType::CloseParenthesis
-                | TokenType::CloseBracket
-                | TokenType::CloseBrace
-                | TokenType::Comma
-                | TokenType::Colon
-        )
+        let cursor = self.scanner_cursor_from(self.pos_index());
+        cursor.omits_restricted_operand()
     }
 
     /// Return true when trivia before the current token contains a line terminator.
     pub(crate) fn has_line_terminator_before_current_token(&mut self) -> bool {
-        self.current_scanner_cursor().has_line_break_before
+        self.scanner_cursor_from(self.pos_index())
+            .has_line_break_before
     }
 
     /// Eat a throw expression.
@@ -925,13 +913,8 @@ impl Parser {
         self.eat_keyword(Keyword::Throw)?;
 
         // value
-        let cursor = self.current_scanner_cursor();
-        if cursor.has_line_break_before
-            || matches!(
-                cursor.token_type,
-                TokenType::Semicolon | TokenType::End | TokenType::CloseBrace
-            )
-        {
+        let cursor = self.scanner_cursor_from(self.pos_index());
+        if cursor.starts_after_statement_boundary() {
             return Err(ParseError::unexpected_for(
                 self.get_span_from(&start),
                 NodeType::Expression,
@@ -959,12 +942,8 @@ impl Parser {
         self.eat_keyword(Keyword::Return)?;
 
         // value
-        let cursor = self.current_scanner_cursor();
-        let value_id = if !cursor.has_line_break_before
-            && !matches!(
-                cursor.token_type,
-                TokenType::Semicolon | TokenType::End | TokenType::CloseBrace
-            ) {
+        let cursor = self.scanner_cursor_from(self.pos_index());
+        let value_id = if !cursor.starts_after_statement_boundary() {
             let value_id = self
                 .eat_expression_not_in_position()
                 .for_node_type(NodeType::Expression)?;
