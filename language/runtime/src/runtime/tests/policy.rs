@@ -549,7 +549,7 @@ fn test_trigger() -> Trigger {
 
 /// Validate one policy against standard world topology kinds.
 fn validate_policy(policy: &Policy) -> crate::diagnostic::RuntimeResult<()> {
-    let topology = Topology::with_builtin_kinds().expect("topology should include builtin kinds");
+    let topology = Topology::new();
     policy.validate_with_kind_catalog(&topology)
 }
 
@@ -582,7 +582,7 @@ fn policy_event(agent_id: u64, hook: Hook, virtual_time_ns: u64) -> HookEvent {
             agent_id: AgentId(agent_id),
             virtual_time_ns,
         },
-        Hook::HostEventEnqueue => HookEvent::HostEventEnqueue {
+        Hook::IngressEnqueue => HookEvent::IngressEnqueue {
             agent_id: AgentId(agent_id),
             virtual_time_ns,
         },

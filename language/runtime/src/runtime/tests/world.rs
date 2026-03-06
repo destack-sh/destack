@@ -12,42 +12,43 @@ use crate::runtime::bindings::BindingDescriptor;
 use crate::runtime::policy::{
     Effect, Fault, FaultTarget, FaultType, Hook, Policy, Rule, RuleId, Trigger,
 };
+use crate::runtime::time::WorldInstant;
 use crate::runtime::{
-    Agent, BUILTIN_AGENT_OWNS_RESOURCE_EDGE_KIND_ID, BindingCallContext, Runtime, World,
-    WorldCommand, WorldEdge, WorldEdgeKindDefinition, WorldEntity, WorldEntityKindDefinition,
+    Agent, BindingCallContext, World, WorldCommand, WorldEdge, WorldEdgeKindDefinition,
+    WorldEntity, WorldEntityKindDefinition,
 };
 
-/// Ensures agents created in one shared world preserve identity and world sharing.
+/// Ensures worlds track unique runtime identities for explicitly spawned runtimes.
 #[test]
-fn test_agent_from_options_in_world_tracks_identity() {
-    // create one shared world and two agents
+fn test_world_spawn_runtime_tracks_identity() {
+    // create one shared world and two runtimes
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent_a = Agent::new_in_world(Vec::new(), &options, world.clone())
-        .expect("agent should construct in world");
-    let agent_b = Agent::new_in_world(Vec::new(), &options, world.clone())
-        .expect("agent should construct in world");
+    let runtime_a = world
+        .spawn_runtime(Vec::new(), &options, TestEngine::default())
+        .expect("runtime should spawn in world");
+    let runtime_b = world
+        .spawn_runtime(Vec::new(), &options, TestEngine::default())
+        .expect("runtime should spawn in world");
 
-    // both agents should keep unique identities in one shared world
-    assert_ne!(agent_a.id, agent_b.id);
-    assert!(Arc::ptr_eq(&agent_a.world, &world));
-    assert!(Arc::ptr_eq(&agent_b.world, &world));
+    // both runtimes should keep unique identities in one shared world
+    assert_ne!(runtime_a, runtime_b);
+    assert_eq!(world.runtime_ids().len(), 2);
 }
 
 /// Ensures shared worlds expose one shared control state across agents.
 #[test]
-fn test_agent_from_options_in_world_shares_world_commands() {
+fn test_world_shared_commands_affect_detached_agents() {
     // create one shared world with two agents
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent_a = Agent::new_in_world(Vec::new(), &options, world.clone())
-        .expect("agent should construct in world");
-    let agent_b = Agent::new_in_world(Vec::new(), &options, world.clone())
-        .expect("agent should construct in world");
+    let _ =
+        Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
+    let _ =
+        Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
 
     // install one rule through one world command
-    agent_a
-        .world()
+    world
         .install_rule(Rule {
             id: RuleId("test.shared.world.command".to_string()),
             enabled: true,
@@ -62,23 +63,23 @@ fn test_agent_from_options_in_world_shares_world_commands() {
         })
         .expect("world command should apply");
 
-    // both agent world handles should read the same policy view
-    assert_eq!(agent_a.world().policy().rules.len(), 1);
-    assert_eq!(agent_b.world().policy().rules.len(), 1);
+    // both agents should observe the same world policy view
     assert_eq!(world.policy().rules.len(), 1);
 }
 
-/// Ensures agent state keeps the exact world handle passed at construction.
+/// Ensures worlds expose runtime identity only for explicitly spawned runtimes.
 #[test]
-fn test_agent_from_options_in_world_preserves_world_identity() {
-    // create one shared world and one agent in that world
+fn test_world_spawn_runtime_registers_identity() {
+    // create one shared world and one runtime in that world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent = Agent::new_in_world(Vec::new(), &options, world.clone())
-        .expect("agent should construct in world");
+    let runtime_id = world
+        .spawn_runtime(Vec::new(), &options, TestEngine::default())
+        .expect("runtime should spawn in world");
 
-    // agent world identity should equal constructor world identity
-    assert!(Arc::ptr_eq(&agent.world, &world));
+    // one runtime registration should appear in world topology
+    assert_eq!(world.runtime_ids(), vec![runtime_id]);
+    assert_eq!(world.runtime_ids().len(), 1);
 }
 
 /// Ensures live world policy updates affect binding checks for existing agents.
@@ -87,18 +88,14 @@ fn test_agent_world_control_update_refreshes_policy() {
     // create one agent in one shared world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent = Agent::new_in_world(Vec::new(), &options, world.clone())
-        .expect("agent should construct in world");
+    let agent =
+        Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
     let host = Host::from_runtime_options(&options);
     let descriptor = BindingDescriptor::pure("destack.test.live.policy", "()");
 
     // baseline policy should allow the call
-    let baseline_call_context = BindingCallContext::new(
-        &agent,
-        agent.event_loop.as_ref(),
-        &host,
-        agent.bindings.policy_snapshot(),
-    );
+    let baseline_call_context =
+        BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world);
     let baseline_result = baseline_call_context.on_before_binding(descriptor);
     assert!(baseline_result.is_ok());
 
@@ -121,12 +118,8 @@ fn test_agent_world_control_update_refreshes_policy() {
         .expect("policy update should succeed");
 
     // updated policy should deny the same call without agent refresh
-    let refreshed_call_context = BindingCallContext::new(
-        &agent,
-        agent.event_loop.as_ref(),
-        &host,
-        agent.bindings.policy_snapshot(),
-    );
+    let refreshed_call_context =
+        BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world);
     let refreshed_result = refreshed_call_context.on_before_binding(descriptor);
     assert!(refreshed_result.is_err());
 }
@@ -137,51 +130,44 @@ fn test_agent_world_control_update_refreshes_hooks() {
     // create one agent in one shared world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent = Agent::new_in_world(Vec::new(), &options, world.clone())
-        .expect("agent should construct in world");
+    let agent =
+        Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
     let host = Host::from_runtime_options(&options);
     let descriptor = BindingDescriptor::pure("destack.test.live.hooks", "()");
 
     // install one hook-bearing fault rule in the shared world
     world
-        .apply(WorldCommand::SetPolicy {
-            policy: Policy {
-                rules: vec![Rule {
-                    id: RuleId("test.runtime.live.hooks".to_string()),
-                    enabled: true,
-                    when: Some(RuntimeSelector::default()),
-                    action: Effect::Fault {
-                        fault: Fault {
-                            target: FaultTarget::Call {},
-                            fault_type: FaultType::Error {
-                                code: "EFAULT".to_string(),
-                            },
+        .set_policy(Policy {
+            rules: vec![Rule {
+                id: RuleId("test.runtime.live.hooks".to_string()),
+                enabled: true,
+                when: Some(RuntimeSelector::default()),
+                action: Effect::Fault {
+                    fault: Fault {
+                        target: FaultTarget::Call {},
+                        fault_type: FaultType::Error {
+                            code: "EFAULT".to_string(),
                         },
                     },
-                    trigger: Some(Trigger {
-                        on: Hook::BindingBefore,
-                        activation: None,
-                        lifetime: None,
-                        activation_ppm: None,
-                        probability_ppm: None,
-                        max_occurrences: None,
-                        cooldown_ns: None,
-                        burst: None,
-                        interval_hits: None,
-                        skip_hits: None,
-                    }),
-                }],
-            },
+                },
+                trigger: Some(Trigger {
+                    on: Hook::BindingBefore,
+                    activation: None,
+                    lifetime: None,
+                    activation_ppm: None,
+                    probability_ppm: None,
+                    max_occurrences: None,
+                    cooldown_ns: None,
+                    burst: None,
+                    interval_hits: None,
+                    skip_hits: None,
+                }),
+            }],
         })
         .expect("policy update should succeed");
 
     // firing the matching hook should enqueue one unapplied policy decision
-    let call_context = BindingCallContext::new(
-        &agent,
-        agent.event_loop.as_ref(),
-        &host,
-        agent.bindings.policy_snapshot(),
-    );
+    let call_context = BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world);
     let hook_result = call_context.on_before_binding(descriptor);
     assert!(hook_result.is_ok());
     assert_eq!(agent.hooks.unapplied_policy_decision_count(), 1);
@@ -196,64 +182,62 @@ fn test_agent_world_control_agent_selector() {
     let mut options_b = RuntimeOptions::default();
     options_b.primary_agent.name = Some("agent-b".to_string());
     let world = Arc::new(World::default());
-    let mut agent_a = Agent::new_in_world(Vec::new(), &options_a, world.clone())
+    let mut agent_a = Agent::new_in_world(Vec::new(), &options_a, &world)
         .expect("agent should construct in world");
-    let mut agent_b = Agent::new_in_world(Vec::new(), &options_b, world.clone())
+    let mut agent_b = Agent::new_in_world(Vec::new(), &options_b, &world)
         .expect("agent should construct in world");
     let host_a = Host::from_runtime_options(&options_a);
     let host_b = Host::from_runtime_options(&options_b);
 
     // install one scheduler hook rule scoped to agent_a
     world
-        .apply(WorldCommand::SetPolicy {
-            policy: Policy {
-                rules: vec![Rule {
-                    id: RuleId("test.runtime.selector.instance".to_string()),
-                    enabled: true,
-                    when: Some(RuntimeSelector {
-                        agent: Some(RuntimeIdentitySelector {
-                            name: Some("agent-a".to_string()),
-                            labels: None,
-                        }),
-                        ..RuntimeSelector::default()
+        .set_policy(Policy {
+            rules: vec![Rule {
+                id: RuleId("test.runtime.selector.instance".to_string()),
+                enabled: true,
+                when: Some(RuntimeSelector {
+                    agent: Some(RuntimeIdentitySelector {
+                        name: Some("agent-a".to_string()),
+                        labels: None,
                     }),
-                    action: Effect::Fault {
-                        fault: Fault {
-                            target: FaultTarget::Call {},
-                            fault_type: FaultType::Error {
-                                code: "EFAULT".to_string(),
-                            },
+                    ..RuntimeSelector::default()
+                }),
+                action: Effect::Fault {
+                    fault: Fault {
+                        target: FaultTarget::Call {},
+                        fault_type: FaultType::Error {
+                            code: "EFAULT".to_string(),
                         },
                     },
-                    trigger: Some(Trigger {
-                        on: Hook::SchedulerDequeue,
-                        activation: None,
-                        lifetime: None,
-                        activation_ppm: None,
-                        probability_ppm: None,
-                        max_occurrences: None,
-                        cooldown_ns: None,
-                        burst: None,
-                        interval_hits: None,
-                        skip_hits: None,
-                    }),
-                }],
-            },
+                },
+                trigger: Some(Trigger {
+                    on: Hook::SchedulerDequeue,
+                    activation: None,
+                    lifetime: None,
+                    activation_ppm: None,
+                    probability_ppm: None,
+                    max_occurrences: None,
+                    cooldown_ns: None,
+                    burst: None,
+                    interval_hits: None,
+                    skip_hits: None,
+                }),
+            }],
         })
         .expect("policy update should succeed");
 
     // apply control updates on both agents
     let mut engine = TestEngine::default();
     let _ = agent_a
-        .tick_once(&host_a, &mut engine)
+        .tick(&world, &host_a, &mut engine)
         .expect("tick should refresh policy state");
     let _ = agent_b
-        .tick_once(&host_b, &mut engine)
+        .tick(&world, &host_b, &mut engine)
         .expect("tick should refresh policy state");
 
     // fire the same hook on both agents
-    agent_a.hooks.on_scheduler_dequeue();
-    agent_b.hooks.on_scheduler_dequeue();
+    agent_a.hooks.on_scheduler_dequeue(&world);
+    agent_b.hooks.on_scheduler_dequeue(&world);
 
     // only the targeted agent should match the rule
     assert_eq!(agent_a.hooks.unapplied_policy_decision_count(), 1);
@@ -266,36 +250,29 @@ fn test_world_apply_policy_command_updates_rules() {
     // create one agent in one shared world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent = Agent::new_in_world(Vec::new(), &options, world.clone())
-        .expect("agent should construct in world");
+    let agent =
+        Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
     let host = Host::from_runtime_options(&options);
     let descriptor = BindingDescriptor::pure("destack.test.program.policy", "()");
 
     // install one deny rule through one world command
     world
-        .apply(WorldCommand::InstallRule {
-            rule: Rule {
-                id: RuleId("test.runtime.program.policy".to_string()),
-                enabled: true,
-                when: Some(RuntimeSelector {
-                    binding: Some("destack.test.program.policy".to_string()),
-                    ..RuntimeSelector::default()
-                }),
-                action: Effect::SetAccess {
-                    access: RuntimeAccess::Deny,
-                },
-                trigger: None,
+        .install_rule(Rule {
+            id: RuleId("test.runtime.program.policy".to_string()),
+            enabled: true,
+            when: Some(RuntimeSelector {
+                binding: Some("destack.test.program.policy".to_string()),
+                ..RuntimeSelector::default()
+            }),
+            action: Effect::SetAccess {
+                access: RuntimeAccess::Deny,
             },
+            trigger: None,
         })
         .expect("policy command should apply");
 
     // the installed rule should deny matching calls
-    let call_context = BindingCallContext::new(
-        &agent,
-        agent.event_loop.as_ref(),
-        &host,
-        agent.bindings.policy_snapshot(),
-    );
+    let call_context = BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world);
     let result = call_context.on_before_binding(descriptor);
     assert!(result.is_err());
 }
@@ -308,62 +285,50 @@ fn test_world_topology_control_mutates_graph() {
 
     // define one custom entity and edge kind
     world
-        .apply(WorldCommand::DefineEntityKind {
-            kind: WorldEntityKindDefinition {
-                kind: "app.node".into(),
-                labels: std::collections::BTreeMap::new(),
-                supported_faults: Default::default(),
-            },
+        .define_entity_kind(WorldEntityKindDefinition {
+            kind: "app.node".into(),
+            labels: std::collections::BTreeMap::new(),
+            supported_faults: Default::default(),
         })
         .expect("entity kind should define");
     world
-        .apply(WorldCommand::DefineEdgeKind {
-            kind: WorldEdgeKindDefinition {
-                kind: "app.link".into(),
-                labels: std::collections::BTreeMap::new(),
-                supported_faults: Default::default(),
-            },
+        .define_edge_kind(WorldEdgeKindDefinition {
+            kind: "app.link".into(),
+            labels: std::collections::BTreeMap::new(),
+            supported_faults: Default::default(),
         })
         .expect("edge kind should define");
 
     // insert two entities and one connecting edge
     world
-        .apply(WorldCommand::UpsertEntity {
-            entity: WorldEntity {
-                id: "node-a".into(),
-                kind: "app.node".into(),
-                labels: std::collections::BTreeMap::new(),
-            },
+        .upsert_entity(WorldEntity {
+            id: "node-a".into(),
+            kind: "app.node".into(),
+            labels: std::collections::BTreeMap::new(),
         })
         .expect("first entity should upsert");
     world
-        .apply(WorldCommand::UpsertEntity {
-            entity: WorldEntity {
-                id: "node-b".into(),
-                kind: "app.node".into(),
-                labels: std::collections::BTreeMap::new(),
-            },
+        .upsert_entity(WorldEntity {
+            id: "node-b".into(),
+            kind: "app.node".into(),
+            labels: std::collections::BTreeMap::new(),
         })
         .expect("second entity should upsert");
     world
-        .apply(WorldCommand::UpsertEdge {
-            edge: WorldEdge {
-                id: "link-a-b".into(),
-                kind: "app.link".into(),
-                from: "node-a".into(),
-                to: "node-b".into(),
-                labels: std::collections::BTreeMap::new(),
-            },
+        .upsert_edge(WorldEdge {
+            id: "link-a-b".into(),
+            kind: "app.link".into(),
+            from: "node-a".into(),
+            to: "node-b".into(),
+            labels: std::collections::BTreeMap::new(),
         })
         .expect("edge should upsert");
 
     // removing one entity should also remove incident edges
     world
-        .apply(WorldCommand::RemoveEntity {
-            entity_id: "node-a".into(),
-        })
+        .remove_entity("node-a".into())
         .expect("entity removal should succeed");
-    assert!(world.edges().is_empty());
+    assert!(!world.edges().contains_key("link-a-b"));
 }
 
 /// Ensures one failed topology command does not roll back prior successful commands.
@@ -375,22 +340,18 @@ fn test_world_topology_command_failure_does_not_revert_prior_commands() {
 
     // apply one valid command first
     world
-        .apply(WorldCommand::DefineEntityKind {
-            kind: WorldEntityKindDefinition {
-                kind: "app.atomic.node".into(),
-                labels: std::collections::BTreeMap::new(),
-                supported_faults: Default::default(),
-            },
+        .define_entity_kind(WorldEntityKindDefinition {
+            kind: "app.atomic.node".into(),
+            labels: std::collections::BTreeMap::new(),
+            supported_faults: Default::default(),
         })
         .expect("entity kind should define");
 
     // apply one invalid command next
-    let result = world.apply(WorldCommand::UpsertEntity {
-        entity: WorldEntity {
-            id: "bad-node".into(),
-            kind: "app.missing.kind".into(),
-            labels: std::collections::BTreeMap::new(),
-        },
+    let result = world.upsert_entity(WorldEntity {
+        id: "bad-node".into(),
+        kind: "app.missing.kind".into(),
+        labels: std::collections::BTreeMap::new(),
     });
 
     // the failing command should not mutate topology, prior command stays committed
@@ -410,8 +371,8 @@ fn test_world_control_cas_mismatch_fails() {
     let current_revision = world.revision();
 
     // apply one command with a stale expected revision
-    let result = world.apply_at_revision(
-        current_revision.saturating_add(1),
+    let result = world.apply_control_command_at_revision(
+        Some(current_revision.saturating_add(1)),
         WorldCommand::InstallRule {
             rule: Rule {
                 id: RuleId("test.runtime.policy.cas".to_string()),
@@ -432,66 +393,74 @@ fn test_world_control_cas_mismatch_fails() {
     assert!(result.is_err());
 }
 
-/// Ensures resource attach and detach operations synchronize into topology entities and edges.
+/// Ensures resource attach and detach operations synchronize into world topology and resource state.
 #[test]
 fn test_world_resource_lifecycle_updates_topology() {
     // create one agent and insert one resource
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent = Agent::new_in_world(Vec::new(), &options, world.clone())
-        .expect("agent should construct in world");
+    let agent =
+        Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
     let resource_id = agent.resources.insert(
+        &world,
         ResourceEntry::new(ResourceKind::Timer).with_label("test-timer"),
         None,
     );
 
-    // verify one resource entity and ownership edge exist in topology
+    // verify world resource payload and topology metadata exist
+    let resources = world.resources();
+    let world_resource_id = crate::runtime::WorldResourceId::new(agent.id, resource_id);
+    let world_resource = resources
+        .get(&world_resource_id)
+        .expect("resource should exist in world resource state");
+    let resource_entity_id = world_resource_id.entity_id();
+    let resource_edge_id = world_resource_id.ownership_edge_id();
     let entities = world.entities();
-    let has_resource_entity = entities.values().any(|entity| {
-        entity.kind.as_str() == ResourceKind::Timer.kind_id()
-            && entity.labels.get("agent.id") == Some(&agent.id.0.to_string())
-            && entity.labels.get("resource.id") == Some(&resource_id.0.to_string())
-    });
     let edges = world.edges();
-    let has_resource_edge = edges
-        .values()
-        .any(|edge| edge.kind.as_str() == BUILTIN_AGENT_OWNS_RESOURCE_EDGE_KIND_ID);
-    assert!(has_resource_entity);
-    assert!(has_resource_edge);
+    assert_eq!(world_resource.kind.as_str(), ResourceKind::Timer.kind_id());
+    assert_eq!(world_resource.label.as_deref(), Some("test-timer"));
+    assert!(entities.contains_key(&resource_entity_id));
+    assert!(edges.contains_key(&resource_edge_id));
 
-    // remove the resource and verify the resource entity is removed
-    let removed = agent.resources.remove(resource_id, None);
+    // remove the resource and verify both payload and topology metadata disappear
+    let removed = agent.resources.remove(&world, resource_id, None);
     assert!(removed.is_some());
+    let resources = world.resources();
     let entities = world.entities();
-    let has_resource_entity = entities.values().any(|entity| {
-        entity.kind.as_str() == ResourceKind::Timer.kind_id()
-            && entity.labels.get("agent.id") == Some(&agent.id.0.to_string())
-            && entity.labels.get("resource.id") == Some(&resource_id.0.to_string())
-    });
-    assert!(!has_resource_entity);
+    let edges = world.edges();
+    assert!(!resources.contains_key(&world_resource_id));
+    assert!(!entities.contains_key(&resource_entity_id));
+    assert!(!edges.contains_key(&resource_edge_id));
 }
 
-/// Ensures dropping one detached agent deregisters topology identity and runtime ownership.
+/// Ensures explicit world agent removal clears selector metadata and topology ownership.
 #[test]
-fn test_world_agent_drop_cleans_topology() {
+fn test_world_remove_agent_cleans_topology() {
     // create one world and one detached agent
     let world = Arc::new(World::default());
     let options = RuntimeOptions::default();
-    let agent = Agent::new_in_world(Vec::new(), &options, world.clone())
-        .expect("agent should construct in world");
-    let runtime_id = agent.runtime_id;
+    let agent =
+        Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
     let agent_id = agent.id;
+    let host = Host::from_runtime_options(&options);
+    let descriptor = BindingDescriptor::pure("destack.test.removed.agent", "()");
 
-    // agent and runtime entities should exist before drop
-    let before = world.entities();
-    assert!(before.contains_key(format!("agent.{}", agent_id.0).as_str()));
-    assert!(before.contains_key(format!("runtime.{}", runtime_id.0).as_str()));
+    // binding checks should work before removal
+    let before_context = BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world);
+    let before_result = before_context.on_before_binding(descriptor);
+    assert!(before_result.is_ok());
 
-    // dropping the agent should remove agent and runtime entities
-    drop(agent);
-    let after = world.entities();
-    assert!(!after.contains_key(format!("agent.{}", agent_id.0).as_str()));
-    assert!(!after.contains_key(format!("runtime.{}", runtime_id.0).as_str()));
+    // removing the agent should clear its selector metadata
+    world
+        .remove_agent(agent_id)
+        .expect("agent removal should succeed");
+
+    let entities = world.entities();
+    assert!(!entities.contains_key(&agent_id.entity_id()));
+
+    let after_context = BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world);
+    let after_result = after_context.on_before_binding(descriptor);
+    assert!(after_result.is_err());
 }
 
 /// Ensures failed world commands do not append replay events.
@@ -500,28 +469,24 @@ fn test_world_apply_record_failure_does_not_append_replay_events() {
     // create one record-mode world
     let mut options = RuntimeOptions::default();
     options.execution = ExecutionMode::Record;
-    let world = World::new(&options, None).expect("world should construct");
+    let world = World::from_options(&options).expect("world should construct");
 
     // apply one successful command first
     world
-        .apply(WorldCommand::DefineEntityKind {
-            kind: WorldEntityKindDefinition {
-                kind: "app.record.atomic.node".into(),
-                labels: Default::default(),
-                supported_faults: Default::default(),
-            },
+        .define_entity_kind(WorldEntityKindDefinition {
+            kind: "app.record.atomic.node".into(),
+            labels: Default::default(),
+            supported_faults: Default::default(),
         })
         .expect("define entity kind should succeed");
     let sequence_after_success = world.replay().log().next_sequence().get();
     assert_eq!(sequence_after_success, 1);
 
     // apply one failing command after that
-    let result = world.apply(WorldCommand::UpsertEntity {
-        entity: WorldEntity {
-            id: "missing-kind-node".into(),
-            kind: "app.record.atomic.missing".into(),
-            labels: Default::default(),
-        },
+    let result = world.upsert_entity(WorldEntity {
+        id: "missing-kind-node".into(),
+        kind: "app.record.atomic.missing".into(),
+        labels: Default::default(),
     });
     assert!(result.is_err());
 
@@ -536,7 +501,8 @@ fn test_world_revision_advances_for_runtime_lifecycle_mutations() {
     // create one world and one runtime in that world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let mut runtime = Runtime::from_options_in_world(Vec::new(), &options, world.clone())
+    let runtime_id = world
+        .spawn_runtime(Vec::new(), &options, TestEngine::default())
         .expect("runtime should construct in world");
 
     // runtime bootstrap should advance world revision
@@ -544,22 +510,39 @@ fn test_world_revision_advances_for_runtime_lifecycle_mutations() {
     assert!(revision_after_runtime > 1);
 
     // spawning one agent should advance revision
-    let spawned_agent_id = runtime.spawn_agent().expect("agent spawn should succeed");
+    let spawned_agent_id = world
+        .spawn_agent(runtime_id)
+        .expect("agent spawn should succeed");
     let revision_after_spawn = world.revision();
     assert!(revision_after_spawn > revision_after_runtime);
 
     // attaching and detaching resources should advance revision
-    let agent = runtime
-        .agent(spawned_agent_id)
-        .expect("spawned agent should exist");
-    let resource_id = agent.resources.insert(
-        ResourceEntry::new(ResourceKind::Timer).with_label("revision-test"),
-        None,
-    );
+    let resource_id = world
+        .with_runtime_mut(runtime_id, |runtime| {
+            let agent = runtime
+                .agent(spawned_agent_id)
+                .expect("spawned agent should exist");
+            let resource_id = agent.resources.insert(
+                &world,
+                ResourceEntry::new(ResourceKind::Timer).with_label("revision-test"),
+                None,
+            );
+
+            Ok(resource_id)
+        })
+        .expect("runtime should exist");
     let revision_after_attach = world.revision();
     assert!(revision_after_attach > revision_after_spawn);
 
-    let removed = agent.resources.remove(resource_id, None);
+    let removed = world
+        .with_runtime_mut(runtime_id, |runtime| {
+            let agent = runtime
+                .agent(spawned_agent_id)
+                .expect("spawned agent should exist");
+
+            Ok(agent.resources.remove(&world, resource_id, None))
+        })
+        .expect("runtime should exist");
     assert!(removed.is_some());
     let revision_after_detach = world.revision();
     assert!(revision_after_detach > revision_after_attach);
@@ -570,7 +553,10 @@ fn test_world_revision_advances_for_runtime_lifecycle_mutations() {
 fn test_runtime_spawn_agent_aligns_world_scoped_options() {
     // create one runtime with one shared world
     let options = RuntimeOptions::default();
-    let mut runtime = Runtime::from_options(Vec::new(), &options).expect("runtime builds");
+    let world = World::from_options(&options).expect("world should construct");
+    let runtime_id = world
+        .spawn_runtime(Vec::new(), &options, TestEngine::default())
+        .expect("runtime builds");
 
     // request one conflicting option set for spawn
     let mut spawn_options = RuntimeOptions::default();
@@ -581,18 +567,24 @@ fn test_runtime_spawn_agent_aligns_world_scoped_options() {
     spawn_options.time.mode = TimeMode::Host;
 
     // spawned agent should keep runtime world-scoped settings
-    let spawned_agent_id = runtime
-        .spawn_agent_with_options(&spawn_options)
-        .expect("spawn should succeed");
-    let spawned_agent = runtime
-        .agent(spawned_agent_id)
-        .expect("spawned agent should exist");
-    assert_eq!(spawned_agent.options.execution, options.execution);
-    assert_eq!(spawned_agent.options.access, options.access);
-    assert_eq!(spawned_agent.options.world, options.world);
-    assert_eq!(spawned_agent.options.replay, options.replay);
-    assert_eq!(spawned_agent.options.random, options.random);
-    assert_eq!(spawned_agent.options.time, options.time);
+    world
+        .with_runtime_mut(runtime_id, |runtime| {
+            let spawned_agent_id = runtime
+                .spawn_agent_with_options(&world, &spawn_options)
+                .expect("spawn should succeed");
+            let spawned_agent = runtime
+                .agent(spawned_agent_id)
+                .expect("spawned agent should exist");
+            assert_eq!(spawned_agent.options.execution, options.execution);
+            assert_eq!(spawned_agent.options.access, options.access);
+            assert_eq!(spawned_agent.options.world, options.world);
+            assert_eq!(spawned_agent.options.replay, options.replay);
+            assert_eq!(spawned_agent.options.random, options.random);
+            assert_eq!(spawned_agent.options.time, options.time);
+
+            Ok(())
+        })
+        .expect("runtime should exist");
 }
 
 /// Ensures deterministic worlds reject secure randomness bindings by default.
@@ -601,7 +593,7 @@ fn test_world_deterministic_mode_rejects_secure_randomness() {
     // construct one deterministic-random world
     let mut options = RuntimeOptions::default();
     options.random.mode = RandomMode::Deterministic;
-    let world = World::new(&options, None).expect("world should construct");
+    let world = World::from_options(&options).expect("world should construct");
 
     // secure host randomness should fail in deterministic mode
     let mut bytes = [0u8; 16];
@@ -615,11 +607,32 @@ fn test_agent_capability_profile_configures_binding_policy() {
     let mut options = RuntimeOptions::default();
     options.security.capability_profile = Some("fs.read,net.connect".to_string());
 
-    let agent = Agent::new(Vec::new(), &options).expect("agent should construct");
-    let policy = agent.bindings.policy_snapshot();
+    let world = World::from_options(&options).expect("world should construct");
+    let agent = Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct");
+    let policy = agent.bindings.policy().read();
 
     assert!(policy.is_capability_requirements_enforced());
     assert!(policy.capabilities().contains_name("fs.read"));
     assert!(policy.capabilities().contains_name("net.connect"));
     assert_eq!(policy.capabilities().len(), 2);
+}
+
+/// Ensures simulation deadlines publish the earliest scheduled event.
+#[test]
+fn test_world_next_simulation_deadline_returns_earliest_deadline() {
+    // create one world and schedule several simulated events
+    let world = World::default();
+    {
+        let mut simulation = world.write_simulation();
+        simulation.schedule_event(WorldInstant::new(9_000));
+        simulation.schedule_event(WorldInstant::new(5_000));
+        simulation.schedule_event(WorldInstant::new(7_000));
+        simulation.schedule_event(WorldInstant::new(6_000));
+    }
+
+    // the world should expose the earliest published deadline
+    assert_eq!(
+        world.next_simulation_deadline(),
+        Some(WorldInstant::new(5_000))
+    );
 }

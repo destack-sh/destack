@@ -9,9 +9,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{ResourceId, ResourceKind};
 use crate::runtime::AgentId;
 use crate::runtime::bindings::{BindingDescriptor, BindingEngine};
-use crate::runtime::world::{
-    RuntimeId, World, WorldCommand, WorldEntityKind, WorldResource, WorldResourceId,
-};
+use crate::runtime::world::{RuntimeId, World, WorldEntityKind, WorldResource, WorldResourceId};
 use destack_source::matches as glob_matches;
 use destack_workspace::ExecutionMode;
 
@@ -31,8 +29,8 @@ pub enum Hook {
     SchedulerDequeue,
     /// Trigger when one timer fires.
     SchedulerTimerFire,
-    /// Trigger when one host event is enqueued into the agent loop.
-    HostEventEnqueue,
+    /// Trigger when one ingress event is enqueued into the agent loop.
+    IngressEnqueue,
     /// Trigger when time is read.
     TimeRead,
     /// Trigger when random data is read.
@@ -97,8 +95,8 @@ pub enum HookEvent {
         /// Virtual timestamp for this event.
         virtual_time_ns: u64,
     },
-    /// Event fired when one host event is enqueued.
-    HostEventEnqueue {
+    /// Event fired when one ingress event is enqueued.
+    IngressEnqueue {
         /// Agent identifier for this event.
         agent_id: AgentId,
         /// Virtual timestamp for this event.
@@ -147,7 +145,7 @@ impl HookEvent {
             Self::SchedulerEnqueue { .. } => Hook::SchedulerEnqueue,
             Self::SchedulerDequeue { .. } => Hook::SchedulerDequeue,
             Self::SchedulerTimerFire { .. } => Hook::SchedulerTimerFire,
-            Self::HostEventEnqueue { .. } => Hook::HostEventEnqueue,
+            Self::IngressEnqueue { .. } => Hook::IngressEnqueue,
             Self::TimeRead { .. } => Hook::TimeRead,
             Self::RandomRead { .. } => Hook::RandomRead,
             Self::ResourceAttach { .. } => Hook::ResourceAttach,
@@ -163,7 +161,7 @@ impl HookEvent {
             | Self::SchedulerEnqueue { agent_id, .. }
             | Self::SchedulerDequeue { agent_id, .. }
             | Self::SchedulerTimerFire { agent_id, .. }
-            | Self::HostEventEnqueue { agent_id, .. }
+            | Self::IngressEnqueue { agent_id, .. }
             | Self::TimeRead { agent_id, .. }
             | Self::RandomRead { agent_id, .. }
             | Self::ResourceAttach { agent_id, .. }
@@ -225,7 +223,7 @@ impl HookEvent {
             | Self::SchedulerTimerFire {
                 virtual_time_ns, ..
             }
-            | Self::HostEventEnqueue {
+            | Self::IngressEnqueue {
                 virtual_time_ns, ..
             }
             | Self::TimeRead {
@@ -425,8 +423,6 @@ pub struct Hooks {
     runtime_id: RuntimeId,
     /// Agent identifier for selector matching.
     agent_id: AgentId,
-    /// Shared world for policy trigger counters.
-    world: Arc<World>,
     /// Execution mode used for rule matching.
     mode: ExecutionMode,
     /// Callback-style hook registry.
@@ -458,16 +454,10 @@ impl std::fmt::Debug for Hooks {
 
 impl Hooks {
     /// Create runtime hooks for one agent in one world.
-    pub(crate) fn new(
-        world: Arc<World>,
-        runtime_id: RuntimeId,
-        agent_id: AgentId,
-        mode: ExecutionMode,
-    ) -> Self {
+    pub(crate) fn new(runtime_id: RuntimeId, agent_id: AgentId, mode: ExecutionMode) -> Self {
         Self {
             runtime_id,
             agent_id,
-            world,
             mode,
             registry: RwLock::new(HookRegistry::default()),
             custom_effect_handlers: RwLock::new(HashMap::new()),
@@ -544,19 +534,23 @@ impl Hooks {
     /// Evaluate pre-call runtime effects for one binding invocation.
     pub(crate) fn on_before_binding(
         &self,
+        world: &World,
         descriptor: BindingDescriptor,
         engine: Option<BindingEngine>,
     ) -> RuntimeResult<PolicyCallId> {
         // allocate one call id for before and after correlation
         let call_id = PolicyCallId(self.next_call_id.fetch_add(1, Ordering::Relaxed));
 
-        let decision = self.on_policy_event(HookEvent::BindingBefore {
-            agent_id: self.agent_id,
-            call_id,
-            descriptor,
-            engine,
-            virtual_time_ns: self.world.mono_nanos(),
-        });
+        let decision = self.on_policy_event(
+            world,
+            HookEvent::BindingBefore {
+                agent_id: self.agent_id,
+                call_id,
+                descriptor,
+                engine,
+                virtual_time_ns: world.mono_nanos(),
+            },
+        );
         if let HookDecision::Deny { message } = decision {
             return Err(RuntimeError::Internal { message }.boxed());
         }
@@ -567,72 +561,95 @@ impl Hooks {
     /// Evaluate post-call runtime effects for one binding invocation.
     pub(crate) fn on_after_binding(
         &self,
+        world: &World,
         descriptor: BindingDescriptor,
         engine: Option<BindingEngine>,
         call_id: PolicyCallId,
     ) {
-        self.on_policy_event(HookEvent::BindingAfter {
-            agent_id: self.agent_id,
-            call_id,
-            descriptor,
-            engine,
-            virtual_time_ns: self.world.mono_nanos(),
-        });
+        self.on_policy_event(
+            world,
+            HookEvent::BindingAfter {
+                agent_id: self.agent_id,
+                call_id,
+                descriptor,
+                engine,
+                virtual_time_ns: world.mono_nanos(),
+            },
+        );
     }
 
     /// Evaluate runtime effects for one scheduler enqueue event.
-    pub fn on_scheduler_enqueue(&self) {
-        self.on_policy_event(HookEvent::SchedulerEnqueue {
-            agent_id: self.agent_id,
-            virtual_time_ns: self.world.mono_nanos(),
-        });
+    pub fn on_scheduler_enqueue(&self, world: &World) {
+        self.on_policy_event(
+            world,
+            HookEvent::SchedulerEnqueue {
+                agent_id: self.agent_id,
+                virtual_time_ns: world.mono_nanos(),
+            },
+        );
     }
 
     /// Evaluate runtime effects for one scheduler dequeue event.
-    pub fn on_scheduler_dequeue(&self) {
-        self.on_policy_event(HookEvent::SchedulerDequeue {
-            agent_id: self.agent_id,
-            virtual_time_ns: self.world.mono_nanos(),
-        });
+    pub fn on_scheduler_dequeue(&self, world: &World) {
+        self.on_policy_event(
+            world,
+            HookEvent::SchedulerDequeue {
+                agent_id: self.agent_id,
+                virtual_time_ns: world.mono_nanos(),
+            },
+        );
     }
 
     /// Evaluate runtime effects for one scheduler timer fire event.
-    pub fn on_scheduler_timer_fire(&self) {
-        self.on_policy_event(HookEvent::SchedulerTimerFire {
-            agent_id: self.agent_id,
-            virtual_time_ns: self.world.mono_nanos(),
-        });
+    pub fn on_scheduler_timer_fire(&self, world: &World) {
+        self.on_policy_event(
+            world,
+            HookEvent::SchedulerTimerFire {
+                agent_id: self.agent_id,
+                virtual_time_ns: world.mono_nanos(),
+            },
+        );
     }
 
-    /// Evaluate runtime effects for one host event enqueue.
-    pub fn on_host_event_enqueue(&self) {
-        self.on_policy_event(HookEvent::HostEventEnqueue {
-            agent_id: self.agent_id,
-            virtual_time_ns: self.world.mono_nanos(),
-        });
+    /// Evaluate runtime effects for one ingress enqueue.
+    pub fn on_ingress_enqueue(&self, world: &World) {
+        self.on_policy_event(
+            world,
+            HookEvent::IngressEnqueue {
+                agent_id: self.agent_id,
+                virtual_time_ns: world.mono_nanos(),
+            },
+        );
     }
 
     /// Evaluate runtime effects for one time read.
-    pub fn on_time_read(&self, engine: Option<BindingEngine>) {
-        self.on_policy_event(HookEvent::TimeRead {
-            agent_id: self.agent_id,
-            engine,
-            virtual_time_ns: self.world.mono_nanos(),
-        });
+    pub fn on_time_read(&self, world: &World, engine: Option<BindingEngine>) {
+        self.on_policy_event(
+            world,
+            HookEvent::TimeRead {
+                agent_id: self.agent_id,
+                engine,
+                virtual_time_ns: world.mono_nanos(),
+            },
+        );
     }
 
     /// Evaluate runtime effects for one random read.
-    pub fn on_random_read(&self, engine: Option<BindingEngine>) {
-        self.on_policy_event(HookEvent::RandomRead {
-            agent_id: self.agent_id,
-            engine,
-            virtual_time_ns: self.world.mono_nanos(),
-        });
+    pub fn on_random_read(&self, world: &World, engine: Option<BindingEngine>) {
+        self.on_policy_event(
+            world,
+            HookEvent::RandomRead {
+                agent_id: self.agent_id,
+                engine,
+                virtual_time_ns: world.mono_nanos(),
+            },
+        );
     }
 
     /// Evaluate runtime effects for one resource attach.
     pub fn on_resource_attach(
         &self,
+        world: &World,
         resource_id: ResourceId,
         resource_kind: ResourceKind,
         resource_label: Option<&str>,
@@ -643,14 +660,15 @@ impl Hooks {
             WorldEntityKind::from(resource_kind.kind_id()),
             resource_label.map(ToString::to_string),
         );
-        let _ = self
-            .world
-            .apply(WorldCommand::CreateResource { resource })?;
+        let _ = world.create_resource(resource)?;
 
-        self.on_policy_event(HookEvent::ResourceAttach {
-            agent_id: self.agent_id,
-            virtual_time_ns: self.world.mono_nanos(),
-        });
+        self.on_policy_event(
+            world,
+            HookEvent::ResourceAttach {
+                agent_id: self.agent_id,
+                virtual_time_ns: world.mono_nanos(),
+            },
+        );
 
         Ok(())
     }
@@ -658,20 +676,22 @@ impl Hooks {
     /// Evaluate runtime effects for one resource detach.
     pub fn on_resource_detach(
         &self,
+        world: &World,
         resource_id: ResourceId,
         _resource_kind: ResourceKind,
         resource_label: Option<&str>,
         _engine: Option<BindingEngine>,
     ) -> RuntimeResult<()> {
         let _ = resource_label;
-        let _ = self.world.apply(WorldCommand::DestroyResource {
-            resource_id: WorldResourceId::new(self.agent_id, resource_id),
-        });
+        let _ = world.destroy_resource(WorldResourceId::new(self.agent_id, resource_id));
 
-        self.on_policy_event(HookEvent::ResourceDetach {
-            agent_id: self.agent_id,
-            virtual_time_ns: self.world.mono_nanos(),
-        });
+        self.on_policy_event(
+            world,
+            HookEvent::ResourceDetach {
+                agent_id: self.agent_id,
+                virtual_time_ns: world.mono_nanos(),
+            },
+        );
 
         Ok(())
     }
@@ -682,7 +702,7 @@ impl Hooks {
     }
 
     /// Evaluate one policy event.
-    fn on_policy_event(&self, event: HookEvent) -> HookDecision {
+    fn on_policy_event(&self, world: &World, event: HookEvent) -> HookDecision {
         // apply callback hook interceptors first
         let hook_decision = self.dispatch_hook_event(&event);
         if matches!(hook_decision, HookDecision::Deny { .. }) {
@@ -690,19 +710,15 @@ impl Hooks {
         }
 
         // TODO #Incomplete: execute policy decisions after trigger evaluation
-        let decisions = match self.world.evaluate_policy_event(
-            self.mode,
-            self.runtime_id,
-            self.agent_id,
-            &event,
-        ) {
-            Ok(decisions) => decisions,
-            Err(error) => {
-                return HookDecision::Deny {
-                    message: format!("policy evaluation failed: {error}"),
-                };
-            }
-        };
+        let decisions =
+            match world.evaluate_policy_event(self.mode, self.runtime_id, self.agent_id, &event) {
+                Ok(decisions) => decisions,
+                Err(error) => {
+                    return HookDecision::Deny {
+                        message: format!("policy evaluation failed: {error}"),
+                    };
+                }
+            };
 
         self.apply_policy_decisions(&decisions);
         hook_decision

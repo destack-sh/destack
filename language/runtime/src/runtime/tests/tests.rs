@@ -8,16 +8,19 @@ use crate::diagnostic::RuntimeResult;
 use crate::host::{Host, HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleState};
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
-use crate::runtime::Agent;
 use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineOutcome, EngineOutput, NativeContinuation,
+    Engine, EngineContinuation, EngineOutcome, EngineOutput, Entry, NativeContinuation,
 };
 use crate::runtime::poller::{
+    HostPoller, HostPollerFlags, HostPollerWakeHandle, PlatformHandle, PlatformInterest,
     PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
     PollerToken,
 };
-use crate::runtime::scheduler::{Microtask, MicrotaskId, Task, TaskId, TaskStatus, Timer};
-use crate::runtime::time::HostClockSource;
+use crate::runtime::scheduler::{
+    Microtask, MicrotaskId, Task, TaskId, TaskStatus, Timer, TimerDeadline,
+};
+use crate::runtime::time::{HostClockSource, Nanos};
+use crate::runtime::{Agent, AgentId, DropCounts, RuntimeId, TickOutcome, World};
 
 /// Scripted host clock source for deterministic host-time runtime tests.
 #[derive(Debug, Default)]
@@ -91,11 +94,8 @@ pub(super) struct TestEngine {
 }
 
 impl Engine for TestEngine {
-    /// Entry payload for this engine.
-    type Entry = ();
-
     /// Run one entrypoint without yielding.
-    fn run(&mut self, _entry: &Self::Entry, _args: &[heap::Value]) -> RuntimeResult<EngineOutcome> {
+    fn run(&mut self, _entry: &Entry, _args: &[heap::Value]) -> RuntimeResult<EngineOutcome> {
         Ok(EngineOutcome::Completed {
             output: void_output(),
         })
@@ -127,25 +127,95 @@ impl Engine for TestEngine {
 /// Test harness for agent scheduling tests.
 #[derive(Debug)]
 pub(super) struct TestRuntime {
+    /// Shared world that owns the agent lifetime.
+    world: Arc<World>,
     /// Wrapped agent under test.
     agent: Agent,
     /// Wrapped host under test.
     host: Host,
 }
 
+/// Test harness for multi-agent runtime scheduler tests.
+#[derive(Debug)]
+pub(super) struct TestMultiAgentRuntime {
+    /// Shared world that owns the runtime lifetime.
+    world: Arc<World>,
+    /// Wrapped runtime identity under test.
+    runtime_id: RuntimeId,
+}
+
+/// Scripted poller for runtime ingress tests.
+#[derive(Debug, Default)]
+pub(super) struct TestPoller {
+    /// Events returned by the next poll.
+    events: Vec<PollerEvent>,
+}
+
+impl TestPoller {
+    /// Build one scripted poller from explicit events.
+    pub(super) fn with_events(events: Vec<PollerEvent>) -> Self {
+        Self { events }
+    }
+}
+
+impl HostPoller for TestPoller {
+    /// Registering resources is not used by these tests.
+    fn register(
+        &mut self,
+        _resource_id: ResourceId,
+        _handle: PlatformHandle,
+        _token: PollerToken,
+        _interests: PlatformInterest,
+        _flags: HostPollerFlags,
+    ) -> RuntimeResult<()> {
+        Ok(())
+    }
+
+    /// Updating resources is not used by these tests.
+    fn update(
+        &mut self,
+        _resource_id: ResourceId,
+        _token: PollerToken,
+        _interests: PlatformInterest,
+        _flags: HostPollerFlags,
+    ) -> RuntimeResult<()> {
+        Ok(())
+    }
+
+    /// Deregistering resources is not used by these tests.
+    fn deregister(&mut self, _resource_id: ResourceId) -> RuntimeResult<()> {
+        Ok(())
+    }
+
+    /// Return no dedicated wake handle for this scripted poller.
+    fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>> {
+        None
+    }
+
+    /// Waking the scripted poller is a no-op.
+    fn wake(&mut self) -> RuntimeResult<()> {
+        Ok(())
+    }
+
+    /// Return the scripted poll result once and then drain it.
+    fn poll(&mut self, _timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PollerEvent>> {
+        Ok(std::mem::take(&mut self.events))
+    }
+}
+
 impl TestRuntime {
     /// Create one test agent with default options.
     pub(super) fn new() -> Self {
-        let (agent, host) = agent_for_options(&RuntimeOptions::default());
+        let (world, agent, host) = agent_for_options(&RuntimeOptions::default());
 
-        Self { agent, host }
+        Self { world, agent, host }
     }
 
     /// Create one test agent with explicit runtime options.
     pub(super) fn with_options(options: &RuntimeOptions) -> Self {
-        let (agent, host) = agent_for_options(options);
+        let (world, agent, host) = agent_for_options(options);
 
-        Self { agent, host }
+        Self { world, agent, host }
     }
 
     /// Create one test agent with explicit options and one host clock source.
@@ -153,10 +223,10 @@ impl TestRuntime {
         options: &RuntimeOptions,
         host_clock_source: Arc<dyn HostClockSource>,
     ) -> Self {
-        let (agent, host) =
+        let (world, agent, host) =
             agent_for_options_with_host_clock_source(options, Some(host_clock_source));
 
-        Self { agent, host }
+        Self { world, agent, host }
     }
 
     /// Enqueue one native task with explicit identifiers.
@@ -232,10 +302,12 @@ impl TestRuntime {
         self.agent
             .event_loop
             .schedule_timer(Timer {
-                clock,
                 handle: ResourceId(handle),
-                fire_at_nanos,
-                interval_nanos,
+                deadline: TimerDeadline {
+                    clock,
+                    at: Nanos::new(fire_at_nanos),
+                },
+                interval: interval_nanos.map(Nanos::new),
             })
             .expect("timer should schedule");
     }
@@ -293,16 +365,16 @@ impl TestRuntime {
     }
 
     /// Tick once and fail loudly on runtime errors.
-    pub(super) fn tick_once<E: Engine>(&mut self, engine: &mut E) -> bool {
+    pub(super) fn tick<E: Engine>(&mut self, engine: &mut E) -> bool {
         self.agent
-            .tick_once(&self.host, engine)
+            .tick(&self.world, &self.host, engine)
             .expect("tick should execute runtime work")
     }
 
     /// Tick until idle and fail loudly on runtime errors.
     pub(super) fn tick_until_idle<E: Engine>(&mut self, engine: &mut E) {
         self.agent
-            .tick_until_idle(&self.host, engine)
+            .tick_until_idle(&self.world, &self.host, engine)
             .expect("tick until idle should complete");
     }
 
@@ -312,8 +384,12 @@ impl TestRuntime {
         engine: &mut E,
         task_id: u64,
     ) -> RuntimeResult<EngineOutput> {
-        self.agent
-            .run_loop_until_task_complete(&self.host, engine, TaskId::new(task_id))
+        self.agent.run_loop_until_task_complete(
+            &self.world,
+            &self.host,
+            engine,
+            TaskId::new(task_id),
+        )
     }
 
     /// Run until one task completes or one timeout elapses.
@@ -324,6 +400,7 @@ impl TestRuntime {
         timeout_nanos: Option<u64>,
     ) -> RuntimeResult<Option<EngineOutput>> {
         self.agent.run_loop_until_task_complete_with_timeout(
+            &self.world,
             &self.host,
             engine,
             TaskId::new(task_id),
@@ -341,34 +418,128 @@ impl TestRuntime {
         self.agent.event_loop.has_microtasks()
     }
 
-    /// Return dropped dispatch-event count.
-    pub(super) fn dropped_dispatch_events(&self) -> u64 {
-        self.agent.event_loop.dropped_dispatch_events()
-    }
-
-    /// Return dropped dispatch-event count for events without a watch.
-    pub(super) fn dropped_unwatched_dispatch_events(&self) -> u64 {
-        self.agent.event_loop.dropped_unwatched_dispatch_events()
-    }
-
-    /// Return dropped dispatch-event count from host queue pressure.
-    pub(super) fn dropped_host_queue_events(&self) -> u64 {
-        self.agent.event_loop.dropped_host_queue_events()
+    /// Return event-loop drop accounting.
+    pub(super) fn drop_counts(&self) -> DropCounts {
+        self.agent.drop_counts()
     }
 
     /// Return current runtime wall time in nanoseconds.
     pub(super) fn wall_nanos(&self) -> u64 {
-        self.agent.world().wall_nanos()
+        self.world.wall_nanos()
     }
 
     /// Return current runtime monotonic time in nanoseconds.
     pub(super) fn mono_nanos(&self) -> u64 {
-        self.agent.world().mono_nanos()
+        self.world.mono_nanos()
+    }
+}
+
+impl TestMultiAgentRuntime {
+    /// Create one runtime with explicit options and one explicit engine.
+    pub(super) fn with_options_and_engine(
+        options: &RuntimeOptions,
+        engine: impl Engine + 'static,
+    ) -> Self {
+        let world = World::from_options(options).expect("world should build");
+        let runtime_id = world
+            .spawn_runtime(Vec::new(), options, engine)
+            .expect("runtime should spawn");
+        world
+            .with_runtime(runtime_id, |runtime| {
+                runtime
+                    .host()
+                    .poll_events(Some(0))
+                    .expect("host bootstrap events should drain");
+                Ok(())
+            })
+            .expect("runtime should exist");
+
+        Self { world, runtime_id }
+    }
+
+    /// Return the primary agent id.
+    pub(super) fn primary_agent_id(&self) -> AgentId {
+        self.world
+            .with_runtime(self.runtime_id, |runtime| Ok(runtime.primary_agent_id()))
+            .expect("runtime should exist")
+    }
+
+    /// Spawn one additional agent and return its id.
+    pub(super) fn spawn_agent(&mut self) -> AgentId {
+        self.world
+            .spawn_agent(self.runtime_id)
+            .expect("agent should spawn")
+    }
+
+    /// Run one closure with one mutable agent by id.
+    pub(super) fn with_agent_mut<R>(
+        &mut self,
+        agent_id: AgentId,
+        callback: impl FnOnce(&mut Agent) -> R,
+    ) -> R {
+        self.world
+            .with_runtime_mut(self.runtime_id, |runtime| {
+                let agent = runtime
+                    .agent_mut(agent_id)
+                    .expect("agent should exist in runtime");
+
+                Ok(callback(agent))
+            })
+            .expect("runtime should exist")
+    }
+
+    /// Execute one runtime tick and fail loudly on runtime errors.
+    pub(super) fn tick(&mut self) -> TickOutcome {
+        self.world
+            .tick_runtime(self.runtime_id)
+            .expect("runtime tick should succeed")
+    }
+
+    /// Attach one explicit scripted poller.
+    pub(super) fn set_poller(&mut self, poller: Box<dyn HostPoller>) {
+        self.world
+            .with_runtime_mut(self.runtime_id, |runtime| {
+                runtime.set_poller(poller);
+                Ok(())
+            })
+            .expect("runtime should exist");
+    }
+
+    /// Return runtime-level drop accounting.
+    pub(super) fn drop_counts(&self) -> DropCounts {
+        self.world
+            .with_runtime(self.runtime_id, |runtime| Ok(runtime.drop_counts()))
+            .expect("runtime should exist")
+    }
+
+    /// Return current world wall time in nanoseconds.
+    pub(super) fn wall_nanos(&self) -> u64 {
+        self.world.wall_nanos()
+    }
+
+    /// Borrow the shared world.
+    pub(super) fn world(&self) -> Arc<World> {
+        self.world.clone()
+    }
+
+    /// Return current world monotonic time in nanoseconds.
+    pub(super) fn mono_nanos(&self) -> u64 {
+        self.world.mono_nanos()
+    }
+
+    /// Run one closure with one stored runtime engine by explicit type.
+    pub(super) fn with_engine<T: Engine, R>(&self, callback: impl FnOnce(&T) -> R) -> R {
+        self.world
+            .with_runtime(self.runtime_id, |runtime| {
+                let engine = runtime.engine::<T>().expect("runtime engine should exist");
+                Ok(callback(engine))
+            })
+            .expect("runtime should exist")
     }
 }
 
 /// Build one agent configured for runtime tests.
-fn agent_for_options(options: &RuntimeOptions) -> (Agent, Host) {
+fn agent_for_options(options: &RuntimeOptions) -> (Arc<World>, Agent, Host) {
     agent_for_options_with_host_clock_source(options, None)
 }
 
@@ -376,14 +547,16 @@ fn agent_for_options(options: &RuntimeOptions) -> (Agent, Host) {
 fn agent_for_options_with_host_clock_source(
     options: &RuntimeOptions,
     host_clock_source: Option<Arc<dyn HostClockSource>>,
-) -> (Agent, Host) {
-    // construct one runtime agent from explicit options
-    let mut agent = if let Some(host_clock_source) = host_clock_source {
-        Agent::new_with_host_clock_source(Vec::new(), options, host_clock_source)
-            .expect("runtime test agent should build with host clock source")
+) -> (Arc<World>, Agent, Host) {
+    let world = if let Some(host_clock_source) = host_clock_source.clone() {
+        World::new(options, Some(host_clock_source)).expect("runtime test world should build")
     } else {
-        Agent::new(Vec::new(), options).expect("runtime test agent should build")
+        World::from_options(options).expect("runtime test world should build")
     };
+
+    // construct one runtime agent from explicit options
+    let mut agent =
+        Agent::new_in_world(Vec::new(), options, &world).expect("runtime test agent should build");
 
     // configure scheduler options for deterministic tests
     agent
@@ -401,14 +574,14 @@ fn agent_for_options_with_host_clock_source(
     host.poll_events(Some(0))
         .expect("host bootstrap events should drain");
 
-    (agent, host)
+    (world, agent, host)
 }
 
 /// Build one void runtime output.
 fn void_output() -> EngineOutput {
     EngineOutput {
         value: heap::Value::VOID,
-        telemetry: Default::default(),
+        stats: Default::default(),
         heap_cells: 0,
         raw_heap_cells: 0,
     }
