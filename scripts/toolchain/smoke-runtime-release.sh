@@ -18,7 +18,7 @@ fi
 
 executable_suffix=""
 case "${target}" in
-	*-windows-*) executable_suffix=".exe" ;;
+*-windows-*) executable_suffix=".exe" ;;
 esac
 
 release_directory="target/${target}/release"

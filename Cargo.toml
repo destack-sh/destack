@@ -234,6 +234,8 @@ collapsible_match = { level = "allow", priority = 1 }
 expect_used = { level = "allow", priority = 1 }
 manual_range_contains = { level = "allow", priority = 1 }
 module_inception = { level = "allow", priority = 1 }
+too_many_arguments = { level = "allow", priority = 1 }
+type_complexity = { level = "allow", priority = 1 }
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "warn"
