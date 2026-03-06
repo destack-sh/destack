@@ -131,8 +131,7 @@ impl World {
             if actual_revision != expected_revision {
                 return Err(RuntimeError::Internal {
                     message: format!(
-                        "world revision mismatch: expected {}, actual {}",
-                        expected_revision, actual_revision
+                        "world revision mismatch: expected {expected_revision}, actual {actual_revision}"
                     ),
                 }
                 .boxed());

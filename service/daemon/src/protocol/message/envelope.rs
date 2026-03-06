@@ -218,6 +218,7 @@ pub enum DaemonRequest {
 }
 
 /// Responses emitted by the daemon.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DaemonResponse {
     /// Successful handshake response.

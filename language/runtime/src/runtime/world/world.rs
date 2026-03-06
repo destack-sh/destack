@@ -81,6 +81,7 @@ impl World {
     }
 
     /// Create one world from runtime options and optional host clock source.
+    #[allow(clippy::arc_with_non_send_sync)]
     pub(crate) fn new(
         options: &RuntimeOptions,
         host_clock_source: Option<Arc<dyn HostClockSource>>,
