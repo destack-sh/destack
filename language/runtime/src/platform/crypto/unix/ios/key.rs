@@ -38,7 +38,7 @@ const IOS_SOFTWARE_BACKENDS: [HostKeyBackend; 2] = [
 
 /// Return whether one host store lane supports hardware-backed keys.
 pub(crate) fn host_store_supports_hardware_backed_key(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
     // secure-enclave support is exposed on user lane only
@@ -69,18 +69,18 @@ pub(crate) fn host_store_supports_hardware_backed_pair_algorithm(
 
 /// Return whether one host store lane supports hardware-backed secret keys.
 pub(crate) fn host_store_supports_hardware_backed_secret_key(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
 ) -> bool {
-    let _ = (binding, kind, algorithm);
+    let _ = (kind, algorithm);
 
     false
 }
 
 /// Generate one host-backed hardware key pair.
 pub(crate) fn host_generate_hardware_backed_key_pair(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     named_curve: CryptoNamedCurve,
@@ -156,7 +156,7 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
 
 /// Generate one host-backed hardware secret key.
 pub(crate) fn host_generate_hardware_backed_secret_key(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     digest: CryptoDigestAlgorithm,
@@ -166,7 +166,6 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
     operation: &'static str,
 ) -> RuntimeResult<HostKeyMaterial> {
     let _ = (
-        binding,
         kind,
         algorithm,
         digest,
@@ -180,7 +179,7 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
 
 /// Generate one host-managed persistent key pair when available.
 pub(crate) fn host_generate_persistent_key_pair(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     named_curve: CryptoNamedCurve,
@@ -190,7 +189,7 @@ pub(crate) fn host_generate_persistent_key_pair(
     persistent_key_label: &str,
     operation: &'static str,
 ) -> RuntimeResult<Option<HostGeneratedKeyPair>> {
-    let _ = (binding, usage_mask);
+    let _ = usage_mask;
     unix_core::generate_software_persistent_key_pair(
         kind,
         algorithm,
@@ -207,7 +206,7 @@ pub(crate) fn host_generate_persistent_key_pair(
 
 /// Import one persistent host-managed private key when available.
 pub(crate) fn host_import_persistent_private_key(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     named_curve: CryptoNamedCurve,
@@ -216,7 +215,7 @@ pub(crate) fn host_import_persistent_private_key(
     persistent_key_label: &str,
     operation: &'static str,
 ) -> RuntimeResult<Option<HostKeyMaterial>> {
-    let _ = (binding, usage_mask);
+    let _ = usage_mask;
     unix_core::import_software_persistent_private_key(
         kind,
         algorithm,
@@ -233,7 +232,7 @@ pub(crate) fn host_import_persistent_private_key(
 
 /// Sign one payload with one host-managed key.
 pub(crate) fn host_key_sign(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     key: &HostKeyMaterial,
     store_kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
@@ -324,7 +323,7 @@ pub(crate) fn host_key_sign(
 
 /// Decrypt one payload with one host-managed key.
 pub(crate) fn host_key_decrypt(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     key: &HostKeyMaterial,
     store_kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
@@ -351,7 +350,7 @@ pub(crate) fn host_key_decrypt(
 
 /// Delete one host-managed key.
 pub(crate) fn host_key_delete(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     key: &HostKeyMaterial,
     store_kind: CryptoStoreKind,
     operation: &'static str,
@@ -370,7 +369,7 @@ pub(crate) fn host_key_delete(
 
 /// Derive one shared secret with one host-managed private key.
 pub(crate) fn host_key_derive_shared_secret(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     key: &HostKeyMaterial,
     store_kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,

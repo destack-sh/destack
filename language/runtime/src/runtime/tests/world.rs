@@ -1,3 +1,5 @@
+#![allow(clippy::arc_with_non_send_sync)]
+
 use std::sync::Arc;
 
 use destack_workspace::{
@@ -504,8 +506,10 @@ fn test_world_remove_agent_cleans_topology() {
 #[test]
 fn test_world_apply_record_failure_does_not_append_replay_events() {
     // create one record-mode world
-    let mut options = RuntimeOptions::default();
-    options.execution = ExecutionMode::Record;
+    let options = RuntimeOptions {
+        execution: ExecutionMode::Record,
+        ..RuntimeOptions::default()
+    };
     let world = World::from_options(&options).expect("world should construct");
 
     // apply one successful command first
@@ -596,12 +600,20 @@ fn test_runtime_spawn_agent_aligns_world_scoped_options() {
         .expect("runtime builds");
 
     // request one conflicting option set for spawn
-    let mut spawn_options = RuntimeOptions::default();
-    spawn_options.execution = ExecutionMode::Replay;
-    spawn_options.access = RuntimeAccess::Deny;
-    spawn_options.world = RuntimeWorld::Simulation;
-    spawn_options.random.mode = RandomMode::Host;
-    spawn_options.time.mode = TimeMode::Host;
+    let spawn_options = RuntimeOptions {
+        execution: ExecutionMode::Replay,
+        access: RuntimeAccess::Deny,
+        world: RuntimeWorld::Simulation,
+        random: destack_workspace::RandomOptions {
+            mode: RandomMode::Host,
+            ..Default::default()
+        },
+        time: destack_workspace::TimeOptions {
+            mode: TimeMode::Host,
+            ..Default::default()
+        },
+        ..RuntimeOptions::default()
+    };
 
     // spawned agent should keep runtime world-scoped settings
     world

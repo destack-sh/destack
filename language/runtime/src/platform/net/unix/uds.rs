@@ -10,6 +10,11 @@ use crate::platform::resource::*;
 use crate::platform::{core as core_platform, *};
 use crate::runtime::BindingCallContext;
 
+use super::{
+    destack_net_accept, destack_net_close_listener, destack_net_resolve,
+    destack_net_reverse_lookup, destack_net_reverse_lookup_names, destack_net_socket_pair,
+};
+
 use std::ffi::{CStr, CString};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::os::unix::io::RawFd;
@@ -235,7 +240,7 @@ pub(crate) unsafe fn destack_net_uds_close_listener(
     binding: &BindingCallContext,
     handle: ListenerHandle,
 ) -> RuntimeResult<()> {
-    unsafe { super::destack_net_close_listener(binding, handle) }
+    unsafe { destack_net_close_listener(binding, handle) }
 }
 
 /// Create a connected UDS socket pair.
@@ -262,7 +267,7 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
     socket_type: SocketType,
 ) -> RuntimeResult<()> {
     unsafe {
-        super::destack_net_socket_pair(
+        destack_net_socket_pair(
             binding,
             out,
             SocketFamily::Unspecified,

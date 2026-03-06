@@ -1,6 +1,6 @@
 use super::{
-    assert_invalid_argument_value, placeholder_context_handle, placeholder_session_handle,
-    placeholder_socket_handle, with_harness_context,
+    TlsHarnessContext, assert_invalid_argument_value, placeholder_context_handle,
+    placeholder_session_handle, placeholder_socket_handle, with_harness_context,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -144,7 +144,7 @@ fn platform_error_code(error: &RuntimeError) -> PlatformErrorCode {
 }
 
 fn complete_handshake(
-    context: &mut super::TlsHarnessContext<'_>,
+    context: &mut TlsHarnessContext<'_>,
     client_session: resource::TlsSessionHandle,
     server_session: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
@@ -162,7 +162,7 @@ fn complete_handshake(
 }
 
 fn write_payload(
-    context: &mut super::TlsHarnessContext<'_>,
+    context: &mut TlsHarnessContext<'_>,
     session: resource::TlsSessionHandle,
     payload: &[u8],
 ) -> RuntimeResult<()> {
@@ -191,7 +191,7 @@ fn write_payload(
 }
 
 fn read_payload(
-    context: &mut super::TlsHarnessContext<'_>,
+    context: &mut TlsHarnessContext<'_>,
     session: resource::TlsSessionHandle,
     expected_length: usize,
 ) -> RuntimeResult<Vec<u8>> {

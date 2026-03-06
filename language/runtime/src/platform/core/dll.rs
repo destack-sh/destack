@@ -1,3 +1,7 @@
+#[cfg(target_os = "linux")]
+use crate::platform::core::load_dynamic_symbol_named;
+use crate::platform::core::{close_dynamic_library, load_dynamic_symbol, open_dynamic_library};
+
 use std::ffi::{CStr, c_void};
 use std::fmt::{Debug, Formatter};
 
@@ -51,7 +55,7 @@ pub(crate) struct DynamicLibrary {
 impl DynamicLibrary {
     /// Open one dynamic library by one file name.
     pub(crate) fn open(name: &str) -> Result<Self, String> {
-        let handle = super::open_dynamic_library(name)?;
+        let handle = open_dynamic_library(name)?;
 
         Ok(Self { handle })
     }
@@ -61,7 +65,7 @@ impl DynamicLibrary {
     where
         T: Copy,
     {
-        super::load_dynamic_symbol(self.handle, name)
+        load_dynamic_symbol(self.handle, name)
     }
 
     /// Return one required typed symbol with one candidate-qualified diagnostic.
@@ -84,7 +88,7 @@ impl DynamicLibrary {
     where
         T: Copy,
     {
-        super::load_dynamic_symbol_named(self.handle, name)
+        load_dynamic_symbol_named(self.handle, name)
     }
 
     /// Return one required typed symbol by one UTF-8 symbol name with one candidate-qualified diagnostic.
@@ -113,7 +117,7 @@ impl Debug for DynamicLibrary {
 
 impl Drop for DynamicLibrary {
     fn drop(&mut self) {
-        super::close_dynamic_library(self.handle);
+        close_dynamic_library(self.handle);
     }
 }
 

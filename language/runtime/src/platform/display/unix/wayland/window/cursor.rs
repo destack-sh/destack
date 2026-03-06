@@ -4,6 +4,7 @@ use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 use super::super::core as backend_core;
+use super::{resolve_window_binding, with_window_binding_mut};
 
 /// Set cursor icon for one window.
 pub(crate) unsafe fn window_set_cursor_icon(
@@ -12,7 +13,7 @@ pub(crate) unsafe fn window_set_cursor_icon(
     icon: WindowCursorIcon,
 ) -> RuntimeResult<()> {
     // resolve one owner-thread window binding and update icon state
-    super::with_window_binding_mut(
+    with_window_binding_mut(
         context,
         window_handle,
         "destack.display.window.setCursorIcon",
@@ -40,7 +41,7 @@ pub(crate) unsafe fn window_set_cursor_mode(
     mode: WindowCursorMode,
 ) -> RuntimeResult<()> {
     // resolve one owner-thread window binding and update mode state
-    super::with_window_binding_mut(
+    with_window_binding_mut(
         context,
         window_handle,
         "destack.display.window.setCursorMode",
@@ -68,7 +69,7 @@ pub(crate) unsafe fn window_set_cursor_position(
     position: WindowPosition,
 ) -> RuntimeResult<()> {
     // resolve one owner-thread window binding
-    let binding = super::resolve_window_binding(
+    let binding = resolve_window_binding(
         context,
         window_handle,
         "destack.display.window.setCursorPosition",
@@ -128,7 +129,7 @@ pub(crate) unsafe fn window_set_cursor_visible(
     visible: bool,
 ) -> RuntimeResult<()> {
     // resolve one owner-thread window binding and update visibility state
-    super::with_window_binding_mut(
+    with_window_binding_mut(
         context,
         window_handle,
         "destack.display.window.setCursorVisible",

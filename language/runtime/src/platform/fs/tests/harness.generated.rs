@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::fs::tests::FsHarnessContext;
 use crate::platform::fs::{
     AccessMode, AllocFlags, AtFlags, CopyFlags, Dirent, DirentKind, DirentNext, DirentNextEnd,
     DirentNextEndVm, DirentNextEntry, DirentNextEntryVm, DirentNextVm, DirentVm, FdFlags,

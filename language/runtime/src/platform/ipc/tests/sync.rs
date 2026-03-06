@@ -1,3 +1,5 @@
+#[cfg(any(target_os = "linux", target_os = "android"))]
+use super::core::decode_mapping_value;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource;
 
@@ -85,9 +87,8 @@ fn test_futex_wait_and_wake_paths() {
         let name = unique_ipc_name("ipc_futex_wait_wake");
         let name = context.string_value(&name)?;
         let handle = context.destack_ipc_shared_memory_create(name, 4096, 0)?;
-        let mapping = super::core::decode_mapping_value(
-            context.destack_ipc_shared_memory_map(handle, 0, 4096, 0)?,
-        );
+        let mapping =
+            decode_mapping_value(context.destack_ipc_shared_memory_map(handle, 0, 4096, 0)?);
 
         // initialize one futex word and verify mismatch waits would-block
         unsafe {

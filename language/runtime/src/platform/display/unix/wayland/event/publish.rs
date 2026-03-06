@@ -1,11 +1,21 @@
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::core as core_platform;
+use crate::platform::display::{
+    DisplayMode, WindowLogicalSize, WindowModeOptions, WindowOcclusionState, WindowPhysicalSize,
+    WindowVisibility,
+};
+use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
-use super::super::super::monitor;
-use super::*;
+use super::super::super::{core, monitor};
+use super::codec::{descriptor_changed_mask, monitor_topology_records};
+use super::core::{
+    DisplayDescriptorSnapshot, DisplayEventRecord, DisplayEventRecordKind, MonitorEventBinding,
+    MonitorEventFilterState, MonitorEventState, MonitorSnapshot, WindowEventRecord,
+    WindowEventRecordKind,
+};
+use super::queue::{publish_monitor_event, publish_window_event, push_monitor_record};
 
 /// Resolve one occlusion state from one visibility value.
 fn occlusion_from_visibility(visibility: WindowVisibility) -> WindowOcclusionState {

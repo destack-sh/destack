@@ -915,7 +915,7 @@ mod tests {
             record.kind,
             DisplayEventRecordKind::DescriptorChanged { ref current, changed_mask, .. }
                 // evaluate this condition
-                if current.id == r"\\.\DISPLAY1" && (changed_mask & super::core::DISPLAY_CHANGED_MASK_BOUNDS) != 0
+                if current.id == r"\\.\DISPLAY1" && (changed_mask & DISPLAY_CHANGED_MASK_BOUNDS) != 0
         )));
         assert!(records.iter().any(|record| matches!(
             record.kind,
@@ -1122,7 +1122,7 @@ mod tests {
         let (runtime_state, window_event_binding, window) =
             subscribed_window_stream_with_filter(WindowEventFilterState {
                 window: None,
-                kind_mask: Some(super::core::WINDOW_EVENT_KIND_DROP_STARTED),
+                kind_mask: Some(WINDOW_EVENT_KIND_DROP_STARTED),
             });
 
         publish_window_drop_started_event(&runtime_state, window);
@@ -1145,7 +1145,7 @@ mod tests {
         let (runtime_state, window_event_binding, window) =
             subscribed_window_stream_with_filter(WindowEventFilterState {
                 window: None,
-                kind_mask: Some(super::core::WINDOW_EVENT_KIND_TEXT_DROPPED),
+                kind_mask: Some(WINDOW_EVENT_KIND_TEXT_DROPPED),
             });
 
         publish_window_drop_started_event(&runtime_state, window);
@@ -1177,7 +1177,7 @@ mod tests {
         let (runtime_state, binding) =
             subscribed_monitor_stream_with_filter(MonitorEventFilterState {
                 display_id: None,
-                kind_mask: Some(super::core::DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED),
+                kind_mask: Some(DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED),
             });
 
         publish_monitor_event(

@@ -120,7 +120,7 @@ pub(crate) fn native_device_events_supported(backend: audio_core::AudioBackend) 
             return false;
         }
 
-        return super::backend::backend_supported(backend);
+        return backend::backend_supported(backend);
     }
 
     #[cfg(not(target_os = "linux"))]

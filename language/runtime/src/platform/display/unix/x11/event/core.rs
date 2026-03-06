@@ -520,8 +520,12 @@ fn window_event_record(kind: WindowEventRecordKind) -> WindowEventRecord {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::platform::display::{DisplayOrientation, DisplaySupportStatus};
+    use crate::platform::display::{DisplayMode, DisplayOrientation, DisplaySupportStatus};
+
+    use super::{
+        DisplayDescriptorSnapshot, DisplayEventRecordKind, MonitorSnapshot, core,
+        monitor_topology_records,
+    };
 
     /// Build one descriptor payload for monitor topology tests.
     fn descriptor(

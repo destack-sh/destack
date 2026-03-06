@@ -1,9 +1,11 @@
 #[cfg(any(windows, target_os = "macos"))]
 use super::InputKeyboardStateRecord;
+#[cfg(any(windows, target_os = "macos"))]
+use super::assert_not_supported_result;
 use super::{
     InputDeviceRecord, InputEventRecord, InputHarnessContext, InputMonitorEventRecord,
-    assert_not_supported_result, assert_ok_or_expected_error, assert_platform_error_code,
-    error_code_from_runtime_error, is_not_supported_code, with_harness_context,
+    assert_ok_or_expected_error, assert_platform_error_code, error_code_from_runtime_error,
+    is_not_supported_code, with_harness_context,
 };
 use crate::diagnostic::RuntimeResult;
 use crate::platform::diagnostic::PlatformErrorCode;

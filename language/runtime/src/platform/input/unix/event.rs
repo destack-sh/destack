@@ -1176,7 +1176,14 @@ pub(crate) unsafe fn destack_input_try_read(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::collections::{HashMap, VecDeque};
+
+    use crate::platform::input::{InputDeviceKind, InputEventAction};
+
+    use super::{
+        MonitorDeviceSnapshot, UnixInputMonitorBinding, enqueue_monitor_action,
+        enqueue_monitor_delta,
+    };
 
     /// Build one empty monitor binding for logic tests.
     fn empty_monitor_binding() -> UnixInputMonitorBinding {

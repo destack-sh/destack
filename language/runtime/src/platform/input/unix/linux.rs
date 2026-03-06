@@ -2824,7 +2824,6 @@ fn list_linux_hidraw_paths() -> RuntimeResult<Vec<String>> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::tests::runtime::TestRuntime;
 
     /// Map Linux wheel events with scroll action semantics.

@@ -4,6 +4,7 @@ use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 use super::super::super::{core as x11_core, resource as display_resource};
+use super::{ensure_window_thread, occlusion_from_visibility, pump_window_messages};
 
 /// Read descriptor metadata for one window.
 pub(crate) unsafe fn window_descriptor(
@@ -13,7 +14,7 @@ pub(crate) unsafe fn window_descriptor(
 ) -> RuntimeResult<()> {
     // validate out pointer and refresh host event state
     core_platform::ensure_out(out, "out")?;
-    super::pump_window_messages(context)?;
+    pump_window_messages(context)?;
 
     // resolve one binding snapshot and encode descriptor payload
     let binding = display_resource::resolve_window_binding(
@@ -22,7 +23,7 @@ pub(crate) unsafe fn window_descriptor(
         "destack.display.window.descriptor",
     )?;
     let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.descriptor")?;
+    ensure_window_thread(&binding, "destack.display.window.descriptor")?;
     let descriptor = WindowDescriptor {
         backend: x11_core::selected_backend(),
         id: context.store_string(&binding.id),
@@ -58,7 +59,7 @@ pub(crate) unsafe fn window_state(
 ) -> RuntimeResult<()> {
     // validate out pointer and refresh host event state
     core_platform::ensure_out(out, "out")?;
-    super::pump_window_messages(context)?;
+    pump_window_messages(context)?;
 
     // resolve one binding snapshot and encode state payload
     let binding = display_resource::resolve_window_binding(
@@ -67,7 +68,7 @@ pub(crate) unsafe fn window_state(
         "destack.display.window.state",
     )?;
     let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.state")?;
+    ensure_window_thread(&binding, "destack.display.window.state")?;
     let state = WindowState {
         backend: x11_core::selected_backend(),
         position: binding.position,
@@ -78,7 +79,7 @@ pub(crate) unsafe fn window_state(
         role: binding.role,
         display: binding.display,
         focused: binding.focused,
-        occlusion: super::occlusion_from_visibility(binding.visibility),
+        occlusion: occlusion_from_visibility(binding.visibility),
         safe_area_insets: binding.safe_area_insets,
         theme: binding.theme,
         chrome: binding.chrome,

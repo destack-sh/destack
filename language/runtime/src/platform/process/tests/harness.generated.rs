@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::process::tests::ProcessHarnessContext;
 use crate::platform::process::{
     ExecAtFlags, GroupId, ProcessCpuSet, ProcessCpuSetVm, ProcessFdAction, ProcessFdActionClose,
     ProcessFdActionCloseVm, ProcessFdActionDup2, ProcessFdActionDup2Vm, ProcessFdActionOpen,

@@ -1,10 +1,10 @@
 use super::{
-    HarnessValue, decode_display_mode, decode_harness_value, decode_monitor_list,
-    decode_monitor_modes, decode_window_descriptor, default_monitor_list_request,
-    default_monitor_open_options, default_window_event_open_options, default_window_options,
-    error_code, harness_string, harness_window_position, harness_window_size_constraints,
-    harness_window_size_constraints_none, is_not_supported_code, result_or_skip_not_supported,
-    with_harness_context,
+    DisplayHarnessContext, HarnessValue, decode_display_mode, decode_harness_value,
+    decode_monitor_list, decode_monitor_modes, decode_window_descriptor,
+    default_monitor_list_request, default_monitor_open_options, default_window_event_open_options,
+    default_window_options, error_code, harness_string, harness_window_position,
+    harness_window_size_constraints, harness_window_size_constraints_none, is_not_supported_code,
+    result_or_skip_not_supported, with_harness_context,
 };
 #[cfg(target_os = "linux")]
 use super::{
@@ -18,17 +18,17 @@ use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(any(unix, windows))]
 use crate::platform::display as display_platform;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
-use crate::platform::display::WindowOcclusionState;
+use display_platform::WindowOcclusionState;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
-use crate::platform::display::WindowRole;
-use crate::platform::display::{DisplayBackend, DisplayBackendSelectionPolicy, WindowVisibility};
+use display_platform::WindowRole;
+use display_platform::{DisplayBackend, DisplayBackendSelectionPolicy, WindowVisibility};
 #[cfg(target_os = "linux")]
-use crate::platform::display::{
+use display_platform::{
     WindowAspectRatio, WindowAspectRatioVm, WindowAttentionLevel, WindowChromeKind,
     WindowCursorMode,
 };
 #[cfg(any(unix, windows))]
-use crate::platform::display::{WindowCursorIcon, WindowPosition, WindowResizeEdge};
+use display_platform::{WindowCursorIcon, WindowPosition, WindowResizeEdge};
 
 #[cfg(target_os = "linux")]
 const DISPLAY_CAP_WINDOW_MODAL: u64 = display_platform::DISPLAY_BACKEND_CAP_WINDOW_MODAL.0;
@@ -183,8 +183,8 @@ fn wayland_capability_ceiling_mask() -> u64 {
 /// Force one monitor-list request to use one strict backend.
 fn force_monitor_list_backend(
     request: &mut HarnessValue<
-        crate::platform::display::DisplayMonitorListRequest,
-        crate::platform::display::DisplayMonitorListRequestVm,
+        display_platform::DisplayMonitorListRequest,
+        display_platform::DisplayMonitorListRequestVm,
     >,
     backend: DisplayBackend,
 ) {
@@ -203,8 +203,8 @@ fn force_monitor_list_backend(
 /// Force one monitor-open options payload to use one strict backend.
 fn force_monitor_open_backend(
     options: &mut HarnessValue<
-        crate::platform::display::DisplayMonitorOpenOptions,
-        crate::platform::display::DisplayMonitorOpenOptionsVm,
+        display_platform::DisplayMonitorOpenOptions,
+        display_platform::DisplayMonitorOpenOptionsVm,
     >,
     backend: DisplayBackend,
 ) {
@@ -222,10 +222,7 @@ fn force_monitor_open_backend(
 
 /// Force one window-options payload to use one strict backend.
 fn force_window_backend(
-    options: &mut HarnessValue<
-        crate::platform::display::WindowOptions,
-        crate::platform::display::WindowOptionsVm,
-    >,
+    options: &mut HarnessValue<display_platform::WindowOptions, display_platform::WindowOptionsVm>,
     backend: DisplayBackend,
 ) {
     match options {
@@ -243,8 +240,8 @@ fn force_window_backend(
 /// Force one window-event open options payload to use one strict backend.
 fn force_window_event_backend(
     options: &mut HarnessValue<
-        crate::platform::display::WindowEventOpenOptions,
-        crate::platform::display::WindowEventOpenOptionsVm,
+        display_platform::WindowEventOpenOptions,
+        display_platform::WindowEventOpenOptionsVm,
     >,
     backend: DisplayBackend,
 ) {
@@ -263,7 +260,7 @@ fn force_window_event_backend(
 #[cfg(target_os = "linux")]
 /// Build one harness aspect-ratio payload.
 fn harness_aspect_ratio(
-    context: &super::DisplayHarnessContext<'_>,
+    context: &DisplayHarnessContext<'_>,
     numerator: u32,
     denominator: u32,
 ) -> HarnessValue<Option<WindowAspectRatio>, Option<WindowAspectRatioVm>> {
@@ -282,7 +279,7 @@ fn harness_aspect_ratio(
 
 /// Return available host display backends for the active harness context.
 fn available_backends(
-    context: &mut super::DisplayHarnessContext<'_>,
+    context: &mut DisplayHarnessContext<'_>,
 ) -> RuntimeResult<Vec<DisplayBackend>> {
     let descriptors = available_backend_descriptors(context)?;
     let backends = descriptors
@@ -306,7 +303,7 @@ struct BackendDescriptorSummary {
 #[cfg(any(unix, windows))]
 /// Return available backend descriptors for the active harness context.
 fn available_backend_descriptors(
-    context: &mut super::DisplayHarnessContext<'_>,
+    context: &mut DisplayHarnessContext<'_>,
 ) -> RuntimeResult<Vec<BackendDescriptorSummary>> {
     let descriptors = context.destack_display_backend_list()?;
     let descriptors = match descriptors {
@@ -472,15 +469,13 @@ fn test_display_window_surface_supports_strict_backend_selection() {
             let event = context.destack_display_window_event_read(stream, 100_000_000)?;
             let saw_refresh_or_created = matches!(
                 event,
-                HarnessValue::Native(
-                    crate::platform::display::WindowEvent::WindowRefreshRequestedEvent(_)
-                ) | HarnessValue::Native(
-                    crate::platform::display::WindowEvent::WindowCreatedEvent(_)
-                ) | HarnessValue::Vm(
-                    crate::platform::display::WindowEventVm::WindowRefreshRequestedEvent(_)
-                ) | HarnessValue::Vm(crate::platform::display::WindowEventVm::WindowCreatedEvent(
+                HarnessValue::Native(display_platform::WindowEvent::WindowRefreshRequestedEvent(
                     _
-                ))
+                )) | HarnessValue::Native(display_platform::WindowEvent::WindowCreatedEvent(_))
+                    | HarnessValue::Vm(
+                        display_platform::WindowEventVm::WindowRefreshRequestedEvent(_)
+                    )
+                    | HarnessValue::Vm(display_platform::WindowEventVm::WindowCreatedEvent(_))
             );
             assert!(saw_refresh_or_created);
 
@@ -988,18 +983,18 @@ fn test_display_backend_identity_tracks_strict_backend_selection() {
             context.destack_display_window_request_refresh(window)?;
             let event = context.destack_display_window_event_read(stream, 100_000_000)?;
             let event_backend = match event {
+                HarnessValue::Native(display_platform::WindowEvent::WindowCreatedEvent(value)) => {
+                    value.metadata.backend
+                }
                 HarnessValue::Native(
-                    crate::platform::display::WindowEvent::WindowCreatedEvent(value),
+                    display_platform::WindowEvent::WindowRefreshRequestedEvent(value),
                 ) => value.metadata.backend,
-                HarnessValue::Native(
-                    crate::platform::display::WindowEvent::WindowRefreshRequestedEvent(value),
-                ) => value.metadata.backend,
-                HarnessValue::Vm(crate::platform::display::WindowEventVm::WindowCreatedEvent(
+                HarnessValue::Vm(display_platform::WindowEventVm::WindowCreatedEvent(value)) => {
+                    value.metadata.backend
+                }
+                HarnessValue::Vm(display_platform::WindowEventVm::WindowRefreshRequestedEvent(
                     value,
                 )) => value.metadata.backend,
-                HarnessValue::Vm(
-                    crate::platform::display::WindowEventVm::WindowRefreshRequestedEvent(value),
-                ) => value.metadata.backend,
                 _ => {
                     context.destack_display_window_event_close(stream)?;
                     context.destack_display_window_close(window)?;
@@ -1677,9 +1672,7 @@ fn test_display_wayland_capabilities_match_implemented_contract() {
         let exclusive_mode = harness_window_mode_options(
             &context,
             HarnessWindowMode::ExclusiveFullscreen {
-                display: crate::platform::resource::DisplayHandle(
-                    crate::platform::resource::ResourceId(0),
-                ),
+                display: resource::DisplayHandle(resource::ResourceId(0)),
                 display_mode: None,
             },
         );

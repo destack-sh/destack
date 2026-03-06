@@ -1170,21 +1170,26 @@ fn read_platform_event(
 /// Read one platform-specific event from one opened platform backend on macOS.
 #[cfg(target_os = "macos")]
 fn read_platform_event(
-    binding_2: &BindingCallContext,
-    binding: &UnixInputBinding,
+    call_context: &BindingCallContext,
+    input_binding: &UnixInputBinding,
     handle: resource::InputDeviceHandle,
     nonblocking: bool,
     operation: &'static str,
 ) -> RuntimeResult<InputEvent> {
-    let _ = (binding, operation);
-    input_macos::read_macos_session_event(binding_2, handle, nonblocking, binding.read_mode)
+    let _ = operation;
+    input_macos::read_macos_session_event(
+        call_context,
+        handle,
+        nonblocking,
+        input_binding.read_mode,
+    )
 }
 
 /// Read one platform-specific event from one opened platform backend on other Unix hosts.
 #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
 fn read_platform_event(
-    binding: &BindingCallContext,
-    _binding: &UnixInputBinding,
+    _binding: &BindingCallContext,
+    _input_binding: &UnixInputBinding,
     _handle: resource::InputDeviceHandle,
     _nonblocking: bool,
     _operation: &'static str,

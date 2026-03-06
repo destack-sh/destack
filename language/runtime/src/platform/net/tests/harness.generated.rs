@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::net::tests::NetHarnessContext;
 use crate::platform::net::{
     AcceptFlags, KeepAliveConfig, KeepAliveConfigVm, Linger, LingerVm, NetInterface,
     NetInterfaceFlags, NetInterfaceVm, PacketBackend, PacketBackendCapabilityFlags,

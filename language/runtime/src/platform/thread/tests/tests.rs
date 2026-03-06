@@ -6,8 +6,8 @@ mod harness;
 use destack_vm as vm;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::thread::{ThreadOptions, ThreadOptionsVm};
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::platform::thread::ThreadOptions;
+use crate::runtime::BindingCallContext;
 pub(crate) use crate::tests::platform::{
     assert_platform_error_code, assert_platform_error_codes, result_or_skip_not_supported,
 };

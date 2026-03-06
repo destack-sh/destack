@@ -1,9 +1,10 @@
 use crate::diagnostic::RuntimeError;
 use crate::platform::PlatformError;
+use crate::platform::core::get_errno;
 
 /// Build an I/O runtime error from the last unix errno value.
 pub(crate) fn io_error(syscall: &str, path: Option<&str>) -> Box<RuntimeError> {
-    let errno = super::super::get_errno();
+    let errno = get_errno();
     io_error_with_errno(syscall, errno, path)
 }
 
@@ -27,7 +28,7 @@ pub(crate) fn io_error_with_errno(
 
 /// Build a network runtime error from the last unix errno value.
 pub(crate) fn net_error(syscall: &str) -> Box<RuntimeError> {
-    let errno = super::super::get_errno();
+    let errno = get_errno();
     net_error_with_errno(syscall, errno)
 }
 

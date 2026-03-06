@@ -1,4 +1,23 @@
-use super::*;
+use windows_sys::Win32::UI::WindowsAndMessaging::{
+    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetWindowPos,
+};
+
+use crate::diagnostic::RuntimeResult;
+use crate::platform::display::{
+    WindowAspectRatio, WindowLogicalSize, WindowModeOptions, WindowPhysicalSize, WindowPosition,
+    WindowSizeConstraints,
+};
+use crate::platform::resource;
+use crate::runtime::BindingCallContext;
+
+use super::super::{core, event, resource as display_resource};
+use super::core::{
+    clamp_logical_size, ensure_window_thread, logical_to_physical, normalize_logical_size,
+    normalize_physical_size, outer_size_from_client_size, physical_to_logical,
+    refresh_window_snapshot, same_window_mode, window_ex_style_for_binding,
+    window_style_for_binding,
+};
+use super::mode::apply_mode_options;
 
 /// Apply one optional aspect-ratio lock to one logical-size payload.
 fn apply_aspect_ratio_lock(

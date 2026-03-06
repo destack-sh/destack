@@ -1,4 +1,18 @@
-use super::*;
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::ReleaseCapture;
+use windows_sys::Win32::UI::WindowsAndMessaging::{
+    FLASHW_TIMERNOFG, FLASHW_TRAY, FLASHWINFO, FlashWindowEx, GetForegroundWindow, HTCAPTION,
+    PostMessageW, SW_SHOW, SetForegroundWindow, SetWindowPos, ShowWindow, WM_NCLBUTTONDOWN,
+};
+
+use crate::diagnostic::RuntimeResult;
+use crate::platform::display::{WindowAttentionLevel, WindowResizeEdge, WindowTheme};
+use crate::platform::{resource, resource as runtime_resource};
+use crate::runtime::BindingCallContext;
+
+use super::super::{core, event, resource as display_resource};
+use super::core::{
+    ensure_window_thread, refresh_window_snapshot, resize_hit_test, theme_from_preferences,
+};
 
 /// Request one user-attention pulse for one window.
 pub(crate) unsafe fn window_request_attention(
@@ -245,7 +259,9 @@ pub(crate) unsafe fn window_begin_resize_drag(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::platform::display::WindowTheme;
+
+    use super::theme_from_preferences;
 
     /// Resolve high-contrast light theme when both lanes request it.
     #[test]

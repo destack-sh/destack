@@ -474,7 +474,7 @@ pub(super) fn reset_drop_state(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{parse_file_uri, parse_uri_list_payload, preferred_drop_mime_type};
 
     /// Parse local file URIs and decode percent-encoded bytes.
     #[test]

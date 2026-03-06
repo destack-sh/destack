@@ -5,12 +5,13 @@ use super::{
     open_window_or_skip_not_supported, with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::{display as display_platform, resource};
 #[cfg(windows)]
-use crate::platform::display::{WindowAspectRatio, WindowAspectRatioVm};
-use crate::platform::display::{
+use display_platform::{WindowAspectRatio, WindowAspectRatioVm};
+use display_platform::{
     WindowChromeKind, WindowCursorIcon, WindowCursorMode, WindowRole, WindowVisibility,
 };
-use crate::platform::resource::{DisplayHandle, ResourceId};
+use resource::{DisplayHandle, ResourceId};
 
 #[cfg(windows)]
 use std::thread::sleep;
@@ -134,11 +135,11 @@ fn test_window_failed_mode_change_preserves_previous_mode() {
         let initial_is_windowed = match initial_descriptor {
             HarnessValue::Native(value) => matches!(
                 value.mode,
-                crate::platform::display::WindowModeOptions::WindowWindowedModeOptions(_)
+                display_platform::WindowModeOptions::WindowWindowedModeOptions(_)
             ),
             HarnessValue::Vm(value) => matches!(
                 value.mode,
-                crate::platform::display::WindowModeOptionsVm::WindowWindowedModeOptions(_)
+                display_platform::WindowModeOptionsVm::WindowWindowedModeOptions(_)
             ),
         };
         assert!(initial_is_windowed);
@@ -157,11 +158,11 @@ fn test_window_failed_mode_change_preserves_previous_mode() {
             let next_is_windowed = match next_descriptor {
                 HarnessValue::Native(value) => matches!(
                     value.mode,
-                    crate::platform::display::WindowModeOptions::WindowWindowedModeOptions(_)
+                    display_platform::WindowModeOptions::WindowWindowedModeOptions(_)
                 ),
                 HarnessValue::Vm(value) => matches!(
                     value.mode,
-                    crate::platform::display::WindowModeOptionsVm::WindowWindowedModeOptions(_)
+                    display_platform::WindowModeOptionsVm::WindowWindowedModeOptions(_)
                 ),
             };
             assert!(next_is_windowed);
@@ -180,11 +181,11 @@ fn test_window_failed_mode_change_preserves_previous_mode() {
         let next_is_windowed = match next_descriptor {
             HarnessValue::Native(value) => matches!(
                 value.mode,
-                crate::platform::display::WindowModeOptions::WindowWindowedModeOptions(_)
+                display_platform::WindowModeOptions::WindowWindowedModeOptions(_)
             ),
             HarnessValue::Vm(value) => matches!(
                 value.mode,
-                crate::platform::display::WindowModeOptionsVm::WindowWindowedModeOptions(_)
+                display_platform::WindowModeOptionsVm::WindowWindowedModeOptions(_)
             ),
         };
         assert!(next_is_windowed);
@@ -201,13 +202,14 @@ fn test_window_open_mode_exclusive_with_invalid_display_is_rejected() {
         let mut options = default_window_options(&mut context, "exclusive-open")?;
         match &mut options {
             HarnessValue::Native(options) => {
-                options.mode = crate::platform::display::WindowModeOptions::WindowExclusiveFullscreenModeOptions(
-                    crate::platform::display::WindowExclusiveFullscreenModeOptions {
-                        kind: context.call_context.store_string("exclusiveFullscreen"),
-                        display: DisplayHandle(ResourceId(0)),
-                        display_mode: None,
-                    },
-                );
+                options.mode =
+                    display_platform::WindowModeOptions::WindowExclusiveFullscreenModeOptions(
+                        display_platform::WindowExclusiveFullscreenModeOptions {
+                            kind: context.call_context.store_string("exclusiveFullscreen"),
+                            display: DisplayHandle(ResourceId(0)),
+                            display_mode: None,
+                        },
+                    );
             }
             HarnessValue::Vm(options) => {
                 let vm_context = context
@@ -216,15 +218,16 @@ fn test_window_open_mode_exclusive_with_invalid_display_is_rejected() {
                         &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>)
                     })
                     .expect("vm context should exist for vm harness");
-                options.mode = crate::platform::display::WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(
-                    crate::platform::display::WindowExclusiveFullscreenModeOptionsVm {
-                        kind: destack_vm::StringHandle::new(
-                            vm_context.intern_string("exclusiveFullscreen"),
-                        ),
-                        display: DisplayHandle(ResourceId(0)),
-                        display_mode: None,
-                    },
-                );
+                options.mode =
+                    display_platform::WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(
+                        display_platform::WindowExclusiveFullscreenModeOptionsVm {
+                            kind: destack_vm::StringHandle::new(
+                                vm_context.intern_string("exclusiveFullscreen"),
+                            ),
+                            display: DisplayHandle(ResourceId(0)),
+                            display_mode: None,
+                        },
+                    );
             }
         }
 
@@ -752,11 +755,11 @@ fn test_window_close_keeps_cursor_hidden_when_another_window_requests_hidden_mod
 
         context.destack_display_window_set_cursor_mode(
             first_window,
-            crate::platform::display::WindowCursorMode::Hidden,
+            display_platform::WindowCursorMode::Hidden,
         )?;
         context.destack_display_window_set_cursor_mode(
             second_window,
-            crate::platform::display::WindowCursorMode::Hidden,
+            display_platform::WindowCursorMode::Hidden,
         )?;
 
         context.destack_display_window_close(first_window)?;
@@ -828,7 +831,7 @@ fn test_window_close_restores_cursor_visibility() {
 
         context.destack_display_window_set_cursor_mode(
             window,
-            crate::platform::display::WindowCursorMode::Hidden,
+            display_platform::WindowCursorMode::Hidden,
         )?;
         context.destack_display_window_close(window)?;
         assert!(

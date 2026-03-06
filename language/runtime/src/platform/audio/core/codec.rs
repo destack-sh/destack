@@ -1,4 +1,6 @@
-use super::*;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::audio::AudioSampleFormat;
 
 /// Bytes per sample for unsigned 8-bit PCM.
 const PCM_U8_BYTES: usize = 1;

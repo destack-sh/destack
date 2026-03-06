@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::random::tests::RandomHarnessContext;
 use crate::platform::random::{
     RandomStream, RandomStreamDomain, RandomStreamState, RandomStreamStateVm, SecureRandomMetadata,
     SecureRandomMetadataVm, SecureRandomSource, native as random_native, vm as random_vm,

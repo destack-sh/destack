@@ -7,6 +7,7 @@ use crate::platform::resource::WindowHandle;
 use crate::runtime::BindingCallContext;
 
 use super::super::core as backend_core;
+use super::{require_xdg_toplevel_id, resolve_window_binding};
 
 /// Resolve one optional owner handle and reject self-relationships.
 fn resolve_owner_handle(
@@ -28,7 +29,7 @@ fn resolve_owner_handle(
     }
 
     // ensure owner handle resolves to one live window on the same owner thread
-    super::resolve_window_binding(context, owner_handle, operation)?;
+    resolve_window_binding(context, owner_handle, operation)?;
 
     Ok(Some(owner_handle))
 }
@@ -45,7 +46,7 @@ fn resolve_owner_toplevel_id(
     };
 
     // resolve owner binding and require one toplevel role lane
-    let owner_binding = super::resolve_window_binding(context, owner_handle, operation)?;
+    let owner_binding = resolve_window_binding(context, owner_handle, operation)?;
     let owner_binding = owner_binding
         .lock()
         .unwrap_or_else(|error| error.into_inner());
@@ -152,7 +153,7 @@ pub(crate) unsafe fn window_set_modal(
 ) -> RuntimeResult<()> {
     // resolve target window binding and enforce owner-thread affinity
     let binding =
-        super::resolve_window_binding(context, window_handle, "destack.display.window.setModal")?;
+        resolve_window_binding(context, window_handle, "destack.display.window.setModal")?;
     let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
 
     // reject modal requests when no owner relationship exists
@@ -169,7 +170,7 @@ pub(crate) unsafe fn window_set_modal(
     }
 
     // apply modal state through optional xdg-dialog support
-    let toplevel_id = super::require_xdg_toplevel_id(&binding, "destack.display.window.setModal")?;
+    let toplevel_id = require_xdg_toplevel_id(&binding, "destack.display.window.setModal")?;
     let next_dialog_id = apply_modal_request(
         context,
         toplevel_id,
@@ -199,12 +200,11 @@ pub(crate) unsafe fn window_set_parent(
 
     // resolve target window binding and enforce owner-thread affinity
     let binding =
-        super::resolve_window_binding(context, window_handle, "destack.display.window.setParent")?;
+        resolve_window_binding(context, window_handle, "destack.display.window.setParent")?;
     let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
 
     // apply parent relation through xdg_toplevel
-    let window_toplevel_id =
-        super::require_xdg_toplevel_id(&binding, "destack.display.window.setParent")?;
+    let window_toplevel_id = require_xdg_toplevel_id(&binding, "destack.display.window.setParent")?;
     let parent_toplevel = resolve_owner_toplevel_id(
         context,
         parent,
@@ -220,8 +220,7 @@ pub(crate) unsafe fn window_set_parent(
 
     // clear modal state when both owner lanes are absent
     if parent.is_none() && binding.transient_for.is_none() {
-        let toplevel_id =
-            super::require_xdg_toplevel_id(&binding, "destack.display.window.setParent")?;
+        let toplevel_id = require_xdg_toplevel_id(&binding, "destack.display.window.setParent")?;
         let next_dialog_id = apply_modal_request(
             context,
             toplevel_id,
@@ -254,7 +253,7 @@ pub(crate) unsafe fn window_set_transient_for(
     )?;
 
     // resolve target window binding and enforce owner-thread affinity
-    let binding = super::resolve_window_binding(
+    let binding = resolve_window_binding(
         context,
         window_handle,
         "destack.display.window.setTransientFor",
@@ -263,7 +262,7 @@ pub(crate) unsafe fn window_set_transient_for(
 
     // apply transient-owner relation through xdg_toplevel parent lane
     let window_toplevel_id =
-        super::require_xdg_toplevel_id(&binding, "destack.display.window.setTransientFor")?;
+        require_xdg_toplevel_id(&binding, "destack.display.window.setTransientFor")?;
     let owner_toplevel = resolve_owner_toplevel_id(
         context,
         transient_for,
@@ -280,7 +279,7 @@ pub(crate) unsafe fn window_set_transient_for(
     // clear modal state when both owner lanes are absent
     if transient_for.is_none() && binding.parent.is_none() {
         let toplevel_id =
-            super::require_xdg_toplevel_id(&binding, "destack.display.window.setTransientFor")?;
+            require_xdg_toplevel_id(&binding, "destack.display.window.setTransientFor")?;
         let next_dialog_id = apply_modal_request(
             context,
             toplevel_id,
@@ -305,7 +304,7 @@ pub(crate) unsafe fn window_set_mouse_passthrough(
     passthrough: bool,
 ) -> RuntimeResult<()> {
     // resolve target window binding and enforce owner-thread affinity
-    let binding = super::resolve_window_binding(
+    let binding = resolve_window_binding(
         context,
         window_handle,
         "destack.display.window.setMousePassthrough",

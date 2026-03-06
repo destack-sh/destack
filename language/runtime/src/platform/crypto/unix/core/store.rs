@@ -8,7 +8,8 @@ use crate::platform::crypto::CryptoStoreKind;
 use crate::runtime::BindingCallContext;
 
 use super::{
-    SnapshotConfig, load_host_key_snapshot_bytes as load_snapshot_bytes,
+    SnapshotConfig, host_store_persistence_backend_is_available,
+    load_host_key_snapshot_bytes as load_snapshot_bytes,
     store_host_key_snapshot_bytes as store_snapshot_bytes,
 };
 
@@ -29,7 +30,7 @@ pub(crate) fn host_store_persistence_backend_is_available_with_resolver(
 ) -> bool {
     let snapshot_path = resolve_snapshot_path(binding, kind);
 
-    super::host_store_persistence_backend_is_available(snapshot_path)
+    host_store_persistence_backend_is_available(snapshot_path)
 }
 
 /// Return whether one host store lane is currently available.

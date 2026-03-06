@@ -11,13 +11,15 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
+use crate::platform::display::WindowVisibility;
 use crate::runtime::BindingCallContext;
 
 use super::super::{core, event};
 use super::drop::unregister_window_drop_target;
 use super::{
-    apply_aspect_ratio_on_sizing, cursor_name, refresh_cursor_policy_best_effort,
-    refresh_window_snapshot, remove_cursor_policy, runtime_window_entry, unregister_runtime_window,
+    WindowRuntimeEntry, apply_aspect_ratio_on_sizing, current_window_theme, cursor_name,
+    refresh_cursor_policy_best_effort, refresh_window_snapshot, remove_cursor_policy,
+    runtime_window_entry, unregister_runtime_window, window_class_name,
 };
 
 /// Drain pending window-thread messages and dispatch them through the registered wndproc.
@@ -30,7 +32,7 @@ pub(in super::super) fn pump_window_messages(context: &BindingCallContext) -> Ru
 
 /// Apply one incoming host message to cached runtime state and publish state deltas.
 fn apply_window_message_snapshot(
-    entry: &super::WindowRuntimeEntry,
+    entry: &WindowRuntimeEntry,
     message: u32,
     wparam: WPARAM,
     lparam: LPARAM,
@@ -91,7 +93,7 @@ fn apply_window_message_snapshot(
 
     // evaluate this condition
     if message == WM_THEMECHANGED || message == WM_SETTINGCHANGE {
-        binding.theme = super::current_window_theme();
+        binding.theme = current_window_theme();
     }
 
     // evaluate this condition
@@ -102,7 +104,7 @@ fn apply_window_message_snapshot(
     // evaluate this condition
     if message == WM_DESTROY {
         binding.destroyed_emitted = true;
-        binding.visibility = crate::platform::display::WindowVisibility::Hidden;
+        binding.visibility = WindowVisibility::Hidden;
         binding.focused = false;
     }
 
@@ -264,7 +266,7 @@ pub(super) fn ensure_window_class_registered() -> RuntimeResult<()> {
     }
 
     // build and register one window class
-    let class_name = super::window_class_name();
+    let class_name = window_class_name();
     let class = WNDCLASSW {
         style: 0,
         lpfnWndProc: Some(display_window_proc),

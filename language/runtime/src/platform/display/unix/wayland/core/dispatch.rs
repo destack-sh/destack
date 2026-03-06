@@ -30,7 +30,7 @@ use super::{
     WaylandGammaControlQueryState, WaylandOutputConfigurationOutcome,
     WaylandOutputConfigurationState, WaylandWindowDispatchToken, WaylandWlrAdaptiveSyncState,
     apply_layer_surface_configure, apply_popup_configure, apply_toplevel_close,
-    apply_toplevel_configure, window_handle_from_id,
+    apply_toplevel_configure, scale_factor_milli_from_fractional_scale, window_handle_from_id,
 };
 
 /// Publish one refresh-requested event when this token still resolves to one live window.
@@ -133,7 +133,7 @@ impl Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, WaylandWindowDispatch
             }
 
             let previous_scale_factor_milli = binding.scale_factor_milli.max(1);
-            let current_scale_factor_milli = super::scale_factor_milli_from_fractional_scale(scale);
+            let current_scale_factor_milli = scale_factor_milli_from_fractional_scale(scale);
             if previous_scale_factor_milli == current_scale_factor_milli {
                 return;
             }

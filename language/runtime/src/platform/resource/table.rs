@@ -449,6 +449,8 @@ mod tests {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
+    use super::ResourceId;
+
     use super::{ResourceEntry, ResourceFinalizer, ResourceKind, ResourceTable};
     use crate::runtime::world::World;
 
@@ -484,7 +486,7 @@ mod tests {
     }
 
     impl ResourceFinalizer for TestFinalizer {
-        fn finalize(self: Box<Self>, _resource_id: super::ResourceId) {
+        fn finalize(self: Box<Self>, _resource_id: ResourceId) {
             self.hits.fetch_add(1, Ordering::SeqCst);
         }
     }

@@ -1,3 +1,5 @@
+#![allow(clippy::arc_with_non_send_sync)]
+
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 

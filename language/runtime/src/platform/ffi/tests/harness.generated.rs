@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::ffi::tests::FfiHarnessContext;
 use crate::platform::ffi::{FfiPointer, native as ffi_native, vm as ffi_vm};
 use crate::platform::{
     NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs,

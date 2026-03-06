@@ -11,6 +11,15 @@ use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(unix)]
 use crate::platform::fs::SymlinkType;
 use crate::platform::fs::{CopyFlags, FileMode, OpenFlags};
+#[cfg(any(
+    target_os = "linux",
+    target_os = "android",
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd",
+    target_os = "dragonfly"
+))]
+use crate::tests::platform::assert_platform_error_codes_with_privileged_policy;
 
 /// Rename, hard link, and copy files while preserving payload bytes.
 #[cfg(any(unix, windows))]
@@ -298,14 +307,14 @@ fn test_fs_utf16_output_path_requires_utf8_on_unix() {
 
         // utf16 readlink is not supported on unix hosts
         let link = context.path_utf16(&link_path);
-        super::assert_platform_error_codes_with_privileged_policy(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_fs_readlink(link),
             &[PlatformErrorCode::NotSupported],
         )?;
 
         // utf16 realpath is not supported on unix hosts
         let link = context.path_utf16(&link_path);
-        super::assert_platform_error_codes_with_privileged_policy(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_fs_realpath(link),
             &[PlatformErrorCode::NotSupported],
         )?;

@@ -31,7 +31,7 @@ fn peer_credentials(socket: libc::c_int) -> RuntimeResult<Option<UnixPeerCredent
             )
         };
         if status != 0 {
-            let errno = crate::platform::core::get_errno();
+            let errno = core_platform::get_errno();
             if errno == libc::ENOTCONN || errno == libc::EINVAL || errno == libc::ENOTSUP {
                 return Ok(None);
             }
@@ -65,7 +65,7 @@ fn peer_credentials(socket: libc::c_int) -> RuntimeResult<Option<UnixPeerCredent
         let mut gid: libc::gid_t = 0;
         let status = unsafe { libc::getpeereid(socket, &mut uid, &mut gid) };
         if status != 0 {
-            let errno = crate::platform::core::get_errno();
+            let errno = core_platform::get_errno();
             if errno == libc::ENOTCONN || errno == libc::EINVAL || errno == libc::ENOTSUP {
                 return Ok(None);
             }

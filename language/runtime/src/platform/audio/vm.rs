@@ -11,7 +11,7 @@ use super::{
     host as host_audio,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{PlatformError, VmArray, VmSlice, resource};
+use crate::platform::{PlatformError, VmArray, VmSlice, audio as audio_platform, resource};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 type NativeByteVectors = NativeSlice<NativeSlice<u8>>;
@@ -128,7 +128,7 @@ fn event_to_vm(
         AudioEvent::AudioBackendDisconnectedEvent(event) => {
             let kind = string_to_vm(context, event.kind)?;
             Ok(AudioEventVm::AudioBackendDisconnectedEvent(
-                crate::platform::audio::AudioBackendDisconnectedEventVm {
+                audio_platform::AudioBackendDisconnectedEventVm {
                     kind,
                     metadata: event.metadata,
                     payload: event.payload,
@@ -138,7 +138,7 @@ fn event_to_vm(
         AudioEvent::AudioBackendResetEvent(event) => {
             let kind = string_to_vm(context, event.kind)?;
             Ok(AudioEventVm::AudioBackendResetEvent(
-                crate::platform::audio::AudioBackendResetEventVm {
+                audio_platform::AudioBackendResetEventVm {
                     kind,
                     metadata: event.metadata,
                     payload: event.payload,
@@ -153,12 +153,10 @@ fn event_to_vm(
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
             Ok(AudioEventVm::AudioDefaultCaptureChangedEvent(
-                crate::platform::audio::AudioDefaultCaptureChangedEventVm {
+                audio_platform::AudioDefaultCaptureChangedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: crate::platform::audio::AudioDefaultCaptureChangedPayloadVm {
-                        device_id,
-                    },
+                    payload: audio_platform::AudioDefaultCaptureChangedPayloadVm { device_id },
                 },
             ))
         }
@@ -170,12 +168,10 @@ fn event_to_vm(
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
             Ok(AudioEventVm::AudioDefaultLoopbackChangedEvent(
-                crate::platform::audio::AudioDefaultLoopbackChangedEventVm {
+                audio_platform::AudioDefaultLoopbackChangedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: crate::platform::audio::AudioDefaultLoopbackChangedPayloadVm {
-                        device_id,
-                    },
+                    payload: audio_platform::AudioDefaultLoopbackChangedPayloadVm { device_id },
                 },
             ))
         }
@@ -187,12 +183,10 @@ fn event_to_vm(
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
             Ok(AudioEventVm::AudioDefaultPlaybackChangedEvent(
-                crate::platform::audio::AudioDefaultPlaybackChangedEventVm {
+                audio_platform::AudioDefaultPlaybackChangedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: crate::platform::audio::AudioDefaultPlaybackChangedPayloadVm {
-                        device_id,
-                    },
+                    payload: audio_platform::AudioDefaultPlaybackChangedPayloadVm { device_id },
                 },
             ))
         }
@@ -204,10 +198,10 @@ fn event_to_vm(
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
             Ok(AudioEventVm::AudioDeviceAddedEvent(
-                crate::platform::audio::AudioDeviceAddedEventVm {
+                audio_platform::AudioDeviceAddedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: crate::platform::audio::AudioDeviceAddedPayloadVm { device_id },
+                    payload: audio_platform::AudioDeviceAddedPayloadVm { device_id },
                 },
             ))
         }
@@ -219,12 +213,10 @@ fn event_to_vm(
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
             Ok(AudioEventVm::AudioDeviceFormatChangedEvent(
-                crate::platform::audio::AudioDeviceFormatChangedEventVm {
+                audio_platform::AudioDeviceFormatChangedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: crate::platform::audio::AudioDeviceFormatChangedPayloadVm {
-                        device_id,
-                    },
+                    payload: audio_platform::AudioDeviceFormatChangedPayloadVm { device_id },
                 },
             ))
         }
@@ -236,10 +228,10 @@ fn event_to_vm(
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
             Ok(AudioEventVm::AudioDeviceRemovedEvent(
-                crate::platform::audio::AudioDeviceRemovedEventVm {
+                audio_platform::AudioDeviceRemovedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: crate::platform::audio::AudioDeviceRemovedPayloadVm { device_id },
+                    payload: audio_platform::AudioDeviceRemovedPayloadVm { device_id },
                 },
             ))
         }
@@ -251,17 +243,17 @@ fn event_to_vm(
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
             Ok(AudioEventVm::AudioDeviceReroutedEvent(
-                crate::platform::audio::AudioDeviceReroutedEventVm {
+                audio_platform::AudioDeviceReroutedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: crate::platform::audio::AudioDeviceReroutedPayloadVm { device_id },
+                    payload: audio_platform::AudioDeviceReroutedPayloadVm { device_id },
                 },
             ))
         }
         AudioEvent::AudioInterruptionBeganEvent(event) => {
             let kind = string_to_vm(context, event.kind)?;
             Ok(AudioEventVm::AudioInterruptionBeganEvent(
-                crate::platform::audio::AudioInterruptionBeganEventVm {
+                audio_platform::AudioInterruptionBeganEventVm {
                     kind,
                     metadata: event.metadata,
                     payload: event.payload,
@@ -271,7 +263,7 @@ fn event_to_vm(
         AudioEvent::AudioInterruptionEndedEvent(event) => {
             let kind = string_to_vm(context, event.kind)?;
             Ok(AudioEventVm::AudioInterruptionEndedEvent(
-                crate::platform::audio::AudioInterruptionEndedEventVm {
+                audio_platform::AudioInterruptionEndedEventVm {
                     kind,
                     metadata: event.metadata,
                     payload: event.payload,
@@ -286,10 +278,10 @@ fn event_to_vm(
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
             Ok(AudioEventVm::AudioStreamDeviceChangedEvent(
-                crate::platform::audio::AudioStreamDeviceChangedEventVm {
+                audio_platform::AudioStreamDeviceChangedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: crate::platform::audio::AudioStreamDeviceChangedPayloadVm {
+                    payload: audio_platform::AudioStreamDeviceChangedPayloadVm {
                         stream: event.payload.stream,
                         status_flags: event.payload.status_flags,
                         device_id,
@@ -300,7 +292,7 @@ fn event_to_vm(
         AudioEvent::AudioStreamStateChangedEvent(event) => {
             let kind = string_to_vm(context, event.kind)?;
             Ok(AudioEventVm::AudioStreamStateChangedEvent(
-                crate::platform::audio::AudioStreamStateChangedEventVm {
+                audio_platform::AudioStreamStateChangedEventVm {
                     kind,
                     metadata: event.metadata,
                     payload: event.payload,
@@ -315,10 +307,10 @@ fn event_to_vm(
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
             Ok(AudioEventVm::AudioStreamXRunEvent(
-                crate::platform::audio::AudioStreamXRunEventVm {
+                audio_platform::AudioStreamXRunEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: crate::platform::audio::AudioStreamXRunPayloadVm {
+                    payload: audio_platform::AudioStreamXRunPayloadVm {
                         stream: event.payload.stream,
                         status_flags: event.payload.status_flags,
                         xrun_count_delta: event.payload.xrun_count_delta,

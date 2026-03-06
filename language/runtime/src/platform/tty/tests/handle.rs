@@ -4,7 +4,7 @@ use super::close_tty_worker_resource;
 use super::decode_harness_value;
 use super::{
     assert_ok_or_expected_error, assert_platform_error_codes, open_pty_or_skip_not_supported,
-    with_harness_context,
+    tty_descriptor, with_harness_context,
 };
 #[cfg(unix)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -129,7 +129,7 @@ fn test_tty_handle_is_terminal_file_reports_true_for_terminal_file() {
         let pair = context.destack_tty_pty_open(24, 80, 0)?;
         let pair = decode_harness_value(pair);
 
-        let worker_descriptor = super::tty_descriptor(context.call_context, pair.worker)?;
+        let worker_descriptor = tty_descriptor(context.call_context, pair.worker)?;
         let file_descriptor = unsafe { libc::dup(worker_descriptor) };
         if file_descriptor < 0 {
             return Err(RuntimeError::from(PlatformError::io(

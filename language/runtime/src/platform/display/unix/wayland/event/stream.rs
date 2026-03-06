@@ -13,7 +13,8 @@ use super::super::super::{core, resource as display_resource, window};
 use super::{
     MonitorEventBinding, MonitorEventFilterState, MonitorEventState, WindowEventBinding,
     WindowEventFilterState, WindowEventState, display_event_from_record,
-    ensure_window_event_thread, seed_monitor_event_stream, wait_duration, window_event_from_record,
+    ensure_window_event_thread, publish_monitor_topology_deltas, seed_monitor_event_stream,
+    wait_duration, window_event_from_record,
 };
 
 /// Open one global monitor-event stream.
@@ -133,7 +134,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_event_read(
     // loop until one branch exits
     loop {
         // refresh monitor topology state before reading one queue snapshot
-        super::publish_monitor_topology_deltas(context)?;
+        publish_monitor_topology_deltas(context)?;
 
         let mut state = binding
             .state
@@ -202,7 +203,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_event_read_batch(
     // loop until one branch exits
     loop {
         // refresh monitor topology state before reading one queue snapshot
-        super::publish_monitor_topology_deltas(context)?;
+        publish_monitor_topology_deltas(context)?;
 
         let mut state = binding
             .state
@@ -264,7 +265,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_event_try_read(
 ) -> RuntimeResult<()> {
     // validate out pointer and resolve stream binding
     core_platform::ensure_out(out, "out")?;
-    super::publish_monitor_topology_deltas(context)?;
+    publish_monitor_topology_deltas(context)?;
     let binding = display_resource::resolve_monitor_event_binding(
         context,
         handle,
@@ -307,7 +308,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_event_try_read_ba
     // validate out pointer and batch size
     core_platform::ensure_out(out, "out")?;
     let maxevents = core_platform::u32_to_nonzero_usize("maxevents", maxevents)?;
-    super::publish_monitor_topology_deltas(context)?;
+    publish_monitor_topology_deltas(context)?;
 
     // resolve stream binding and pop pending batch without blocking
     let binding = display_resource::resolve_monitor_event_binding(

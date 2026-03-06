@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::ipc::tests::IpcHarnessContext;
 use crate::platform::ipc::{
     MessageQueueReceive, MessageQueueReceiveVm, PipePair, PipePairVm, SharedMemoryMapping,
     SharedMemoryMappingVm, UnixPeerCredentials, UnixPeerCredentialsVm, UnixReceiveAncillary,

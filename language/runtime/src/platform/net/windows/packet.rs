@@ -1361,7 +1361,6 @@ pub(crate) unsafe fn destack_net_packet_stats(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     /// Return one encoded classic-BPF byte payload.
     fn encode_program(instructions: &[ClassicBpfInstruction]) -> Vec<u8> {

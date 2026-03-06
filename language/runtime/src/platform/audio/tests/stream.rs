@@ -1,17 +1,25 @@
-use super::super::core::{
-    BACKEND_CAPABILITY_DEVICE_CLOCK, BACKEND_CAPABILITY_EXCLUSIVE_MODE,
-    BACKEND_CAPABILITY_NON_INTERLEAVED, BACKEND_CAPABILITY_SHARED_MODE, EVENT_SUBSCRIBE_STREAM,
-    MIN_EVENT_POLL_INTERVAL_NS, STREAM_FLAG_MINIMIZE_LATENCY, STREAM_FLAG_NON_INTERLEAVED,
-    STREAM_REQUIRE_SCHEDULED_WRITE,
-};
 use super::super::{
     AudioBackend, AudioBackendSelectionPolicy, AudioChannelLayout, AudioClockDomain,
     AudioDeviceDirection, AudioDeviceOpenFlags, AudioDeviceOpenOptions, AudioEventDeliveryMode,
     AudioEventOverflowPolicy, AudioEventSubscriptionOptions, AudioSampleFormat, AudioShareMode,
     AudioStreamConfig, AudioStreamFlags, AudioStreamOpenOptions, AudioStreamRequirementFlags,
-    AudioStreamStateKind, AudioStreamTransferMode,
+    AudioStreamStateKind, AudioStreamTransferMode, core as audio_core,
 };
-use super::core::{
+use super::{
+    AudioHarnessContext, assert_code_is_not_not_supported, assert_not_supported_result,
+    assert_ok_or_expected_error, assert_platform_error_code, core, error_code_from_runtime_error,
+    is_not_supported_code, with_harness_context,
+};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::resource::{AudioDeviceHandle, AudioEventHandle, AudioStreamHandle};
+use audio_core::{
+    BACKEND_CAPABILITY_DEVICE_CLOCK, BACKEND_CAPABILITY_EXCLUSIVE_MODE,
+    BACKEND_CAPABILITY_NON_INTERLEAVED, BACKEND_CAPABILITY_SHARED_MODE, EVENT_SUBSCRIBE_STREAM,
+    MIN_EVENT_POLL_INTERVAL_NS, STREAM_FLAG_MINIMIZE_LATENCY, STREAM_FLAG_NON_INTERLEAVED,
+    STREAM_REQUIRE_SCHEDULED_WRITE,
+};
+use core::{
     DeterministicSequence, backend_availability_rows, backend_availability_rows_with_capabilities,
     byte_len, event_batch_sequence_rows, harness_bytes, harness_bytes_slices,
     harness_device_options, harness_event_options, harness_mutable_bytes_slices,
@@ -19,14 +27,6 @@ use super::core::{
     stream_descriptor_flags_from_value, stream_open_with_default_options, stream_state_from_value,
     stream_support_from_value, string_from_harness_value,
 };
-use super::{
-    assert_code_is_not_not_supported, assert_not_supported_result, assert_ok_or_expected_error,
-    assert_platform_error_code, error_code_from_runtime_error, is_not_supported_code,
-    with_harness_context,
-};
-use crate::diagnostic::RuntimeResult;
-use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::resource::{AudioDeviceHandle, AudioEventHandle, AudioStreamHandle};
 
 const RANDOM_NULL_INTERLEAVING_ITERATIONS: usize = 128;
 const RANDOM_HOST_INTERLEAVING_ITERATIONS: usize = 96;
@@ -139,7 +139,7 @@ fn assert_event_rows_monotonic(
 
 /// Close one optional stream-event subscription.
 fn close_event_handle(
-    context: &mut super::AudioHarnessContext<'_>,
+    context: &mut AudioHarnessContext<'_>,
     events: &mut Option<AudioEventHandle>,
 ) -> RuntimeResult<()> {
     let Some(event_handle) = events.take() else {
@@ -151,7 +151,7 @@ fn close_event_handle(
 
 /// Close one optional stream and device pair.
 fn close_stream_device_pair(
-    context: &mut super::AudioHarnessContext<'_>,
+    context: &mut AudioHarnessContext<'_>,
     device: &mut Option<AudioDeviceHandle>,
     stream: &mut Option<AudioStreamHandle>,
     is_running: &mut bool,
@@ -177,7 +177,7 @@ fn close_stream_device_pair(
 
 /// Return one first available host backend, excluding auto and null backends.
 fn first_available_host_backend(
-    context: &mut super::AudioHarnessContext<'_>,
+    context: &mut AudioHarnessContext<'_>,
 ) -> RuntimeResult<Option<AudioBackend>> {
     let backend_list = context.destack_audio_backend_list()?;
     let backend_rows = backend_availability_rows(context, backend_list)?;
@@ -251,7 +251,7 @@ fn test_audio_stream_open_rejects_unknown_stream_flags() {
         let invalid_config = harness_stream_config(&mut context, invalid_config);
         let invalid_options = harness_stream_options(
             &mut context,
-            super::core::default_stream_open_options_with_flags(AudioStreamFlags(0x8000_0000)),
+            core::default_stream_open_options_with_flags(AudioStreamFlags(0x8000_0000)),
         );
         assert_platform_error_code(
             context.destack_audio_stream_open(device, invalid_config, invalid_options),
@@ -290,7 +290,7 @@ fn test_audio_stream_open_accepts_known_stream_flags() {
         let config = harness_stream_config(&mut context, config);
         let stream_options = harness_stream_options(
             &mut context,
-            super::core::default_stream_open_options_with_flags(AudioStreamFlags(
+            core::default_stream_open_options_with_flags(AudioStreamFlags(
                 STREAM_FLAG_MINIMIZE_LATENCY.0,
             )),
         );
@@ -458,7 +458,7 @@ fn test_audio_stream_open_non_interleaved_matches_backend_capability() {
             let stream_config = harness_stream_config(&mut context, stream_config);
             let stream_options = harness_stream_options(
                 &mut context,
-                super::core::default_stream_open_options_with_flags(AudioStreamFlags(
+                core::default_stream_open_options_with_flags(AudioStreamFlags(
                     STREAM_FLAG_NON_INTERLEAVED.0,
                 )),
             );
@@ -750,10 +750,8 @@ fn test_audio_stream_randomized_interleaving_on_available_host_backend() {
                         transfer_mode: AudioStreamTransferMode::Push,
                     };
                     let stream_config = harness_stream_config(&mut context, stream_config);
-                    let stream_options = harness_stream_options(
-                        &mut context,
-                        super::core::default_stream_open_options(),
-                    );
+                    let stream_options =
+                        harness_stream_options(&mut context, core::default_stream_open_options());
                     let opened_stream = match context.destack_audio_stream_open(
                         opened_device,
                         stream_config,

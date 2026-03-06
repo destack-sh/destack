@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::tty::tests::TtyHarnessContext;
 use crate::platform::tty::{
     PtyPair, PtyPairVm, TtyMode, TtyModeVm, TtySize, TtySizeVm, TtyTermiosAttributes,
     TtyTermiosAttributesVm, TtyTermiosFlowAction, TtyTermiosQueue, TtyTermiosSetAction,

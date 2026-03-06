@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::tls::tests::TlsHarnessContext;
 use crate::platform::tls::{
     TlsContextOptions, TlsContextOptionsVm, TlsHandshakeStatus, TlsHostnameVerificationMode,
     TlsRole, TlsSessionResumptionMode, TlsSessionResumptionState, TlsVersion, native as tls_native,

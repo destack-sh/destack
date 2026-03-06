@@ -1,5 +1,5 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
-use super::with_harness_context;
+use super::{HarnessValue, with_harness_context};
 use crate::platform::net::{
     SocketFamily, SocketMessageFlags, SocketSendTo, SocketSendToVm, UdpMessageFlags,
 };
@@ -115,11 +115,11 @@ fn test_net_send_to_recv_from_roundtrip() {
         // build one sendTo message payload with destination metadata
         let destination = context.socket_address_value_for_host_port("127.0.0.1", port)?;
         let message = match destination {
-            super::HarnessValue::Native(address) => context.harness_value(SocketSendTo {
+            HarnessValue::Native(address) => context.harness_value(SocketSendTo {
                 address,
                 flags: SocketMessageFlags(0),
             }),
-            super::HarnessValue::Vm(address) => context.harness_value_vm(SocketSendToVm {
+            HarnessValue::Vm(address) => context.harness_value_vm(SocketSendToVm {
                 address,
                 flags: SocketMessageFlags(0),
             }),
@@ -135,12 +135,12 @@ fn test_net_send_to_recv_from_roundtrip() {
         let (read_call, read_decode) = context.duplicate_value(read_buffer);
         let receive = context.destack_net_recv_from(server, read_call, SocketMessageFlags(0))?;
         let (bytes, recv_flags, source) = match receive {
-            super::HarnessValue::Native(value) => (
+            HarnessValue::Native(value) => (
                 value.bytes,
                 value.recv_flags.0,
                 context.harness_value(value.address),
             ),
-            super::HarnessValue::Vm(value) => (
+            HarnessValue::Vm(value) => (
                 value.bytes,
                 value.recv_flags.0,
                 context.harness_value_vm(value.address),

@@ -10,6 +10,8 @@ use crate::platform::{
 };
 
 use crate::runtime::BindingCallContext;
+
+use super::{signals, wait};
 use bindings::*;
 
 use crate::platform::process::{
@@ -414,7 +416,7 @@ fn wait_process_handle_with_flags(
 ) -> RuntimeResult<ProcessWaitStatus> {
     use windows_sys::Win32::System::Threading::INFINITE;
 
-    if flags.0 & !super::wait::PROCESS_WAIT_FLAG_NOHANG != 0 {
+    if flags.0 & !wait::PROCESS_WAIT_FLAG_NOHANG != 0 {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "flags",
             "unsupported process wait flags",
@@ -422,7 +424,7 @@ fn wait_process_handle_with_flags(
         .boxed());
     }
 
-    let timeout_ms = if flags.0 & super::wait::PROCESS_WAIT_FLAG_NOHANG != 0 {
+    let timeout_ms = if flags.0 & wait::PROCESS_WAIT_FLAG_NOHANG != 0 {
         0
     } else {
         INFINITE
@@ -440,7 +442,7 @@ fn wait_process_handle_with_timeout_ns(
         return wait_process_handle_with_flags(
             pid,
             process_handle,
-            ProcessWaitFlags(super::wait::PROCESS_WAIT_FLAG_NOHANG),
+            ProcessWaitFlags(wait::PROCESS_WAIT_FLAG_NOHANG),
         );
     }
 
@@ -765,7 +767,7 @@ pub(crate) unsafe fn destack_process_process_fd_try_wait(
     let status = wait_process_handle_with_flags(
         process_id,
         process_handle,
-        ProcessWaitFlags(super::wait::PROCESS_WAIT_FLAG_NOHANG),
+        ProcessWaitFlags(wait::PROCESS_WAIT_FLAG_NOHANG),
     )?;
     unsafe {
         *out = status;
@@ -925,7 +927,7 @@ pub(crate) unsafe fn destack_process_signal_fd_read(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let signals = resolve_signal_fd(binding, handle)?;
-    let event = super::signals::process_signal_wait(&signals)?;
+    let event = signals::process_signal_wait(&signals)?;
     unsafe {
         *out = event;
     }
@@ -985,7 +987,7 @@ pub(crate) unsafe fn destack_process_signal_fd_try_read(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let signals = resolve_signal_fd(binding, handle)?;
-    let event = super::signals::process_signal_try_wait(&signals)?;
+    let event = signals::process_signal_try_wait(&signals)?;
     unsafe {
         *out = event;
     }

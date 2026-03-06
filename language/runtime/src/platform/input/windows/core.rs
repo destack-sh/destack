@@ -1189,7 +1189,6 @@ pub(super) fn is_sensor_stream_enabled(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     /// Detect cooked mode from the corresponding console mode bits.
     #[test]

@@ -1,5 +1,4 @@
-use super::*;
-
+use super::IpcHarnessContext;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 #[cfg(target_os = "linux")]
 use crate::platform::ipc::{MessageQueueReceive, MessageQueueReceiveVm};

@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::crypto::tests::CryptoHarnessContext;
 use crate::platform::crypto::{
     CryptoAgreementDeriveKeyRequest, CryptoAgreementDeriveKeyRequestVm, CryptoArgon2idRequest,
     CryptoArgon2idRequestVm, CryptoAsymmetricEncryptionAlgorithm,

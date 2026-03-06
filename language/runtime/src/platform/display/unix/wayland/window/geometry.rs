@@ -7,6 +7,11 @@ use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 use super::super::{core as backend_core, event, monitor, resource as display_resource};
+use super::{
+    mode_display, mode_display_mode, normalize_logical_size, normalize_physical_size,
+    require_xdg_toplevel_id, resolve_window_binding, same_window_mode, validate_size_constraints,
+    with_window_binding_mut,
+};
 
 /// Validate one optional aspect-ratio payload.
 fn validate_aspect_ratio(
@@ -43,12 +48,12 @@ fn validate_mode_request(
     }
 
     // resolve optional display handle and ensure it exists
-    let display = super::mode_display(mode);
+    let display = mode_display(mode);
     if let Some(display_handle) = display {
         let snapshot = monitor::snapshot_by_display_handle(context, display_handle, operation)?;
 
         // validate optional exclusive-mode payload against available display modes
-        if let Some(display_mode) = super::mode_display_mode(mode) {
+        if let Some(display_mode) = mode_display_mode(mode) {
             if !snapshot.modes.contains(&display_mode) {
                 return Err(core_platform::invalid_argument(
                     "mode",
@@ -213,18 +218,17 @@ pub(crate) unsafe fn window_set_mode(
     let display = validate_mode_request(context, mode, "destack.display.window.setMode")?;
 
     // resolve target window binding and enforce owner-thread affinity
-    let binding =
-        super::resolve_window_binding(context, window_handle, "destack.display.window.setMode")?;
+    let binding = resolve_window_binding(context, window_handle, "destack.display.window.setMode")?;
     let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
 
     // skip no-op mode transitions
     let previous_mode = binding.mode;
-    if super::same_window_mode(previous_mode, mode) {
+    if same_window_mode(previous_mode, mode) {
         return Ok(());
     }
 
     // apply compositor mode request and update runtime snapshot
-    let toplevel_id = super::require_xdg_toplevel_id(&binding, "destack.display.window.setMode")?;
+    let toplevel_id = require_xdg_toplevel_id(&binding, "destack.display.window.setMode")?;
     apply_mode_request(
         context,
         toplevel_id,
@@ -251,7 +255,7 @@ pub(crate) unsafe fn window_set_aspect_ratio(
 ) -> RuntimeResult<()> {
     // validate aspect-ratio payload and resolve window binding
     validate_aspect_ratio(aspect_ratio, "aspectRatio")?;
-    super::with_window_binding_mut(
+    with_window_binding_mut(
         context,
         window_handle,
         "destack.display.window.setAspectRatio",
@@ -276,7 +280,7 @@ pub(crate) unsafe fn window_set_position(
     _position: WindowPosition,
 ) -> RuntimeResult<()> {
     // resolve target window binding and enforce owner-thread affinity
-    super::resolve_window_binding(context, window_handle, "destack.display.window.setPosition")?;
+    resolve_window_binding(context, window_handle, "destack.display.window.setPosition")?;
 
     // wayland compositor controls toplevel placement
     Err(core_platform::not_supported(
@@ -291,8 +295,8 @@ pub(crate) unsafe fn window_set_size_constraints(
     constraints: Option<WindowSizeConstraints>,
 ) -> RuntimeResult<()> {
     // validate constraints payload and resolve target window binding
-    super::validate_size_constraints(constraints, "constraints")?;
-    let binding = super::resolve_window_binding(
+    validate_size_constraints(constraints, "constraints")?;
+    let binding = resolve_window_binding(
         context,
         window_handle,
         "destack.display.window.setSizeConstraints",
@@ -301,7 +305,7 @@ pub(crate) unsafe fn window_set_size_constraints(
 
     // apply size policy and update local snapshot
     let toplevel_id =
-        super::require_xdg_toplevel_id(&binding, "destack.display.window.setSizeConstraints")?;
+        require_xdg_toplevel_id(&binding, "destack.display.window.setSizeConstraints")?;
     apply_size_policy(
         context,
         toplevel_id,
@@ -323,8 +327,8 @@ pub(crate) unsafe fn window_set_size_logical(
     size: WindowLogicalSize,
 ) -> RuntimeResult<()> {
     // normalize size payload and resolve target window binding
-    super::normalize_logical_size(size, "size")?;
-    super::resolve_window_binding(
+    normalize_logical_size(size, "size")?;
+    resolve_window_binding(
         context,
         window_handle,
         "destack.display.window.setSizeLogical",
@@ -343,8 +347,8 @@ pub(crate) unsafe fn window_set_size_physical(
     size: WindowPhysicalSize,
 ) -> RuntimeResult<()> {
     // normalize size payload and resolve target window binding
-    super::normalize_physical_size(size, "size")?;
-    super::resolve_window_binding(
+    normalize_physical_size(size, "size")?;
+    resolve_window_binding(
         context,
         window_handle,
         "destack.display.window.setSizePhysical",

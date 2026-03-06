@@ -13,6 +13,7 @@ use crate::runtime::BindingCallContext;
 
 use super::super::super::model::X11WindowBinding;
 use super::super::super::{core, resource as display_resource};
+use super::ensure_window_thread;
 
 /// Core xcursor font name used by x11 cursor glyph lookup.
 const X11_CURSOR_FONT_NAME: &[u8] = b"cursor";
@@ -35,7 +36,7 @@ pub(crate) unsafe fn window_set_cursor_icon(
     let mut resolved_binding = resolved_binding
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&resolved_binding, "destack.display.window.setCursorIcon")?;
+    ensure_window_thread(&resolved_binding, "destack.display.window.setCursorIcon")?;
 
     // release one previously cached native cursor before switching icon kind
     if let Some(cursor_handle) = resolved_binding.cursor_handle.take() {
@@ -73,7 +74,7 @@ pub(crate) unsafe fn window_set_cursor_mode(
     let mut resolved_binding = resolved_binding
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&resolved_binding, "destack.display.window.setCursorMode")?;
+    ensure_window_thread(&resolved_binding, "destack.display.window.setCursorMode")?;
     resolved_binding.cursor_mode = mode;
 
     // apply host cursor behavior for the requested mode
@@ -102,7 +103,7 @@ pub(crate) unsafe fn window_set_cursor_position(
     let resolved_binding = resolved_binding
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(
+    ensure_window_thread(
         &resolved_binding,
         "destack.display.window.setCursorPosition",
     )?;
@@ -154,7 +155,7 @@ pub(crate) unsafe fn window_set_cursor_visible(
     let mut resolved_binding = resolved_binding
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&resolved_binding, "destack.display.window.setCursorVisible")?;
+    ensure_window_thread(&resolved_binding, "destack.display.window.setCursorVisible")?;
     resolved_binding.cursor_visible = visible;
 
     // apply host cursor visibility and mode lanes

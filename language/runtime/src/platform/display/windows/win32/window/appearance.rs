@@ -1,4 +1,27 @@
-use super::*;
+use windows_sys::Win32::Foundation::HWND;
+use windows_sys::Win32::UI::WindowsAndMessaging::{
+    HWND_NOTOPMOST, HWND_TOPMOST, ICON_BIG, ICON_SMALL, SW_RESTORE, SWP_NOACTIVATE, SWP_NOMOVE,
+    SWP_NOSIZE, SendMessageW, SetLayeredWindowAttributes, SetWindowPos, SetWindowTextW, ShowWindow,
+    UpdateWindow, WM_SETICON,
+};
+
+use crate::diagnostic::RuntimeResult;
+use crate::platform::display::{
+    WindowChromeKind, WindowIconSet, WindowOpacityOptions, WindowTaskbarVisibility,
+    WindowVisibility,
+};
+use crate::platform::{core as core_platform, resource};
+use crate::runtime::{BindingCallContext, NativeStringRef};
+
+use super::super::{core, resource as display_resource};
+use super::constants::{WINDOW_ICON_BIG_DEFAULT, WINDOW_ICON_SMALL_DEFAULT};
+use super::core::{
+    apply_window_style, ensure_window_thread, normalize_opacity, refresh_window_snapshot,
+    show_command, window_ex_style_for_binding,
+};
+use super::icon::{
+    best_icon_index, create_hicon, decode_window_icons, destroy_owned_icons, icon_target_dimensions,
+};
 
 /// Set one window title string.
 pub(crate) unsafe fn window_set_title(

@@ -9,6 +9,8 @@ use crate::platform::{
 };
 
 use crate::runtime::BindingCallContext;
+
+use super::{signals, wait};
 use bindings::*;
 
 use crate::platform::process::{
@@ -350,7 +352,7 @@ pub(crate) unsafe fn destack_process_process_fd_open(
         .boxed());
     }
 
-    super::signals::process_kill(pid.0, 0)?;
+    signals::process_kill(pid.0, 0)?;
     let entry = resource::ResourceEntry::new(resource::ResourceKind::ProcessFd)
         .with_label("process.fd")
         .with_payload(core_process::ProcessFdBinding { pid });
@@ -399,7 +401,7 @@ pub(crate) unsafe fn destack_process_process_fd_send_signal(
     }
 
     let process_id = resolve_process_fd(binding, handle)?;
-    super::signals::process_kill(process_id.0, signal.0)
+    signals::process_kill(process_id.0, signal.0)
 }
 
 /// Poll one process descriptor state transition without blocking.
@@ -428,8 +430,7 @@ pub(crate) unsafe fn destack_process_process_fd_try_wait(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let process_id = resolve_process_fd(binding, handle)?;
-    let status =
-        super::wait::process_wait_pid(process_id.0, super::wait::PROCESS_WAIT_FLAG_NOHANG)?;
+    let status = wait::process_wait_pid(process_id.0, wait::PROCESS_WAIT_FLAG_NOHANG)?;
     unsafe {
         *out = status;
     }
@@ -464,7 +465,7 @@ pub(crate) unsafe fn destack_process_process_fd_wait(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let process_id = resolve_process_fd(binding, handle)?;
-    let status = super::wait::process_wait_pid_timeout(process_id.0, timeoutns)?;
+    let status = wait::process_wait_pid_timeout(process_id.0, timeoutns)?;
     unsafe {
         *out = status;
     }
@@ -588,7 +589,7 @@ pub(crate) unsafe fn destack_process_signal_fd_read(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let signals = resolve_signal_fd(binding, handle)?;
-    let event = super::signals::process_signal_wait(&signals)?;
+    let event = signals::process_signal_wait(&signals)?;
     unsafe {
         *out = event;
     }
@@ -648,7 +649,7 @@ pub(crate) unsafe fn destack_process_signal_fd_try_read(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let signals = resolve_signal_fd(binding, handle)?;
-    let event = super::signals::process_signal_try_wait(&signals)?;
+    let event = signals::process_signal_try_wait(&signals)?;
     unsafe {
         *out = event;
     }

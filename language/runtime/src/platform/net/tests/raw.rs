@@ -1,15 +1,23 @@
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+use super::HarnessValue;
 #[cfg(windows)]
 use super::assert_not_supported_result;
 #[cfg(windows)]
 use super::with_harness_context_with_runtime_options;
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
 use super::{
     assert_platform_error_code_with_privileged_policy,
     assert_platform_error_codes_with_privileged_policy, with_harness_context,
 };
+#[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
+use super::{assert_platform_error_codes_with_privileged_policy, with_harness_context};
 use crate::diagnostic::RuntimeResult;
 use crate::platform::diagnostic::PlatformErrorCode;
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
 use crate::platform::net::{
     PacketBackend, PacketBackendSelectionPolicy, PacketCaptureOptions, PacketCaptureOptionsVm,
+};
+use crate::platform::net::{
     PacketFanoutMode, PacketFanoutOptions, PacketRingOptions, PacketTimestampMode, SocketFamily,
 };
 #[cfg(any(target_os = "linux", target_os = "macos"))]
@@ -173,8 +181,18 @@ fn test_net_route_add_delete_ipv6_rejects_invalid_prefix_length() {
         let destination = context.socket_address_value("2001:db8::", 0, SocketFamily::IPv6)?;
         let gateway = context.socket_address_value("::", 0, SocketFamily::IPv6)?;
         let route = match (destination, gateway) {
-            (super::HarnessValue::Native(destination), super::HarnessValue::Native(gateway)) => {
-                context.harness_value(RouteEntry {
+            (HarnessValue::Native(destination), HarnessValue::Native(gateway)) => context
+                .harness_value(RouteEntry {
+                    family: SocketFamily::IPv6,
+                    destination,
+                    prefix_length: 129,
+                    gateway,
+                    interface_index: 0,
+                    metric: 0,
+                    kind: RouteKind::Unicast,
+                }),
+            (HarnessValue::Vm(destination), HarnessValue::Vm(gateway)) => {
+                context.harness_value_vm(RouteEntryVm {
                     family: SocketFamily::IPv6,
                     destination,
                     prefix_length: 129,
@@ -184,16 +202,6 @@ fn test_net_route_add_delete_ipv6_rejects_invalid_prefix_length() {
                     kind: RouteKind::Unicast,
                 })
             }
-            (super::HarnessValue::Vm(destination), super::HarnessValue::Vm(gateway)) => context
-                .harness_value_vm(RouteEntryVm {
-                    family: SocketFamily::IPv6,
-                    destination,
-                    prefix_length: 129,
-                    gateway,
-                    interface_index: 0,
-                    metric: 0,
-                    kind: RouteKind::Unicast,
-                }),
             _ => unreachable!("mixed harness values are not possible"),
         };
         assert_platform_error_code_with_privileged_policy(
@@ -205,8 +213,18 @@ fn test_net_route_add_delete_ipv6_rejects_invalid_prefix_length() {
         let destination = context.socket_address_value("2001:db8::", 0, SocketFamily::IPv6)?;
         let gateway = context.socket_address_value("::", 0, SocketFamily::IPv6)?;
         let route = match (destination, gateway) {
-            (super::HarnessValue::Native(destination), super::HarnessValue::Native(gateway)) => {
-                context.harness_value(RouteEntry {
+            (HarnessValue::Native(destination), HarnessValue::Native(gateway)) => context
+                .harness_value(RouteEntry {
+                    family: SocketFamily::IPv6,
+                    destination,
+                    prefix_length: 129,
+                    gateway,
+                    interface_index: 0,
+                    metric: 0,
+                    kind: RouteKind::Unicast,
+                }),
+            (HarnessValue::Vm(destination), HarnessValue::Vm(gateway)) => {
+                context.harness_value_vm(RouteEntryVm {
                     family: SocketFamily::IPv6,
                     destination,
                     prefix_length: 129,
@@ -216,16 +234,6 @@ fn test_net_route_add_delete_ipv6_rejects_invalid_prefix_length() {
                     kind: RouteKind::Unicast,
                 })
             }
-            (super::HarnessValue::Vm(destination), super::HarnessValue::Vm(gateway)) => context
-                .harness_value_vm(RouteEntryVm {
-                    family: SocketFamily::IPv6,
-                    destination,
-                    prefix_length: 129,
-                    gateway,
-                    interface_index: 0,
-                    metric: 0,
-                    kind: RouteKind::Unicast,
-                }),
             _ => unreachable!("mixed harness values are not possible"),
         };
         assert_platform_error_code_with_privileged_policy(

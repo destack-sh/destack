@@ -1,4 +1,8 @@
-use super::*;
+use destack_vm as vm;
+
+use super::ThreadHarnessContext;
+use crate::platform::thread::{ThreadOptions, ThreadOptionsVm};
+use crate::runtime::NativeStringRef;
 
 #[path = "harness.generated.rs"]
 mod generated;

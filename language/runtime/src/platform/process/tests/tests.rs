@@ -15,21 +15,20 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::VmAbi;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::core as core_fs;
-use crate::platform::process::{
-    GroupId, ProcessFdAction, ProcessFdActionVm, ProcessGroupIds, ProcessId, ProcessLimit,
-    ProcessLimitResource, ProcessSpawnOptions, ProcessSpawnOptionsVm, ProcessStdio, ProcessStdioVm,
-    ProcessUserIds, ProcessWaitStatus, ProcessWaitStatusVm, Signal, UserId,
-};
-#[cfg(target_os = "linux")]
-use crate::platform::process::{ProcessCpuSet, ProcessCpuSetVm};
 use crate::platform::resource::{self, ResourceId};
-use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice, fs};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef, NativeStringSlice};
+use crate::platform::{PlatformError, VmArray, VmSlice, fs, process as process_platform};
+use crate::runtime::{BindingCallContext, NativeStringRef};
 pub(crate) use crate::tests::platform::{
     assert_platform_error_code_with_privileged_policy,
     assert_platform_error_codes_with_privileged_policy,
 };
 use crate::tests::runtime::TestRuntime;
+use process_platform::{
+    GroupId, ProcessFdActionVm, ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource,
+    ProcessStdioVm, ProcessUserIds, Signal, UserId,
+};
+#[cfg(target_os = "linux")]
+use process_platform::{ProcessCpuSet, ProcessCpuSetVm};
 
 /// Spawn options used by process harness helpers.
 #[derive(Debug, Clone)]
@@ -319,30 +318,30 @@ fn vm_process_stdio_slice(
     let mut encoded = Vec::with_capacity(values.len());
     for value in values {
         let encoded_value = match value.kind {
-            ProcessStdioKind::Descriptor => ProcessStdioVm::ProcessStdioDescriptor(
-                crate::platform::process::ProcessStdioDescriptorVm {
+            ProcessStdioKind::Descriptor => {
+                ProcessStdioVm::ProcessStdioDescriptor(process_platform::ProcessStdioDescriptorVm {
                     kind: vm::StringHandle::new(context.intern_string("descriptor")),
                     descriptor: value.descriptor,
-                },
-            ),
+                })
+            }
             ProcessStdioKind::File => {
-                ProcessStdioVm::ProcessStdioFile(crate::platform::process::ProcessStdioFileVm {
+                ProcessStdioVm::ProcessStdioFile(process_platform::ProcessStdioFileVm {
                     kind: vm::StringHandle::new(context.intern_string("file")),
                     file: resource::FileHandle(ResourceId(0)),
                 })
             }
-            ProcessStdioKind::Inherit => ProcessStdioVm::ProcessStdioInherit(
-                crate::platform::process::ProcessStdioInheritVm {
+            ProcessStdioKind::Inherit => {
+                ProcessStdioVm::ProcessStdioInherit(process_platform::ProcessStdioInheritVm {
                     kind: vm::StringHandle::new(context.intern_string("inherit")),
-                },
-            ),
+                })
+            }
             ProcessStdioKind::Null => {
-                ProcessStdioVm::ProcessStdioNull(crate::platform::process::ProcessStdioNullVm {
+                ProcessStdioVm::ProcessStdioNull(process_platform::ProcessStdioNullVm {
                     kind: vm::StringHandle::new(context.intern_string("null")),
                 })
             }
             ProcessStdioKind::Pipe => {
-                ProcessStdioVm::ProcessStdioPipe(crate::platform::process::ProcessStdioPipeVm {
+                ProcessStdioVm::ProcessStdioPipe(process_platform::ProcessStdioPipeVm {
                     kind: vm::StringHandle::new(context.intern_string("pipe")),
                     pipe: resource::PipeHandle(ResourceId(0)),
                 })
@@ -370,30 +369,28 @@ fn vm_process_fd_action_slice(
     let mut encoded = Vec::with_capacity(values.len());
     for value in values {
         let encoded_value = match value.op {
-            ProcessFdActionKind::Close => ProcessFdActionVm::ProcessFdActionClose(
-                crate::platform::process::ProcessFdActionCloseVm {
+            ProcessFdActionKind::Close => {
+                ProcessFdActionVm::ProcessFdActionClose(process_platform::ProcessFdActionCloseVm {
                     kind: vm::StringHandle::new(context.intern_string("close")),
                     descriptor: value.source,
-                },
-            ),
-            ProcessFdActionKind::Dup2 => ProcessFdActionVm::ProcessFdActionDup2(
-                crate::platform::process::ProcessFdActionDup2Vm {
+                })
+            }
+            ProcessFdActionKind::Dup2 => {
+                ProcessFdActionVm::ProcessFdActionDup2(process_platform::ProcessFdActionDup2Vm {
                     kind: vm::StringHandle::new(context.intern_string("dup2")),
                     source: value.source,
                     target: value.target,
-                },
-            ),
+                })
+            }
             ProcessFdActionKind::Open => {
                 let path = vm_path_from_utf8(context, &value.path)?;
-                ProcessFdActionVm::ProcessFdActionOpen(
-                    crate::platform::process::ProcessFdActionOpenVm {
-                        kind: vm::StringHandle::new(context.intern_string("open")),
-                        target: value.target,
-                        path,
-                        flags: value.flags,
-                        mode: value.mode,
-                    },
-                )
+                ProcessFdActionVm::ProcessFdActionOpen(process_platform::ProcessFdActionOpenVm {
+                    kind: vm::StringHandle::new(context.intern_string("open")),
+                    target: value.target,
+                    path,
+                    flags: value.flags,
+                    mode: value.mode,
+                })
             }
         };
         encoded.push(encoded_value);

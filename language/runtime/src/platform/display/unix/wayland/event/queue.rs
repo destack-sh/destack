@@ -4,7 +4,8 @@ use std::time::Duration;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
 
-use super::*;
+use super::super::super::core;
+use super::core::{DisplayEventRecord, MonitorEventBinding, WindowEventBinding, WindowEventRecord};
 
 /// Push one monitor-event record into one stream queue.
 pub(super) fn push_monitor_record(

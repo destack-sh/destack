@@ -2,8 +2,8 @@
 #[cfg(any(windows, target_os = "linux"))]
 use super::assert_platform_error_code_with_privileged_policy;
 use super::{
-    assert_platform_error_codes_with_privileged_policy, tcp_protocol, tcp_stream_socket_type,
-    with_harness_context,
+    HarnessValue, assert_platform_error_codes_with_privileged_policy, tcp_protocol,
+    tcp_stream_socket_type, with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{
@@ -184,19 +184,19 @@ fn test_net_socket_options_extended() {
         }
         let keep_alive = context.destack_net_get_keep_alive(client)?;
         match keep_alive {
-            super::HarnessValue::Native(config) => {
+            HarnessValue::Native(config) => {
                 assert!(config.enabled);
             }
-            super::HarnessValue::Vm(config) => {
+            HarnessValue::Vm(config) => {
                 assert!(config.enabled);
             }
         }
         let linger = context.destack_net_get_linger(client)?;
         match linger {
-            super::HarnessValue::Native(linger) => {
+            HarnessValue::Native(linger) => {
                 assert!(!linger.enabled);
             }
-            super::HarnessValue::Vm(linger) => {
+            HarnessValue::Vm(linger) => {
                 assert!(!linger.enabled);
             }
         }
@@ -365,18 +365,18 @@ fn test_net_join_multicast_source_v4_rejects_invalid_group() {
         let interface_address = context.string_value("");
         let membership = match (group, source, interface_address) {
             (
-                super::HarnessValue::Native(group),
-                super::HarnessValue::Native(source),
-                super::HarnessValue::Native(interface_address),
+                HarnessValue::Native(group),
+                HarnessValue::Native(source),
+                HarnessValue::Native(interface_address),
             ) => context.harness_value(UdpSourceMembershipV4 {
                 group,
                 source,
                 interface_address,
             }),
             (
-                super::HarnessValue::Vm(group),
-                super::HarnessValue::Vm(source),
-                super::HarnessValue::Vm(interface_address),
+                HarnessValue::Vm(group),
+                HarnessValue::Vm(source),
+                HarnessValue::Vm(interface_address),
             ) => context.harness_value_vm(UdpSourceMembershipV4Vm {
                 group,
                 source,
@@ -410,18 +410,20 @@ fn test_net_join_multicast_source_v6_rejects_invalid_source() {
         let group = context.string_value("ff02::1");
         let source = context.string_value("not-an-ipv6");
         let membership = match (group, source) {
-            (super::HarnessValue::Native(group), super::HarnessValue::Native(source)) => context
-                .harness_value(UdpSourceMembershipV6 {
+            (HarnessValue::Native(group), HarnessValue::Native(source)) => {
+                context.harness_value(UdpSourceMembershipV6 {
                     group,
                     source,
                     interface_index: 0,
-                }),
-            (super::HarnessValue::Vm(group), super::HarnessValue::Vm(source)) => context
-                .harness_value_vm(UdpSourceMembershipV6Vm {
+                })
+            }
+            (HarnessValue::Vm(group), HarnessValue::Vm(source)) => {
+                context.harness_value_vm(UdpSourceMembershipV6Vm {
                     group,
                     source,
                     interface_index: 0,
-                }),
+                })
+            }
             _ => unreachable!("mixed harness values are not possible"),
         };
         assert_platform_error_code_with_privileged_policy(
@@ -681,18 +683,18 @@ fn test_net_leave_multicast_source_lanes_reject_invalid_membership() {
         let interface_address = context.string_value("");
         let membership_v4 = match (group, source, interface_address) {
             (
-                super::HarnessValue::Native(group),
-                super::HarnessValue::Native(source),
-                super::HarnessValue::Native(interface_address),
+                HarnessValue::Native(group),
+                HarnessValue::Native(source),
+                HarnessValue::Native(interface_address),
             ) => context.harness_value(UdpSourceMembershipV4 {
                 group,
                 source,
                 interface_address,
             }),
             (
-                super::HarnessValue::Vm(group),
-                super::HarnessValue::Vm(source),
-                super::HarnessValue::Vm(interface_address),
+                HarnessValue::Vm(group),
+                HarnessValue::Vm(source),
+                HarnessValue::Vm(interface_address),
             ) => context.harness_value_vm(UdpSourceMembershipV4Vm {
                 group,
                 source,
@@ -715,18 +717,20 @@ fn test_net_leave_multicast_source_lanes_reject_invalid_membership() {
         let group = context.string_value("ff02::1");
         let source = context.string_value("not-an-ipv6");
         let membership_v6 = match (group, source) {
-            (super::HarnessValue::Native(group), super::HarnessValue::Native(source)) => context
-                .harness_value(UdpSourceMembershipV6 {
+            (HarnessValue::Native(group), HarnessValue::Native(source)) => {
+                context.harness_value(UdpSourceMembershipV6 {
                     group,
                     source,
                     interface_index: 0,
-                }),
-            (super::HarnessValue::Vm(group), super::HarnessValue::Vm(source)) => context
-                .harness_value_vm(UdpSourceMembershipV6Vm {
+                })
+            }
+            (HarnessValue::Vm(group), HarnessValue::Vm(source)) => {
+                context.harness_value_vm(UdpSourceMembershipV6Vm {
                     group,
                     source,
                     interface_index: 0,
-                }),
+                })
+            }
             _ => unreachable!("mixed harness values are not possible"),
         };
         let leave_v6_result =

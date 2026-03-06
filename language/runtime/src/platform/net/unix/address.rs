@@ -692,7 +692,7 @@ pub(crate) unsafe fn destack_net_resolve_raw(
     family: SocketFamily,
     flags: ResolveFlags,
 ) -> RuntimeResult<()> {
-    unsafe { super::destack_net_resolve(binding, out, host, port, family, flags) }
+    unsafe { destack_net_resolve(binding, out, host, port, family, flags) }
 }
 
 /// Reverse lookup a raw socket address into hostnames.
@@ -702,7 +702,7 @@ pub(crate) unsafe fn destack_net_reverse_lookup_raw(
     out: *mut NativeArray<NativeStringRef>,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
-    unsafe { super::destack_net_reverse_lookup(binding, out, address) }
+    unsafe { destack_net_reverse_lookup(binding, out, address) }
 }
 
 /// Reverse lookup a raw socket address into host and service names.
@@ -713,5 +713,5 @@ pub(crate) unsafe fn destack_net_reverse_lookup_names_raw(
     address: SocketAddress,
     flags: ReverseLookupFlags,
 ) -> RuntimeResult<()> {
-    unsafe { super::destack_net_reverse_lookup_names(binding, out, address, flags) }
+    unsafe { destack_net_reverse_lookup_names(binding, out, address, flags) }
 }

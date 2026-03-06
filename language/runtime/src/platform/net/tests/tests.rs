@@ -11,20 +11,17 @@ use destack_vm as vm;
 use destack_workspace::RuntimeOptions;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::abi::{NativeAbi, VmAbi};
 use crate::platform::fs::{
-    OsPath, OsPathBytes, OsPathBytesVm, OsPathUtf16, OsPathUtf16Vm, OsPathVm, PathBytesAbi,
-    PathUtf16Abi,
+    OsPath, OsPathBytesVm, OsPathUtf16Vm, OsPathVm, PathBytesAbi, PathUtf16Abi,
 };
 #[cfg(windows)]
 use crate::platform::net::vm as platform_vm;
-use crate::platform::resource::ListenerHandle;
 #[cfg(windows)]
 use crate::platform::resource::{ResourceId, SocketHandle};
 use crate::platform::{
     NativeArray, PlatformError, VmArray, VmSlice, VmValueCodec, net as platform_net,
 };
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::{BindingCallContext, NativeSlice};
 #[cfg(windows)]
 pub(crate) use crate::tests::platform::assert_not_supported_result;
 pub(crate) use crate::tests::platform::{
@@ -33,11 +30,8 @@ pub(crate) use crate::tests::platform::{
 };
 use crate::tests::runtime::TestRuntime;
 use platform_net::{
-    KeepAliveConfig, KeepAliveConfigVm, Linger, LingerVm, ResolveFlags, ResolveQuery,
-    ReverseLookupName, SocketAddress, SocketAddressVm, SocketCredentials, SocketCredentialsVm,
-    SocketFamily, SocketMessageFlags, SocketProtocol, SocketRecvBatchRequest, SocketRecvMessage,
-    SocketSendBatchEntry, SocketSendMessage, SocketSendMessageVm, SocketType, UdpReceive,
-    UdpReceiveVm, UdsAddress, UdsPathAddress,
+    ReverseLookupName, SocketAddress, SocketAddressVm, SocketFamily, SocketProtocol, SocketType,
+    UdpReceive, UdpReceiveVm, UdsAddress, UdsPathAddress,
 };
 
 /// Network harness context used by tests.

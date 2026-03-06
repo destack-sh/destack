@@ -1,6 +1,36 @@
-use super::*;
+use std::collections::HashMap;
+
 use crate::platform::abi::NativeAbi;
+use crate::platform::display::{
+    DisplayAddedEvent, DisplayAddedPayload, DisplayBackend, DisplayDescriptorChangedEvent,
+    DisplayDescriptorChangedPayload, DisplayMetricChangedMask, DisplayModeChangedEvent,
+    DisplayModeChangedPayload, DisplayMonitorEvent, DisplayMonitorEventMetadata,
+    DisplayPrimaryChangedEvent, DisplayPrimaryPayload, DisplayRemovedEvent, DisplayRemovedPayload,
+    WindowAspectRatioChangedEvent, WindowAspectRatioPayload, WindowChromeChangedEvent,
+    WindowChromePayload, WindowCloseRequestedEvent, WindowCreatedEvent, WindowDestroyedEvent,
+    WindowDisplayChangedEvent, WindowDisplayPayload, WindowDropCancelledEvent,
+    WindowDropCompletedEvent, WindowDropFilePayload, WindowDropHoverLeavePayload,
+    WindowDropHoverPayload, WindowDropStartedEvent, WindowDropTextPayload, WindowEvent,
+    WindowEventMetadata, WindowFileDroppedEvent, WindowFileHoverLeftEvent, WindowFileHoveredEvent,
+    WindowFocusChangedEvent, WindowFocusPayload, WindowModeChangedEvent, WindowModePayload,
+    WindowMousePassthroughChangedEvent, WindowMousePassthroughPayload, WindowOcclusionChangedEvent,
+    WindowOcclusionPayload, WindowOpacityChangedEvent, WindowOpacityPayload,
+    WindowParentChangedEvent, WindowParentPayload, WindowPositionChangedEvent,
+    WindowPositionPayload, WindowRefreshRequestedEvent, WindowScaleFactorChangedEvent,
+    WindowScaleFactorPayload, WindowSizeChangedEvent, WindowSizePayload,
+    WindowTaskbarVisibilityChangedEvent, WindowTaskbarVisibilityPayload, WindowTextDroppedEvent,
+    WindowThemeChangedEvent, WindowThemePayload, WindowTransientChangedEvent,
+    WindowTransientPayload, WindowVisibilityChangedEvent, WindowVisibilityPayload,
+};
 use crate::platform::fs::{self as platform_fs, PathUtf16Abi, core as core_fs};
+use crate::platform::{core as core_platform, resource};
+use crate::runtime::BindingCallContext;
+
+use super::super::{core, monitor};
+use super::core::{
+    DisplayDescriptorSnapshot, DisplayEventRecord, DisplayEventRecordKind, MonitorSnapshot,
+    WindowEventRecord, WindowEventRecordKind,
+};
 
 /// Build one monitor-event metadata payload.
 fn display_event_metadata(

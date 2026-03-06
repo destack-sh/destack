@@ -4,7 +4,10 @@ use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 use super::{
     AudioBackend, AudioBackendCapabilityFlags, AudioBackendDescriptor, AudioBackendSelectionPolicy,
-    MidiMessage, MidiPortDescriptor, MidiPortDirection, core as audio_core,
+    AudioDeviceListFlags, AudioDeviceOpenFlags, AudioSupportedEventSubscriptionFlags,
+    AudioSupportedStreamClockDomains, AudioSupportedStreamFlags,
+    AudioSupportedStreamRequirementFlags, MidiMessage, MidiPortDescriptor, MidiPortDirection,
+    core as audio_core,
 };
 
 #[cfg(unix)]
@@ -137,38 +140,36 @@ fn backend_capability_flags(backend: AudioBackend, available: bool) -> AudioBack
 }
 
 /// Return one device-list support mask for one backend.
-fn supported_device_list_flags(backend: AudioBackend) -> super::AudioDeviceListFlags {
+fn supported_device_list_flags(backend: AudioBackend) -> AudioDeviceListFlags {
     audio_core::supported_backend_device_list_flags(backend)
 }
 
 /// Return one device-open support mask for one backend.
-fn supported_device_open_flags(backend: AudioBackend) -> super::AudioDeviceOpenFlags {
+fn supported_device_open_flags(backend: AudioBackend) -> AudioDeviceOpenFlags {
     audio_core::supported_backend_device_open_flags(backend)
 }
 
 /// Return one stream-option support mask for one backend.
-fn supported_stream_flags(backend: AudioBackend) -> super::AudioSupportedStreamFlags {
+fn supported_stream_flags(backend: AudioBackend) -> AudioSupportedStreamFlags {
     audio_core::supported_backend_stream_flags(backend)
 }
 
 /// Return one stream-requirement support mask for one backend.
 fn supported_stream_requirement_flags(
     backend: AudioBackend,
-) -> super::AudioSupportedStreamRequirementFlags {
+) -> AudioSupportedStreamRequirementFlags {
     audio_core::supported_backend_stream_requirement_flags(backend)
 }
 
 /// Return one event-subscription support mask for one backend.
 fn supported_event_subscription_flags(
     backend: AudioBackend,
-) -> super::AudioSupportedEventSubscriptionFlags {
+) -> AudioSupportedEventSubscriptionFlags {
     audio_core::supported_backend_event_subscription_flags(backend)
 }
 
 /// Return one stream-clock support mask for one backend.
-fn supported_stream_clock_domains(
-    backend: AudioBackend,
-) -> super::AudioSupportedStreamClockDomains {
+fn supported_stream_clock_domains(backend: AudioBackend) -> AudioSupportedStreamClockDomains {
     audio_core::supported_backend_stream_clock_domains(backend)
 }
 

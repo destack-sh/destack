@@ -4,6 +4,8 @@ use std::os::fd::RawFd;
 #[cfg(unix)]
 use crate::diagnostic::RuntimeError;
 #[cfg(unix)]
+use crate::platform::core as core_platform;
+#[cfg(unix)]
 use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(unix)]
 use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind};
@@ -39,7 +41,7 @@ fn unix_test_error(operation: &'static str, message: &'static str) -> Box<Runtim
     RuntimeError::from(PlatformError::io_with(
         None,
         None,
-        Some(crate::platform::core::get_errno()),
+        Some(core_platform::get_errno()),
         Some(operation.to_string()),
         None,
         message.to_string(),

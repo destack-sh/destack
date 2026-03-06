@@ -2,7 +2,7 @@
 
 use destack_vm as vm;
 
-use super::*;
+use super::InputHarnessContext;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
     InputDeviceCapabilities, InputDeviceCapabilitiesVm, InputDeviceCapabilityKind,

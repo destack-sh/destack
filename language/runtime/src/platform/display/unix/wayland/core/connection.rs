@@ -13,7 +13,7 @@ use crate::runtime::BindingCallContext;
 use super::super::window;
 use super::{
     WaylandActivationTokenState, WaylandConnectionDispatchState, WaylandConnectionState,
-    WaylandRuntimeState, io_error, resolve_wl_surface, runtime_state,
+    WaylandRuntimeState, WaylandWindowDispatchToken, io_error, resolve_wl_surface, runtime_state,
 };
 
 /// Resolve one initialized wayland connection state for one operation.
@@ -287,7 +287,7 @@ pub(super) fn request_surface_presentation_feedback(
     dispatch_state: &WaylandConnectionDispatchState,
     event_queue: &EventQueue<WaylandConnectionDispatchState>,
     surface: &wl_surface::WlSurface,
-    token: super::WaylandWindowDispatchToken,
+    token: WaylandWindowDispatchToken,
 ) {
     // skip when presentation-time protocol is not available
     let Some(presentation) = dispatch_state.presentation.as_ref().cloned() else {

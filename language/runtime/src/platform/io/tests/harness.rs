@@ -1,5 +1,3 @@
-use super::*;
-
 #[path = "harness.generated.rs"]
 mod generated;
 

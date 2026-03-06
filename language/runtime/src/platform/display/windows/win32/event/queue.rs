@@ -1,4 +1,11 @@
-use super::*;
+use std::time::Duration;
+
+use windows_sys::Win32::System::Threading::GetCurrentThreadId;
+
+use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
+
+use super::core::{DisplayEventRecord, EventQueueState, WindowEventBinding, WindowEventRecord};
 
 /// Convert one remaining timeout payload into a condition wait duration.
 pub(super) fn wait_duration(remaining_ns: u64) -> Duration {

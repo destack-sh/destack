@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::gpu::tests::GpuHarnessContext;
 use crate::platform::gpu::{
     GpuAdapterFormatCapabilities, GpuAdapterFormatCapabilitiesVm, GpuAdapterInfo, GpuAdapterInfoVm,
     GpuAdapterLimits, GpuAdapterLimitsVm, GpuAdapterRequest, GpuAdapterRequestVm, GpuAdapterType,
