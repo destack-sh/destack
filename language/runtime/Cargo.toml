@@ -45,6 +45,11 @@ name = "generate-bindings"
 path = "src/generate/main.rs"
 required-features = ["generate_bindings"]
 
+[[test]]
+name = "runtime_affinity"
+path = "src/tests/main.rs"
+harness = false
+
 [dependencies]
 # language
 destack_ast = { workspace = true }
@@ -146,8 +151,11 @@ wayland-protocols-wlr = { workspace = true }
 x11rb = { workspace = true, features = ["randr", "shape", "xfixes"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+dispatch2 = { workspace = true }
 objc2 = { workspace = true }
 objc2-app-kit = { workspace = true }
+objc2-core-foundation = { workspace = true }
+objc2-core-graphics = { workspace = true }
 objc2-foundation = { workspace = true }
 
 [dev-dependencies]
@@ -155,8 +163,3 @@ rustls-native-certs = { workspace = true }
 
 [lints]
 workspace = true
-[[test]]
-name = "runtime_affinity"
-path = "src/tests/main.rs"
-harness = false
-

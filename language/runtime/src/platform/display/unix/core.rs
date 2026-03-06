@@ -95,7 +95,7 @@ pub(crate) fn backend_available(backend: DisplayBackend) -> bool {
 
     #[cfg(target_os = "macos")]
     if backend == DisplayBackend::AppKit {
-        return false;
+        return appkit::backend_available();
     }
 
     true
@@ -223,6 +223,7 @@ fn resolve_auto_backend(operation: &'static str) -> RuntimeResult<DisplayBackend
         }
     }
 
+    #[cfg(not(target_os = "macos"))]
     for backend in preferred_host_backends().iter().copied() {
         if backend_supported(backend) {
             return Ok(backend);

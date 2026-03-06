@@ -1,18 +1,12 @@
+mod constants;
+mod core;
 mod event;
+mod model;
 mod monitor;
+mod resource;
 mod window;
 
-use crate::platform::display::DisplayBackendCapabilityFlags;
-use crate::runtime::BindingCallContext;
-
-pub(super) use event::*;
-pub(super) use monitor::*;
-pub(super) use window::*;
-
-/// Return backend descriptor availability and capability flags for appkit.
-pub(crate) fn backend_descriptor_state(
-    context: &BindingCallContext,
-) -> (bool, DisplayBackendCapabilityFlags) {
-    let _ = context;
-    (false, DisplayBackendCapabilityFlags(0))
-}
+pub(crate) use core::{AppKitRuntimeState, backend_available, backend_descriptor_state};
+pub(crate) use event::*;
+pub(crate) use monitor::*;
+pub(crate) use window::*;
