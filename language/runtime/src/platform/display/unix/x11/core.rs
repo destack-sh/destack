@@ -17,7 +17,7 @@ use crate::platform::{
 };
 use crate::runtime::BindingCallContext;
 
-pub(super) use super::constants::*;
+pub(crate) use super::constants::*;
 use super::event::{MonitorEventBinding, WindowEventBinding};
 use super::model::MonitorSnapshot;
 use super::monitor;
@@ -34,109 +34,109 @@ pub(crate) fn selected_backend_name() -> &'static str {
 
 /// Interned X11 atoms used by the runtime.
 #[derive(Debug, Clone)]
-pub(super) struct X11Atoms {
+pub(crate) struct X11Atoms {
     /// `WM_PROTOCOLS` atom.
-    pub(super) wm_protocols: Atom,
+    pub(crate) wm_protocols: Atom,
     /// `WM_DELETE_WINDOW` atom.
-    pub(super) wm_delete_window: Atom,
+    pub(crate) wm_delete_window: Atom,
     /// `WM_CHANGE_STATE` atom.
-    pub(super) wm_change_state: Atom,
+    pub(crate) wm_change_state: Atom,
     /// `WM_STATE` atom.
-    pub(super) wm_state: Atom,
+    pub(crate) wm_state: Atom,
     /// `UTF8_STRING` atom.
-    pub(super) utf8_string: Atom,
+    pub(crate) utf8_string: Atom,
     /// `WM_NAME` atom.
-    pub(super) wm_name: Atom,
+    pub(crate) wm_name: Atom,
     /// `_NET_WM_NAME` atom.
-    pub(super) net_wm_name: Atom,
+    pub(crate) net_wm_name: Atom,
     /// `_NET_WM_STATE` atom.
-    pub(super) net_wm_state: Atom,
+    pub(crate) net_wm_state: Atom,
     /// `_NET_WM_STATE_FULLSCREEN` atom.
-    pub(super) net_wm_state_fullscreen: Atom,
+    pub(crate) net_wm_state_fullscreen: Atom,
     /// `_NET_WM_STATE_MAXIMIZED_HORZ` atom.
-    pub(super) net_wm_state_maximized_horz: Atom,
+    pub(crate) net_wm_state_maximized_horz: Atom,
     /// `_NET_WM_STATE_MAXIMIZED_VERT` atom.
-    pub(super) net_wm_state_maximized_vert: Atom,
+    pub(crate) net_wm_state_maximized_vert: Atom,
     /// `_NET_WM_STATE_ABOVE` atom.
-    pub(super) net_wm_state_above: Atom,
+    pub(crate) net_wm_state_above: Atom,
     /// `_NET_WM_STATE_SKIP_TASKBAR` atom.
-    pub(super) net_wm_state_skip_taskbar: Atom,
+    pub(crate) net_wm_state_skip_taskbar: Atom,
     /// `_NET_WM_STATE_MODAL` atom.
-    pub(super) net_wm_state_modal: Atom,
+    pub(crate) net_wm_state_modal: Atom,
     /// `_NET_WM_STATE_DEMANDS_ATTENTION` atom.
-    pub(super) net_wm_state_demands_attention: Atom,
+    pub(crate) net_wm_state_demands_attention: Atom,
     /// `_NET_WM_WINDOW_OPACITY` atom.
-    pub(super) net_wm_window_opacity: Atom,
+    pub(crate) net_wm_window_opacity: Atom,
     /// `_NET_WM_WINDOW_TYPE` atom.
-    pub(super) net_wm_window_type: Atom,
+    pub(crate) net_wm_window_type: Atom,
     /// `_NET_WM_WINDOW_TYPE_NORMAL` atom.
-    pub(super) net_wm_window_type_normal: Atom,
+    pub(crate) net_wm_window_type_normal: Atom,
     /// `_NET_WM_WINDOW_TYPE_UTILITY` atom.
-    pub(super) net_wm_window_type_utility: Atom,
+    pub(crate) net_wm_window_type_utility: Atom,
     /// `_NET_WM_WINDOW_TYPE_POPUP_MENU` atom.
-    pub(super) net_wm_window_type_popup_menu: Atom,
+    pub(crate) net_wm_window_type_popup_menu: Atom,
     /// `_MOTIF_WM_HINTS` atom.
-    pub(super) motif_wm_hints: Atom,
+    pub(crate) motif_wm_hints: Atom,
     /// `_NET_WM_MOVERESIZE` atom.
-    pub(super) net_wm_moveresize: Atom,
+    pub(crate) net_wm_moveresize: Atom,
     /// `_NET_WM_ICON` atom.
-    pub(super) net_wm_icon: Atom,
+    pub(crate) net_wm_icon: Atom,
     /// `_NET_WORKAREA` atom.
-    pub(super) net_work_area: Atom,
+    pub(crate) net_work_area: Atom,
     /// `_NET_CURRENT_DESKTOP` atom.
-    pub(super) net_current_desktop: Atom,
+    pub(crate) net_current_desktop: Atom,
     /// `vrr_capable` atom.
-    pub(super) vrr_capable: Atom,
+    pub(crate) vrr_capable: Atom,
     /// `XdndAware` atom.
-    pub(super) xdnd_aware: Atom,
+    pub(crate) xdnd_aware: Atom,
     /// `XdndEnter` atom.
-    pub(super) xdnd_enter: Atom,
+    pub(crate) xdnd_enter: Atom,
     /// `XdndPosition` atom.
-    pub(super) xdnd_position: Atom,
+    pub(crate) xdnd_position: Atom,
     /// `XdndStatus` atom.
-    pub(super) xdnd_status: Atom,
+    pub(crate) xdnd_status: Atom,
     /// `XdndDrop` atom.
-    pub(super) xdnd_drop: Atom,
+    pub(crate) xdnd_drop: Atom,
     /// `XdndFinished` atom.
-    pub(super) xdnd_finished: Atom,
+    pub(crate) xdnd_finished: Atom,
     /// `XdndLeave` atom.
-    pub(super) xdnd_leave: Atom,
+    pub(crate) xdnd_leave: Atom,
     /// `XdndSelection` atom.
-    pub(super) xdnd_selection: Atom,
+    pub(crate) xdnd_selection: Atom,
     /// `XdndTypeList` atom.
-    pub(super) xdnd_type_list: Atom,
+    pub(crate) xdnd_type_list: Atom,
     /// `XdndActionCopy` atom.
-    pub(super) xdnd_action_copy: Atom,
+    pub(crate) xdnd_action_copy: Atom,
     /// `text/uri-list` atom.
-    pub(super) text_uri_list: Atom,
+    pub(crate) text_uri_list: Atom,
     /// `TEXT` atom.
-    pub(super) text: Atom,
+    pub(crate) text: Atom,
 }
 
 /// Shared X11 host connection lane and root metadata.
 #[derive(Debug, Clone)]
-pub(super) struct X11ConnectionState {
+pub(crate) struct X11ConnectionState {
     /// Shared X11 connection for this runtime.
-    pub(super) connection: Arc<RustConnection>,
+    pub(crate) connection: Arc<RustConnection>,
     /// Selected setup screen index.
-    pub(super) screen_index: usize,
+    pub(crate) screen_index: usize,
     /// Root window for the selected screen.
-    pub(super) root: Window,
+    pub(crate) root: Window,
     /// Interned atoms for this connection.
-    pub(super) atoms: X11Atoms,
+    pub(crate) atoms: X11Atoms,
     /// Extension support flags for this host connection.
-    pub(super) extensions: X11ExtensionSupport,
+    pub(crate) extensions: X11ExtensionSupport,
 }
 
 /// Extension support state for one x11 connection.
 #[derive(Debug, Clone, Copy, Default)]
-pub(super) struct X11ExtensionSupport {
+pub(crate) struct X11ExtensionSupport {
     /// Whether `RANDR` is available.
-    pub(super) randr: bool,
+    pub(crate) randr: bool,
     /// Whether `XFIXES` is available.
-    pub(super) xfixes: bool,
+    pub(crate) xfixes: bool,
     /// Whether `SHAPE` is available.
-    pub(super) shape: bool,
+    pub(crate) shape: bool,
 }
 
 /// Runtime-owned X11 display backend state.
@@ -144,13 +144,13 @@ pub(crate) struct X11RuntimeState {
     /// Lazy X11 connection state.
     connection: Mutex<Option<Arc<X11ConnectionState>>>,
     /// Monitor-event subscribers for this runtime.
-    pub(super) monitor_event_registry: Mutex<Vec<Weak<MonitorEventBinding>>>,
+    pub(crate) monitor_event_registry: Mutex<Vec<Weak<MonitorEventBinding>>>,
     /// Window-event subscribers for this runtime.
-    pub(super) window_event_registry: Mutex<Vec<Weak<WindowEventBinding>>>,
+    pub(crate) window_event_registry: Mutex<Vec<Weak<WindowEventBinding>>>,
     /// Mapping from X11 window id to runtime window handle.
-    pub(super) windows_by_xid: Mutex<HashMap<u32, resource::WindowHandle>>,
+    pub(crate) windows_by_xid: Mutex<HashMap<u32, resource::WindowHandle>>,
     /// Cached monitor topology snapshot for monitor-event delta publication.
-    pub(super) monitor_topology_snapshot: Mutex<Option<Vec<MonitorSnapshot>>>,
+    pub(crate) monitor_topology_snapshot: Mutex<Option<Vec<MonitorSnapshot>>>,
 }
 
 impl std::fmt::Debug for X11RuntimeState {
@@ -164,7 +164,7 @@ impl std::fmt::Debug for X11RuntimeState {
 
 impl X11RuntimeState {
     /// Create one runtime-owned x11 state value.
-    pub(super) fn from_context(binding: &BindingCallContext) -> Self {
+    pub(crate) fn from_context(binding: &BindingCallContext) -> Self {
         Self {
             connection: Mutex::new(None),
             monitor_event_registry: Mutex::new(Vec::new()),
@@ -176,7 +176,7 @@ impl X11RuntimeState {
 }
 
 /// Return runtime-owned x11 state for this binding call.
-pub(super) fn runtime_state(binding: &BindingCallContext) -> Arc<X11RuntimeState> {
+pub(crate) fn runtime_state(binding: &BindingCallContext) -> Arc<X11RuntimeState> {
     binding
         .agent()
         .platform_state
@@ -185,7 +185,7 @@ pub(super) fn runtime_state(binding: &BindingCallContext) -> Arc<X11RuntimeState
 }
 
 /// Return one x11 connection snapshot, connecting lazily on first use.
-pub(super) fn connection_state(
+pub(crate) fn connection_state(
     runtime_state: &Arc<X11RuntimeState>,
     operation: &'static str,
 ) -> RuntimeResult<Arc<X11ConnectionState>> {
@@ -406,7 +406,7 @@ pub(crate) fn backend_descriptor_state(
 }
 
 /// Resolve one queue capacity from open options and runtime defaults.
-pub(super) fn resolved_queue_capacity(binding: &BindingCallContext, requested: u32) -> usize {
+pub(crate) fn resolved_queue_capacity(binding: &BindingCallContext, requested: u32) -> usize {
     // use runtime default when request value is zero
     if requested == 0 {
         let configured = binding.agent().options.display.default_event_queue_capacity;
@@ -417,11 +417,11 @@ pub(super) fn resolved_queue_capacity(binding: &BindingCallContext, requested: u
         );
     }
 
-    requested as usize
+    core_platform::u32_to_usize(requested)
 }
 
 /// Resolve one wait-slice interval for blocking window-event reads.
-pub(super) fn window_event_wait_slice_ns(binding: &BindingCallContext) -> u64 {
+pub(crate) fn window_event_wait_slice_ns(binding: &BindingCallContext) -> u64 {
     // use runtime override when present
     let configured = binding.agent().options.display.window_event_wait_slice_ns;
 
@@ -430,17 +430,17 @@ pub(super) fn window_event_wait_slice_ns(binding: &BindingCallContext) -> u64 {
 }
 
 /// Validate one monitor-event kind mask.
-pub(super) fn monitor_kind_mask(value: Option<DisplayMonitorEventKindMask>) -> u32 {
+pub(crate) fn monitor_kind_mask(value: Option<DisplayMonitorEventKindMask>) -> u32 {
     value.map_or(DISPLAY_MONITOR_EVENT_KIND_MASK_ALL, |value| value.0)
 }
 
 /// Validate one window-event kind mask.
-pub(super) fn window_kind_mask(value: Option<WindowEventKindMask>) -> u64 {
+pub(crate) fn window_kind_mask(value: Option<WindowEventKindMask>) -> u64 {
     value.map_or(WINDOW_EVENT_KIND_MASK_ALL, |value| value.0)
 }
 
 /// Validate one monitor-event kind-mask payload.
-pub(super) fn validate_monitor_event_kind_mask(
+pub(crate) fn validate_monitor_event_kind_mask(
     kind_mask: u32,
     field: &'static str,
 ) -> RuntimeResult<()> {
@@ -457,7 +457,7 @@ pub(super) fn validate_monitor_event_kind_mask(
 }
 
 /// Validate one window-event kind-mask payload.
-pub(super) fn validate_window_event_kind_mask(
+pub(crate) fn validate_window_event_kind_mask(
     kind_mask: u64,
     field: &'static str,
 ) -> RuntimeResult<()> {
@@ -474,7 +474,7 @@ pub(super) fn validate_window_event_kind_mask(
 }
 
 /// Build one busy error for queued-event overflow with `Error` policy.
-pub(super) fn overflow_error(operation: &'static str) -> Box<RuntimeError> {
+pub(crate) fn overflow_error(operation: &'static str) -> Box<RuntimeError> {
     core_platform::io_busy(
         operation,
         "event queue overflowed while overflow policy is error",
@@ -482,7 +482,7 @@ pub(super) fn overflow_error(operation: &'static str) -> Box<RuntimeError> {
 }
 
 /// Build one not-found error for missing window handles.
-pub(super) fn window_not_found(
+pub(crate) fn window_not_found(
     operation: &'static str,
     window: resource::WindowHandle,
 ) -> Box<RuntimeError> {
@@ -493,7 +493,7 @@ pub(super) fn window_not_found(
 }
 
 /// Build one not-found error for missing display handles.
-pub(super) fn display_not_found(
+pub(crate) fn display_not_found(
     operation: &'static str,
     handle: resource::DisplayHandle,
 ) -> Box<RuntimeError> {
@@ -504,7 +504,7 @@ pub(super) fn display_not_found(
 }
 
 /// Build one I/O error for x11 call failures.
-pub(super) fn io_error(operation: &'static str, message: impl Into<String>) -> Box<RuntimeError> {
+pub(crate) fn io_error(operation: &'static str, message: impl Into<String>) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::io_with(
         None,
         None,
@@ -517,7 +517,7 @@ pub(super) fn io_error(operation: &'static str, message: impl Into<String>) -> B
 }
 
 /// Push one event into one queue under overflow policy.
-pub(super) fn push_with_overflow<T>(
+pub(crate) fn push_with_overflow<T>(
     queue: &mut std::collections::VecDeque<T>,
     queue_capacity: usize,
     overflow_policy: DisplayEventOverflowPolicy,
@@ -537,7 +537,7 @@ pub(super) fn push_with_overflow<T>(
             *dropped_count = dropped_count.saturating_add(1);
         }
         DisplayEventOverflowPolicy::DropOldest => {
-            let _ = queue.pop_front();
+            drop(queue.pop_front());
             *dropped_count = dropped_count.saturating_add(1);
             queue.push_back(value);
         }
@@ -549,7 +549,7 @@ pub(super) fn push_with_overflow<T>(
 }
 
 /// Drain stale weak entries and skip one identity from one weak registry.
-pub(super) fn retain_live_without_identity<T>(registry: &mut Vec<Weak<T>>, identity: usize) {
+pub(crate) fn retain_live_without_identity<T>(registry: &mut Vec<Weak<T>>, identity: usize) {
     registry.retain(|weak| {
         let Some(strong) = weak.upgrade() else {
             return false;

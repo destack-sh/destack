@@ -471,7 +471,7 @@ impl WindowEventRecordKind {
 
 /// Open-time filter state for one monitor-event stream.
 #[derive(Debug, Clone, Default)]
-pub(super) struct MonitorEventFilterState {
+pub(crate) struct MonitorEventFilterState {
     /// Optional display identifier restriction.
     display_id: Option<String>,
     /// Optional monitor-event kind-mask restriction.
@@ -480,7 +480,7 @@ pub(super) struct MonitorEventFilterState {
 
 impl MonitorEventFilterState {
     /// Build one monitor-event filter state from open options.
-    pub(super) unsafe fn from_open_options(
+    pub(crate) unsafe fn from_open_options(
         options: DisplayMonitorEventOpenOptions,
     ) -> RuntimeResult<Self> {
         let Some(filter) = options.filter else {
@@ -513,7 +513,7 @@ impl MonitorEventFilterState {
 
 /// Open-time filter state for one window-event stream.
 #[derive(Debug, Clone, Copy, Default)]
-pub(super) struct WindowEventFilterState {
+pub(crate) struct WindowEventFilterState {
     /// Optional window-handle restriction.
     window: Option<resource::WindowHandle>,
     /// Optional window-event kind-mask restriction.
@@ -522,7 +522,7 @@ pub(super) struct WindowEventFilterState {
 
 impl WindowEventFilterState {
     /// Build one window-event filter state from open options.
-    pub(super) fn from_open_options(options: WindowEventOpenOptions) -> RuntimeResult<Self> {
+    pub(crate) fn from_open_options(options: WindowEventOpenOptions) -> RuntimeResult<Self> {
         let Some(filter) = options.filter else {
             return Ok(Self::default());
         };
@@ -613,7 +613,7 @@ fn window_event_record(kind: WindowEventRecordKind) -> WindowEventRecord {
 
 /// Resource payload for one monitor-event stream.
 #[derive(Debug)]
-pub(in super::super) struct MonitorEventBinding {
+pub(crate) struct MonitorEventBinding {
     /// Shared mutable stream state.
     state: Mutex<MonitorEventState>,
     /// Stream-level event filter payload.
@@ -624,7 +624,7 @@ pub(in super::super) struct MonitorEventBinding {
 
 /// Mutable monitor-event stream state.
 #[derive(Debug)]
-pub(super) struct MonitorEventState {
+pub(crate) struct MonitorEventState {
     /// Queue capacity for this stream.
     queue_capacity: usize,
     /// Queue overflow policy for this stream.
@@ -641,7 +641,7 @@ pub(super) struct MonitorEventState {
 
 /// Resource payload for one window-event stream.
 #[derive(Debug)]
-pub(in super::super) struct WindowEventBinding {
+pub(crate) struct WindowEventBinding {
     /// Shared mutable stream state.
     state: Mutex<WindowEventState>,
     /// Stream-level event filter payload.
@@ -654,7 +654,7 @@ pub(in super::super) struct WindowEventBinding {
 
 /// Mutable window-event stream state.
 #[derive(Debug)]
-pub(super) struct WindowEventState {
+pub(crate) struct WindowEventState {
     /// Queue capacity for this stream.
     queue_capacity: usize,
     /// Queue overflow policy for this stream.
@@ -784,7 +784,7 @@ impl DisplayEventRuntimeState {
 }
 
 /// Return runtime-owned display-event state.
-pub(in super::super) fn display_event_runtime_state(
+pub(crate) fn display_event_runtime_state(
     binding: &BindingCallContext,
 ) -> Arc<DisplayEventRuntimeState> {
     binding

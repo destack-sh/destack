@@ -9,15 +9,15 @@ mod lifecycle;
 mod relation;
 mod state;
 
-pub(in crate::platform::display::host::unix) use action::*;
-pub(in crate::platform::display::host::unix) use appearance::*;
-pub(in crate::platform::display::host::unix) use core::*;
-pub(in crate::platform::display::host::unix) use cursor::*;
-pub(in crate::platform::display::host::unix::wayland) use drop::{
+pub(crate) use action::*;
+pub(crate) use appearance::*;
+pub(crate) use core::*;
+pub(crate) use cursor::*;
+pub(crate) use drop::{
     clear_drop_session, finalize_pending_drop_session, handle_data_device_event,
     handle_data_offer_event,
 };
-pub(in crate::platform::display::host::unix) use geometry::*;
-pub(in crate::platform::display::host::unix) use lifecycle::*;
-pub(in crate::platform::display::host::unix) use relation::*;
-pub(in crate::platform::display::host::unix) use state::*;
+pub(crate) use geometry::*;
+pub(crate) use lifecycle::*;
+pub(crate) use relation::*;
+pub(crate) use state::*;

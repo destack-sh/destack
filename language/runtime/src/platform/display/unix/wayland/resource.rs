@@ -10,7 +10,7 @@ use super::event::{MonitorEventBinding, WindowEventBinding};
 use super::model::{WaylandDisplayBinding, WaylandWindowBinding};
 
 /// Insert one monitor resource for one monitor identifier.
-pub(super) fn open_display_handle(
+pub(crate) fn open_display_handle(
     context: &BindingCallContext,
     id: String,
 ) -> resource::DisplayHandle {
@@ -26,7 +26,7 @@ pub(super) fn open_display_handle(
 }
 
 /// Resolve one monitor identifier from one opened display handle.
-pub(super) fn resolve_display_id(
+pub(crate) fn resolve_display_id(
     context: &BindingCallContext,
     handle: resource::DisplayHandle,
     operation: &'static str,
@@ -59,14 +59,14 @@ pub(crate) fn ensure_display_binding_exists(
 }
 
 /// Build one resource entry for one opened wayland window binding.
-pub(super) fn window_resource_entry(binding: Arc<Mutex<WaylandWindowBinding>>) -> ResourceEntry {
+pub(crate) fn window_resource_entry(binding: Arc<Mutex<WaylandWindowBinding>>) -> ResourceEntry {
     ResourceEntry::new(ResourceKind::Window)
         .with_label(core::WINDOW_RESOURCE_LABEL)
         .with_payload(binding)
 }
 
 /// Resolve one window binding payload from one opened window handle.
-pub(super) fn resolve_window_binding(
+pub(crate) fn resolve_window_binding(
     context: &BindingCallContext,
     window: resource::WindowHandle,
     operation: &'static str,
@@ -81,7 +81,7 @@ pub(super) fn resolve_window_binding(
 }
 
 /// Resolve one monitor-event binding payload from one opened monitor-event handle.
-pub(super) fn resolve_monitor_event_binding(
+pub(crate) fn resolve_monitor_event_binding(
     context: &BindingCallContext,
     handle: resource::DisplayEventHandle,
     operation: &'static str,
@@ -123,7 +123,7 @@ pub(crate) fn ensure_window_binding_exists(
 }
 
 /// Resolve one window-event binding payload from one opened window-event handle.
-pub(super) fn resolve_window_event_binding(
+pub(crate) fn resolve_window_event_binding(
     context: &BindingCallContext,
     handle: resource::WindowEventHandle,
     operation: &'static str,

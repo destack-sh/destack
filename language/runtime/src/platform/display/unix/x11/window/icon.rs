@@ -3,7 +3,7 @@ use crate::platform::core as core_platform;
 use crate::platform::display::{WindowIconPixelFormat, WindowIconSet};
 
 /// Decode one icon set into `_NET_WM_ICON` cardinals.
-pub(super) fn net_wm_icon_payload(icons: WindowIconSet) -> RuntimeResult<Vec<u32>> {
+pub(crate) fn net_wm_icon_payload(icons: WindowIconSet) -> RuntimeResult<Vec<u32>> {
     // decode the image slice and require at least one icon image
     let images = unsafe { icons.images.as_slice()? };
     // evaluate this condition
@@ -26,11 +26,11 @@ pub(super) fn net_wm_icon_payload(icons: WindowIconSet) -> RuntimeResult<Vec<u32
             ));
         }
 
-        let pixel_count = (image.width as usize)
-            .checked_mul(image.height as usize)
-            .ok_or_else(|| {
-                core_platform::invalid_argument("icons", "icon dimensions are too large")
-            })?;
+        let width = core_platform::u32_to_usize(image.width);
+        let height = core_platform::u32_to_usize(image.height);
+        let pixel_count = width.checked_mul(height).ok_or_else(|| {
+            core_platform::invalid_argument("icons", "icon dimensions are too large")
+        })?;
         total_words = total_words
             .checked_add(pixel_count + 2)
             .ok_or_else(|| core_platform::invalid_argument("icons", "icon payload is too large"))?;
@@ -39,11 +39,11 @@ pub(super) fn net_wm_icon_payload(icons: WindowIconSet) -> RuntimeResult<Vec<u32
 
     // encode each icon image to width, height, and packed argb words
     for image in images {
-        let pixel_count = (image.width as usize)
-            .checked_mul(image.height as usize)
-            .ok_or_else(|| {
-                core_platform::invalid_argument("icons", "icon dimensions are too large")
-            })?;
+        let width = core_platform::u32_to_usize(image.width);
+        let height = core_platform::u32_to_usize(image.height);
+        let pixel_count = width.checked_mul(height).ok_or_else(|| {
+            core_platform::invalid_argument("icons", "icon dimensions are too large")
+        })?;
         let expected_length = pixel_count.checked_mul(4).ok_or_else(|| {
             core_platform::invalid_argument("icons", "icon pixel payload is too large")
         })?;

@@ -118,7 +118,7 @@ fn descriptor_changed_mask(
 }
 
 /// Build one monitor-topology event delta list between two snapshots.
-pub(super) fn monitor_topology_records(
+pub(crate) fn monitor_topology_records(
     previous: &[MonitorSnapshot],
     next: &[MonitorSnapshot],
 ) -> Vec<DisplayEventRecord> {
@@ -227,7 +227,7 @@ pub(super) fn monitor_topology_records(
 }
 
 /// Convert one stored monitor-event record into one ABI event payload.
-pub(super) fn display_event_from_record(
+pub(crate) fn display_event_from_record(
     binding: &BindingCallContext,
     value: DisplayEventRecord,
 ) -> DisplayMonitorEvent {
@@ -323,7 +323,7 @@ pub(super) fn display_event_from_record(
 }
 
 /// Convert one stored window-event record into one ABI event payload.
-pub(super) fn window_event_from_record(
+pub(crate) fn window_event_from_record(
     value: WindowEventRecord,
     binding: &BindingCallContext,
 ) -> WindowEvent {

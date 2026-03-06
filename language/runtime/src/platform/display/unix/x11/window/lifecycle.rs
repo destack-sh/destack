@@ -52,7 +52,7 @@ fn resolve_role_open_defaults(
 }
 
 /// Apply one exclusive fullscreen monitor mode request and return restore metadata.
-pub(super) fn apply_exclusive_mode(
+pub(crate) fn apply_exclusive_mode(
     context: &BindingCallContext,
     runtime_state: &Arc<core::X11RuntimeState>,
     mode: WindowModeOptions,
@@ -109,7 +109,7 @@ pub(super) fn apply_exclusive_mode(
 }
 
 /// Restore one monitor mode captured by one exclusive fullscreen transition.
-pub(super) fn restore_exclusive_mode(
+pub(crate) fn restore_exclusive_mode(
     context: &BindingCallContext,
     runtime_state: &Arc<core::X11RuntimeState>,
     restore: &ExclusiveModeRestore,

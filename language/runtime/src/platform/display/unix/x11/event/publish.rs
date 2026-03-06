@@ -28,7 +28,7 @@ fn occlusion_from_visibility(visibility: WindowVisibility) -> WindowOcclusionSta
 }
 
 /// Publish one monitor mode-changed event for one display.
-pub(in super::super::super) fn publish_monitor_mode_changed(
+pub(crate) fn publish_monitor_mode_changed(
     runtime_state: &Arc<core::X11RuntimeState>,
     display_id: &str,
     previous: Option<DisplayMode>,
@@ -48,7 +48,7 @@ pub(in super::super::super) fn publish_monitor_mode_changed(
 }
 
 /// Publish one monitor descriptor-changed event for one display.
-pub(in super::super::super) fn publish_monitor_descriptor_changed(
+pub(crate) fn publish_monitor_descriptor_changed(
     runtime_state: &Arc<core::X11RuntimeState>,
     previous: Option<DisplayDescriptorSnapshot>,
     current: DisplayDescriptorSnapshot,
@@ -75,7 +75,7 @@ pub(in super::super::super) fn publish_monitor_descriptor_changed(
 }
 
 /// Publish one created window event.
-pub(in super::super::super) fn publish_window_created(
+pub(crate) fn publish_window_created(
     runtime_state: &Arc<core::X11RuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -86,7 +86,7 @@ pub(in super::super::super) fn publish_window_created(
 }
 
 /// Publish one close-requested window event.
-pub(in super::super::super) fn publish_window_close_requested(
+pub(crate) fn publish_window_close_requested(
     runtime_state: &Arc<core::X11RuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -97,7 +97,7 @@ pub(in super::super::super) fn publish_window_close_requested(
 }
 
 /// Publish one destroyed window event.
-pub(in super::super::super) fn publish_window_destroyed(
+pub(crate) fn publish_window_destroyed(
     runtime_state: &Arc<core::X11RuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -108,7 +108,7 @@ pub(in super::super::super) fn publish_window_destroyed(
 }
 
 /// Publish one refresh-requested window event.
-pub(in super::super::super) fn publish_window_refresh_requested(
+pub(crate) fn publish_window_refresh_requested(
     runtime_state: &Arc<core::X11RuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -119,7 +119,7 @@ pub(in super::super::super) fn publish_window_refresh_requested(
 }
 
 /// Publish one visibility-changed window event.
-pub(in super::super::super) fn publish_window_visibility_changed(
+pub(crate) fn publish_window_visibility_changed(
     runtime_state: &Arc<core::X11RuntimeState>,
     window: resource::WindowHandle,
     previous_visibility: WindowVisibility,
@@ -151,7 +151,7 @@ pub(in super::super::super) fn publish_window_visibility_changed(
 }
 
 /// Publish one position-changed window event.
-pub(in super::super::super) fn publish_window_position_changed(
+pub(crate) fn publish_window_position_changed(
     runtime_state: &Arc<core::X11RuntimeState>,
     window: resource::WindowHandle,
     previous_position: WindowPosition,
@@ -168,7 +168,7 @@ pub(in super::super::super) fn publish_window_position_changed(
 }
 
 /// Publish one size-changed window event.
-pub(in super::super::super) fn publish_window_size_changed(
+pub(crate) fn publish_window_size_changed(
     runtime_state: &Arc<core::X11RuntimeState>,
     window: resource::WindowHandle,
     previous_size_logical: WindowLogicalSize,
@@ -189,7 +189,7 @@ pub(in super::super::super) fn publish_window_size_changed(
 }
 
 /// Publish one focus-changed window event.
-pub(in super::super::super) fn publish_window_focus_changed(
+pub(crate) fn publish_window_focus_changed(
     runtime_state: &Arc<core::X11RuntimeState>,
     window: resource::WindowHandle,
     previous_focused: bool,
@@ -206,7 +206,7 @@ pub(in super::super::super) fn publish_window_focus_changed(
 }
 
 /// Publish one mode-changed window event.
-pub(in super::super::super) fn publish_window_mode_changed(
+pub(crate) fn publish_window_mode_changed(
     runtime_state: &Arc<core::X11RuntimeState>,
     window: resource::WindowHandle,
     previous_mode: WindowModeOptions,
@@ -223,7 +223,7 @@ pub(in super::super::super) fn publish_window_mode_changed(
 }
 
 /// Publish one drop-started window event.
-pub(in super::super::super) fn publish_window_drop_started(
+pub(crate) fn publish_window_drop_started(
     runtime_state: &Arc<core::X11RuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -234,7 +234,7 @@ pub(in super::super::super) fn publish_window_drop_started(
 }
 
 /// Publish one file-hovered window event.
-pub(in super::super::super) fn publish_window_file_hovered(
+pub(crate) fn publish_window_file_hovered(
     runtime_state: &Arc<core::X11RuntimeState>,
     window: resource::WindowHandle,
     path: Option<String>,
@@ -251,7 +251,7 @@ pub(in super::super::super) fn publish_window_file_hovered(
 }
 
 /// Publish one drop-cancelled window event.
-pub(in super::super::super) fn publish_window_drop_cancelled(
+pub(crate) fn publish_window_drop_cancelled(
     runtime_state: &Arc<core::X11RuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -262,7 +262,7 @@ pub(in super::super::super) fn publish_window_drop_cancelled(
 }
 
 /// Publish one drop-completed window event.
-pub(in super::super::super) fn publish_window_drop_completed(
+pub(crate) fn publish_window_drop_completed(
     runtime_state: &Arc<core::X11RuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -273,7 +273,7 @@ pub(in super::super::super) fn publish_window_drop_completed(
 }
 
 /// Publish one file-hover-left window event.
-pub(in super::super::super) fn publish_window_file_hover_left(
+pub(crate) fn publish_window_file_hover_left(
     runtime_state: &Arc<core::X11RuntimeState>,
     window: resource::WindowHandle,
     previous_path: Option<String>,
@@ -290,7 +290,7 @@ pub(in super::super::super) fn publish_window_file_hover_left(
 }
 
 /// Publish one file-dropped window event.
-pub(in super::super::super) fn publish_window_file_dropped(
+pub(crate) fn publish_window_file_dropped(
     runtime_state: &Arc<core::X11RuntimeState>,
     window: resource::WindowHandle,
     path: Option<String>,
@@ -307,7 +307,7 @@ pub(in super::super::super) fn publish_window_file_dropped(
 }
 
 /// Publish one text-dropped window event.
-pub(in super::super::super) fn publish_window_text_dropped(
+pub(crate) fn publish_window_text_dropped(
     runtime_state: &Arc<core::X11RuntimeState>,
     window: resource::WindowHandle,
     text: String,
@@ -323,9 +323,7 @@ pub(in super::super::super) fn publish_window_text_dropped(
     );
 }
 /// Refresh one cached monitor topology snapshot from host state.
-pub(in super::super::super) fn refresh_monitor_topology_cache(
-    binding: &BindingCallContext,
-) -> RuntimeResult<()> {
+pub(crate) fn refresh_monitor_topology_cache(binding: &BindingCallContext) -> RuntimeResult<()> {
     // enumerate snapshots and replace cached topology atomically
     let snapshots = monitor::enumerate_monitor_snapshots(binding)?;
     let runtime_state = core::runtime_state(binding);
@@ -339,9 +337,7 @@ pub(in super::super::super) fn refresh_monitor_topology_cache(
 }
 
 /// Publish monitor topology deltas observed since the last cached snapshot.
-pub(in super::super::super) fn publish_monitor_topology_deltas(
-    binding: &BindingCallContext,
-) -> RuntimeResult<()> {
+pub(crate) fn publish_monitor_topology_deltas(binding: &BindingCallContext) -> RuntimeResult<()> {
     // enumerate next monitor topology snapshot
     let next_snapshots = monitor::enumerate_monitor_snapshots(binding)?;
     let runtime_state = core::runtime_state(binding);
@@ -371,7 +367,7 @@ pub(in super::super::super) fn publish_monitor_topology_deltas(
 }
 
 /// Seed one monitor-event stream with current monitor snapshot events.
-pub(in super::super::super) fn seed_monitor_event_stream(
+pub(crate) fn seed_monitor_event_stream(
     binding_2: &BindingCallContext,
     binding: &Arc<MonitorEventBinding>,
 ) -> RuntimeResult<Vec<MonitorSnapshot>> {

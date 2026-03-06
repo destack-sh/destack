@@ -21,9 +21,9 @@ use super::model::{Win32DisplayBinding, Win32WindowBinding};
 
 /// Finalizer payload that destroys one Win32 window handle.
 #[derive(Debug)]
-pub(super) struct Win32WindowFinalizer {
+pub(crate) struct Win32WindowFinalizer {
     /// Native Win32 window handle.
-    pub(super) hwnd: HWND,
+    pub(crate) hwnd: HWND,
 }
 
 impl ResourceFinalizer for Win32WindowFinalizer {
@@ -50,7 +50,7 @@ impl ResourceFinalizer for Win32WindowFinalizer {
 }
 
 /// Insert one monitor resource for one monitor identifier.
-pub(super) fn open_display_handle(
+pub(crate) fn open_display_handle(
     binding: &BindingCallContext,
     id: String,
 ) -> resource::DisplayHandle {
@@ -66,7 +66,7 @@ pub(super) fn open_display_handle(
 }
 
 /// Resolve one monitor identifier from one opened display handle.
-pub(super) fn resolve_display_id(
+pub(crate) fn resolve_display_id(
     binding: &BindingCallContext,
     handle: resource::DisplayHandle,
     operation: &'static str,
@@ -88,7 +88,7 @@ pub(super) fn resolve_display_id(
 }
 
 /// Resolve one window binding payload from one opened window handle.
-pub(super) fn resolve_window_binding(
+pub(crate) fn resolve_window_binding(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     operation: &'static str,
@@ -119,7 +119,7 @@ pub(crate) fn ensure_window_binding_exists(
 }
 
 /// Resolve one monitor-event binding payload from one opened monitor-event handle.
-pub(super) fn resolve_monitor_event_binding(
+pub(crate) fn resolve_monitor_event_binding(
     binding: &BindingCallContext,
     handle: resource::DisplayEventHandle,
     operation: &'static str,
@@ -139,7 +139,7 @@ pub(super) fn resolve_monitor_event_binding(
 }
 
 /// Resolve one window-event binding payload from one opened window-event handle.
-pub(super) fn resolve_window_event_binding(
+pub(crate) fn resolve_window_event_binding(
     binding: &BindingCallContext,
     handle: resource::WindowEventHandle,
     operation: &'static str,
@@ -159,7 +159,7 @@ pub(super) fn resolve_window_event_binding(
 }
 
 /// Build one resource entry for one opened window binding.
-pub(super) fn window_resource_entry(
+pub(crate) fn window_resource_entry(
     hwnd: HWND,
     binding: Arc<Mutex<Win32WindowBinding>>,
 ) -> ResourceEntry {

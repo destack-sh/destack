@@ -16,11 +16,11 @@ use super::model::{X11DisplayBinding, X11WindowBinding};
 
 /// Finalizer payload that destroys one x11 window id.
 #[derive(Debug)]
-pub(super) struct X11WindowFinalizer {
+pub(crate) struct X11WindowFinalizer {
     /// Shared x11 connection lane.
-    pub(super) connection: Arc<core::X11ConnectionState>,
+    pub(crate) connection: Arc<core::X11ConnectionState>,
     /// Native x11 window id.
-    pub(super) window: u32,
+    pub(crate) window: u32,
 }
 
 impl ResourceFinalizer for X11WindowFinalizer {
@@ -33,7 +33,7 @@ impl ResourceFinalizer for X11WindowFinalizer {
 }
 
 /// Insert one monitor resource for one monitor identifier.
-pub(super) fn open_display_handle(
+pub(crate) fn open_display_handle(
     binding: &BindingCallContext,
     id: String,
 ) -> resource::DisplayHandle {
@@ -50,7 +50,7 @@ pub(super) fn open_display_handle(
 }
 
 /// Resolve one monitor identifier from one opened display handle.
-pub(super) fn resolve_display_id(
+pub(crate) fn resolve_display_id(
     binding: &BindingCallContext,
     handle: resource::DisplayHandle,
     operation: &'static str,
@@ -78,7 +78,7 @@ pub(crate) fn ensure_display_binding_exists(
 }
 
 /// Resolve one window binding payload from one opened window handle.
-pub(super) fn resolve_window_binding(
+pub(crate) fn resolve_window_binding(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     operation: &'static str,
@@ -104,7 +104,7 @@ pub(crate) fn ensure_window_binding_exists(
 }
 
 /// Resolve one monitor-event binding payload from one opened monitor-event handle.
-pub(super) fn resolve_monitor_event_binding(
+pub(crate) fn resolve_monitor_event_binding(
     binding: &BindingCallContext,
     handle: resource::DisplayEventHandle,
     operation: &'static str,
@@ -135,7 +135,7 @@ pub(crate) fn ensure_monitor_event_binding_exists(
 }
 
 /// Resolve one window-event binding payload from one opened window-event handle.
-pub(super) fn resolve_window_event_binding(
+pub(crate) fn resolve_window_event_binding(
     binding: &BindingCallContext,
     handle: resource::WindowEventHandle,
     operation: &'static str,
@@ -166,7 +166,7 @@ pub(crate) fn ensure_window_event_binding_exists(
 }
 
 /// Build one resource entry for one opened x11 window binding.
-pub(super) fn window_resource_entry(
+pub(crate) fn window_resource_entry(
     connection: Arc<core::X11ConnectionState>,
     window_binding: Arc<Mutex<X11WindowBinding>>,
 ) -> ResourceEntry {

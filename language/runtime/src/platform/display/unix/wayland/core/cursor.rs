@@ -15,7 +15,7 @@ use super::{
 };
 
 /// Clear pointer-focus state when one focused surface is being destroyed.
-pub(in super::super) fn clear_pointer_focus_for_surface(
+pub(crate) fn clear_pointer_focus_for_surface(
     dispatch_state: &mut WaylandConnectionDispatchState,
     surface_id: &wayland_client::backend::ObjectId,
 ) {
@@ -76,7 +76,7 @@ fn should_hide_cursor(cursor_visible: bool, cursor_mode: WindowCursorMode) -> bo
 }
 
 /// Apply one pointer cursor policy on the currently focused wayland surface.
-pub(in super::super) fn apply_pointer_cursor_state(
+pub(crate) fn apply_pointer_cursor_state(
     dispatch_state: &WaylandConnectionDispatchState,
     cursor_visible: bool,
     cursor_mode: WindowCursorMode,
@@ -141,7 +141,7 @@ fn destroy_confined_pointer(
 }
 
 /// Apply cursor visibility, icon, and mode policy for one window binding.
-pub(in super::super) fn apply_window_cursor_policy(
+pub(crate) fn apply_window_cursor_policy(
     context: &BindingCallContext,
     binding: &mut WaylandWindowBinding,
     operation: &'static str,

@@ -33,7 +33,7 @@ fn decode_toplevel_states(states: &[u8]) -> (bool, bool, bool) {
 }
 
 /// Apply one toplevel configure event to runtime window state and events.
-pub(super) fn apply_toplevel_configure(
+pub(crate) fn apply_toplevel_configure(
     dispatch_state: &WaylandConnectionDispatchState,
     token: &WaylandWindowDispatchToken,
     width: i32,
@@ -158,7 +158,7 @@ pub(super) fn apply_toplevel_configure(
 }
 
 /// Apply one compositor close request to runtime window event publication.
-pub(super) fn apply_toplevel_close(
+pub(crate) fn apply_toplevel_close(
     dispatch_state: &WaylandConnectionDispatchState,
     token: &WaylandWindowDispatchToken,
 ) {
@@ -186,7 +186,7 @@ pub(super) fn apply_toplevel_close(
 }
 
 /// Apply one popup configure event to runtime window state.
-pub(super) fn apply_popup_configure(
+pub(crate) fn apply_popup_configure(
     dispatch_state: &WaylandConnectionDispatchState,
     token: &WaylandWindowDispatchToken,
     x: i32,
@@ -273,7 +273,7 @@ pub(super) fn apply_popup_configure(
 }
 
 /// Apply one layer-surface configure event to runtime window state.
-pub(super) fn apply_layer_surface_configure(
+pub(crate) fn apply_layer_surface_configure(
     dispatch_state: &WaylandConnectionDispatchState,
     token: &WaylandWindowDispatchToken,
     width: u32,

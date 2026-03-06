@@ -60,57 +60,57 @@ use super::cursor::{
 
 /// Mutable payload for one advertised data offer.
 #[derive(Debug, Clone, Default)]
-pub(super) struct WaylandDataOfferState {
+pub(crate) struct WaylandDataOfferState {
     /// Offered mime-type set.
-    pub(super) mime_types: Vec<String>,
+    pub(crate) mime_types: Vec<String>,
 }
 
 /// Mutable payload for one active drop session.
 #[derive(Debug, Clone, Default)]
-pub(super) struct WaylandDropSessionState {
+pub(crate) struct WaylandDropSessionState {
     /// Offer object id for this active session.
-    pub(super) offer: Option<wayland_client::backend::ObjectId>,
+    pub(crate) offer: Option<wayland_client::backend::ObjectId>,
     /// Target surface object id for this active session.
-    pub(super) surface: Option<wayland_client::backend::ObjectId>,
+    pub(crate) surface: Option<wayland_client::backend::ObjectId>,
     /// Last known drop position in window coordinates.
-    pub(super) position: Option<WindowPosition>,
+    pub(crate) position: Option<WindowPosition>,
     /// Last accepted mime type for this session.
-    pub(super) accepted_mime_type: Option<String>,
+    pub(crate) accepted_mime_type: Option<String>,
     /// Whether one drop-started event was emitted for this session.
-    pub(super) started: bool,
+    pub(crate) started: bool,
     /// Whether one compositor drop event is pending payload transfer.
-    pub(super) drop_pending: bool,
+    pub(crate) drop_pending: bool,
     /// Last hovered file path used for hover-leave payloads.
-    pub(super) last_hovered_path: Option<String>,
+    pub(crate) last_hovered_path: Option<String>,
 }
 
 /// Runtime collector snapshot for one wlr-output-management head object.
 #[derive(Debug, Clone, Default)]
-pub(super) struct WaylandWlrOutputHeadState {
+pub(crate) struct WaylandWlrOutputHeadState {
     /// Logical output name advertised by the compositor.
-    pub(super) name: Option<String>,
+    pub(crate) name: Option<String>,
     /// Enumerated mode object ids for this output head.
-    pub(super) mode_ids: Vec<wayland_client::backend::ObjectId>,
+    pub(crate) mode_ids: Vec<wayland_client::backend::ObjectId>,
     /// Optional adaptive-sync support state for this output head.
-    pub(super) adaptive_sync: Option<WaylandWlrAdaptiveSyncState>,
+    pub(crate) adaptive_sync: Option<WaylandWlrAdaptiveSyncState>,
 }
 
 /// Runtime collector snapshot for one wlr-output-management mode object.
 #[derive(Debug, Clone, Default)]
-pub(super) struct WaylandWlrOutputModeState {
+pub(crate) struct WaylandWlrOutputModeState {
     /// Mode width in physical pixels.
-    pub(super) width: Option<u32>,
+    pub(crate) width: Option<u32>,
     /// Mode height in physical pixels.
-    pub(super) height: Option<u32>,
+    pub(crate) height: Option<u32>,
     /// Mode refresh rate in milli-hertz.
-    pub(super) refresh_milli_hz: Option<u32>,
+    pub(crate) refresh_milli_hz: Option<u32>,
     /// Whether this mode is compositor preferred.
-    pub(super) is_preferred: bool,
+    pub(crate) is_preferred: bool,
 }
 
 /// Runtime adaptive-sync support state from wlr output management.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum WaylandWlrAdaptiveSyncState {
+pub(crate) enum WaylandWlrAdaptiveSyncState {
     /// Adaptive sync is currently disabled for this output head.
     Disabled,
     /// Adaptive sync is currently enabled for this output head.
@@ -119,7 +119,7 @@ pub(super) enum WaylandWlrAdaptiveSyncState {
 
 /// Result state for one pending wlr output configuration request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum WaylandOutputConfigurationOutcome {
+pub(crate) enum WaylandOutputConfigurationOutcome {
     /// Compositor accepted and applied this configuration.
     Succeeded,
     /// Compositor rejected this configuration.
@@ -130,89 +130,89 @@ pub(super) enum WaylandOutputConfigurationOutcome {
 
 /// Shared completion payload for one pending output configuration request.
 #[derive(Debug, Default)]
-pub(super) struct WaylandOutputConfigurationState {
+pub(crate) struct WaylandOutputConfigurationState {
     /// Final result state observed from configuration events.
-    pub(super) outcome: Mutex<Option<WaylandOutputConfigurationOutcome>>,
+    pub(crate) outcome: Mutex<Option<WaylandOutputConfigurationOutcome>>,
 }
 
 /// Mutable query payload for one output color-description request.
 #[derive(Debug, Clone, Default)]
-pub(super) struct WaylandColorDescriptionQueryState {
+pub(crate) struct WaylandColorDescriptionQueryState {
     /// Whether the image-description object reached ready state.
-    pub(super) ready: bool,
+    pub(crate) ready: bool,
     /// Optional failure details from image-description creation.
-    pub(super) failed_message: Option<String>,
+    pub(crate) failed_message: Option<String>,
     /// Optional image-description failure cause value.
-    pub(super) failed_cause: Option<u32>,
+    pub(crate) failed_cause: Option<u32>,
     /// Whether image-description information delivery completed.
-    pub(super) info_done: bool,
+    pub(crate) info_done: bool,
     /// Optional named primaries enum value.
-    pub(super) primaries_named: Option<u32>,
+    pub(crate) primaries_named: Option<u32>,
     /// Optional named transfer-function enum value.
-    pub(super) transfer_function_named: Option<u32>,
+    pub(crate) transfer_function_named: Option<u32>,
     /// Optional minimum luminance value multiplied by 10000.
-    pub(super) minimum_luminance: Option<u32>,
+    pub(crate) minimum_luminance: Option<u32>,
     /// Optional maximum luminance value.
-    pub(super) maximum_luminance: Option<u32>,
+    pub(crate) maximum_luminance: Option<u32>,
     /// Optional reference white luminance value.
-    pub(super) reference_luminance: Option<u32>,
+    pub(crate) reference_luminance: Option<u32>,
     /// Optional target maximum content light-level value.
-    pub(super) target_max_cll: Option<u32>,
+    pub(crate) target_max_cll: Option<u32>,
     /// Optional target maximum frame-average light-level value.
-    pub(super) target_max_fall: Option<u32>,
+    pub(crate) target_max_fall: Option<u32>,
 }
 
 /// Mutable query payload for one gamma-control request.
 #[derive(Debug, Clone, Default)]
-pub(super) struct WaylandGammaControlQueryState {
+pub(crate) struct WaylandGammaControlQueryState {
     /// Optional reported gamma table size.
-    pub(super) gamma_size: Option<u32>,
+    pub(crate) gamma_size: Option<u32>,
     /// Whether the gamma-control object reported failure.
-    pub(super) failed: bool,
+    pub(crate) failed: bool,
 }
 
 /// Cached gamma-ramp payload for one display.
 #[derive(Debug, Clone, Default)]
-pub(super) struct WaylandGammaRampSnapshot {
+pub(crate) struct WaylandGammaRampSnapshot {
     /// Cached red channel values.
-    pub(super) red: Vec<u16>,
+    pub(crate) red: Vec<u16>,
     /// Cached green channel values.
-    pub(super) green: Vec<u16>,
+    pub(crate) green: Vec<u16>,
     /// Cached blue channel values.
-    pub(super) blue: Vec<u16>,
+    pub(crate) blue: Vec<u16>,
 }
 
 /// Runtime collector snapshot for one wl_output global.
 #[derive(Debug, Clone)]
-pub(super) struct WaylandOutputSnapshot {
+pub(crate) struct WaylandOutputSnapshot {
     /// Stable wl_registry global name.
-    pub(super) global_name: u32,
+    pub(crate) global_name: u32,
     /// Logical output name from wl_output.name when present.
-    pub(super) logical_name: Option<String>,
+    pub(crate) logical_name: Option<String>,
     /// Human-readable description from wl_output.description when present.
-    pub(super) description: Option<String>,
+    pub(crate) description: Option<String>,
     /// Make token reported by geometry events.
-    pub(super) make: Option<String>,
+    pub(crate) make: Option<String>,
     /// Model token reported by geometry events.
-    pub(super) model: Option<String>,
+    pub(crate) model: Option<String>,
     /// Desktop-space x coordinate.
-    pub(super) x: i32,
+    pub(crate) x: i32,
     /// Desktop-space y coordinate.
-    pub(super) y: i32,
+    pub(crate) y: i32,
     /// Physical width in millimeters.
-    pub(super) width_mm: u32,
+    pub(crate) width_mm: u32,
     /// Physical height in millimeters.
-    pub(super) height_mm: u32,
+    pub(crate) height_mm: u32,
     /// Output scale factor.
-    pub(super) scale_factor: u32,
+    pub(crate) scale_factor: u32,
     /// Output transform orientation.
-    pub(super) orientation: DisplayOrientation,
+    pub(crate) orientation: DisplayOrientation,
     /// Enumerated mode list.
-    pub(super) modes: Vec<DisplayMode>,
+    pub(crate) modes: Vec<DisplayMode>,
     /// Current mode when reported.
-    pub(super) current_mode: Option<DisplayMode>,
+    pub(crate) current_mode: Option<DisplayMode>,
     /// Desktop-preferred mode when reported.
-    pub(super) desktop_mode: Option<DisplayMode>,
+    pub(crate) desktop_mode: Option<DisplayMode>,
 }
 
 impl WaylandOutputSnapshot {
@@ -239,108 +239,108 @@ impl WaylandOutputSnapshot {
 
 /// Event dispatch token for one wayland window object.
 #[derive(Debug, Clone)]
-pub(super) struct WaylandWindowDispatchToken {
+pub(crate) struct WaylandWindowDispatchToken {
     /// Stable runtime window identifier.
-    pub(super) window_id: String,
+    pub(crate) window_id: String,
     /// Weak handle to the runtime window binding payload.
-    pub(super) binding: Weak<Mutex<WaylandWindowBinding>>,
+    pub(crate) binding: Weak<Mutex<WaylandWindowBinding>>,
 }
 
 /// Shared state for one pending xdg activation token request.
 #[derive(Debug)]
-pub(super) struct WaylandActivationTokenState {
+pub(crate) struct WaylandActivationTokenState {
     /// Resolved token string when compositor responds.
-    pub(super) token: Mutex<Option<String>>,
+    pub(crate) token: Mutex<Option<String>>,
 }
 
 /// Runtime-owned wayland connection dispatch state.
 #[derive(Debug)]
-pub(super) struct WaylandConnectionDispatchState {
+pub(crate) struct WaylandConnectionDispatchState {
     /// Weak runtime state used for event publication lookups.
-    pub(super) runtime_state: Weak<WaylandRuntimeState>,
+    pub(crate) runtime_state: Weak<WaylandRuntimeState>,
     /// Bound compositor global.
-    pub(super) compositor: Option<wl_compositor::WlCompositor>,
+    pub(crate) compositor: Option<wl_compositor::WlCompositor>,
     /// Bound xdg shell global.
-    pub(super) wm_base: Option<xdg_wm_base::XdgWmBase>,
+    pub(crate) wm_base: Option<xdg_wm_base::XdgWmBase>,
     /// Bound wl_shm global.
-    pub(super) shm: Option<wl_shm::WlShm>,
+    pub(crate) shm: Option<wl_shm::WlShm>,
     /// Bound xdg decoration manager global.
-    pub(super) decoration_manager: Option<zxdg_decoration_manager_v1::ZxdgDecorationManagerV1>,
+    pub(crate) decoration_manager: Option<zxdg_decoration_manager_v1::ZxdgDecorationManagerV1>,
     /// Bound xdg dialog manager global.
-    pub(super) dialog_manager: Option<xdg_wm_dialog_v1::XdgWmDialogV1>,
+    pub(crate) dialog_manager: Option<xdg_wm_dialog_v1::XdgWmDialogV1>,
     /// Bound xdg activation manager global.
-    pub(super) activation_manager: Option<xdg_activation_v1::XdgActivationV1>,
+    pub(crate) activation_manager: Option<xdg_activation_v1::XdgActivationV1>,
     /// Bound xdg toplevel icon manager global.
-    pub(super) toplevel_icon_manager:
+    pub(crate) toplevel_icon_manager:
         Option<xdg_toplevel_icon_manager_v1::XdgToplevelIconManagerV1>,
     /// Bound wlr layer-shell manager global for overlay role windows.
-    pub(super) layer_shell_manager: Option<zwlr_layer_shell_v1::ZwlrLayerShellV1>,
+    pub(crate) layer_shell_manager: Option<zwlr_layer_shell_v1::ZwlrLayerShellV1>,
     /// Bound wlr output-manager global for output mode configuration.
-    pub(super) wlr_output_manager: Option<zwlr_output_manager_v1::ZwlrOutputManagerV1>,
+    pub(crate) wlr_output_manager: Option<zwlr_output_manager_v1::ZwlrOutputManagerV1>,
     /// Last output-manager serial for output configuration requests.
-    pub(super) wlr_output_manager_serial: Option<u32>,
+    pub(crate) wlr_output_manager_serial: Option<u32>,
     /// Output head snapshots keyed by head object id.
-    pub(super) wlr_output_heads_by_id:
+    pub(crate) wlr_output_heads_by_id:
         HashMap<wayland_client::backend::ObjectId, WaylandWlrOutputHeadState>,
     /// Output mode snapshots keyed by mode object id.
-    pub(super) wlr_output_modes_by_id:
+    pub(crate) wlr_output_modes_by_id:
         HashMap<wayland_client::backend::ObjectId, WaylandWlrOutputModeState>,
     /// Bound alpha modifier manager for whole-surface opacity control.
-    pub(super) alpha_modifier_manager: Option<wp_alpha_modifier_v1::WpAlphaModifierV1>,
+    pub(crate) alpha_modifier_manager: Option<wp_alpha_modifier_v1::WpAlphaModifierV1>,
     /// Bound presentation-time manager for frame-pacing feedback.
-    pub(super) presentation: Option<wp_presentation::WpPresentation>,
+    pub(crate) presentation: Option<wp_presentation::WpPresentation>,
     /// Presentation clock id advertised by the compositor.
-    pub(super) presentation_clock_id: Option<u32>,
+    pub(crate) presentation_clock_id: Option<u32>,
     /// Bound fractional-scale manager for per-surface preferred-scale events.
-    pub(super) fractional_scale_manager:
+    pub(crate) fractional_scale_manager:
         Option<wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1>,
     /// Bound viewporter manager for surface destination-size control.
-    pub(super) viewporter: Option<wp_viewporter::WpViewporter>,
+    pub(crate) viewporter: Option<wp_viewporter::WpViewporter>,
     /// Bound color manager global for monitor color-state queries.
-    pub(super) color_manager: Option<wp_color_manager_v1::WpColorManagerV1>,
+    pub(crate) color_manager: Option<wp_color_manager_v1::WpColorManagerV1>,
     /// Bound color-management output objects keyed by wl_output global name.
-    pub(super) color_outputs_by_global:
+    pub(crate) color_outputs_by_global:
         HashMap<u32, wp_color_management_output_v1::WpColorManagementOutputV1>,
     /// Bound gamma-control manager global for monitor gamma lanes.
-    pub(super) gamma_control_manager:
+    pub(crate) gamma_control_manager:
         Option<zwlr_gamma_control_manager_v1::ZwlrGammaControlManagerV1>,
     /// Bound wl seat global used for pointer serial lanes.
-    pub(super) seat: Option<wl_seat::WlSeat>,
+    pub(crate) seat: Option<wl_seat::WlSeat>,
     /// Bound wl_data_device_manager global used for drop events.
-    pub(super) data_device_manager: Option<wl_data_device_manager::WlDataDeviceManager>,
+    pub(crate) data_device_manager: Option<wl_data_device_manager::WlDataDeviceManager>,
     /// Bound wl_data_device object for the active seat.
-    pub(super) data_device: Option<wl_data_device::WlDataDevice>,
+    pub(crate) data_device: Option<wl_data_device::WlDataDevice>,
     /// Bound wl_pointer object for the active seat when available.
-    pub(super) pointer: Option<wl_pointer::WlPointer>,
+    pub(crate) pointer: Option<wl_pointer::WlPointer>,
     /// Bound cursor-shape manager for compositor-provided cursor themes.
-    pub(super) cursor_shape_manager: Option<wp_cursor_shape_manager_v1::WpCursorShapeManagerV1>,
+    pub(crate) cursor_shape_manager: Option<wp_cursor_shape_manager_v1::WpCursorShapeManagerV1>,
     /// Bound cursor-shape device for the active pointer.
-    pub(super) cursor_shape_device: Option<wp_cursor_shape_device_v1::WpCursorShapeDeviceV1>,
+    pub(crate) cursor_shape_device: Option<wp_cursor_shape_device_v1::WpCursorShapeDeviceV1>,
     /// Bound pointer-constraints manager for lock and confine lanes.
-    pub(super) pointer_constraints_manager:
+    pub(crate) pointer_constraints_manager:
         Option<zwp_pointer_constraints_v1::ZwpPointerConstraintsV1>,
     /// Bound relative-pointer manager for locked-pointer motion lanes.
-    pub(super) relative_pointer_manager:
+    pub(crate) relative_pointer_manager:
         Option<zwp_relative_pointer_manager_v1::ZwpRelativePointerManagerV1>,
     /// Bound pointer-warp manager for surface-local cursor warp requests.
-    pub(super) pointer_warp_manager: Option<wp_pointer_warp_v1::WpPointerWarpV1>,
+    pub(crate) pointer_warp_manager: Option<wp_pointer_warp_v1::WpPointerWarpV1>,
     /// Bound relative-pointer object for the active pointer when available.
-    pub(super) relative_pointer: Option<zwp_relative_pointer_v1::ZwpRelativePointerV1>,
+    pub(crate) relative_pointer: Option<zwp_relative_pointer_v1::ZwpRelativePointerV1>,
     /// Last entered wl_surface object id for pointer focus.
-    pub(super) pointer_focus_surface: Option<wayland_client::backend::ObjectId>,
+    pub(crate) pointer_focus_surface: Option<wayland_client::backend::ObjectId>,
     /// Last pointer-enter serial used for cursor shape updates.
-    pub(super) last_pointer_enter_serial: Option<u32>,
+    pub(crate) last_pointer_enter_serial: Option<u32>,
     /// Last known pointer-button serial for interactive move and resize lanes.
-    pub(super) last_pointer_button_serial: Option<u32>,
+    pub(crate) last_pointer_button_serial: Option<u32>,
     /// Bound output globals keyed by registry name.
-    pub(super) outputs_by_global: HashMap<u32, wl_output::WlOutput>,
+    pub(crate) outputs_by_global: HashMap<u32, wl_output::WlOutput>,
     /// Output snapshots keyed by wl_registry global name.
-    pub(super) output_snapshots_by_global: BTreeMap<u32, WaylandOutputSnapshot>,
+    pub(crate) output_snapshots_by_global: BTreeMap<u32, WaylandOutputSnapshot>,
     /// Data-offer state keyed by offer object id.
-    pub(super) data_offer_state_by_id:
+    pub(crate) data_offer_state_by_id:
         HashMap<wayland_client::backend::ObjectId, WaylandDataOfferState>,
     /// Active drop-session state.
-    pub(super) drop_session_state: WaylandDropSessionState,
+    pub(crate) drop_session_state: WaylandDropSessionState,
 }
 
 impl WaylandConnectionDispatchState {
@@ -389,97 +389,97 @@ impl WaylandConnectionDispatchState {
     }
 
     /// Return whether xdg-decoration is available.
-    pub(super) fn supports_window_decorations(&self) -> bool {
+    pub(crate) fn supports_window_decorations(&self) -> bool {
         self.decoration_manager.is_some()
     }
 
     /// Return whether xdg-dialog is available.
-    pub(super) fn supports_window_modal(&self) -> bool {
+    pub(crate) fn supports_window_modal(&self) -> bool {
         self.dialog_manager.is_some()
     }
 
     /// Return whether xdg-activation is available.
-    pub(super) fn supports_window_activation(&self) -> bool {
+    pub(crate) fn supports_window_activation(&self) -> bool {
         self.activation_manager.is_some()
     }
 
     /// Return whether xdg-toplevel-icon plus wl_shm are available.
-    pub(super) fn supports_window_icon(&self) -> bool {
+    pub(crate) fn supports_window_icon(&self) -> bool {
         self.toplevel_icon_manager.is_some() && self.shm.is_some()
     }
 
     /// Return whether whole-window opacity lane is protocol-backed.
-    pub(super) fn supports_window_opacity(&self) -> bool {
+    pub(crate) fn supports_window_opacity(&self) -> bool {
         self.alpha_modifier_manager.is_some()
     }
 
     /// Return whether wl_data_device is available for drop events.
-    pub(super) fn supports_window_drop_events(&self) -> bool {
+    pub(crate) fn supports_window_drop_events(&self) -> bool {
         self.data_device.is_some()
     }
 
     /// Return whether monitor mode-set lane is protocol-backed.
-    pub(super) fn supports_monitor_mode_set(&self) -> bool {
+    pub(crate) fn supports_monitor_mode_set(&self) -> bool {
         self.wlr_output_manager.is_some()
             && self.wlr_output_manager_serial.is_some()
             && !self.wlr_output_heads_by_id.is_empty()
     }
 
     /// Return whether monitor color-state query lanes are protocol-backed.
-    pub(super) fn supports_monitor_color_state(&self) -> bool {
+    pub(crate) fn supports_monitor_color_state(&self) -> bool {
         self.color_manager.is_some() && !self.color_outputs_by_global.is_empty()
     }
 
     /// Return whether monitor gamma-control lanes are protocol-backed.
-    pub(super) fn supports_monitor_gamma_control(&self) -> bool {
+    pub(crate) fn supports_monitor_gamma_control(&self) -> bool {
         self.gamma_control_manager.is_some() && !self.outputs_by_global.is_empty()
     }
 
     /// Return whether cursor icon and visibility lanes are protocol-backed.
-    pub(super) fn supports_cursor_shape(&self) -> bool {
+    pub(crate) fn supports_cursor_shape(&self) -> bool {
         self.cursor_shape_device.is_some()
     }
 
     /// Return whether cursor lock lane is protocol-backed.
-    pub(super) fn supports_cursor_lock(&self) -> bool {
+    pub(crate) fn supports_cursor_lock(&self) -> bool {
         self.pointer_constraints_manager.is_some()
             && self.pointer.is_some()
             && self.supports_cursor_shape()
     }
 
     /// Return whether cursor confine lane is protocol-backed.
-    pub(super) fn supports_cursor_confine(&self) -> bool {
+    pub(crate) fn supports_cursor_confine(&self) -> bool {
         self.pointer_constraints_manager.is_some()
             && self.pointer.is_some()
             && self.supports_cursor_shape()
     }
 
     /// Return whether cursor warp lane is protocol-backed.
-    pub(super) fn supports_cursor_warp(&self) -> bool {
+    pub(crate) fn supports_cursor_warp(&self) -> bool {
         self.pointer_warp_manager.is_some() && self.pointer.is_some()
     }
 
     /// Return whether native window drag interactions are protocol-backed.
-    pub(super) fn supports_window_drag_interaction(&self) -> bool {
+    pub(crate) fn supports_window_drag_interaction(&self) -> bool {
         self.seat.is_some()
     }
 
     /// Return whether popup window role support is protocol-backed.
-    pub(super) fn supports_window_role_popup(&self) -> bool {
+    pub(crate) fn supports_window_role_popup(&self) -> bool {
         self.wm_base.is_some()
     }
 
     /// Return whether overlay window role support is protocol-backed.
-    pub(super) fn supports_window_role_overlay(&self) -> bool {
+    pub(crate) fn supports_window_role_overlay(&self) -> bool {
         self.layer_shell_manager.is_some()
     }
 }
 
 /// Runtime-owned wayland connection lane.
 #[derive(Debug)]
-pub(super) struct WaylandConnectionState {
+pub(crate) struct WaylandConnectionState {
     /// Shared wayland connection for this runtime.
-    pub(super) connection: Connection,
+    pub(crate) connection: Connection,
     /// Event queue bound to this runtime.
     event_queue: Mutex<EventQueue<WaylandConnectionDispatchState>>,
     /// Dispatch payload for queue callbacks.
@@ -538,7 +538,7 @@ impl WaylandConnectionState {
 }
 
 /// Convert one fractional-scale preferred value into one milli-scale factor.
-pub(super) fn scale_factor_milli_from_fractional_scale(preferred_scale: u32) -> u32 {
+pub(crate) fn scale_factor_milli_from_fractional_scale(preferred_scale: u32) -> u32 {
     /// Fractional-scale protocol denominator units.
     const FRACTIONAL_SCALE_DENOMINATOR: u64 = 120;
     /// Milli-scale conversion numerator.
@@ -603,7 +603,7 @@ delegate_noop!(
 );
 
 /// Allocate one stable host window identifier for this runtime.
-pub(super) fn next_window_host_id(context: &BindingCallContext) -> u64 {
+pub(crate) fn next_window_host_id(context: &BindingCallContext) -> u64 {
     let runtime_state = runtime_state(context);
     runtime_state
         .next_window_host_id
@@ -611,7 +611,7 @@ pub(super) fn next_window_host_id(context: &BindingCallContext) -> u64 {
 }
 
 /// Resolve one queue capacity from open options and runtime defaults.
-pub(super) fn resolved_queue_capacity(context: &BindingCallContext, requested: u32) -> usize {
+pub(crate) fn resolved_queue_capacity(context: &BindingCallContext, requested: u32) -> usize {
     // use runtime default when request value is zero
     if requested == 0 {
         let configured = context
@@ -626,11 +626,11 @@ pub(super) fn resolved_queue_capacity(context: &BindingCallContext, requested: u
         );
     }
 
-    requested as usize
+    core_platform::u32_to_usize(requested)
 }
 
 /// Resolve one wait-slice interval for blocking window-event reads.
-pub(super) fn window_event_wait_slice_ns(context: &BindingCallContext) -> u64 {
+pub(crate) fn window_event_wait_slice_ns(context: &BindingCallContext) -> u64 {
     let configured = context
         .runtime()
         .module_options
@@ -640,17 +640,17 @@ pub(super) fn window_event_wait_slice_ns(context: &BindingCallContext) -> u64 {
 }
 
 /// Resolve one monitor-event kind bit mask from one optional value.
-pub(super) fn monitor_kind_mask(value: Option<DisplayMonitorEventKindMask>) -> u32 {
+pub(crate) fn monitor_kind_mask(value: Option<DisplayMonitorEventKindMask>) -> u32 {
     value.map_or(DISPLAY_MONITOR_EVENT_KIND_MASK_ALL, |value| value.0)
 }
 
 /// Resolve one window-event kind bit mask from one optional value.
-pub(super) fn window_kind_mask(value: Option<WindowEventKindMask>) -> u64 {
+pub(crate) fn window_kind_mask(value: Option<WindowEventKindMask>) -> u64 {
     value.map_or(WINDOW_EVENT_KIND_MASK_ALL, |value| value.0)
 }
 
 /// Validate one monitor-event kind-mask payload.
-pub(super) fn validate_monitor_event_kind_mask(
+pub(crate) fn validate_monitor_event_kind_mask(
     value: u32,
     field: &'static str,
 ) -> RuntimeResult<()> {
@@ -666,7 +666,7 @@ pub(super) fn validate_monitor_event_kind_mask(
 }
 
 /// Validate one window-event kind-mask payload.
-pub(super) fn validate_window_event_kind_mask(
+pub(crate) fn validate_window_event_kind_mask(
     value: u64,
     field: &'static str,
 ) -> RuntimeResult<()> {
@@ -682,7 +682,7 @@ pub(super) fn validate_window_event_kind_mask(
 }
 
 /// Build one overflow error for display event queues.
-pub(super) fn overflow_error(operation: &'static str) -> Box<RuntimeError> {
+pub(crate) fn overflow_error(operation: &'static str) -> Box<RuntimeError> {
     core_platform::io_busy(
         operation,
         "event queue overflowed while overflow policy is error",
@@ -690,7 +690,7 @@ pub(super) fn overflow_error(operation: &'static str) -> Box<RuntimeError> {
 }
 
 /// Build one ioNotFound error for one missing window handle.
-pub(super) fn window_not_found(
+pub(crate) fn window_not_found(
     operation: &'static str,
     handle: resource::WindowHandle,
 ) -> Box<RuntimeError> {
@@ -701,7 +701,7 @@ pub(super) fn window_not_found(
 }
 
 /// Build one ioNotFound error for one missing display handle.
-pub(super) fn display_not_found(
+pub(crate) fn display_not_found(
     operation: &'static str,
     handle: resource::DisplayHandle,
 ) -> Box<RuntimeError> {
@@ -712,7 +712,7 @@ pub(super) fn display_not_found(
 }
 
 /// Build one io error for wayland operations.
-pub(super) fn io_error(operation: &'static str, message: impl Into<String>) -> Box<RuntimeError> {
+pub(crate) fn io_error(operation: &'static str, message: impl Into<String>) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::io_with(
         None,
         None,
@@ -725,7 +725,7 @@ pub(super) fn io_error(operation: &'static str, message: impl Into<String>) -> B
 }
 
 /// Push one event into one queue under overflow policy.
-pub(super) fn push_with_overflow<T>(
+pub(crate) fn push_with_overflow<T>(
     queue: &mut std::collections::VecDeque<T>,
     queue_capacity: usize,
     overflow_policy: DisplayEventOverflowPolicy,
@@ -745,7 +745,7 @@ pub(super) fn push_with_overflow<T>(
             *dropped_count = dropped_count.saturating_add(1);
         }
         DisplayEventOverflowPolicy::DropOldest => {
-            let _ = queue.pop_front();
+            drop(queue.pop_front());
             *dropped_count = dropped_count.saturating_add(1);
             queue.push_back(value);
         }
@@ -757,7 +757,7 @@ pub(super) fn push_with_overflow<T>(
 }
 
 /// Drain stale weak entries and skip one identity from one weak registry.
-pub(super) fn retain_live_without_identity<T>(registry: &mut Vec<Weak<T>>, identity: usize) {
+pub(crate) fn retain_live_without_identity<T>(registry: &mut Vec<Weak<T>>, identity: usize) {
     registry.retain(|weak| {
         let Some(strong) = weak.upgrade() else {
             return false;

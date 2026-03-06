@@ -733,7 +733,7 @@ fn enumerate_monitor_rows() -> RuntimeResult<Vec<MonitorRow>> {
 }
 
 /// Enumerate monitor snapshots for the current desktop.
-pub(super) fn enumerate_monitor_snapshots() -> RuntimeResult<Vec<MonitorSnapshot>> {
+pub(crate) fn enumerate_monitor_snapshots() -> RuntimeResult<Vec<MonitorSnapshot>> {
     // query raw monitor rows and hdr support map
     let rows = enumerate_monitor_rows()?;
     let supports_hdr_by_device_id = display_hdr_support_map();
@@ -826,7 +826,7 @@ pub(super) fn enumerate_monitor_snapshots() -> RuntimeResult<Vec<MonitorSnapshot
 }
 
 /// Resolve one monitor snapshot by identifier.
-pub(super) fn monitor_snapshot_by_id(id: &str) -> RuntimeResult<Option<MonitorSnapshot>> {
+pub(crate) fn monitor_snapshot_by_id(id: &str) -> RuntimeResult<Option<MonitorSnapshot>> {
     let snapshots = enumerate_monitor_snapshots()?;
     Ok(snapshots
         .into_iter()
@@ -834,7 +834,7 @@ pub(super) fn monitor_snapshot_by_id(id: &str) -> RuntimeResult<Option<MonitorSn
 }
 
 /// Convert one owned descriptor payload into one ABI descriptor payload.
-pub(super) fn descriptor_from_owned(
+pub(crate) fn descriptor_from_owned(
     context: &BindingCallContext,
     value: &DisplayDescriptorSnapshot,
 ) -> DisplayDescriptor {
@@ -878,7 +878,7 @@ fn monitor_snapshot_for_handle(
 }
 
 /// Apply one monitor mode through ChangeDisplaySettingsExW.
-pub(super) fn apply_monitor_mode_by_id(
+pub(crate) fn apply_monitor_mode_by_id(
     id: &str,
     mode: DisplayMode,
     operation: &'static str,
@@ -951,7 +951,7 @@ pub(super) fn apply_monitor_mode_by_id(
 }
 
 /// Resolve one monitor target rectangle for one mode transition.
-pub(super) fn mode_target_rect(
+pub(crate) fn mode_target_rect(
     context: &BindingCallContext,
     mode: WindowModeOptions,
     display: Option<resource::DisplayHandle>,

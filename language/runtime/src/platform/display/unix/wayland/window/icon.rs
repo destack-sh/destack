@@ -6,19 +6,19 @@ use crate::platform::display::{WindowIconPixelFormat, WindowIconSet};
 const WAYLAND_ICON_TARGET_DIMENSION: u32 = 64;
 
 /// Prepared icon buffer payload for wl_shm icon uploads.
-pub(super) struct WaylandIconBuffer {
+pub(crate) struct WaylandIconBuffer {
     /// Icon width in pixels.
-    pub(super) width: i32,
+    pub(crate) width: i32,
     /// Icon height in pixels.
-    pub(super) height: i32,
+    pub(crate) height: i32,
     /// Icon row stride in bytes.
-    pub(super) stride: i32,
+    pub(crate) stride: i32,
     /// Packed ARGB8888 pixel bytes.
-    pub(super) pixels_argb8888: Vec<u8>,
+    pub(crate) pixels_argb8888: Vec<u8>,
 }
 
 /// Validate one optional icon-set payload.
-pub(super) fn validate_icon_set(icons: Option<WindowIconSet>) -> RuntimeResult<()> {
+pub(crate) fn validate_icon_set(icons: Option<WindowIconSet>) -> RuntimeResult<()> {
     let Some(icons) = icons else {
         return Ok(());
     };
@@ -41,11 +41,11 @@ pub(super) fn validate_icon_set(icons: Option<WindowIconSet>) -> RuntimeResult<(
             ));
         }
 
-        let pixel_count = (image.width as usize)
-            .checked_mul(image.height as usize)
-            .ok_or_else(|| {
-                core_platform::invalid_argument("icons", "icon dimensions are too large")
-            })?;
+        let width = core_platform::u32_to_usize(image.width);
+        let height = core_platform::u32_to_usize(image.height);
+        let pixel_count = width.checked_mul(height).ok_or_else(|| {
+            core_platform::invalid_argument("icons", "icon dimensions are too large")
+        })?;
         let expected = pixel_count.checked_mul(4).ok_or_else(|| {
             core_platform::invalid_argument("icons", "icon payload length is too large")
         })?;
@@ -66,7 +66,7 @@ pub(super) fn validate_icon_set(icons: Option<WindowIconSet>) -> RuntimeResult<(
 }
 
 /// Decode one optional icon payload into one upload-ready ARGB8888 buffer.
-pub(super) fn decode_icon_buffer(
+pub(crate) fn decode_icon_buffer(
     icons: Option<WindowIconSet>,
 ) -> RuntimeResult<Option<WaylandIconBuffer>> {
     let Some(icons) = icons else {

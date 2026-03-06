@@ -10,13 +10,13 @@ mod registry;
 mod runtime;
 mod seat;
 
-pub(super) use super::constants::*;
+pub(crate) use super::constants::*;
 pub(crate) use capability::backend_descriptor_state;
-pub(super) use configure::*;
-pub(super) use connection::*;
-pub(super) use core::*;
-pub(super) use cursor::{
+pub(crate) use configure::*;
+pub(crate) use connection::*;
+pub(crate) use core::*;
+pub(crate) use cursor::{
     apply_pointer_cursor_state, apply_window_cursor_policy, clear_pointer_focus_for_surface,
 };
-pub(super) use protocol::*;
-pub(super) use runtime::*;
+pub(crate) use protocol::*;
+pub(crate) use runtime::*;

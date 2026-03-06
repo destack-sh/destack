@@ -19,9 +19,7 @@ use super::super::model::X11WindowBinding;
 use super::constants::*;
 
 /// Resolve one occlusion value from one x11 visibility state.
-pub(in crate::platform::display::host::unix) fn occlusion_from_visibility(
-    visibility: WindowVisibility,
-) -> WindowOcclusionState {
+pub(crate) fn occlusion_from_visibility(visibility: WindowVisibility) -> WindowOcclusionState {
     // hidden and minimized windows are not visible to presentation
     if visibility == WindowVisibility::Hidden || visibility == WindowVisibility::Minimized {
         return WindowOcclusionState::Occluded;
@@ -32,7 +30,7 @@ pub(in crate::platform::display::host::unix) fn occlusion_from_visibility(
 }
 
 /// Apply one decoration policy through `_MOTIF_WM_HINTS`.
-pub(super) fn apply_window_decorated(
+pub(crate) fn apply_window_decorated(
     connection_state: &core::X11ConnectionState,
     window: u32,
     decorated: bool,
@@ -68,7 +66,7 @@ pub(super) fn apply_window_decorated(
 }
 
 /// Apply one window chrome kind through `_NET_WM_WINDOW_TYPE`.
-pub(super) fn apply_window_chrome(
+pub(crate) fn apply_window_chrome(
     connection_state: &core::X11ConnectionState,
     window: u32,
     chrome: WindowChromeKind,
@@ -101,7 +99,7 @@ pub(super) fn apply_window_chrome(
 }
 
 /// Apply one normal-hints payload for resizable, constraint, and aspect-ratio lanes.
-pub(super) fn apply_window_size_hints(
+pub(crate) fn apply_window_size_hints(
     connection_state: &core::X11ConnectionState,
     window: u32,
     resizable: bool,
@@ -161,7 +159,7 @@ pub(super) fn apply_window_size_hints(
 }
 
 /// Apply one mouse-passthrough input-shape policy through the shape extension.
-pub(super) fn apply_window_mouse_passthrough(
+pub(crate) fn apply_window_mouse_passthrough(
     connection_state: &core::X11ConnectionState,
     window: u32,
     passthrough: bool,
@@ -225,7 +223,7 @@ pub(super) fn apply_window_mouse_passthrough(
 }
 
 /// Apply one transient-owner relationship through `WM_TRANSIENT_FOR`.
-pub(super) fn apply_window_transient_owner(
+pub(crate) fn apply_window_transient_owner(
     connection_state: &core::X11ConnectionState,
     window: u32,
     owner_window: Option<u32>,
@@ -269,7 +267,7 @@ fn normalized_constraint_component(value: f64) -> i32 {
 }
 
 /// Set one window title across ICCCM and EWMH properties.
-pub(super) fn set_window_title(
+pub(crate) fn set_window_title(
     connection_state: &core::X11ConnectionState,
     window: u32,
     title: &str,
@@ -309,7 +307,7 @@ pub(super) fn set_window_title(
 }
 
 /// Enforce owner-thread affinity for one window binding.
-pub(super) fn ensure_window_thread(
+pub(crate) fn ensure_window_thread(
     binding: &X11WindowBinding,
     operation: &'static str,
 ) -> RuntimeResult<()> {

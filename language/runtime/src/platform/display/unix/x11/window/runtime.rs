@@ -17,7 +17,7 @@ use super::drop::{
 };
 
 /// Drain pending x11 events and publish runtime event deltas.
-pub(in super::super) fn pump_window_messages(context: &BindingCallContext) -> RuntimeResult<()> {
+pub(crate) fn pump_window_messages(context: &BindingCallContext) -> RuntimeResult<()> {
     // resolve runtime and connection state
     let runtime_state = core::runtime_state(context);
     let connection_state =

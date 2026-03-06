@@ -1,136 +1,136 @@
 use crate::platform::display as display_platform;
 
 /// Resource-table label for opened display monitor handles.
-pub(super) const DISPLAY_RESOURCE_LABEL: &str = "display.monitor";
+pub(crate) const DISPLAY_RESOURCE_LABEL: &str = "display.monitor";
 /// Resource-table label for opened window handles.
-pub(super) const WINDOW_RESOURCE_LABEL: &str = "display.window";
+pub(crate) const WINDOW_RESOURCE_LABEL: &str = "display.window";
 /// Resource-table label for opened monitor-event stream handles.
-pub(super) const DISPLAY_EVENT_RESOURCE_LABEL: &str = "display.monitor.event";
+pub(crate) const DISPLAY_EVENT_RESOURCE_LABEL: &str = "display.monitor.event";
 /// Resource-table label for opened window-event stream handles.
-pub(super) const WINDOW_EVENT_RESOURCE_LABEL: &str = "display.window.event";
+pub(crate) const WINDOW_EVENT_RESOURCE_LABEL: &str = "display.window.event";
 /// Default queue capacity for monitor and window event streams.
-pub(super) const DEFAULT_EVENT_QUEUE_CAPACITY: usize = 256;
+pub(crate) const DEFAULT_EVENT_QUEUE_CAPACITY: usize = 256;
 /// Default wait slice for window event blocking reads.
-pub(super) const DEFAULT_WINDOW_EVENT_WAIT_SLICE_NS: u64 = 10_000_000;
+pub(crate) const DEFAULT_WINDOW_EVENT_WAIT_SLICE_NS: u64 = 10_000_000;
 /// Window message `wparam` lane used for force-close paths.
-pub(super) const WINDOW_CLOSE_FORCE_WPARAM: usize = 1;
+pub(crate) const WINDOW_CLOSE_FORCE_WPARAM: usize = 1;
 /// Display metric mask bit for bounds updates.
-pub(super) const DISPLAY_CHANGED_MASK_BOUNDS: u32 =
+pub(crate) const DISPLAY_CHANGED_MASK_BOUNDS: u32 =
     display_platform::DISPLAY_METRIC_CHANGED_BOUNDS.0;
 /// Display metric mask bit for work-area updates.
-pub(super) const DISPLAY_CHANGED_MASK_WORKAREA: u32 =
+pub(crate) const DISPLAY_CHANGED_MASK_WORKAREA: u32 =
     display_platform::DISPLAY_METRIC_CHANGED_WORK_AREA.0;
 /// Display metric mask bit for scale updates.
-pub(super) const DISPLAY_CHANGED_MASK_SCALE: u32 =
+pub(crate) const DISPLAY_CHANGED_MASK_SCALE: u32 =
     display_platform::DISPLAY_METRIC_CHANGED_SCALE_FACTOR.0;
 /// Display metric mask bit for orientation updates.
-pub(super) const DISPLAY_CHANGED_MASK_ORIENTATION: u32 =
+pub(crate) const DISPLAY_CHANGED_MASK_ORIENTATION: u32 =
     display_platform::DISPLAY_METRIC_CHANGED_ORIENTATION.0;
 /// Monitor-event kind bit for `added`.
-pub(super) const DISPLAY_MONITOR_EVENT_KIND_ADDED: u32 =
+pub(crate) const DISPLAY_MONITOR_EVENT_KIND_ADDED: u32 =
     display_platform::DISPLAY_MONITOR_EVENT_KIND_ADDED.0;
 /// Monitor-event kind bit for `removed`.
-pub(super) const DISPLAY_MONITOR_EVENT_KIND_REMOVED: u32 =
+pub(crate) const DISPLAY_MONITOR_EVENT_KIND_REMOVED: u32 =
     display_platform::DISPLAY_MONITOR_EVENT_KIND_REMOVED.0;
 /// Monitor-event kind bit for `primaryChanged`.
-pub(super) const DISPLAY_MONITOR_EVENT_KIND_PRIMARY_CHANGED: u32 =
+pub(crate) const DISPLAY_MONITOR_EVENT_KIND_PRIMARY_CHANGED: u32 =
     display_platform::DISPLAY_MONITOR_EVENT_KIND_PRIMARY_CHANGED.0;
 /// Monitor-event kind bit for `descriptorChanged`.
-pub(super) const DISPLAY_MONITOR_EVENT_KIND_DESCRIPTOR_CHANGED: u32 =
+pub(crate) const DISPLAY_MONITOR_EVENT_KIND_DESCRIPTOR_CHANGED: u32 =
     display_platform::DISPLAY_MONITOR_EVENT_KIND_DESCRIPTOR_CHANGED.0;
 /// Monitor-event kind bit for `modeChanged`.
-pub(super) const DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED: u32 =
+pub(crate) const DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED: u32 =
     display_platform::DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED.0;
 /// All supported monitor-event kind bits.
-pub(super) const DISPLAY_MONITOR_EVENT_KIND_MASK_ALL: u32 = DISPLAY_MONITOR_EVENT_KIND_ADDED
+pub(crate) const DISPLAY_MONITOR_EVENT_KIND_MASK_ALL: u32 = DISPLAY_MONITOR_EVENT_KIND_ADDED
     | DISPLAY_MONITOR_EVENT_KIND_REMOVED
     | DISPLAY_MONITOR_EVENT_KIND_PRIMARY_CHANGED
     | DISPLAY_MONITOR_EVENT_KIND_DESCRIPTOR_CHANGED
     | DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED;
 /// Window-event kind bit for `created`.
-pub(super) const WINDOW_EVENT_KIND_CREATED: u64 = display_platform::WINDOW_EVENT_KIND_CREATED.0;
+pub(crate) const WINDOW_EVENT_KIND_CREATED: u64 = display_platform::WINDOW_EVENT_KIND_CREATED.0;
 /// Window-event kind bit for `closeRequested`.
-pub(super) const WINDOW_EVENT_KIND_CLOSE_REQUESTED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_CLOSE_REQUESTED: u64 =
     display_platform::WINDOW_EVENT_KIND_CLOSE_REQUESTED.0;
 /// Window-event kind bit for `destroyed`.
-pub(super) const WINDOW_EVENT_KIND_DESTROYED: u64 = display_platform::WINDOW_EVENT_KIND_DESTROYED.0;
+pub(crate) const WINDOW_EVENT_KIND_DESTROYED: u64 = display_platform::WINDOW_EVENT_KIND_DESTROYED.0;
 /// Window-event kind bit for `focusChanged`.
-pub(super) const WINDOW_EVENT_KIND_FOCUS_CHANGED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_FOCUS_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_FOCUS_CHANGED.0;
 /// Window-event kind bit for `visibilityChanged`.
-pub(super) const WINDOW_EVENT_KIND_VISIBILITY_CHANGED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_VISIBILITY_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_VISIBILITY_CHANGED.0;
 /// Window-event kind bit for `occlusionChanged`.
-pub(super) const WINDOW_EVENT_KIND_OCCLUSION_CHANGED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_OCCLUSION_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_OCCLUSION_CHANGED.0;
 /// Window-event kind bit for `positionChanged`.
-pub(super) const WINDOW_EVENT_KIND_POSITION_CHANGED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_POSITION_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_POSITION_CHANGED.0;
 /// Window-event kind bit for `sizeChanged`.
-pub(super) const WINDOW_EVENT_KIND_SIZE_CHANGED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_SIZE_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_SIZE_CHANGED.0;
 /// Window-event kind bit for `scaleFactorChanged`.
-pub(super) const WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED.0;
 /// Window-event kind bit for `refreshRequested`.
-pub(super) const WINDOW_EVENT_KIND_REFRESH_REQUESTED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_REFRESH_REQUESTED: u64 =
     display_platform::WINDOW_EVENT_KIND_REFRESH_REQUESTED.0;
 /// Window-event kind bit for `modeChanged`.
-pub(super) const WINDOW_EVENT_KIND_MODE_CHANGED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_MODE_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_MODE_CHANGED.0;
 /// Window-event kind bit for `displayChanged`.
-pub(super) const WINDOW_EVENT_KIND_DISPLAY_CHANGED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_DISPLAY_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_DISPLAY_CHANGED.0;
 /// Window-event kind bit for `themeChanged`.
-pub(super) const WINDOW_EVENT_KIND_THEME_CHANGED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_THEME_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_THEME_CHANGED.0;
 /// Window-event kind bit for `chromeChanged`.
-pub(super) const WINDOW_EVENT_KIND_CHROME_CHANGED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_CHROME_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_CHROME_CHANGED.0;
 /// Window-event kind bit for `taskbarVisibilityChanged`.
-pub(super) const WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED.0;
 /// Window-event kind bit for `opacityChanged`.
-pub(super) const WINDOW_EVENT_KIND_OPACITY_CHANGED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_OPACITY_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_OPACITY_CHANGED.0;
 /// Window-event kind bit for `parentChanged`.
-pub(super) const WINDOW_EVENT_KIND_PARENT_CHANGED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_PARENT_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_PARENT_CHANGED.0;
 /// Window-event kind bit for `transientChanged`.
-pub(super) const WINDOW_EVENT_KIND_TRANSIENT_CHANGED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_TRANSIENT_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_TRANSIENT_CHANGED.0;
 /// Window-event kind bit for `modalChanged`.
-pub(super) const WINDOW_EVENT_KIND_MODAL_CHANGED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_MODAL_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_MODAL_CHANGED.0;
 /// Window-event kind bit for `mousePassthroughChanged`.
-pub(super) const WINDOW_EVENT_KIND_MOUSE_PASSTHROUGH_CHANGED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_MOUSE_PASSTHROUGH_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_MOUSE_PASSTHROUGH_CHANGED.0;
 /// Window-event kind bit for `aspectRatioChanged`.
-pub(super) const WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED.0;
 /// Window-event kind bit for `dropStarted`.
-pub(super) const WINDOW_EVENT_KIND_DROP_STARTED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_DROP_STARTED: u64 =
     display_platform::WINDOW_EVENT_KIND_DROP_STARTED.0;
 /// Window-event kind bit for `fileHovered`.
-pub(super) const WINDOW_EVENT_KIND_FILE_HOVERED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_FILE_HOVERED: u64 =
     display_platform::WINDOW_EVENT_KIND_FILE_HOVERED.0;
 /// Window-event kind bit for `dropCancelled`.
-pub(super) const WINDOW_EVENT_KIND_DROP_CANCELLED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_DROP_CANCELLED: u64 =
     display_platform::WINDOW_EVENT_KIND_DROP_CANCELLED.0;
 /// Window-event kind bit for `dropCompleted`.
-pub(super) const WINDOW_EVENT_KIND_DROP_COMPLETED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_DROP_COMPLETED: u64 =
     display_platform::WINDOW_EVENT_KIND_DROP_COMPLETED.0;
 /// Window-event kind bit for `fileHoverLeft`.
-pub(super) const WINDOW_EVENT_KIND_FILE_HOVER_LEFT: u64 =
+pub(crate) const WINDOW_EVENT_KIND_FILE_HOVER_LEFT: u64 =
     display_platform::WINDOW_EVENT_KIND_FILE_HOVER_LEFT.0;
 /// Window-event kind bit for `fileDropped`.
-pub(super) const WINDOW_EVENT_KIND_FILE_DROPPED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_FILE_DROPPED: u64 =
     display_platform::WINDOW_EVENT_KIND_FILE_DROPPED.0;
 /// Window-event kind bit for `textDropped`.
-pub(super) const WINDOW_EVENT_KIND_TEXT_DROPPED: u64 =
+pub(crate) const WINDOW_EVENT_KIND_TEXT_DROPPED: u64 =
     display_platform::WINDOW_EVENT_KIND_TEXT_DROPPED.0;
 /// All supported window-event kind bits.
-pub(super) const WINDOW_EVENT_KIND_MASK_ALL: u64 = WINDOW_EVENT_KIND_CREATED
+pub(crate) const WINDOW_EVENT_KIND_MASK_ALL: u64 = WINDOW_EVENT_KIND_CREATED
     | WINDOW_EVENT_KIND_CLOSE_REQUESTED
     | WINDOW_EVENT_KIND_DESTROYED
     | WINDOW_EVENT_KIND_FOCUS_CHANGED

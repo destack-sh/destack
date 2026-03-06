@@ -6,13 +6,13 @@ use crate::platform::display::DisplayOrientation;
 use super::DISPLAY_ID_PREFIX;
 
 /// Return the numeric output global name encoded in one display id.
-pub(super) fn output_global_name_from_display_id(display_id: &str) -> Option<u32> {
+pub(crate) fn output_global_name_from_display_id(display_id: &str) -> Option<u32> {
     let global_name = display_id.strip_prefix(DISPLAY_ID_PREFIX)?;
     global_name.parse::<u32>().ok()
 }
 
 /// Return one display orientation from one wl_output transform.
-pub(super) fn orientation_from_transform(
+pub(crate) fn orientation_from_transform(
     transform: WEnum<wl_output::Transform>,
 ) -> DisplayOrientation {
     match transform {
@@ -29,7 +29,7 @@ pub(super) fn orientation_from_transform(
 }
 
 /// Return mode-current and mode-preferred flags from one mode flag payload.
-pub(super) fn parse_mode_flags(flags: WEnum<wl_output::Mode>) -> (bool, bool) {
+pub(crate) fn parse_mode_flags(flags: WEnum<wl_output::Mode>) -> (bool, bool) {
     match flags {
         WEnum::Value(value) => (
             value.contains(wl_output::Mode::Current),

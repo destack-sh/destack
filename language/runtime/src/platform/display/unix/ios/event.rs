@@ -7,7 +7,7 @@ use crate::platform::{NativeArray, resource};
 use crate::runtime::BindingCallContext;
 
 /// Close one global monitor-event stream.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_event_close(
+pub(crate) unsafe fn monitor_event_close(
     binding: &BindingCallContext,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<()> {
@@ -15,7 +15,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_event_close(
 }
 
 /// Open one global monitor-event stream.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_event_open(
+pub(crate) unsafe fn monitor_event_open(
     binding: &BindingCallContext,
     out: *mut resource::DisplayEventHandle,
     options: DisplayMonitorEventOpenOptions,
@@ -24,7 +24,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_event_open(
 }
 
 /// Wait for one monitor event.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_event_read(
+pub(crate) unsafe fn monitor_event_read(
     binding: &BindingCallContext,
     out: *mut DisplayMonitorEvent,
     handle: resource::DisplayEventHandle,
@@ -34,7 +34,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_event_read(
 }
 
 /// Wait for one batch of monitor events.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_event_read_batch(
+pub(crate) unsafe fn monitor_event_read_batch(
     binding: &BindingCallContext,
     out: *mut NativeArray<DisplayMonitorEvent>,
     handle: resource::DisplayEventHandle,
@@ -49,7 +49,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_event_read_batch(
 }
 
 /// Poll one monitor event without blocking.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_event_try_read(
+pub(crate) unsafe fn monitor_event_try_read(
     binding: &BindingCallContext,
     out: *mut DisplayMonitorEvent,
     handle: resource::DisplayEventHandle,
@@ -58,7 +58,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_event_try_read(
 }
 
 /// Poll one batch of monitor events without blocking.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_event_try_read_batch(
+pub(crate) unsafe fn monitor_event_try_read_batch(
     binding: &BindingCallContext,
     out: *mut NativeArray<DisplayMonitorEvent>,
     handle: resource::DisplayEventHandle,
@@ -70,7 +70,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_event_try_read_ba
 }
 
 /// Close one global window-event stream.
-pub(in crate::platform::display::host::unix) unsafe fn window_event_close(
+pub(crate) unsafe fn window_event_close(
     binding: &BindingCallContext,
     handle: resource::WindowEventHandle,
 ) -> RuntimeResult<()> {
@@ -78,7 +78,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_event_close(
 }
 
 /// Open one global window-event stream.
-pub(in crate::platform::display::host::unix) unsafe fn window_event_open(
+pub(crate) unsafe fn window_event_open(
     binding: &BindingCallContext,
     out: *mut resource::WindowEventHandle,
     options: WindowEventOpenOptions,
@@ -87,7 +87,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_event_open(
 }
 
 /// Wait for one window event.
-pub(in crate::platform::display::host::unix) unsafe fn window_event_read(
+pub(crate) unsafe fn window_event_read(
     binding: &BindingCallContext,
     out: *mut WindowEvent,
     handle: resource::WindowEventHandle,
@@ -97,7 +97,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_event_read(
 }
 
 /// Wait for one batch of window events.
-pub(in crate::platform::display::host::unix) unsafe fn window_event_read_batch(
+pub(crate) unsafe fn window_event_read_batch(
     binding: &BindingCallContext,
     out: *mut NativeArray<WindowEvent>,
     handle: resource::WindowEventHandle,
@@ -112,7 +112,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_event_read_batch(
 }
 
 /// Poll one window event without blocking.
-pub(in crate::platform::display::host::unix) unsafe fn window_event_try_read(
+pub(crate) unsafe fn window_event_try_read(
     binding: &BindingCallContext,
     out: *mut WindowEvent,
     handle: resource::WindowEventHandle,
@@ -121,7 +121,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_event_try_read(
 }
 
 /// Poll one batch of window events without blocking.
-pub(in crate::platform::display::host::unix) unsafe fn window_event_try_read_batch(
+pub(crate) unsafe fn window_event_try_read_batch(
     binding: &BindingCallContext,
     out: *mut NativeArray<WindowEvent>,
     handle: resource::WindowEventHandle,

@@ -17,7 +17,7 @@ use super::queue::*;
 
 /// Stored monitor-event record payload.
 #[derive(Debug, Clone)]
-pub(super) struct DisplayEventRecord {
+pub(crate) struct DisplayEventRecord {
     /// Event timestamp in nanoseconds.
     timestamp_ns: u64,
     /// Event sequence number.
@@ -30,7 +30,7 @@ pub(super) struct DisplayEventRecord {
 
 /// Stored monitor-event variant payload.
 #[derive(Debug, Clone)]
-pub(super) enum DisplayEventRecordKind {
+pub(crate) enum DisplayEventRecordKind {
     /// Added-event payload.
     Added {
         /// Added descriptor payload.
@@ -110,7 +110,7 @@ impl DisplayEventRecordKind {
 
 /// Stored window-event record payload.
 #[derive(Debug, Clone)]
-pub(super) struct WindowEventRecord {
+pub(crate) struct WindowEventRecord {
     /// Event timestamp in nanoseconds.
     timestamp_ns: u64,
     /// Event sequence number.
@@ -123,7 +123,7 @@ pub(super) struct WindowEventRecord {
 
 /// Stored window-event variant payload.
 #[derive(Debug, Clone)]
-pub(super) enum WindowEventRecordKind {
+pub(crate) enum WindowEventRecordKind {
     /// Created-event payload.
     Created {
         /// Associated runtime window handle.
@@ -315,7 +315,7 @@ impl WindowEventRecordKind {
 
 /// Parsed monitor-event filter state.
 #[derive(Debug, Clone)]
-pub(super) struct MonitorEventFilterState {
+pub(crate) struct MonitorEventFilterState {
     /// Optional display id filter.
     display_id: Option<String>,
     /// Enabled kind-mask bits.
@@ -324,7 +324,7 @@ pub(super) struct MonitorEventFilterState {
 
 impl MonitorEventFilterState {
     /// Build filter state from monitor-event open options.
-    pub(super) fn from_open_options(
+    pub(crate) fn from_open_options(
         options: DisplayMonitorEventOpenOptions,
     ) -> RuntimeResult<Self> {
         // normalize optional filter payload into one concrete state
@@ -366,7 +366,7 @@ impl MonitorEventFilterState {
 
 /// Parsed window-event filter state.
 #[derive(Debug, Clone, Copy)]
-pub(super) struct WindowEventFilterState {
+pub(crate) struct WindowEventFilterState {
     /// Optional window filter.
     window: Option<resource::WindowHandle>,
     /// Enabled kind-mask bits.
@@ -375,7 +375,7 @@ pub(super) struct WindowEventFilterState {
 
 impl WindowEventFilterState {
     /// Build filter state from window-event open options.
-    pub(super) fn from_open_options(options: WindowEventOpenOptions) -> RuntimeResult<Self> {
+    pub(crate) fn from_open_options(options: WindowEventOpenOptions) -> RuntimeResult<Self> {
         // map optional filter to normalized state
         let filter = options.filter.unwrap_or(WindowEventFilter {
             window: None,
@@ -408,64 +408,64 @@ impl WindowEventFilterState {
 
 /// Mutable monitor-event stream queue state.
 #[derive(Debug)]
-pub(super) struct MonitorEventState {
+pub(crate) struct MonitorEventState {
     /// Configured queue capacity.
-    pub(super) queue_capacity: usize,
+    pub(crate) queue_capacity: usize,
     /// Overflow policy for full queues.
-    pub(super) overflow_policy: DisplayEventOverflowPolicy,
+    pub(crate) overflow_policy: DisplayEventOverflowPolicy,
     /// Overflow error pending marker.
-    pub(super) overflow_error_pending: bool,
+    pub(crate) overflow_error_pending: bool,
     /// Next event sequence value.
-    pub(super) next_sequence: u64,
+    pub(crate) next_sequence: u64,
     /// Total dropped event count.
-    pub(super) dropped_count: u64,
+    pub(crate) dropped_count: u64,
     /// Pending monitor-event records.
-    pub(super) pending: VecDeque<DisplayEventRecord>,
+    pub(crate) pending: VecDeque<DisplayEventRecord>,
 }
 
 /// Shared monitor-event stream binding.
 #[derive(Debug)]
-pub(in super::super) struct MonitorEventBinding {
+pub(crate) struct MonitorEventBinding {
     /// Mutable queue state.
-    pub(super) state: Mutex<MonitorEventState>,
+    pub(crate) state: Mutex<MonitorEventState>,
     /// Stream filter configuration.
-    pub(super) filter: MonitorEventFilterState,
+    pub(crate) filter: MonitorEventFilterState,
     /// Queue wake signal.
-    pub(super) signal: Condvar,
+    pub(crate) signal: Condvar,
 }
 
 /// Mutable window-event stream queue state.
 #[derive(Debug)]
-pub(super) struct WindowEventState {
+pub(crate) struct WindowEventState {
     /// Configured queue capacity.
-    pub(super) queue_capacity: usize,
+    pub(crate) queue_capacity: usize,
     /// Overflow policy for full queues.
-    pub(super) overflow_policy: DisplayEventOverflowPolicy,
+    pub(crate) overflow_policy: DisplayEventOverflowPolicy,
     /// Overflow error pending marker.
-    pub(super) overflow_error_pending: bool,
+    pub(crate) overflow_error_pending: bool,
     /// Next event sequence value.
-    pub(super) next_sequence: u64,
+    pub(crate) next_sequence: u64,
     /// Total dropped event count.
-    pub(super) dropped_count: u64,
+    pub(crate) dropped_count: u64,
     /// Pending window-event records.
-    pub(super) pending: VecDeque<WindowEventRecord>,
+    pub(crate) pending: VecDeque<WindowEventRecord>,
 }
 
 /// Shared window-event stream binding.
 #[derive(Debug)]
-pub(in super::super) struct WindowEventBinding {
+pub(crate) struct WindowEventBinding {
     /// Mutable queue state.
-    pub(super) state: Mutex<WindowEventState>,
+    pub(crate) state: Mutex<WindowEventState>,
     /// Stream filter configuration.
-    pub(super) filter: WindowEventFilterState,
+    pub(crate) filter: WindowEventFilterState,
     /// Queue wake signal.
-    pub(super) signal: Condvar,
+    pub(crate) signal: Condvar,
     /// Owner thread id for x11 event pumping operations.
-    pub(super) owner_thread_id: ThreadId,
+    pub(crate) owner_thread_id: ThreadId,
 }
 
 /// Register one x11 window id mapping.
-pub(in super::super) fn register_xid(
+pub(crate) fn register_xid(
     runtime_state: &Arc<core::X11RuntimeState>,
     xid: u32,
     window: resource::WindowHandle,
@@ -478,7 +478,7 @@ pub(in super::super) fn register_xid(
 }
 
 /// Unregister one x11 window id mapping.
-pub(in super::super) fn unregister_xid(runtime_state: &Arc<core::X11RuntimeState>, xid: u32) {
+pub(crate) fn unregister_xid(runtime_state: &Arc<core::X11RuntimeState>, xid: u32) {
     let mut map = runtime_state
         .windows_by_xid
         .lock()
@@ -487,7 +487,7 @@ pub(in super::super) fn unregister_xid(runtime_state: &Arc<core::X11RuntimeState
 }
 
 /// Resolve one runtime window handle from one x11 window id.
-pub(in super::super) fn resolve_window_by_xid(
+pub(crate) fn resolve_window_by_xid(
     runtime_state: &Arc<core::X11RuntimeState>,
     xid: u32,
 ) -> Option<resource::WindowHandle> {

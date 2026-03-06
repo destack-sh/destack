@@ -17,7 +17,8 @@ pub(crate) use convert::u32_to_nonzero_usize;
 #[allow(unused_imports)]
 pub(crate) use convert::{
     duration_from_option_ns, option_u64_or_min, option_u64_to_u32, option_u64_to_usize,
-    option_u64_to_usize_or_min, u64_to_usize, u64_to_usize_with_message, usize_to_u64,
+    option_u64_to_usize_or_min, u32_to_isize, u32_to_usize, u64_to_usize,
+    u64_to_usize_with_message, usize_to_u64,
 };
 #[cfg(target_os = "linux")]
 pub(crate) use dll::load_dll_api_named;

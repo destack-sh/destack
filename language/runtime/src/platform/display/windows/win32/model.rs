@@ -10,153 +10,153 @@ use crate::platform::resource;
 
 /// Stored descriptor payload with owned strings.
 #[derive(Debug, Clone, PartialEq)]
-pub(super) struct DisplayDescriptorSnapshot {
+pub(crate) struct DisplayDescriptorSnapshot {
     /// Resolved backend that produced this descriptor.
-    pub(super) backend: DisplayBackend,
+    pub(crate) backend: DisplayBackend,
     /// Stable runtime display identifier.
-    pub(super) id: String,
+    pub(crate) id: String,
     /// Host display name.
-    pub(super) name: String,
+    pub(crate) name: String,
     /// Whether this display is primary.
-    pub(super) primary: bool,
+    pub(crate) primary: bool,
     /// Display origin x coordinate in desktop space.
-    pub(super) x: i32,
+    pub(crate) x: i32,
     /// Display origin y coordinate in desktop space.
-    pub(super) y: i32,
+    pub(crate) y: i32,
     /// Display width in physical pixels.
-    pub(super) width_px: u32,
+    pub(crate) width_px: u32,
     /// Display height in physical pixels.
-    pub(super) height_px: u32,
+    pub(crate) height_px: u32,
     /// Work-area origin x coordinate in desktop space.
-    pub(super) work_area_x: i32,
+    pub(crate) work_area_x: i32,
     /// Work-area origin y coordinate in desktop space.
-    pub(super) work_area_y: i32,
+    pub(crate) work_area_y: i32,
     /// Work-area width in physical pixels.
-    pub(super) work_area_width_px: u32,
+    pub(crate) work_area_width_px: u32,
     /// Work-area height in physical pixels.
-    pub(super) work_area_height_px: u32,
+    pub(crate) work_area_height_px: u32,
     /// Physical width in millimeters.
-    pub(super) width_mm: u32,
+    pub(crate) width_mm: u32,
     /// Physical height in millimeters.
-    pub(super) height_mm: u32,
+    pub(crate) height_mm: u32,
     /// Scale factor in milli-scale units.
-    pub(super) scale_factor_milli: u32,
+    pub(crate) scale_factor_milli: u32,
     /// Current display orientation.
-    pub(super) orientation: DisplayOrientation,
+    pub(crate) orientation: DisplayOrientation,
     /// Built-in panel support status.
-    pub(super) builtin_panel: DisplaySupportStatus,
+    pub(crate) builtin_panel: DisplaySupportStatus,
     /// Variable-refresh support status.
-    pub(super) variable_refresh_support: DisplaySupportStatus,
+    pub(crate) variable_refresh_support: DisplaySupportStatus,
     /// HDR support status.
-    pub(super) hdr_support: DisplaySupportStatus,
+    pub(crate) hdr_support: DisplaySupportStatus,
 }
 
 /// Snapshot payload for one Win32 monitor endpoint.
 #[derive(Debug, Clone, PartialEq)]
-pub(super) struct MonitorSnapshot {
+pub(crate) struct MonitorSnapshot {
     /// Descriptor payload for this monitor.
-    pub(super) descriptor: DisplayDescriptorSnapshot,
+    pub(crate) descriptor: DisplayDescriptorSnapshot,
     /// Current active mode payload.
-    pub(super) current_mode: DisplayMode,
+    pub(crate) current_mode: DisplayMode,
     /// Desktop mode payload.
-    pub(super) desktop_mode: DisplayMode,
+    pub(crate) desktop_mode: DisplayMode,
     /// Enumerated host mode set.
-    pub(super) modes: Vec<DisplayMode>,
+    pub(crate) modes: Vec<DisplayMode>,
 }
 
 /// Resource payload for one opened monitor handle.
 #[derive(Debug, Clone)]
-pub(super) struct Win32DisplayBinding {
+pub(crate) struct Win32DisplayBinding {
     /// Stable monitor identifier.
-    pub(super) id: String,
+    pub(crate) id: String,
 }
 
 /// Captured desktop mode snapshot used to restore exclusive fullscreen transitions.
 #[derive(Debug, Clone)]
-pub(super) struct ExclusiveModeRestore {
+pub(crate) struct ExclusiveModeRestore {
     /// Monitor identifier associated with this restore snapshot.
-    pub(super) display_id: String,
+    pub(crate) display_id: String,
     /// Mode to apply when leaving exclusive fullscreen.
-    pub(super) mode: DisplayMode,
+    pub(crate) mode: DisplayMode,
 }
 
 /// Resource payload for one opened window handle.
 #[derive(Debug, Clone)]
-pub(super) struct Win32WindowBinding {
+pub(crate) struct Win32WindowBinding {
     /// Stable runtime identifier.
-    pub(super) id: String,
+    pub(crate) id: String,
     /// Native Win32 window handle.
-    pub(super) hwnd: HWND,
+    pub(crate) hwnd: HWND,
     /// Owner thread identifier that created this window.
-    pub(super) owner_thread_id: u32,
+    pub(crate) owner_thread_id: u32,
     /// Current host-visible title.
-    pub(super) title: String,
+    pub(crate) title: String,
     /// Current window role.
-    pub(super) role: WindowRole,
+    pub(crate) role: WindowRole,
     /// Current mode configuration.
-    pub(super) mode: WindowModeOptions,
+    pub(crate) mode: WindowModeOptions,
     /// Current display association.
-    pub(super) display: Option<resource::DisplayHandle>,
+    pub(crate) display: Option<resource::DisplayHandle>,
     /// Whether this window is resizable.
-    pub(super) resizable: bool,
+    pub(crate) resizable: bool,
     /// Whether this window uses host decorations.
-    pub(super) decorated: bool,
+    pub(crate) decorated: bool,
     /// Current window chrome style.
-    pub(super) chrome: WindowChromeKind,
+    pub(crate) chrome: WindowChromeKind,
     /// Whether this window is currently visible in task switching surfaces.
-    pub(super) taskbar_visible: bool,
+    pub(crate) taskbar_visible: bool,
     /// Whether this window requested compositor transparency.
-    pub(super) transparent: bool,
+    pub(crate) transparent: bool,
     /// Current whole-window opacity in `[0.0, 1.0]`.
-    pub(super) opacity: f64,
+    pub(crate) opacity: f64,
     /// Whether this window is currently always-on-top.
-    pub(super) always_on_top: bool,
+    pub(crate) always_on_top: bool,
     /// Current parent window relationship.
-    pub(super) parent: Option<resource::WindowHandle>,
+    pub(crate) parent: Option<resource::WindowHandle>,
     /// Current transient-owner window relationship.
-    pub(super) transient_for: Option<resource::WindowHandle>,
+    pub(crate) transient_for: Option<resource::WindowHandle>,
     /// Whether this window is currently modal.
-    pub(super) modal: bool,
+    pub(crate) modal: bool,
     /// Whether this window is currently mouse-passthrough.
-    pub(super) mouse_passthrough: bool,
+    pub(crate) mouse_passthrough: bool,
     /// Current aspect-ratio lock.
-    pub(super) aspect_ratio: Option<WindowAspectRatio>,
+    pub(crate) aspect_ratio: Option<WindowAspectRatio>,
     /// Current visibility state.
-    pub(super) visibility: WindowVisibility,
+    pub(crate) visibility: WindowVisibility,
     /// Current optional logical size constraints.
-    pub(super) constraints: Option<WindowSizeConstraints>,
+    pub(crate) constraints: Option<WindowSizeConstraints>,
     /// Current cursor visibility state.
-    pub(super) cursor_visible: bool,
+    pub(crate) cursor_visible: bool,
     /// Current cursor interaction mode.
-    pub(super) cursor_mode: WindowCursorMode,
+    pub(crate) cursor_mode: WindowCursorMode,
     /// Current cursor icon selector.
-    pub(super) cursor_icon: WindowCursorIcon,
+    pub(crate) cursor_icon: WindowCursorIcon,
     /// Owned small icon handle currently attached to this window.
-    pub(super) icon_small: isize,
+    pub(crate) icon_small: isize,
     /// Owned big icon handle currently attached to this window.
-    pub(super) icon_big: isize,
+    pub(crate) icon_big: isize,
     /// Current desktop position.
-    pub(super) position: WindowPosition,
+    pub(crate) position: WindowPosition,
     /// Current logical size.
-    pub(super) size_logical: WindowLogicalSize,
+    pub(crate) size_logical: WindowLogicalSize,
     /// Current physical size.
-    pub(super) size_physical: WindowPhysicalSize,
+    pub(crate) size_physical: WindowPhysicalSize,
     /// Current scale factor.
-    pub(super) scale_factor_milli: u32,
+    pub(crate) scale_factor_milli: u32,
     /// Current keyboard focus state.
-    pub(super) focused: bool,
+    pub(crate) focused: bool,
     /// Current safe-area insets when available.
-    pub(super) safe_area_insets: Option<WindowSafeAreaInsets>,
+    pub(crate) safe_area_insets: Option<WindowSafeAreaInsets>,
     /// Current theme value.
-    pub(super) theme: WindowTheme,
+    pub(crate) theme: WindowTheme,
     /// Optional restore snapshot for exclusive fullscreen transitions.
-    pub(super) exclusive_restore: Option<ExclusiveModeRestore>,
+    pub(crate) exclusive_restore: Option<ExclusiveModeRestore>,
     /// Whether closeRequested was already emitted for this window lifetime.
-    pub(super) close_requested_emitted: bool,
+    pub(crate) close_requested_emitted: bool,
     /// Whether destroyed was already emitted for this window lifetime.
-    pub(super) destroyed_emitted: bool,
+    pub(crate) destroyed_emitted: bool,
     /// Registered Win32 drop-target callback object pointer value when drag and drop is active.
-    pub(super) drop_target_callback: usize,
+    pub(crate) drop_target_callback: usize,
     /// Whether OLE apartment init was acquired for this window drop target.
-    pub(super) drop_target_ole_initialized: bool,
+    pub(crate) drop_target_ole_initialized: bool,
 }
