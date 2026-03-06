@@ -1,86 +1,15 @@
 use std::fmt::Debug;
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 /// The default capacity of the arena.
 const DEFAULT_CAPACITY: usize = 512;
 
 /// Arena for storing elements and element like things.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Arena<T> {
     /// The stored elements.
     pub(super) items: Vec<T>,
-}
-
-// backward compatible serde input shape
-#[derive(Deserialize)]
-#[serde(untagged)]
-enum ArenaData<T> {
-    Chunked {
-        chunk_shift: u32,
-        chunks: Vec<Vec<T>>,
-    },
-    Flat {
-        items: Vec<T>,
-    },
-}
-
-// backward compatible serde output shape
-#[derive(Serialize)]
-struct ArenaDataRef<'a, T> {
-    chunk_shift: u32,
-    chunks: Vec<&'a [T]>,
-}
-
-impl<T> Serialize for Arena<T>
-where
-    T: Serialize,
-{
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let chunks = if self.items.is_empty() {
-            Vec::new()
-        } else {
-            vec![self.items.as_slice()]
-        };
-        let data = ArenaDataRef {
-            chunk_shift: 0,
-            chunks,
-        };
-        data.serialize(serializer)
-    }
-}
-
-impl<'de, T> Deserialize<'de> for Arena<T>
-where
-    T: Deserialize<'de>,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let data = ArenaData::<T>::deserialize(deserializer)?;
-
-        let items = match data {
-            ArenaData::Flat { items } => items,
-            ArenaData::Chunked {
-                chunk_shift,
-                chunks,
-            } => {
-                let _ = chunk_shift;
-                let total_len = chunks.iter().map(Vec::len).sum();
-                let mut items = Vec::with_capacity(total_len);
-                for mut chunk in chunks {
-                    items.append(&mut chunk);
-                }
-                items
-            }
-        };
-
-        Ok(Self { items })
-    }
 }
 
 impl<T> Debug for Arena<T>
