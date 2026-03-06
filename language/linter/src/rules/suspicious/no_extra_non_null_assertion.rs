@@ -45,7 +45,7 @@ impl LintRule for NoExtraNonNullAssertion {
             let inner = ctx.tree.get(*left);
             let has_nested_non_null = matches!(inner, Expression::Must { .. });
             let has_optional_chain_target =
-                expression_is_optional_chain_target(ctx.tree, &ctx.parents, node_id);
+                expression_is_optional_chain_target(ctx.tree, ctx.parents, node_id);
             if !has_nested_non_null && !has_optional_chain_target {
                 continue;
             }

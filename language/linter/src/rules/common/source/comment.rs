@@ -119,8 +119,7 @@ pub fn parse_keyword_comment_with_options(
             continue;
         }
 
-        let normalized_tag =
-            token.trim_end_matches(|character: char| matches!(character, ':' | '.' | ',' | ';'));
+        let normalized_tag = token.trim_end_matches([':', '.', ',', ';']);
 
         if is_known_tag(normalized_tag, tags) {
             has_known_tag = true;

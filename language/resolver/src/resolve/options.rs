@@ -161,7 +161,7 @@ impl ResolveOptions {
         // find a pnp manifest from cwd up to the root
         #[cfg(not(target_arch = "wasm32"))]
         {
-            return pnp::find_pnp_manifest(cwd).ok().flatten().is_some();
+            pnp::find_pnp_manifest(cwd).ok().flatten().is_some()
         }
 
         // wasm targets do not support pnp filesystem access

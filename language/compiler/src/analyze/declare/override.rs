@@ -111,9 +111,7 @@ impl Compiler {
         } else {
             types.get_instance_type_id(symbol)
         };
-        let Some(type_id) = type_id else {
-            return None;
-        };
+        let type_id = type_id?;
 
         // only object types expose fields for override checks
         let Type::Object { fields, .. } = types.get_type(type_id) else {

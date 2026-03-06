@@ -450,11 +450,8 @@ impl Compiler {
                             let node = (*member_id)
                                 .into_global_any(ctx.module.id)
                                 .into_anchored(Some(ctx.profile));
-                            self.error(AnalyzeError::DuplicateField {
-                                node,
-                                field: key.clone(),
-                            });
-                            reported_from_member.push(key.clone());
+                            self.error(AnalyzeError::DuplicateField { node, field: key });
+                            reported_from_member.push(key);
                         }
 
                         seen_keys.push(key);

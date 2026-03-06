@@ -40,7 +40,7 @@ impl LintRule for NoComplexBooleanExpression {
             let expression = ctx.tree.get(node_id);
 
             // skip type expression contexts
-            if expression_is_type_annotation(ctx.tree, &ctx.parents, node_id) {
+            if expression_is_type_annotation(ctx.tree, ctx.parents, node_id) {
                 continue;
             }
 

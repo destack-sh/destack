@@ -374,7 +374,6 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         // preserve receiver and suffix source text
         let member_span = self.ctx.get_span(ends_with_match.call_member_id);
         let member_text = self.ctx.get_span_text(member_span);
-        let member_text = member_text.as_ref();
         let receiver_text = strip_dot_member_suffix(member_text, "slice")?;
         let suffix_span = self.ctx.get_span(ends_with_match.suffix_id);
         let suffix_text = self.ctx.get_span_text(suffix_span);

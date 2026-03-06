@@ -106,7 +106,7 @@ fn assignment_is_declaration_initializer(
 ) -> bool {
     // lift assignment through parenthesized wrappers for parent checks
     let wrapped_expression_id =
-        expression_outer_parenthesized_syntax(ctx.tree, &ctx.parents, assignment_expression_id);
+        expression_outer_parenthesized_syntax(ctx.tree, ctx.parents, assignment_expression_id);
 
     // require one concrete parent node
     let Some(parent_id) = ctx.parents.get(wrapped_expression_id) else {
@@ -174,8 +174,7 @@ fn no_multi_assign_fix(
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<LintFix> {
     // keep statement scoped assignments only
-    let parent_expression_id =
-        expression_statement_ancestor(ctx.tree, &ctx.parents, expression_id)?;
+    let parent_expression_id = expression_statement_ancestor(ctx.tree, ctx.parents, expression_id)?;
 
     // collect chained assignments and final rhs
     let mut left_ids = Vec::new();

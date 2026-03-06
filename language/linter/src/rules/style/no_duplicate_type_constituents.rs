@@ -178,8 +178,9 @@ fn duplicate_constituent_pairs(
     for left_index in 0..constituents.len() {
         let left_type_id = constituents[left_index].normalized_type_id;
 
-        for right_index in (left_index + 1)..constituents.len() {
-            let right_type_id = constituents[right_index].normalized_type_id;
+        for (right_index, right_constituent) in constituents.iter().enumerate().skip(left_index + 1)
+        {
+            let right_type_id = right_constituent.normalized_type_id;
             if !dir::are_types_equal(left_type_id, right_type_id, types) {
                 continue;
             }

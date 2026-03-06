@@ -432,7 +432,6 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         // derive receiver text from member expression text
         let member_span = self.ctx.get_span(includes_match.candidate.call_member_id);
         let member_text = self.ctx.get_span_text(member_span);
-        let member_text = member_text.as_ref();
         let receiver_text = match includes_match.candidate.method {
             IncludesMethod::IndexOf => strip_dot_member_suffix(member_text, "indexOf")?,
             IncludesMethod::LastIndexOf => strip_dot_member_suffix(member_text, "lastIndexOf")?,

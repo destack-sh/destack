@@ -533,16 +533,9 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
                         if tree_child_should_inline_braced_expression(f.context(), self.argument_id)
                         {
                             write!(f, [token("{"), value, token("}")])?;
-                        } else if expression_has_chain_seam_comment(f.context(), *value) {
-                            write!(
-                                f,
-                                [group(&format_args![
-                                    token("{"),
-                                    group(value).should_expand(true),
-                                    token("}")
-                                ])]
-                            )?;
-                        } else if ternary_value_has_line_comment_annotation(f.context(), *value) {
+                        } else if expression_has_chain_seam_comment(f.context(), *value)
+                            || ternary_value_has_line_comment_annotation(f.context(), *value)
+                        {
                             write!(
                                 f,
                                 [group(&format_args![

@@ -1081,7 +1081,7 @@ impl Compiler {
                 if let Some(member_symbol) = self.static_member_symbol_for_contract_key(
                     ctx.tree_symbol_view(),
                     contract_symbol,
-                    contract_field.key.clone(),
+                    contract_field.key,
                 )? && matches!(
                     self.query_static_member_symbol_kind_for_symbol(
                         ctx.tree_symbol_view(),

@@ -1819,9 +1819,7 @@ fn attach_expression_middle_open_parenthesis_own_line_comment(
                 promote_owner_by_shared_start(tree, parents, owner, token_after_span.span.start)
             })
         });
-    let Some(target_node) = target_node else {
-        return None;
-    };
+    let target_node = target_node?;
 
     // type-cast owners inside parenthesized wrappers should bind to the consuming group
     let target_node =
@@ -2192,11 +2190,8 @@ fn attach_expression_pre_placement_dependency_attribute_comments(
         ctx.following_owner,
         ctx.following_token_owner,
     ];
-    let Some(target_node) =
-        dependency_attribute_expression_owner_from_seam_candidates(ctx.tree, seam_candidates)
-    else {
-        return None;
-    };
+    let target_node =
+        dependency_attribute_expression_owner_from_seam_candidates(ctx.tree, seam_candidates)?;
 
     let target_node = normalize_formatter_trivia_target_owner(ctx.tree, target_node);
     Some((Some(target_node), AnnotationPosition::BlockInfix))
@@ -2223,13 +2218,11 @@ fn attach_expression_pre_placement_empty_dependency_item_comments(
         ctx.following_owner,
         ctx.following_token_owner,
     ];
-    let Some(target_node) = empty_dependency_expression_owner_from_seam_candidates(
+    let target_node = empty_dependency_expression_owner_from_seam_candidates(
         ctx.tree,
         ctx.parents,
         seam_candidates,
-    ) else {
-        return None;
-    };
+    )?;
 
     let target_node = normalize_formatter_trivia_target_owner(ctx.tree, target_node);
     Some((Some(target_node), AnnotationPosition::LinePostfixBoundary))

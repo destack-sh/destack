@@ -819,9 +819,7 @@ fn try_attach_cast_seam_multiline_star_after_operator(
         return None;
     }
 
-    if cast_expression_owner.is_none() {
-        return None;
-    }
+    cast_expression_owner?;
 
     let target_owner = following_owner?;
     let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
@@ -842,9 +840,7 @@ fn try_attach_cast_seam_own_line_comment(
         return None;
     }
 
-    if cast_expression_owner.is_none() {
-        return None;
-    }
+    cast_expression_owner?;
 
     let target_owner = cast_rhs_owner.or(following_owner).or_else(|| {
         context

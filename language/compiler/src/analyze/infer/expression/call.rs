@@ -1656,29 +1656,25 @@ impl Compiler {
         let resolved_dynamic_parameters = &resolved_signature.dynamic_parameters;
 
         // enforce strict call arity for synthetic call wrappers
-        if self.should_enforce_strict_call_member_arity(ctx, call) {
-            if let Some(minimum_arguments) =
+        if self.should_enforce_strict_call_member_arity(ctx, call)
+            && let Some(minimum_arguments) =
                 self.minimum_required_dynamic_argument_count_for_strict_call_member(ctx, call)
-            {
-                if dynamic_arguments.len() < minimum_arguments {
-                    self.error(AnalyzeError::InvalidArgumentArity {
-                        node: expression_id
-                            .into_global_any(ctx.module.id)
-                            .into_anchored(Some(ctx.profile)),
-                        expected: minimum_arguments,
-                        actual: dynamic_arguments.len(),
-                    });
-                    self.infer_call_arguments_without_context(
-                        &mut ctx.reborrow(),
-                        dynamic_arguments,
-                        state,
-                    )?;
+            && dynamic_arguments.len() < minimum_arguments
+        {
+            self.error(AnalyzeError::InvalidArgumentArity {
+                node: expression_id
+                    .into_global_any(ctx.module.id)
+                    .into_anchored(Some(ctx.profile)),
+                expected: minimum_arguments,
+                actual: dynamic_arguments.len(),
+            });
+            self.infer_call_arguments_without_context(
+                &mut ctx.reborrow(),
+                dynamic_arguments,
+                state,
+            )?;
 
-                    return Ok(
-                        self.synthesize_call_error_result_type(expression_id, &mut *ctx.types)
-                    );
-                }
-            }
+            return Ok(self.synthesize_call_error_result_type(expression_id, &mut *ctx.types));
         }
 
         // enforce static-expression requirements for comptime dynamic parameters

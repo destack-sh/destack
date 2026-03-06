@@ -123,19 +123,12 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         let constant_id = expression_unwrap_parenthesized(self.ctx.tree, constant_id);
 
         // resolve constant comparisons
-        let Some(constant_value) = self.ctx.const_value(constant_id) else {
-            return None;
-        };
-        let Some(constant) = const_i64(&constant_value) else {
-            return None;
-        };
+        let constant_value = self.ctx.const_value(constant_id)?;
+        let constant = const_i64(&constant_value)?;
 
         // normalize operators when constants are on the left
         let operator = if flipped {
-            let Some(operator) = flip_binary_operator(operator) else {
-                return None;
-            };
-            operator
+            flip_binary_operator(operator)?
         } else {
             operator
         };
@@ -376,7 +369,6 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         // preserve receiver and prefix source text
         let member_span = self.ctx.get_span(starts_with_match.call_member_id);
         let member_text = self.ctx.get_span_text(member_span);
-        let member_text = member_text.as_ref();
         let receiver_text = strip_dot_member_suffix(member_text, "indexOf")?;
         let prefix_span = self.ctx.get_span(starts_with_match.prefix_id);
         let prefix_text = self.ctx.get_span_text(prefix_span);

@@ -754,10 +754,10 @@ pub fn expression_path_segments(
         return None;
     };
 
-    if let Some(static_arguments) = static_arguments {
-        if !static_arguments.is_empty() {
-            return None;
-        }
+    if let Some(static_arguments) = static_arguments
+        && !static_arguments.is_empty()
+    {
+        return None;
     }
 
     // return path segments in source order

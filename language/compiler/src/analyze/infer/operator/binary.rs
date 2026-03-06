@@ -235,15 +235,15 @@ impl Compiler {
                 operator,
                 BinaryOperatorResolutionFailure::MissingOperatorContract,
             );
-            if failure_diagnostic == BinaryOperatorFailureDiagnostic::UnassignableOperands {
-                if let Some(error) = self.unassignable_type_error_for_types(
+            if failure_diagnostic == BinaryOperatorFailureDiagnostic::UnassignableOperands
+                && let Some(error) = self.unassignable_type_error_for_types(
                     ctx.module_type_view(),
                     expression_id.into_any(),
                     left_ty_id,
                     right_ty_id,
-                ) {
-                    return Err(error);
-                }
+                )
+            {
+                return Err(error);
             }
 
             self.emit_no_overload_for_receiver_type(

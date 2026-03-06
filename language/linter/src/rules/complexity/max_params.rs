@@ -90,7 +90,7 @@ fn report_excessive_parameter_count<T: ast::Node + Clone>(
     max_params: usize,
 ) {
     // resolve owner span before moving owner id into severity lookup
-    let owner_span = ctx.tree.get_span(owner_id.clone());
+    let owner_span = ctx.tree.get_span(owner_id);
 
     // resolve effective severity for this callable owner
     let severity = ctx.get_effective_severity(meta, owner_id);

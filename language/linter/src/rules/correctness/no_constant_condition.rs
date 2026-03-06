@@ -134,7 +134,7 @@ fn no_constant_condition_fix(
         }
 
         // otherwise delete only when in statement position
-        let statement_span = expression_statement_span(ctx.tree, &ctx.parents, expression_id)?;
+        let statement_span = expression_statement_span(ctx.tree, ctx.parents, expression_id)?;
         let edits = ctx.edit_builder().delete(statement_span).into_edits();
         return Some(
             LintFix::safe("Remove always-false condition statement branch").with_edits(edits),
@@ -148,7 +148,7 @@ fn no_constant_condition_fix(
     } = expression
         && !ctx.const_bool(*condition)?
     {
-        let statement_span = expression_statement_span(ctx.tree, &ctx.parents, expression_id)?;
+        let statement_span = expression_statement_span(ctx.tree, ctx.parents, expression_id)?;
         let edits = ctx.edit_builder().delete(statement_span).into_edits();
         return Some(LintFix::safe("Remove for loop that never executes").with_edits(edits));
     }
@@ -159,12 +159,11 @@ fn no_constant_condition_fix(
         condition,
         ..
     } = expression
+        && !ctx.const_bool(*condition)?
     {
-        if !ctx.const_bool(*condition)? {
-            let statement_span = expression_statement_span(ctx.tree, &ctx.parents, expression_id)?;
-            let edits = ctx.edit_builder().delete(statement_span).into_edits();
-            return Some(LintFix::safe("Remove while loop that never executes").with_edits(edits));
-        }
+        let statement_span = expression_statement_span(ctx.tree, ctx.parents, expression_id)?;
+        let edits = ctx.edit_builder().delete(statement_span).into_edits();
+        return Some(LintFix::safe("Remove while loop that never executes").with_edits(edits));
     }
 
     None

@@ -1199,11 +1199,11 @@ fn format_readme_summary_package_row(
     for status in &statuses {
         row_line.push_str(&format!("| {:^8} ", status.as_str()));
     }
-    row_line.push_str(&format!("| {:^8} ", modules_label));
-    row_line.push_str(&format!("| {:^5} ", lines_label));
+    row_line.push_str(&format!("| {modules_label:^8} "));
+    row_line.push_str(&format!("| {lines_label:^5} "));
     row_line.push_str(&format!("| {:^7} ", support_tier.as_str()));
-    row_line.push_str(&format!("| {:^6} ", target_label));
-    row_line.push_str(&format!("| {:^3} ", met_label));
+    row_line.push_str(&format!("| {target_label:^6} "));
+    row_line.push_str(&format!("| {met_label:^3} "));
     row_line.push('|');
 
     row_line
@@ -1307,7 +1307,7 @@ fn format_readme_summary_total_row(
 ) -> String {
     let mut total_line = format!("| {:<7} ", "total");
     for phase_cell in total_phase_cells {
-        total_line.push_str(&format!("| {:^8} ", phase_cell));
+        total_line.push_str(&format!("| {phase_cell:^8} "));
     }
     total_line.push_str(&format!(
         "| {:^8} ",
@@ -1735,7 +1735,7 @@ fn format_stats_value(value: usize, width: usize) -> String {
         return format!("{:>width$}", "-?-");
     }
 
-    format!("{:>width$}", value)
+    format!("{value:>width$}")
 }
 
 /// Colorize one preformatted phase rate text value.

@@ -87,10 +87,10 @@ impl LintRule for PreferTupleDestructure {
             .with_label("use tuple destructuring instead");
 
             // attach the multi declarator rewrite only when one exact source rewrite is safe
-            if ctx.include_fixes {
-                if let Some(fix) = prefer_tuple_destructure_fix(ctx, &access_group) {
-                    diagnostic = diagnostic.with_fix(fix);
-                }
+            if ctx.include_fixes
+                && let Some(fix) = prefer_tuple_destructure_fix(ctx, &access_group)
+            {
+                diagnostic = diagnostic.with_fix(fix);
             }
 
             ctx.report(diagnostic);

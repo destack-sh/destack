@@ -260,13 +260,8 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
         // derive receiver text from member expression text
         let member_span = self.ctx.get_span(*left);
         let member_text = self.ctx.get_span_text(member_span);
-        let receiver_text = member_receiver_text(
-            self.ctx,
-            *receiver_expression_id,
-            member_text.as_ref(),
-            *name,
-            false,
-        )?;
+        let receiver_text =
+            member_receiver_text(self.ctx, *receiver_expression_id, member_text, *name, false)?;
 
         // preserve callback and optional this-arg source range
         let first_argument_id = *dynamic_arguments.first()?;
@@ -297,12 +292,8 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
         // argument must be literal 0
         let argument = self.ctx.tree.get(dynamic_arguments[0]);
         let expression_id = argument.value();
-        let Some(const_value) = self.ctx.const_value(expression_id) else {
-            return None;
-        };
-        let Some(index_value) = const_i64(&const_value) else {
-            return None;
-        };
+        let const_value = self.ctx.const_value(expression_id)?;
+        let index_value = const_i64(&const_value)?;
 
         Some(index_value)
     }

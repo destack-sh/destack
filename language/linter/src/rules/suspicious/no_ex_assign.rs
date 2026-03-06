@@ -134,9 +134,7 @@ fn no_ex_assign_fix(
     catch_name: ast::StringId,
 ) -> Option<LintFix> {
     // keep standalone reassignment statements only
-    let Some(parent_id) = ctx.parents.get(assignment_expression_id) else {
-        return None;
-    };
+    let parent_id = ctx.parents.get(assignment_expression_id)?;
     if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
         return None;
     }

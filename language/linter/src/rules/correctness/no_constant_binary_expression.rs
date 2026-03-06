@@ -129,12 +129,10 @@ fn check_constant_result(
     if matches!(
         operator,
         ast::BinaryOperator::EqualStrict | ast::BinaryOperator::NotEqualStrict
-    ) {
-        if matches!(left, ast::Expression::New { .. })
-            && matches!(right, ast::Expression::New { .. })
-        {
-            return Some("comparing two new objects always produces the same result");
-        }
+    ) && matches!(left, ast::Expression::New { .. })
+        && matches!(right, ast::Expression::New { .. })
+    {
+        return Some("comparing two new objects always produces the same result");
     }
 
     // check for `{} === {}` or `[] === []` (always false)

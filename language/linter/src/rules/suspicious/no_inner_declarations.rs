@@ -42,13 +42,13 @@ impl LintRule for NoInnerDeclarations {
 
             // require one declaration wrapper expression
             let Some(declaration_expression_id) =
-                declaration_expression(ctx.tree, &ctx.parents, declaration_id)
+                declaration_expression(ctx.tree, ctx.parents, declaration_id)
             else {
                 continue;
             };
 
             // allow declaration roots at module, function, and static block boundaries
-            if declaration_at_allowed_root(ctx.tree, &ctx.parents, declaration_expression_id) {
+            if declaration_at_allowed_root(ctx.tree, ctx.parents, declaration_expression_id) {
                 continue;
             }
 

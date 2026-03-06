@@ -388,7 +388,7 @@ fn normalize_diagnostic_file(
     }
 
     // fall back to uri text when no path is attached
-    normalize_path_fragment(&file.uri.to_string())
+    normalize_path_fragment(file.uri.as_ref())
 }
 
 /// Normalize one path like fragment for cross-platform matching.
@@ -905,14 +905,14 @@ fn tsc_result_to_failure_context(tsc_result: &Result<TypeScriptTscRun, String>) 
     match tsc_result {
         Ok(tsc_run) => {
             let mut message = format_tsc_status_line(tsc_run.success, false);
-            message.push_str("\n");
+            message.push('\n');
             message.push_str(&format!(
                 "tsc: {}",
                 color::dim(&format_tsc_command_for_display(tsc_run))
             ));
 
             if !tsc_run.output.is_empty() {
-                message.push_str("\n");
+                message.push('\n');
                 message.push_str(&format_tsc_diagnostics_for_display(&tsc_run.output));
             }
 
@@ -924,9 +924,9 @@ fn tsc_result_to_failure_context(tsc_result: &Result<TypeScriptTscRun, String>) 
                 color::yellow("unavailable"),
                 color::red("failed"),
             );
-            message.push_str("\n");
+            message.push('\n');
             message.push_str(&format!("tsc: {}", color::dim("not executed")));
-            message.push_str("\n");
+            message.push('\n');
             message.push_str(&format!(" - {}", color::red(error)));
             message
         }
@@ -1703,10 +1703,7 @@ fn collect_root_manifest_paths(
 
         let root_path = Path::new(trimmed_root);
         if root_path.is_absolute() {
-            return Err(format!(
-                "discovery root '{}' must be relative",
-                trimmed_root
-            ));
+            return Err(format!("discovery root '{trimmed_root}' must be relative"));
         }
 
         if root_path
@@ -1714,8 +1711,7 @@ fn collect_root_manifest_paths(
             .any(|component| matches!(component, std::path::Component::ParentDir))
         {
             return Err(format!(
-                "discovery root '{}' cannot contain '..'",
-                trimmed_root,
+                "discovery root '{trimmed_root}' cannot contain '..'"
             ));
         }
 

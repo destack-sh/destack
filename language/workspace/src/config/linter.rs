@@ -574,10 +574,20 @@ impl LinterOptions {
         // preset logic
         match self.preset {
             LintPreset::None => LintSeverity::Off,
-            LintPreset::Recommended => is_recommended
-                .then_some(default)
-                .unwrap_or(LintSeverity::Off),
-            LintPreset::Strict => is_strict.then_some(default).unwrap_or(LintSeverity::Off),
+            LintPreset::Recommended => {
+                if is_recommended {
+                    default
+                } else {
+                    LintSeverity::Off
+                }
+            }
+            LintPreset::Strict => {
+                if is_strict {
+                    default
+                } else {
+                    LintSeverity::Off
+                }
+            }
             LintPreset::All => default,
         }
     }

@@ -139,7 +139,7 @@ fn check_callback_argument(
         // keep fixes out of cases where arrow conversion is not source safe
         let can_fix = candidate.can_fix
             && signature.this_parameter.is_none()
-            && !(body_usage.uses_this && !candidate.is_lexical_this);
+            && (!body_usage.uses_this || candidate.is_lexical_this);
 
         let mut diagnostic = LintDiagnostic::new(
             PREFER_ARROW_CALLBACK.id,

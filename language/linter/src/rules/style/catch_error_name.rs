@@ -132,10 +132,7 @@ fn report_try_catch_binding(
         CATCH_ERROR_NAME.code,
         CATCH_ERROR_NAME.category,
         severity,
-        format!(
-            "catch error should be named `{expected_name}`, not `{}`",
-            actual_name
-        ),
+        format!("catch error should be named `{expected_name}`, not `{actual_name}`"),
         ctx.module.file_id,
         ctx.get_span(*pattern_id),
     )
@@ -147,10 +144,7 @@ fn report_try_catch_binding(
             ctx,
             *symbol,
             &replacement_name,
-            &format!(
-                "Rename catch binding `{}` to `{replacement_name}`",
-                actual_name
-            ),
+            &format!("Rename catch binding `{actual_name}` to `{replacement_name}`"),
         )
     {
         diagnostic = diagnostic.with_fix(fix);
@@ -217,8 +211,7 @@ fn report_promise_rejection_callback(
         CATCH_ERROR_NAME.category,
         severity,
         format!(
-            "promise rejection parameter should be named `{expected_name}`, not `{}`",
-            actual_name
+            "promise rejection parameter should be named `{expected_name}`, not `{actual_name}`"
         ),
         ctx.module.file_id,
         ctx.get_span(parameter_id),
@@ -231,10 +224,7 @@ fn report_promise_rejection_callback(
             ctx,
             symbol_id,
             &replacement_name,
-            &format!(
-                "Rename callback parameter `{}` to `{replacement_name}`",
-                actual_name
-            ),
+            &format!("Rename callback parameter `{actual_name}` to `{replacement_name}`"),
         )
     {
         diagnostic = diagnostic.with_fix(fix);

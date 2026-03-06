@@ -142,15 +142,14 @@ fn report_recursive_only_parameters(
         if ctx.include_fixes
             && let Some(replacement_name) =
                 recursion_parameter_replacement_name(ctx, parameter_symbol)
-        {
-            if let Some(fix) = rename_local_symbol_fix(
+            && let Some(fix) = rename_local_symbol_fix(
                 ctx,
                 parameter_symbol,
                 &replacement_name,
                 &format!("Rename recursion-only parameter to `{replacement_name}`"),
-            ) {
-                diagnostic = diagnostic.with_fix(fix);
-            }
+            )
+        {
+            diagnostic = diagnostic.with_fix(fix);
         }
 
         ctx.report(diagnostic);

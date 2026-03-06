@@ -234,11 +234,8 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
         member_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::LocalNodeId<dir::Expression>> {
         // match member or static index access for assign
-        let Some((receiver_id, property_name)) =
-            expression_static_property_access(self.ctx.tree, member_id)
-        else {
-            return None;
-        };
+        let (receiver_id, property_name) =
+            expression_static_property_access(self.ctx.tree, member_id)?;
         if property_name != self.assign_name {
             return None;
         };

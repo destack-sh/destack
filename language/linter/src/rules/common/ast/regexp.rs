@@ -62,9 +62,7 @@ pub fn regex_pattern_info(
     };
 
     // require global RegExp constructor identifier
-    let Some(path_segments) = expression_path_segments(tree, callee_id) else {
-        return None;
-    };
+    let path_segments = expression_path_segments(tree, callee_id)?;
     if !path_is_regexp_constructor(
         path_segments.as_slice(),
         regexp_name,
@@ -189,7 +187,7 @@ fn decode_string_content(raw_content: &str) -> Option<String> {
                     let mut code_point = 0u32;
                     let mut has_digit = false;
                     let mut closed = false;
-                    while let Some(next_character) = chars.next() {
+                    for next_character in chars.by_ref() {
                         if next_character == '}' {
                             closed = true;
                             break;

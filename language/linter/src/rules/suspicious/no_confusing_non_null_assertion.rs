@@ -315,7 +315,7 @@ fn is_optional_chain_target(
     ctx: &LintModuleAstContext<'_>,
     node_id: ast::LocalNodeId<Expression>,
 ) -> bool {
-    expression_is_optional_chain_target(ctx.tree, &ctx.parents, node_id)
+    expression_is_optional_chain_target(ctx.tree, ctx.parents, node_id)
 }
 
 /// Return true when one expression is or contains optional chaining.

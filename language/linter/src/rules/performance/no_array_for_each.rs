@@ -217,7 +217,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         // rewrite to a simple for-of loop
         let parameter_name = self.ctx.program.strings.get(*name).to_string();
         let member_text = self.ctx.get_span_text(self.ctx.get_span(*left));
-        let receiver_text = strip_dot_member_suffix(member_text.as_ref(), "forEach")?;
+        let receiver_text = strip_dot_member_suffix(member_text, "forEach")?;
         let body_text = self.ctx.get_span_text(self.ctx.get_span(*body_id));
         let replacement = format!("for (const {parameter_name} of {receiver_text}) {body_text}");
         let edits = self

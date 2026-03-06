@@ -67,7 +67,7 @@ impl LintRule for NoDebugger {
 
             // prefer deleting the full enclosing statement as a safe fix
             if let Some(statement_expression_id) =
-                expression_statement_ancestor(ctx.tree, &ctx.parents, node_id)
+                expression_statement_ancestor(ctx.tree, ctx.parents, node_id)
             {
                 let statement_span = ctx.tree.get_span(statement_expression_id);
                 let diagnostic = diagnostic

@@ -76,7 +76,7 @@ impl LintRule for PreferImplicitReturn {
             if matches!(return_value, Expression::ObjectExpression { .. }) {
                 replacement = format!("({replacement})");
             }
-            let maybe_fix = if contains_comment_token(&body_text) {
+            let maybe_fix = if contains_comment_token(body_text) {
                 None
             } else {
                 let edits = ctx

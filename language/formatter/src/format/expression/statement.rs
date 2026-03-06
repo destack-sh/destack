@@ -686,15 +686,14 @@ fn statement_wrapper_uses_postfix_only_annotations(
         return true;
     }
 
-    let collection_handles_empty_infix = ctx.has_infix_annotation(node_id)
+    ctx.has_infix_annotation(node_id)
         && (matches!(
             expression,
             Expression::ObjectExpression { properties, .. } if properties.is_empty()
         ) || matches!(
             expression,
             Expression::ArrayExpression { elements } if elements.is_empty()
-        ));
-    collection_handles_empty_infix
+        ))
 }
 
 /// Write wrapper infix and postfix annotations in the correct phase order.

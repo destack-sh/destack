@@ -178,9 +178,7 @@ fn declarator_literal_annotation_fix(
 
     // require `:<type> =` declarator shape
     let before_type_text = before_type_text.trim_end();
-    let Some(left_text) = before_type_text.strip_suffix(':') else {
-        return None;
-    };
+    let left_text = before_type_text.strip_suffix(':')?;
     let left_text = left_text.trim_end();
 
     // replace full declarator with const assertion form
@@ -225,9 +223,7 @@ fn member_field_literal_annotation_fix(
 
     // require `:<type> =` field shape
     let before_type_text = before_type_text.trim_end();
-    let Some(left_text) = before_type_text.strip_suffix(':') else {
-        return None;
-    };
+    let left_text = before_type_text.strip_suffix(':')?;
     let left_text = left_text.trim_end();
 
     // replace full field with const assertion form

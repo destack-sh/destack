@@ -140,7 +140,7 @@ fn condition_is_duplicate_or_covered(
     test_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // apply this rule only to else-if branches
-    if !expression_is_else_if_branch(ctx.tree, &ctx.parents, if_expression_id) {
+    if !expression_is_else_if_branch(ctx.tree, ctx.parents, if_expression_id) {
         return false;
     }
 
@@ -333,7 +333,7 @@ fn no_duplicate_else_if_fix(
     if_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<LintFix> {
     // keep fixes for nested else-if expressions only
-    if !expression_is_else_if_branch(ctx.tree, &ctx.parents, if_expression_id) {
+    if !expression_is_else_if_branch(ctx.tree, ctx.parents, if_expression_id) {
         return None;
     }
 

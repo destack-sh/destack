@@ -146,9 +146,7 @@ fn visible_symbol_for_key(
             return Some(symbol_id);
         }
 
-        let Some((parent_scope_id, parent_mark)) = scope.parent else {
-            return None;
-        };
+        let (parent_scope_id, parent_mark) = scope.parent?;
         scope_id = parent_scope_id;
         mark = parent_mark;
     }

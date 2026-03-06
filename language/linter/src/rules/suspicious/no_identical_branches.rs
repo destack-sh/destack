@@ -42,7 +42,7 @@ impl LintRule for NoIdenticalBranches {
             // apply source parity for statement-style if chains:
             // only evaluate the chain root, not nested else-if children
             if *kind == ast::IfKind::If
-                && expression_is_else_if_branch(ctx.tree, &ctx.parents, node_id)
+                && expression_is_else_if_branch(ctx.tree, ctx.parents, node_id)
             {
                 continue;
             }

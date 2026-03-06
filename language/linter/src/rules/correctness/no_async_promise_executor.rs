@@ -154,8 +154,8 @@ fn async_promise_executor_fix(
     // strip one leading async keyword
     let expression_span = ctx.get_span(expression_id);
     let expression_text = ctx.get_span_text(expression_span);
-    let rewritten = remove_first_async_keyword(expression_text.as_ref())?;
-    if rewritten == expression_text.as_ref() {
+    let rewritten = remove_first_async_keyword(expression_text)?;
+    if rewritten == expression_text {
         return None;
     }
 

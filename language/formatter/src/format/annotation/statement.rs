@@ -915,11 +915,7 @@ fn try_attach_callback_argument_trailing_comment(
     }
 
     let target_owner = preceding_owner?;
-    if promote_owner_to_node_type_ancestor(tree, parents, target_owner, NodeType::Argument)
-        .is_none()
-    {
-        return None;
-    }
+    promote_owner_to_node_type_ancestor(tree, parents, target_owner, NodeType::Argument)?;
 
     let target_owner = normalize_argument_owner(tree, parents, target_owner);
     let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);

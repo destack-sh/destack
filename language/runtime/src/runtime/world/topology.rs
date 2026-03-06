@@ -545,8 +545,7 @@ impl Topology {
 
     /// Remove one topology edge.
     pub(crate) fn remove_edge(&mut self, edge_id: &str) -> bool {
-        let is_edge_removed = self.edges.remove(edge_id).is_some();
-        is_edge_removed
+        self.edges.remove(edge_id).is_some()
     }
 
     /// Register one runtime node.
