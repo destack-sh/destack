@@ -60,13 +60,13 @@ destack dev release
 destack dev release --bump patch
 
 # live publish after preflight
-destack dev release --publish-live
+destack dev release --publish
 
 # dry-run npm, vscode, and zed registry publish
 destack dev release --publish-zed
 
 # live npm, vscode, and zed registry publish
-DESTACK_ZED_REGISTRY_PUSH_TO=your-github-user/extensions destack dev release --publish-live --publish-zed
+DESTACK_ZED_REGISTRY_PUSH_TO=your-github-user/extensions destack dev release --publish --publish-zed
 ```
 
 Live Zed publish requires authenticated `gh` access and a push target fork in `DESTACK_ZED_REGISTRY_PUSH_TO`.

@@ -22,5 +22,5 @@ jobs:
         with:
           rust_components: clippy
 
-      - name: Run macOS runtime check
-        run: just runtime-macos-check
+      - name: Check runtime on macOS
+        run: just language/check-runtime-macos

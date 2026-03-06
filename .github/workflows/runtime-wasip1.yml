@@ -22,5 +22,5 @@ jobs:
         with:
           rust_targets: wasm32-wasip1
 
-      - name: Run wasip1 runtime check
-        run: just runtime-wasip1-check
+      - name: Check runtime on wasm32-wasip1
+        run: just language/check-runtime-wasip1

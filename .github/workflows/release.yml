@@ -26,29 +26,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Validate release tag matches VERSION.txt
-        run: bash scripts/ci/validate-release-tag-version.sh "${GITHUB_REF_NAME}"
-
-      - name: Validate zed grammar pins
-        run: python3 bridge/zed/scripts/check_grammar_sources.py --require-pinned --pin-destack-revision "${GITHUB_SHA}"
-
       - name: Setup Rust Bun and just
         uses: ./.github/actions/setup-rust-bun-just
         with:
           rust_components: rustfmt clippy
           install_js_dependencies: "true"
 
-      - name: Validate tracked version files
-        run: cargo run -p destack_cli --release -- dev version check
+      - name: Validate release metadata
+        run: just validate-release "${GITHUB_REF_NAME}"
 
-      - name: Validate changelog entry for release version
-        run: bash scripts/ci/validate-release-changelog.sh "$(cat VERSION.txt)"
-
-      - name: Run language format gate
-        run: just language/ci-format
-
-      - name: Run language lint gate
-        run: just language/ci-lint
+      - name: Validate zed grammar pins
+        run: just bridge/validate-zed-grammars-strict --pin-destack-revision "${GITHUB_SHA}"
 
       - name: Cache conformance fixtures
         id: language-conformance-cache
@@ -70,47 +58,20 @@ jobs:
             language/test/fixtures/formatter/conformance/staging/oxfmt
           key: ${{ runner.os }}-language-formatter-conformance-${{ hashFiles('language/test/fixtures/formatter/conformance/*-fetch.sh') }}
 
-      - name: Run language nightly tests
-        run: just language/nightly
+      - name: Run language full gate
+        run: just language/full
 
-      - name: Ensure language bridge toolchains
-        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just bridge/toolchain-ensure
+      - name: Run library full gate
+        run: just library/full
 
-      - name: Run library format check
-        run: just library/ci-format
+      - name: Run service full gate
+        run: just service/full
 
-      - name: Run library lint
-        run: just library/ci-lint
+      - name: Run app full gate
+        run: just app/full
 
-      - name: Run library nightly tests
-        run: just library/nightly
-
-      - name: Run service format check
-        run: just service/ci-format
-
-      - name: Run app format check
-        run: just app/ci-format
-
-      - name: Run bridge format check
-        run: just bridge/ci-format
-
-      - name: Run service lint
-        run: just service/ci-lint
-
-      - name: Run app lint
-        run: just app/ci-lint
-
-      - name: Run bridge lint
-        run: just bridge/ci-lint
-
-      - name: Run service nightly tests
-        run: just service/nightly
-
-      - name: Run app nightly tests
-        run: just app/nightly
-
-      - name: Run bridge nightly tests
-        run: just bridge/nightly
+      - name: Run bridge full gate
+        run: just bridge/full
 
   runtime-android:
     name: Runtime Android
@@ -154,20 +115,20 @@ jobs:
       - verify
     uses: ./.github/workflows/runtime-wasip1.yml
 
-  release-smoke-runtime-unix:
+  smoke-runtime-release-unix:
     needs:
       - verify
       - runtime-linux
       - runtime-macos
     uses: ./.github/workflows/release-runtime-smoke-unix.yml
 
-  release-smoke-runtime-windows:
+  smoke-runtime-release-windows:
     needs:
       - verify
       - runtime-windows
     uses: ./.github/workflows/release-runtime-smoke-windows.yml
 
-  release-smoke-runtime-windows-gnu:
+  smoke-runtime-release-windows-gnu:
     needs:
       - verify
       - runtime-windows-gnu
@@ -186,9 +147,9 @@ jobs:
       - runtime-windows
       - runtime-windows-gnu
       - runtime-wasip1
-      - release-smoke-runtime-unix
-      - release-smoke-runtime-windows
-      - release-smoke-runtime-windows-gnu
+      - smoke-runtime-release-unix
+      - smoke-runtime-release-windows
+      - smoke-runtime-release-windows-gnu
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -226,9 +187,9 @@ jobs:
       - runtime-windows
       - runtime-windows-gnu
       - runtime-wasip1
-      - release-smoke-runtime-unix
-      - release-smoke-runtime-windows
-      - release-smoke-runtime-windows-gnu
+      - smoke-runtime-release-unix
+      - smoke-runtime-release-windows
+      - smoke-runtime-release-windows-gnu
     strategy:
       fail-fast: false
       matrix:
@@ -619,7 +580,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Ensure bridge publish toolchains
-        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just bridge/toolchain-ensure
+        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just bridge/ensure-toolchain
 
       - name: Stage cli npm binaries from release artifacts
         run: just app/stage-cli-binaries-from-artifacts "$(cat VERSION.txt)" "release-cli-assets"
@@ -707,9 +668,9 @@ jobs:
 
       - name: Publish npm packages
         run: |
-          just library/publish-live
+          just library/publish ""
           just template/publish-create-destack-live
-          just app/publish-live
+          just app/publish ""
           just bridge/publish-npm ""
           just bridge/publish-bun ""
           just bridge/publish-vite ""

@@ -26,7 +26,7 @@ jobs:
         uses: ./.github/actions/setup-zig
 
       - name: Lint runtime toolchain scripts
-        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just runtime-toolchain-lint
+        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just language/lint-toolchain
 
-      - name: Run runtime cross-target checks
-        run: just runtime-cross-targets-check
+      - name: Check runtime across cross targets
+        run: just language/check-runtime-cross-targets

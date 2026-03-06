@@ -31,7 +31,7 @@ jobs:
           rust_components: clippy
           rust_targets: aarch64-apple-ios
 
-      - name: Run iOS runtime check
-        run: just runtime-ios-check
+      - name: Check runtime on iOS
+        run: just language/check-runtime-ios
         env:
           IOS_DEPLOYMENT_TARGET: ${{ env.IOS_DEPLOYMENT_TARGET }}

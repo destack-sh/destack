@@ -17,7 +17,7 @@ env:
 
 jobs:
   nightly-core:
-    name: Nightly Core
+    name: Nightly Hygiene
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -26,17 +26,13 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Rust Bun and just
+      - name: Setup Rust and just
         uses: ./.github/actions/setup-rust-bun-just
         with:
           rust_components: rustfmt clippy
-          install_js_dependencies: "true"
 
-      - name: Run language quick gates
-        run: |
-          just language/ci-format
-          just language/ci-lint
-          just language/quick
+      - name: Run hygiene checks
+        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just check-hygiene
 
   nightly-integration:
     name: Nightly Integration
@@ -55,9 +51,6 @@ jobs:
         with:
           rust_components: clippy
           install_js_dependencies: "true"
-
-      - name: Ensure language bridge toolchains
-        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just bridge/toolchain-ensure
 
       - name: Cache conformance fixtures
         id: language-conformance-cache
@@ -79,23 +72,23 @@ jobs:
             language/test/fixtures/formatter/conformance/staging/oxfmt
           key: ${{ runner.os }}-language-formatter-conformance-${{ hashFiles('language/test/fixtures/formatter/conformance/*-fetch.sh') }}
 
-      - name: Run language nightly tests
-        run: just language/nightly
+      - name: Run language full gate
+        run: just language/full
 
-      - name: Run library nightly tests
-        run: just library/nightly
+      - name: Run library full gate
+        run: just library/full
 
-      - name: Run service nightly tests
-        run: just service/nightly
+      - name: Run service full gate
+        run: just service/full
 
-      - name: Run app nightly tests
-        run: just app/nightly
+      - name: Run app full gate
+        run: just app/full
 
-      - name: Run bridge nightly tests
-        run: just bridge/nightly
+      - name: Run bridge full gate
+        run: just bridge/full
 
-  nightly-fuzz-smoke:
-    name: Nightly Fuzz Smoke
+  nightly-fuzz:
+    name: Nightly Fuzz
     runs-on: ubuntu-latest
     timeout-minutes: 180
     needs:
@@ -112,11 +105,11 @@ jobs:
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz --locked
 
-      - name: Run nightly fuzz smoke lane
-        run: just fuzz-nightly 120
+      - name: Run language fuzz suite
+        run: just language/fuzz 120
 
-  nightly-bench:
-    name: Nightly Bench
+  nightly-benchmark:
+    name: Nightly Benchmark
     runs-on: ubuntu-latest
     timeout-minutes: 180
     needs:
@@ -130,8 +123,8 @@ jobs:
       - name: Setup Rust and just
         uses: ./.github/actions/setup-rust-just
 
-      - name: Run nightly benchmark lane
-        run: just bench-nightly
+      - name: Run language benchmark suite
+        run: just language/benchmark
 
   runtime-android:
     name: Runtime Android

@@ -11,17 +11,15 @@ First-party applications and programmer tools.
 ## Commands
 
 Run these commands from the repository root.
-Use `just app/test` as an alias for `just app/test-quick`.
 
 ```sh
 just app/format
+just app/format-check
 just app/check
 just app/build
 just app/test
-just app/test-quick
-just app/test-ci
-just app/test-nightly
-just app/test-release
+just app/quick
+just app/full
 just app/generate-schema
 just app/publish --dry-run
 ```

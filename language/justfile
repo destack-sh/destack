@@ -8,31 +8,6 @@ linter-test-threads := "2"
 _default:
     @just --list --unsorted
 
-# --- ci ---
-
-# run language format gate
-ci-format:
-    just format-check
-
-# run language lint gate
-ci-lint:
-    just lint
-
-# install fixture sets required by ci language tests
-ci-install:
-    just install-parser-conformance
-    just install-formatter-conformance
-
-# run language test gates used in ci
-ci-tests:
-    just commit
-
-# run all blocking language ci gates locally
-ci:
-    just ci-format
-    just ci-lint
-    just ci-tests
-
 # --- setup ---
 
 # install test fixtures (conformance suites, ecosystem packages, resolver fixtures)
@@ -42,11 +17,8 @@ install:
     ./test/fixtures/parser/conformance/swc-fetch.sh
     ./test/fixtures/parser/conformance/biome-fetch.sh
     just install-formatter-conformance
-    ./test/fixtures/ecosystem/ecosystem-fetch.sh
+    just fetch-ecosystem
     just install-resolver
-
-# alias for install
-install-fixtures := "install"
 
 # install conformance suites
 install-parser-conformance:
@@ -97,7 +69,7 @@ install-resolver:
     done
 
 # fetch ecosystem packages
-ecosystem-fetch:
+fetch-ecosystem:
     ./test/fixtures/ecosystem/ecosystem-fetch.sh
 
 # --- build ---
@@ -106,41 +78,29 @@ ecosystem-fetch:
 check:
     cargo clippy --release {{ packages }}
 
-# lint (alias for check)
-lint:
-    just check
-
-# check runtime against windows gnu cross target
-runtime-windows-gnu-cross-check:
-    ../scripts/toolchain/runtime-windows-gnu-env.sh cargo check -p destack_runtime --target x86_64-pc-windows-gnu
-
 # run runtime smoke binary on the active host target
-run-runtime-smoke-host:
+_smoke-runtime-host:
     CARGO_INCREMENTAL=0 cargo run -p destack_runtime --bin runtime-smoke --quiet
 
+# build and run the release runtime smoke binary for one host-runnable target
+smoke-runtime-release target="":
+    ../scripts/toolchain/smoke-runtime-release.sh "{{target}}"
+
 # run runtime smoke binary on windows gnu target through wine
-runtime-windows-gnu-smoke *args:
-    ../scripts/toolchain/runtime-windows-gnu-smoke.sh {{args}}
+smoke-runtime-windows-gnu *args:
+    ../scripts/toolchain/smoke-runtime-windows-gnu.sh {{args}}
 
 # check runtime on windows gnu target with compile, clippy, and executable tests
-runtime-windows-gnu-check filter='':
-    ../scripts/toolchain/runtime-windows-gnu-check.sh "{{filter}}"
+check-runtime-windows-gnu filter='':
+    ../scripts/toolchain/check-runtime-windows-gnu.sh "{{filter}}"
 
 # build and run one crate's tests for windows target through wine
-runtime-windows-gnu-test-crate crate filter='':
-    ../scripts/toolchain/runtime-windows-gnu-test-crate.sh "{{crate}}" "{{filter}}"
+_runtime-windows-gnu-test-crate crate filter='':
+    ../scripts/toolchain/test-runtime-windows-gnu-crate.sh "{{crate}}" "{{filter}}"
 
 # build and run runtime tests for windows target through wine
-runtime-windows-gnu-test filter='':
-    ../scripts/toolchain/runtime-windows-gnu-test.sh "{{filter}}"
-
-# build and run runtime tests for windows target through wine
-test-windows-runtime filter='':
-    just runtime-windows-gnu-test "{{filter}}"
-
-# build and run resolver tests for windows target through wine
-test-windows-resolver:
-    just runtime-windows-gnu-test-crate destack_resolver
+_runtime-windows-gnu-test filter='':
+    ../scripts/toolchain/test-runtime-windows-gnu.sh "{{filter}}"
 
 # run privileged runtime platform tests for process, fs, and net
 test-runtime-privileged:
@@ -155,68 +115,66 @@ test-runtime-privileged:
     LC_ALL=C LANG=C LC_CTYPE=C DESTACK_TEST_PRIVILEGED=1 cargo test -p destack_runtime platform::net::tests:: -- --nocapture
 
 # install runtime target toolchains and host prerequisites where possible
-toolchain-install:
+install-toolchain:
     ../scripts/toolchain/runtime-toolchain.sh install
 
 # inspect runtime target toolchain readiness on this host
-toolchain-doctor:
+doctor-toolchain:
     ../scripts/toolchain/runtime-toolchain.sh doctor
 
 # ensure runtime target toolchains are present, optionally auto install with DESTACK_AUTO_INSTALL_TOOLCHAINS=1
-toolchain-ensure:
+ensure-toolchain:
     ../scripts/toolchain/runtime-toolchain.sh ensure
 
 # lint runtime toolchain shell scripts
-toolchain-lint:
+lint-toolchain:
     ../scripts/toolchain/runtime-toolchain.sh lint
 
-# backwards compatibility aliases
-alias runtime-toolchain-bootstrap := toolchain-install
-alias runtime-toolchain-doctor := toolchain-doctor
-alias runtime-toolchain-ensure := toolchain-ensure
-alias runtime-toolchain-lint := toolchain-lint
-
 # check runtime for cross targets using Zig as the C toolchain
-runtime-cross-targets-check:
-    ../scripts/toolchain/runtime-cross-targets-check.sh
+check-runtime-cross-targets:
+    ../scripts/toolchain/check-runtime-cross-targets.sh
 
 # check runtime for android target using one configured ndk toolchain
-runtime-android-check:
-    ../scripts/toolchain/runtime-android-check.sh
+check-runtime-android:
+    ../scripts/toolchain/check-runtime-android.sh
 
 # ensure android host dependencies needed by sdkmanager setup
-runtime-android-host-deps:
-    ../scripts/toolchain/runtime-android-host-deps.sh
+install-runtime-android-host-deps:
+    ../scripts/toolchain/install-runtime-android-host-deps.sh
+
+# install android sdk commandline tools and ndk into the active sdk root
+install-runtime-android-ndk:
+    ../.github/scripts/install-runtime-android-ndk.sh
 
 # check runtime for ios target using active xcode sdk
-runtime-ios-check:
-    ../scripts/toolchain/runtime-ios-check.sh
+check-runtime-ios:
+    ../scripts/toolchain/check-runtime-ios.sh
 
 # check runtime for wasip1 target
-runtime-wasip1-check:
-    ../scripts/toolchain/runtime-wasip1-check.sh
+check-runtime-wasip1:
+    ../scripts/toolchain/check-runtime-wasip1.sh
 
 # check runtime on linux host
-runtime-linux-check:
+check-runtime-linux:
     LC_ALL=C LANG=C LC_CTYPE=C cargo check -p destack_runtime
     LC_ALL=C LANG=C LC_CTYPE=C cargo clippy -p destack_runtime --all-targets -- -D warnings
     LC_ALL=C LANG=C LC_CTYPE=C cargo test -p destack_runtime runtime::host::linux:: -- --nocapture
-    just run-runtime-smoke-host
+    just _smoke-runtime-host
 
 # check runtime wayland backend against one real compositor on linux host
-runtime-linux-wayland-check:
-    ../scripts/toolchain/runtime-linux-wayland-check.sh
+check-runtime-linux-wayland:
+    ../scripts/toolchain/check-runtime-linux-wayland.sh
 
 # check runtime on macos host
-runtime-macos-check:
+check-runtime-macos:
     LC_ALL=C LANG=C LC_CTYPE=C cargo check -p destack_runtime
     LC_ALL=C LANG=C LC_CTYPE=C cargo clippy -p destack_runtime --all-targets -- -D warnings
     LC_ALL=C LANG=C LC_CTYPE=C cargo test -p destack_runtime runtime::host::macos:: -- --nocapture
-    just run-runtime-smoke-host
+    just _smoke-runtime-host
 
 # check runtime on windows host
-runtime-windows-msvc-check:
-    ../scripts/toolchain/runtime-windows-msvc-check.sh
+check-runtime-windows-msvc:
+    ../scripts/toolchain/check-runtime-windows-msvc.sh
 
 # build
 build:
@@ -242,7 +200,7 @@ doc:
 clean:
     cargo clean
 
-# --- codegen ---
+# --- generate ---
 
 # regenerate all generated code
 generate:
@@ -325,10 +283,6 @@ generate-bindings *args:
     cargo fmt -p destack_runtime
     echo "generated runtime binding catalog"
 
-# compatibility wrapper for domain-scoped generation
-generate-bindings-domains domains:
-    just generate-bindings --domains "{{domains}}"
-
 # --- builtin libs ---
 
 # typescript lib version is pinned in builtin/fetch.py
@@ -351,46 +305,40 @@ test-unit:
     cargo test --release --lib {{ packages-no-linter }}
     cargo test --release --lib -p destack_linter -- --test-threads={{ linter-test-threads }}
 
-# run quick local language tests
-quick:
+# run the fast language test suite
+test:
     just install-resolver
     just test-unit
     just test-smoke
     just test-emit
     just test-specification
     just test-query
+    just test-resolver
     just test-formatter
-    just test-grammar-all
+    just test-grammar
     just install-parser-conformance
     just install-formatter-conformance
     just test-parser-conformance
     just test-formatter-conformance
 
-# run blocking language test lanes
-commit:
+# run the fast language gate
+quick:
+    just format-check
+    just check
+    just test
+
+# run the full language gate
+full:
     just quick
-
-# run full language nightly lane
-nightly:
-    just commit
-    just ecosystem-fetch
-    just generate-stress
+    just fetch-ecosystem
     just test-ecosystem
+    just generate-stress
     just test-stress
-
-# backwards compatibility aliases
-alias test-quick := quick
-alias test-ci := commit
-alias test-nightly := nightly
-alias test-release := nightly
 
 # run all crate tests
 test-all:
     cargo test --release --all-targets --no-fail-fast {{ packages-no-linter }}
     cargo test --release --all-targets --no-fail-fast -p destack_linter -- --test-threads={{ linter-test-threads }}
-
-# run quick tests
-alias test := quick
 
 # run linter tests with capped rust test threads
 test-linter:
@@ -403,11 +351,6 @@ test-smoke:
 # run emit tests
 test-emit:
     cargo test --release -p destack_test --test emit
-
-# run mdtest suites (specification + query)
-test-mdtest:
-    just test-specification
-    just test-query
 
 # run conformance tests
 test-parser-conformance:
@@ -430,19 +373,19 @@ test-formatter-conformance-update:
     cargo test --release -p destack_test --test formatter-conformance -- --update-known-failures
 
 # snapshot formatter output for a corpus
-formatter-corpus-snapshot root="test/fixtures/formatter/conformance/staging/oxfmt" out="/tmp/destack-formatter-corpus-snapshot":
+snapshot-formatter-corpus root="test/fixtures/formatter/conformance/staging/oxfmt" out="/tmp/destack-snapshot-formatter-corpus":
     ./formatter/scripts/corpus_snapshot.sh "{{root}}" "{{out}}"
 
 # benchmark formatter parse and print throughput on a corpus
-formatter-corpus-bench root="test/fixtures/ecosystem" runs="5":
+benchmark-formatter-corpus root="test/fixtures/ecosystem" runs="5":
     ./formatter/scripts/corpus_bench.sh "{{root}}" "{{runs}}"
 
 # run formatter bench stats
-bench-formatter-stats args="--help":
+benchmark-formatter-stats args="--help":
     cargo run --release -p destack_formatter --example bench_stats -- {{args}}
 
 # diff two formatter corpus snapshots
-formatter-corpus-diff baseline candidate:
+compare-formatter-corpus baseline candidate:
     ./formatter/scripts/corpus_diff.sh "{{baseline}}" "{{candidate}}"
 
 # run ecosystem tests
@@ -481,8 +424,8 @@ test-grammar-mir:
 test-grammar-destack-node-coverage:
     bun grammar/scripts/check-destack-node-coverage.mjs
 
-# run all tree sitter grammar tests
-test-grammar-all:
+# run the grammar validation stack
+test-grammar:
     just test-grammar-corpus-routing
     just test-grammar-typescript-tsx
     just test-grammar-destack
@@ -529,36 +472,32 @@ generate-stress-resolver:
 generate-stress-checker:
     ./test/fixtures/stress/generate.sh checker
 
-# --- bench ---
+# --- benchmark ---
 
-# run parser benchmarks
-bench:
-    cargo bench -p destack_parser
+# run the benchmark suite
+benchmark:
+    just benchmark-parser
+    just benchmark-lexer
+    just benchmark-compiler
 
 # run compiler benchmarks
-bench-compiler:
+benchmark-compiler:
     cargo bench -p destack_compiler -- destack_compile
 
-# run nightly benchmark lane
-bench-nightly:
-    just bench-parser
-    just bench-lexer
-    just bench-compiler
-
 # run compiler bench stats
-bench-compiler-stats args="--help":
+benchmark-compiler-stats args="--help":
     cargo run -p destack_compiler --example bench_stats --features bench -- {{args}}
 
 # run linter bench stats
-bench-linter-stats args="--help":
+benchmark-linter-stats args="--help":
     cargo run -p destack_linter --example bench_stats -- {{args}}
 
 # run lexer benchmarks
-bench-lexer:
+benchmark-lexer:
     cargo bench -p destack_parser -- destack_lex
 
 # run parser benchmarks
-bench-parser:
+benchmark-parser:
     cargo bench -p destack_parser -- destack_ast
 
 # --- fuzz ---
@@ -568,10 +507,6 @@ fuzz duration="60":
     just fuzz-lexer {{duration}}
     just fuzz-parser {{duration}}
     just fuzz-formatter {{duration}}
-
-# run nightly fuzz smoke lane
-fuzz-nightly duration="120":
-    just fuzz {{duration}}
 
 # run lexer fuzzer
 fuzz-lexer duration="300":
@@ -586,7 +521,7 @@ fuzz-formatter duration="300":
     cd formatter/fuzz && cargo +nightly fuzz run formatter -- -max_total_time={{duration}}
 
 # list fuzz targets
-fuzz-list:
+list-fuzz-targets:
     @echo "parser/fuzz:"
     @cd parser/fuzz && cargo +nightly fuzz list
     @echo "formatter/fuzz:"

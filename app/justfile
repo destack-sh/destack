@@ -10,40 +10,11 @@ test-packages := "-p destack_cli"
 _default:
     @just --list --unsorted
 
-# --- ci ---
-
-# install js dependencies required by app gates
-ci-install:
-    bun install --frozen-lockfile
-
-# run app format gate
-ci-format:
-    just format-check
-
-# run app lint gate
-ci-lint:
-    just lint
-
-# run app test gate
-ci-tests:
-    just commit
-
-# run all blocking app ci gates locally
-ci:
-    just ci-install
-    just ci-format
-    just ci-lint
-    just ci-tests
-
 # --- build ---
 
 # check app crates
 check:
     cargo clippy --release {{ packages }}
-
-# lint alias
-lint:
-    just check
 
 # build all app packages
 build:
@@ -66,33 +37,25 @@ clean:
 
 # --- test ---
 
-# run quick local app tests
-quick:
+# run app tests
+test:
     cargo test --release --all-targets {{ test-packages }}
 
-# run blocking app test lanes
-commit:
+# run the fast app gate
+quick:
+    just format-check
+    just check
+    just test
+
+# run the full app gate
+full:
     just quick
-
-# run deep app test lanes
-nightly:
-    just commit
-
-# backwards compatibility aliases
-alias test-quick := quick
-alias test-ci := commit
-alias test-nightly := nightly
-alias test-release := nightly
-alias test := quick
 
 # --- schema ---
 
 # generate cli report schema
 generate-schema:
     cargo run -p destack_cli --features schema --bin generate-cli-schema --release > cli/generated/cli-report.schema.json
-
-# alias for generate-schema
-schema := "generate-schema"
 
 # --- release ---
 
@@ -218,11 +181,3 @@ publish-cli dry="--dry-run":
 # publish app packages dry by default
 publish dry="--dry-run":
     just publish-cli "{{dry}}"
-
-# publish app packages as dry run
-publish-dry:
-    just publish --dry-run
-
-# publish app packages live
-publish-live:
-    just publish ""

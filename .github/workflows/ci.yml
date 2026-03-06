@@ -27,8 +27,11 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Install just
+        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
+
       - name: Validate zed grammar pins
-        run: python3 bridge/zed/scripts/check_grammar_sources.py --require-pinned --pin-destack-revision "${GITHUB_SHA}"
+        run: just bridge/validate-zed-grammars-strict --pin-destack-revision "${GITHUB_SHA}"
 
   changes:
     name: Changed Paths
@@ -120,8 +123,8 @@ jobs:
       - name: Install just
         uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
-      - name: Run ci hygiene checks
-        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just check-ci-hygiene
+      - name: Run hygiene checks
+        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just check-hygiene
 
   language-format:
     name: Language Format
@@ -141,10 +144,10 @@ jobs:
           rust_components: rustfmt
 
       - name: Run language format check
-        run: just language/ci-format
+        run: just language/format-check
 
-  language-lint:
-    name: Language Lint
+  language-check:
+    name: Language Check
     runs-on: ubuntu-latest
     timeout-minutes: 90
     needs:
@@ -160,8 +163,8 @@ jobs:
         with:
           rust_components: clippy
 
-      - name: Run language lint
-        run: just language/ci-lint
+      - name: Run language check
+        run: just language/check
 
   language-tests:
     name: Language Tests
@@ -198,8 +201,8 @@ jobs:
             language/test/fixtures/formatter/conformance/staging/oxfmt
           key: ${{ runner.os }}-language-formatter-conformance-${{ hashFiles('language/test/fixtures/formatter/conformance/*-fetch.sh') }}
 
-      - name: Run language ci tests
-        run: just language/commit
+      - name: Run language tests
+        run: just language/test
 
   language-resolver-windows:
     name: Language Resolver Windows
@@ -308,10 +311,10 @@ jobs:
           install_js_dependencies: "true"
 
       - name: Run library format check
-        run: just library/ci-format
+        run: just library/format-check
 
-  library-lint:
-    name: Library Lint
+  library-check:
+    name: Library Check
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs:
@@ -328,8 +331,8 @@ jobs:
           rust_components: clippy
           install_js_dependencies: "true"
 
-      - name: Run library lint
-        run: just library/ci-lint
+      - name: Run library check
+        run: just library/check
 
   library-tests:
     name: Library Tests
@@ -348,8 +351,8 @@ jobs:
         with:
           install_js_dependencies: "true"
 
-      - name: Run library commit tests
-        run: just library/commit
+      - name: Run library tests
+        run: just library/test
 
   service-app-bridge-format:
     name: Service App Bridge Format
@@ -369,16 +372,16 @@ jobs:
           rust_components: rustfmt
 
       - name: Run service format check
-        run: just service/ci-format
+        run: just service/format-check
 
       - name: Run app format check
-        run: just app/ci-format
+        run: just app/format-check
 
       - name: Run bridge format check
-        run: just bridge/ci-format
+        run: just bridge/format-check
 
-  service-app-bridge-lint:
-    name: Service App Bridge Lint
+  service-app-bridge-check:
+    name: Service App Bridge Check
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs:
@@ -394,14 +397,14 @@ jobs:
         with:
           rust_components: clippy
 
-      - name: Run service lint
-        run: just service/ci-lint
+      - name: Run service check
+        run: just service/check
 
-      - name: Run app lint
-        run: just app/ci-lint
+      - name: Run app check
+        run: just app/check
 
-      - name: Run bridge lint
-        run: just bridge/ci-lint
+      - name: Run bridge check
+        run: just bridge/check
 
   service-app-bridge-tests:
     name: Service App Bridge Tests
@@ -420,17 +423,14 @@ jobs:
         with:
           install_js_dependencies: "true"
 
-      - name: Ensure language bridge toolchains
-        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just bridge/toolchain-ensure
+      - name: Run service tests
+        run: just service/test
 
-      - name: Run service commit tests
-        run: just service/commit
+      - name: Run app tests
+        run: just app/test
 
-      - name: Run app commit tests
-        run: just app/commit
-
-      - name: Run bridge commit tests
-        run: just bridge/commit
+      - name: Run bridge tests
+        run: just bridge/test
 
   bridge-swift-build:
     name: Bridge Swift Build

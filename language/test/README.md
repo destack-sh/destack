@@ -1,90 +1,88 @@
 # Destack Language Tests
 
-Integration and fixture-based tests for the Destack language toolchain.
+This crate and fixture tree provide the language-specific test suites for Destack.
+See [TESTING.md](../../TESTING.md) for the repository-wide model.
 
-> See [TESTING.md](../../TESTING.md) for the overall testing philosophy and strategy.
+## Structure
 
-## Test Suites
+Language testing uses two storage patterns.
+Unit tests stay with the crates they exercise.
+Fixture-driven suites live under `language/test/fixtures/` and are run by the `destack_test` harness.
+There is no separate `unit/` fixture tree.
+Unit tests enter the language gate model through `just test-unit`.
 
-| Suite | Location | Description |
-|-------|----------|-------------|
-| **Smoke** | `fixtures/smoke/` | Parser and compiler don't crash, no errors on valid input |
-| **Codegen** | `fixtures/codegen/` | Transpilation output matches expected snapshots |
-| **Specification** | `fixtures/specification/` | MDTest-driven type checking and diagnostics |
-| **Query** | `fixtures/query/` | MDTest-driven IDE/LSP queries |
-| **Conformance** | `fixtures/parser/conformance/` | Parser conformance against established test suites |
-| **Formatter** | `fixtures/formatter/` | Format roundtrip stability |
-| **Resolver** | `fixtures/resolver/` | Module resolution from Node-style and TypeScript-style layouts |
-| **Interop canary** | `fixtures/ecosystem/` | Curated TS-first Node, backend, and tooling packages |
-| **Stress** | `fixtures/stress/` | Scale limits: large files, many modules, deep nesting |
+## Suite Taxonomy
 
-## Testing
+The current language suite taxonomy is:
+
+| Suite | Family | Location | Purpose |
+|-------|--------|----------|---------|
+| **Unit** | Core correctness | crate local tests | Internal invariants and focused logic |
+| **Smoke** | Core correctness | `fixtures/smoke/` | Broad sanity checks for parser and compiler flows |
+| **Emit** | Core correctness | `fixtures/emit/` | Emitted output matches curated snapshots |
+| **Specification** | Core correctness | `fixtures/specification/` | First-party language semantics and diagnostics |
+| **Query** | Core correctness | `fixtures/query/` | IDE and LSP behavior |
+| **Resolver** | Core correctness | `fixtures/resolver/` | Module and package resolution |
+| **Formatter** | Core correctness | `fixtures/formatter/` | Formatting behavior on first-party fixtures |
+| **Parser Conformance** | External conformance | `fixtures/parser/conformance/` | Behavior against pinned upstream parser suites |
+| **Formatter Conformance** | External conformance | `fixtures/formatter/conformance/` | Behavior against pinned upstream formatter suites |
+| **Ecosystem** | External ecosystem coverage | `fixtures/ecosystem/` | Curated TS-first Node, backend, and tooling packages |
+| **Stress** | Robustness | `fixtures/stress/` | Correctness on very large and pathological inputs |
+
+`node-conformance` will join the external conformance family once it lands.
+
+## Gates
 
 Run these from `language/` unless noted otherwise.
-Use `just test` as an alias for `just quick`.
-`quick` is the main high-signal correctness lane.
-`commit` currently reuses that deterministic lane.
-`nightly` adds ecosystem canaries and stress.
+
+| Gate | Meaning |
+|------|---------|
+| **Quick** | Fast deterministic language verification |
+| **Full** | `quick` plus ecosystem and stress coverage |
+
+`just test` is the language test aggregate used by `just quick`.
+It includes unit, smoke, emit, specification, query, resolver, formatter, grammar, parser conformance, and formatter conformance.
+`just full` then adds `ecosystem` and `stress`.
+
+## Commands
+
+Use these commands when iterating on the language stack.
 
 ```bash
-# shared gate lanes
+# aggregate lanes
 just test
 just quick
-just commit
-just nightly
+just full
 
-# run all tests via cargo
-cargo test -p destack_test
+# core suites
+just test-unit
+just test-smoke
+just test-emit
+just test-specification
+just test-query
+just test-resolver
+just test-formatter
+just test-grammar
 
-# run specific test suites
-cargo test --test smoke
-cargo test --test codegen
-cargo test --test specification
-cargo test --test query
-cargo test --test parser-conformance
-cargo test --test formatter
-cargo test --test ecosystem
-cargo test --test stress
+# external suites
+just test-parser-conformance
+just test-formatter-conformance
+just fetch-ecosystem
+just test-ecosystem
 
-# resolver tests
-cargo test -p destack_resolver
-
-# filter by name
-cargo test --test smoke -- parser
-cargo test --test smoke -- compiler
-cargo test --test specification -- basics
-
-# list tests without running
-cargo test --test smoke -- --list
-
-# verbose output
-cargo test --test smoke -- --verbose
-```
-
-## MDTest Framework
-
-The MDTest framework powers both **Specification** and **Query** tests using markdown-driven test definitions.
-
-### Specification Tests
-
-Type checking specification tests live in `fixtures/specification/`.
-They are markdown files with code blocks and expected error messages.
-See `fixtures/specification/README.md` for format details.
-
-### Query Tests
-
-IDE and LSP query tests live in `fixtures/query/`.
-They use marker annotations such as `def:`, `use:`, and `$0` to specify locations and expected results.
-They cover navigation, completion, and rename workflows.
-
-## Stress Tests
-
-Stress tests verify that the toolchain handles extreme scale.
-Fixtures are generated on-demand:
-
-```bash
+# robustness
 just generate-stress
 just test-stress
 ```
 
-See `fixtures/stress/README.md` for categories and fixture details.
+## MDTest
+
+The MDTest framework powers both `specification` and `query`.
+Specification fixtures define language semantics and diagnostics in markdown.
+Query fixtures define IDE and LSP behavior through source markers and expected results.
+
+## Performance
+
+This crate also houses MIR benchmark workloads through [`mirbench/`](mirbench/README.md).
+Benchmarks are measurement tools, not ordinary correctness gates.
+Stress is a correctness suite under extreme scale, not a benchmark suite.

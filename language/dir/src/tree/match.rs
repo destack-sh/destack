@@ -95,7 +95,11 @@ impl MatchCase {
     /// Return the selector for this match case.
     pub fn selector(&self) -> &MatchSelector {
         match self {
-            Self::Expression { selector, body: _, scope: _ }
+            Self::Expression {
+                selector,
+                body: _,
+                scope: _,
+            }
             | Self::Block {
                 selector,
                 body: _,

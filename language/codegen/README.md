@@ -59,6 +59,6 @@ cargo test -p destack_codegen_native
 ### End to end coverage
 
 ```sh
-just language/test-codegen
+just language/test-emit
 cargo test -p destack_test --test optimize
 ```

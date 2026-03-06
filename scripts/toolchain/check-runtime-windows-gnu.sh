@@ -9,8 +9,8 @@ source "${script_directory}/lib/runtime-common.sh"
 source "${script_directory}/lib/runtime-windows-gnu.sh"
 
 target="$(runtime_windows_gnu_target)"
-runtime_test_script="${script_directory}/runtime-windows-gnu-test.sh"
-runtime_smoke_script="${script_directory}/runtime-windows-gnu-smoke.sh"
+runtime_test_script="${script_directory}/test-runtime-windows-gnu.sh"
+runtime_smoke_script="${script_directory}/smoke-runtime-windows-gnu.sh"
 
 # ensure target std is available before cargo check
 runtime_ensure_rust_target "${target}"

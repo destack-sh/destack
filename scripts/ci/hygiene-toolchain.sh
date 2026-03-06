@@ -55,8 +55,8 @@ doctor_toolchains() {
 
 	if [[ "${has_error}" == "1" ]]; then
 		printf 'ci hygiene toolchain doctor: failed\n'
-		printf 'run: just ci-hygiene-toolchain-install\n'
-		printf 'or: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just check-ci-hygiene\n'
+		printf 'run: just install-hygiene-toolchain\n'
+		printf 'or: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just check-hygiene\n'
 		return 1
 	fi
 
@@ -140,8 +140,8 @@ ensure_toolchains() {
 
 	if [[ "${auto_install}" != "1" ]]; then
 		echo "missing required ci hygiene toolchains"
-		echo "run: just ci-hygiene-toolchain-install"
-		echo "or run with auto install: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just check-ci-hygiene"
+		echo "run: just install-hygiene-toolchain"
+		echo "or run with auto install: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just check-hygiene"
 		return 1
 	fi
 

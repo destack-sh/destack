@@ -12,15 +12,13 @@ First-party services for most things most software needs, including some Destack
 ## Commands
 
 Run these commands from the repository root.
-Use `just service/test` as an alias for `just service/test-quick`.
 
 ```sh
 just service/format
+just service/format-check
 just service/check
 just service/build
 just service/test
-just service/test-quick
-just service/test-ci
-just service/test-nightly
-just service/test-release
+just service/quick
+just service/full
 ```

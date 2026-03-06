@@ -21,7 +21,7 @@ Run `just -f language/justfile test-grammar-mir` for MIR corpus coverage.
 Run `just -f language/justfile test-grammar-destack-node-coverage` to enforce coverage of all Destack-only named nodes in Destack corpus expected trees.
 Run `just -f language/justfile test-grammar-specification-sweep` to parse specification markdown fixture code fences with the tree-sitter grammars and report parse errors.
 Run `just -f language/justfile test-grammar-specification-sweep-positive` to fail when parser errors appear in positive specification cases.
-Run `just -f language/justfile test-grammar-all` to run the full grammar validation stack.
+Run `just -f language/justfile test-grammar` to run the full grammar validation stack.
 
 ## Profiling
 

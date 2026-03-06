@@ -43,8 +43,8 @@ jobs:
           rust_components: clippy
           rust_targets: aarch64-linux-android
 
-      - name: Ensure Android host dependencies
-        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just runtime-android-host-deps
+      - name: Install Android host dependencies
+        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just language/install-runtime-android-host-deps
 
       - name: Restore Android sdk cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
@@ -55,13 +55,13 @@ jobs:
             ${{ runner.temp }}/android-sdk/ndk/${{ env.ANDROID_NDK_VERSION }}
           key: ${{ runner.os }}-android-sdk-${{ env.ANDROID_CMDLINE_TOOLS_VERSION }}-ndk-${{ env.ANDROID_NDK_VERSION }}
 
-      - name: Install Android NDK
-        run: ./.github/scripts/install-android-ndk.sh
+      - name: Install Android runtime NDK
+        run: just language/install-runtime-android-ndk
         env:
           ANDROID_SDK_ROOT: ${{ runner.temp }}/android-sdk
 
-      - name: Run android runtime check
-        run: just runtime-android-check
+      - name: Check runtime on Android
+        run: just language/check-runtime-android
         env:
           ANDROID_API_LEVEL: ${{ env.ANDROID_API_LEVEL }}
           ANDROID_NDK_ROOT: ${{ runner.temp }}/android-sdk/ndk/${{ env.ANDROID_NDK_VERSION }}

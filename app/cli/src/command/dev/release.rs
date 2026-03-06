@@ -48,9 +48,9 @@ pub struct ReleaseArgs {
     #[arg(long = "skip-preflight")]
     pub is_skip_preflight: bool,
 
-    /// Publish live instead of dry run.
-    #[arg(long = "publish-live")]
-    pub is_publish_live: bool,
+    /// Publish instead of dry run.
+    #[arg(long = "publish")]
+    pub is_publish: bool,
 
     /// Include zed registry publish in the release flow.
     #[arg(long = "publish-zed")]
@@ -91,7 +91,7 @@ pub fn run(args: &ReleaseArgs) -> i32 {
     }
 
     // run app publish in dry mode by default
-    let publish_mode_argument = if args.is_publish_live {
+    let publish_mode_argument = if args.is_publish {
         OsString::from("")
     } else {
         OsString::from("--dry-run")

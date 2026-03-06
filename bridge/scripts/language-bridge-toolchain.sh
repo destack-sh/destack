@@ -128,17 +128,17 @@ install_toolchains() {
 		exit 1
 	fi
 
-	require_command dotnet "install .NET SDK ${DESTACK_DOTNET_CHANNEL} and re-run: just bridge/toolchain-install"
-	require_command mvn "install maven and re-run: just bridge/toolchain-install"
-	require_command java "install JDK ${DESTACK_JAVA_MAJOR_VERSION} and re-run: just bridge/toolchain-install"
-	require_command javac "install JDK ${DESTACK_JAVA_MAJOR_VERSION} and re-run: just bridge/toolchain-install"
-	require_command go "install go and re-run: just bridge/toolchain-install"
-	require_command ruby "install ruby and re-run: just bridge/toolchain-install"
-	require_command dart "install dart and re-run: just bridge/toolchain-install"
-	require_command mix "install elixir and re-run: just bridge/toolchain-install"
+	require_command dotnet "install .NET SDK ${DESTACK_DOTNET_CHANNEL} and re-run: just bridge/install-toolchain"
+	require_command mvn "install maven and re-run: just bridge/install-toolchain"
+	require_command java "install JDK ${DESTACK_JAVA_MAJOR_VERSION} and re-run: just bridge/install-toolchain"
+	require_command javac "install JDK ${DESTACK_JAVA_MAJOR_VERSION} and re-run: just bridge/install-toolchain"
+	require_command go "install go and re-run: just bridge/install-toolchain"
+	require_command ruby "install ruby and re-run: just bridge/install-toolchain"
+	require_command dart "install dart and re-run: just bridge/install-toolchain"
+	require_command mix "install elixir and re-run: just bridge/install-toolchain"
 
 	if [[ "${host_kernel}" == "Darwin" ]]; then
-		require_command swift "install swift and re-run: just bridge/toolchain-install"
+		require_command swift "install swift and re-run: just bridge/install-toolchain"
 	fi
 
 	dotnet --version
@@ -226,7 +226,7 @@ doctor_toolchains() {
 
 	if [[ "${has_error}" == "1" ]]; then
 		printf 'bridge language toolchain doctor: failed\n'
-		printf 'run: just bridge/toolchain-install\n'
+		printf 'run: just bridge/install-toolchain\n'
 		printf 'or: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just bridge/test-language-bridges\n'
 		return 1
 	fi
@@ -246,7 +246,7 @@ ensure_toolchains() {
 
 	if [[ "${auto_install}" != "1" ]]; then
 		echo "missing required bridge language toolchains"
-		echo "run: just bridge/toolchain-install"
+		echo "run: just bridge/install-toolchain"
 		echo "or run with auto install: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just bridge/test-language-bridges"
 		return 1
 	fi
