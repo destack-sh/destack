@@ -15,7 +15,7 @@ use destack_formatter::{
     FormatterCacheStatsSnapshot, FormatterCounterEntry, FormatterTimingEntry, statement_list,
 };
 use destack_parser::Parser as DestackParser;
-use destack_source::{File, FileId, FileType, IgnoreSet, LanguageType, MultiSpan, Uri};
+use destack_source::{File, FileId, FileType, IgnoreSet, LanguageType, Uri};
 
 const DEFAULT_ROOT: &str = "test/fixtures/ecosystem/checkouts";
 const QUICK_CORPUS_PACKAGES: &[&str] = &[
@@ -55,7 +55,7 @@ const RED: &str = "\x1b[31m";
 #[derive(Parser, Debug)]
 #[command(
     name = "bench_stats",
-    about = "Formatter corpus performance benchmarks"
+    about = "Parser and formatter corpus performance benchmarks"
 )]
 struct Args {
     /// Corpus checkout root directory or source file.
@@ -113,6 +113,22 @@ struct Args {
     /// Number of top timing tags to print when timings are enabled.
     #[arg(long, default_value_t = 20)]
     timings_top: usize,
+
+    /// Parse only and skip formatter and printer stages.
+    #[arg(long)]
+    parse_only: bool,
+
+    /// Skip trivia attachment and post-parse formatter preparation.
+    #[arg(long)]
+    no_trivia: bool,
+
+    /// Skip formatter document building.
+    #[arg(long)]
+    no_format: bool,
+
+    /// Skip printing the formatter document.
+    #[arg(long)]
+    no_print: bool,
 }
 
 /// Output format for benchmark results.
@@ -260,6 +276,7 @@ struct FileAggregate {
 struct BenchSummary {
     root: PathBuf,
     mode: BenchMode,
+    stages: BenchStages,
     workers: usize,
     files: usize,
     formatted_files_per_run: usize,
@@ -334,6 +351,55 @@ struct CorpusSelection {
     package_names: Vec<String>,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct BenchStages {
+    attach_trivia: bool,
+    format: bool,
+    print: bool,
+}
+
+impl BenchStages {
+    /// Build stage selection from command line arguments.
+    fn from_args(args: &Args) -> Result<Self, String> {
+        let mut format = !args.no_format;
+        let mut print = !args.no_print;
+        if args.parse_only {
+            format = false;
+            print = false;
+        }
+        if !format {
+            print = false;
+        }
+
+        let attach_trivia = !args.no_trivia;
+        if format && !attach_trivia {
+            return Err("--no-trivia requires --no-format or --parse-only".to_string());
+        }
+
+        Ok(Self {
+            attach_trivia,
+            format,
+            print,
+        })
+    }
+
+    /// Return a compact stage label.
+    fn label(self) -> String {
+        let mut stages = vec!["parse"];
+        if self.attach_trivia {
+            stages.push("trivia");
+        }
+        if self.format {
+            stages.push("format");
+        }
+        if self.print {
+            stages.push("print");
+        }
+
+        stages.join("+")
+    }
+}
+
 /// Style helpers for table output.
 struct TableStyle {
     bold: &'static str,
@@ -403,6 +469,7 @@ fn main() -> Result<(), String> {
     if args.runs == 0 {
         return Err("--runs must be greater than zero".to_string());
     }
+    let stages = BenchStages::from_args(&args)?;
 
     let root = resolve_root_path(args.root.as_path())?;
     let selection = resolve_corpus_selection(root.as_path(), args.corpus, &args.packages)?;
@@ -422,9 +489,10 @@ fn main() -> Result<(), String> {
 
     if progress {
         eprintln!(
-            "bench_stats: corpus {} [{}|{}] ({} files, {} lines), warmup {}, measured {}, workers {}, timings {}",
+            "bench_stats: corpus {} [{}|{}|{}] ({} files, {} lines), warmup {}, measured {}, workers {}, timings {}",
             root.display(),
             args.mode.as_str(),
+            stages.label(),
             args.corpus.as_str(),
             format_count(files.len()),
             format_count(corpus_lines),
@@ -454,7 +522,7 @@ fn main() -> Result<(), String> {
     }
 
     for warmup_index in 0..args.warmup_runs {
-        let run = run_single_benchmark(&files, args.workers, args.timings, args.mode)?;
+        let run = run_single_benchmark(&files, args.workers, args.timings, args.mode, stages)?;
         if progress {
             eprintln!(
                 "  run {}/{} warmup   total {}",
@@ -467,7 +535,7 @@ fn main() -> Result<(), String> {
 
     let mut measured_runs = Vec::with_capacity(args.runs);
     for run_index in 0..args.runs {
-        let run = run_single_benchmark(&files, args.workers, args.timings, args.mode)?;
+        let run = run_single_benchmark(&files, args.workers, args.timings, args.mode, stages)?;
         if progress {
             eprintln!(
                 "  run {}/{} measured total {}",
@@ -489,6 +557,7 @@ fn main() -> Result<(), String> {
     let summary = summarize(
         root.as_path(),
         args.mode,
+        stages,
         args.workers.max(1),
         args.warmup_runs,
         args.top,
@@ -629,6 +698,7 @@ fn run_single_benchmark(
     workers: usize,
     timings_enabled: bool,
     mode: BenchMode,
+    stages: BenchStages,
 ) -> Result<BenchRunStats, String> {
     let run_started_at = Instant::now();
     if files.is_empty() {
@@ -667,7 +737,8 @@ fn run_single_benchmark(
     if worker_count == 1 {
         let mut file_stats = Vec::with_capacity(files.len());
         for (index, corpus_file) in files.iter().enumerate() {
-            let file_stat = benchmark_file(index as u32, corpus_file, timings_enabled, mode)?;
+            let file_stat =
+                benchmark_file(index as u32, corpus_file, timings_enabled, mode, stages)?;
             file_stats.push(file_stat);
         }
 
@@ -690,15 +761,19 @@ fn run_single_benchmark(
                     }
 
                     let corpus_file = &files[file_index];
-                    let file_stat =
-                        match benchmark_file(file_index as u32, corpus_file, timings_enabled, mode)
-                        {
-                            Ok(file_stat) => file_stat,
-                            Err(error) => {
-                                let _ = sender.send(Err(error));
-                                return;
-                            }
-                        };
+                    let file_stat = match benchmark_file(
+                        file_index as u32,
+                        corpus_file,
+                        timings_enabled,
+                        mode,
+                        stages,
+                    ) {
+                        Ok(file_stat) => file_stat,
+                        Err(error) => {
+                            let _ = sender.send(Err(error));
+                            return;
+                        }
+                    };
                     chunk_stats.push((file_index, file_stat));
                 }
 
@@ -881,6 +956,7 @@ fn benchmark_file(
     corpus_file: &CorpusFile,
     timings_enabled: bool,
     mode: BenchMode,
+    stages: BenchStages,
 ) -> Result<FileRunStat, String> {
     let total_started_at = Instant::now();
 
@@ -902,9 +978,13 @@ fn benchmark_file(
     let expressions: Vec<LocalNodeId<Expression>> = parser.parse_without_trivia();
     let parse_main = parse_main_started_at.elapsed();
 
-    let parse_finish_started_at = Instant::now();
-    parser.attach_trivia();
-    let parse_finish = parse_finish_started_at.elapsed();
+    let parse_finish = if stages.attach_trivia {
+        let parse_finish_started_at = Instant::now();
+        parser.attach_trivia();
+        parse_finish_started_at.elapsed()
+    } else {
+        Duration::ZERO
+    };
 
     let parse_post_timing_snapshot_started_at = Instant::now();
     let parser_timings = if timings_enabled {
@@ -914,72 +994,130 @@ fn benchmark_file(
     };
     let parse_post_timing_snapshot = parse_post_timing_snapshot_started_at.elapsed();
 
-    let parse_post_side_span_started_at = Instant::now();
-    let side_span: MultiSpan = parser.compute_side_span();
-    let parse_post_side_span = parse_post_side_span_started_at.elapsed();
+    let (parse_post_side_span, side_span) = if stages.format {
+        let parse_post_side_span_started_at = Instant::now();
+        let side_span = parser.compute_side_span();
+        (parse_post_side_span_started_at.elapsed(), Some(side_span))
+    } else {
+        (Duration::ZERO, None)
+    };
 
-    let parse_post_take_tokens_started_at = Instant::now();
-    let (tokens, side_tokens) = parser.take_tokens();
-    let parse_post_take_tokens = parse_post_take_tokens_started_at.elapsed();
+    let (parse_post_take_tokens, tokens, side_tokens) = if stages.format {
+        let parse_post_take_tokens_started_at = Instant::now();
+        let (tokens, side_tokens) = parser.take_tokens();
+        (
+            parse_post_take_tokens_started_at.elapsed(),
+            Some(tokens),
+            Some(side_tokens),
+        )
+    } else {
+        (Duration::ZERO, None, None)
+    };
 
     let tree = parser.tree;
 
-    let parse_post_freeze_strings_started_at = Instant::now();
-    let strings = parser.strings.into_immutable();
-    let parse_post_freeze_strings = parse_post_freeze_strings_started_at.elapsed();
+    let (parse_post_freeze_strings, strings) = if stages.format {
+        let parse_post_freeze_strings_started_at = Instant::now();
+        let strings = parser.strings.into_immutable();
+        (
+            parse_post_freeze_strings_started_at.elapsed(),
+            Some(strings),
+        )
+    } else {
+        (Duration::ZERO, None)
+    };
 
-    let parse_post_parent_index_started_at = Instant::now();
-    let parents = NodeParentIndex::from_tree(&tree);
-    let parse_post_parent_index = parse_post_parent_index_started_at.elapsed();
+    let (parse_post_parent_index, parents) = if stages.format {
+        let parse_post_parent_index_started_at = Instant::now();
+        let parents = NodeParentIndex::from_tree(&tree);
+        (parse_post_parent_index_started_at.elapsed(), Some(parents))
+    } else {
+        (Duration::ZERO, None)
+    };
 
     let parse = parse_started_at.elapsed();
 
-    let options =
-        DestackFormatOptions::default().with_respect_file_ignore(mode == BenchMode::RealWorld);
-    let context = DestackFormatContext::new_with_timings(
-        options,
-        DestackFormatArtifacts {
-            file: file.as_ref(),
-            tree: &tree,
-            tokens: &tokens,
-            side_tokens: &side_tokens,
-            side_span: &side_span,
-            strings: &strings,
-            parents,
-        },
-        timings_enabled,
-    );
-    let timing_collector = context.timings.clone();
-    let cache_collector = context.cache_stats.clone();
-    let counter_collector = context.counters.clone();
-    let file_ignore_applied = context.file_ignore_applied.clone();
+    let mut cache = FormatterCacheStatsSnapshot::default();
+    let mut timings = Vec::new();
+    let mut counters = Vec::new();
+    let mut skipped_by_file_ignore = false;
+    let mut formatted_lines = 0usize;
+    let mut skipped_lines = 0usize;
+    let mut formatted_bytes = 0usize;
+    let mut skipped_bytes = 0usize;
+    let mut output_bytes = 0usize;
+    let mut format = Duration::ZERO;
+    let mut print = Duration::ZERO;
 
-    let format_started_at = Instant::now();
-    let formatted = destack_fir::format!(context, [statement_list(&expressions)])
-        .map_err(|error| format!("format error for {}: {error:?}", corpus_file.path.display()))?;
-    let format = format_started_at.elapsed();
+    if stages.format {
+        let tokens = tokens.expect("format stage requires main tokens");
+        let side_tokens = side_tokens.expect("format stage requires side tokens");
+        let side_span = side_span.expect("format stage requires side span");
+        let strings = strings.expect("format stage requires frozen strings");
+        let parents = parents.expect("format stage requires parent index");
+        let options =
+            DestackFormatOptions::default().with_respect_file_ignore(mode == BenchMode::RealWorld);
+        let context = DestackFormatContext::new_with_timings(
+            options,
+            DestackFormatArtifacts {
+                file: file.as_ref(),
+                tree: &tree,
+                tokens: &tokens,
+                side_tokens: &side_tokens,
+                side_span: &side_span,
+                strings: &strings,
+                parents,
+            },
+            timings_enabled,
+        );
+        let timing_collector = context.timings.clone();
+        let cache_collector = context.cache_stats.clone();
+        let counter_collector = context.counters.clone();
+        let file_ignore_applied = context.file_ignore_applied.clone();
 
-    let print_started_at = Instant::now();
-    let printed = formatted
-        .print()
-        .map_err(|error| format!("print error for {}: {error:?}", corpus_file.path.display()))?;
-    let print = print_started_at.elapsed();
+        let format_started_at = Instant::now();
+        let formatted =
+            destack_fir::format!(context, [statement_list(&expressions)]).map_err(|error| {
+                format!("format error for {}: {error:?}", corpus_file.path.display())
+            })?;
+        format = format_started_at.elapsed();
 
-    let output_bytes = printed.as_str().len();
-    let total = total_started_at.elapsed();
-    let cache = FormatterCacheStatsSnapshot {
-        span_text_hits: cache_collector.span_text_hits.get(),
-        span_text_misses: cache_collector.span_text_misses.get(),
-        span_has_newline_hits: cache_collector.span_has_newline_hits.get(),
-        span_has_newline_misses: cache_collector.span_has_newline_misses.get(),
-        span_has_comment_hits: cache_collector.span_has_comment_hits.get(),
-        span_has_comment_misses: cache_collector.span_has_comment_misses.get(),
-        annotation_cache_hits: cache_collector.annotation_cache_hits.get(),
-        annotation_cache_misses: cache_collector.annotation_cache_misses.get(),
-    };
-    let mut timings = timing_collector
-        .as_ref()
-        .map_or_else(Vec::new, |timings| timings.snapshot());
+        if stages.print {
+            let print_started_at = Instant::now();
+            let printed = formatted.print().map_err(|error| {
+                format!("print error for {}: {error:?}", corpus_file.path.display())
+            })?;
+            print = print_started_at.elapsed();
+            output_bytes = printed.as_str().len();
+        }
+
+        cache = FormatterCacheStatsSnapshot {
+            span_text_hits: cache_collector.span_text_hits.get(),
+            span_text_misses: cache_collector.span_text_misses.get(),
+            span_has_newline_hits: cache_collector.span_has_newline_hits.get(),
+            span_has_newline_misses: cache_collector.span_has_newline_misses.get(),
+            span_has_comment_hits: cache_collector.span_has_comment_hits.get(),
+            span_has_comment_misses: cache_collector.span_has_comment_misses.get(),
+            annotation_cache_hits: cache_collector.annotation_cache_hits.get(),
+            annotation_cache_misses: cache_collector.annotation_cache_misses.get(),
+        };
+        timings = timing_collector
+            .as_ref()
+            .map_or_else(Vec::new, |timings| timings.snapshot());
+        counters = counter_collector.snapshot();
+        skipped_by_file_ignore = file_ignore_applied.get();
+        (formatted_lines, skipped_lines) = if skipped_by_file_ignore {
+            (0usize, corpus_file.source_lines)
+        } else {
+            (corpus_file.source_lines, 0usize)
+        };
+        (formatted_bytes, skipped_bytes) = if skipped_by_file_ignore {
+            (0usize, corpus_file.source_bytes)
+        } else {
+            (corpus_file.source_bytes, 0usize)
+        };
+    }
+
     if timings_enabled {
         timings.extend(
             parser_timings
@@ -991,18 +1129,8 @@ fn benchmark_file(
                 }),
         );
     }
-    let counters = counter_collector.snapshot();
-    let skipped_by_file_ignore = file_ignore_applied.get();
-    let (formatted_lines, skipped_lines) = if skipped_by_file_ignore {
-        (0usize, corpus_file.source_lines)
-    } else {
-        (corpus_file.source_lines, 0usize)
-    };
-    let (formatted_bytes, skipped_bytes) = if skipped_by_file_ignore {
-        (0usize, corpus_file.source_bytes)
-    } else {
-        (corpus_file.source_bytes, 0usize)
-    };
+
+    let total = total_started_at.elapsed();
 
     Ok(FileRunStat {
         path: corpus_file.path.clone(),
@@ -1036,6 +1164,7 @@ fn benchmark_file(
 fn summarize(
     root: &Path,
     mode: BenchMode,
+    stages: BenchStages,
     workers: usize,
     warmup_runs: usize,
     top: usize,
@@ -1111,41 +1240,13 @@ fn summarize(
     let sink = runs.iter().fold(0usize, |acc, run| acc ^ run.sink);
 
     let files = runs.first().map_or(0, |run| run.files.len());
-    let files_per_second = if mean.is_zero() {
-        f64::INFINITY
-    } else {
-        files as f64 / mean.as_secs_f64()
-    };
-    let lines_per_second = if mean.is_zero() {
-        f64::INFINITY
-    } else {
-        source_lines_per_run as f64 / mean.as_secs_f64()
-    };
-    let formatted_lines_per_second = if mean.is_zero() {
-        f64::INFINITY
-    } else {
-        formatted_lines_per_run as f64 / mean.as_secs_f64()
-    };
-    let parse_lines_per_second = if mean_parse.is_zero() {
-        f64::INFINITY
-    } else {
-        source_lines_per_run as f64 / mean_parse.as_secs_f64()
-    };
-    let format_lines_per_second = if mean_format.is_zero() {
-        f64::INFINITY
-    } else {
-        source_lines_per_run as f64 / mean_format.as_secs_f64()
-    };
-    let format_formatted_lines_per_second = if mean_format.is_zero() {
-        f64::INFINITY
-    } else {
-        formatted_lines_per_run as f64 / mean_format.as_secs_f64()
-    };
-    let print_lines_per_second = if mean_print.is_zero() {
-        f64::INFINITY
-    } else {
-        source_lines_per_run as f64 / mean_print.as_secs_f64()
-    };
+    let files_per_second = rate_per_second(files, mean);
+    let lines_per_second = rate_per_second(source_lines_per_run, mean);
+    let formatted_lines_per_second = rate_per_second(formatted_lines_per_run, mean);
+    let parse_lines_per_second = rate_per_second(source_lines_per_run, mean_parse);
+    let format_lines_per_second = rate_per_second(source_lines_per_run, mean_format);
+    let format_formatted_lines_per_second = rate_per_second(formatted_lines_per_run, mean_format);
+    let print_lines_per_second = rate_per_second(source_lines_per_run, mean_print);
     let input_mib_per_second = if mean.is_zero() {
         f64::INFINITY
     } else {
@@ -1202,6 +1303,7 @@ fn summarize(
     BenchSummary {
         root: root.to_path_buf(),
         mode,
+        stages,
         workers,
         files,
         formatted_files_per_run,
@@ -1416,9 +1518,8 @@ fn print_table(summary: &BenchSummary, color: bool) {
     for (index, run) in summary.runs.iter().enumerate() {
         let share = run.total.as_secs_f64() / summary.mean.as_secs_f64().max(0.000_001);
         let heat = style.color_for_range(run.total, summary.min, summary.max);
-        let run_lines_per_second = run.source_lines as f64 / run.total.as_secs_f64().max(0.000_001);
-        let run_format_lines_per_second =
-            run.formatted_lines as f64 / run.format.as_secs_f64().max(0.000_001);
+        let run_lines_per_second = rate_per_second(run.source_lines, run.total);
+        let run_format_lines_per_second = rate_per_second(run.formatted_lines, run.format);
         println!(
             "  {:<5} {:>10} {:>10} {:>10} {:>10} {:>10} {heat}{:>10}{reset} {:>8} {:>10} {:>10}",
             index + 1,
@@ -1625,6 +1726,7 @@ fn print_table(summary: &BenchSummary, color: bool) {
         reset = style.reset
     );
     println!("  mode:              {}", summary.mode.as_str());
+    println!("  stages:            {}", summary.stages.label());
     println!(
         "  corpus:            {} files, {} lines, {} source, {} output",
         format_count(summary.files),
@@ -2014,11 +2116,9 @@ fn print_csv(summary: &BenchSummary) {
     );
     for (index, run) in summary.runs.iter().enumerate() {
         let parse_other = duration_saturating_sub(run.parse, run.parse_main + run.parse_finish);
-        let run_lines_per_second = run.source_lines as f64 / run.total.as_secs_f64().max(0.000_001);
-        let run_format_lines_per_second =
-            run.source_lines as f64 / run.format.as_secs_f64().max(0.000_001);
-        let run_format_work_lines_per_second =
-            run.formatted_lines as f64 / run.format.as_secs_f64().max(0.000_001);
+        let run_lines_per_second = rate_per_second(run.source_lines, run.total);
+        let run_format_lines_per_second = rate_per_second(run.source_lines, run.format);
+        let run_format_work_lines_per_second = rate_per_second(run.formatted_lines, run.format);
         println!(
             "{}",
             [
@@ -2139,10 +2239,10 @@ fn print_json(summary: &BenchSummary) {
                 "parse_post_parent_index_ms": duration_ms(run.parse_post_parent_index),
                 "format_ms": duration_ms(run.format),
                 "print_ms": duration_ms(run.print),
-                "lines_per_sec": run.source_lines as f64 / run.total.as_secs_f64().max(0.000_001),
-                "formatted_lines_per_sec": run.formatted_lines as f64 / run.total.as_secs_f64().max(0.000_001),
-                "format_lines_per_sec": run.source_lines as f64 / run.format.as_secs_f64().max(0.000_001),
-                "format_work_lines_per_sec": run.formatted_lines as f64 / run.format.as_secs_f64().max(0.000_001),
+                "lines_per_sec": rate_per_second(run.source_lines, run.total),
+                "formatted_lines_per_sec": rate_per_second(run.formatted_lines, run.total),
+                "format_lines_per_sec": rate_per_second(run.source_lines, run.format),
+                "format_work_lines_per_sec": rate_per_second(run.formatted_lines, run.format),
                 "source_lines": run.source_lines,
                 "formatted_lines": run.formatted_lines,
                 "skipped_lines": run.skipped_lines,
@@ -2233,6 +2333,12 @@ fn print_json(summary: &BenchSummary) {
     let payload = json!({
         "root": summary.root.display().to_string(),
         "mode": summary.mode.as_str(),
+        "stages": {
+            "attach_trivia": summary.stages.attach_trivia,
+            "format": summary.stages.format,
+            "print": summary.stages.print,
+            "label": summary.stages.label(),
+        },
         "files": summary.files,
         "formatted_files_per_run": summary.formatted_files_per_run,
         "skipped_files_per_run": summary.skipped_files_per_run,
@@ -2667,6 +2773,15 @@ fn format_duration(duration: Duration) -> String {
 /// Return milliseconds for a duration.
 fn duration_ms(duration: Duration) -> f64 {
     duration.as_secs_f64() * 1000.0
+}
+
+/// Return a per-second rate for one duration, or zero when the stage is disabled.
+fn rate_per_second(units: usize, duration: Duration) -> f64 {
+    if units == 0 || duration.is_zero() {
+        return 0.0;
+    }
+
+    units as f64 / duration.as_secs_f64()
 }
 
 /// Subtract durations with a floor at zero.

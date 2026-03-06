@@ -254,6 +254,38 @@ impl<'a> DestackFormatContext<'a> {
             .map(|annotation_data| f(annotation_data.ids.as_slice()))
     }
 
+    /// Return whether any annotation on a node matches one predicate.
+    #[inline]
+    pub fn any_annotation_id<T, F>(&self, node_id: LocalNodeId<T>, mut predicate: F) -> bool
+    where
+        T: Node,
+        NodeTree: NodeTreeImpl<T>,
+        F: FnMut(LocalNodeId<Annotation>) -> bool,
+    {
+        self.visit_annotations(node_id, |annotation_ids| {
+            annotation_ids.iter().copied().any(&mut predicate)
+        })
+        .unwrap_or(false)
+    }
+
+    /// Return the first mapped annotation result for one node.
+    #[inline]
+    pub fn find_annotation_id<T, R, F>(
+        &self,
+        node_id: LocalNodeId<T>,
+        mut predicate: F,
+    ) -> Option<R>
+    where
+        T: Node,
+        NodeTree: NodeTreeImpl<T>,
+        F: FnMut(LocalNodeId<Annotation>) -> Option<R>,
+    {
+        self.visit_annotations(node_id, |annotation_ids| {
+            annotation_ids.iter().copied().find_map(&mut predicate)
+        })
+        .flatten()
+    }
+
     /// Check if a node has an annotation.
     #[inline]
     pub fn has_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool

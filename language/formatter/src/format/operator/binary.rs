@@ -319,11 +319,7 @@ pub(crate) fn expression_has_line_postfix_slash_comment(
     ctx: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(annotations) = ctx.annotations(expression_id) else {
-        return false;
-    };
-
-    annotations.into_iter().any(|annotation_id| {
+    ctx.any_annotation_id(expression_id, |annotation_id| {
         let annotation = ctx.annotation(annotation_id);
         let Annotation::Comment { node, position } = annotation else {
             return false;
@@ -346,11 +342,7 @@ fn expression_has_line_postfix_comment_annotation(
     ctx: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(annotations) = ctx.annotations(expression_id) else {
-        return false;
-    };
-
-    annotations.into_iter().any(|annotation_id| {
+    ctx.any_annotation_id(expression_id, |annotation_id| {
         let annotation = ctx.annotation(annotation_id);
         matches!(
             annotation,
@@ -367,11 +359,7 @@ fn expression_has_postfix_comment_annotation(
     ctx: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(annotations) = ctx.annotations(expression_id) else {
-        return false;
-    };
-
-    annotations.into_iter().any(|annotation_id| {
+    ctx.any_annotation_id(expression_id, |annotation_id| {
         let annotation = ctx.annotation(annotation_id);
         matches!(
             annotation,
@@ -390,11 +378,7 @@ pub(crate) fn expression_has_line_prefix_slash_comment(
     ctx: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(annotations) = ctx.annotations(expression_id) else {
-        return false;
-    };
-
-    annotations.into_iter().any(|annotation_id| {
+    ctx.any_annotation_id(expression_id, |annotation_id| {
         let annotation = ctx.annotation(annotation_id);
         let Annotation::Comment { node, position } = annotation else {
             return false;
@@ -413,11 +397,7 @@ fn expression_has_own_line_prefix_annotation(
     ctx: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(annotations) = ctx.annotations(expression_id) else {
-        return false;
-    };
-
-    annotations.into_iter().any(|annotation_id| {
+    ctx.any_annotation_id(expression_id, |annotation_id| {
         let annotation = ctx.annotation(annotation_id);
         if !matches!(
             annotation.position(),
@@ -435,11 +415,7 @@ pub(crate) fn expression_has_inline_block_prefix_star_comment(
     ctx: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(annotations) = ctx.annotations(expression_id) else {
-        return false;
-    };
-
-    annotations.into_iter().any(|annotation_id| {
+    ctx.any_annotation_id(expression_id, |annotation_id| {
         let annotation = ctx.annotation(annotation_id);
         let Annotation::Comment { node, position } = annotation else {
             return false;
@@ -467,11 +443,7 @@ pub(crate) fn expression_has_inline_block_postfix_boundary_star_comment(
     ctx: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(annotations) = ctx.annotations(expression_id) else {
-        return false;
-    };
-
-    annotations.into_iter().any(|annotation_id| {
+    ctx.any_annotation_id(expression_id, |annotation_id| {
         let annotation = ctx.annotation(annotation_id);
         let Annotation::Comment { node, position } = annotation else {
             return false;
@@ -518,10 +490,7 @@ fn type_binary_is_static_argument_under_remap_path(
         return false;
     }
 
-    let Some(annotation_ids) = ctx.annotations(path_owner_id) else {
-        return false;
-    };
-    annotation_ids.iter().copied().any(|annotation_id| {
+    ctx.any_annotation_id(path_owner_id, |annotation_id| {
         let annotation = ctx.annotation(annotation_id);
         let Annotation::Comment { node, position } = annotation else {
             return false;
@@ -793,24 +762,24 @@ fn union_has_trailing_own_line_doc_prefix_annotation(
     ctx: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(annotation_ids) = ctx.annotations(node_id) else {
-        return false;
-    };
-
-    annotation_ids
-        .into_iter()
-        .rev()
-        .find(|annotation_id| {
-            matches!(
-                ctx.annotation(*annotation_id).position(),
-                AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-            )
-        })
-        .is_some_and(|annotation_id| {
-            matches!(ctx.annotation(annotation_id), Annotation::Doc { .. })
-                && ctx.annotation_starts_on_own_line(annotation_id)
-                && !ctx.annotation_next_token_is_on_same_line(annotation_id)
-        })
+    ctx.visit_annotations(node_id, |annotation_ids| {
+        annotation_ids
+            .iter()
+            .rev()
+            .copied()
+            .find(|annotation_id| {
+                matches!(
+                    ctx.annotation(*annotation_id).position(),
+                    AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                )
+            })
+            .is_some_and(|annotation_id| {
+                matches!(ctx.annotation(annotation_id), Annotation::Doc { .. })
+                    && ctx.annotation_starts_on_own_line(annotation_id)
+                    && !ctx.annotation_next_token_is_on_same_line(annotation_id)
+            })
+    })
+    .unwrap_or(false)
 }
 
 /// Return whether one expression has an own-line leading prefix non-doc comment annotation.
@@ -1123,23 +1092,19 @@ fn satisfies_seam_comment_node_id(
     right_expression_id: LocalNodeId<Expression>,
     static_arguments: &[LocalNodeId<Argument>],
 ) -> Option<LocalNodeId<Comment>> {
-    if let Some(annotation_ids) = ctx.annotations(right_expression_id) {
-        for annotation_id in annotation_ids {
-            let Annotation::Comment {
-                node,
-                position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-            } = ctx.annotation(annotation_id)
-            else {
-                continue;
-            };
+    if let Some(comment_id) = ctx.find_annotation_id(right_expression_id, |annotation_id| {
+        let Annotation::Comment {
+            node,
+            position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+        } = ctx.annotation(annotation_id)
+        else {
+            return None;
+        };
 
-            let comment = ctx.tree.get::<Comment>(node);
-            if comment.style != CommentStyle::Slash {
-                continue;
-            }
-
-            return Some(node);
-        }
+        let comment = ctx.tree.get::<Comment>(node);
+        (comment.style == CommentStyle::Slash).then_some(node)
+    }) {
+        return Some(comment_id);
     }
 
     static_arguments.first().and_then(|argument_id| {

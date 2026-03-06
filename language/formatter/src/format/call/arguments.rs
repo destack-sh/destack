@@ -921,31 +921,35 @@ pub(crate) fn single_argument_separator_line_comment_source(
         )
     };
 
-    if let Some(annotations) = ctx.annotations(argument_id)
-        && let Some(comment_source) = resolve_from_annotations(&annotations)
+    if let Some(comment_source) = ctx
+        .visit_annotations(argument_id, resolve_from_annotations)
+        .flatten()
     {
         return Some(comment_source);
     }
 
     let value_id = argument_value_id(ctx.tree, argument_id);
     let value_span = ctx.span(value_id);
-    let value_annotation_source = ctx.annotations(value_id).and_then(|annotations| {
-        separator_line_comment_source_from_annotations(
-            ctx,
-            &annotations,
-            |annotation_id| {
-                separator_line_comment_annotation_info(
-                    ctx,
-                    annotation_id,
-                    virtual_trailing_separator_policy,
-                )
-            },
-            |annotation_id| {
-                let annotation_span = ctx.annotation_span(annotation_id);
-                annotation_span.file == value_span.file && annotation_span.start >= value_span.end
-            },
-        )
-    });
+    let value_annotation_source = ctx
+        .visit_annotations(value_id, |annotations| {
+            separator_line_comment_source_from_annotations(
+                ctx,
+                annotations,
+                |annotation_id| {
+                    separator_line_comment_annotation_info(
+                        ctx,
+                        annotation_id,
+                        virtual_trailing_separator_policy,
+                    )
+                },
+                |annotation_id| {
+                    let annotation_span = ctx.annotation_span(annotation_id);
+                    annotation_span.file == value_span.file
+                        && annotation_span.start >= value_span.end
+                },
+            )
+        })
+        .flatten();
     if value_annotation_source.is_some() {
         return value_annotation_source;
     }
@@ -964,68 +968,74 @@ pub(crate) fn single_argument_separator_line_comment_source(
         return None;
     }
 
-    let call_annotation_source = ctx.annotations(call_node_id).and_then(|annotations| {
-        separator_line_comment_source_from_annotations(
-            ctx,
-            &annotations,
-            |annotation_id| {
-                separator_line_comment_annotation_info(
-                    ctx,
-                    annotation_id,
-                    virtual_trailing_separator_policy,
-                )
-            },
-            |annotation_id| {
-                let annotation_span = ctx.annotation_span(annotation_id);
-                annotation_span.file == argument_span.file
-                    && annotation_span.start >= seam_start
-                    && annotation_span.end <= seam_end
-            },
-        )
-    });
+    let call_annotation_source = ctx
+        .visit_annotations(call_node_id, |annotations| {
+            separator_line_comment_source_from_annotations(
+                ctx,
+                annotations,
+                |annotation_id| {
+                    separator_line_comment_annotation_info(
+                        ctx,
+                        annotation_id,
+                        virtual_trailing_separator_policy,
+                    )
+                },
+                |annotation_id| {
+                    let annotation_span = ctx.annotation_span(annotation_id);
+                    annotation_span.file == argument_span.file
+                        && annotation_span.start >= seam_start
+                        && annotation_span.end <= seam_end
+                },
+            )
+        })
+        .flatten();
     if call_annotation_source.is_some() {
         return call_annotation_source;
     }
 
-    let call_prefix_annotation_source = ctx.annotations(call_node_id).and_then(|annotations| {
-        separator_line_comment_source_from_following_prefix_annotations(
-            ctx,
-            &annotations,
-            |annotation_id| {
-                let annotation_span = ctx.annotation_span(annotation_id);
-                annotation_span.file == argument_span.file
-                    && annotation_span.start >= seam_start
-                    && annotation_span.end <= seam_end
-            },
-        )
-    });
+    let call_prefix_annotation_source = ctx
+        .visit_annotations(call_node_id, |annotations| {
+            separator_line_comment_source_from_following_prefix_annotations(
+                ctx,
+                annotations,
+                |annotation_id| {
+                    let annotation_span = ctx.annotation_span(annotation_id);
+                    annotation_span.file == argument_span.file
+                        && annotation_span.start >= seam_start
+                        && annotation_span.end <= seam_end
+                },
+            )
+        })
+        .flatten();
     if call_prefix_annotation_source.is_some() {
         return call_prefix_annotation_source;
     }
 
     let following_argument_id = following_argument_id?;
     let following_argument_span = ctx.span(following_argument_id);
-    if let Some(annotations) = ctx.annotations(following_argument_id)
-        && let Some(comment_source) =
+    if let Some(comment_source) = ctx
+        .visit_annotations(following_argument_id, |annotations| {
             separator_line_comment_source_from_following_prefix_annotations(
                 ctx,
-                &annotations,
+                annotations,
                 |annotation_id| {
                     let annotation_span = ctx.annotation_span(annotation_id);
                     annotation_span.file == following_argument_span.file
                         && annotation_span.end <= following_argument_span.start
                 },
             )
+        })
+        .flatten()
     {
         return Some(comment_source);
     }
 
     let following_value_id = argument_value_id(ctx.tree, following_argument_id);
     let following_value_span = ctx.span(following_value_id);
-    ctx.annotations(following_value_id).and_then(|annotations| {
+    ctx.visit_annotations(following_value_id, |annotations| {
         separator_line_comment_source_from_following_prefix_annotations(
             ctx,
-            &annotations,
+            annotations,
             |annotation_id| {
                 let annotation_span = ctx.annotation_span(annotation_id);
                 annotation_span.file == following_value_span.file
@@ -1033,6 +1043,7 @@ pub(crate) fn single_argument_separator_line_comment_source(
             },
         )
     })
+    .flatten()
 }
 
 /// Return one separator line comment source when the argument can detach boundary separator comments.
@@ -1883,28 +1894,18 @@ pub(crate) fn argument_satisfies_static_seam_comment_annotation_id(
         return None;
     }
 
-    let annotations = ctx.annotations(argument_id)?;
-
-    let mut seam_comment_id = None;
-    for annotation_id in annotations {
+    ctx.find_annotation_id(argument_id, |annotation_id| {
         let Annotation::Comment {
             node,
             position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
         } = ctx.annotation(annotation_id)
         else {
-            continue;
+            return None;
         };
 
         let comment = ctx.tree.get::<Comment>(node);
-        if comment.style != CommentStyle::Slash {
-            continue;
-        }
-
-        seam_comment_id = Some(annotation_id);
-        break;
-    }
-
-    seam_comment_id
+        (comment.style == CommentStyle::Slash).then_some(annotation_id)
+    })
 }
 
 /// Return whether one argument is the first static argument in a satisfies rhs path with multiple arguments.
@@ -2030,13 +2031,8 @@ fn argument_has_non_blank_prefix_annotation(
     ctx: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let Some(annotations) = ctx.annotations(argument_id) else {
-        return false;
-    };
-
-    annotations
-        .iter()
-        .any(|annotation_id| match ctx.annotation(*annotation_id) {
+    ctx.any_annotation_id(argument_id, |annotation_id| {
+        match ctx.annotation(annotation_id) {
             Annotation::Blank { .. } => false,
             Annotation::Doc { position, .. }
             | Annotation::Comment { position, .. }
@@ -2044,7 +2040,8 @@ fn argument_has_non_blank_prefix_annotation(
                 position,
                 AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
             ),
-        })
+        }
+    })
 }
 
 /// Return whether one argument has only separator comment prefix annotations.
@@ -2052,48 +2049,48 @@ fn argument_has_only_separator_prefix_comment_cluster(
     ctx: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let Some(annotations) = ctx.annotations(argument_id) else {
-        return false;
-    };
+    ctx.visit_annotations(argument_id, |annotations| {
+        let mut has_separator_comment = false;
 
-    let mut has_separator_comment = false;
-    for annotation_id in annotations.iter().copied() {
-        let annotation = ctx.annotation(annotation_id);
-        if !matches!(
-            annotation.position(),
-            AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-        ) {
-            continue;
-        }
-
-        match annotation {
-            Annotation::Blank { .. } => {}
-            Annotation::Comment { node, .. } => {
-                let comment = ctx.tree.get::<Comment>(node);
-                if comment.style != CommentStyle::Slash {
-                    return false;
-                }
-
-                let annotation_span = ctx.annotation_span(annotation_id);
-                let Some(preceding_token) =
-                    previous_non_whitespace_token_before_span(ctx, annotation_span)
-                else {
-                    return false;
-                };
-                if !matches!(
-                    preceding_token.token.ty,
-                    TokenType::Comma | TokenType::LineComment | TokenType::DocLineComment
-                ) {
-                    return false;
-                }
-
-                has_separator_comment = true;
+        for annotation_id in annotations.iter().copied() {
+            let annotation = ctx.annotation(annotation_id);
+            if !matches!(
+                annotation.position(),
+                AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+            ) {
+                continue;
             }
-            Annotation::Doc { .. } | Annotation::Decorator { .. } => return false,
-        }
-    }
 
-    has_separator_comment
+            match annotation {
+                Annotation::Blank { .. } => {}
+                Annotation::Comment { node, .. } => {
+                    let comment = ctx.tree.get::<Comment>(node);
+                    if comment.style != CommentStyle::Slash {
+                        return false;
+                    }
+
+                    let annotation_span = ctx.annotation_span(annotation_id);
+                    let Some(preceding_token) =
+                        previous_non_whitespace_token_before_span(ctx, annotation_span)
+                    else {
+                        return false;
+                    };
+                    if !matches!(
+                        preceding_token.token.ty,
+                        TokenType::Comma | TokenType::LineComment | TokenType::DocLineComment
+                    ) {
+                        return false;
+                    }
+
+                    has_separator_comment = true;
+                }
+                Annotation::Doc { .. } | Annotation::Decorator { .. } => return false,
+            }
+        }
+
+        has_separator_comment
+    })
+    .unwrap_or(false)
 }
 
 /// Return whether an argument has a blank prefix annotation.
@@ -2101,13 +2098,9 @@ fn argument_has_blank_prefix_annotation(
     ctx: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let Some(annotations) = ctx.annotations(argument_id) else {
-        return false;
-    };
-
-    annotations.iter().any(|annotation_id| {
+    ctx.any_annotation_id(argument_id, |annotation_id| {
         matches!(
-            ctx.annotation(*annotation_id),
+            ctx.annotation(annotation_id),
             Annotation::Blank {
                 position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
                 ..
@@ -2121,20 +2114,16 @@ fn argument_has_blank_prefix_annotation_before_separator(
     ctx: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let Some(annotations) = ctx.annotations(argument_id) else {
-        return false;
-    };
-
-    annotations.iter().any(|annotation_id| {
+    ctx.any_annotation_id(argument_id, |annotation_id| {
         let Annotation::Blank {
             position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
             ..
-        } = ctx.annotation(*annotation_id)
+        } = ctx.annotation(annotation_id)
         else {
             return false;
         };
 
-        next_non_whitespace_token_after_annotation(ctx, *annotation_id)
+        next_non_whitespace_token_after_annotation(ctx, annotation_id)
             .is_some_and(|token| token.token.ty == TokenType::Comma)
     })
 }
@@ -2173,12 +2162,8 @@ fn argument_prefix_lambda_comment_needs_forced_break(
     ctx: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let Some(annotations) = ctx.annotations(argument_id) else {
-        return false;
-    };
-
-    annotations.iter().any(|annotation_id| {
-        let Annotation::Comment { node, position } = ctx.annotation(*annotation_id) else {
+    ctx.any_annotation_id(argument_id, |annotation_id| {
+        let Annotation::Comment { node, position } = ctx.annotation(annotation_id) else {
             return false;
         };
         if position != AnnotationPosition::BlockPrefix {
@@ -2190,8 +2175,8 @@ fn argument_prefix_lambda_comment_needs_forced_break(
             return false;
         }
 
-        let previous_token = previous_non_whitespace_token_before_annotation(ctx, *annotation_id);
-        let next_token = next_non_whitespace_token_after_annotation(ctx, *annotation_id);
+        let previous_token = previous_non_whitespace_token_before_annotation(ctx, annotation_id);
+        let next_token = next_non_whitespace_token_after_annotation(ctx, annotation_id);
         previous_token.is_some_and(|token| {
             matches!(
                 token.token.ty,

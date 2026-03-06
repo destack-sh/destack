@@ -16,41 +16,55 @@ use destack_fir::format::{Buffer, Format, GroupId};
 use destack_fir::prelude::expand_parent;
 use destack_fir::{format_args, write};
 
-/// Return whether one annotation set contains a line slash comment.
-fn annotation_ids_have_line_slash_comment(
+/// Return whether one annotation is one line slash comment.
+fn annotation_id_is_line_slash_comment(
     context: &DestackFormatContext<'_>,
-    annotation_ids: &[LocalNodeId<Annotation>],
+    annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
-    annotation_ids.iter().any(|annotation_id| {
-        let Annotation::Comment { node, position } = context.annotation(*annotation_id) else {
-            return false;
-        };
-        let is_line_position = matches!(
-            position,
-            AnnotationPosition::LinePrefix
-                | AnnotationPosition::LinePostfix
-                | AnnotationPosition::LinePostfixBoundary
-        );
-        if !is_line_position {
-            return false;
-        }
+    let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
+        return false;
+    };
+    if !matches!(
+        position,
+        AnnotationPosition::LinePrefix
+            | AnnotationPosition::LinePostfix
+            | AnnotationPosition::LinePostfixBoundary
+    ) {
+        return false;
+    }
 
-        let comment = context.tree.get::<destack_ast::Comment>(node);
-        comment.style == destack_ast::CommentStyle::Slash
-    })
+    let comment = context.tree.get::<destack_ast::Comment>(node);
+    comment.style == destack_ast::CommentStyle::Slash
 }
 
-/// Return whether one annotation set contains one comment annotation.
-fn annotation_ids_have_comment(
+/// Return whether one annotation is one comment annotation.
+fn annotation_id_is_comment(
     context: &DestackFormatContext<'_>,
-    annotation_ids: &[LocalNodeId<Annotation>],
+    annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
-    annotation_ids.iter().any(|annotation_id| {
-        matches!(
-            context.annotation(*annotation_id),
-            Annotation::Comment { .. }
-        )
-    })
+    matches!(
+        context.annotation(annotation_id),
+        Annotation::Comment { .. }
+    )
+}
+
+/// Return whether one annotation is one prefix comment or doc annotation.
+fn annotation_id_is_prefix_comment_or_doc(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let annotation = context.annotation(annotation_id);
+    if !matches!(
+        annotation.position(),
+        AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+    ) {
+        return false;
+    }
+
+    matches!(
+        annotation,
+        Annotation::Comment { .. } | Annotation::Doc { .. }
+    )
 }
 
 /// Return whether one argument node has at least one comment annotation.
@@ -58,9 +72,9 @@ fn argument_has_comment_annotation(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    context
-        .annotations(argument_id)
-        .is_some_and(|annotation_ids| annotation_ids_have_comment(context, &annotation_ids))
+    context.any_annotation_id(argument_id, |annotation_id| {
+        annotation_id_is_comment(context, annotation_id)
+    })
 }
 
 /// Return whether one expression node has at least one comment annotation.
@@ -68,34 +82,8 @@ fn expression_has_comment_annotation(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    context
-        .annotations(expression_id)
-        .is_some_and(|annotation_ids| annotation_ids_have_comment(context, &annotation_ids))
-}
-
-/// Return whether one annotation list has prefix comment or doc annotations.
-fn annotation_ids_have_prefix_comment_or_doc_annotation(
-    context: &DestackFormatContext<'_>,
-    annotation_ids: Option<Vec<LocalNodeId<Annotation>>>,
-) -> bool {
-    let Some(annotation_ids) = annotation_ids else {
-        return false;
-    };
-
-    annotation_ids.iter().any(|annotation_id| {
-        let annotation = context.annotation(*annotation_id);
-        let is_prefix_position = matches!(
-            annotation.position(),
-            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-        );
-        if !is_prefix_position {
-            return false;
-        }
-
-        matches!(
-            annotation,
-            Annotation::Comment { .. } | Annotation::Doc { .. }
-        )
+    context.any_annotation_id(expression_id, |annotation_id| {
+        annotation_id_is_comment(context, annotation_id)
     })
 }
 
@@ -105,14 +93,11 @@ fn tree_argument_has_line_comment_annotation(
     argument_id: LocalNodeId<Argument>,
     value_id: LocalNodeId<Expression>,
 ) -> bool {
-    context
-        .annotations(argument_id)
-        .is_some_and(|annotation_ids| {
-            annotation_ids_have_line_slash_comment(context, &annotation_ids)
-        })
-        || context.annotations(value_id).is_some_and(|annotation_ids| {
-            annotation_ids_have_line_slash_comment(context, &annotation_ids)
-        })
+    context.any_annotation_id(argument_id, |annotation_id| {
+        annotation_id_is_line_slash_comment(context, annotation_id)
+    }) || context.any_annotation_id(value_id, |annotation_id| {
+        annotation_id_is_line_slash_comment(context, annotation_id)
+    })
 }
 
 /// Return whether one ternary value has a line slash comment on any branch.
@@ -136,32 +121,24 @@ fn ternary_value_has_line_comment_annotation(
         IfCondition::Let { .. } => return false,
     };
 
-    let condition_has_line_comment =
-        context
-            .annotations(condition_id)
-            .is_some_and(|annotation_ids| {
-                annotation_ids_have_line_slash_comment(context, &annotation_ids)
-            });
+    let condition_has_line_comment = context.any_annotation_id(condition_id, |annotation_id| {
+        annotation_id_is_line_slash_comment(context, annotation_id)
+    });
     if condition_has_line_comment {
         return true;
     }
 
-    let then_has_line_comment =
-        context
-            .annotations(*then_expression)
-            .is_some_and(|annotation_ids| {
-                annotation_ids_have_line_slash_comment(context, &annotation_ids)
-            });
+    let then_has_line_comment = context.any_annotation_id(*then_expression, |annotation_id| {
+        annotation_id_is_line_slash_comment(context, annotation_id)
+    });
     if then_has_line_comment {
         return true;
     }
 
     else_expression.is_some_and(|expression_id| {
-        context
-            .annotations(expression_id)
-            .is_some_and(|annotation_ids| {
-                annotation_ids_have_line_slash_comment(context, &annotation_ids)
-            })
+        context.any_annotation_id(expression_id, |annotation_id| {
+            annotation_id_is_line_slash_comment(context, annotation_id)
+        })
     })
 }
 
@@ -460,13 +437,19 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
                     if matches!(value_expr, Expression::Stub) {
                         let keep_stub_prefix_inside_braces =
                             stub_value_id.is_some_and(|value_id| {
-                                annotation_ids_have_prefix_comment_or_doc_annotation(
-                                    f.context(),
-                                    f.context().annotations(self.argument_id),
-                                ) || annotation_ids_have_prefix_comment_or_doc_annotation(
-                                    f.context(),
-                                    f.context().annotations(value_id),
-                                )
+                                f.context()
+                                    .any_annotation_id(self.argument_id, |annotation_id| {
+                                        annotation_id_is_prefix_comment_or_doc(
+                                            f.context(),
+                                            annotation_id,
+                                        )
+                                    })
+                                    || f.context().any_annotation_id(value_id, |annotation_id| {
+                                        annotation_id_is_prefix_comment_or_doc(
+                                            f.context(),
+                                            annotation_id,
+                                        )
+                                    })
                             });
                         if keep_stub_prefix_inside_braces {
                             write!(f, [token("{")])?;
@@ -1497,26 +1480,8 @@ fn expression_has_line_comment_annotation(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(annotation_ids) = context.annotations(expression_id) else {
-        return false;
-    };
-
-    annotation_ids.into_iter().any(|annotation_id| {
-        let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
-            return false;
-        };
-        let is_line_position = matches!(
-            position,
-            AnnotationPosition::LinePrefix
-                | AnnotationPosition::LinePostfix
-                | AnnotationPosition::LinePostfixBoundary
-        );
-        if !is_line_position {
-            return false;
-        }
-
-        let comment = context.tree.get::<destack_ast::Comment>(node);
-        comment.style == destack_ast::CommentStyle::Slash
+    context.any_annotation_id(expression_id, |annotation_id| {
+        annotation_id_is_line_slash_comment(context, annotation_id)
     })
 }
 
@@ -1525,11 +1490,7 @@ fn expression_has_prefix_star_comment_annotation(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(annotation_ids) = context.annotations(expression_id) else {
-        return false;
-    };
-
-    annotation_ids.into_iter().any(|annotation_id| {
+    context.any_annotation_id(expression_id, |annotation_id| {
         let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
             return false;
         };
@@ -1569,26 +1530,8 @@ fn argument_has_line_comment_annotation(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let Some(annotation_ids) = context.annotations(argument_id) else {
-        return false;
-    };
-
-    annotation_ids.into_iter().any(|annotation_id| {
-        let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
-            return false;
-        };
-        let is_line_position = matches!(
-            position,
-            AnnotationPosition::LinePrefix
-                | AnnotationPosition::LinePostfix
-                | AnnotationPosition::LinePostfixBoundary
-        );
-        if !is_line_position {
-            return false;
-        }
-
-        let comment = context.tree.get::<destack_ast::Comment>(node);
-        comment.style == destack_ast::CommentStyle::Slash
+    context.any_annotation_id(argument_id, |annotation_id| {
+        annotation_id_is_line_slash_comment(context, annotation_id)
     })
 }
 
