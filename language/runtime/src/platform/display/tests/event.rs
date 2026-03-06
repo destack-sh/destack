@@ -6,8 +6,8 @@ use super::{
     DisplayHarnessContext, HarnessValue, default_monitor_event_open_options,
     default_window_event_open_options, default_window_options, error_code,
     monitor_event_open_options, monitor_event_open_options_with_kind_mask,
-    open_window_or_skip_not_supported, result_or_skip_not_supported, window_event_open_options,
-    window_event_open_options_with_filter, with_harness_context,
+    open_window_or_skip_not_supported, result_or_skip_not_supported, run_display_case_or_return,
+    window_event_open_options, window_event_open_options_with_filter, with_harness_context,
 };
 #[cfg(any(unix, windows))]
 use crate::diagnostic::RuntimeError;
@@ -203,8 +203,14 @@ fn marker_for_window_event(
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_monitor_event_stream_is_seeded() {
+#[cfg_attr(test, test)]
+pub(super) fn test_monitor_event_stream_is_seeded() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_monitor_event_stream_is_seeded",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let Some(stream) = result_or_skip_not_supported(
             context
@@ -241,8 +247,14 @@ fn test_monitor_event_stream_is_seeded() {
 }
 
 #[cfg(windows)]
-#[test]
-fn test_monitor_event_kind_filter_restricts_seeded_events() {
+#[cfg_attr(test, test)]
+pub(super) fn test_monitor_event_kind_filter_restricts_seeded_events() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_monitor_event_kind_filter_restricts_seeded_events",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let stream = context.destack_display_monitor_event_open(
             monitor_event_open_options_with_kind_mask(
@@ -268,8 +280,14 @@ fn test_monitor_event_kind_filter_restricts_seeded_events() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_monitor_event_batch_rejects_zero_maxevents() {
+#[cfg_attr(test, test)]
+pub(super) fn test_monitor_event_batch_rejects_zero_maxevents() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_monitor_event_batch_rejects_zero_maxevents",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let Some(stream) = result_or_skip_not_supported(
             context
@@ -296,8 +314,14 @@ fn test_monitor_event_batch_rejects_zero_maxevents() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_monitor_event_filter_rejects_invalid_kind_mask() {
+#[cfg_attr(test, test)]
+pub(super) fn test_monitor_event_filter_rejects_invalid_kind_mask() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_monitor_event_filter_rejects_invalid_kind_mask",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let Some(stream) = result_or_skip_not_supported(
             context
@@ -327,8 +351,14 @@ fn test_monitor_event_filter_rejects_invalid_kind_mask() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_event_filter_rejects_invalid_kind_mask() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_event_filter_rejects_invalid_kind_mask() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_window_event_filter_rejects_invalid_kind_mask",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "window-filter-invalid-mask")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -360,8 +390,14 @@ fn test_window_event_filter_rejects_invalid_kind_mask() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_monitor_event_stream_double_close_reports_not_found() {
+#[cfg_attr(test, test)]
+pub(super) fn test_monitor_event_stream_double_close_reports_not_found() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_monitor_event_stream_double_close_reports_not_found",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let Some(stream) = result_or_skip_not_supported(
             context
@@ -382,8 +418,14 @@ fn test_monitor_event_stream_double_close_reports_not_found() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_event_stream_double_close_reports_not_found() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_event_stream_double_close_reports_not_found() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_window_event_stream_double_close_reports_not_found",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "window-event-double-close")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -404,8 +446,14 @@ fn test_window_event_stream_double_close_reports_not_found() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_monitor_event_read_after_stream_close_reports_not_found() {
+#[cfg_attr(test, test)]
+pub(super) fn test_monitor_event_read_after_stream_close_reports_not_found() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_monitor_event_read_after_stream_close_reports_not_found",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let Some(stream) = result_or_skip_not_supported(
             context
@@ -428,8 +476,14 @@ fn test_monitor_event_read_after_stream_close_reports_not_found() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_event_read_after_stream_close_reports_not_found() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_event_read_after_stream_close_reports_not_found() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_window_event_read_after_stream_close_reports_not_found",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "window-event-stale-read")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -453,8 +507,14 @@ fn test_window_event_read_after_stream_close_reports_not_found() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_event_stream_reports_would_block_after_drain() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_event_stream_reports_would_block_after_drain() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_window_event_stream_reports_would_block_after_drain",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "window-event-drain")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -500,8 +560,14 @@ fn test_window_event_stream_reports_would_block_after_drain() {
 }
 
 #[cfg(windows)]
-#[test]
-fn test_window_event_filter_restricts_window_and_kind() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_event_filter_restricts_window_and_kind() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_window_event_filter_restricts_window_and_kind",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let first_options = default_window_options(&mut context, "window-filter-target")?;
         let Some(first_window) = open_window_or_skip_not_supported(&mut context, first_options)?
@@ -559,8 +625,14 @@ fn test_window_event_filter_restricts_window_and_kind() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_event_overflow_error_policy_reports_busy() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_event_overflow_error_policy_reports_busy() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_window_event_overflow_error_policy_reports_busy",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "window-overflow")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -604,8 +676,14 @@ fn test_window_event_overflow_error_policy_reports_busy() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_event_drop_oldest_reports_dropped_count_metadata() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_event_drop_oldest_reports_dropped_count_metadata() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_window_event_drop_oldest_reports_dropped_count_metadata",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "window-overflow-drop-oldest")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -669,8 +747,14 @@ fn test_window_event_drop_oldest_reports_dropped_count_metadata() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_monitor_event_overflow_error_policy_reports_busy() {
+#[cfg_attr(test, test)]
+pub(super) fn test_monitor_event_overflow_error_policy_reports_busy() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_monitor_event_overflow_error_policy_reports_busy",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let Some(stream) =
             result_or_skip_not_supported(context.destack_display_monitor_event_open(
@@ -693,8 +777,14 @@ fn test_monitor_event_overflow_error_policy_reports_busy() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_event_visibility_changes_emit_expected_payloads() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_event_visibility_changes_emit_expected_payloads() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_window_event_visibility_changes_emit_expected_payloads",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let backends = available_backend_descriptors(&mut context)?;
         if backends.is_empty() {
@@ -784,8 +874,14 @@ fn test_window_event_visibility_changes_emit_expected_payloads() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_event_occlusion_changes_follow_visibility_transitions() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_event_occlusion_changes_follow_visibility_transitions() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_window_event_occlusion_changes_follow_visibility_transitions",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let backends = available_backend_descriptors(&mut context)?;
         if backends.is_empty() {
@@ -881,8 +977,14 @@ fn test_window_event_occlusion_changes_follow_visibility_transitions() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_event_refresh_metadata_sequence_is_monotonic() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_event_refresh_metadata_sequence_is_monotonic() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_window_event_refresh_metadata_sequence_is_monotonic",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let backends = available_backend_descriptors(&mut context)?;
         if backends.is_empty() {
@@ -977,8 +1079,14 @@ fn test_window_event_refresh_metadata_sequence_is_monotonic() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_event_relation_and_modal_payloads_match_state_transitions() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_event_relation_and_modal_payloads_match_state_transitions() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_window_event_relation_and_modal_payloads_match_state_transitions",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let backends = available_backend_descriptors(&mut context)?;
         if backends.is_empty() {
@@ -1143,8 +1251,14 @@ fn test_window_event_relation_and_modal_payloads_match_state_transitions() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_close_emits_single_destroyed_lifecycle_event() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_close_emits_single_destroyed_lifecycle_event() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_window_close_emits_single_destroyed_lifecycle_event",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let backends = available_backend_descriptors(&mut context)?;
         if backends.is_empty() {
@@ -1239,8 +1353,14 @@ fn test_window_close_emits_single_destroyed_lifecycle_event() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_destroyed_is_terminal_for_window_event_stream() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_destroyed_is_terminal_for_window_event_stream() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_window_destroyed_is_terminal_for_window_event_stream",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let backends = available_backend_descriptors(&mut context)?;
         if backends.is_empty() {
@@ -1311,8 +1431,14 @@ fn test_window_destroyed_is_terminal_for_window_event_stream() {
 }
 
 #[cfg(windows)]
-#[test]
-fn test_window_event_stream_receives_host_close_message() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_event_stream_receives_host_close_message() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_window_event_stream_receives_host_close_message",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "window-host-close")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -1359,8 +1485,14 @@ fn test_window_event_stream_receives_host_close_message() {
 }
 
 #[cfg(windows)]
-#[test]
-fn test_window_close_emits_single_lifecycle_events_after_host_close_request() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_close_emits_single_lifecycle_events_after_host_close_request() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_window_close_emits_single_lifecycle_events_after_host_close_request",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "window-close-lifecycle")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -1429,8 +1561,14 @@ fn test_window_close_emits_single_lifecycle_events_after_host_close_request() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_state_read_does_not_synthesize_window_events() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_state_read_does_not_synthesize_window_events() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_window_state_read_does_not_synthesize_window_events",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "window-state-no-events")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -1482,8 +1620,14 @@ fn test_window_state_read_does_not_synthesize_window_events() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_set_mode_noop_does_not_emit_mode_event() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_set_mode_noop_does_not_emit_mode_event() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_window_set_mode_noop_does_not_emit_mode_event",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "window-mode-noop")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -1533,8 +1677,14 @@ fn test_window_set_mode_noop_does_not_emit_mode_event() {
 }
 
 #[cfg(windows)]
-#[test]
-fn test_monitor_event_stream_ignores_noop_displaychange_message() {
+#[cfg_attr(test, test)]
+pub(super) fn test_monitor_event_stream_ignores_noop_displaychange_message() {
+    if run_display_case_or_return(
+        "platform::display::tests::event::test_monitor_event_stream_ignores_noop_displaychange_message",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let Some(stream) = result_or_skip_not_supported(
             context

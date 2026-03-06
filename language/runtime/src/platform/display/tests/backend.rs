@@ -4,7 +4,7 @@ use super::{
     default_monitor_list_request, default_monitor_open_options, default_window_event_open_options,
     default_window_options, error_code, harness_string, harness_window_position,
     harness_window_size_constraints, harness_window_size_constraints_none, is_not_supported_code,
-    result_or_skip_not_supported, with_harness_context,
+    result_or_skip_not_supported, run_display_case_or_return, with_harness_context,
 };
 #[cfg(target_os = "linux")]
 use super::{
@@ -105,6 +105,99 @@ const DISPLAY_CAP_CURSOR_WARP: u64 = display_platform::DISPLAY_BACKEND_CAP_CURSO
 const DISPLAY_CAP_WINDOW_OPACITY: u64 = display_platform::DISPLAY_BACKEND_CAP_WINDOW_OPACITY.0;
 #[cfg(target_os = "linux")]
 const DISPLAY_CAP_WINDOW_ICON: u64 = display_platform::DISPLAY_BACKEND_CAP_WINDOW_ICON.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_MONITOR_MODE_SET: u64 = display_platform::DISPLAY_BACKEND_CAP_MONITOR_MODE_SET.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_MONITOR_COLOR_STATE: u64 =
+    display_platform::DISPLAY_BACKEND_CAP_MONITOR_COLOR_STATE.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_MONITOR_HDR_CONTROL: u64 =
+    display_platform::DISPLAY_BACKEND_CAP_MONITOR_HDR_CONTROL.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_MONITOR_GAMMA_CONTROL: u64 =
+    display_platform::DISPLAY_BACKEND_CAP_MONITOR_GAMMA_CONTROL.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_EXCLUSIVE_FULLSCREEN: u64 =
+    display_platform::DISPLAY_BACKEND_CAP_EXCLUSIVE_FULLSCREEN.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_BORDERLESS_FULLSCREEN: u64 =
+    display_platform::DISPLAY_BACKEND_CAP_BORDERLESS_FULLSCREEN.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_OCCLUSION: u64 = display_platform::DISPLAY_BACKEND_CAP_OCCLUSION.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_SAFE_AREA: u64 = display_platform::DISPLAY_BACKEND_CAP_SAFE_AREA.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_THEME: u64 = display_platform::DISPLAY_BACKEND_CAP_THEME.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_WINDOW_HIT_TEST: u64 = display_platform::DISPLAY_BACKEND_CAP_WINDOW_HIT_TEST.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_ALWAYS_ON_TOP: u64 = display_platform::DISPLAY_BACKEND_CAP_ALWAYS_ON_TOP.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_WINDOW_TASKBAR_VISIBILITY: u64 =
+    display_platform::DISPLAY_BACKEND_CAP_WINDOW_TASKBAR_VISIBILITY.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_WINDOW_ROLE_POPUP: u64 =
+    display_platform::DISPLAY_BACKEND_CAP_WINDOW_ROLE_POPUP.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_WINDOW_ROLE_OVERLAY: u64 =
+    display_platform::DISPLAY_BACKEND_CAP_WINDOW_ROLE_OVERLAY.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_WINDOW_MODAL: u64 = display_platform::DISPLAY_BACKEND_CAP_WINDOW_MODAL.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_WINDOW_ASPECT_RATIO: u64 =
+    display_platform::DISPLAY_BACKEND_CAP_WINDOW_ASPECT_RATIO.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_WINDOW_CHROME: u64 = display_platform::DISPLAY_BACKEND_CAP_WINDOW_CHROME.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_ATTENTION_REQUEST: u64 =
+    display_platform::DISPLAY_BACKEND_CAP_ATTENTION_REQUEST.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_WINDOW_DROP_EVENTS: u64 =
+    display_platform::DISPLAY_BACKEND_CAP_WINDOW_DROP_EVENTS.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_CURSOR_VISIBILITY: u64 =
+    display_platform::DISPLAY_BACKEND_CAP_CURSOR_VISIBILITY.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_CURSOR_ICON: u64 = display_platform::DISPLAY_BACKEND_CAP_CURSOR_ICON.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_CURSOR_WARP: u64 = display_platform::DISPLAY_BACKEND_CAP_CURSOR_WARP.0;
+#[cfg(target_os = "macos")]
+const DISPLAY_CAP_WINDOW_ICON: u64 = display_platform::DISPLAY_BACKEND_CAP_WINDOW_ICON.0;
+
+#[cfg(target_os = "macos")]
+/// Return one capability-ceiling mask for the appkit backend.
+fn appkit_capability_ceiling_mask() -> u64 {
+    display_platform::DISPLAY_BACKEND_CAP_WINDOW.0
+        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_STATE.0
+        | display_platform::DISPLAY_BACKEND_CAP_MONITOR.0
+        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_EVENTS.0
+        | display_platform::DISPLAY_BACKEND_CAP_MONITOR_EVENTS.0
+        | display_platform::DISPLAY_BACKEND_CAP_MONITOR_MODE_SET.0
+        | display_platform::DISPLAY_BACKEND_CAP_MONITOR_GAMMA_CONTROL.0
+        | display_platform::DISPLAY_BACKEND_CAP_BORDERLESS_FULLSCREEN.0
+        | display_platform::DISPLAY_BACKEND_CAP_CURSOR_ICON.0
+        | display_platform::DISPLAY_BACKEND_CAP_CURSOR_VISIBILITY.0
+        | display_platform::DISPLAY_BACKEND_CAP_CURSOR_WARP.0
+        | display_platform::DISPLAY_BACKEND_CAP_TRANSPARENCY.0
+        | display_platform::DISPLAY_BACKEND_CAP_ALWAYS_ON_TOP.0
+        | display_platform::DISPLAY_BACKEND_CAP_ATTENTION_REQUEST.0
+        | display_platform::DISPLAY_BACKEND_CAP_REFRESH_REQUEST.0
+        | display_platform::DISPLAY_BACKEND_CAP_SAFE_AREA.0
+        | display_platform::DISPLAY_BACKEND_CAP_THEME.0
+        | display_platform::DISPLAY_BACKEND_CAP_OCCLUSION.0
+        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_OPACITY.0
+        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ICON.0
+        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_FOCUS.0
+        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_RAISE.0
+        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_HIT_TEST.0
+        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_PARENTING.0
+        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_MODAL.0
+        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ASPECT_RATIO.0
+        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_DROP_EVENTS.0
+        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_CHROME.0
+        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ROLE_POPUP.0
+        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ROLE_OVERLAY.0
+}
 
 #[cfg(target_os = "linux")]
 /// Return one capability-ceiling mask for the x11 backend.
@@ -397,8 +490,14 @@ fn expect_optional_lane(result: RuntimeResult<()>, allow_would_block: bool) -> R
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_display_monitor_surface_supports_strict_backend_selection() {
+#[cfg_attr(test, test)]
+pub(super) fn test_display_monitor_surface_supports_strict_backend_selection() {
+    if run_display_case_or_return(
+        "platform::display::tests::backend::test_display_monitor_surface_supports_strict_backend_selection",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let backends = available_backends(&mut context)?;
         if backends.is_empty() {
@@ -433,8 +532,14 @@ fn test_display_monitor_surface_supports_strict_backend_selection() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_display_window_surface_supports_strict_backend_selection() {
+#[cfg_attr(test, test)]
+pub(super) fn test_display_window_surface_supports_strict_backend_selection() {
+    if run_display_case_or_return(
+        "platform::display::tests::backend::test_display_window_surface_supports_strict_backend_selection",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let backends = available_backends(&mut context)?;
         if backends.is_empty() {
@@ -492,8 +597,14 @@ fn test_display_window_surface_supports_strict_backend_selection() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_display_monitor_desktop_mode_is_consistent_with_modes() {
+#[cfg_attr(test, test)]
+pub(super) fn test_display_monitor_desktop_mode_is_consistent_with_modes() {
+    if run_display_case_or_return(
+        "platform::display::tests::backend::test_display_monitor_desktop_mode_is_consistent_with_modes",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let backend_descriptors = available_backend_descriptors(&mut context)?;
         if backend_descriptors.is_empty() {
@@ -556,8 +667,14 @@ fn test_display_monitor_desktop_mode_is_consistent_with_modes() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_display_window_remaining_surface_calls_follow_backend_contract() {
+#[cfg_attr(test, test)]
+pub(super) fn test_display_window_remaining_surface_calls_follow_backend_contract() {
+    if run_display_case_or_return(
+        "platform::display::tests::backend::test_display_window_remaining_surface_calls_follow_backend_contract",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let backend_descriptors = available_backend_descriptors(&mut context)?;
         if backend_descriptors.is_empty() {
@@ -911,8 +1028,14 @@ fn test_display_window_remaining_surface_calls_follow_backend_contract() {
 }
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
-#[test]
-fn test_display_backend_identity_tracks_strict_backend_selection() {
+#[cfg_attr(test, test)]
+pub(super) fn test_display_backend_identity_tracks_strict_backend_selection() {
+    if run_display_case_or_return(
+        "platform::display::tests::backend::test_display_backend_identity_tracks_strict_backend_selection",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let backends = available_backends(&mut context)?;
         if backends.is_empty() {
@@ -1015,8 +1138,14 @@ fn test_display_backend_identity_tracks_strict_backend_selection() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_display_window_capabilities_match_opened_window_backend() {
+#[cfg_attr(test, test)]
+pub(super) fn test_display_window_capabilities_match_opened_window_backend() {
+    if run_display_case_or_return(
+        "platform::display::tests::backend::test_display_window_capabilities_match_opened_window_backend",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let descriptors = available_backend_descriptors(&mut context)?;
         if descriptors.is_empty() {
@@ -1053,8 +1182,14 @@ fn test_display_window_capabilities_match_opened_window_backend() {
 }
 
 #[cfg(target_os = "linux")]
-#[test]
-fn test_display_x11_capabilities_match_implemented_contract() {
+#[cfg_attr(test, test)]
+pub(super) fn test_display_x11_capabilities_match_implemented_contract() {
+    if run_display_case_or_return(
+        "platform::display::tests::backend::test_display_x11_capabilities_match_implemented_contract",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let descriptors = context.destack_display_backend_list()?;
         let (available, capability_flags) = match descriptors {
@@ -1298,8 +1433,14 @@ fn test_display_x11_capabilities_match_implemented_contract() {
 }
 
 #[cfg(target_os = "linux")]
-#[test]
-fn test_display_wayland_capabilities_match_implemented_contract() {
+#[cfg_attr(test, test)]
+pub(super) fn test_display_wayland_capabilities_match_implemented_contract() {
+    if run_display_case_or_return(
+        "platform::display::tests::backend::test_display_wayland_capabilities_match_implemented_contract",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let descriptors = context.destack_display_backend_list()?;
         let (available, capability_flags) = match descriptors {
@@ -1779,8 +1920,14 @@ fn test_display_wayland_capabilities_match_implemented_contract() {
 }
 
 #[cfg(target_os = "linux")]
-#[test]
-fn test_display_linux_backend_capabilities_respect_ceiling_inventory() {
+#[cfg_attr(test, test)]
+pub(super) fn test_display_linux_backend_capabilities_respect_ceiling_inventory() {
+    if run_display_case_or_return(
+        "platform::display::tests::backend::test_display_linux_backend_capabilities_respect_ceiling_inventory",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let descriptors = available_backend_descriptors(&mut context)?;
 
@@ -1803,8 +1950,14 @@ fn test_display_linux_backend_capabilities_respect_ceiling_inventory() {
 }
 
 #[cfg(target_os = "linux")]
-#[test]
-fn test_display_wayland_window_event_filter_accepts_scale_factor_kind() {
+#[cfg_attr(test, test)]
+pub(super) fn test_display_wayland_window_event_filter_accepts_scale_factor_kind() {
+    if run_display_case_or_return(
+        "platform::display::tests::backend::test_display_wayland_window_event_filter_accepts_scale_factor_kind",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let descriptors = available_backend_descriptors(&mut context)?;
         let is_wayland_available = descriptors
@@ -1830,8 +1983,14 @@ fn test_display_wayland_window_event_filter_accepts_scale_factor_kind() {
 }
 
 #[cfg(target_os = "windows")]
-#[test]
-fn test_display_win32_with_occlusion_capability_reports_unknown_visible_state() {
+#[cfg_attr(test, test)]
+pub(super) fn test_display_win32_with_occlusion_capability_reports_unknown_visible_state() {
+    if run_display_case_or_return(
+        "platform::display::tests::backend::test_display_win32_with_occlusion_capability_reports_unknown_visible_state",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let mut options = default_window_options(&mut context, "win32-occlusion-contract")?;
         force_window_backend(&mut options, DisplayBackend::Win32);
@@ -1850,8 +2009,14 @@ fn test_display_win32_with_occlusion_capability_reports_unknown_visible_state() 
 }
 
 #[cfg(target_os = "windows")]
-#[test]
-fn test_display_win32_capabilities_match_implemented_contract() {
+#[cfg_attr(test, test)]
+pub(super) fn test_display_win32_capabilities_match_implemented_contract() {
+    if run_display_case_or_return(
+        "platform::display::tests::backend::test_display_win32_capabilities_match_implemented_contract",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let descriptors = context.destack_display_backend_list()?;
         let (available, capability_flags) = match descriptors {
@@ -1984,6 +2149,72 @@ fn test_display_win32_capabilities_match_implemented_contract() {
         context.destack_display_window_set_parent(window, None)?;
         context.destack_display_window_close(owner)?;
         context.destack_display_window_close(window)?;
+
+        Ok(())
+    });
+}
+
+#[cfg(target_os = "macos")]
+#[cfg_attr(test, test)]
+pub(super) fn test_display_appkit_capabilities_match_implemented_contract() {
+    if run_display_case_or_return(
+        "platform::display::tests::backend::test_display_appkit_capabilities_match_implemented_contract",
+    ) {
+        return;
+    }
+
+    with_harness_context(|mut context| {
+        let descriptors = context.destack_display_backend_list()?;
+        let (available, capability_flags) = match descriptors {
+            HarnessValue::Native(values) => unsafe { values.as_slice()? }
+                .iter()
+                .find(|descriptor| descriptor.backend == DisplayBackend::AppKit)
+                .map(|descriptor| (descriptor.available, descriptor.capability_flags.0))
+                .expect("backend list should contain appkit descriptor"),
+            HarnessValue::Vm(values) => {
+                let Some(vm_context) = context.vm_context else {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument(
+                        "missing vm context",
+                    ))
+                    .boxed());
+                };
+                let vm_context =
+                    unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
+                values
+                    .read_values(vm_context)?
+                    .into_iter()
+                    .find(|descriptor| descriptor.backend == DisplayBackend::AppKit)
+                    .map(|descriptor| (descriptor.available, descriptor.capability_flags.0))
+                    .expect("backend list should contain appkit descriptor")
+            }
+        };
+
+        assert!(available);
+        assert_eq!(capability_flags & !appkit_capability_ceiling_mask(), 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_MONITOR_MODE_SET, 0);
+        assert_eq!(capability_flags & DISPLAY_CAP_MONITOR_COLOR_STATE, 0);
+        assert_eq!(capability_flags & DISPLAY_CAP_MONITOR_HDR_CONTROL, 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_MONITOR_GAMMA_CONTROL, 0);
+        assert_eq!(capability_flags & DISPLAY_CAP_EXCLUSIVE_FULLSCREEN, 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_BORDERLESS_FULLSCREEN, 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_OCCLUSION, 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_SAFE_AREA, 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_THEME, 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_WINDOW_HIT_TEST, 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_ALWAYS_ON_TOP, 0);
+        assert_eq!(capability_flags & DISPLAY_CAP_WINDOW_TASKBAR_VISIBILITY, 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_WINDOW_ROLE_POPUP, 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_WINDOW_ROLE_OVERLAY, 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_WINDOW_MODAL, 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_WINDOW_ASPECT_RATIO, 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_WINDOW_CHROME, 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_ATTENTION_REQUEST, 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_WINDOW_DROP_EVENTS, 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_CURSOR_VISIBILITY, 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_CURSOR_ICON, 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_CURSOR_WARP, 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_WINDOW_OPACITY, 0);
+        assert_ne!(capability_flags & DISPLAY_CAP_WINDOW_ICON, 0);
 
         Ok(())
     });

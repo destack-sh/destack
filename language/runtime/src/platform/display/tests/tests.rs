@@ -1,12 +1,14 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
 
 use destack_vm as vm;
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "macos"))]
 use std::sync::{Mutex, OnceLock};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{PlatformError, VmSlice, display, resource};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+#[cfg(target_os = "macos")]
+use crate::tests::affinity::run_main_thread_case_or_return;
 pub(crate) use crate::tests::platform::{
     error_code_from_runtime_error as error_code, is_not_supported_code,
     result_or_skip_not_supported,
@@ -118,9 +120,9 @@ pub(crate) fn with_harness_context<F>(mut callback: F)
 where
     F: for<'call> FnMut(DisplayHarnessContext<'call>) -> RuntimeResult<()>,
 {
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "macos"))]
     let _guard = {
-        let global_lock = windows_display_test_lock();
+        let global_lock = display_test_lock();
         global_lock
             .lock()
             .unwrap_or_else(|error| error.into_inner())
@@ -131,11 +133,23 @@ where
     });
 }
 
-#[cfg(windows)]
-/// Return one process-global serialization lock for Win32 display tests.
-fn windows_display_test_lock() -> &'static Mutex<()> {
-    static WINDOWS_DISPLAY_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    WINDOWS_DISPLAY_TEST_LOCK.get_or_init(|| Mutex::new(()))
+#[cfg(target_os = "macos")]
+/// Run one display case through the required affinity helper when needed.
+pub(crate) fn run_display_case_or_return(case_name: &str) -> bool {
+    run_main_thread_case_or_return(case_name, option_env!("CARGO_BIN_EXE_runtime_affinity"))
+}
+
+#[cfg(not(target_os = "macos"))]
+/// Return whether the current display case was delegated to one helper process.
+pub(crate) fn run_display_case_or_return(_case_name: &str) -> bool {
+    false
+}
+
+#[cfg(any(windows, target_os = "macos"))]
+/// Return one process-global serialization lock for display tests.
+fn display_test_lock() -> &'static Mutex<()> {
+    static DISPLAY_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    DISPLAY_TEST_LOCK.get_or_init(|| Mutex::new(()))
 }
 
 /// Build one harness string payload for native and VM binding calls.

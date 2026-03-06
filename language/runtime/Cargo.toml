@@ -155,3 +155,8 @@ rustls-native-certs = { workspace = true }
 
 [lints]
 workspace = true
+[[test]]
+name = "runtime_affinity"
+path = "src/tests/main.rs"
+harness = false
+
