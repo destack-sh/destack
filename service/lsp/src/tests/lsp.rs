@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use destack_compiler::CompilerOptions;
 use destack_lsp_server::UriExt;
-use destack_lsp_server::jsonrpc::Response;
+use destack_lsp_server::jsonrpc::{ErrorCode, Response};
 use destack_lsp_types as lsp;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_service::LanguageService as LspLanguageService;
@@ -265,14 +265,14 @@ async fn test_lsp_navigation_resolves_nested_import_symbol() {
     let mut test = TestLsp::new("navigation_nested_import_symbol").await;
     let main_text = "import { value } from \"./lib\";\nfunction compute(input: number): number {\n    return input + value;\n}\nconst output = compute(1);\n";
     let lib_text = "export const value = 1;\n";
-    let main_path = test.write_text("nested/main.ds", main_text);
-    let lib_path = test.write_text("nested/lib.ds", lib_text);
+    let main_path = test.write_text("nested/main.ds", &main_text);
+    let lib_path = test.write_text("nested/lib.ds", &lib_text);
     let main_uri = uri_for_path(&main_path);
     let lib_uri = uri_for_path(&lib_path);
 
     // open both files and drain diagnostics before querying definitions
-    test.harness.did_open(main_uri.clone(), main_text).await;
-    test.harness.did_open(lib_uri.clone(), lib_text).await;
+    test.harness.did_open(main_uri.clone(), &main_text).await;
+    test.harness.did_open(lib_uri.clone(), &lib_text).await;
     let _ = test.harness.next_diagnostics_for(&main_uri).await;
     let _ = test.harness.next_diagnostics_for(&lib_uri).await;
 
@@ -291,6 +291,8 @@ async fn test_lsp_navigation_resolves_nested_import_symbol() {
     assert_location_matches_path(&location, &lib_path);
     assert_eq!(location.range.start.line, 0);
     assert_eq!(location.range.start.character, 13);
+    assert_eq!(location.range.end.line, 0);
+    assert_eq!(location.range.end.character, 18);
 }
 
 /// Definition resolves for files created after initialize in a nested project.
@@ -301,14 +303,14 @@ async fn test_lsp_navigation_resolves_nested_import_symbol_after_create() {
     let lib_text = "export const value = 1;\n";
 
     // write files after server initialize to mirror real host workflow
-    let main_path = test.write_text("nested-create/main.ds", main_text);
-    let lib_path = test.write_text("nested-create/lib.ds", lib_text);
+    let main_path = test.write_text("nested-create/main.ds", &main_text);
+    let lib_path = test.write_text("nested-create/lib.ds", &lib_text);
     let main_uri = uri_for_path(&main_path);
     let lib_uri = uri_for_path(&lib_path);
 
     // open both files and drain diagnostics before querying definitions
-    test.harness.did_open(main_uri.clone(), main_text).await;
-    test.harness.did_open(lib_uri.clone(), lib_text).await;
+    test.harness.did_open(main_uri.clone(), &main_text).await;
+    test.harness.did_open(lib_uri.clone(), &lib_text).await;
     let _ = test.harness.next_diagnostics_for(&main_uri).await;
     let _ = test.harness.next_diagnostics_for(&lib_uri).await;
 
@@ -327,6 +329,8 @@ async fn test_lsp_navigation_resolves_nested_import_symbol_after_create() {
     assert_location_matches_path(&location, &lib_path);
     assert_eq!(location.range.start.line, 0);
     assert_eq!(location.range.start.character, 13);
+    assert_eq!(location.range.end.line, 0);
+    assert_eq!(location.range.end.character, 18);
 }
 
 /// Execute command requests must not starve definition requests.
@@ -1151,6 +1155,62 @@ async fn test_lsp_workspace_diagnostic_cancels() {
     );
 }
 
+/// References honor work-done progress cancellation even below chunk boundaries.
+#[tokio::test]
+async fn test_lsp_references_progress_cancel_cancels_before_chunk_boundary() {
+    // set up a large references workload in one open file
+    let fs = test_fs("references_progress_cancel");
+    let mut harness = harness_for_fs(&fs).await;
+
+    let mut source = String::new();
+    source.push_str("function target_value(): number {\n");
+    source.push_str("  return 1;\n");
+    source.push_str("}\n");
+    for index in 0..4000 {
+        source.push_str(&format!("const ref_{index} = target_value();\n"));
+    }
+
+    let path = fs.path_for("main.ds");
+    let uri = uri_for_path(&path);
+    harness.did_open(uri.clone(), &source).await;
+    let _ = harness.next_diagnostics_for(&uri).await;
+
+    // start references request with a work-done token
+    let work_done_token = lsp::ProgressToken::String("refs-cancel".to_string());
+    let request_id = harness
+        .start_request(
+            "textDocument/references",
+            lsp::ReferenceParams {
+                text_document_position: lsp::TextDocumentPositionParams {
+                    text_document: lsp::TextDocumentIdentifier::new(uri.clone()),
+                    position: lsp::Position::new(0, 10),
+                },
+                work_done_progress_params: lsp::WorkDoneProgressParams {
+                    work_done_token: Some(work_done_token.clone()),
+                },
+                partial_result_params: lsp::PartialResultParams {
+                    partial_result_token: None,
+                },
+                context: lsp::ReferenceContext {
+                    include_declaration: true,
+                },
+            },
+        )
+        .await;
+
+    // wait for begin and then cancel the work-done token
+    next_work_done_progress_kind(&mut harness, &work_done_token, "begin").await;
+    harness.cancel_work_done_progress(work_done_token).await;
+
+    // verify request cancellation response
+    let response = harness
+        .await_request(request_id)
+        .await
+        .expect("expected references response");
+    let error = response.error().expect("expected cancellation error");
+    assert_eq!(error.code, ErrorCode::RequestCancelled);
+}
+
 /// Code action resolve hydrates workspace edits from lazy data payloads.
 #[tokio::test]
 async fn test_lsp_code_action_resolve_hydrates_edit() {
@@ -1388,6 +1448,43 @@ async fn next_partial_progress(harness: &mut LspHarness) -> serde_json::Value {
     }
 
     panic!("missing partial progress result");
+}
+
+async fn next_work_done_progress_kind(
+    harness: &mut LspHarness,
+    token: &lsp::ProgressToken,
+    expected_kind: &str,
+) {
+    let timeout = Duration::from_secs(5);
+    for _ in 0..128 {
+        let request = tokio::time::timeout(timeout, harness.next_client_request())
+            .await
+            .expect("timeout waiting for work done progress");
+        if request.method() != "$/progress" {
+            continue;
+        }
+
+        let params = request.params().cloned().expect("missing progress params");
+        let progress: lsp::ProgressParams =
+            serde_json::from_value(params).expect("decode progress params");
+        if &progress.token != token {
+            continue;
+        }
+
+        let lsp::ProgressParamsValue::WorkDone(work_done_progress) = progress.value else {
+            continue;
+        };
+        let kind = match work_done_progress {
+            lsp::WorkDoneProgress::Begin(_) => "begin",
+            lsp::WorkDoneProgress::Report(_) => "report",
+            lsp::WorkDoneProgress::End(_) => "end",
+        };
+        if kind == expected_kind {
+            return;
+        }
+    }
+
+    panic!("missing work done progress kind '{expected_kind}'");
 }
 
 async fn next_log_message_containing(

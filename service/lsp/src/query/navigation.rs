@@ -38,15 +38,17 @@ pub fn definition_to_location(
     span_to_location(session, *span)
 }
 
-/// Convert an implementation result to an LSP location.
-///
-/// Returns the first location if multiple exist.
-pub fn implementation_to_location(
+/// Convert an implementation result to LSP locations.
+pub fn implementation_to_locations(
     session: &Session,
     result: &query::ImplementationResult,
-) -> Option<lsp::Location> {
-    let span = result.locations.first()?;
-    span_to_location(session, *span)
+) -> Vec<lsp::Location> {
+    result
+        .locations
+        .iter()
+        .copied()
+        .filter_map(|span| span_to_location(session, span))
+        .collect()
 }
 
 /// Convert a document highlight to an LSP document highlight.

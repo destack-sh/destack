@@ -21,16 +21,17 @@ use destack_source::{
 use destack_workspace::{Session, Workspace, WorkspaceKind};
 use serde::{Deserialize, Serialize};
 use serde_json::{from_value, to_value};
-use tokio::sync::mpsc;
+use tokio::sync::{Notify, mpsc};
 
 use crate::query::assist::{code_lens_to_lsp, inlay_hint_to_lsp};
 use crate::query::common::{byte_span_to_range, position_to_byte, span_to_location};
 use crate::query::diagnostic::{code_action_to_lsp, diagnostic_to_lsp_diagnostic};
 use crate::query::navigation::{
     call_hierarchy_item_to_lsp, definition_to_location, document_highlight_to_lsp,
-    document_link_to_lsp, document_symbol_to_lsp, implementation_to_location, incoming_call_to_lsp,
-    outgoing_call_to_lsp, query_call_hierarchy_item_from_lsp, query_type_hierarchy_item_from_lsp,
-    selection_range_to_lsp, type_hierarchy_item_to_lsp, workspace_symbol_to_lsp,
+    document_link_to_lsp, document_symbol_to_lsp, implementation_to_locations,
+    incoming_call_to_lsp, outgoing_call_to_lsp, query_call_hierarchy_item_from_lsp,
+    query_type_hierarchy_item_from_lsp, selection_range_to_lsp, type_hierarchy_item_to_lsp,
+    workspace_symbol_to_lsp,
 };
 use crate::query::refactor::batch_edit_to_workspace_edit;
 use crate::query::semantic;
@@ -118,6 +119,15 @@ enum MutationTask {
     },
 }
 
+/// One mutation task with an ordering sequence for request-fence waits.
+#[derive(Debug)]
+struct QueuedMutationTask {
+    /// Monotonic mutation sequence assigned at enqueue time.
+    sequence: u64,
+    /// The queued mutation payload.
+    task: MutationTask,
+}
+
 /// Additional information used when resolving completion items.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct CompletionResolveData {
@@ -199,7 +209,13 @@ pub struct DestackLanguageServer {
     /// The workspace service.
     workspace_service: OnceLock<Arc<LspLanguageService>>,
     /// Sender for queued mutation lane tasks.
-    mutation_sender: OnceLock<mpsc::UnboundedSender<MutationTask>>,
+    mutation_sender: OnceLock<mpsc::UnboundedSender<QueuedMutationTask>>,
+    /// Next mutation sequence allocated at enqueue time.
+    next_mutation_sequence: AtomicU64,
+    /// Last completed mutation sequence processed by the lane.
+    completed_mutation_sequence: Arc<AtomicU64>,
+    /// Notification used to wake readers waiting for mutation sequence fences.
+    mutation_idle_notify: Arc<Notify>,
     /// The open documents.
     open_documents: DashMap<String, OpenDocument>,
     /// Cached semantic tokens per document.
@@ -242,6 +258,9 @@ impl DestackLanguageServer {
             session: OnceLock::new(),
             workspace_service: OnceLock::new(),
             mutation_sender: OnceLock::new(),
+            next_mutation_sequence: AtomicU64::new(0),
+            completed_mutation_sequence: Arc::new(AtomicU64::new(0)),
+            mutation_idle_notify: Arc::new(Notify::new()),
             open_documents: DashMap::new(),
             semantic_tokens_cache: DashMap::new(),
             semantic_tokens_counter: AtomicU64::new(1),
@@ -271,7 +290,7 @@ impl DestackLanguageServer {
 
     /// Get the queued mutation sender when initialized.
     #[inline]
-    fn mutation_sender(&self) -> Option<&mpsc::UnboundedSender<MutationTask>> {
+    fn mutation_sender(&self) -> Option<&mpsc::UnboundedSender<QueuedMutationTask>> {
         self.mutation_sender.get()
     }
 
@@ -514,20 +533,24 @@ impl DestackLanguageServer {
     }
 
     /// Execute a workspace query through the workspace for an lsp uri.
-    fn read_query_for_uri(
+    async fn read_query_for_uri(
         &self,
         uri: &lsp::Uri,
         request: query::QueryRequest,
     ) -> Option<query::QueryResponse> {
+        let mutation_fence = self.next_mutation_sequence.load(Ordering::Acquire);
+        self.wait_for_mutation_sequence(mutation_fence).await;
         let path = uri.to_file_path().map(|path| path.into_owned())?;
         self.read_query_for_path(&path, request)
     }
 
     /// Execute a workspace query through the workspace using the workspace root.
-    fn read_query_for_workspace(
+    async fn read_query_for_workspace(
         &self,
         request: query::QueryRequest,
     ) -> Option<query::QueryResponse> {
+        let mutation_fence = self.next_mutation_sequence.load(Ordering::Acquire);
+        self.wait_for_mutation_sequence(mutation_fence).await;
         let root = self.session().workspace_root();
         self.read_query_for_path(&root, request)
     }
@@ -765,9 +788,18 @@ impl DestackLanguageServer {
         let workspace_service = self.workspace_service().clone();
         let client = self.client.clone();
         let session = self.session().clone();
+        let completed_mutation_sequence = self.completed_mutation_sequence.clone();
+        let mutation_idle_notify = self.mutation_idle_notify.clone();
         tokio::spawn(async move {
-            Self::run_mutation_dispatcher_loop(mutation_rx, workspace_service, client, session)
-                .await;
+            Self::run_mutation_dispatcher_loop(
+                mutation_rx,
+                workspace_service,
+                client,
+                session,
+                completed_mutation_sequence,
+                mutation_idle_notify,
+            )
+            .await;
         });
 
         true
@@ -780,8 +812,25 @@ impl DestackLanguageServer {
             return;
         };
 
-        if mutation_sender.send(task).is_err() {
+        // assign one sequence so readers can wait for this mutation when needed
+        let sequence = self.next_mutation_sequence.fetch_add(1, Ordering::AcqRel) + 1;
+        let queued_task = QueuedMutationTask { sequence, task };
+        if mutation_sender.send(queued_task).is_err() {
             tracing::warn!("lsp.mutation_dispatcher.send_failed");
+            self.completed_mutation_sequence
+                .store(sequence, Ordering::Release);
+            self.mutation_idle_notify.notify_waiters();
+        }
+    }
+
+    /// Wait until the mutation lane completes the requested sequence fence.
+    async fn wait_for_mutation_sequence(&self, sequence: u64) {
+        loop {
+            if self.completed_mutation_sequence.load(Ordering::Acquire) >= sequence {
+                return;
+            }
+
+            self.mutation_idle_notify.notified().await;
         }
     }
 
@@ -829,14 +878,27 @@ impl DestackLanguageServer {
 
     /// Run the queued mutation dispatcher loop.
     async fn run_mutation_dispatcher_loop(
-        mut mutation_rx: mpsc::UnboundedReceiver<MutationTask>,
+        mut mutation_rx: mpsc::UnboundedReceiver<QueuedMutationTask>,
         workspace_service: Arc<LspLanguageService>,
         client: Client,
         session: Arc<Session>,
+        completed_mutation_sequence: Arc<AtomicU64>,
+        mutation_idle_notify: Arc<Notify>,
     ) {
-        while let Some(task) = mutation_rx.recv().await {
-            Self::run_mutation_task(&workspace_service, &client, session.as_ref(), task).await;
+        while let Some(queued_task) = mutation_rx.recv().await {
+            Self::run_mutation_task(
+                &workspace_service,
+                &client,
+                session.as_ref(),
+                queued_task.task,
+            )
+            .await;
+
+            completed_mutation_sequence.store(queued_task.sequence, Ordering::Release);
+            mutation_idle_notify.notify_waiters();
         }
+
+        mutation_idle_notify.notify_waiters();
     }
 
     /// Run one blocking workspace operation for the queued mutation lane.
@@ -2099,7 +2161,9 @@ impl LanguageServer for DestackLanguageServer {
                 .await;
         }
 
-        progress.finish(self, "diagnostics complete").await;
+        progress
+            .finish_or_cancelled(self, "diagnostics complete", "diagnostics cancelled")
+            .await?;
 
         let elapsed = started_at.elapsed();
         if elapsed >= SLOW_DIAGNOSTIC_WARN_DURATION {
@@ -2180,10 +2244,13 @@ impl LanguageServer for DestackLanguageServer {
             uri: query_uri,
             offset,
         });
-        let Some(query::QueryResponse::GotoDefinition(response)) = self.read_query_for_uri(
-            &params.text_document_position_params.text_document.uri,
-            request,
-        ) else {
+        let Some(query::QueryResponse::GotoDefinition(response)) = self
+            .read_query_for_uri(
+                &params.text_document_position_params.text_document.uri,
+                request,
+            )
+            .await
+        else {
             return Ok(None);
         };
         let Some(result) = response.result else {
@@ -2223,10 +2290,13 @@ impl LanguageServer for DestackLanguageServer {
             uri: query_uri,
             offset,
         });
-        let Some(query::QueryResponse::GotoDeclaration(response)) = self.read_query_for_uri(
-            &params.text_document_position_params.text_document.uri,
-            request,
-        ) else {
+        let Some(query::QueryResponse::GotoDeclaration(response)) = self
+            .read_query_for_uri(
+                &params.text_document_position_params.text_document.uri,
+                request,
+            )
+            .await
+        else {
             return Ok(None);
         };
         let Some(result) = response.result else {
@@ -2265,10 +2335,13 @@ impl LanguageServer for DestackLanguageServer {
             uri: query_uri,
             offset,
         });
-        let Some(query::QueryResponse::GotoTypeDefinition(response)) = self.read_query_for_uri(
-            &params.text_document_position_params.text_document.uri,
-            request,
-        ) else {
+        let Some(query::QueryResponse::GotoTypeDefinition(response)) = self
+            .read_query_for_uri(
+                &params.text_document_position_params.text_document.uri,
+                request,
+            )
+            .await
+        else {
             return Ok(None);
         };
         let Some(result) = response.result else {
@@ -2303,8 +2376,9 @@ impl LanguageServer for DestackLanguageServer {
             offset,
             include_declaration: params.context.include_declaration,
         });
-        let Some(query::QueryResponse::FindReferences(response)) =
-            self.read_query_for_uri(&params.text_document_position.text_document.uri, request)
+        let Some(query::QueryResponse::FindReferences(response)) = self
+            .read_query_for_uri(&params.text_document_position.text_document.uri, request)
+            .await
         else {
             return Ok(None);
         };
@@ -2367,11 +2441,13 @@ impl LanguageServer for DestackLanguageServer {
             .await;
         }
 
+        progress
+            .finish_or_cancelled(self, "references complete", "references cancelled")
+            .await?;
+
         if locations.is_empty() {
-            progress.finish(self, "references complete").await;
             Ok(None)
         } else {
-            progress.finish(self, "references complete").await;
             Ok(Some(locations))
         }
     }
@@ -2390,8 +2466,9 @@ impl LanguageServer for DestackLanguageServer {
         let query_uri = Self::query_uri(&params.text_document.uri);
         let request =
             query::QueryRequest::DocumentSymbols(query::DocumentSymbolsRequest { uri: query_uri });
-        let Some(query::QueryResponse::DocumentSymbols(response)) =
-            self.read_query_for_uri(&params.text_document.uri, request)
+        let Some(query::QueryResponse::DocumentSymbols(response)) = self
+            .read_query_for_uri(&params.text_document.uri, request)
+            .await
         else {
             return Ok(None);
         };
@@ -2454,11 +2531,13 @@ impl LanguageServer for DestackLanguageServer {
             .await;
         }
 
+        progress
+            .finish_or_cancelled(self, "symbols complete", "symbols cancelled")
+            .await?;
+
         if lsp_symbols.is_empty() {
-            progress.finish(self, "symbols complete").await;
             Ok(None)
         } else {
-            progress.finish(self, "symbols complete").await;
             Ok(Some(lsp::DocumentSymbolResponse::Nested(lsp_symbols)))
         }
     }
@@ -2476,7 +2555,7 @@ impl LanguageServer for DestackLanguageServer {
             max_results: 100,
         });
         let Some(query::QueryResponse::WorkspaceSymbols(response)) =
-            self.read_query_for_workspace(request)
+            self.read_query_for_workspace(request).await
         else {
             return Ok(None);
         };
@@ -2533,11 +2612,13 @@ impl LanguageServer for DestackLanguageServer {
             .await;
         }
 
+        progress
+            .finish_or_cancelled(self, "symbols complete", "symbols cancelled")
+            .await?;
+
         if lsp_symbols.is_empty() {
-            progress.finish(self, "symbols complete").await;
             Ok(None)
         } else {
-            progress.finish(self, "symbols complete").await;
             Ok(Some(lsp::OneOf::Left(lsp_symbols)))
         }
     }
@@ -2569,10 +2650,13 @@ impl LanguageServer for DestackLanguageServer {
             uri: query_uri,
             offset,
         });
-        let Some(query::QueryResponse::DocumentHighlight(response)) = self.read_query_for_uri(
-            &params.text_document_position_params.text_document.uri,
-            request,
-        ) else {
+        let Some(query::QueryResponse::DocumentHighlight(response)) = self
+            .read_query_for_uri(
+                &params.text_document_position_params.text_document.uri,
+                request,
+            )
+            .await
+        else {
             return Ok(None);
         };
         let highlights = response.highlights;
@@ -2631,11 +2715,13 @@ impl LanguageServer for DestackLanguageServer {
             .await;
         }
 
+        progress
+            .finish_or_cancelled(self, "highlights complete", "highlights cancelled")
+            .await?;
+
         if lsp_highlights.is_empty() {
-            progress.finish(self, "highlights complete").await;
             Ok(None)
         } else {
-            progress.finish(self, "highlights complete").await;
             Ok(Some(lsp_highlights))
         }
     }
@@ -2668,10 +2754,13 @@ impl LanguageServer for DestackLanguageServer {
             uri: query_uri,
             offset,
         });
-        let Some(query::QueryResponse::Hover(response)) = self.read_query_for_uri(
-            &params.text_document_position_params.text_document.uri,
-            request,
-        ) else {
+        let Some(query::QueryResponse::Hover(response)) = self
+            .read_query_for_uri(
+                &params.text_document_position_params.text_document.uri,
+                request,
+            )
+            .await
+        else {
             return Ok(None);
         };
         let Some(hover_info) = response.hover else {
@@ -2730,8 +2819,9 @@ impl LanguageServer for DestackLanguageServer {
             trigger,
             include_imports: true,
         });
-        let Some(query::QueryResponse::Completion(response)) =
-            self.read_query_for_uri(&params.text_document_position.text_document.uri, request)
+        let Some(query::QueryResponse::Completion(response)) = self
+            .read_query_for_uri(&params.text_document_position.text_document.uri, request)
+            .await
         else {
             return Ok(None);
         };
@@ -2903,10 +2993,13 @@ impl LanguageServer for DestackLanguageServer {
             uri: query_uri,
             offset,
         });
-        let Some(query::QueryResponse::SignatureHelp(response)) = self.read_query_for_uri(
-            &params.text_document_position_params.text_document.uri,
-            request,
-        ) else {
+        let Some(query::QueryResponse::SignatureHelp(response)) = self
+            .read_query_for_uri(
+                &params.text_document_position_params.text_document.uri,
+                request,
+            )
+            .await
+        else {
             return Ok(None);
         };
         let Some(help) = response.help else {
@@ -2972,8 +3065,9 @@ impl LanguageServer for DestackLanguageServer {
         let query_uri = Self::query_uri(&params.text_document.uri);
         let request =
             query::QueryRequest::SemanticTokens(query::SemanticTokensRequest { uri: query_uri });
-        let Some(query::QueryResponse::SemanticTokens(response)) =
-            self.read_query_for_uri(&params.text_document.uri, request)
+        let Some(query::QueryResponse::SemanticTokens(response)) = self
+            .read_query_for_uri(&params.text_document.uri, request)
+            .await
         else {
             return Ok(None);
         };
@@ -3022,8 +3116,9 @@ impl LanguageServer for DestackLanguageServer {
         let query_uri = Self::query_uri(&params.text_document.uri);
         let request =
             query::QueryRequest::SemanticTokens(query::SemanticTokensRequest { uri: query_uri });
-        let Some(query::QueryResponse::SemanticTokens(response)) =
-            self.read_query_for_uri(&params.text_document.uri, request)
+        let Some(query::QueryResponse::SemanticTokens(response)) = self
+            .read_query_for_uri(&params.text_document.uri, request)
+            .await
         else {
             return Ok(None);
         };
@@ -3098,8 +3193,9 @@ impl LanguageServer for DestackLanguageServer {
             start,
             end,
         });
-        let Some(query::QueryResponse::SemanticTokensRange(response)) =
-            self.read_query_for_uri(&params.text_document.uri, request)
+        let Some(query::QueryResponse::SemanticTokensRange(response)) = self
+            .read_query_for_uri(&params.text_document.uri, request)
+            .await
         else {
             return Ok(None);
         };
@@ -3134,8 +3230,9 @@ impl LanguageServer for DestackLanguageServer {
         let query_uri = Self::query_uri(&params.text_document.uri);
         let request =
             query::QueryRequest::FoldingRanges(query::FoldingRangesRequest { uri: query_uri });
-        let Some(query::QueryResponse::FoldingRanges(response)) =
-            self.read_query_for_uri(&params.text_document.uri, request)
+        let Some(query::QueryResponse::FoldingRanges(response)) = self
+            .read_query_for_uri(&params.text_document.uri, request)
+            .await
         else {
             return Ok(None);
         };
@@ -3204,11 +3301,13 @@ impl LanguageServer for DestackLanguageServer {
             .await;
         }
 
+        progress
+            .finish_or_cancelled(self, "folding ranges complete", "folding ranges cancelled")
+            .await?;
+
         if lsp_ranges.is_empty() {
-            progress.finish(self, "folding ranges complete").await;
             Ok(None)
         } else {
-            progress.finish(self, "folding ranges complete").await;
             Ok(Some(lsp_ranges))
         }
     }
@@ -3258,8 +3357,9 @@ impl LanguageServer for DestackLanguageServer {
 
         // return single edit replacing entire document
         let line_count = file.line_count();
+        let last_line_index = line_count.saturating_sub(1);
         let last_line_len = file
-            .get_line_str(line_count.saturating_sub(1))
+            .get_line_str(last_line_index)
             .map(|l| l.len())
             .unwrap_or(0);
 
@@ -3270,7 +3370,7 @@ impl LanguageServer for DestackLanguageServer {
                     character: 0,
                 },
                 end: lsp::Position {
-                    line: line_count,
+                    line: last_line_index,
                     character: last_line_len as u32,
                 },
             },
@@ -3356,8 +3456,9 @@ impl LanguageServer for DestackLanguageServer {
             uri: query_uri,
             offsets: positions,
         });
-        let Some(query::QueryResponse::SelectionRanges(response)) =
-            self.read_query_for_uri(&params.text_document.uri, request)
+        let Some(query::QueryResponse::SelectionRanges(response)) = self
+            .read_query_for_uri(&params.text_document.uri, request)
+            .await
         else {
             return Ok(None);
         };
@@ -3412,7 +3513,9 @@ impl LanguageServer for DestackLanguageServer {
             .await;
         }
 
-        progress.finish(self, "ranges complete").await;
+        progress
+            .finish_or_cancelled(self, "ranges complete", "ranges cancelled")
+            .await?;
         Ok(Some(lsp_ranges))
     }
 
@@ -3444,10 +3547,13 @@ impl LanguageServer for DestackLanguageServer {
             uri: query_uri,
             offset,
         });
-        let Some(query::QueryResponse::GotoImplementation(response)) = self.read_query_for_uri(
-            &params.text_document_position_params.text_document.uri,
-            request,
-        ) else {
+        let Some(query::QueryResponse::GotoImplementation(response)) = self
+            .read_query_for_uri(
+                &params.text_document_position_params.text_document.uri,
+                request,
+            )
+            .await
+        else {
             return Ok(None);
         };
         let Some(result) = response.result else {
@@ -3455,11 +3561,12 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         // convert to LSP
-        let Some(location) = implementation_to_location(session, &result) else {
+        let locations = implementation_to_locations(session, &result);
+        if locations.is_empty() {
             return Ok(None);
-        };
+        }
 
-        Ok(Some(lsp::GotoDefinitionResponse::Scalar(location)))
+        Ok(Some(lsp::GotoDefinitionResponse::Array(locations)))
     }
 
     // ------------------------------------------------------------------------
@@ -3483,8 +3590,9 @@ impl LanguageServer for DestackLanguageServer {
         let query_uri = Self::query_uri(&params.text_document.uri);
         let request =
             query::QueryRequest::DocumentLinks(query::DocumentLinksRequest { uri: query_uri });
-        let Some(query::QueryResponse::DocumentLinks(response)) =
-            self.read_query_for_uri(&params.text_document.uri, request)
+        let Some(query::QueryResponse::DocumentLinks(response)) = self
+            .read_query_for_uri(&params.text_document.uri, request)
+            .await
         else {
             return Ok(None);
         };
@@ -3540,11 +3648,13 @@ impl LanguageServer for DestackLanguageServer {
                 .await;
         }
 
+        progress
+            .finish_or_cancelled(self, "links complete", "links cancelled")
+            .await?;
+
         if lsp_links.is_empty() {
-            progress.finish(self, "links complete").await;
             Ok(None)
         } else {
-            progress.finish(self, "links complete").await;
             Ok(Some(lsp_links))
         }
     }
@@ -3602,8 +3712,9 @@ impl LanguageServer for DestackLanguageServer {
             end,
             context,
         });
-        let Some(query::QueryResponse::CodeActions(response)) =
-            self.read_query_for_uri(&params.text_document.uri, request)
+        let Some(query::QueryResponse::CodeActions(response)) = self
+            .read_query_for_uri(&params.text_document.uri, request)
+            .await
         else {
             return Ok(None);
         };
@@ -3691,11 +3802,13 @@ impl LanguageServer for DestackLanguageServer {
                 .await;
         }
 
+        progress
+            .finish_or_cancelled(self, "actions complete", "actions cancelled")
+            .await?;
+
         if lsp_actions.is_empty() {
-            progress.finish(self, "actions complete").await;
             Ok(None)
         } else {
-            progress.finish(self, "actions complete").await;
             Ok(Some(lsp_actions))
         }
     }
@@ -3748,8 +3861,9 @@ impl LanguageServer for DestackLanguageServer {
         // query code lenses
         let query_uri = Self::query_uri(&params.text_document.uri);
         let request = query::QueryRequest::CodeLenses(query::CodeLensesRequest { uri: query_uri });
-        let Some(query::QueryResponse::CodeLenses(response)) =
-            self.read_query_for_uri(&params.text_document.uri, request)
+        let Some(query::QueryResponse::CodeLenses(response)) = self
+            .read_query_for_uri(&params.text_document.uri, request)
+            .await
         else {
             return Ok(None);
         };
@@ -3800,7 +3914,9 @@ impl LanguageServer for DestackLanguageServer {
                 .await;
         }
 
-        progress.finish(self, "lenses complete").await;
+        progress
+            .finish_or_cancelled(self, "lenses complete", "lenses cancelled")
+            .await?;
         Ok(Some(lsp_lenses))
     }
 
@@ -3839,8 +3955,9 @@ impl LanguageServer for DestackLanguageServer {
             start,
             end,
         });
-        let Some(query::QueryResponse::InlayHints(response)) =
-            self.read_query_for_uri(&params.text_document.uri, request)
+        let Some(query::QueryResponse::InlayHints(response)) = self
+            .read_query_for_uri(&params.text_document.uri, request)
+            .await
         else {
             return Ok(None);
         };
@@ -3887,8 +4004,9 @@ impl LanguageServer for DestackLanguageServer {
             uri: query_uri,
             offset,
         });
-        let Some(query::QueryResponse::PrepareRename(response)) =
-            self.read_query_for_uri(&params.text_document.uri, request)
+        let Some(query::QueryResponse::PrepareRename(response)) = self
+            .read_query_for_uri(&params.text_document.uri, request)
+            .await
         else {
             return Ok(None);
         };
@@ -3991,10 +4109,13 @@ impl LanguageServer for DestackLanguageServer {
                 uri: query_uri,
                 offset,
             });
-        let Some(query::QueryResponse::PrepareCallHierarchy(response)) = self.read_query_for_uri(
-            &params.text_document_position_params.text_document.uri,
-            request,
-        ) else {
+        let Some(query::QueryResponse::PrepareCallHierarchy(response)) = self
+            .read_query_for_uri(
+                &params.text_document_position_params.text_document.uri,
+                request,
+            )
+            .await
+        else {
             return Ok(None);
         };
         let Some(item) = response.item else {
@@ -4025,7 +4146,7 @@ impl LanguageServer for DestackLanguageServer {
                 item,
             });
         let Some(query::QueryResponse::CallHierarchyIncoming(response)) =
-            self.read_query_for_uri(&params.item.uri, request)
+            self.read_query_for_uri(&params.item.uri, request).await
         else {
             return Ok(Some(vec![]));
         };
@@ -4056,7 +4177,7 @@ impl LanguageServer for DestackLanguageServer {
                 item,
             });
         let Some(query::QueryResponse::CallHierarchyOutgoing(response)) =
-            self.read_query_for_uri(&params.item.uri, request)
+            self.read_query_for_uri(&params.item.uri, request).await
         else {
             return Ok(Some(vec![]));
         };
@@ -4102,10 +4223,13 @@ impl LanguageServer for DestackLanguageServer {
                 uri: query_uri,
                 offset,
             });
-        let Some(query::QueryResponse::PrepareTypeHierarchy(response)) = self.read_query_for_uri(
-            &params.text_document_position_params.text_document.uri,
-            request,
-        ) else {
+        let Some(query::QueryResponse::PrepareTypeHierarchy(response)) = self
+            .read_query_for_uri(
+                &params.text_document_position_params.text_document.uri,
+                request,
+            )
+            .await
+        else {
             return Ok(None);
         };
         let Some(item) = response.item else {
@@ -4135,7 +4259,7 @@ impl LanguageServer for DestackLanguageServer {
                 item,
             });
         let Some(query::QueryResponse::TypeHierarchySupertypes(response)) =
-            self.read_query_for_uri(&params.item.uri, request)
+            self.read_query_for_uri(&params.item.uri, request).await
         else {
             return Ok(Some(vec![]));
         };
@@ -4166,7 +4290,7 @@ impl LanguageServer for DestackLanguageServer {
                 item,
             });
         let Some(query::QueryResponse::TypeHierarchySubtypes(response)) =
-            self.read_query_for_uri(&params.item.uri, request)
+            self.read_query_for_uri(&params.item.uri, request).await
         else {
             return Ok(Some(vec![]));
         };

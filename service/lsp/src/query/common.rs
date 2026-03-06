@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cmp;
 
 use destack_ast::TokenSpan;
@@ -10,8 +11,8 @@ use crate::uri::lsp_uri_for_file;
 
 /// Convert byte span to LSP range.
 pub fn byte_span_to_range(source: &File, span: Span) -> lsp::Range {
-    let (start_line, start_column) = byte_to_utf16_position(source, span.start).unwrap_or_default();
-    let (end_line, end_column) = byte_to_utf16_position(source, span.end).unwrap_or_default();
+    let (start_line, start_column) = byte_to_utf16_position_clamped(source, span.start);
+    let (end_line, end_column) = byte_to_utf16_position_clamped(source, span.end);
     lsp::Range {
         start: lsp::Position {
             line: start_line,
@@ -35,10 +36,10 @@ pub fn range_to_byte_span(source: &File, range: &lsp::Range) -> Option<(u32, u32
 
 /// Convert LSP position (line/character) to byte offset in source.
 pub fn position_to_byte(source: &File, position: &lsp::Position) -> Option<u32> {
+    // always operate on a valid line start offset list
+    let line_start_offsets = line_start_offsets_for_file(source);
+
     let line_index = position.line as usize;
-    let Some(line_start_offsets) = &source.line_start_offsets else {
-        return None;
-    };
     let line_start = *line_start_offsets.get(line_index).unwrap_or(&source.len);
     let next_start = line_start_offsets
         .get(line_index + 1)
@@ -71,13 +72,18 @@ pub fn position_to_byte(source: &File, position: &lsp::Position) -> Option<u32> 
 
 /// Convert byte offset to LSP position (line/character in UTF-16).
 pub fn byte_to_utf16_position(source: &File, byte_index: u32) -> Option<(u32, u32)> {
-    if byte_index > source.len {
-        return None;
-    }
+    Some(byte_to_utf16_position_clamped(source, byte_index))
+}
 
-    let Some(line_start_offsets) = &source.line_start_offsets else {
-        return None;
-    };
+/// Convert byte offset to LSP position with explicit end of file clamping.
+fn byte_to_utf16_position_clamped(source: &File, byte_index: u32) -> (u32, u32) {
+    // always operate on a valid line start offset list
+    let line_start_offsets = line_start_offsets_for_file(source);
+
+    // clamp out of bounds positions to end of file
+    let byte_index = cmp::min(byte_index, source.len);
+
+    // resolve the destination line for the clamped byte index
     let line_index = match line_start_offsets.binary_search(&byte_index) {
         Ok(idx) => idx as u32,
         Err(idx) => idx.saturating_sub(1) as u32,
@@ -105,7 +111,25 @@ pub fn byte_to_utf16_position(source: &File, byte_index: u32) -> Option<(u32, u3
         utf16_column += ch.len_utf16() as u32;
     }
 
-    Some((line_index, utf16_column))
+    (line_index, utf16_column)
+}
+
+/// Return line-start offsets for one file, computing them when missing.
+fn line_start_offsets_for_file(source: &File) -> Cow<'_, [u32]> {
+    // reuse precomputed offsets when present
+    if let Some(line_start_offsets) = source.line_start_offsets.as_deref() {
+        return Cow::Borrowed(line_start_offsets);
+    }
+
+    // derive offsets from text for unloaded or ad hoc snapshots
+    let mut line_start_offsets = vec![0];
+    for (offset, ch) in source.text().char_indices() {
+        if ch == '\n' {
+            line_start_offsets.push(offset as u32 + 1);
+        }
+    }
+
+    Cow::Owned(line_start_offsets)
 }
 
 /// Compute UTF-16 length of a token span.
