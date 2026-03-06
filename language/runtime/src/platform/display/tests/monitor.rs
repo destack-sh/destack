@@ -5,7 +5,7 @@ use super::decode_display_descriptor_metrics;
 use super::{
     decode_display_mode, decode_monitor_list, decode_monitor_modes, default_monitor_list_request,
     default_monitor_open_options, error_code, harness_display_mode, harness_string,
-    result_or_skip_not_supported, with_harness_context,
+    result_or_skip_not_supported, run_display_case_or_return, with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(windows)]
@@ -14,8 +14,14 @@ use crate::platform::display::DisplayOrientation;
 use crate::platform::display::{DisplayColorState, DisplayHdrMode};
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_monitor_closest_mode_returns_supported_mode() {
+#[cfg_attr(test, test)]
+pub(super) fn test_monitor_closest_mode_returns_supported_mode() {
+    if run_display_case_or_return(
+        "platform::display::tests::monitor::test_monitor_closest_mode_returns_supported_mode",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let Some(monitor_list) = result_or_skip_not_supported(
             context.destack_display_monitor_list(default_monitor_list_request(&context)),
@@ -46,8 +52,14 @@ fn test_monitor_closest_mode_returns_supported_mode() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_monitor_open_unknown_id_reports_not_found() {
+#[cfg_attr(test, test)]
+pub(super) fn test_monitor_open_unknown_id_reports_not_found() {
+    if run_display_case_or_return(
+        "platform::display::tests::monitor::test_monitor_open_unknown_id_reports_not_found",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let Some(monitor_list) = result_or_skip_not_supported(
             context.destack_display_monitor_list(default_monitor_list_request(&context)),
@@ -69,8 +81,14 @@ fn test_monitor_open_unknown_id_reports_not_found() {
 }
 
 #[cfg(windows)]
-#[test]
-fn test_monitor_descriptor_reports_orientation_and_capability_fields() {
+#[cfg_attr(test, test)]
+pub(super) fn test_monitor_descriptor_reports_orientation_and_capability_fields() {
+    if run_display_case_or_return(
+        "platform::display::tests::monitor::test_monitor_descriptor_reports_orientation_and_capability_fields",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let Some(monitor_list) = result_or_skip_not_supported(
             context.destack_display_monitor_list(default_monitor_list_request(&context)),
@@ -98,8 +116,14 @@ fn test_monitor_descriptor_reports_orientation_and_capability_fields() {
 }
 
 #[cfg(windows)]
-#[test]
-fn test_monitor_color_state_and_hdr_mode_are_consistent() {
+#[cfg_attr(test, test)]
+pub(super) fn test_monitor_color_state_and_hdr_mode_are_consistent() {
+    if run_display_case_or_return(
+        "platform::display::tests::monitor::test_monitor_color_state_and_hdr_mode_are_consistent",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let Some(monitor_list) = result_or_skip_not_supported(
             context.destack_display_monitor_list(default_monitor_list_request(&context)),
@@ -149,8 +173,14 @@ fn test_monitor_color_state_and_hdr_mode_are_consistent() {
 }
 
 #[cfg(windows)]
-#[test]
-fn test_monitor_set_hdr_mode_system_is_noop() {
+#[cfg_attr(test, test)]
+pub(super) fn test_monitor_set_hdr_mode_system_is_noop() {
+    if run_display_case_or_return(
+        "platform::display::tests::monitor::test_monitor_set_hdr_mode_system_is_noop",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let Some(monitor_list) = result_or_skip_not_supported(
             context.destack_display_monitor_list(default_monitor_list_request(&context)),
@@ -173,8 +203,14 @@ fn test_monitor_set_hdr_mode_system_is_noop() {
 }
 
 #[cfg(windows)]
-#[test]
-fn test_monitor_gamma_ramp_lane_roundtrips_current_values() {
+#[cfg_attr(test, test)]
+pub(super) fn test_monitor_gamma_ramp_lane_roundtrips_current_values() {
+    if run_display_case_or_return(
+        "platform::display::tests::monitor::test_monitor_gamma_ramp_lane_roundtrips_current_values",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let Some(monitor_list) = result_or_skip_not_supported(
             context.destack_display_monitor_list(default_monitor_list_request(&context)),

@@ -3,7 +3,8 @@ use super::{
     decode_monitor_modes, decode_window_descriptor, default_monitor_event_open_options,
     default_monitor_list_request, default_monitor_open_options, default_window_event_open_options,
     default_window_options, error_code, harness_string, is_not_supported_code,
-    open_window_or_skip_not_supported, result_or_skip_not_supported, with_harness_context,
+    open_window_or_skip_not_supported, result_or_skip_not_supported, run_display_case_or_return,
+    with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::display as display_platform;
@@ -32,8 +33,14 @@ const DISPLAY_CAP_WINDOW_DROP_EVENTS: u64 =
     display_platform::DISPLAY_BACKEND_CAP_WINDOW_DROP_EVENTS.0;
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_display_monitor_surface_works_end_to_end() {
+#[cfg_attr(test, test)]
+pub(super) fn test_display_monitor_surface_works_end_to_end() {
+    if run_display_case_or_return(
+        "platform::display::tests::basic::test_display_monitor_surface_works_end_to_end",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let Some(monitor_list) = result_or_skip_not_supported(
             context.destack_display_monitor_list(default_monitor_list_request(&context)),
@@ -112,8 +119,14 @@ fn test_display_monitor_surface_works_end_to_end() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_display_window_surface_works_end_to_end() {
+#[cfg_attr(test, test)]
+pub(super) fn test_display_window_surface_works_end_to_end() {
+    if run_display_case_or_return(
+        "platform::display::tests::basic::test_display_window_surface_works_end_to_end",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "alpha")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -156,8 +169,14 @@ fn test_display_window_surface_works_end_to_end() {
 }
 
 #[cfg(windows)]
-#[test]
-fn test_display_backend_capabilities_match_win32_implementation() {
+#[cfg_attr(test, test)]
+pub(super) fn test_display_backend_capabilities_match_win32_implementation() {
+    if run_display_case_or_return(
+        "platform::display::tests::basic::test_display_backend_capabilities_match_win32_implementation",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let backends = context.destack_display_backend_list()?;
         let (win32_available, win32_capability_flags) = match backends {

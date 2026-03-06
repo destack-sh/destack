@@ -2,7 +2,7 @@ use super::{
     HarnessValue, HarnessWindowMode, decode_harness_value, default_window_options, error_code,
     harness_window_icon_set, harness_window_icon_set_none, harness_window_logical_size,
     harness_window_mode_options, harness_window_physical_size, is_not_supported_code,
-    open_window_or_skip_not_supported, with_harness_context,
+    open_window_or_skip_not_supported, run_display_case_or_return, with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{display as display_platform, resource};
@@ -59,8 +59,14 @@ fn wait_cursor_visibility(expected_visible: bool) -> bool {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_rejects_invalid_size_values() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_rejects_invalid_size_values() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_rejects_invalid_size_values",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "size-invalid")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -93,8 +99,14 @@ fn test_window_rejects_invalid_size_values() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_mode_exclusive_with_invalid_display_is_rejected() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_mode_exclusive_with_invalid_display_is_rejected() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_mode_exclusive_with_invalid_display_is_rejected",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "exclusive-mode")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -123,8 +135,14 @@ fn test_window_mode_exclusive_with_invalid_display_is_rejected() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_failed_mode_change_preserves_previous_mode() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_failed_mode_change_preserves_previous_mode() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_failed_mode_change_preserves_previous_mode",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "mode-rollback")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -196,8 +214,14 @@ fn test_window_failed_mode_change_preserves_previous_mode() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_open_mode_exclusive_with_invalid_display_is_rejected() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_open_mode_exclusive_with_invalid_display_is_rejected() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_open_mode_exclusive_with_invalid_display_is_rejected",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let mut options = default_window_options(&mut context, "exclusive-open")?;
         match &mut options {
@@ -248,8 +272,14 @@ fn test_window_open_mode_exclusive_with_invalid_display_is_rejected() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_open_rejects_unusable_popup_role_configuration() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_open_rejects_unusable_popup_role_configuration() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_open_rejects_unusable_popup_role_configuration",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let mut options = default_window_options(&mut context, "role-popup-open")?;
         match &mut options {
@@ -279,8 +309,14 @@ fn test_window_open_rejects_unusable_popup_role_configuration() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_cursor_policy_transitions_keep_close_path_operational() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_cursor_policy_transitions_keep_close_path_operational() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_cursor_policy_transitions_keep_close_path_operational",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "cursor-policy-close")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -333,8 +369,14 @@ fn test_window_cursor_policy_transitions_keep_close_path_operational() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_visibility_roundtrip_and_double_close_error() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_visibility_roundtrip_and_double_close_error() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_visibility_roundtrip_and_double_close_error",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "visibility")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -366,6 +408,30 @@ fn test_window_visibility_roundtrip_and_double_close_error() {
         let visible_state = decode_harness_value(visible_state);
         assert_eq!(visible_state.visibility, WindowVisibility::Visible);
 
+        // maximized visibility should be idempotent and restore cleanly back to visible
+        let maximized_result =
+            context.destack_display_window_set_visibility(window, WindowVisibility::Maximized);
+        if let Err(error) = maximized_result {
+            if !is_not_supported_code(error_code(&error)) {
+                context.destack_display_window_close(window)?;
+                return Err(error);
+            }
+        } else {
+            let maximized_state = context.destack_display_window_state(window)?;
+            let maximized_state = decode_harness_value(maximized_state);
+            assert_eq!(maximized_state.visibility, WindowVisibility::Maximized);
+
+            context.destack_display_window_set_visibility(window, WindowVisibility::Maximized)?;
+            let maximized_state = context.destack_display_window_state(window)?;
+            let maximized_state = decode_harness_value(maximized_state);
+            assert_eq!(maximized_state.visibility, WindowVisibility::Maximized);
+
+            context.destack_display_window_set_visibility(window, WindowVisibility::Visible)?;
+            let visible_state = context.destack_display_window_state(window)?;
+            let visible_state = decode_harness_value(visible_state);
+            assert_eq!(visible_state.visibility, WindowVisibility::Visible);
+        }
+
         context.destack_display_window_close(window)?;
 
         let second_close = context.destack_display_window_close(window);
@@ -377,8 +443,42 @@ fn test_window_visibility_roundtrip_and_double_close_error() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_set_modal_requires_owner_relationship() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_set_size_logical_roundtrip_matches_state() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_set_size_logical_roundtrip_matches_state",
+    ) {
+        return;
+    }
+
+    with_harness_context(|mut context| {
+        let options = default_window_options(&mut context, "size-logical-roundtrip")?;
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
+        };
+
+        let target_size = harness_window_logical_size(&context, 320.0, 180.0);
+        context.destack_display_window_set_size_logical(window, target_size)?;
+
+        let state = context.destack_display_window_state(window)?;
+        let state = decode_harness_value(state);
+        assert_eq!(state.size_logical.width, 320.0);
+        assert_eq!(state.size_logical.height, 180.0);
+
+        context.destack_display_window_close(window)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[cfg_attr(test, test)]
+pub(super) fn test_window_set_modal_requires_owner_relationship() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_set_modal_requires_owner_relationship",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "modal-owner-required")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -403,8 +503,14 @@ fn test_window_set_modal_requires_owner_relationship() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_modal_owner_removal_requires_explicit_transition() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_modal_owner_removal_requires_explicit_transition() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_modal_owner_removal_requires_explicit_transition",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let owner_options = default_window_options(&mut context, "modal-owner-removal-owner")?;
         let Some(owner) = open_window_or_skip_not_supported(&mut context, owner_options)? else {
@@ -471,8 +577,14 @@ fn test_window_modal_owner_removal_requires_explicit_transition() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_set_parent_rejects_self_relationship() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_set_parent_rejects_self_relationship() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_set_parent_rejects_self_relationship",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "parent-self-invalid")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -497,8 +609,14 @@ fn test_window_set_parent_rejects_self_relationship() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_parent_and_transient_relationship_roundtrip() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_parent_and_transient_relationship_roundtrip() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_parent_and_transient_relationship_roundtrip",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let owner_options = default_window_options(&mut context, "relation-owner")?;
         let Some(owner) = open_window_or_skip_not_supported(&mut context, owner_options)? else {
@@ -560,8 +678,13 @@ fn test_window_parent_and_transient_relationship_roundtrip() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_opacity_roundtrip() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_opacity_roundtrip() {
+    if run_display_case_or_return("platform::display::tests::window::test_window_opacity_roundtrip")
+    {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "opacity-roundtrip")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -592,8 +715,14 @@ fn test_window_opacity_roundtrip() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_chrome_and_decoration_roundtrip() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_chrome_and_decoration_roundtrip() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_chrome_and_decoration_roundtrip",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "chrome-roundtrip")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -646,9 +775,15 @@ fn test_window_chrome_and_decoration_roundtrip() {
     });
 }
 
-#[cfg(windows)]
-#[test]
-fn test_window_set_size_physical_matches_client_size() {
+#[cfg(any(windows, target_os = "macos"))]
+#[cfg_attr(test, test)]
+pub(super) fn test_window_set_size_physical_matches_client_size() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_set_size_physical_matches_client_size",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "client-size")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -667,8 +802,14 @@ fn test_window_set_size_physical_matches_client_size() {
 }
 
 #[cfg(windows)]
-#[test]
-fn test_window_open_size_matches_requested_client_size() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_open_size_matches_requested_client_size() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_open_size_matches_requested_client_size",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let mut options = default_window_options(&mut context, "open-client-size")?;
         match &mut options {
@@ -696,8 +837,14 @@ fn test_window_open_size_matches_requested_client_size() {
 }
 
 #[cfg(windows)]
-#[test]
-fn test_window_mode_borderless_without_display_is_accepted() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_mode_borderless_without_display_is_accepted() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_mode_borderless_without_display_is_accepted",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "borderless-no-display")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -713,8 +860,14 @@ fn test_window_mode_borderless_without_display_is_accepted() {
 }
 
 #[cfg(windows)]
-#[test]
-fn test_window_focus_on_show_false_does_not_force_focus() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_focus_on_show_false_does_not_force_focus() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_focus_on_show_false_does_not_force_focus",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let mut options = default_window_options(&mut context, "focus-disabled")?;
         match &mut options {
@@ -741,8 +894,14 @@ fn test_window_focus_on_show_false_does_not_force_focus() {
 }
 
 #[cfg(windows)]
-#[test]
-fn test_window_close_keeps_cursor_hidden_when_another_window_requests_hidden_mode() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_close_keeps_cursor_hidden_when_another_window_requests_hidden_mode() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_close_keeps_cursor_hidden_when_another_window_requests_hidden_mode",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let first_options = default_window_options(&mut context, "cursor-hidden-first")?;
         let Some(first_window) = open_window_or_skip_not_supported(&mut context, first_options)?
@@ -779,8 +938,14 @@ fn test_window_close_keeps_cursor_hidden_when_another_window_requests_hidden_mod
 }
 
 #[cfg(windows)]
-#[test]
-fn test_window_aspect_ratio_roundtrip_and_size_lock() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_aspect_ratio_roundtrip_and_size_lock() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_aspect_ratio_roundtrip_and_size_lock",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "aspect-ratio")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -821,8 +986,14 @@ fn test_window_aspect_ratio_roundtrip_and_size_lock() {
 }
 
 #[cfg(windows)]
-#[test]
-fn test_window_close_restores_cursor_visibility() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_close_restores_cursor_visibility() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_close_restores_cursor_visibility",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "cursor-restore")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -844,8 +1015,14 @@ fn test_window_close_restores_cursor_visibility() {
 }
 
 #[cfg(any(unix, windows))]
-#[test]
-fn test_window_icons_set_and_clear() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_icons_set_and_clear() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_icons_set_and_clear",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "icon-set")?;
         let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
@@ -877,8 +1054,14 @@ fn test_window_icons_set_and_clear() {
 }
 
 #[cfg(windows)]
-#[test]
-fn test_window_modal_parent_transition_reenables_previous_owner() {
+#[cfg_attr(test, test)]
+pub(super) fn test_window_modal_parent_transition_reenables_previous_owner() {
+    if run_display_case_or_return(
+        "platform::display::tests::window::test_window_modal_parent_transition_reenables_previous_owner",
+    ) {
+        return;
+    }
+
     with_harness_context(|mut context| {
         let owner_a_options = default_window_options(&mut context, "owner-a")?;
         let Some(owner_a) = open_window_or_skip_not_supported(&mut context, owner_a_options)?

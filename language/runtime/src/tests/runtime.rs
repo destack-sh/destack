@@ -91,6 +91,7 @@ impl TestRuntime {
     }
 
     /// Install default VM bindings using the test agent.
+    #[cfg(test)]
     pub(crate) fn install_vm_defaults(&mut self, isolate: &mut vm::Isolate) {
         self.agent.bindings.install_vm_defaults(isolate);
     }

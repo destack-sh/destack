@@ -1,4 +1,6 @@
 #[cfg(any(unix, windows))]
+pub(crate) mod affinity;
+#[cfg(any(unix, windows))]
 mod backend;
 #[cfg(any(unix, windows))]
 mod basic;
