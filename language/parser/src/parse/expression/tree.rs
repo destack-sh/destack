@@ -3,6 +3,13 @@ use crate::Parser;
 use destack_ast::{Keyword, TokenType};
 
 impl Parser {
+    /// Peek a tree literal with value-expression position rules.
+    fn peek_tree_literal_in_value_position(&mut self) -> bool {
+        self.with_options(self.options.not_in_position(), |parser| {
+            parser.peek_tree_literal().is_ok()
+        })
+    }
+
     /// Return true when `<` starts a generic arrow expression.
     pub(super) fn can_start_generic_arrow_expression(&mut self) -> bool {
         if !self.language.is_typescript() && !self.language.is_destack() {
@@ -33,9 +40,7 @@ impl Parser {
             return false;
         }
         if self.has_shift_left_tree_static_arguments() {
-            return self.with_options(self.options.not_in_position(), |parser| {
-                parser.peek_tree_literal().is_ok()
-            });
+            return self.peek_tree_literal_in_value_position();
         }
 
         let mark = self.mark_rewind();
@@ -47,9 +52,7 @@ impl Parser {
             return false;
         }
 
-        self.with_options(self.options.not_in_position(), |parser| {
-            parser.peek_tree_literal().is_ok()
-        })
+        self.peek_tree_literal_in_value_position()
     }
 
     /// Return true when a line break is followed by a tree literal start.
@@ -60,7 +63,7 @@ impl Parser {
         }
 
         // require a line break before the next semantic token
-        let cursor = self.current_scanner_cursor();
+        let cursor = self.scanner_cursor_from(self.pos_index());
         if !cursor.has_line_break_before {
             return false;
         }
@@ -74,9 +77,15 @@ impl Parser {
 
         // probe from the next token with in_type disabled
         self.with_pos(next, |parser| {
-            let mut options = parser.options;
-            options.set_in_type(false);
-            parser.with_options(options, |inner| inner.can_start_tree_literal())
+            let ambient_context = parser.options.with_type(false);
+            let expression_context = parser.options.not_in_position();
+            parser.with_options(
+                parser
+                    .options
+                    .with_ambient_context(ambient_context)
+                    .with_expression_context(expression_context),
+                |parser| parser.can_start_tree_literal(),
+            )
         })
     }
 
