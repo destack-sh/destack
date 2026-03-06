@@ -1214,14 +1214,6 @@ fn parser_counter_entries(stats: ParserSpeculationStats) -> Vec<FormatterCounter
             value: stats.restore_calls as usize,
         },
         FormatterCounterEntry {
-            name: "parser.current_scanner_cursor",
-            value: stats.current_scanner_cursor_calls as usize,
-        },
-        FormatterCounterEntry {
-            name: "parser.advance_to_scanner_cursor",
-            value: stats.advance_to_scanner_cursor_calls as usize,
-        },
-        FormatterCounterEntry {
             name: "parser.parenthesized_follow.calls",
             value: stats.parenthesized_follow_token_calls as usize,
         },
@@ -1232,10 +1224,6 @@ fn parser_counter_entries(stats: ParserSpeculationStats) -> Vec<FormatterCounter
         FormatterCounterEntry {
             name: "parser.delimiter_analysis.lookups",
             value: stats.delimiter_analysis_lookups as usize,
-        },
-        FormatterCounterEntry {
-            name: "parser.delimiter_analysis.cache_hits",
-            value: stats.delimiter_analysis_cache_hits as usize,
         },
         FormatterCounterEntry {
             name: "parser.delimiter_analysis.snapshot_lookups",
