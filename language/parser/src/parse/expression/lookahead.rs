@@ -2,31 +2,26 @@ use crate::{ParseResult, Parser};
 
 use destack_ast::TokenType;
 
-/// Cached delimiter analysis metadata keyed by opening token index.
+/// Parenthesized group analysis metadata.
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct DelimiterAnalysis {
-    /// The matching close delimiter index when known.
+    /// The matching close parenthesis index when known.
     pub close_index: Option<usize>,
     /// Whether the group has a top level comma.
     pub has_top_level_comma: bool,
-    /// Whether an arrow follows the closing parenthesis.
-    pub has_arrow_follow: bool,
-    /// Whether a colon follows the closing parenthesis.
-    pub has_colon_follow: bool,
+    /// The significant token after the closing parenthesis when relevant.
+    pub follow_token_type: Option<TokenType>,
     /// Whether a top level parameter colon appears inside the group.
     pub has_top_level_parameter_colon: bool,
     /// Whether the group is empty aside from newlines.
     pub is_empty: bool,
 }
 
-/// Parenthesized group shape alias used by expression dispatch.
-pub(crate) type ParenthesizedGroupShape = DelimiterAnalysis;
-
 impl Parser {
     /// Return the shape for the current open parenthesis.
-    pub(super) fn parenthesized_group_shape(&mut self) -> ParseResult<ParenthesizedGroupShape> {
-        let ambient_context = self.current_ambient_context();
-        let expression_context = self.current_expression_context();
+    pub(super) fn parenthesized_group_shape(&mut self) -> ParseResult<DelimiterAnalysis> {
+        let ambient_context = self.options;
+        let expression_context = self.options;
         let open_index = self.pos_index();
 
         // tree literal starts like `(<div>...)` do not need delimiter-shape lookahead
@@ -54,53 +49,33 @@ impl Parser {
                     }
 
                     if matches!(follow_token_type, TokenType::Arrow | TokenType::ArrowWide) {
-                        return Ok(ParenthesizedGroupShape {
+                        return Ok(DelimiterAnalysis {
                             close_index: Some(close_index),
-                            has_arrow_follow: true,
-                            ..ParenthesizedGroupShape::default()
+                            follow_token_type: Some(follow_token_type),
+                            ..DelimiterAnalysis::default()
                         });
                     }
 
                     if follow_token_type != TokenType::Colon {
-                        return Ok(ParenthesizedGroupShape::default());
+                        return Ok(DelimiterAnalysis::default());
                     }
                 }
             }
         }
 
         if has_parenthesized_tree_literal {
-            Ok(ParenthesizedGroupShape::default())
+            Ok(DelimiterAnalysis::default())
         } else {
-            self.try_lookahead_parenthesized_group_shape()
+            self.lookahead_parenthesized_group_shape()
         }
     }
 
-    /// Try to look ahead at a parenthesized group shape without committing parser state.
-    pub(super) fn try_lookahead_parenthesized_group_shape(
-        &mut self,
-    ) -> ParseResult<ParenthesizedGroupShape> {
-        let ambient = self.current_ambient_context();
+    /// Look ahead at a parenthesized group shape without committing parser state.
+    fn lookahead_parenthesized_group_shape(&mut self) -> ParseResult<DelimiterAnalysis> {
+        let ambient = self.options;
 
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             speculation_stats.delimiter_analysis_lookups += 1;
-        }
-
-        // skip cache when split token state can change current token semantics
-        if !self.has_active_split() {
-            let lookahead_index = self.pos_index();
-            self.ensure_token(lookahead_index);
-
-            if self
-                .delimiter_analyses_cached
-                .get(lookahead_index)
-                .copied()
-                .unwrap_or(false)
-            {
-                if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                    speculation_stats.delimiter_analysis_cache_hits += 1;
-                }
-                return Ok(self.delimiter_analyses[lookahead_index]);
-            }
         }
 
         // tree literal lexing can mutate token stream state during lookahead
@@ -123,67 +98,37 @@ impl Parser {
             Err(_) => Ok(DelimiterAnalysis::default()),
         }?;
 
-        // store cache for the current token index when split tokens are inactive
-        if !self.has_active_split() {
-            let lookahead_index = self.pos_index();
-            self.ensure_delimiter_analysis_cache_capacity(lookahead_index);
-            self.delimiter_analyses[lookahead_index] = delimiter_analysis;
-            self.delimiter_analyses_cached[lookahead_index] = true;
-        }
-
         Ok(delimiter_analysis)
     }
 
     /// Compute delimiter analysis metadata for the current opening token.
     fn lookahead_delimiter_analysis_inner(&mut self) -> ParseResult<DelimiterAnalysis> {
-        let ambient = self.current_ambient_context();
-        let expression = self.current_expression_context();
+        let ambient = self.options;
+        let expression = self.options;
 
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             speculation_stats.delimiter_analysis_scans += 1;
         }
 
         let open_index = self.pos_index();
-        self.ensure_token(open_index);
-        let Some(open_token) = self.tokens().get(open_index).copied() else {
-            return Ok(DelimiterAnalysis::default());
-        };
-        let open_token_type = open_token.token.ty;
-
-        // only opening delimiters participate in delimiter analysis
-        if !matches!(
-            open_token_type,
-            TokenType::OpenParenthesis | TokenType::OpenBrace | TokenType::OpenBracket
-        ) {
+        if self.token_type_at(open_index) != TokenType::OpenParenthesis {
             return Ok(DelimiterAnalysis::default());
         }
 
-        let close_index =
-            self.find_matching_close_for_open_delimiter(open_index as u32, open_token_type)?;
+        let close_index = self.find_matching_close_for_parenthesized_group(open_index as u32)?;
         let Some(close_index) = close_index else {
             return Ok(DelimiterAnalysis::default());
         };
 
-        // braces and brackets only need close pair metadata for now
-        if open_token_type != TokenType::OpenParenthesis {
-            return Ok(DelimiterAnalysis {
-                close_index: Some(close_index),
-                ..DelimiterAnalysis::default()
-            });
-        }
-
         let tracks_tuple_commas = self.language.is_destack();
         let follow_cursor = self.scanner_cursor_from(close_index + 1);
-        let follow_token_type = if follow_cursor.token_type == TokenType::End {
-            None
-        } else {
-            Some(follow_cursor.token_type)
+        let follow_token_type = match follow_cursor.token_type {
+            TokenType::Arrow | TokenType::ArrowWide | TokenType::Colon => {
+                Some(follow_cursor.token_type)
+            }
+            _ => None,
         };
-        let has_arrow_follow = matches!(
-            follow_token_type,
-            Some(TokenType::Arrow | TokenType::ArrowWide)
-        );
-        let has_colon_follow = matches!(follow_token_type, Some(TokenType::Colon));
+        let has_colon_follow = follow_token_type == Some(TokenType::Colon);
         let needs_parameter_shape_for_arrow_return = expression.is_in_arrow_return_type();
         let needs_parameter_shape_for_typed_colon = ambient.is_in_type() && has_colon_follow;
 
@@ -195,8 +140,7 @@ impl Parser {
         {
             return Ok(DelimiterAnalysis {
                 close_index: Some(close_index),
-                has_arrow_follow,
-                has_colon_follow,
+                follow_token_type,
                 is_empty: false,
                 ..DelimiterAnalysis::default()
             });
@@ -206,24 +150,21 @@ impl Parser {
         let mut delimiter_analysis =
             self.scan_parenthesized_delimiter_analysis(open_index as u32, close_index as u32);
         delimiter_analysis.close_index = Some(close_index);
-        delimiter_analysis.has_arrow_follow = has_arrow_follow;
-        delimiter_analysis.has_colon_follow = has_colon_follow;
+        delimiter_analysis.follow_token_type = follow_token_type;
         Ok(delimiter_analysis)
     }
 
-    /// Find the matching close token for an opening delimiter token.
-    fn find_matching_close_for_open_delimiter(
+    /// Find the matching close token for the current parenthesized group.
+    fn find_matching_close_for_parenthesized_group(
         &mut self,
         open_pos: u32,
-        open_token_type: TokenType,
     ) -> ParseResult<Option<usize>> {
         let open_index = open_pos as usize;
 
         // tree literals can contain raw `)` text, so groups that start as tree literals use expression matching
         let tree_literals_allowed = self.expression_tree_literals_allowed();
-        let needs_tree_aware_parenthesis_matching = open_token_type == TokenType::OpenParenthesis
-            && tree_literals_allowed
-            && (self.current_ambient_context().is_in_tree_literal()
+        let needs_tree_aware_parenthesis_matching = tree_literals_allowed
+            && (self.options.is_in_tree_literal()
                 || self.parenthesized_group_starts_with_tree_literal(open_index));
         if needs_tree_aware_parenthesis_matching {
             let close_pos = self.find_matching_close_in_expression(
@@ -237,30 +178,17 @@ impl Parser {
         if !self.has_active_split()
             && self
                 .token_ref_at(open_index)
-                .is_some_and(|token| token.token.ty == open_token_type)
+                .is_some_and(|token| token.token.ty == TokenType::OpenParenthesis)
             && let Some(close_index) = self.matching_pair_or_lex(open_index)
         {
             return Ok(Some(close_index));
         }
 
-        let close_pos = match open_token_type {
-            TokenType::OpenParenthesis => self.find_matching_close(
-                Some(open_pos),
-                TokenType::OpenParenthesis,
-                TokenType::CloseParenthesis,
-            )?,
-            TokenType::OpenBrace => self.find_matching_close(
-                Some(open_pos),
-                TokenType::OpenBrace,
-                TokenType::CloseBrace,
-            )?,
-            TokenType::OpenBracket => self.find_matching_close(
-                Some(open_pos),
-                TokenType::OpenBracket,
-                TokenType::CloseBracket,
-            )?,
-            _ => return Ok(None),
-        };
+        let close_pos = self.find_matching_close(
+            Some(open_pos),
+            TokenType::OpenParenthesis,
+            TokenType::CloseParenthesis,
+        )?;
         Ok(Some(close_pos as usize))
     }
 
