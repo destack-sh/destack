@@ -5,7 +5,7 @@ use crate::{FileVersion, ModuleId, ProfileId, ProfileVersion};
 /// Magic prefix for on disk cache headers.
 pub const CACHE_MAGIC: [u8; 4] = *b"DSCH";
 /// Cache header format version.
-pub const CACHE_FORMAT_VERSION: u32 = 3;
+pub const CACHE_FORMAT_VERSION: u32 = 4;
 
 /// Kind of cached payload stored after the header.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
