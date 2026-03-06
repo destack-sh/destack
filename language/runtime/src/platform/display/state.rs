@@ -1,8 +1,10 @@
 #[cfg(windows)]
 use std::sync::{Arc, OnceLock};
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 use std::sync::{Arc, OnceLock};
 
+#[cfg(target_os = "macos")]
+use super::host::AppKitRuntimeState;
 #[cfg(windows)]
 use super::host::{DisplayEventRuntimeState, WindowRuntimeState};
 #[cfg(target_os = "linux")]
@@ -23,6 +25,9 @@ pub(crate) struct PlatformDisplayState {
     /// Runtime-owned linux wayland state.
     #[cfg(target_os = "linux")]
     wayland_runtime_state: OnceLock<Arc<WaylandRuntimeState>>,
+    /// Runtime-owned macOS appkit state.
+    #[cfg(target_os = "macos")]
+    appkit_runtime_state: OnceLock<Arc<AppKitRuntimeState>>,
 }
 
 impl std::fmt::Debug for PlatformDisplayState {
@@ -78,6 +83,18 @@ impl PlatformDisplayState {
     ) -> Arc<WaylandRuntimeState> {
         Arc::clone(
             self.wayland_runtime_state
+                .get_or_init(|| Arc::new(initialize())),
+        )
+    }
+
+    /// Return runtime-owned macOS appkit display state.
+    #[cfg(target_os = "macos")]
+    pub(crate) fn appkit_runtime_state(
+        &self,
+        initialize: impl FnOnce() -> AppKitRuntimeState,
+    ) -> Arc<AppKitRuntimeState> {
+        Arc::clone(
+            self.appkit_runtime_state
                 .get_or_init(|| Arc::new(initialize())),
         )
     }

@@ -13,8 +13,8 @@ pub mod native;
 pub(crate) mod simulation;
 #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 mod state;
-#[cfg(test)]
-mod tests;
+#[cfg(any(test, target_os = "macos"))]
+pub(crate) mod tests;
 mod unsupported;
 pub mod vm;
 
