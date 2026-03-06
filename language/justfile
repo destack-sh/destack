@@ -411,11 +411,11 @@ test-grammar-corpus-routing:
 
 # run TypeScript and TSX tree sitter corpus tests
 test-grammar-typescript-tsx:
-    cd grammar/destack && bunx tree-sitter test --rebuild
+    grammar/scripts/test-tree-sitter-destack.sh typescript-tsx
 
 # run Destack tree sitter corpus tests
 test-grammar-destack:
-    cd grammar/destack/destack && bunx tree-sitter test --rebuild
+    grammar/scripts/test-tree-sitter-destack.sh destack
 
 # run MIR tree sitter corpus tests
 test-grammar-mir:
