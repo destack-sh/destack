@@ -1,4 +1,4 @@
-// fixture lsp: minimal stdio json rpc server for extension LSP tests
+// fixture server: minimal stdio json rpc server for bridge smoke tests
 let inputBuffer = Buffer.alloc(0);
 
 // append new bytes and parse complete frames
@@ -7,9 +7,9 @@ process.stdin.on("data", (chunk) => {
     drainMessages();
 });
 
-/** Drain complete LSP frames from the buffered stdin stream. */
+/** Drain complete LSP frames from buffered stdin. */
 function drainMessages() {
-    // parse full lsp frames from the buffered byte stream
+    // parse full lsp frames from the buffered stream
     while (true) {
         const headerEnd = inputBuffer.indexOf("\r\n\r\n");
         if (headerEnd < 0) {
@@ -35,14 +35,14 @@ function drainMessages() {
             const message = JSON.parse(payload);
             handleMessage(message);
         } catch {
-            // ignore malformed frames in this smoke fixture
+            // ignore malformed frames in this fixture process
         }
     }
 }
 
-/** Parse the Content Length header from an LSP frame header block. */
+/** Parse one content-length header value. */
 function parseContentLength(header) {
-    // extract content length from the lsp headers
+    // extract content length from the lsp header block
     const match = /Content-Length:\s*(\d+)/i.exec(header);
     if (!match) {
         return undefined;
@@ -51,17 +51,17 @@ function parseContentLength(header) {
     return Number.parseInt(match[1], 10);
 }
 
-/** Write one JSON RPC message using LSP framing. */
+/** Write one JSON-RPC payload with LSP framing. */
 function sendMessage(message) {
-    // write one framed json rpc payload
+    // frame and write one json rpc payload
     const body = Buffer.from(JSON.stringify(message), "utf8");
     process.stdout.write(`Content-Length: ${body.length}\r\n\r\n`);
     process.stdout.write(body);
 }
 
-/** Send a standard JSON RPC response payload. */
+/** Send one JSON-RPC success response. */
 function sendResponse(id, result) {
-    // send a normal json rpc response
+    // send standard response shape
     sendMessage({
         jsonrpc: "2.0",
         id,
@@ -69,7 +69,7 @@ function sendResponse(id, result) {
     });
 }
 
-/** Publish deterministic diagnostics for the provided document text. */
+/** Publish deterministic diagnostics from one source text payload. */
 function sendPublishDiagnostics(uri, text) {
     // synthesize one deterministic diagnostic pattern
     const hasError = /export const\s+\w+\s*=\s*;/.test(text);
@@ -81,8 +81,8 @@ function sendPublishDiagnostics(uri, text) {
                       end: { line: 0, character: 1 },
                   },
                   severity: 1,
-                  source: "destack-mock",
-                  message: "mock parse error",
+                  source: "destack-fixture",
+                  message: "fixture parse error",
               },
           ]
         : [];
@@ -97,12 +97,12 @@ function sendPublishDiagnostics(uri, text) {
     });
 }
 
-/** Handle inbound JSON RPC requests from the client. */
+/** Handle one inbound request payload. */
 function handleRequest(message) {
     const method = message.method;
     const id = message.id;
 
-    // initialize: advertise the capabilities required by smoke tests
+    // initialize: advertise required smoke-test capabilities
     if (method === "initialize") {
         sendResponse(id, {
             capabilities: {
@@ -114,20 +114,20 @@ function handleRequest(message) {
                 },
             },
             serverInfo: {
-                name: "destack-mock-lsp",
+                name: "destack-bridge-fixture",
                 version: "1.0.0",
             },
         });
         return;
     }
 
-    // shutdown: acknowledge and wait for exit notification
+    // shutdown: acknowledge and wait for exit
     if (method === "shutdown") {
         sendResponse(id, null);
         return;
     }
 
-    // definition: return one stable location in the same file
+    // definition: return one stable same-file location
     if (method === "textDocument/definition") {
         const uri = message.params?.textDocument?.uri;
         if (!uri) {
@@ -147,7 +147,7 @@ function handleRequest(message) {
         return;
     }
 
-    // hover: return a stable payload
+    // hover: return one stable payload
     if (method === "textDocument/hover") {
         sendResponse(id, {
             contents: {
@@ -164,17 +164,15 @@ function handleRequest(message) {
         return;
     }
 
-    // pull diagnostics: return an empty report for simplicity
+    // pull diagnostics: return one empty report
     if (method === "textDocument/diagnostic") {
         sendResponse(id, { kind: "full", items: [] });
         return;
     }
 
-    // workspace diagnostics: return an empty aggregate report
+    // workspace diagnostics: return one empty aggregate report
     if (method === "workspace/diagnostic") {
-        sendResponse(id, {
-            items: [],
-        });
+        sendResponse(id, { items: [] });
         return;
     }
 
@@ -182,11 +180,11 @@ function handleRequest(message) {
     sendResponse(id, null);
 }
 
-/** Handle inbound JSON RPC notifications from the client. */
+/** Handle one inbound notification payload. */
 function handleNotification(message) {
     const method = message.method;
 
-    // did open: push diagnostics from full text content
+    // didOpen: publish diagnostics from full text content
     if (method === "textDocument/didOpen") {
         const uri = message.params?.textDocument?.uri;
         const text = message.params?.textDocument?.text ?? "";
@@ -196,7 +194,7 @@ function handleNotification(message) {
         return;
     }
 
-    // did change: use the latest full change text
+    // didChange: publish diagnostics from latest full text change
     if (method === "textDocument/didChange") {
         const uri = message.params?.textDocument?.uri;
         const changes = message.params?.contentChanges ?? [];
@@ -213,9 +211,9 @@ function handleNotification(message) {
     }
 }
 
-/** Dispatch inbound JSON RPC messages by payload shape. */
+/** Dispatch one inbound JSON-RPC payload by shape. */
 function handleMessage(message) {
-    // dispatch requests and notifications
+    // route request and notification payloads
     if (Object.hasOwn(message, "id")) {
         handleRequest(message);
         return;

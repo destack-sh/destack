@@ -264,8 +264,8 @@
         "publish:live": "bunx --bun @vscode/vsce@latest publish",
         "check:grammar": "node scripts/check-grammar.mjs",
         "test:grammar": "node scripts/check-grammar.mjs && bunx vscode-tmgrammar-test --grammar destack.tmLanguage.json \"src/tests-grammar/*.txt\" && bunx vscode-tmgrammar-test --grammar destack-mir.tmLanguage.json \"src/tests-grammar-mir/*.txt\"",
-        "test:lsp:build": "node -e \"require('fs').rmSync('out-tests',{recursive:true,force:true})\" && bun run bundle && tsc -p tsconfig.tests.json",
-        "test:lsp": "bun run test:lsp:build && node out-tests/tests-lsp/run.js"
+        "test:bridge:build": "node -e \"require('fs').rmSync('out-tests',{recursive:true,force:true})\" && bun run bundle && tsc -p tsconfig.tests.json",
+        "test:bridge": "bun run test:bridge:build && node out-tests/tests-bridge/run.js"
     },
     "dependencies": {},
     "devDependencies": {
