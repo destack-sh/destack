@@ -12,7 +12,7 @@ use super::topology::{
 
 /// World mutation command payload.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum WorldCommand {
+pub(crate) enum WorldCommand {
     /// Create one runtime and its primary agent.
     CreateRuntime {
         /// Runtime identifier to create.

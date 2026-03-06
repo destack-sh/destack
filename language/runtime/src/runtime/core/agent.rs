@@ -14,9 +14,8 @@ use crate::runtime::memory::Heap;
 use crate::runtime::poller::PollerToken;
 use crate::runtime::scheduler::{EventLoop, EventLoopWatch};
 use crate::runtime::snapshot::SnapshotStore;
-use crate::runtime::time::HostClockSource;
 use crate::runtime::world::{RuntimeId, World, WorldCommand};
-use crate::runtime::{Hooks, RuntimeFinalizers};
+use crate::runtime::{DropCounts, DropReason, Hooks, RuntimeFinalizers};
 use destack_workspace::RuntimeOptions;
 
 /// Stable identifier for one world-managed agent.
@@ -33,8 +32,6 @@ pub struct Agent {
     pub(crate) name: String,
     /// Immutable process arguments for platform bindings.
     pub(crate) platform_args: Arc<[String]>,
-    /// Shared deterministic world for policy, simulation, clock, and randomness.
-    pub(crate) world: Arc<World>,
     /// Immutable runtime options.
     pub(crate) options: RuntimeOptions,
 
@@ -48,6 +45,8 @@ pub struct Agent {
     pub(crate) platform_state: PlatformState,
     /// Agent diagnostics storage for runtime errors and warning events.
     pub(crate) diagnostic: Arc<AgentDiagnosticStore>,
+    /// Coordinator-owned drop accounting for standalone agent flows.
+    pub(crate) drop_counts: DropCounts,
     /// External binding registry and policy enforcement.
     pub(crate) bindings: BindingRegistry,
     /// Managed heap and GC coordination.
@@ -68,7 +67,6 @@ impl std::fmt::Debug for Agent {
             .field("hooks", &self.hooks)
             .field("finalizers", &self.finalizers)
             .field("platform_state", &self.platform_state)
-            .field("world", &self.world)
             .field("diagnostic", &self.diagnostic)
             .field("bindings", &self.bindings)
             .field("heap", &self.heap)
@@ -78,36 +76,15 @@ impl std::fmt::Debug for Agent {
 }
 
 impl Agent {
-    /// Create one agent with explicit runtime options.
-    pub fn new(
-        platform_args: impl Into<Arc<[String]>>,
-        options: &RuntimeOptions,
-    ) -> RuntimeResult<Self> {
-        let platform_args = platform_args.into();
-        let world = Self::create_world(options, None)?;
-        let (runtime_id, agent_id, _, agent_name) =
-            Self::register_runtime(world.as_ref(), options)?;
-
-        Self::assemble(
-            platform_args,
-            options,
-            world,
-            runtime_id,
-            agent_id,
-            agent_name,
-        )
-    }
-
     /// Create one agent with explicit runtime options in one shared world.
     pub fn new_in_world(
         platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
-        world: impl Into<Arc<World>>,
+        world: &World,
     ) -> RuntimeResult<Self> {
         let platform_args = platform_args.into();
-        let world = world.into();
-        let (runtime_id, agent_id, _, agent_name) =
-            Self::register_runtime(world.as_ref(), options)?;
+        let (runtime_id, agent_id, _runtime_name, agent_name) =
+            Self::register_runtime(world, options)?;
 
         Self::assemble(
             platform_args,
@@ -123,12 +100,11 @@ impl Agent {
     pub(crate) fn new_in_runtime(
         platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
-        world: impl Into<Arc<World>>,
+        world: &World,
         runtime_id: RuntimeId,
     ) -> RuntimeResult<Self> {
         let platform_args = platform_args.into();
-        let world = world.into();
-        let (agent_id, agent_name) = Self::register_agent(world.as_ref(), options, runtime_id)?;
+        let (agent_id, agent_name) = Self::register_agent(world, options, runtime_id)?;
 
         Self::assemble(
             platform_args,
@@ -140,53 +116,17 @@ impl Agent {
         )
     }
 
-    /// Create one agent with explicit runtime options and host clock source.
-    #[cfg(test)]
-    pub(crate) fn new_with_host_clock_source(
-        platform_args: impl Into<Arc<[String]>>,
-        options: &RuntimeOptions,
-        host_clock_source: Arc<dyn HostClockSource>,
-    ) -> RuntimeResult<Self> {
-        let platform_args = platform_args.into();
-        let world = Self::create_world(options, Some(host_clock_source))?;
-        let (runtime_id, agent_id, _, agent_name) =
-            Self::register_runtime(world.as_ref(), options)?;
-
-        Self::assemble(
-            platform_args,
-            options,
-            world,
-            runtime_id,
-            agent_id,
-            agent_name,
-        )
-    }
-
-    /// Create one shared world from runtime options.
-    fn create_world(
-        options: &RuntimeOptions,
-        host_clock_source: Option<Arc<dyn HostClockSource>>,
-    ) -> RuntimeResult<Arc<World>> {
-        let world = World::new(options, host_clock_source)?;
-        Ok(Arc::new(world))
-    }
-
-    /// Assemble one agent from registered runtime and agent identities.
+    /// Assemble one agent from registered world topology metadata.
     fn assemble(
         platform_args: Arc<[String]>,
         options: &RuntimeOptions,
-        world: Arc<World>,
+        world: &World,
         runtime_id: RuntimeId,
         agent_id: AgentId,
         agent_name: String,
     ) -> RuntimeResult<Self> {
         // hooks and resources
-        let hooks = Arc::new(Hooks::new(
-            world.clone(),
-            runtime_id,
-            agent_id,
-            world.replay().mode(),
-        ));
+        let hooks = Arc::new(Hooks::new(runtime_id, agent_id, world.replay().mode()));
         let resources = ResourceTable::default();
         resources.set_hooks(hooks.clone());
 
@@ -214,8 +154,8 @@ impl Agent {
             hooks,
             finalizers: RuntimeFinalizers::default(),
             platform_state: PlatformState::default(),
-            world,
             diagnostic: Arc::new(AgentDiagnosticStore::from_options(&options.diagnostic)),
+            drop_counts: DropCounts::default(),
             bindings,
             heap,
             event_loop,
@@ -279,18 +219,14 @@ impl Agent {
         let agent_labels = options.primary_agent.labels.clone();
 
         // register runtime and agent in one world command
-        let _ = world.create_runtime(
+        let _ = world.apply_control_command(WorldCommand::CreateRuntime {
             runtime_id,
-            runtime_name,
+            runtime_name: runtime_name.clone(),
             runtime_labels,
-            agent_id,
-            agent_name,
-            agent_labels,
-        )?;
-
-        // read canonical names back from world topology
-        let runtime_name = world.runtime_name(runtime_id)?;
-        let agent_name = world.agent_name(agent_id)?;
+            primary_agent_id: agent_id,
+            primary_agent_name: agent_name.clone(),
+            primary_agent_labels: agent_labels,
+        })?;
 
         Ok((runtime_id, agent_id, runtime_name, agent_name))
     }
@@ -311,17 +247,14 @@ impl Agent {
         let agent_labels = options.primary_agent.labels.clone();
 
         // register one agent in one existing runtime
-        let _ = world.create_agent(runtime_id, agent_id, agent_name, agent_labels)?;
-
-        // read canonical name back from world topology
-        let agent_name = world.agent_name(agent_id)?;
+        let _ = world.apply_control_command(WorldCommand::CreateAgent {
+            runtime_id,
+            agent_id,
+            agent_name: agent_name.clone(),
+            agent_labels,
+        })?;
 
         Ok((agent_id, agent_name))
-    }
-
-    /// Borrow the shared world attached to this agent.
-    pub fn world(&self) -> &World {
-        self.world.as_ref()
     }
 
     /// Register one timer watch.
@@ -366,6 +299,11 @@ impl Agent {
         self.event_loop.unwatch_event(token)
     }
 
+    /// Return whether one event watch is registered for the given poller token.
+    pub fn watches_event(&self, token: PollerToken) -> bool {
+        self.event_loop.watches_event(token)
+    }
+
     /// Register one host semantic event watch.
     pub fn watch_host_event(
         &mut self,
@@ -387,48 +325,55 @@ impl Agent {
         self.event_loop.unwatch_host_event(kind)
     }
 
-    /// Return the number of dropped events with no registered dispatch watch.
-    pub fn dropped_unwatched_dispatch_events(&self) -> u64 {
-        self.event_loop.dropped_unwatched_dispatch_events()
+    /// Return whether one host semantic watch is registered for the given kind.
+    pub fn watches_host_event(&self, kind: HostEventKind) -> bool {
+        self.event_loop.watches_host_event(kind)
     }
 
-    /// Return the number of dropped host queue events due to queue pressure.
-    pub fn dropped_host_queue_events(&self) -> u64 {
-        self.event_loop.dropped_host_queue_events()
+    /// Return drop accounting observed by this agent event loop.
+    pub fn drop_counts(&self) -> DropCounts {
+        let event_loop_drops = self.event_loop.drop_counts();
+
+        DropCounts {
+            queue_pressure: self
+                .drop_counts
+                .queue_pressure
+                .saturating_add(event_loop_drops.queue_pressure),
+            unmatched_ingress: self
+                .drop_counts
+                .unmatched_ingress
+                .saturating_add(event_loop_drops.unmatched_ingress),
+            unwatched_dispatch: self
+                .drop_counts
+                .unwatched_dispatch
+                .saturating_add(event_loop_drops.unwatched_dispatch),
+        }
     }
 
-    /// Return the number of dropped dispatch events observed by the event loop.
-    pub fn dropped_dispatch_events(&self) -> u64 {
-        self.event_loop.dropped_dispatch_events()
+    /// Record one coordinator-owned drop in standalone agent flows.
+    pub(crate) fn record_drop(&mut self, reason: DropReason, count: u64) {
+        self.drop_counts.record(reason, count);
     }
 
     /// Capture a runtime snapshot and record a checkpoint in the replay log.
-    pub fn snapshot(&mut self, store: &SnapshotStore) -> RuntimeResult<()> {
+    pub fn snapshot(&mut self, world: &World, store: &SnapshotStore) -> RuntimeResult<()> {
         // allocate a new checkpoint id
         let checkpoint_id = store.allocate_checkpoint_id();
 
         // capture replay metadata
-        let branch_id = self.world.replay().log().branch_id();
-        let sequence = self.world.replay().log().next_sequence();
+        let branch_id = world.replay().log().branch_id();
+        let sequence = world.replay().log().next_sequence();
 
         // NOTE #Incomplete: snapshot payload capture is not implemented yet
         let payload = Vec::new();
 
         // write snapshot payload and register in the replay log
         let metadata = store.write_snapshot(checkpoint_id, branch_id, sequence, &payload)?;
-        self.world
+        world
             .replay()
             .log()
             .record_checkpoint(metadata.into_checkpoint_index())?;
 
         Ok(())
-    }
-}
-
-impl Drop for Agent {
-    fn drop(&mut self) {
-        let _ = self
-            .world
-            .apply(WorldCommand::RemoveAgent { agent_id: self.id });
     }
 }

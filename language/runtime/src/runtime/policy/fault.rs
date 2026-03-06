@@ -100,7 +100,7 @@ pub enum FaultResourceKind {
 
 /// Selector for one simulation-world entity target.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub enum WorldEntitySelector {
     /// Match all entities of this class.
     Any,
@@ -176,7 +176,7 @@ impl WorldEntitySelector {
 
 /// Selector for one simulation-world edge target.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub enum WorldEdgeSelector {
     /// Match all edges of this class.
     Any,
@@ -255,7 +255,7 @@ impl WorldEdgeSelector {
 
 /// Fault target selector.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "target", rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub enum FaultTarget {
     /// Target one binding call site.
     Call {},
@@ -307,7 +307,7 @@ impl FaultTarget {
 
 /// Fault type payload.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub enum FaultType {
     /// Inject one deterministic error outcome.
     Error {

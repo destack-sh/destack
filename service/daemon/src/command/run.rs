@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_compiler::{Compiler, LowerTask, OptimizeTask};
-use destack_runtime::runtime::Runtime;
-use destack_runtime::runtime::engine::VmEntry;
+use destack_runtime::runtime::World;
+use destack_runtime::runtime::engine::Entry;
 use destack_source::ModuleId;
 use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
 use destack_workspace::{
@@ -211,7 +211,7 @@ fn run_entry_module(
         apply_runtime_overrides(&mut target, runtime_overrides);
     }
 
-    let mut isolate = create_isolate(
+    let isolate = create_isolate(
         program,
         entry_module,
         target_id,
@@ -222,12 +222,14 @@ fn run_entry_module(
         .first()
         .ok_or_else(|| "run requires an entry module".to_string())?;
     let process_args = process_args_for_source(entry_source, args);
-    let mut runtime = Runtime::from_options(process_args, &target.runtime_options)
+    let world = World::from_options(&target.runtime_options).map_err(|error| format!("{error}"))?;
+    let runtime_id = world
+        .spawn_runtime(process_args, &target.runtime_options, isolate)
         .map_err(|error| format!("{error}"))?;
 
-    let entry = VmEntry::new(entry_name);
-    let result = runtime
-        .run_entrypoint(&mut isolate, &entry, &[])
+    let entry = Entry::vm(entry_name);
+    let result = world
+        .run_entrypoint(runtime_id, &entry, &[])
         .map_err(|error| format!("{error}"))?;
     let exit_code = exit_status_from_value(result.value);
 

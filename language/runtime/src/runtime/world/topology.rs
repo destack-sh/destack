@@ -1,19 +1,49 @@
 use std::borrow::Borrow;
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
+use super::builtin::{
+    base_supported_edge_faults, base_supported_entity_faults, builtin_edge_kinds,
+    builtin_entity_kinds, builtin_resource_entity_kinds,
+};
 use super::constants::{
     BUILTIN_AGENT_KIND_ID, BUILTIN_AGENT_OWNS_RESOURCE_EDGE_KIND_ID, BUILTIN_RUNTIME_KIND_ID,
-    BUILTIN_RUNTIME_OWNS_AGENT_EDGE_KIND_ID, INITIAL_AGENT_ID, INITIAL_CONTROL_REVISION,
-    INITIAL_RUNTIME_ID, LABEL_AGENT_NAME, LABEL_RUNTIME_NAME, LABEL_TOPOLOGY_KIND,
+    BUILTIN_RUNTIME_OWNS_AGENT_EDGE_KIND_ID, LABEL_AGENT_NAME, LABEL_RESOURCE_LABEL,
+    LABEL_RUNTIME_NAME,
 };
-use crate::platform::{ResourceId, ResourceKind};
+use super::resource::WorldResourceId;
 use crate::runtime::AgentId;
 
 /// Stable identifier for one runtime instance in one world.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct RuntimeId(pub u64);
+
+impl RuntimeId {
+    /// Return the canonical topology entity id for this runtime.
+    pub fn entity_id(self) -> WorldEntityId {
+        WorldEntityId::new(format!("runtime.{}", self.0))
+    }
+
+    /// Return the canonical ownership edge id for one agent owned by this runtime.
+    pub fn owns_agent_edge_id(self, agent_id: AgentId) -> WorldEdgeId {
+        WorldEdgeId::new(format!("runtime.{}.owns.agent.{}", self.0, agent_id.0))
+    }
+}
+
+impl fmt::Display for RuntimeId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl AgentId {
+    /// Return the canonical topology entity id for this agent.
+    pub fn entity_id(self) -> WorldEntityId {
+        WorldEntityId::new(format!("agent.{}", self.0))
+    }
+}
 
 /// Stable identifier for one topology entity.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -47,6 +77,12 @@ impl From<String> for WorldEntityId {
 impl From<&str> for WorldEntityId {
     fn from(value: &str) -> Self {
         Self(value.to_string())
+    }
+}
+
+impl fmt::Display for WorldEntityId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -85,6 +121,12 @@ impl From<&str> for WorldEdgeId {
     }
 }
 
+impl fmt::Display for WorldEdgeId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// Stable identifier for one topology entity kind.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -117,6 +159,12 @@ impl From<String> for WorldEntityKind {
 impl From<&str> for WorldEntityKind {
     fn from(value: &str) -> Self {
         Self(value.to_string())
+    }
+}
+
+impl fmt::Display for WorldEntityKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -154,6 +202,110 @@ impl From<&str> for WorldEdgeKind {
         Self(value.to_string())
     }
 }
+
+impl fmt::Display for WorldEdgeKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Error type for world topology definition and mutation failures.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) enum TopologyError {
+    /// One kind identifier was empty.
+    EmptyKindId,
+    /// One topology entity was already defined.
+    DuplicateEntity {
+        /// The duplicated entity identifier.
+        entity_id: WorldEntityId,
+    },
+    /// One topology edge was already defined.
+    DuplicateEdge {
+        /// The duplicated edge identifier.
+        edge_id: WorldEdgeId,
+    },
+    /// One entity kind was already defined.
+    DuplicateEntityKind {
+        /// The duplicated kind identifier.
+        kind: WorldEntityKind,
+    },
+    /// One edge kind was already defined.
+    DuplicateEdgeKind {
+        /// The duplicated kind identifier.
+        kind: WorldEdgeKind,
+    },
+    /// One entity kind was not defined.
+    UnknownEntityKind {
+        /// The missing kind identifier.
+        kind: WorldEntityKind,
+    },
+    /// One edge kind was not defined.
+    UnknownEdgeKind {
+        /// The missing kind identifier.
+        kind: WorldEdgeKind,
+    },
+    /// One topology entity was missing.
+    UnknownEntity {
+        /// The missing entity identifier.
+        entity_id: WorldEntityId,
+        /// The entity role in the failed relation.
+        role: TopologyEntityRole,
+    },
+}
+
+/// Result type for world topology operations.
+pub(crate) type TopologyResult<T> = Result<T, TopologyError>;
+
+/// Role of one referenced topology entity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) enum TopologyEntityRole {
+    /// The source side of one edge.
+    Source,
+    /// The destination side of one edge.
+    Destination,
+}
+
+impl fmt::Display for TopologyEntityRole {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let role = match self {
+            TopologyEntityRole::Source => "source",
+            TopologyEntityRole::Destination => "destination",
+        };
+
+        f.write_str(role)
+    }
+}
+
+impl fmt::Display for TopologyError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TopologyError::EmptyKindId => f.write_str("topology kind id must not be empty"),
+            TopologyError::DuplicateEntity { entity_id } => {
+                write!(f, "topology entity {entity_id} is already defined")
+            }
+            TopologyError::DuplicateEdge { edge_id } => {
+                write!(f, "topology edge {edge_id} is already defined")
+            }
+            TopologyError::DuplicateEntityKind { kind } => {
+                write!(f, "topology entity kind {kind} is already defined")
+            }
+            TopologyError::DuplicateEdgeKind { kind } => {
+                write!(f, "topology edge kind {kind} is already defined")
+            }
+            TopologyError::UnknownEntityKind { kind } => {
+                write!(f, "topology entity kind {kind} is not defined")
+            }
+            TopologyError::UnknownEdgeKind { kind } => {
+                write!(f, "topology edge kind {kind} is not defined")
+            }
+            TopologyError::UnknownEntity { entity_id, role } => {
+                write!(f, "topology {role} entity {entity_id} does not exist")
+            }
+        }
+    }
+}
+
+impl std::error::Error for TopologyError {}
 
 /// Topology entity-kind registration payload.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -328,15 +480,9 @@ impl WorldEdge {
     }
 }
 
-/// World topology registry for runtime and simulation identity.
+/// World topology graph and kind catalog.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct Topology {
-    /// Next runtime id to allocate.
-    next_runtime_id: u64,
-    /// Next agent id to allocate.
-    next_agent_id: u64,
-    /// Command revision for world control changes.
-    control_revision: u64,
     /// Registered entity kinds by kind id.
     entity_kinds: BTreeMap<WorldEntityKind, WorldEntityKindDefinition>,
     /// Registered edge kinds by kind id.
@@ -350,11 +496,15 @@ pub(crate) struct Topology {
 impl Default for Topology {
     fn default() -> Self {
         Self {
-            next_runtime_id: INITIAL_RUNTIME_ID,
-            next_agent_id: INITIAL_AGENT_ID,
-            control_revision: INITIAL_CONTROL_REVISION,
-            entity_kinds: BTreeMap::new(),
-            edge_kinds: BTreeMap::new(),
+            entity_kinds: builtin_entity_kinds()
+                .into_iter()
+                .chain(builtin_resource_entity_kinds())
+                .map(|kind| (kind.kind.clone(), kind))
+                .collect(),
+            edge_kinds: builtin_edge_kinds()
+                .into_iter()
+                .map(|kind| (kind.kind.clone(), kind))
+                .collect(),
             entities: BTreeMap::new(),
             edges: BTreeMap::new(),
         }
@@ -362,12 +512,9 @@ impl Default for Topology {
 }
 
 impl Topology {
-    /// Create one topology with all builtin kind registrations installed.
-    pub(crate) fn with_builtin_kinds() -> Result<Self, String> {
-        let mut topology = Self::default();
-        topology.seed_builtin_kinds()?;
-
-        Ok(topology)
+    /// Create one topology with builtin kinds installed.
+    pub(crate) fn new() -> Self {
+        Self::default()
     }
 
     /// Return all registered entity kinds.
@@ -392,31 +539,6 @@ impl Topology {
         self.edge_kinds.get(kind).map(|kind| &kind.supported_faults)
     }
 
-    /// Return the current control revision.
-    pub(crate) const fn control_revision(&self) -> u64 {
-        self.control_revision
-    }
-
-    /// Increment and return the current control revision.
-    pub(crate) fn bump_control_revision(&mut self) -> u64 {
-        self.control_revision = self.control_revision.saturating_add(1);
-        self.control_revision
-    }
-
-    /// Allocate and return one runtime id.
-    pub(crate) fn allocate_runtime_id(&mut self) -> RuntimeId {
-        let runtime_id = RuntimeId(self.next_runtime_id);
-        self.next_runtime_id = self.next_runtime_id.saturating_add(1);
-        runtime_id
-    }
-
-    /// Allocate and return one agent id.
-    pub(crate) fn allocate_agent_id(&mut self) -> AgentId {
-        let agent_id = AgentId(self.next_agent_id);
-        self.next_agent_id = self.next_agent_id.saturating_add(1);
-        agent_id
-    }
-
     /// Return all topology entities.
     pub(crate) fn entities(&self) -> &BTreeMap<WorldEntityId, WorldEntity> {
         &self.entities
@@ -427,45 +549,208 @@ impl Topology {
         &self.edges
     }
 
-    /// Return one runtime name and labels by runtime id.
-    pub(crate) fn runtime_identity(
+    /// Return the rule subject metadata for one runtime.
+    pub(crate) fn runtime_subject(
         &self,
         runtime_id: RuntimeId,
     ) -> Option<(&str, &BTreeMap<String, String>)> {
-        let entity_id = Self::runtime_entity_id(runtime_id);
-        let entity = self.entities.get(entity_id.as_str())?;
-        let runtime_name = entity.labels.get(LABEL_RUNTIME_NAME)?.as_str();
-        let runtime_labels = &entity.labels;
+        let entity = self.entities.get(&runtime_id.entity_id())?;
+        let name = entity.labels.get(LABEL_RUNTIME_NAME)?;
 
-        Some((runtime_name, runtime_labels))
+        Some((name.as_str(), &entity.labels))
     }
 
-    /// Return one agent name and labels by agent id.
-    pub(crate) fn agent_identity(
+    /// Return the rule subject metadata for one agent.
+    pub(crate) fn agent_subject(
         &self,
         agent_id: AgentId,
     ) -> Option<(&str, &BTreeMap<String, String>)> {
-        let entity_id = Self::agent_entity_id(agent_id);
-        let entity = self.entities.get(entity_id.as_str())?;
-        let agent_name = entity.labels.get(LABEL_AGENT_NAME)?.as_str();
-        let agent_labels = &entity.labels;
+        let entity = self.entities.get(&agent_id.entity_id())?;
+        let name = entity.labels.get(LABEL_AGENT_NAME)?;
 
-        Some((agent_name, agent_labels))
+        Some((name.as_str(), &entity.labels))
+    }
+
+    /// Add one runtime and its primary agent metadata.
+    pub(crate) fn add_runtime(
+        &mut self,
+        runtime_id: RuntimeId,
+        runtime_name: String,
+        runtime_labels: BTreeMap<String, String>,
+        primary_agent_id: AgentId,
+        primary_agent_name: String,
+        primary_agent_labels: BTreeMap<String, String>,
+    ) -> TopologyResult<()> {
+        // reject duplicate metadata upfront
+        if self.entities.contains_key(&runtime_id.entity_id()) {
+            return Err(TopologyError::DuplicateEntity {
+                entity_id: runtime_id.entity_id(),
+            });
+        }
+        if self.entities.contains_key(&primary_agent_id.entity_id()) {
+            return Err(TopologyError::DuplicateEntity {
+                entity_id: primary_agent_id.entity_id(),
+            });
+        }
+
+        // runtime entity
+        let runtime_entity =
+            WorldEntity::new(runtime_id.entity_id(), BUILTIN_RUNTIME_KIND_ID).labels(
+                entity_labels_with_name(runtime_labels, LABEL_RUNTIME_NAME, runtime_name),
+            );
+        self.upsert_entity(runtime_entity)?;
+
+        // primary agent entity
+        let agent_entity =
+            WorldEntity::new(primary_agent_id.entity_id(), BUILTIN_AGENT_KIND_ID).labels(
+                entity_labels_with_name(primary_agent_labels, LABEL_AGENT_NAME, primary_agent_name),
+            );
+        self.upsert_entity(agent_entity)?;
+
+        // ownership edge
+        let edge = WorldEdge::new(
+            runtime_id.owns_agent_edge_id(primary_agent_id),
+            BUILTIN_RUNTIME_OWNS_AGENT_EDGE_KIND_ID,
+            runtime_id.entity_id(),
+            primary_agent_id.entity_id(),
+        );
+        self.upsert_edge(edge)?;
+
+        Ok(())
+    }
+
+    /// Add one additional agent metadata record.
+    pub(crate) fn add_agent(
+        &mut self,
+        runtime_id: RuntimeId,
+        agent_id: AgentId,
+        agent_name: String,
+        agent_labels: BTreeMap<String, String>,
+    ) -> TopologyResult<()> {
+        // reject missing owning runtime
+        if !self.entities.contains_key(&runtime_id.entity_id()) {
+            return Err(TopologyError::UnknownEntity {
+                entity_id: runtime_id.entity_id(),
+                role: TopologyEntityRole::Source,
+            });
+        }
+
+        // reject duplicate agent metadata
+        if self.entities.contains_key(&agent_id.entity_id()) {
+            return Err(TopologyError::DuplicateEntity {
+                entity_id: agent_id.entity_id(),
+            });
+        }
+
+        // agent entity
+        let agent_entity = WorldEntity::new(agent_id.entity_id(), BUILTIN_AGENT_KIND_ID).labels(
+            entity_labels_with_name(agent_labels, LABEL_AGENT_NAME, agent_name),
+        );
+        self.upsert_entity(agent_entity)?;
+
+        // ownership edge
+        let edge = WorldEdge::new(
+            runtime_id.owns_agent_edge_id(agent_id),
+            BUILTIN_RUNTIME_OWNS_AGENT_EDGE_KIND_ID,
+            runtime_id.entity_id(),
+            agent_id.entity_id(),
+        );
+        self.upsert_edge(edge)?;
+
+        Ok(())
+    }
+
+    /// Remove one agent metadata record and any now-orphaned runtime/resource metadata.
+    pub(crate) fn remove_agent(&mut self, agent_id: AgentId) -> bool {
+        let agent_entity_id = agent_id.entity_id();
+        let Some(runtime_entity_id) = self.agent_runtime_entity_id(agent_id) else {
+            return false;
+        };
+
+        // resource metadata owned by the agent
+        let owned_resource_ids = self
+            .edges
+            .values()
+            .filter(|edge| {
+                edge.kind.as_str() == BUILTIN_AGENT_OWNS_RESOURCE_EDGE_KIND_ID
+                    && edge.from == agent_entity_id
+            })
+            .map(|edge| edge.to.clone())
+            .collect::<Vec<_>>();
+        for resource_entity_id in owned_resource_ids {
+            let _ = self.remove_entity(resource_entity_id.as_str());
+        }
+
+        // agent metadata
+        let is_agent_removed = self.remove_entity(agent_entity_id.as_str());
+
+        // remove the runtime metadata when the last agent disappears
+        if !self.runtime_has_agents(runtime_entity_id.as_str()) {
+            let _ = self.remove_entity(runtime_entity_id.as_str());
+        }
+
+        is_agent_removed
+    }
+
+    /// Attach one resource metadata record to one agent.
+    pub(crate) fn attach_resource(
+        &mut self,
+        resource_id: WorldResourceId,
+        resource_kind: WorldEntityKind,
+        resource_label: Option<&str>,
+    ) -> TopologyResult<()> {
+        // reject missing owning agent
+        if !self
+            .entities
+            .contains_key(&resource_id.agent_id.entity_id())
+        {
+            return Err(TopologyError::UnknownEntity {
+                entity_id: resource_id.agent_id.entity_id(),
+                role: TopologyEntityRole::Source,
+            });
+        }
+
+        // resource entity
+        let mut labels = BTreeMap::new();
+        if let Some(resource_label) = resource_label {
+            labels.insert(LABEL_RESOURCE_LABEL.to_string(), resource_label.to_string());
+        }
+        let resource_entity =
+            WorldEntity::new(resource_id.entity_id(), resource_kind).labels(labels);
+        self.upsert_entity(resource_entity)?;
+
+        // ownership edge
+        let edge = WorldEdge::new(
+            resource_id.ownership_edge_id(),
+            BUILTIN_AGENT_OWNS_RESOURCE_EDGE_KIND_ID,
+            resource_id.agent_id.entity_id(),
+            resource_id.entity_id(),
+        );
+        self.upsert_edge(edge)?;
+
+        Ok(())
+    }
+
+    /// Detach one resource metadata record from one agent.
+    pub(crate) fn detach_resource(&mut self, resource_id: WorldResourceId) -> bool {
+        self.remove_entity(resource_id.entity_id().as_str())
     }
 
     /// Define one entity kind in topology.
     pub(crate) fn define_entity_kind(
         &mut self,
         mut kind: WorldEntityKindDefinition,
-    ) -> Result<(), String> {
+    ) -> TopologyResult<()> {
         // reject empty kind identifiers
         if kind.kind.as_str().is_empty() {
-            return Err("topology kind id must not be empty".to_string());
+            return Err(TopologyError::EmptyKindId);
         }
 
         // reject duplicate kind identifiers
         if self.entity_kinds.contains_key(kind.kind.as_str()) {
-            return Err(format!("topology kind {} is already defined", kind.kind.0));
+            return Err(TopologyError::DuplicateEntityKind {
+                kind: kind.kind.clone(),
+            });
         }
 
         // default to base entity faults for user-defined kinds
@@ -483,15 +768,17 @@ impl Topology {
     pub(crate) fn define_edge_kind(
         &mut self,
         mut kind: WorldEdgeKindDefinition,
-    ) -> Result<(), String> {
+    ) -> TopologyResult<()> {
         // reject empty kind identifiers
         if kind.kind.as_str().is_empty() {
-            return Err("topology kind id must not be empty".to_string());
+            return Err(TopologyError::EmptyKindId);
         }
 
         // reject duplicate kind identifiers
         if self.edge_kinds.contains_key(kind.kind.as_str()) {
-            return Err(format!("topology kind {} is already defined", kind.kind.0));
+            return Err(TopologyError::DuplicateEdgeKind {
+                kind: kind.kind.clone(),
+            });
         }
 
         // default to base edge faults for user-defined kinds
@@ -506,40 +793,25 @@ impl Topology {
     }
 
     /// Upsert one topology entity.
-    pub(crate) fn upsert_entity(&mut self, entity: WorldEntity) -> Result<(), String> {
-        // reject unknown kinds before mutating entity state
-        self.ensure_entity_kind_defined(entity.kind.as_str())?;
-
-        // insert or replace one entity record
+    pub(crate) fn upsert_entity(&mut self, entity: WorldEntity) -> TopologyResult<()> {
+        self.expect_entity_kind(entity.kind.as_str())?;
         self.entities.insert(entity.id.clone(), entity);
-
         Ok(())
     }
 
     /// Remove one topology entity and all incident edges.
     pub(crate) fn remove_entity(&mut self, entity_id: &str) -> bool {
-        // remove all incident edges first
         let removed_edge_count = self.remove_incident_edges(entity_id);
-
-        // remove the entity itself
         let is_entity_removed = self.entities.remove(entity_id).is_some();
         is_entity_removed || removed_edge_count > 0
     }
 
     /// Upsert one topology edge.
-    pub(crate) fn upsert_edge(&mut self, edge: WorldEdge) -> Result<(), String> {
-        // reject unknown edge kinds
-        self.ensure_edge_kind_defined(edge.kind.as_str())?;
-
-        // reject missing source entities
-        self.ensure_entity_exists(edge.from.as_str(), "source")?;
-
-        // reject missing destination entities
-        self.ensure_entity_exists(edge.to.as_str(), "destination")?;
-
-        // insert or replace one edge record
+    pub(crate) fn upsert_edge(&mut self, edge: WorldEdge) -> TopologyResult<()> {
+        self.expect_edge_kind(edge.kind.as_str())?;
+        self.expect_entity(edge.from.as_str(), TopologyEntityRole::Source)?;
+        self.expect_entity(edge.to.as_str(), TopologyEntityRole::Destination)?;
         self.edges.insert(edge.id.clone(), edge);
-
         Ok(())
     }
 
@@ -548,311 +820,38 @@ impl Topology {
         self.edges.remove(edge_id).is_some()
     }
 
-    /// Register one runtime node.
-    pub(crate) fn register_runtime(
-        &mut self,
-        runtime_id: RuntimeId,
-        name: String,
-        labels: BTreeMap<String, String>,
-    ) -> Result<(), String> {
-        let runtime_entity_id = Self::runtime_entity_id(runtime_id);
-
-        // reject duplicate runtime identifiers
-        if self.entities.contains_key(runtime_entity_id.as_str()) {
-            return Err(format!(
-                "topology runtime {} is already registered",
-                runtime_id.0
-            ));
-        }
-
-        // mirror runtime identity into the topology entity graph
-        let runtime_labels = Self::runtime_labels(runtime_id, name, labels);
-        self.entities.insert(
-            runtime_entity_id.clone(),
-            WorldEntity {
-                id: runtime_entity_id,
-                kind: WorldEntityKind::from(BUILTIN_RUNTIME_KIND_ID),
-                labels: runtime_labels,
-            },
-        );
-
-        Ok(())
-    }
-
-    /// Register one agent node under one runtime.
-    pub(crate) fn register_agent(
-        &mut self,
-        runtime_id: RuntimeId,
-        agent_id: AgentId,
-        name: String,
-        labels: BTreeMap<String, String>,
-    ) -> Result<(), String> {
-        let runtime_entity_id = Self::runtime_entity_id(runtime_id);
-        let agent_entity_id = Self::agent_entity_id(agent_id);
-
-        // reject unknown runtimes
-        if !self.entity_is_kind(runtime_entity_id.as_str(), BUILTIN_RUNTIME_KIND_ID) {
-            return Err(format!("topology runtime {} does not exist", runtime_id.0));
-        }
-
-        // reject duplicate agent identifiers
-        if self.entities.contains_key(agent_entity_id.as_str()) {
-            return Err(format!(
-                "topology agent {} is already registered",
-                agent_id.0
-            ));
-        }
-
-        // upsert one agent entity
-        let agent_labels = Self::agent_labels(runtime_id, agent_id, name, labels);
-        self.entities.insert(
-            agent_entity_id.clone(),
-            WorldEntity {
-                id: agent_entity_id.clone(),
-                kind: WorldEntityKind::from(BUILTIN_AGENT_KIND_ID),
-                labels: agent_labels,
-            },
-        );
-
-        // upsert one runtime ownership edge
-        let runtime_agent_edge_id = Self::runtime_agent_edge_id(runtime_id, agent_id);
-        self.edges.insert(
-            runtime_agent_edge_id.clone(),
-            WorldEdge {
-                id: runtime_agent_edge_id,
-                kind: WorldEdgeKind::from(BUILTIN_RUNTIME_OWNS_AGENT_EDGE_KIND_ID),
-                from: runtime_entity_id,
-                to: agent_entity_id,
-                labels: BTreeMap::new(),
-            },
-        );
-
-        Ok(())
-    }
-
-    /// Deregister one agent and all agent-owned topology state.
-    pub(crate) fn deregister_agent(&mut self, agent_id: AgentId) -> bool {
-        let agent_entity_id = Self::agent_entity_id(agent_id);
-
-        // reject unknown agents
-        if !self.entity_is_kind(agent_entity_id.as_str(), BUILTIN_AGENT_KIND_ID) {
-            return false;
-        }
-
-        // capture owner runtimes before removing runtime ownership edges
-        let runtime_entity_ids = self.runtime_owners_for_agent(agent_entity_id.as_str());
-
-        // remove agent-owned resource entities and edges
-        self.remove_agent_resource_attachments(agent_entity_id.as_str());
-
-        // remove all remaining agent incident edges and the agent entity
-        self.remove_incident_edges(agent_entity_id.as_str());
-        self.entities.remove(agent_entity_id.as_str());
-
-        // remove orphaned runtimes
-        for runtime_entity_id in runtime_entity_ids {
-            self.remove_runtime_if_orphaned(runtime_entity_id.as_str());
-        }
-
-        true
-    }
-
-    /// Create one resource under one agent in the topology entity graph.
-    pub(crate) fn create_resource_for_agent(
-        &mut self,
-        agent_id: AgentId,
-        resource_id: ResourceId,
-        resource_kind: &str,
-        resource_label: Option<&str>,
-    ) -> Result<(), String> {
-        let agent_entity_id = Self::agent_entity_id(agent_id);
-
-        // reject unknown agents
-        if !self.entity_is_kind(agent_entity_id.as_str(), BUILTIN_AGENT_KIND_ID) {
-            return Err(format!("topology agent {} does not exist", agent_id.0));
-        }
-
-        // reject unknown resource kinds
-        self.ensure_entity_kind_defined(resource_kind)?;
-
-        // upsert one resource entity
-        let resource_entity_id = Self::resource_entity_id(agent_id, resource_id);
-        let resource_labels = Self::resource_labels(agent_id, resource_id, resource_label);
-        self.entities.insert(
-            resource_entity_id.clone(),
-            WorldEntity {
-                id: resource_entity_id.clone(),
-                kind: WorldEntityKind::from(resource_kind),
-                labels: resource_labels,
-            },
-        );
-
-        // upsert one agent ownership edge
-        let resource_edge_id = Self::agent_resource_edge_id(agent_id, resource_id);
-        self.edges.insert(
-            resource_edge_id.clone(),
-            WorldEdge {
-                id: resource_edge_id,
-                kind: WorldEdgeKind::from(BUILTIN_AGENT_OWNS_RESOURCE_EDGE_KIND_ID),
-                from: agent_entity_id,
-                to: resource_entity_id,
-                labels: BTreeMap::new(),
-            },
-        );
-
-        Ok(())
-    }
-
-    /// Destroy one resource under one agent in the topology entity graph.
-    pub(crate) fn destroy_resource_for_agent(
-        &mut self,
-        agent_id: AgentId,
-        resource_id: ResourceId,
-    ) -> bool {
-        let resource_entity_id = Self::resource_entity_id(agent_id, resource_id);
-        let resource_edge_id = Self::agent_resource_edge_id(agent_id, resource_id);
-
-        let is_edge_removed = self.edges.remove(resource_edge_id.as_str()).is_some();
-        let is_entity_removed = self.entities.remove(resource_entity_id.as_str()).is_some();
-        is_edge_removed || is_entity_removed
-    }
-
-    /// Seed all builtin entity and edge kinds.
-    fn seed_builtin_kinds(&mut self) -> Result<(), String> {
-        // seed builtin entity kinds
-        for &kind_id in builtin_entity_kind_definitions() {
-            self.define_entity_kind(WorldEntityKindDefinition {
-                kind: WorldEntityKind::from(kind_id),
-                labels: labels_for_kind(kind_id),
-                supported_faults: supported_entity_faults_for_builtin_kind(kind_id),
-            })?;
-        }
-
-        // seed builtin resource entity kinds
-        for resource_kind in ResourceKind::all() {
-            self.define_entity_kind(WorldEntityKindDefinition {
-                kind: WorldEntityKind::from(resource_kind.kind_id()),
-                labels: labels_for_kind(resource_kind.kind_id()),
-                supported_faults: base_supported_entity_faults(),
-            })?;
-        }
-
-        // seed builtin edge kinds
-        for &kind_id in builtin_edge_kind_definitions() {
-            self.define_edge_kind(WorldEdgeKindDefinition {
-                kind: WorldEdgeKind::from(kind_id),
-                labels: labels_for_kind(kind_id),
-                supported_faults: supported_edge_faults_for_builtin_kind(kind_id),
-            })?;
-        }
-
-        Ok(())
-    }
-
-    /// Return one stable runtime entity identifier.
-    fn runtime_entity_id(runtime_id: RuntimeId) -> WorldEntityId {
-        WorldEntityId(format!("runtime.{}", runtime_id.0))
-    }
-
-    /// Return one stable agent entity identifier.
-    fn agent_entity_id(agent_id: AgentId) -> WorldEntityId {
-        WorldEntityId(format!("agent.{}", agent_id.0))
-    }
-
-    /// Return one stable resource entity identifier.
-    fn resource_entity_id(agent_id: AgentId, resource_id: ResourceId) -> WorldEntityId {
-        WorldEntityId(format!("resource.{}.{}", agent_id.0, resource_id.0))
-    }
-
-    /// Return one stable runtime-to-agent edge identifier.
-    fn runtime_agent_edge_id(runtime_id: RuntimeId, agent_id: AgentId) -> WorldEdgeId {
-        WorldEdgeId(format!(
-            "runtime.owns.agent.{}.{}",
-            runtime_id.0, agent_id.0
-        ))
-    }
-
-    /// Return one stable agent-to-resource edge identifier.
-    fn agent_resource_edge_id(agent_id: AgentId, resource_id: ResourceId) -> WorldEdgeId {
-        WorldEdgeId(format!(
-            "agent.owns.resource.{}.{}",
-            agent_id.0, resource_id.0
-        ))
-    }
-
-    /// Return runtime labels mirrored into topology entities.
-    fn runtime_labels(
-        runtime_id: RuntimeId,
-        name: String,
-        mut labels: BTreeMap<String, String>,
-    ) -> BTreeMap<String, String> {
-        labels.insert("runtime.id".to_string(), runtime_id.0.to_string());
-        labels.insert(LABEL_RUNTIME_NAME.to_string(), name);
-        labels
-    }
-
-    /// Return agent labels mirrored into topology entities.
-    fn agent_labels(
-        runtime_id: RuntimeId,
-        agent_id: AgentId,
-        name: String,
-        mut labels: BTreeMap<String, String>,
-    ) -> BTreeMap<String, String> {
-        labels.insert("runtime.id".to_string(), runtime_id.0.to_string());
-        labels.insert("agent.id".to_string(), agent_id.0.to_string());
-        labels.insert(LABEL_AGENT_NAME.to_string(), name);
-        labels
-    }
-
-    /// Return resource labels mirrored into topology entities.
-    fn resource_labels(
-        agent_id: AgentId,
-        resource_id: ResourceId,
-        resource_label: Option<&str>,
-    ) -> BTreeMap<String, String> {
-        let mut labels = BTreeMap::new();
-        labels.insert("agent.id".to_string(), agent_id.0.to_string());
-        labels.insert("resource.id".to_string(), resource_id.0.to_string());
-        if let Some(resource_label) = resource_label {
-            labels.insert("resource.label".to_string(), resource_label.to_string());
-        }
-        labels
-    }
-
-    /// Return true when one entity exists with the expected kind.
-    fn entity_is_kind(&self, entity_id: &str, kind_id: &str) -> bool {
-        let Some(entity) = self.entities.get(entity_id) else {
-            return false;
-        };
-
-        entity.kind.as_str() == kind_id
-    }
-
-    /// Ensure one entity kind is defined.
-    fn ensure_entity_kind_defined(&self, kind_id: &str) -> Result<(), String> {
+    /// Expect one entity kind to be defined.
+    fn expect_entity_kind(&self, kind_id: &str) -> TopologyResult<()> {
         if self.entity_kinds.contains_key(kind_id) {
             return Ok(());
         }
 
-        Err(format!("topology entity kind {kind_id} is not defined"))
+        Err(TopologyError::UnknownEntityKind {
+            kind: WorldEntityKind::from(kind_id),
+        })
     }
 
-    /// Ensure one edge kind is defined.
-    fn ensure_edge_kind_defined(&self, kind_id: &str) -> Result<(), String> {
+    /// Expect one edge kind to be defined.
+    fn expect_edge_kind(&self, kind_id: &str) -> TopologyResult<()> {
         if self.edge_kinds.contains_key(kind_id) {
             return Ok(());
         }
 
-        Err(format!("topology edge kind {kind_id} is not defined"))
+        Err(TopologyError::UnknownEdgeKind {
+            kind: WorldEdgeKind::from(kind_id),
+        })
     }
 
-    /// Ensure one entity exists.
-    fn ensure_entity_exists(&self, entity_id: &str, role: &str) -> Result<(), String> {
+    /// Expect one entity to exist.
+    fn expect_entity(&self, entity_id: &str, role: TopologyEntityRole) -> TopologyResult<()> {
         if self.entities.contains_key(entity_id) {
             return Ok(());
         }
 
-        Err(format!("topology {role} entity {entity_id} does not exist"))
+        Err(TopologyError::UnknownEntity {
+            entity_id: WorldEntityId::from(entity_id),
+            role,
+        })
     }
 
     /// Remove all incident edges for one entity and return the number removed.
@@ -864,241 +863,33 @@ impl Topology {
         before_edge_count.saturating_sub(self.edges.len())
     }
 
-    /// Return runtime entity ids that own one agent entity.
-    fn runtime_owners_for_agent(&self, agent_entity_id: &str) -> BTreeSet<WorldEntityId> {
-        self.edges
-            .values()
-            .filter(|edge| {
-                edge.kind.as_str() == BUILTIN_RUNTIME_OWNS_AGENT_EDGE_KIND_ID
-                    && edge.to.as_str() == agent_entity_id
-            })
-            .map(|edge| edge.from.clone())
-            .collect()
+    /// Return the owning runtime id for one agent entity.
+    fn agent_runtime_entity_id(&self, agent_id: AgentId) -> Option<WorldEntityId> {
+        let agent_entity_id = agent_id.entity_id();
+        let edge = self.edges.values().find(|edge| {
+            edge.kind.as_str() == BUILTIN_RUNTIME_OWNS_AGENT_EDGE_KIND_ID
+                && edge.to == agent_entity_id
+        })?;
+
+        Some(edge.from.clone())
     }
 
-    /// Remove all resource attachments owned by one agent entity.
-    fn remove_agent_resource_attachments(&mut self, agent_entity_id: &str) {
-        let resource_entity_ids = self
-            .edges
-            .values()
-            .filter(|edge| {
-                edge.kind.as_str() == BUILTIN_AGENT_OWNS_RESOURCE_EDGE_KIND_ID
-                    && edge.from.as_str() == agent_entity_id
-            })
-            .map(|edge| edge.to.clone())
-            .collect::<Vec<_>>();
-
-        self.edges.retain(|_, edge| {
-            !(edge.kind.as_str() == BUILTIN_AGENT_OWNS_RESOURCE_EDGE_KIND_ID
-                && edge.from.as_str() == agent_entity_id)
-        });
-
-        for resource_entity_id in resource_entity_ids {
-            self.entities.remove(resource_entity_id.as_str());
-        }
-    }
-
-    /// Remove one runtime and all runtime incident edges when it has no attached agents.
-    fn remove_runtime_if_orphaned(&mut self, runtime_entity_id: &str) -> bool {
-        if !self.entity_is_kind(runtime_entity_id, BUILTIN_RUNTIME_KIND_ID) {
-            return false;
-        }
-
-        let has_agents = self.edges.values().any(|edge| {
+    /// Return whether one runtime still owns any agent metadata.
+    fn runtime_has_agents(&self, runtime_entity_id: &str) -> bool {
+        self.edges.values().any(|edge| {
             edge.kind.as_str() == BUILTIN_RUNTIME_OWNS_AGENT_EDGE_KIND_ID
                 && edge.from.as_str() == runtime_entity_id
-        });
-        if has_agents {
-            return false;
-        }
-
-        self.remove_incident_edges(runtime_entity_id);
-        self.entities.remove(runtime_entity_id);
-        true
+        })
     }
 }
 
-/// Return builtin entity kind identifiers.
-fn builtin_entity_kind_definitions() -> &'static [&'static str] {
-    &[
-        "runtime.instance",
-        "runtime.agent",
-        "process.instance",
-        "time.timer",
-        "thread.instance",
-        "io.stream",
-        "fs.inode",
-        "fs.dentry",
-        "fs.open_file",
-        "fs.mount",
-        "fs.watch",
-        "net.namespace",
-        "net.interface",
-        "net.socket",
-        "net.listener",
-        "net.connection",
-        "net.resolver",
-        "process.child",
-        "audio.device",
-        "audio.stream",
-        "input.device",
-        "gpu.device",
-        "gpu.queue",
-        "ipc.channel",
-        "device.handle",
-        "display.surface",
-        "memory.region",
-        "thread.worker",
-        "time.clock",
-        "tls.session",
-        "security.policy",
-        "os.service",
-        "random.stream",
-        "resource.handle",
-        "tty.device",
-        "ffi.handle",
-        "crypto.key_store",
-        "error.channel",
-        "debug.channel",
-    ]
-}
-
-/// Return builtin edge kind identifiers.
-fn builtin_edge_kind_definitions() -> &'static [&'static str] {
-    &[
-        "fs.parent_child",
-        "fs.fd_binding",
-        "fs.mount_attachment",
-        "net.network_link",
-        "net.stream_link",
-        "net.route",
-        "runtime.instance.owns.agent",
-        "runtime.agent.owns.resource",
-        "ipc.channel",
-        "process.pipe",
-    ]
-}
-
-/// Return base fault verbs supported by all entity kinds.
-fn base_supported_entity_faults() -> BTreeSet<String> {
-    [
-        "call.error",
-        "call.timeout",
-        "timing.delay",
-        "call.block",
-        "scheduler.starve",
-        "resource.exhaust",
-        "resource.quota",
-    ]
-    .into_iter()
-    .map(ToString::to_string)
-    .collect()
-}
-
-/// Return base fault verbs supported by all edge kinds.
-fn base_supported_edge_faults() -> BTreeSet<String> {
-    base_supported_entity_faults()
-}
-
-/// Extend one supported fault set with transport verbs.
-fn extend_transport_faults(supported_faults: &mut BTreeSet<String>) {
-    for verb_id in [
-        "transport.drop",
-        "transport.duplicate",
-        "transport.reorder",
-        "transport.corrupt",
-        "transport.truncate",
-        "transport.partial",
-        "transport.disconnect",
-        "transport.reset",
-        "transport.partition",
-        "transport.blackhole",
-        "transport.throttle",
-        "transport.limit",
-    ] {
-        supported_faults.insert(verb_id.to_string());
-    }
-}
-
-/// Extend one supported fault set with lifecycle verbs.
-fn extend_lifecycle_faults(supported_faults: &mut BTreeSet<String>) {
-    for verb_id in ["process.crash", "process.restart", "process.reboot"] {
-        supported_faults.insert(verb_id.to_string());
-    }
-}
-
-/// Extend one supported fault set with clock verbs.
-fn extend_clock_faults(supported_faults: &mut BTreeSet<String>) {
-    for verb_id in ["clock.jump", "clock.drift", "clock.freeze"] {
-        supported_faults.insert(verb_id.to_string());
-    }
-}
-
-/// Extend one supported fault set with durability verbs.
-fn extend_durability_faults(supported_faults: &mut BTreeSet<String>) {
-    supported_faults.insert("durability.violate".to_string());
-}
-
-/// Return supported fault verbs for one builtin entity kind.
-fn supported_entity_faults_for_builtin_kind(kind_id: &str) -> BTreeSet<String> {
-    let mut supported_faults = base_supported_entity_faults();
-
-    if matches!(
-        kind_id,
-        "io.stream"
-            | "net.namespace"
-            | "net.interface"
-            | "net.socket"
-            | "net.listener"
-            | "net.connection"
-            | "net.resolver"
-            | "audio.stream"
-            | "ipc.channel"
-            | "tls.session"
-            | "tty.device"
-    ) {
-        extend_transport_faults(&mut supported_faults);
-    }
-
-    if matches!(
-        kind_id,
-        "process.instance" | "thread.instance" | "process.child" | "thread.worker"
-    ) {
-        extend_lifecycle_faults(&mut supported_faults);
-    }
-
-    if matches!(kind_id, "runtime.instance" | "time.timer" | "time.clock") {
-        extend_clock_faults(&mut supported_faults);
-    }
-
-    if matches!(
-        kind_id,
-        "fs.inode" | "fs.dentry" | "fs.open_file" | "fs.mount" | "fs.watch" | "crypto.key_store"
-    ) {
-        extend_durability_faults(&mut supported_faults);
-    }
-
-    supported_faults
-}
-
-/// Return supported fault verbs for one builtin edge kind.
-fn supported_edge_faults_for_builtin_kind(kind_id: &str) -> BTreeSet<String> {
-    let mut supported_faults = base_supported_edge_faults();
-
-    if matches!(
-        kind_id,
-        "net.network_link" | "net.stream_link" | "net.route" | "ipc.channel" | "process.pipe"
-    ) {
-        extend_transport_faults(&mut supported_faults);
-    }
-
-    supported_faults
-}
-
-/// Build system labels for one kind id and capability list.
-fn labels_for_kind(kind_id: &str) -> BTreeMap<String, String> {
-    let mut labels = BTreeMap::new();
-    labels.insert(LABEL_TOPOLOGY_KIND.to_string(), kind_id.to_string());
+/// Add one reserved display-name label to one metadata label set.
+fn entity_labels_with_name(
+    mut labels: BTreeMap<String, String>,
+    name_key: &str,
+    name: String,
+) -> BTreeMap<String, String> {
+    labels.insert(name_key.to_string(), name);
 
     labels
 }

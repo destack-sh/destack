@@ -4,7 +4,7 @@ use crate::platform::ResourceId;
 use crate::runtime::AgentId;
 use serde::{Deserialize, Serialize};
 
-use super::topology::WorldEntityKind;
+use super::topology::{WorldEdgeId, WorldEntityId, WorldEntityKind};
 
 /// Stable identifier for one world resource record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -22,6 +22,22 @@ impl WorldResourceId {
             agent_id,
             resource_id,
         }
+    }
+
+    /// Return the canonical topology entity id for this resource.
+    pub fn entity_id(self) -> WorldEntityId {
+        WorldEntityId::new(format!(
+            "resource.{}.{}",
+            self.agent_id.0, self.resource_id.0
+        ))
+    }
+
+    /// Return the canonical ownership edge id for this resource.
+    pub fn ownership_edge_id(self) -> WorldEdgeId {
+        WorldEdgeId::new(format!(
+            "agent.{}.owns.resource.{}",
+            self.agent_id.0, self.resource_id.0
+        ))
     }
 }
 

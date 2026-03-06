@@ -43,7 +43,7 @@ impl CustomEffect {
 
 /// Runtime rule action payload.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub enum Effect {
     /// Set the matching binding world.
     SetWorld {
@@ -146,25 +146,17 @@ impl Rule {
     }
 
     /// Create one enabled access-dispatch rule.
-    pub fn dispatch_access(
-        id: impl Into<String>,
-        selector: RuntimeSelector,
-        access: RuntimeAccess,
-    ) -> Self {
+    pub fn access(id: impl Into<String>, selector: RuntimeSelector, access: RuntimeAccess) -> Self {
         Self::new(id, Effect::set_access(access)).when(selector)
     }
 
     /// Create one enabled world-dispatch rule.
-    pub fn dispatch_world(
-        id: impl Into<String>,
-        selector: RuntimeSelector,
-        world: RuntimeWorld,
-    ) -> Self {
+    pub fn world(id: impl Into<String>, selector: RuntimeSelector, world: RuntimeWorld) -> Self {
         Self::new(id, Effect::set_world(world)).when(selector)
     }
 
     /// Create one enabled replay-dispatch rule.
-    pub fn dispatch_replay(
+    pub fn replay(
         id: impl Into<String>,
         selector: RuntimeSelector,
         payload: ReplayPayloadMode,
