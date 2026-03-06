@@ -25,6 +25,135 @@ pub static BINDING_MODIFIERS: [Keyword; 8] = [
 ];
 
 impl Parser {
+    /// Eat a spread or embed value expression.
+    #[inline]
+    fn eat_property_value_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        let ambient_context = self.options;
+        let expression_context = self
+            .options
+            .not_in_position()
+            .not_in_left_precedence()
+            .not_in_sequence_expression();
+        self.eat_expression(
+            self.options
+                .with_ambient_context(ambient_context)
+                .with_expression_context(expression_context),
+        )
+    }
+
+    /// Eat method parameters in property or member contexts.
+    #[inline]
+    fn eat_property_dynamic_parameters(
+        &mut self,
+        is_generator: bool,
+    ) -> ParseResult<Vec<LocalNodeId<destack_ast::Parameter>>> {
+        let ambient_context = self
+            .options
+            .with_generator(is_generator)
+            .with_forbid_yield(is_generator);
+        self.with_options(
+            self.options.with_ambient_context(ambient_context),
+            |parser| parser.eat_dynamic_parameters(),
+        )
+    }
+
+    /// Eat a property or member return type.
+    #[inline]
+    fn eat_property_return_type(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        let ambient_context = self
+            .options
+            .nested()
+            .with_type(true)
+            .with_before_block(true);
+        let expression_context = self.options.nested();
+        self.eat_expression(
+            self.options
+                .with_ambient_context(ambient_context)
+                .with_expression_context(expression_context),
+        )
+    }
+
+    /// Eat a property or member method body expression.
+    #[inline]
+    fn eat_property_method_body(
+        &mut self,
+        is_generator: bool,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let ambient_context = self
+            .options
+            .with_generator(is_generator)
+            .with_decorator(false);
+        let expression_context = self
+            .options
+            .not_in_position()
+            .with_statement_position(true)
+            .with_sequence_expression(true);
+        self.eat_expression(
+            self.options
+                .with_ambient_context(ambient_context)
+                .with_expression_context(expression_context),
+        )
+    }
+
+    /// Eat a property field type expression.
+    #[inline]
+    fn eat_property_field_type(
+        &mut self,
+        is_type_context: bool,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let ambient_context = self.options.nested().with_type(is_type_context);
+        let expression_context = self
+            .options
+            .not_in_position()
+            .not_in_left_precedence()
+            .not_in_sequence_expression();
+        self.eat_expression(
+            self.options
+                .with_ambient_context(ambient_context)
+                .with_expression_context(expression_context),
+        )
+    }
+
+    /// Eat a property field default expression.
+    #[inline]
+    fn eat_property_default_expression(
+        &mut self,
+        preserve_nested_context: bool,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let ambient_context = if preserve_nested_context {
+            self.options.nested()
+        } else {
+            self.options
+        };
+        let expression_context = self
+            .options
+            .not_in_position()
+            .not_in_left_precedence()
+            .not_in_sequence_expression();
+        self.eat_expression(
+            self.options
+                .with_ambient_context(ambient_context)
+                .with_expression_context(expression_context),
+        )
+    }
+
+    /// Eat a member type expression.
+    #[inline]
+    fn eat_member_type_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        let ambient_context = self.options.with_type(true);
+        self.eat_expression(self.options.with_ambient_context(ambient_context))
+    }
+
+    /// Eat a key with private hash parsing enabled.
+    #[inline]
+    fn eat_property_key_with_span(&mut self) -> ParseResult<Option<(Key, destack_source::Span)>> {
+        let ambient_context = self.options.with_allow_private_hash_key(true);
+        self.with_options(
+            self.options.with_ambient_context(ambient_context),
+            |parser| parser.eat_key_maybe_with_span(),
+        )
+    }
+
     /// Try to eat a property (return Property::Error if error and recovery is possible).
     pub fn try_eat_property(&mut self, recover: TokenType) -> ParseResult<LocalNodeId<Property>> {
         match self.eat_property() {
@@ -67,12 +196,7 @@ impl Parser {
         if self.peek_is(TokenType::Spread) {
             let start = self.mark_span();
             self.bump(); // eat spread
-            let value = self.eat_expression(
-                self.options
-                    .not_in_position()
-                    .not_in_left_precedence()
-                    .not_in_sequence_expression(),
-            )?;
+            let value = self.eat_property_value_expression()?;
             let property = Property::Spread {
                 modifiers: None,
                 value,
@@ -334,12 +458,7 @@ impl Parser {
 
             // dynamic parameters
             self.eat_newlines_maybe()?;
-            let parameter_options = self
-                .options
-                .with_generator(is_generator)
-                .with_forbid_yield(is_generator);
-            let dynamic_parameters =
-                self.with_options(parameter_options, |parser| parser.eat_dynamic_parameters())?;
+            let dynamic_parameters = self.eat_property_dynamic_parameters(is_generator)?;
 
             // modifiers postfix (again after parameters)
             let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
@@ -353,8 +472,7 @@ impl Parser {
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::Colon)?;
                 self.eat_newlines_maybe()?;
-                let return_type =
-                    self.eat_expression(self.options.nested().in_type().in_before_block())?;
+                let return_type = self.eat_property_return_type()?;
                 (Some(return_type), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
@@ -373,14 +491,7 @@ impl Parser {
                 .is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
             {
                 self.eat_newlines_maybe()?;
-                let mut options = self
-                    .options
-                    .not_in_position()
-                    .in_statement_position()
-                    .not_in_decorator()
-                    .with_generator(is_generator);
-                options.set_allow_sequence_expression(true);
-                Some(self.eat_expression(options)?)
+                Some(self.eat_property_method_body(is_generator)?)
             } else {
                 None
             };
@@ -446,16 +557,8 @@ impl Parser {
                 self.eat_newlines_maybe()?;
 
                 // parse type annotations in type or variant contexts
-                let mut type_options = self
-                    .options
-                    .nested()
-                    .not_in_position()
-                    .not_in_left_precedence()
-                    .not_in_sequence_expression();
-                if self.options.is_in_variant() || self.options.is_in_type() {
-                    type_options = type_options.in_type();
-                }
-                let value = self.eat_expression(type_options)?;
+                let is_type_context = self.options.is_in_variant() || self.options.is_in_type();
+                let value = self.eat_property_field_type(is_type_context)?;
                 (Some(value), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
@@ -466,19 +569,8 @@ impl Parser {
                 self.bump(); // eat assign
                 self.eat_newlines_maybe()?;
                 // keep associated comptime defaults in expression mode
-                let default_options = if associated_comptime_name.is_some() {
-                    self.options
-                        .nested()
-                        .not_in_position()
-                        .not_in_left_precedence()
-                        .not_in_sequence_expression()
-                } else {
-                    self.options
-                        .not_in_position()
-                        .not_in_left_precedence()
-                        .not_in_sequence_expression()
-                };
-                let default = self.eat_expression(default_options)?;
+                let default =
+                    self.eat_property_default_expression(associated_comptime_name.is_some())?;
                 Some(default)
             } else {
                 None
@@ -522,8 +614,8 @@ impl Parser {
         let mut pending_property_decorators = PendingDecorators::new();
         while self.has_more_tokens() {
             // normalize cursor to the next non newline token
-            let cursor = self.advance_to_scanner_cursor();
-            let token_type = cursor.token_type;
+            self.eat_newlines_maybe()?;
+            let token_type = self.peek_token_type();
 
             // stop on closing brace
             if matches!(token_type, TokenType::CloseBrace | TokenType::End) {
@@ -546,7 +638,7 @@ impl Parser {
                 continue;
             }
             // consume any stop
-            else if self.is_any_stop() {
+            else if Self::is_any_stop_token(token_type) {
                 self.eat_any_stop_with_newlines()?;
                 continue;
             }
@@ -691,14 +783,14 @@ impl Parser {
             let ty = if self.peek_colon_is() {
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
-                Some(self.eat_expression(self.options.in_type())?)
+                Some(self.eat_member_type_expression()?)
             } else {
                 None
             };
             // optional value: `= Type`
             let value = if self.peek_is(TokenType::Assign) {
                 self.bump(); // eat assign
-                Some(self.eat_expression(self.options.in_type())?)
+                Some(self.eat_member_type_expression()?)
             } else {
                 None
             };
@@ -844,9 +936,7 @@ impl Parser {
         let is_generator = self.eat_token_maybe(TokenType::Multiply)?;
 
         // key
-        let key_options = self.options.allow_private_hash_key();
-        let key_result =
-            self.with_options(key_options, |parser| parser.eat_key_maybe_with_span())?;
+        let key_result = self.eat_property_key_with_span()?;
         let (key, key_span) = if let Some((key, span)) = key_result {
             (Some(key), Some(span))
         } else {
@@ -974,12 +1064,7 @@ impl Parser {
             self.eat_newlines_maybe()?;
 
             // dynamic parameters
-            let parameter_options = self
-                .options
-                .with_generator(is_generator)
-                .with_forbid_yield(is_generator);
-            let dynamic_parameters =
-                self.with_options(parameter_options, |parser| parser.eat_dynamic_parameters())?;
+            let dynamic_parameters = self.eat_property_dynamic_parameters(is_generator)?;
 
             // modifiers postfix (again after parameters)
             let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
@@ -993,8 +1078,7 @@ impl Parser {
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::Colon)?;
                 self.eat_newlines_maybe()?;
-                let return_type =
-                    self.eat_expression(self.options.nested().in_type().in_before_block())?;
+                let return_type = self.eat_property_return_type()?;
                 (Some(return_type), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
@@ -1013,14 +1097,7 @@ impl Parser {
                 .is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
             {
                 self.eat_newlines_maybe()?;
-                let mut options = self
-                    .options
-                    .not_in_position()
-                    .in_statement_position()
-                    .not_in_decorator()
-                    .with_generator(is_generator);
-                options.set_allow_sequence_expression(true);
-                Some(self.eat_expression(options)?)
+                Some(self.eat_property_method_body(is_generator)?)
             } else {
                 None
             };
@@ -1165,8 +1242,8 @@ impl Parser {
         let mut pending_member_decorators = PendingDecorators::new();
         while self.has_more_tokens() {
             // normalize cursor to the next non newline token
-            let cursor = self.advance_to_scanner_cursor();
-            let token_type = cursor.token_type;
+            self.eat_newlines_maybe()?;
+            let token_type = self.peek_token_type();
 
             // stop on closing brace
             if matches!(token_type, TokenType::CloseBrace | TokenType::End) {
@@ -1178,9 +1255,9 @@ impl Parser {
                 break;
             }
             // consume any stop
-            else if self.is_any_stop() {
+            else if Self::is_any_stop_token(token_type) {
                 // declarations that disallow comma separators
-                if !allow_comma_separators && self.peek_is(TokenType::Comma) {
+                if !allow_comma_separators && token_type == TokenType::Comma {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
                 self.eat_any_stop_with_newlines()?;
