@@ -322,16 +322,16 @@ impl ResourceTable {
         self.entries.write().insert(id, entry);
 
         // notify runtime hooks about the new resource
-        if let Some(hooks) = self.hooks.read().as_ref().cloned() {
-            if let Err(error) = hooks.on_resource_attach(
+        if let Some(hooks) = self.hooks.read().as_ref().cloned()
+            && let Err(error) = hooks.on_resource_attach(
                 world,
                 id,
                 resource_kind,
                 resource_label.as_deref(),
                 engine,
-            ) {
-                error!(?error, "resource attach hook failed");
-            }
+            )
+        {
+            error!(?error, "resource attach hook failed");
         }
 
         id
@@ -352,16 +352,16 @@ impl ResourceTable {
         self.next_id.fetch_max(resource_id.0 + 1, Ordering::Relaxed);
 
         // notify runtime hooks about the restored resource
-        if let Some(hooks) = self.hooks.read().as_ref().cloned() {
-            if let Err(error) = hooks.on_resource_attach(
+        if let Some(hooks) = self.hooks.read().as_ref().cloned()
+            && let Err(error) = hooks.on_resource_attach(
                 world,
                 resource_id,
                 resource_kind,
                 resource_label.as_deref(),
                 engine,
-            ) {
-                error!(?error, "resource attach hook failed");
-            }
+            )
+        {
+            error!(?error, "resource attach hook failed");
         }
     }
 
@@ -403,16 +403,16 @@ impl ResourceTable {
         let removed = self.entries.write().remove(&resource_id);
         if let Some(entry) = removed.as_ref() {
             // notify runtime hooks about the removed resource
-            if let Some(hooks) = self.hooks.read().as_ref().cloned() {
-                if let Err(error) = hooks.on_resource_detach(
+            if let Some(hooks) = self.hooks.read().as_ref().cloned()
+                && let Err(error) = hooks.on_resource_detach(
                     world,
                     resource_id,
                     entry.kind,
                     entry.label.as_deref(),
                     engine,
-                ) {
-                    error!(?error, "resource detach hook failed");
-                }
+                )
+            {
+                error!(?error, "resource detach hook failed");
             }
         }
 

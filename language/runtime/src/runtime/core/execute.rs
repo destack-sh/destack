@@ -305,14 +305,11 @@ impl Agent {
         }
 
         // run one queued macrotask after routing timer and event watches
-        if !ran_macrotask {
-            if let Some(task) = self.event_loop.pop_task() {
-                if let Some(output) =
-                    self.execute_dequeued_task(world, engine, task, target_task)?
-                {
-                    return Ok((true, Some(output)));
-                }
-            }
+        if !ran_macrotask
+            && let Some(task) = self.event_loop.pop_task()
+            && let Some(output) = self.execute_dequeued_task(world, engine, task, target_task)?
+        {
+            return Ok((true, Some(output)));
         }
 
         Ok((progressed, None))

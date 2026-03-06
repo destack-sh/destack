@@ -277,10 +277,11 @@ pub(crate) unsafe fn window_open(
     // register runtime resource and hwnd entry
     let binding = Arc::new(Mutex::new(provisional_binding));
     let entry = display_resource::window_resource_entry(hwnd, Arc::clone(&binding));
-    let resource_id = context
-        .agent()
-        .resources
-        .insert(context.world(), entry, Some(context.engine()));
+    let resource_id =
+        context
+            .agent()
+            .resources
+            .insert(context.world(), entry, Some(context.engine()));
     let handle = resource::WindowHandle(resource_id);
     let window_runtime_state = window_runtime_state(context);
     {
@@ -503,10 +504,11 @@ pub(crate) unsafe fn window_close(
     }
 
     // remove finalized resource entry
-    let removed = context
-        .agent()
-        .resources
-        .remove_and_finalize(context.world(), window.0, Some(context.engine()));
+    let removed = context.agent().resources.remove_and_finalize(
+        context.world(),
+        window.0,
+        Some(context.engine()),
+    );
     // evaluate this condition
     if !removed {
         return Err(core_platform::io_not_found(

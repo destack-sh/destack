@@ -186,8 +186,7 @@ impl Daemon {
         payload: &CommandPayload,
     ) -> super::CommandResult<DaemonCommandResult> {
         // resolve workspace program and compiler handles before command execution
-        let outcome = self
-            .workspace_service
+        self.workspace_service
             .with_workspace_handles_for_path(root, |program, compiler| {
                 // gather shared context
                 let start_time = Instant::now();
@@ -243,9 +242,7 @@ impl Daemon {
             })
             .map_err(|error| {
                 DaemonCommandError::internal(format!("workspace program routing failed: {error}"))
-            })?;
-
-        outcome
+            })?
     }
 }
 
