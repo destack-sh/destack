@@ -4,9 +4,9 @@ description = "TypeScript AST wrapper and project tooling"
 repo = "https://github.com/dsherret/ts-morph"
 ref = "0dd1adc87da3a423f8796f77c2c41c2598170a48"
 language = "ts"
-tier = "T5"
+tier = "T3"
 tags = ["typescript", "ast", "tooling"]
 
 [discovery]
-include = ["src/**/*.ts", "src/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "**/*.d.ts", "**/*.mts", "**/*.cts"]
+include = ["src/**/*.ts", "packages/**/*.ts", "**/*.d.ts", "**/*.mts", "**/*.cts"]
 exclude = ["**/dist/**", "**/build/**", "**/coverage/**", "**/node_modules/**"]

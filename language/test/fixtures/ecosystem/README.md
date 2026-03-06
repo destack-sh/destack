@@ -1,7 +1,8 @@
 # Ecosystem Fixtures
 
-This directory stores manifest driven ecosystem fixtures for real package validation.
-The canonical ecosystem status table is maintained in `language/test/src/ecosystem/README.md`.
+This directory stores the manifest driven interop canary suite.
+The suite is intentionally small and only covers TS-first Node, backend, and tooling packages that match Destack's current support posture.
+The canonical status table is maintained in `language/test/src/ecosystem/README.md`.
 
 ## Structure
 
