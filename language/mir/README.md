@@ -435,5 +435,5 @@ cargo test -p destack_mir
 
 ```sh
 cargo test -p destack_test --test optimize
-just language/test-codegen
+just language/test-emit
 ```

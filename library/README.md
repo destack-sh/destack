@@ -14,15 +14,13 @@ Integrated packages for building full-stack applications with Destack.
 ## Commands
 
 Run these commands from the repository root.
-Use `just library/test` as an alias for `just library/test-quick`.
-`just library/test-quick` currently reports that dedicated library tests are not defined yet.
+`just library/quick` currently reports that dedicated library tests are not defined yet.
 
 ```sh
 just library/format
+just library/format-check
 just library/check
 just library/test
-just library/test-quick
-just library/test-ci
-just library/test-nightly
-just library/test-release
+just library/quick
+just library/full
 ```

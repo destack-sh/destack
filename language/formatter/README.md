@@ -176,7 +176,6 @@ function process(data: &readonly Buffer, out: ^Result): &readonly Output {
 ## Testing
 
 Run these from the repository root.
-Use `just language/test` as an alias for `just language/test-quick`.
 
 ### Quick local loop
 
@@ -188,11 +187,8 @@ just language/test-formatter
 ### Shared test gates
 
 ```sh
-just language/test
-just language/test-quick
-just language/test-ci
-just language/test-nightly
-just language/test-release
+just language/quick
+just language/full
 ```
 
 ### Conformance coverage
@@ -205,6 +201,6 @@ just language/test-formatter-conformance
 ### Performance and fuzzing
 
 ```sh
-just language/bench-formatter-stats "--help"
+just language/benchmark-formatter-stats "--help"
 just language/fuzz-formatter 300
 ```

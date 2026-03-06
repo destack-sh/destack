@@ -25,19 +25,17 @@ assert_required_recipe() {
 	fi
 }
 
-assert_required_recipe "toolchain-install"
-assert_required_recipe "toolchain-doctor"
-assert_required_recipe "toolchain-ensure"
-assert_required_recipe "runtime-toolchain-install"
-assert_required_recipe "runtime-toolchain-doctor"
-assert_required_recipe "runtime-toolchain-ensure"
-assert_required_recipe "runtime-toolchain-lint"
-assert_required_recipe "check-ci-hygiene"
+assert_required_recipe "install-toolchain"
+assert_required_recipe "doctor-toolchain"
+assert_required_recipe "ensure-toolchain"
+assert_required_recipe "check-hygiene"
 assert_required_recipe "check-workflow-policy"
+assert_required_recipe "quick"
+assert_required_recipe "full"
 
-# runtime workflows should go through top level just wrappers
-if rg -n "run: just language/runtime-" "${runtime_workflow_files[@]}"; then
-	echo "runtime workflows must call top level just runtime wrappers" >&2
+# runtime workflows should call scoped language recipes, never root wrappers
+if rg -n "run: just runtime-" "${runtime_workflow_files[@]}"; then
+	echo "runtime workflows must call scoped language runtime recipes" >&2
 	exit 1
 fi
 
@@ -46,9 +44,14 @@ if rg -n "run: \\./scripts/toolchain/runtime-" "${runtime_workflow_files[@]}"; t
 	exit 1
 fi
 
+if rg -n "run: \\./\\.github/scripts/install-runtime-android-ndk.sh" "${runtime_workflow_files[@]}"; then
+	echo "runtime workflows must call just language/install-runtime-android-ndk instead of .github/scripts directly" >&2
+	exit 1
+fi
+
 # bridge jobs should install with the canonical ensure entrypoint
-if rg -n "just bridge/toolchain-install" "${ci_file}" "${nightly_file}" "${release_file}"; then
-	echo "workflow bridge toolchain setup must use just bridge/toolchain-ensure" >&2
+if rg -n "just bridge/install-toolchain" "${ci_file}" "${nightly_file}" "${release_file}"; then
+	echo "workflow bridge toolchain setup must use just bridge/ensure-toolchain" >&2
 	exit 1
 fi
 
@@ -64,19 +67,21 @@ if rg -n '^  workflow_dispatch:' "${release_file}" >/dev/null; then
 fi
 
 # release workflow should enforce tag/version and tracked version consistency
-if ! rg -n "validate-release-tag-version.sh" "${release_file}" >/dev/null; then
-	echo "release workflow must validate tag and VERSION.txt consistency" >&2
-	exit 1
-fi
+if ! rg -n 'just validate-release ' "${release_file}" >/dev/null; then
+	if ! rg -n "validate-release-tag-version.sh" "${release_file}" >/dev/null; then
+		echo "release workflow must validate tag and VERSION.txt consistency" >&2
+		exit 1
+	fi
 
-if ! rg -n "dev version check" "${release_file}" >/dev/null; then
-	echo "release workflow must run tracked version file checks" >&2
-	exit 1
-fi
+	if ! rg -n "dev version check" "${release_file}" >/dev/null; then
+		echo "release workflow must run tracked version file checks" >&2
+		exit 1
+	fi
 
-if ! rg -n "validate-release-changelog.sh" "${release_file}" >/dev/null; then
-	echo "release workflow must validate changelog entry for the release version" >&2
-	exit 1
+	if ! rg -n "validate-release-changelog.sh" "${release_file}" >/dev/null; then
+		echo "release workflow must validate changelog entry for the release version" >&2
+		exit 1
+	fi
 fi
 
 # workflows should route through shared setup actions

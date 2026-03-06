@@ -5,57 +5,23 @@ set dotenv-filename := "../.env.local"
 _default:
     @just --list --unsorted
 
-# --- ci ---
-
-# install js dependencies required by library gates
-ci-install:
-    bun install --frozen-lockfile
-
-# run library format gate
-ci-format:
-    just format-check
-
-# run library lint gate
-ci-lint:
-    just lint
-
-# run library test gate
-ci-tests:
-    just commit
-
-# run all blocking library ci gates locally
-ci:
-    just ci-install
-    just ci-format
-    just ci-lint
-    just ci-tests
-
 # check
 check:
     bun run biome lint .
 
-# lint (alias for check)
-lint:
-    just check
-
-# run quick local library tests
-quick:
+# run library tests
+test:
     @echo "No library tests defined"
 
-# run blocking library test lanes
-commit:
+# run the fast library gate
+quick:
+    just format-check
+    just check
+    just test
+
+# run the full library gate
+full:
     just quick
-
-# run deep library test lanes
-nightly:
-    just commit
-
-# backwards compatibility aliases
-alias test-quick := quick
-alias test-ci := commit
-alias test-nightly := nightly
-alias test-release := nightly
-alias test := quick
 
 # format code
 format:
@@ -77,11 +43,3 @@ clean:
 # publish npm packages (dry-run by default)
 publish dry="--dry-run":
     cd schema && npm publish {{dry}} --access public
-
-# publish library packages as dry run
-publish-dry:
-    just publish --dry-run
-
-# publish library packages live
-publish-live:
-    just publish ""

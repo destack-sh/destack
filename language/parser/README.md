@@ -56,7 +56,6 @@ Comment and blank trivia are emitted in source order into split buffers:
 ## Testing
 
 Run these from the repository root.
-Use `just language/test` as an alias for `just language/test-quick`.
 
 ### Parser-focused local loop
 
@@ -68,11 +67,8 @@ cargo test -p destack_test --test smoke -- --parser
 ### Shared test gates
 
 ```sh
-just language/test
-just language/test-quick
-just language/test-ci
-just language/test-nightly
-just language/test-release
+just language/quick
+just language/full
 ```
 
 ### Parser conformance coverage

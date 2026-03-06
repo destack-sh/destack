@@ -10,35 +10,11 @@ test-packages := "-p destack_daemon -p destack_lsp -p destack_lsp_server -p dest
 _default:
     @just --list --unsorted
 
-# --- ci ---
-
-# run service format gate
-ci-format:
-    just format-check
-
-# run service lint gate
-ci-lint:
-    just lint
-
-# run service test gate
-ci-tests:
-    just commit
-
-# run all blocking service ci gates locally
-ci:
-    just ci-format
-    just ci-lint
-    just ci-tests
-
 # --- build ---
 
 # check service crates
 check:
     cargo clippy --release {{ packages }}
-
-# lint alias
-lint:
-    just check
 
 # build all service crates
 build:
@@ -61,21 +37,16 @@ clean:
 
 # --- test ---
 
-# run quick local service tests
-quick:
+# run service tests
+test:
     cargo test --release --all-targets {{ test-packages }}
 
-# run blocking service test lanes
-commit:
+# run the fast service gate
+quick:
+    just format-check
+    just check
+    just test
+
+# run the full service gate
+full:
     just quick
-
-# run deep service test lanes
-nightly:
-    just commit
-
-# backwards compatibility aliases
-alias test-quick := quick
-alias test-ci := commit
-alias test-nightly := nightly
-alias test-release := nightly
-alias test := quick

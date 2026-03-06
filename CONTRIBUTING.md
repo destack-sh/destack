@@ -23,9 +23,9 @@ We value clarity, correctness, and performance.
 
 ## Code Style
 
-Before opening a PR, run `just commit` from the repository root.
-This runs the same blocking gates that CI runs for language, library, service, app, and bridge.
-Use `just quick` for fast local confidence, `just fmt` for formatting, `just check` for broad checks, and `just nightly` for the deepest local verification sweep.
+Before opening a PR, run `just quick` from the repository root.
+This runs the same quick gate that CI enforces across language, library, service, app, and bridge.
+Use `just quick` for fast local confidence, `just fmt` for formatting, `just check` for static checks, and `just full` for the deepest local verification sweep.
 See [TESTING.md](TESTING.md) for the full test matrix and suite details.
 
 ## Commit Style
@@ -67,17 +67,12 @@ To contribute to Destack and build it yourself locally you will need at least `c
 
 We use `justfile`s as the source of truth for all commands:
 ```sh
-just precommit      # compatibility alias for just commit
-just commit         # canonical blocking gate
-just ci             # compatibility alias for just commit
 just install        # setup everything
-just check          # check & lint everything
+just check          # run static checks
+just test           # run scoped test suites
 just fmt            # format all code
-just quick          # fast local test lane
-just test           # compatibility alias for just quick
-just nightly        # deep local verification lane
-just bench          # run all benchmarks
-just fuzz           # run all fuzzers
+just quick          # run the fast repository gate
+just full           # run the full repository gate
 just clean          # clean all build artifacts
 just publish        # publish all packages
 ```
@@ -85,70 +80,20 @@ just publish        # publish all packages
 If you are working in one area only, use scoped gates:
 ```sh
 just language/quick
-just language/commit
-just language/nightly
-just library/commit
-just service/commit
-just app/commit
-just bridge/commit
+just language/full
+just library/quick
+just library/full
+just service/quick
+just service/full
+just app/quick
+just app/full
+just bridge/quick
+just bridge/full
 ```
 
 ## Release
 
 Release CI is tag driven and runs on `v*` pushes.
-The release workflow fails if the pushed tag does not match `VERSION.txt`, and it also fails when tracked version files drift or `CHANGELOG.md` has no section for `VERSION.txt`.
-
-### Procedure
-
-Use the top level `just` recipes so versioning and changelog automation stay consistent:
- - `just bump patch`, `just bump minor`, or `just bump major` to update all tracked version files.
- - `just release-changelog` to generate the `CHANGELOG.md` section for the current version.
- - `just release-changelog` also refreshes `bridge/dart/CHANGELOG.md` and syncs `bridge/dart/LICENSE` from `LICENSE.txt`.
- - `just release-validate` to verify tag, tracked versions, and changelog state for the current version.
- - `just release patch` to bump, validate, update changelog, commit, and tag in one command.
- - `just release-push patch` to do the same flow and push `main` plus the release tag.
-(This only works if you have the keys, so either locally with `.env.local` or via CI.)
-
-### Changelog
-
-Destack is alpha software, so release entries do not need migration notes yet.
- - Keep the root changelog concise and user facing, and avoid dumping every internal commit line.
- - Only include items with clear external impact for users, operators, or package consumers.
- - Treat `CHANGELOG.md` as the canonical monorepo changelog for release history.
- - Treat package local changelogs as thin package metadata, and keep them short with a pointer to the root changelog.
-Use `just release-changelog` as the single source of truth for changelog updates during release preparation.
-The changelog is generated automatically by that command, and manual edits are optional curation before release tagging.
-
-### Credentials
-
-Publishing commands load credentials from `.env.local` via `just`.
-Use the following variable level matrix for the GitHub Actions `release` environment.
-
-| Key | Kind | Required when | Purpose |
-|--------------|----------|------------------------------------------------------|------------------------------------------------------------|
-| `CARGO_TOKEN` | Secret | Always | crates.io publishing |
-| `NUGET_PUBLISH_USERNAME` | Variable | Always | NuGet trusted publishing identity |
-| `MAVEN_REPOSITORY_USERNAME` | Secret | Always | Maven Central portal username |
-| `MAVEN_REPOSITORY_PASSWORD` | Secret | Always | Maven Central portal password |
-| `MAVEN_GPG_PRIVATE_KEY` | Secret | Always | Armored private key for Maven signing |
-| `MAVEN_GPG_PASSPHRASE` | Secret | Always | Passphrase for Maven signing key |
-| `MAVEN_GPG_KEY_ID` | Variable | Always | Key id used by Maven GPG plugin |
-| `RELEASE_GPG_PRIVATE_KEY` | Secret | Always | Armored private key for release artifact signatures |
-| `RELEASE_GPG_PASSPHRASE` | Secret | Always | Passphrase for release artifact signing key |
-| `RELEASE_GPG_KEY_ID` | Variable | Always | Key id used for release artifact signatures |
-| `RUBYGEMS_OIDC_ROLE` | Variable | Always | RubyGems trusted publishing role |
-| `HEX_API_KEY` | Secret | Always | Hex publishing |
-| `VSCE_PAT` | Secret | Always | VS Code extension publishing |
-| `RELEASE_PUBLISH_ZED` | Variable | Optional | Enables zed registry publish on release tags |
-| `ZED_GITHUB_TOKEN` | Secret | `RELEASE_PUBLISH_ZED == true` | GitHub token for zed registry PR lane |
-| `ZED_REGISTRY_PUSH_TO` | Variable | `RELEASE_PUBLISH_ZED == true` | zed registry target fork/owner |
-
-For local live publishing outside CI, token based env vars such as `NPM_TOKEN`, `CARGO_TOKEN`, `PYPI_TOKEN`, and `VSCE_PAT` are still supported.
-The release workflow uses trusted publishing or OIDC wherever possible.
-
-### Integrity
-
-Release artifacts include `manifest.json` and `SHA256SUMS`.
-CI produces detached armored signatures for both files with the dedicated `RELEASE_GPG_*` key.
-The release lane also signs installer scripts as `install.sh.asc` and `install.ps1.asc`.
-The public verification key is published as `app/cli/install/release-signing-public.asc` and attached to GitHub releases.
+Use `just release patch` to prepare a local release commit and tag.
+Use `just push-release` to push the current release commit and tag.
+See [RELEASE.md](RELEASE.md) for the canonical release runbook, credential matrix, signing model, and failure recovery guidance.

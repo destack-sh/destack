@@ -27,8 +27,8 @@ run_ensure() {
 
 	if [ "${auto_install}" != "1" ]; then
 		echo "missing required runtime toolchains"
-		echo "run: just runtime-toolchain-install"
-		echo "or run with auto install: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just runtime-toolchain-ensure"
+		echo "run: just language/install-toolchain"
+		echo "or run with auto install: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just language/ensure-toolchain"
 		return 1
 	fi
 

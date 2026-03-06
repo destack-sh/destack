@@ -18,7 +18,7 @@ for argument in "$@"; do
 	fi
 
 	echo "unknown argument: ${argument}"
-	echo "usage: runtime-windows-gnu-smoke.sh [--release]"
+	echo "usage: smoke-runtime-windows-gnu.sh [--release]"
 	exit 1
 done
 

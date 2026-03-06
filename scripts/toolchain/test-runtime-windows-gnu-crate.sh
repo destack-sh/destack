@@ -9,7 +9,7 @@ source "${script_directory}/lib/runtime-common.sh"
 source "${script_directory}/lib/runtime-windows-gnu.sh"
 
 if [ "$#" -lt 1 ]; then
-	echo "usage: runtime-windows-gnu-test-crate.sh <crate> [test-filter] [-- <test-args...>]"
+	echo "usage: test-runtime-windows-gnu-crate.sh <crate> [test-filter] [-- <test-args...>]"
 	exit 1
 fi
 

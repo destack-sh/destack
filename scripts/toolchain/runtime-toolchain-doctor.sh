@@ -134,7 +134,7 @@ fi
 if ndk_root="$("${script_directory}"/resolve-android-ndk-root.sh 2>/dev/null)"; then
 	print_ok "android ndk root: ${ndk_root}"
 else
-	print_error "android ndk root: not found, run just runtime-toolchain-install"
+	print_error "android ndk root: not found, run just language/install-toolchain"
 fi
 
 # dbus host pkg-config is not required:

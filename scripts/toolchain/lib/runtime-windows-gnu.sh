@@ -52,7 +52,7 @@ runtime_windows_gnu_require_wine() {
 		wine \
 		wine64 \
 		"missing wine: install wine to run windows gnu executables" \
-		"just runtime-windows-gnu-check"
+		"just language/check-runtime-windows-gnu"
 }
 
 runtime_windows_gnu_exe_directory() {

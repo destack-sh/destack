@@ -10,7 +10,7 @@ if ndk_root="$("${script_directory}/resolve-android-ndk-root.sh" 2>/dev/null)"; 
 	:
 else
 	echo "missing android ndk root"
-	echo "run: just runtime-toolchain-install"
+	echo "run: just language/install-toolchain"
 	echo "or set ANDROID_NDK_ROOT"
 	exit 1
 fi

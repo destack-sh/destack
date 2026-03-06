@@ -37,5 +37,5 @@ cargo test -p destack_vm
 
 ```sh
 cargo test -p destack_test --test optimize
-just language/test-codegen
+just language/test-emit
 ```

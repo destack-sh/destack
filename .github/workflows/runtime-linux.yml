@@ -30,8 +30,8 @@ jobs:
         with:
           rust_components: clippy
 
-      - name: Run linux runtime check
-        run: just runtime-linux-check
+      - name: Check runtime on Linux
+        run: just language/check-runtime-linux
 
-      - name: Run linux wayland backend check
-        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just runtime-linux-wayland-check
+      - name: Check runtime Wayland backend on Linux
+        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just language/check-runtime-linux-wayland

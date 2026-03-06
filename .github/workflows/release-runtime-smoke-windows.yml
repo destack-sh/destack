@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 jobs:
-  release-smoke-runtime-windows:
+  smoke-runtime-release-windows:
     name: Runtime Release Smoke (windows-msvc)
     runs-on: windows-latest
     timeout-minutes: 90
@@ -22,9 +22,5 @@ jobs:
         with:
           rust_targets: x86_64-pc-windows-msvc
 
-      - name: Build runtime smoke release binary
-        run: cargo build --release -p destack_runtime --bin runtime-smoke --target x86_64-pc-windows-msvc
-
-      - name: Run runtime smoke release binary
-        shell: powershell
-        run: .\target\x86_64-pc-windows-msvc\release\runtime-smoke.exe
+      - name: Build and run runtime smoke release binary
+        run: just language/smoke-runtime-release x86_64-pc-windows-msvc

@@ -13,7 +13,7 @@ ensure_weston() {
 		weston \
 		weston \
 		"missing weston: install weston to run the runtime wayland lane" \
-		"just runtime-linux-wayland-check"
+		"just language/check-runtime-linux-wayland"
 }
 
 ensure_weston || exit 1

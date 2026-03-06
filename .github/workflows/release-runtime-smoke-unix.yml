@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 jobs:
-  release-smoke-runtime-unix:
+  smoke-runtime-release-unix:
     name: Runtime Release Smoke (${{ matrix.id }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
@@ -35,8 +35,5 @@ jobs:
         with:
           rust_targets: ${{ matrix.target }}
 
-      - name: Build runtime smoke release binary
-        run: cargo build --release -p destack_runtime --bin runtime-smoke --target "${{ matrix.target }}"
-
-      - name: Run runtime smoke release binary
-        run: "./target/${{ matrix.target }}/release/runtime-smoke"
+      - name: Build and run runtime smoke release binary
+        run: just language/smoke-runtime-release "${{ matrix.target }}"

@@ -1,6 +1,6 @@
 # Ecosystem Tests
 
-Ecosystem tests are Destack's interop canary suite.
+Ecosystem tests are Destack's curated external package suite.
 They validate a small, curated set of pinned TS-first Node, backend, and tooling repositories.
 They do not try to represent the whole JS or web ecosystem.
 
@@ -133,11 +133,11 @@ enabled = true
 ## Running
 
 Use the top level lanes for normal workflows.
-Run `just nightly` for the full deep sweep.
-Run the ecosystem suite directly when iterating on the canary harness itself.
+Run `just full` for the full deep sweep.
+Run the ecosystem suite directly when iterating on the ecosystem harness itself.
 
 ```bash
-just language/ecosystem-fetch
+just language/fetch-ecosystem
 cargo test -p destack_test --test ecosystem
 cargo test -p destack_test --test ecosystem -- --list
 cargo test -p destack_test --test ecosystem -- --phase parse

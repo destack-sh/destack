@@ -10,42 +10,19 @@ test-packages := "-p destack_bridge_core -p destack_capi -p destack_napi -p dest
 _default:
     @just --list --unsorted
 
-# --- ci ---
-
-# install js dependencies required by bridge gates
-ci-install:
-    bun install --frozen-lockfile
+# --- setup ---
 
 # install bridge language toolchains for this host
-toolchain-install:
+install-toolchain:
     bash scripts/language-bridge-toolchain.sh install
 
 # inspect bridge language toolchain readiness on this host
-toolchain-doctor:
+doctor-toolchain:
     bash scripts/language-bridge-toolchain.sh doctor
 
 # ensure bridge language toolchains are present, optionally auto install with DESTACK_AUTO_INSTALL_TOOLCHAINS=1
-toolchain-ensure:
+ensure-toolchain:
     bash scripts/language-bridge-toolchain.sh ensure
-
-# run bridge format gate
-ci-format:
-    just format-check
-
-# run bridge lint gate
-ci-lint:
-    just lint
-
-# run bridge test gate
-ci-tests:
-    just commit
-
-# run all blocking bridge ci gates locally
-ci:
-    just ci-install
-    just ci-format
-    just ci-lint
-    just ci-tests
 
 # --- build ---
 
@@ -57,26 +34,22 @@ check:
     bun x tsc -p typescript/tsconfig.json
     bun run biome lint napi wasm typescript
 
-# lint alias
-lint:
-    just check
-
 # build all bridge packages
 build:
     cargo build --release {{ packages }}
-    bun run --cwd napi build
-    bun run --cwd wasm build
+    just build-napi
+    just build-wasm
     bun run --cwd typescript build
     just build-vscode
     just build-zed
 
 # build napi package
-napi:
+build-napi:
     cargo build --release -p destack_napi
     bun run --cwd napi build
 
 # build wasm package
-wasm:
+build-wasm:
     cargo build --release -p destack_wasm
     bun run --cwd wasm build
 
@@ -90,14 +63,6 @@ build-zed:
 
 # canonical wasm size analysis command
 wasm-size:
-    cd wasm && bun ./scripts/size-report.mjs
-
-# canonical wasm size analysis command without rebuilding
-wasm-size-no-build:
-    cd wasm && bun ./scripts/size-report.mjs
-
-# analyze one preset with canonical size report settings
-wasm-size-preset preset="core":
     cd wasm && bun ./scripts/size-report.mjs
 
 # format code
@@ -123,8 +88,8 @@ clean:
 
 # --- test ---
 
-# run quick local bridge tests
-quick:
+# run bridge tests
+test:
     cargo test --release --all-targets {{ test-packages }}
     bun run --cwd napi test
     bun run --cwd wasm test
@@ -132,23 +97,18 @@ quick:
     just test-vscode
     just test-zed
 
-# run blocking bridge test lanes
-commit:
+# run the fast bridge gate
+quick:
+    just format-check
+    just check
+    just test
+
+# run the full bridge gate
+full:
     just quick
-    just check-zed-grammars
+    just validate-zed-grammars
     just test-language-bridges
-
-# run deep bridge test lanes
-nightly:
-    just commit
     just test-vscode-bridge
-
-# backwards compatibility aliases
-alias test-quick := quick
-alias test-ci := commit
-alias test-nightly := nightly
-alias test-release := nightly
-alias test := quick
 
 # test vscode grammar
 test-vscode:
@@ -166,30 +126,16 @@ test-zed:
 
 # test language bridges
 test-language-bridges:
-    just toolchain-ensure
+    just ensure-toolchain
     bash scripts/test-language-bridges.sh
 
-# backwards compatibility aliases
-alias install-language-bridge-toolchains := toolchain-install
-alias language-bridge-toolchain-doctor := toolchain-doctor
-alias ensure-language-bridge-toolchains := toolchain-ensure
-
 # validate zed grammar references
-check-zed-grammars:
-    python3 zed/scripts/check_grammar_sources.py
+validate-zed-grammars *args:
+    python3 zed/scripts/check_grammar_sources.py {{args}}
 
 # validate zed grammar references in strict release mode
-check-zed-grammars-pinned:
-    python3 zed/scripts/check_grammar_sources.py --require-pinned
-
-# test the core ide integration surface
-test-ide:
-    just test-vscode
-    just test-vscode-bridge
-    just test-zed
-
-# backward compatibility alias
-alias test-editor := test-ide
+validate-zed-grammars-strict *args:
+    python3 zed/scripts/check_grammar_sources.py --require-pinned {{args}}
 
 # --- release ---
 
@@ -266,7 +212,7 @@ publish-nuget dry="--dry-run":
         dotnet_bin="${HOME}/.dotnet/dotnet"
     fi
     if [ -z "${dotnet_bin}" ]; then
-        echo "missing dotnet command, run: just bridge/toolchain-ensure"
+        echo "missing dotnet command, run: just bridge/ensure-toolchain"
         exit 1
     fi
 
@@ -450,11 +396,3 @@ publish dry="--dry-run":
     just publish-bun "{{dry}}"
     just publish-vite "{{dry}}"
     just publish-vscode "{{dry}}"
-
-# publish all bridge packages as dry run
-publish-dry:
-    just publish --dry-run
-
-# publish all bridge packages live
-publish-live:
-    just publish ""

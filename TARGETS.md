@@ -2,6 +2,7 @@
 
 This file is the canonical support policy for build and runtime targets across the repository.
 Support is keyed by Rust target triple (for now).
+See [TESTING.md](TESTING.md) for the operational gate, workflow, and script mapping that exercises this policy.
 
 ## Tiers
 
@@ -30,17 +31,18 @@ Run these commands from repository root when setting up or validating runtime ta
 
 | Goal | Command |
 |-----------|--------|
-| Bootstrap runtime toolchains and sdk prerequisites | `just runtime-toolchain-bootstrap` |
-| Inspect host readiness for runtime target lanes | `just runtime-toolchain-doctor` |
-| Lint runtime toolchain scripts | `just runtime-toolchain-lint` |
-| Run host runtime lane on macOS | `just runtime-macos-check` |
-| Run host runtime lane on Linux | `just runtime-linux-check` |
-| Run host runtime lane on Windows | `just runtime-windows-msvc-check` |
-| Run windows gnu runtime cross lane | `just runtime-windows-gnu-check` |
-| Run iOS runtime target lane | `just runtime-ios-check` |
-| Run Android runtime target lane | `just runtime-android-check` |
-| Run wasm32-wasip1 runtime target lane | `just runtime-wasip1-check` |
-| Run runtime cross-target compile lane | `just runtime-cross-targets-check` |
+| Install runtime toolchains and sdk prerequisites | `just language/install-toolchain` |
+| Inspect host readiness for runtime target lanes | `just language/doctor-toolchain` |
+| Lint runtime toolchain scripts | `just language/lint-toolchain` |
+| Run host runtime lane on macOS | `just language/check-runtime-macos` |
+| Run host runtime lane on Linux | `just language/check-runtime-linux` |
+| Run host runtime lane on Windows | `just language/check-runtime-windows-msvc` |
+| Run windows gnu runtime cross lane | `just language/check-runtime-windows-gnu` |
+| Run iOS runtime target lane | `just language/check-runtime-ios` |
+| Run Android runtime target lane | `just language/check-runtime-android` |
+| Install Android SDK and NDK into the active sdk root | `just language/install-runtime-android-ndk` |
+| Run wasm32-wasip1 runtime target lane | `just language/check-runtime-wasip1` |
+| Run runtime cross-target compile lane | `just language/check-runtime-cross-targets` |
 
 ### Tier 1 required checks
 

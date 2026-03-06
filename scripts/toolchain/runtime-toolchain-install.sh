@@ -79,18 +79,18 @@ else
 
 	if ! command -v curl >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1; then
 		echo "android ndk is missing and curl/unzip are required to install it" >&2
-		echo "install curl and unzip, then re-run: just runtime-toolchain-install" >&2
+		echo "install curl and unzip, then re-run: just language/install-toolchain" >&2
 		exit 1
 	fi
 	if ! command -v java >/dev/null 2>&1; then
 		echo "android ndk is missing and java is required to run sdkmanager" >&2
-		echo "install one jre or jdk and re-run: just runtime-toolchain-install" >&2
+		echo "install one jre or jdk and re-run: just language/install-toolchain" >&2
 		exit 1
 	fi
 
 	echo "installing android sdk cmdline tools and ndk"
 	ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-${default_android_sdk_root}}" \
-		"${repository_root}/.github/scripts/install-android-ndk.sh"
+		"${repository_root}/.github/scripts/install-runtime-android-ndk.sh"
 fi
 
 # host package manager guidance for optional system tools
@@ -122,7 +122,7 @@ if [ "${host_kernel}" = "Linux" ] && [ -z "$(runtime_command_path weston)" ]; th
 	echo "installing weston for the linux wayland display lane"
 	if ! runtime_linux_install_package weston; then
 		echo "failed to install weston automatically"
-		echo "install weston manually, then re-run: just runtime-toolchain-install"
+		echo "install weston manually, then re-run: just language/install-toolchain"
 		exit 1
 	fi
 fi

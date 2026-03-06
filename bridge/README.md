@@ -28,22 +28,19 @@ Destack bridge into and out of the existing universe.
 ## Commands
 
 Run these commands from the repository root.
-Use `just bridge/test` as an alias for `just bridge/test-quick`.
 
 ```sh
 just bridge/format
+just bridge/format-check
 just bridge/check
 just bridge/build
 just bridge/test
-just bridge/test-quick
-just bridge/test-ci
+just bridge/quick
+just bridge/full
 just bridge/test-language-bridges
-just bridge/toolchain-install
-just bridge/toolchain-doctor
-just bridge/toolchain-ensure
-just bridge/test-nightly
-just bridge/test-release
-just bridge/test-ide
+just bridge/install-toolchain
+just bridge/doctor-toolchain
+just bridge/ensure-toolchain
 just bridge/wasm-size
 just bridge/publish --dry-run
 just bridge/publish-zed --dry-run

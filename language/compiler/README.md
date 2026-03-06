@@ -171,7 +171,7 @@ cargo test -p destack_test --test smoke -- --compiler
 ```sh
 just language/test-specification
 just language/test-parser-conformance
-just language/test-codegen
+just language/test-emit
 ```
 
 ### Query and incremental coverage

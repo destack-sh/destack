@@ -1,6 +1,6 @@
 # Ecosystem Fixtures
 
-This directory stores the manifest driven interop canary suite.
+This directory stores the manifest driven ecosystem suite.
 The suite is intentionally small and only covers TS-first Node, backend, and tooling packages that match Destack's current support posture.
 The canonical status table is maintained in `language/test/src/ecosystem/README.md`.
 
@@ -21,7 +21,7 @@ Missing checkouts are also fetched automatically by the ecosystem runner.
 Resolve, analyze, and lower phases install dependencies for newly fetched checkouts.
 
 ```bash
-just language/ecosystem-fetch
+just language/fetch-ecosystem
 cargo test -p destack_test --test ecosystem
 cargo test -p destack_test --test ecosystem -- --phase parse
 cargo test -p destack_test --test ecosystem -- --all-phases

@@ -114,8 +114,7 @@ The different Resolution kinds come naturally from the specification and basical
 - **Static**: direct call to a specific symbol
 - **Dynamic**: may have multiple candidates, need runtime dispatch (like in a union)
 
-For example, `a + b` where `a: int32` and `b: int32` resolves to `Builtin`.
-But `a.foo()` where `a: Cat | Dog` might resolve to `Dynamic` if `Cat::foo` and `Dog::foo` are different symbols.
+For example, `a + b` where `a: int32` and `b: int32` resolves to `Builtin`, but `a.foo()` where `a: Cat | Dog` might resolve to `Dynamic` if `Cat::foo` and `Dog::foo` are different symbols.
 Note that a polymorphic `T` might still resolve to `Static`: Resolution answers "what is the *symbol*?", not "how do we call it?".
 
 ## Testing
@@ -132,5 +131,5 @@ cargo test -p destack_dir
 
 ```sh
 just language/test-specification
-just language/test-codegen
+just language/test-emit
 ```

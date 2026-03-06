@@ -17,7 +17,7 @@ ensure_android_host_dependency() {
 		"${command_name}" \
 		"${package_name}" \
 		"${missing_message}" \
-		"just runtime-android-host-deps"
+		"just language/install-runtime-android-host-deps"
 }
 
 # ensure host tools needed by the android sdk installer script

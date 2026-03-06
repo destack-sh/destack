@@ -11,7 +11,7 @@ runtime_require_or_auto_install_linux_command \
 	shellcheck \
 	shellcheck \
 	"missing shellcheck: install shellcheck to lint runtime toolchain scripts" \
-	"just runtime-toolchain-lint" >&2 || exit 1
+	"just language/lint-toolchain" >&2 || exit 1
 
 runtime_toolchain_shell_scripts=(
 	"${script_directory}"/*.sh

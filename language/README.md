@@ -37,18 +37,16 @@ The language toolchain is split into several crates, each handling a specific pa
 ## Commands
 
 Run these commands from the repository root.
-Use `just language/test` as an alias for `just language/test-quick`.
 
 ```sh
 just language/install
 just language/format
+just language/format-check
 just language/check
 just language/build
 just language/test
-just language/test-quick
-just language/test-ci
-just language/test-nightly
-just language/test-release
-just language/bench
+just language/quick
+just language/full
+just language/benchmark
 just language/fuzz 60
 ```

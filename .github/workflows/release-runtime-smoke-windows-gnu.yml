@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 jobs:
-  release-smoke-runtime-windows-gnu:
+  smoke-runtime-release-windows-gnu:
     name: Runtime Release Smoke (windows-gnu)
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -26,4 +26,4 @@ jobs:
         uses: ./.github/actions/setup-zig
 
       - name: Build and run runtime smoke release binary
-        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just runtime-windows-gnu-smoke --release
+        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just language/smoke-runtime-windows-gnu --release
