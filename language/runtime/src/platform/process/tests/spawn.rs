@@ -295,10 +295,11 @@ fn test_process_spawn_with_actions_pipe_stdout_roundtrip() {
         let pipe_entry = resource::ResourceEntry::new(resource::ResourceKind::Pipe)
             .with_label("process.test.pipe.stdout")
             .with_handle(write_handle);
-        let pipe_resource_id = call_context
-            .agent()
-            .resources
-            .insert(pipe_entry, Some(call_context.engine()));
+        let pipe_resource_id = call_context.agent().resources.insert(
+            call_context.world(),
+            pipe_entry,
+            Some(call_context.engine()),
+        );
         let pipe_handle = resource::PipeHandle(pipe_resource_id);
 
         let command = core_fs::os_path_from_utf8_string(call_context, "cmd".to_string());
@@ -344,10 +345,11 @@ fn test_process_spawn_with_actions_pipe_stdout_roundtrip() {
         }
 
         // close the parent write descriptor to allow EOF on the read side
-        let _ = call_context
-            .agent()
-            .resources
-            .remove(pipe_resource_id, Some(call_context.engine()));
+        let _ = call_context.agent().resources.remove(
+            call_context.world(),
+            pipe_resource_id,
+            Some(call_context.engine()),
+        );
         pipe.close_write();
 
         // wait for the child process to complete successfully

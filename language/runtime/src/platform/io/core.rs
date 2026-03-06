@@ -332,7 +332,7 @@ pub(super) fn poll_open(
     let handle = binding
         .agent()
         .resources
-        .insert(entry, Some(binding.engine()));
+        .insert(binding.world(), entry, Some(binding.engine()));
 
     Ok(resource::PollHandle(handle))
 }
@@ -360,10 +360,11 @@ pub(super) fn poll_close(
     }
 
     // remove one poll instance from the resource table
-    let removed = binding
-        .agent()
-        .resources
-        .remove_and_finalize(handle.0, Some(binding.engine()));
+    let removed = binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    );
     if !removed {
         return Err(poll_not_found("destack.io.poll.close", handle));
     }
@@ -1005,7 +1006,7 @@ pub(super) fn completion_open(
     let handle = binding
         .agent()
         .resources
-        .insert(entry, Some(binding.engine()));
+        .insert(binding.world(), entry, Some(binding.engine()));
 
     Ok(resource::CompletionHandle(handle))
 }
@@ -1019,10 +1020,11 @@ pub(super) fn completion_close(
     resolve_completion_resource(binding, handle)?;
 
     // remove one completion queue from the resource table
-    let removed = binding
-        .agent()
-        .resources
-        .remove_and_finalize(handle.0, Some(binding.engine()));
+    let removed = binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    );
     if !removed {
         return Err(completion_not_found("destack.io.completion.close", handle));
     }
@@ -1459,10 +1461,11 @@ pub(super) fn uring_open(
         let entry = ResourceEntry::new(ResourceKind::Uring)
             .with_label(URING_RESOURCE_LABEL)
             .with_payload(resource);
-        let handle = binding
-            .agent()
-            .resources
-            .insert(entry, Some(binding.engine()));
+        let handle =
+            binding
+                .agent()
+                .resources
+                .insert(binding.world(), entry, Some(binding.engine()));
 
         return Ok(resource::UringHandle(handle));
     }
@@ -1485,10 +1488,11 @@ pub(super) fn uring_close(
         resolve_uring_resource(binding, handle)?;
 
         // remove one ring resource from the table
-        let removed = binding
-            .agent()
-            .resources
-            .remove_and_finalize(handle.0, Some(binding.engine()));
+        let removed = binding.agent().resources.remove_and_finalize(
+            binding.world(),
+            handle.0,
+            Some(binding.engine()),
+        );
         if !removed {
             return Err(uring_not_found("destack.io.uring.close", handle));
         }

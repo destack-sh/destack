@@ -375,10 +375,11 @@ pub(super) fn register_pipe_descriptor(
         descriptor,
         UnixFileDescriptorFinalizer { descriptor },
     );
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::PipeHandle(resource_id)
 }
@@ -394,10 +395,11 @@ pub(super) fn register_shared_memory_descriptor(
         descriptor,
         UnixFileDescriptorFinalizer { descriptor },
     );
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::SharedMemoryHandle(resource_id)
 }
@@ -417,10 +419,11 @@ pub(super) fn register_semaphore(
             semaphore: semaphore as usize,
         },
     );
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::SemaphoreHandle(resource_id)
 }
@@ -436,10 +439,11 @@ pub(super) fn register_transferred_descriptor(
         descriptor,
         UnixFileDescriptorFinalizer { descriptor },
     );
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::TransferredHandle(resource_id)
 }
@@ -456,10 +460,11 @@ pub(super) fn register_message_queue(
         UnixMessageQueueState { queue },
         UnixMessageQueueFinalizer { queue },
     );
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::MessageQueueHandle(resource_id)
 }

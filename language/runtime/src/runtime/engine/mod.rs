@@ -1,10 +1,10 @@
 mod continuation;
 mod engine;
 mod entry;
-mod telemetry;
+mod stats;
 mod vm;
 
 pub use continuation::*;
 pub use engine::*;
 pub use entry::*;
-pub use telemetry::*;
+pub use stats::*;

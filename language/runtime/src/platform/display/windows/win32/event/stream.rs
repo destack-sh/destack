@@ -34,7 +34,8 @@ pub(crate) unsafe fn monitor_event_open(
     };
 
     // register resource and subscriber entry
-    let resource_id = context.runtime().resources.insert(
+    let resource_id = context.agent().resources.insert(
+        context.world(),
         ResourceEntry::new(ResourceKind::Display)
             .with_label(display_resource::DISPLAY_EVENT_RESOURCE_LABEL)
             .with_payload(Arc::clone(&binding)),
@@ -91,7 +92,7 @@ pub(crate) unsafe fn monitor_event_close(
     let removed = context
         .runtime()
         .resources
-        .remove(handle.0, Some(context.engine()))
+        .remove(context.world(), handle.0, Some(context.engine()))
         .is_some();
     // evaluate this condition
     if !removed {
@@ -332,7 +333,8 @@ pub(crate) unsafe fn window_event_open(
     });
 
     // register resource and subscriber entry
-    let resource_id = context.runtime().resources.insert(
+    let resource_id = context.agent().resources.insert(
+        context.world(),
         ResourceEntry::new(ResourceKind::Window)
             .with_label(display_resource::WINDOW_EVENT_RESOURCE_LABEL)
             .with_payload(Arc::clone(&binding)),
@@ -379,7 +381,7 @@ pub(crate) unsafe fn window_event_close(
     let removed = context
         .runtime()
         .resources
-        .remove(handle.0, Some(context.engine()))
+        .remove(context.world(), handle.0, Some(context.engine()))
         .is_some();
     // evaluate this condition
     if !removed {

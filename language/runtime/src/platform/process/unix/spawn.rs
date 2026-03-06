@@ -678,10 +678,11 @@ fn spawn_process(
     let entry = resource::ResourceEntry::new(resource::ResourceKind::Process)
         .with_label("process.spawn")
         .with_payload(core_process::SpawnedProcess { pid: process_id });
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         *out = resource::ProcessHandle(resource_id);

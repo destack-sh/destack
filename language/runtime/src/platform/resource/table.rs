@@ -16,6 +16,7 @@ use super::{
 };
 use crate::runtime::Hooks;
 use crate::runtime::bindings::BindingEngine;
+use crate::runtime::world::World;
 
 /// Finalizer callback for resource cleanup.
 pub trait ResourceFinalizer: Send + Sync {
@@ -308,32 +309,60 @@ impl ResourceTable {
     }
 
     /// Allocate and insert a resource entry.
-    pub fn insert(&self, entry: ResourceEntry, engine: Option<BindingEngine>) -> ResourceId {
+    pub fn insert(
+        &self,
+        world: &World,
+        entry: ResourceEntry,
+        engine: Option<BindingEngine>,
+    ) -> ResourceId {
+        // allocate one new id and persist the entry first
         let id = ResourceId(self.next_id.fetch_add(1, Ordering::Relaxed));
         let resource_kind = entry.kind;
         let resource_label = entry.label.clone();
         self.entries.write().insert(id, entry);
-        self.emit_resource_attach(id, resource_kind, resource_label.as_deref(), engine);
+
+        // notify runtime hooks about the new resource
+        if let Some(hooks) = self.hooks.read().as_ref().cloned() {
+            if let Err(error) = hooks.on_resource_attach(
+                world,
+                id,
+                resource_kind,
+                resource_label.as_deref(),
+                engine,
+            ) {
+                error!(?error, "resource attach hook failed");
+            }
+        }
+
         id
     }
 
     /// Insert a resource entry with an explicit id.
     pub fn insert_with_id(
         &self,
+        world: &World,
         resource_id: ResourceId,
         entry: ResourceEntry,
         engine: Option<BindingEngine>,
     ) {
+        // persist the entry and advance the allocator when needed
         let resource_kind = entry.kind;
         let resource_label = entry.label.clone();
         self.entries.write().insert(resource_id, entry);
         self.next_id.fetch_max(resource_id.0 + 1, Ordering::Relaxed);
-        self.emit_resource_attach(
-            resource_id,
-            resource_kind,
-            resource_label.as_deref(),
-            engine,
-        );
+
+        // notify runtime hooks about the restored resource
+        if let Some(hooks) = self.hooks.read().as_ref().cloned() {
+            if let Err(error) = hooks.on_resource_attach(
+                world,
+                resource_id,
+                resource_kind,
+                resource_label.as_deref(),
+                engine,
+            ) {
+                error!(?error, "resource attach hook failed");
+            }
+        }
     }
 
     /// Return true if the table contains the resource id.
@@ -366,56 +395,38 @@ impl ResourceTable {
     /// Remove a resource entry from the table.
     pub fn remove(
         &self,
+        world: &World,
         resource_id: ResourceId,
         engine: Option<BindingEngine>,
     ) -> Option<ResourceEntry> {
+        // remove the entry before notifying hooks
         let removed = self.entries.write().remove(&resource_id);
         if let Some(entry) = removed.as_ref() {
-            self.emit_resource_detach(resource_id, entry.kind, entry.label.as_deref(), engine);
+            // notify runtime hooks about the removed resource
+            if let Some(hooks) = self.hooks.read().as_ref().cloned() {
+                if let Err(error) = hooks.on_resource_detach(
+                    world,
+                    resource_id,
+                    entry.kind,
+                    entry.label.as_deref(),
+                    engine,
+                ) {
+                    error!(?error, "resource detach hook failed");
+                }
+            }
         }
 
         removed
     }
 
-    /// Emit one resource-attach hook through the shared runtime hook sink.
-    fn emit_resource_attach(
-        &self,
-        resource_id: ResourceId,
-        resource_kind: ResourceKind,
-        resource_label: Option<&str>,
-        engine: Option<BindingEngine>,
-    ) {
-        if let Some(hooks) = self.hooks.read().as_ref().cloned()
-            && let Err(error) =
-                hooks.on_resource_attach(resource_id, resource_kind, resource_label, engine)
-        {
-            error!(?error, "resource attach hook failed");
-        }
-    }
-
-    /// Emit one resource-detach hook through the shared runtime hook sink.
-    fn emit_resource_detach(
-        &self,
-        resource_id: ResourceId,
-        resource_kind: ResourceKind,
-        resource_label: Option<&str>,
-        engine: Option<BindingEngine>,
-    ) {
-        if let Some(hooks) = self.hooks.read().as_ref().cloned()
-            && let Err(error) =
-                hooks.on_resource_detach(resource_id, resource_kind, resource_label, engine)
-        {
-            error!(?error, "resource detach hook failed");
-        }
-    }
-
     /// Remove a resource entry and run its finalizer.
     pub fn remove_and_finalize(
         &self,
+        world: &World,
         resource_id: ResourceId,
         engine: Option<BindingEngine>,
     ) -> bool {
-        let Some(entry) = self.remove(resource_id, engine) else {
+        let Some(entry) = self.remove(world, resource_id, engine) else {
             return false;
         };
         entry.finalize(resource_id);
@@ -439,12 +450,14 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     use super::{ResourceEntry, ResourceFinalizer, ResourceKind, ResourceTable};
+    use crate::runtime::world::World;
 
     /// Ensures entries can be inserted, removed, and finalized.
     #[test]
     fn test_insert_remove_and_finalize() {
         // create a new resource table
         let table = ResourceTable::default();
+        let world = World::default();
 
         // create a finalizer to track removals
         let hits = Arc::new(AtomicUsize::new(0));
@@ -452,17 +465,17 @@ mod tests {
 
         // insert an entry with a finalizer
         let entry = ResourceEntry::new(ResourceKind::Timer).with_finalizer(finalizer);
-        let resource_id = table.insert(entry, None);
+        let resource_id = table.insert(&world, entry, None);
         assert!(table.contains(resource_id));
 
         // remove and finalize the entry
-        let removed = table.remove_and_finalize(resource_id, None);
+        let removed = table.remove_and_finalize(&world, resource_id, None);
         assert!(removed);
         assert_eq!(hits.load(Ordering::SeqCst), 1);
         assert!(!table.contains(resource_id));
 
         // removing again should return false
-        let removed_again = table.remove_and_finalize(resource_id, None);
+        let removed_again = table.remove_and_finalize(&world, resource_id, None);
         assert!(!removed_again);
     }
 

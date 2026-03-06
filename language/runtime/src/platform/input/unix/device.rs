@@ -143,10 +143,11 @@ pub(crate) unsafe fn destack_input_close(
     #[cfg(target_os = "macos")]
     input_core::release_macos_subscription(binding, handle);
 
-    let removed = binding
-        .agent()
-        .resources
-        .remove_and_finalize(handle.0, Some(binding.engine()));
+    let removed = binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    );
     if !removed {
         return Err(input_core::input_not_found(
             "destack.input.device.close",
@@ -287,10 +288,11 @@ pub(crate) unsafe fn destack_input_open(
     } else {
         entry
     };
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         *out = resource::InputDeviceHandle(resource_id);

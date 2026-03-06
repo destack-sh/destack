@@ -495,6 +495,7 @@ fn insert_completion_target_with_host_handle(binding: &BindingCallContext) -> Re
     #[cfg(unix)]
     {
         binding.agent().resources.insert(
+            binding.world(),
             ResourceEntry::new(ResourceKind::File).with_fd(0),
             Some(binding.engine()),
         )
@@ -503,6 +504,7 @@ fn insert_completion_target_with_host_handle(binding: &BindingCallContext) -> Re
     #[cfg(windows)]
     {
         binding.agent().resources.insert(
+            binding.world(),
             ResourceEntry::new(ResourceKind::File).with_handle(1usize as *mut c_void),
             Some(binding.engine()),
         )
@@ -544,6 +546,7 @@ fn test_io_completion_open_rejects_zero_entries() {
 fn test_io_completion_close_rejects_non_completion_handle() {
     with_harness_context(|mut context| {
         let foreign = context.call_context.agent().resources.insert(
+            context.call_context.world(),
             ResourceEntry::new(ResourceKind::File),
             Some(context.call_context.engine()),
         );
@@ -553,11 +556,11 @@ fn test_io_completion_close_rejects_non_completion_handle() {
             PlatformErrorCode::IoNotFound,
         )?;
         assert!(context.call_context.agent().resources.contains(foreign));
-        context
-            .call_context
-            .agent()
-            .resources
-            .remove_and_finalize(foreign, Some(context.call_context.engine()));
+        context.call_context.agent().resources.remove_and_finalize(
+            context.call_context.world(),
+            foreign,
+            Some(context.call_context.engine()),
+        );
 
         Ok(())
     });
@@ -704,11 +707,11 @@ fn test_io_completion_submit_rejects_null_pointer_argument() {
         }
 
         context.destack_io_completion_close(handle)?;
-        context
-            .call_context
-            .agent()
-            .resources
-            .remove_and_finalize(target, Some(context.call_context.engine()));
+        context.call_context.agent().resources.remove_and_finalize(
+            context.call_context.world(),
+            target,
+            Some(context.call_context.engine()),
+        );
 
         Ok(())
     });
@@ -896,6 +899,7 @@ fn test_io_completion_cancel_returns_zero_without_pending_requests() {
         };
 
         let target = context.call_context.agent().resources.insert(
+            context.call_context.world(),
             ResourceEntry::new(ResourceKind::File),
             Some(context.call_context.engine()),
         );
@@ -903,11 +907,11 @@ fn test_io_completion_cancel_returns_zero_without_pending_requests() {
         assert_eq!(canceled, 0);
 
         context.destack_io_completion_close(handle)?;
-        context
-            .call_context
-            .agent()
-            .resources
-            .remove_and_finalize(target, Some(context.call_context.engine()));
+        context.call_context.agent().resources.remove_and_finalize(
+            context.call_context.world(),
+            target,
+            Some(context.call_context.engine()),
+        );
 
         Ok(())
     });
@@ -964,6 +968,7 @@ fn test_io_event_open_rejects_reserved_initial_value() {
 fn test_io_event_close_rejects_non_event_token() {
     with_harness_context(|mut context| {
         let foreign = context.call_context.agent().resources.insert(
+            context.call_context.world(),
             ResourceEntry::new(ResourceKind::File),
             Some(context.call_context.engine()),
         );
@@ -973,11 +978,11 @@ fn test_io_event_close_rejects_non_event_token() {
             PlatformErrorCode::IoNotFound,
         )?;
         assert!(context.call_context.agent().resources.contains(foreign));
-        context
-            .call_context
-            .agent()
-            .resources
-            .remove_and_finalize(foreign, Some(context.call_context.engine()));
+        context.call_context.agent().resources.remove_and_finalize(
+            context.call_context.world(),
+            foreign,
+            Some(context.call_context.engine()),
+        );
 
         Ok(())
     });
@@ -1134,6 +1139,7 @@ fn test_io_event_attach_rejects_non_poll_target() {
     with_harness_context(|mut context| {
         let token = context.destack_io_event_open(0)?;
         let target = context.call_context.agent().resources.insert(
+            context.call_context.world(),
             ResourceEntry::new(ResourceKind::File),
             Some(context.call_context.engine()),
         );
@@ -1143,11 +1149,11 @@ fn test_io_event_attach_rejects_non_poll_target() {
             PlatformErrorCode::InvalidArgumentValue,
         )?;
         context.destack_io_event_close(token)?;
-        context
-            .call_context
-            .agent()
-            .resources
-            .remove_and_finalize(target, Some(context.call_context.engine()));
+        context.call_context.agent().resources.remove_and_finalize(
+            context.call_context.world(),
+            target,
+            Some(context.call_context.engine()),
+        );
 
         Ok(())
     });
@@ -1348,11 +1354,11 @@ fn test_io_control_fcntl_rejects_command_width_overflow() {
             PlatformErrorCode::InvalidArgumentValue,
         )?;
 
-        context
-            .call_context
-            .agent()
-            .resources
-            .remove_and_finalize(target, Some(context.call_context.engine()));
+        context.call_context.agent().resources.remove_and_finalize(
+            context.call_context.world(),
+            target,
+            Some(context.call_context.engine()),
+        );
 
         Ok(())
     });

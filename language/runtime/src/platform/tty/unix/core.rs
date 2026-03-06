@@ -167,10 +167,11 @@ pub(super) fn register_pty_pair(
         .with_finalizer(UnixDescriptorFinalizer {
             descriptor: controller_descriptor,
         });
-    let controller_id = binding
-        .agent()
-        .resources
-        .insert(controller_entry, Some(binding.engine()));
+    let controller_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), controller_entry, Some(binding.engine()));
 
     let worker_entry = ResourceEntry::new(ResourceKind::Tty)
         .with_label(TTY_RESOURCE_LABEL)
@@ -178,10 +179,11 @@ pub(super) fn register_pty_pair(
         .with_finalizer(UnixDescriptorFinalizer {
             descriptor: worker_descriptor,
         });
-    let worker_id = binding
-        .agent()
-        .resources
-        .insert(worker_entry, Some(binding.engine()));
+    let worker_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), worker_entry, Some(binding.engine()));
 
     PtyPair {
         controller: resource::PtyHandle(controller_id),

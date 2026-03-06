@@ -1072,7 +1072,7 @@ pub(crate) unsafe fn monitor_close(
     let removed = context
         .runtime()
         .resources
-        .remove(handle.0, Some(context.engine()))
+        .remove(context.world(), handle.0, Some(context.engine()))
         .is_some();
     // evaluate this condition
     if !removed {

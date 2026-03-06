@@ -129,10 +129,11 @@ pub(crate) unsafe fn destack_fs_dup(
             status_flags: source_status_flags,
         })
         .with_finalizer(HandleFinalizer::new(duplicated));
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = FileHandle(resource_id);
     }
@@ -170,10 +171,11 @@ pub(crate) unsafe fn destack_fs_dup2(
 
     // close the target handle if it exists
     if handle.0 != target.0
-        && let Some(entry) = binding
-            .agent()
-            .resources
-            .remove(target.0, Some(binding.engine()))
+        && let Some(entry) =
+            binding
+                .agent()
+                .resources
+                .remove(binding.world(), target.0, Some(binding.engine()))
     {
         entry.finalize(target.0);
     }
@@ -635,10 +637,11 @@ pub(crate) unsafe fn destack_fs_dirfd(
         let resource = ResourceEntry::new(ResourceKind::File)
             .with_fd(file_fd)
             .with_finalizer(DescriptorFinalizer { fd: file_fd });
-        let resource_id = binding
-            .agent()
-            .resources
-            .insert(resource, Some(binding.engine()));
+        let resource_id =
+            binding
+                .agent()
+                .resources
+                .insert(binding.world(), resource, Some(binding.engine()));
         unsafe {
             *out = FileHandle(resource_id);
         }
@@ -686,10 +689,11 @@ pub(crate) unsafe fn destack_fs_dirfd(
                 status_flags: Arc::new(Mutex::new(0)),
             })
             .with_finalizer(HandleFinalizer::new(duplicated));
-        let resource_id = binding
-            .agent()
-            .resources
-            .insert(resource, Some(binding.engine()));
+        let resource_id =
+            binding
+                .agent()
+                .resources
+                .insert(binding.world(), resource, Some(binding.engine()));
         unsafe {
             *out = FileHandle(resource_id);
         }

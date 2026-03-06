@@ -1028,10 +1028,11 @@ pub(crate) fn store_close(
     handle: resource::CryptoStoreHandle,
 ) -> RuntimeResult<()> {
     // remove store resource entry
-    let Some(entry) = binding
-        .agent()
-        .resources
-        .remove(handle.0, Some(binding.engine()))
+    let Some(entry) =
+        binding
+            .agent()
+            .resources
+            .remove(binding.world(), handle.0, Some(binding.engine()))
     else {
         return Err(handle_not_found(
             "destack.crypto.store.close",
@@ -1359,10 +1360,11 @@ fn insert_store_resource(
     let entry = ResourceEntry::new(CRYPTO_STORE_RESOURCE_KIND)
         .with_label(CRYPTO_STORE_LABEL)
         .with_payload(Arc::new(Mutex::new(resource_value)));
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::CryptoStoreHandle(resource_id)
 }

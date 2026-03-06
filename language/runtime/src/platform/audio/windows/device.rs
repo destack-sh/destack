@@ -99,10 +99,11 @@ pub(crate) unsafe fn destack_audio_device_close(
     binding: &BindingCallContext,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<()> {
-    let removed = binding
-        .agent()
-        .resources
-        .remove(handle.0, Some(binding.engine()));
+    let removed =
+        binding
+            .agent()
+            .resources
+            .remove(binding.world(), handle.0, Some(binding.engine()));
     if removed.is_none() {
         return Err(audio_core::audio_not_found(
             "destack.audio.device.close",
@@ -367,9 +368,11 @@ pub(crate) unsafe fn destack_audio_device_open(
         options,
     });
     let handle_id = binding.agent().resources.insert(
-        ResourceEntry::new(ResourceKind::AudioDevice, Some(binding.engine()))
+        binding.world(),
+        ResourceEntry::new(ResourceKind::AudioDevice)
             .with_label(audio_core::AUDIO_DEVICE_RESOURCE_LABEL)
             .with_payload(payload),
+        Some(binding.engine()),
     );
 
     unsafe {

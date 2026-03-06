@@ -62,11 +62,11 @@ pub(crate) fn close_tty_resource(
         return Err(invalid_tty_handle(operation));
     }
 
-    if !binding
-        .agent()
-        .resources
-        .remove_and_finalize(handle.0, Some(binding.engine()))
-    {
+    if !binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    ) {
         return Err(invalid_tty_handle(operation));
     }
 
@@ -88,11 +88,11 @@ pub(crate) fn close_pty_resource(
         return Err(invalid_pty_handle(operation));
     }
 
-    if !binding
-        .agent()
-        .resources
-        .remove_and_finalize(handle.0, Some(binding.engine()))
-    {
+    if !binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    ) {
         return Err(invalid_pty_handle(operation));
     }
 

@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use destack_vm as vm;
 use destack_vm::Isolate;
@@ -7,7 +6,7 @@ use parking_lot::RwLock;
 
 use crate::platform;
 use crate::runtime::bindings::{
-    BindingDescriptor, BindingEngine, BindingId, BindingPolicy, NativeBinding, NativeBindingSet,
+    BindingDescriptor, BindingId, BindingPolicy, NativeBinding, NativeBindingSet,
 };
 use crate::runtime::capability::PlatformCapabilitySet;
 use crate::runtime::{BindingCallContext, enter_binding_call_context};
@@ -28,7 +27,7 @@ pub struct BindingRegistry {
     /// Native binding metadata for linking.
     native_bindings: Vec<NativeBinding>,
     /// Policy configuration for external bindings.
-    policy: Arc<RwLock<BindingPolicy>>,
+    policy: RwLock<BindingPolicy>,
 }
 
 impl BindingRegistry {
@@ -37,15 +36,15 @@ impl BindingRegistry {
         Self::default()
     }
 
+    /// Borrow the live binding policy state.
+    pub fn policy(&self) -> &RwLock<BindingPolicy> {
+        &self.policy
+    }
+
     /// Set the binding policy for this registry.
     pub fn set_policy(&mut self, policy: BindingPolicy) {
         // store the binding policy
         *self.policy.write() = policy;
-    }
-
-    /// Get the binding policy for this registry.
-    pub fn policy_snapshot(&self) -> BindingPolicy {
-        self.policy.read().clone()
     }
 
     /// Apply runtime defaults to binding policy without loading control rules.
@@ -135,16 +134,10 @@ impl BindingRegistry {
             has_descriptor = true;
         }
 
-        // capture one shared policy handle for live checks
-        let policy = Arc::clone(&self.policy);
-
         // NOTE #Incomplete: serialize args/results for replay payloads
-        // register the external handler with policy enforcement
+        // register the external handler through the live binding call context
         isolate.register_vm_binding(descriptor.name, move |context, args| {
-            policy
-                .read()
-                .ensure_allowed_for_engine(descriptor, Some(BindingEngine::Vm))?;
-            let call_context = BindingCallContext::from_current_agent_for_vm(Arc::clone(&policy))?;
+            let call_context = BindingCallContext::from_current_agent_for_vm()?;
             let _guard = enter_binding_call_context(&call_context);
             handler(context, args)
         });

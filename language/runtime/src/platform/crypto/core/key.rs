@@ -908,10 +908,11 @@ fn rollback_key_publish(
     }
 
     // remove the key resource and zeroize secret bytes before drop
-    let Some(entry) = binding
-        .agent()
-        .resources
-        .remove(handle.0, Some(binding.engine()))
+    let Some(entry) =
+        binding
+            .agent()
+            .resources
+            .remove(binding.world(), handle.0, Some(binding.engine()))
     else {
         return;
     };
@@ -2648,10 +2649,11 @@ pub(crate) fn key_delete(
     }
 
     // remove key resource and verify kind
-    let Some(entry) = binding
-        .agent()
-        .resources
-        .remove(handle.0, Some(binding.engine()))
+    let Some(entry) =
+        binding
+            .agent()
+            .resources
+            .remove(binding.world(), handle.0, Some(binding.engine()))
     else {
         return Err(core_platform::io_not_found(
             "destack.crypto.key.delete",

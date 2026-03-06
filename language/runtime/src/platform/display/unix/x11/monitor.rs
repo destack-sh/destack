@@ -985,7 +985,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_close(
     let removed = binding
         .agent()
         .resources
-        .remove(handle.0, Some(binding.engine()))
+        .remove(binding.world(), handle.0, Some(binding.engine()))
         .is_some();
     // evaluate this condition
     if !removed {

@@ -313,10 +313,11 @@ pub(crate) fn host_completion_register_accepted_handle(
         .with_finalizer(WindowsSocketFinalizer {
             socket: socket as SOCKET,
         });
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     Ok(resource_id.0 as i64)
 }
 
@@ -343,10 +344,11 @@ pub(crate) fn host_event_open(
         .with_label(io_core::EVENT_RESOURCE_LABEL)
         .with_handle(handle as _)
         .with_finalizer(WindowsHandleFinalizer { handle });
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     Ok(EventToken(resource_id.0))
 }
 
@@ -356,10 +358,11 @@ pub(crate) fn host_event_close(
     token: EventToken,
 ) -> RuntimeResult<()> {
     // remove one token resource from the runtime table
-    let removed = binding
-        .agent()
-        .resources
-        .remove_and_finalize(ResourceId(token.0), Some(binding.engine()));
+    let removed = binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        ResourceId(token.0),
+        Some(binding.engine()),
+    );
     if !removed {
         return Err(io_core::event_not_found("destack.io.event.close", token));
     }

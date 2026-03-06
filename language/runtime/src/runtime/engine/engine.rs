@@ -1,6 +1,8 @@
+use std::any::Any;
+
 use destack_heap as heap;
 
-use super::{EngineContinuation, EngineTelemetry};
+use super::{EngineContinuation, EngineStats, Entry};
 use crate::diagnostic::RuntimeResult;
 
 /// Engine output produced when execution completes.
@@ -8,8 +10,8 @@ use crate::diagnostic::RuntimeResult;
 pub struct EngineOutput {
     /// Return value of the executed entrypoint.
     pub value: heap::Value,
-    /// Execution telemetry payload.
-    pub telemetry: EngineTelemetry,
+    /// Execution statistics payload.
+    pub stats: EngineStats,
     /// Number of managed heap cells at end of execution.
     pub heap_cells: usize,
     /// Number of raw heap cells at end of execution.
@@ -29,12 +31,9 @@ pub enum EngineOutcome {
 }
 
 /// Execution engine used by one agent event loop.
-pub trait Engine {
-    /// Entry point handle for this engine.
-    type Entry;
-
+pub trait Engine: Any {
     /// Run the entrypoint function.
-    fn run(&mut self, entry: &Self::Entry, args: &[heap::Value]) -> RuntimeResult<EngineOutcome>;
+    fn run(&mut self, entry: &Entry, args: &[heap::Value]) -> RuntimeResult<EngineOutcome>;
 
     /// Resume execution from a continuation.
     fn resume(

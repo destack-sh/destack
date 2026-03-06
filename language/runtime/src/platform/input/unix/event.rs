@@ -787,10 +787,11 @@ pub(crate) unsafe fn destack_input_monitor_close(
     validate_monitor_handle(binding, handle, "destack.input.event.monitorClose")?;
 
     // remove and finalize monitor resource
-    let removed = binding
-        .agent()
-        .resources
-        .remove_and_finalize(handle.0, Some(binding.engine()));
+    let removed = binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    );
     if !removed {
         return Err(monitor_not_found(
             "destack.input.event.monitorClose",
@@ -882,12 +883,11 @@ pub(crate) unsafe fn destack_input_monitor_open(
     } else {
         entry
     };
-    let handle = resource::InputMonitorHandle(
-        binding
-            .agent()
-            .resources
-            .insert(entry, Some(binding.engine())),
-    );
+    let handle = resource::InputMonitorHandle(binding.agent().resources.insert(
+        binding.world(),
+        entry,
+        Some(binding.engine()),
+    ));
 
     // write monitor handle to output
     unsafe {

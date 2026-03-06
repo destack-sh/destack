@@ -486,10 +486,11 @@ fn spawn_process(
         .with_payload(core_process::SpawnedProcess { pid: process_id })
         .with_handle(process_handle)
         .with_finalizer(ProcessHandleFinalizer::new(process_handle as HANDLE));
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         *out = resource::ProcessHandle(resource_id);

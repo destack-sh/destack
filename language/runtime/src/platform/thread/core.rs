@@ -168,7 +168,7 @@ pub(crate) fn insert_thread_resource<T: Send + Sync + 'static>(
     binding
         .agent()
         .resources
-        .insert(entry, Some(binding.engine()))
+        .insert(binding.world(), entry, Some(binding.engine()))
 }
 
 /// Resolve one shared resource payload from the runtime table.
@@ -198,10 +198,11 @@ pub(crate) fn take_thread_resource<T: Send + Sync + 'static>(
     field: &str,
     kind: &str,
 ) -> RuntimeResult<Arc<T>> {
-    let Some(entry) = binding
-        .agent()
-        .resources
-        .remove(handle, Some(binding.engine()))
+    let Some(entry) =
+        binding
+            .agent()
+            .resources
+            .remove(binding.world(), handle, Some(binding.engine()))
     else {
         return Err(invalid_handle_error(field, kind));
     };

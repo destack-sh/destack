@@ -563,10 +563,11 @@ pub(crate) fn certificate_delete(
     }
 
     // remove certificate resource entry
-    let Some(entry) = binding
-        .agent()
-        .resources
-        .remove(handle.0, Some(binding.engine()))
+    let Some(entry) =
+        binding
+            .agent()
+            .resources
+            .remove(binding.world(), handle.0, Some(binding.engine()))
     else {
         return Err(core_platform::io_not_found(
             "destack.crypto.certificate.delete",

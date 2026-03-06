@@ -103,19 +103,21 @@ fn register_socket_pair(
     let first_entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(first_socket as _)
         .with_finalizer(SocketFinalizer::new(first_socket));
-    let first_id = binding
-        .agent()
-        .resources
-        .insert(first_entry, Some(binding.engine()));
+    let first_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), first_entry, Some(binding.engine()));
 
     // register the second socket
     let second_entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(second_socket as _)
         .with_finalizer(SocketFinalizer::new(second_socket));
-    let second_id = binding
-        .agent()
-        .resources
-        .insert(second_entry, Some(binding.engine()));
+    let second_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), second_entry, Some(binding.engine()));
 
     // return both handles
     unsafe {
@@ -371,10 +373,11 @@ pub(crate) unsafe fn destack_net_accept(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(client as _)
         .with_finalizer(SocketFinalizer::new(client));
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -599,10 +602,11 @@ pub(crate) unsafe fn destack_net_listen_raw(
     let entry = ResourceEntry::new(ResourceKind::Listener)
         .with_listener(listener as _)
         .with_finalizer(SocketFinalizer::new(listener));
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = ListenerHandle(resource_id);
     }
@@ -654,10 +658,11 @@ pub(crate) unsafe fn destack_net_socket(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(socket as _)
         .with_finalizer(SocketFinalizer::new(socket));
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }

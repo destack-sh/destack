@@ -64,10 +64,11 @@ pub(crate) unsafe fn destack_net_uds_connect(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(fd)
         .with_finalizer(SocketFinalizer { fd });
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -153,10 +154,11 @@ pub(crate) unsafe fn destack_net_uds_listen(
     let entry = ResourceEntry::new(ResourceKind::Listener)
         .with_listener(fd)
         .with_finalizer(SocketFinalizer { fd });
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = ListenerHandle(resource_id);
     }
@@ -200,10 +202,11 @@ pub(crate) unsafe fn destack_net_uds_accept(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(fd)
         .with_finalizer(SocketFinalizer { fd });
-    let resource_id = binding
-        .agent()
-        .resources
-        .insert(entry, Some(binding.engine()));
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
