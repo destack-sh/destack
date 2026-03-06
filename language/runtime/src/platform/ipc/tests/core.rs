@@ -15,16 +15,25 @@ pub(super) fn unique_ipc_name(prefix: &str) -> String {
     let prefix = prefix
         .chars()
         .filter(|character| character.is_ascii_alphanumeric())
-        .take(6)
+        .take(4)
         .collect::<String>();
+    let prefix = if prefix.is_empty() { "ipc" } else { &prefix };
 
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("system time should be after unix epoch")
         .as_nanos() as u64;
+    let process_id = std::process::id() as u64;
     let sequence = IPC_NAME_SEQUENCE.fetch_add(1, Ordering::Relaxed);
 
-    format!("/{prefix}{:x}{:x}", now & 0xFFFF, sequence & 0xFFFF)
+    // keep enough entropy to avoid stale-object collisions across processes while
+    // staying under the tightest semaphore name limits used by some unix hosts
+    format!(
+        "/{prefix}{:04x}{:08x}{:06x}",
+        process_id & 0xFFFF,
+        now & 0xFFFF_FFFF,
+        sequence & 0xFF_FFFF
+    )
 }
 
 /// Decode one pipe-pair harness value.
