@@ -96,7 +96,7 @@ If you have gotten this far through reading the README, you probably have some, 
 1. **What even _is_ Destack? Is it a TypeScript dialect (like TSX), a JS family language (like Rescript), a JavaScript runtime (like V8), a Node runtime (like Deno), an NPM library (like vitest), a service (like PostHog), an app (like Notion), ...?** 
 All of it, none of it.
 Mechanically, Destack _is_ a ~TSX-like language and toolchain with a VM, AOT compiler, Node-like runtime, formatter, linter, rich standard libraries, and a set of common services and apps. 
-Conceptually, Destack is a new kind of thing: a fully integrated computing stack, a software factory toolkit: a Destack.
+Conceptually, Destack is a new kind of thing: a fully integrated computing stack, a software factory toolkit, the stuff you need to build your own stack: a Destack.
 
 2. **Why is Destack built around TypeScript and not some other language like Python or Rust?**
 Both Python and Rust are great languages, and both fail the "universal language" test for surprisingly symmetrical reasons:
