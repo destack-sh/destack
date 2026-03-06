@@ -1,21 +1,75 @@
 use std::sync::Arc;
 
 use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::replay::{
-    BranchId, CheckpointEvent, LogSequence, ReplayCheckpointIndex, ReplayChunkIndex, ReplayEvent,
-    ReplayHeader, ReplayLogReader, ReplayTrailer, ReplayWriter,
+    ReplayCheckpointIndex, ReplayChunkIndex, ReplayEvent, ReplayHeader, ReplayLogReader,
+    ReplayTrailer,
 };
 use destack_base::{FNV_OFFSET_BASIS_128, fnv1a_128_update};
 use postcard::experimental::serialized_size;
 
 use super::chunk::ReplayChunk;
 
+/// Identifier for a replay branch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct BranchId(u128);
+
+impl BranchId {
+    /// Create a new branch identifier.
+    pub const fn new(value: u128) -> Self {
+        Self(value)
+    }
+
+    /// Return the raw branch identifier value.
+    pub const fn get(self) -> u128 {
+        self.0
+    }
+}
+
+/// Identifier for a replay checkpoint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CheckpointId(u128);
+
+impl CheckpointId {
+    /// Create a new checkpoint identifier.
+    pub const fn new(value: u128) -> Self {
+        Self(value)
+    }
+
+    /// Return the raw checkpoint identifier value.
+    pub const fn get(self) -> u128 {
+        self.0
+    }
+}
+
 /// Default maximum number of events in a chunk.
 const DEFAULT_MAX_EVENTS_PER_CHUNK: usize = 1024;
 /// Default maximum chunk size in bytes.
 const DEFAULT_MAX_CHUNK_BYTES: u64 = 4 * 1024 * 1024;
+
+/// Sequence number for events within a replay log.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct LogSequence(u64);
+
+impl LogSequence {
+    /// Create a new log sequence number.
+    pub const fn new(value: u64) -> Self {
+        Self(value)
+    }
+
+    /// Return the raw sequence number.
+    pub const fn get(self) -> u64 {
+        self.0
+    }
+
+    /// Return the next sequence number.
+    pub const fn next(self) -> Self {
+        Self(self.0 + 1)
+    }
+}
 
 /// In-memory replay log state.
 #[derive(Debug, Clone)]
@@ -136,7 +190,7 @@ impl ReplayLog {
     }
 
     /// Record an event in the log.
-    pub fn record_event(&self, event: ReplayEvent) -> RuntimeResult<LogSequence> {
+    pub(crate) fn record_event(&self, event: ReplayEvent) -> RuntimeResult<LogSequence> {
         // compute the encoded size ahead of time
         let encoded_len = serialized_size(&event).map_err(|_| {
             RuntimeError::ReplayEncodeFailed {
@@ -211,17 +265,11 @@ impl ReplayLog {
         Ok(sequence)
     }
 
-    /// Record a checkpoint index entry and emit a checkpoint event.
+    /// Record a checkpoint index entry in trailer metadata.
     pub fn record_checkpoint(&self, mut checkpoint: ReplayCheckpointIndex) -> RuntimeResult<()> {
         // align the checkpoint with the next log sequence
         let sequence = self.next_sequence();
         checkpoint.sequence = sequence;
-
-        // record the checkpoint event
-        self.record_event(ReplayEvent::Checkpoint(CheckpointEvent {
-            checkpoint_id: checkpoint.checkpoint_id,
-            branch_id: checkpoint.branch_id,
-        }))?;
 
         // update trailer index
         let mut state = self.state.lock();
@@ -281,11 +329,4 @@ pub(super) fn compute_log_hash(
         hash = fnv1a_128_update(hash, checkpoint.path.as_bytes());
     }
     hash
-}
-
-impl ReplayWriter for ReplayLog {
-    fn record_event(&mut self, event: ReplayEvent) -> RuntimeResult<()> {
-        ReplayLog::record_event(self, event)?;
-        Ok(())
-    }
 }

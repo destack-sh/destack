@@ -3,6 +3,7 @@ use crate::runtime::bindings::{BindingDescriptor, BindingReplayKind, BindingRepl
 use crate::runtime::replay::{
     BindingCallEvent, ReplayEvent, ReplayHeader, ReplayLog, ReplayLogReader,
 };
+use crate::runtime::time::WorldInstant;
 use crate::runtime::world::WorldCommand;
 use destack_workspace::ExecutionMode;
 use parking_lot::Mutex;
@@ -116,7 +117,7 @@ impl Replay {
     }
 
     /// Record an event when replay recording is enabled.
-    pub fn record_event(&self, event: ReplayEvent) -> RuntimeResult<()> {
+    pub(crate) fn record_event(&self, event: ReplayEvent) -> RuntimeResult<()> {
         // skip recording when disabled
         if self.mode() != ExecutionMode::Record {
             return Ok(());
@@ -128,7 +129,7 @@ impl Replay {
     }
 
     /// Read the next event when replay is enabled.
-    pub fn next_event(&self) -> RuntimeResult<Option<ReplayEvent>> {
+    pub(crate) fn next_event(&self) -> RuntimeResult<Option<ReplayEvent>> {
         // skip replay when disabled
         if self.mode() != ExecutionMode::Replay {
             return Ok(None);
@@ -185,45 +186,61 @@ impl Replay {
         Ok(call)
     }
 
-    /// Record one runtime world command for replay.
-    pub fn record_world_command(&self, command: &WorldCommand) -> RuntimeResult<()> {
-        // encode one stable world command payload
-        let command_bytes = serde_json::to_vec(command).map_err(|_| {
-            RuntimeError::ReplayEncodeFailed {
-                name: "world".to_string(),
-            }
-            .boxed()
-        })?;
+    /// Record one world tick event for one virtual time advance.
+    pub fn record_tick(&self, deadline: WorldInstant) -> RuntimeResult<()> {
+        self.record_event(ReplayEvent::Tick(deadline))
+    }
 
+    /// Read the next runtime tick event from replay.
+    pub fn next_tick(&self) -> RuntimeResult<WorldInstant> {
+        let event = self.next_required_event("tick")?;
+        let ReplayEvent::Tick(deadline) = event else {
+            return Err(Self::replay_mismatch_error("tick"));
+        };
+        Ok(deadline)
+    }
+
+    /// Resolve one requested world tick under the active replay mode.
+    pub fn resolve_tick(&self, requested_deadline: WorldInstant) -> RuntimeResult<WorldInstant> {
+        match self.mode() {
+            // fast, deterministic, and record use the local scheduler decision
+            ExecutionMode::Fast | ExecutionMode::Deterministic | ExecutionMode::Record => {
+                Ok(requested_deadline)
+            }
+
+            // replay requires the next recorded tick to match
+            ExecutionMode::Replay => {
+                let deadline = self.next_tick()?;
+                if deadline != requested_deadline {
+                    return Err(Self::replay_mismatch_error("tick"));
+                }
+
+                Ok(deadline)
+            }
+        }
+    }
+
+    /// Record one runtime world command for replay.
+    pub(crate) fn record_world_command(&self, command: &WorldCommand) -> RuntimeResult<()> {
         // record one world command event
-        self.record_event(ReplayEvent::WorldCommand {
-            payload: command_bytes,
-        })
+        self.record_event(ReplayEvent::WorldCommand(command.clone()))
     }
 
     /// Read the next runtime world command from replay.
-    pub fn next_world_command(&self) -> RuntimeResult<WorldCommand> {
+    pub(crate) fn next_world_command(&self) -> RuntimeResult<WorldCommand> {
         // read the next event from the log
         let event = self.next_required_event("world")?;
 
         // validate the world command event shape
-        let ReplayEvent::WorldCommand {
-            payload: command_bytes,
-        } = event
-        else {
+        let ReplayEvent::WorldCommand(command) = event else {
             return Err(Self::replay_mismatch_error("world"));
         };
 
-        serde_json::from_slice(&command_bytes).map_err(|_| {
-            RuntimeError::ReplayDecodeFailed {
-                name: "world".to_string(),
-            }
-            .boxed()
-        })
+        Ok(command)
     }
 
     /// Resolve one world command under the active replay mode.
-    pub fn resolve_world_command(
+    pub(crate) fn resolve_world_command(
         &self,
         requested_command: WorldCommand,
     ) -> RuntimeResult<WorldCommand> {

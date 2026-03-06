@@ -4,8 +4,6 @@ use crate::runtime::replay::{EntropyEvent, ReplayEvent};
 /// Validation state for replay event ordering.
 #[derive(Debug, Default)]
 pub(super) struct ReplayValidator {
-    /// Last observed task queue sequence.
-    last_task_queue_sequence: Option<u64>,
     /// Last observed monotonic time sample.
     last_monotonic_nanos: Option<u64>,
 }
@@ -14,16 +12,17 @@ impl ReplayValidator {
     /// Validate a replay event against ordering invariants.
     pub(super) fn validate(&mut self, event: &ReplayEvent) -> RuntimeResult<()> {
         match event {
-            ReplayEvent::TaskQueueEvent(event) => {
-                if let Some(last) = self.last_task_queue_sequence
-                    && event.sequence < last
+            ReplayEvent::Tick(deadline) => {
+                if let Some(last) = self.last_monotonic_nanos
+                    && deadline.get() < last
                 {
                     return Err(RuntimeError::ReplayMismatch {
-                        name: "event_loop".to_string(),
+                        name: "tick".to_string(),
                     }
                     .boxed());
                 }
-                self.last_task_queue_sequence = Some(event.sequence);
+
+                self.last_monotonic_nanos = Some(deadline.get());
             }
             ReplayEvent::Entropy(event) => match event {
                 EntropyEvent::TimeReadMonotonic { outcome, .. } => {
