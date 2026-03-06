@@ -1,10 +1,7 @@
 use destack_ast::{self as ast, MatchCase};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{
-    match_case_selector, match_selector_has_guard, match_selector_is_default,
-    match_selector_pattern_id, pattern_matches_all,
-};
+use crate::rules::common::pattern_matches_all;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -51,17 +48,18 @@ impl LintRule for PreferIfLet {
             let second_case = ctx.tree.get(cases[1]);
 
             // keep first case as plain pattern without guard
-            let first_selector = match_case_selector(first_case);
+            let first_selector = first_case.selector();
             if !matches!(first_selector, ast::MatchSelector::Pattern { .. })
-                || match_selector_has_guard(first_selector)
+                || first_selector.has_guard()
             {
                 continue;
             }
 
             // allow wildcard and default second cases
-            let second_selector = match_case_selector(second_case);
-            let is_wildcard = match_selector_is_default(second_selector)
-                || match_selector_pattern_id(second_selector)
+            let second_selector = second_case.selector();
+            let is_wildcard = second_selector.is_default()
+                || second_selector
+                    .pattern_id()
                     .map(|pattern_id| pattern_matches_all(ctx, pattern_id))
                     .unwrap_or(false);
 

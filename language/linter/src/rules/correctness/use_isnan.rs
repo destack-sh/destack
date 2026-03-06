@@ -1,9 +1,7 @@
 use destack_ast::{self as ast, BinaryOperator, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{
-    expression_path_segments, match_case_selector, match_selector_expression_id,
-};
+use crate::rules::common::{expression_path_segments, match_selector_expression_id};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -149,7 +147,7 @@ fn check_switch_nan_comparisons(
 
     // switch `case NaN` selector can never match
     for case_id in cases {
-        let selector = match_case_selector(ctx.tree.get(*case_id));
+        let selector = ctx.tree.get(*case_id).selector();
         let Some(selector_expression_id) = match_selector_expression_id(ctx, selector) else {
             continue;
         };

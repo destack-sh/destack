@@ -3,6 +3,8 @@ use destack_source::Span;
 
 use crate::{LintFix, LintModuleDirContext};
 
+use super::collect_local_symbol_direct_reference_expression_ids;
+
 /// Build an unsafe module local rename fix for one local symbol.
 pub fn rename_local_symbol_fix(
     ctx: &LintModuleDirContext<'_>,
@@ -69,6 +71,86 @@ pub fn fresh_name_in_symbol_scope(
         if suffix > 1024 {
             return None;
         }
+    }
+}
+
+/// Return one available rename target in symbol scope using trailing underscore suffixes.
+pub fn fresh_name_in_symbol_scope_for_rename(
+    ctx: &LintModuleDirContext<'_>,
+    symbol_id: dir::LocalSymbolId,
+    base_name: &str,
+) -> Option<String> {
+    if !is_simple_identifier(base_name) {
+        return None;
+    }
+
+    // collect direct references for collision checks across usage scopes
+    let reference_expression_ids =
+        collect_local_symbol_direct_reference_expression_ids(ctx.module_id(), ctx.tree, symbol_id);
+
+    // resolve declaration scope for the renamed symbol
+    let symbol = ctx.symbols.get_symbol(symbol_id);
+    let declaration_scope_id = symbol.scope.0;
+    let declaration_scope_mark = symbol.scope.1;
+    let mut candidate = base_name.to_string();
+    let mut suffix_length = 1usize;
+
+    loop {
+        let candidate_id = ctx.program.strings.intern(&candidate);
+        let candidate_key = dir::StaticKey::Name(candidate_id);
+        let declaration_symbol = visible_symbol_for_key(
+            ctx,
+            declaration_scope_id,
+            declaration_scope_mark,
+            candidate_key,
+        );
+        let has_declaration_collision =
+            declaration_symbol.is_some_and(|existing_symbol| existing_symbol != symbol_id);
+        if has_declaration_collision {
+            candidate = format!("{base_name}{}", "_".repeat(suffix_length));
+            suffix_length += 1;
+            if suffix_length > 1024 {
+                return None;
+            }
+            continue;
+        }
+
+        let has_reference_collision = reference_expression_ids.iter().any(|expression_id| {
+            let (scope_id, _, mark) = ctx.symbols.get_scope(*expression_id, ctx.tree);
+            let existing_symbol = visible_symbol_for_key(ctx, scope_id, mark, candidate_key);
+            existing_symbol.is_some_and(|existing_symbol| existing_symbol != symbol_id)
+        });
+        if !has_reference_collision {
+            return Some(candidate);
+        }
+
+        candidate = format!("{base_name}{}", "_".repeat(suffix_length));
+        suffix_length += 1;
+        if suffix_length > 1024 {
+            return None;
+        }
+    }
+}
+
+/// Resolve one visible symbol for one key at one scope and mark.
+fn visible_symbol_for_key(
+    ctx: &LintModuleDirContext<'_>,
+    mut scope_id: dir::LocalScopeId,
+    mut mark: dir::LocalScopeMark,
+    key: dir::StaticKey,
+) -> Option<dir::LocalSymbolId> {
+    loop {
+        let scope = ctx.symbols.get_scope_by_id(scope_id);
+
+        if let Some(symbol_id) = ctx.symbols.find_active_symbol_up_to(scope, key, mark) {
+            return Some(symbol_id);
+        }
+
+        let Some((parent_scope_id, parent_mark)) = scope.parent else {
+            return None;
+        };
+        scope_id = parent_scope_id;
+        mark = parent_mark;
     }
 }
 

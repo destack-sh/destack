@@ -1,22 +1,20 @@
-use destack_ast::{
-    self as ast, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
-    walk_expression,
-};
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_starts_nested_declaration_scope;
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::callable_return_usage;
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow returning a value from a constructor.
     ///
     /// Returning a value from a constructor is suspicious because it can
-    /// override the newly created object. Use a factory function instead.
+    /// override the newly created object.
+    /// Use a factory function instead.
     #[lint(
         id = "no-constructor-return",
         code = "LU007",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -28,46 +26,41 @@ declare_lint! {
 }
 
 impl LintRule for NoConstructorReturn {
-    fn meta(&self) -> &'static crate::LintMeta {
+    /// Return lint metadata.
+    fn meta(&self) -> &'static LintMeta {
         NoConstructorReturn::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    /// Check module DIR members for constructor return values.
+    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
 
-        // find all constructor methods
-        for node_id in ctx.tree.iter_nodes::<ast::Member>() {
-            let member = ctx.tree.get(node_id);
-            let ast::Member::Method {
-                key,
+        // inspect constructor methods with concrete bodies
+        for member_id in ctx.tree.iter_node_ids_of_type::<dir::Member>() {
+            let member = ctx.tree.get(member_id);
+            let dir::Member::Method {
                 signature,
-                body: Some(body_id),
+                body: Some(body_expression_id),
                 ..
             } = member
             else {
                 continue;
             };
 
-            // check if this is a constructor (no key, mode is Constructor)
-            if key.is_some() {
+            // keep non-constructors out of this rule
+            if signature.mode != Some(dir::FunctionMode::Constructor) {
                 continue;
             }
 
-            let Some(ast::FunctionMode::Constructor) = signature.mode else {
+            // analyze explicit constructor return values
+            let return_usage =
+                callable_return_usage(ctx.tree, signature, Some(*body_expression_id));
+            if return_usage.return_value_nodes.is_empty() {
                 continue;
-            };
+            }
 
-            // check for return statements with values in the body
-            let mut visitor = ConstructorReturnVisitor {
-                options: NodeVisitorOptions::default(),
-                return_nodes: Vec::new(),
-            };
-
-            let body_expr = ctx.tree.get(*body_id);
-            visitor.visit_expression(ctx.tree, *body_id, body_expr);
-
-            for return_id in visitor.return_nodes {
-                let severity = ctx.get_effective_severity(meta, return_id);
+            for return_expression_id in return_usage.return_value_nodes {
+                let severity = ctx.get_effective_severity(meta, return_expression_id);
                 if !severity.is_enabled() {
                     continue;
                 }
@@ -79,13 +72,13 @@ impl LintRule for NoConstructorReturn {
                     severity,
                     "return with value in constructor",
                     ctx.module.file_id,
-                    ctx.tree.get_span(return_id),
+                    ctx.get_span(return_expression_id),
                 )
                 .with_label("constructors should not return values");
 
-                // compute fixes only when requested by the runner
-                if ctx.compute_fixes
-                    && let Some(fix) = no_constructor_return_fix(ctx, return_id)
+                // attach the unsafe rewrite when requested
+                if ctx.include_fixes
+                    && let Some(fix) = no_constructor_return_fix(ctx, return_expression_id)
                 {
                     diagnostic = diagnostic.with_fix(fix);
                 }
@@ -96,62 +89,31 @@ impl LintRule for NoConstructorReturn {
     }
 }
 
-/// NodeVisitor that finds return statements with values in one constructor body scope.
-struct ConstructorReturnVisitor {
-    options: NodeVisitorOptions,
-    return_nodes: Vec<LocalNodeId<Expression>>,
-}
-
-impl NodeVisitor for ConstructorReturnVisitor {
-    fn options(&self) -> &NodeVisitorOptions {
-        &self.options
-    }
-
-    fn visit_expression(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<Expression>,
-        expression: &Expression,
-    ) {
-        // check for return with value
-        if matches!(expression, Expression::Return { value: Some(_) }) {
-            self.return_nodes.push(id);
-        }
-
-        // don't descend into nested declaration scopes
-        if expression_starts_nested_declaration_scope(expression) {
-            return;
-        }
-
-        // walk children
-        walk_expression(self, tree, id, expression);
-    }
-}
-
 /// Build an unsafe fix for one constructor return value.
 fn no_constructor_return_fix(
-    ctx: &LintModuleAstContext<'_>,
-    return_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleDirContext<'_>,
+    return_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
-    let return_expression = ctx.tree.get(return_id);
-    let Expression::Return {
-        value: Some(value_id),
+    let return_expression = ctx.tree.get(return_expression_id);
+    let dir::Expression::Return {
+        value: Some(value_expression_id),
     } = return_expression
     else {
         return None;
     };
 
-    let value_span = ctx.tree.get_span(*value_id);
+    // keep empty value slices out of the rewrite
+    let value_span = ctx.get_span(*value_expression_id);
     let value_text = ctx.get_span_text(value_span);
     if value_text.trim().is_empty() {
         return None;
     }
 
+    // preserve evaluation order, then return bare
     let replacement = format!("{{ ({value_text}); return; }}");
-    let return_span = ctx.tree.get_span(return_id);
     let edits = ctx
         .edit_builder()
-        .replace(return_span, replacement)
+        .replace(ctx.get_span(return_expression_id), replacement)
         .into_edits();
 
     Some(LintFix::r#unsafe("Drop constructor return value").with_edits(edits))
@@ -162,10 +124,11 @@ mod tests {
     use super::*;
     use crate::linter::TestProgram;
 
+    /// Flag constructor returns with values.
     #[test]
     fn test_detects_return_value_in_constructor() {
         let test = TestProgram::for_rule_without_prelude(NoConstructorReturn);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_constructor_return/test_detects_return_value_in_constructor.ds",
             r#"
 class Foo {
@@ -180,10 +143,11 @@ class Foo {
             .assert_has_fix("no-constructor-return");
     }
 
+    /// Flag constructor returns nested in control flow.
     #[test]
     fn test_detects_return_value_in_if() {
         let test = TestProgram::for_rule_without_prelude(NoConstructorReturn);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_constructor_return/test_detects_return_value_in_if.ds",
             r#"
 class Foo {
@@ -198,10 +162,11 @@ class Foo {
         test.result(result).assert_lint("no-constructor-return");
     }
 
+    /// Allow bare constructor returns.
     #[test]
     fn test_allows_bare_return() {
         let test = TestProgram::for_rule_without_prelude(NoConstructorReturn);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_constructor_return/test_allows_bare_return.ds",
             r#"
 class Foo {
@@ -217,10 +182,11 @@ class Foo {
         test.result(result).assert_no_lint("no-constructor-return");
     }
 
+    /// Allow constructors without return statements.
     #[test]
     fn test_allows_constructor_without_return() {
         let test = TestProgram::for_rule_without_prelude(NoConstructorReturn);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_constructor_return/test_allows_constructor_without_return.ds",
             r#"
 class Foo {
@@ -233,10 +199,11 @@ class Foo {
         test.result(result).assert_no_lint("no-constructor-return");
     }
 
+    /// Ignore returns in nested functions.
     #[test]
     fn test_allows_return_in_nested_function() {
         let test = TestProgram::for_rule_without_prelude(NoConstructorReturn);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_constructor_return/test_allows_return_in_nested_function.ds",
             r#"
 class Foo {
@@ -252,10 +219,11 @@ class Foo {
         test.result(result).assert_no_lint("no-constructor-return");
     }
 
+    /// Ignore returns in nested class bodies.
     #[test]
     fn test_allows_return_in_nested_class_method() {
         let test = TestProgram::for_rule_without_prelude(NoConstructorReturn);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_constructor_return/test_allows_return_in_nested_class_method.ds",
             r#"
 class Foo {
@@ -272,10 +240,11 @@ class Foo {
         test.result(result).assert_no_lint("no-constructor-return");
     }
 
+    /// Rewrite constructor return values into side effect preserving blocks.
     #[test]
     fn test_fix_rewrites_constructor_return_value() {
         let test = TestProgram::for_rule_without_prelude(NoConstructorReturn);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_constructor_return/test_fix_rewrites_constructor_return_value.ds",
             r#"
 class Foo {
@@ -301,10 +270,11 @@ class Foo {
             );
     }
 
+    /// Preserve object literal side effects in the fix.
     #[test]
     fn test_fix_preserves_object_literal_side_effect_expression() {
         let test = TestProgram::for_rule_without_prelude(NoConstructorReturn);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_constructor_return/test_fix_preserves_object_literal_side_effect_expression.ds",
             r#"
 class Foo {
@@ -330,10 +300,11 @@ class Foo {
             );
     }
 
+    /// Detect conditional constructor returns through DIR callable analysis.
     #[test]
     fn test_mutation_detects_constructor_return_in_conditional() {
         let test = TestProgram::for_rule_without_prelude(NoConstructorReturn);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_constructor_return/test_mutation_detects_constructor_return_in_conditional.ds",
             r#"
 class Foo {

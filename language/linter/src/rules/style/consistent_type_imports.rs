@@ -1,22 +1,24 @@
-use destack_ast::{self as ast, DependencyKind, DependencyMode, Expression};
+use std::collections::HashSet;
+
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     dependency_item_insert_inline_type_keyword, dependency_item_strip_inline_type_keyword,
-    import_type_keyword_removal_span,
+    expression_is_in_type_position, import_type_keyword_removal_span,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce consistent type import style.
     ///
-    /// Prefer `import type { Foo }` over `import { type Foo }` for type-only imports.
-    /// This makes it clearer that the import is only used for type checking.
+    /// Prefer dedicated type import syntax for bindings that are only used from
+    /// type positions.
     #[lint(
         id = "consistent-type-imports",
         code = "LY007",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -28,27 +30,32 @@ declare_lint! {
 }
 
 impl LintRule for ConsistentTypeImports {
-    fn meta(&self) -> &'static crate::LintMeta {
+    /// Return lint metadata.
+    fn meta(&self) -> &'static LintMeta {
         ConsistentTypeImports::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    /// Check module DIR nodes for type-only import style.
+    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
         let options = consistent_type_imports_options(ctx);
+        let import_clauses = collect_import_clauses(ctx);
+        let tracked_symbols = tracked_import_symbols(ctx, &import_clauses);
+        let reference_usage = collect_import_symbol_reference_context_usage(ctx, &tracked_symbols);
 
-        // inspect every expression for import declarations and `import(...)` type annotations
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expr = ctx.tree.get(node_id);
+        // inspect the module once for import declaration style and type import expressions
+        for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
+            let expression = ctx.tree.get(expression_id);
 
             // report forbidden `import(...)` type annotations
             if options.disallow_type_annotations {
-                report_type_import_annotation(ctx, meta, node_id, expr);
+                report_type_import_annotation(ctx, meta, expression_id, expression);
             }
+        }
 
-            // apply one import declaration style check
-            if let Expression::Import { kind, items, .. } = expr {
-                report_import_style(ctx, meta, options, node_id, *kind, items);
-            }
+        // apply one declaration style check per import clause
+        for clause in &import_clauses {
+            report_import_style(ctx, meta, options, clause, &reference_usage);
         }
     }
 }
@@ -64,8 +71,46 @@ struct ConsistentTypeImportsOptions {
     disallow_type_annotations: bool,
 }
 
+/// Context specific reference usage for one symbol.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct SymbolReferenceContextUsage {
+    /// Whether the symbol is referenced from a type position.
+    has_type_reference: bool,
+    /// Whether the symbol is referenced from a value position.
+    has_value_reference: bool,
+}
+
+impl SymbolReferenceContextUsage {
+    /// Record one reference in the requested context.
+    fn record_reference(&mut self, is_type_position: bool) {
+        if is_type_position {
+            self.has_type_reference = true;
+        } else {
+            self.has_value_reference = true;
+        }
+    }
+
+    /// Return true when every recorded reference is type only.
+    fn is_type_only(self) -> bool {
+        self.has_type_reference && !self.has_value_reference
+    }
+}
+
+/// One import declaration and its dependency items.
+#[derive(Debug, Clone)]
+struct ImportClause {
+    /// The import expression node.
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    /// The top level import kind.
+    import_kind: dir::DependencyKind,
+    /// Whether the import carries trailing arguments or attributes.
+    has_arguments: bool,
+    /// Import items in source order.
+    items: Vec<dir::LocalNodeId<dir::DependencyItem>>,
+}
+
 /// Resolve rule options from linter configuration.
-fn consistent_type_imports_options(ctx: &LintModuleAstContext<'_>) -> ConsistentTypeImportsOptions {
+fn consistent_type_imports_options(ctx: &LintModuleDirContext<'_>) -> ConsistentTypeImportsOptions {
     ConsistentTypeImportsOptions {
         prefer_type_imports: ctx.options.consistent_type_imports_prefer_type_imports,
         prefer_inline_type_imports: ctx
@@ -77,15 +122,92 @@ fn consistent_type_imports_options(ctx: &LintModuleAstContext<'_>) -> Consistent
     }
 }
 
+/// Collect import clauses in source order.
+fn collect_import_clauses(ctx: &LintModuleDirContext<'_>) -> Vec<ImportClause> {
+    let mut clauses = Vec::new();
+
+    // collect import declarations only
+    for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
+        let expression = ctx.tree.get(expression_id);
+        let dir::Expression::Import {
+            kind,
+            items,
+            arguments,
+            ..
+        } = expression
+        else {
+            continue;
+        };
+
+        clauses.push(ImportClause {
+            expression_id,
+            import_kind: *kind,
+            has_arguments: arguments.is_some(),
+            items: items.clone(),
+        });
+    }
+
+    clauses
+}
+
+/// Collect tracked import binding symbols for one module.
+fn tracked_import_symbols(
+    ctx: &LintModuleDirContext<'_>,
+    clauses: &[ImportClause],
+) -> HashSet<dir::GlobalSymbolId> {
+    let mut symbols = HashSet::new();
+
+    // keep direct local import aliases only
+    for clause in clauses {
+        for item_id in &clause.items {
+            let item = ctx.tree.get(*item_id);
+            let Some(symbol_id) = item.symbol() else {
+                continue;
+            };
+
+            symbols.insert(symbol_id.into_global(ctx.module_id()));
+        }
+    }
+
+    symbols
+}
+
+/// Collect type and value reference contexts for tracked import symbols in one module.
+fn collect_import_symbol_reference_context_usage(
+    ctx: &LintModuleDirContext<'_>,
+    tracked_symbols: &HashSet<dir::GlobalSymbolId>,
+) -> std::collections::HashMap<dir::GlobalSymbolId, SymbolReferenceContextUsage> {
+    let mut usage: std::collections::HashMap<dir::GlobalSymbolId, SymbolReferenceContextUsage> =
+        std::collections::HashMap::new();
+
+    // inspect all direct symbol references once in tree order
+    for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+        let Some(symbol_id) = expression.target_symbol() else {
+            continue;
+        };
+        if !tracked_symbols.contains(&symbol_id) {
+            continue;
+        }
+
+        let is_type_position = expression_is_in_type_position(ctx.tree, expression_id);
+        usage
+            .entry(symbol_id)
+            .or_default()
+            .record_reference(is_type_position);
+    }
+
+    usage
+}
+
 /// Report one diagnostic for forbidden `import(...)` type annotations.
 fn report_type_import_annotation(
-    ctx: &mut LintModuleAstContext<'_>,
-    meta: &'static crate::LintMeta,
-    node_id: ast::LocalNodeId<ast::Expression>,
-    expression: &ast::Expression,
+    ctx: &mut LintModuleDirContext<'_>,
+    meta: &'static LintMeta,
+    node_id: dir::LocalNodeId<dir::Expression>,
+    expression: &dir::Expression,
 ) {
     // skip non type import expressions
-    if !matches!(expression, Expression::TypeImport { .. }) {
+    if !matches!(expression, dir::Expression::TypeImport { .. }) {
         return;
     }
 
@@ -101,7 +223,7 @@ fn report_type_import_annotation(
         severity,
         "`import(...)` type annotations are forbidden",
         ctx.module.file_id,
-        ctx.tree.get_span(node_id),
+        ctx.get_span(node_id),
     )
     .with_label("use named type imports instead of `import(...)`");
     ctx.report(diagnostic);
@@ -109,25 +231,23 @@ fn report_type_import_annotation(
 
 /// Report one diagnostic for one import declaration based on selected style options.
 fn report_import_style(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintModuleDirContext<'_>,
     meta: &'static LintMeta,
     options: ConsistentTypeImportsOptions,
-    import_id: ast::LocalNodeId<ast::Expression>,
-    import_kind: DependencyKind,
-    items: &[ast::LocalNodeId<ast::DependencyItem>],
+    clause: &ImportClause,
+    reference_usage: &std::collections::HashMap<dir::GlobalSymbolId, SymbolReferenceContextUsage>,
 ) {
-    // extract reusable import item classification
-    let inline_type_items = inline_type_item_ids(ctx, items);
-    let all_inline_types = import_all_inline_type_items(ctx, items);
-    let supports_inline_style = import_supports_inline_style(ctx, items);
+    let inline_type_item_ids = clause_inline_type_item_ids(ctx, clause);
+    let has_top_level_type_keyword =
+        import_declaration_has_top_level_type_keyword(ctx, clause.expression_id);
 
     // enforce value import mode without any type modifiers
     if !options.prefer_type_imports {
-        if import_kind != DependencyKind::Type && inline_type_items.is_empty() {
+        if !has_top_level_type_keyword && inline_type_item_ids.is_empty() {
             return;
         }
 
-        let severity = ctx.get_effective_severity(meta, import_id);
+        let severity = ctx.get_effective_severity(meta, clause.expression_id);
         if !severity.is_enabled() {
             return;
         }
@@ -139,12 +259,16 @@ fn report_import_style(
             severity,
             "use value imports without `type` modifiers",
             ctx.module.file_id,
-            ctx.tree.get_span(import_id),
+            ctx.get_span(clause.expression_id),
         )
         .with_label("remove type import modifiers");
-        if ctx.compute_fixes
-            && let Some(fix) =
-                consistent_type_import_no_type_fix(ctx, import_id, import_kind, &inline_type_items)
+        if ctx.include_fixes
+            && let Some(fix) = consistent_type_import_no_type_fix(
+                ctx,
+                clause.expression_id,
+                clause.import_kind,
+                &inline_type_item_ids,
+            )
         {
             diagnostic = diagnostic.with_fix(fix);
         }
@@ -153,13 +277,69 @@ fn report_import_style(
         return;
     }
 
-    // enforce inline `type` style when configured
+    let semantic_type_only_item_ids =
+        clause_semantic_type_only_item_ids(ctx, clause, reference_usage);
+
+    // prefer inline `type` modifiers when configured
     if options.prefer_inline_type_imports {
-        if import_kind != DependencyKind::Type || !supports_inline_style {
+        if has_top_level_type_keyword && clause_supports_inline_style(ctx, clause) {
+            let severity = ctx.get_effective_severity(meta, clause.expression_id);
+            if !severity.is_enabled() {
+                return;
+            }
+
+            let mut diagnostic = LintDiagnostic::new(
+                CONSISTENT_TYPE_IMPORTS.id,
+                CONSISTENT_TYPE_IMPORTS.code,
+                CONSISTENT_TYPE_IMPORTS.category,
+                severity,
+                "use inline `type` specifiers for type-only imports",
+                ctx.module.file_id,
+                ctx.get_span(clause.expression_id),
+            )
+            .with_label("prefer inline `type` modifiers");
+            if ctx.include_fixes
+                && let Some(fix) = consistent_type_import_inline_fix(
+                    ctx,
+                    clause.expression_id,
+                    clause.import_kind,
+                    &clause.items,
+                )
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
             return;
         }
 
-        let severity = ctx.get_effective_severity(meta, import_id);
+        let selected_item_ids =
+            clause_missing_inline_type_only_item_ids(ctx, clause, &semantic_type_only_item_ids);
+        if selected_item_ids.is_empty() || !item_ids_support_inline_style(ctx, &selected_item_ids) {
+            return;
+        }
+
+        report_partial_type_only_imports(
+            ctx,
+            meta,
+            clause,
+            &selected_item_ids,
+            "prefer inline `type` modifiers",
+            consistent_type_import_inline_fix(
+                ctx,
+                clause.expression_id,
+                clause.import_kind,
+                &selected_item_ids,
+            ),
+        );
+        return;
+    }
+
+    // canonicalize all inline `type` imports into one top level `import type`
+    if clause.import_kind != dir::DependencyKind::Type
+        && clause_all_items_are_inline_type(ctx, clause)
+    {
+        let severity = ctx.get_effective_severity(meta, clause.expression_id);
         if !severity.is_enabled() {
             return;
         }
@@ -169,13 +349,14 @@ fn report_import_style(
             CONSISTENT_TYPE_IMPORTS.code,
             CONSISTENT_TYPE_IMPORTS.category,
             severity,
-            "use inline `type` specifiers for type-only imports",
+            "use `import type { ... }` for type-only imports",
             ctx.module.file_id,
-            ctx.tree.get_span(import_id),
+            ctx.get_span(clause.expression_id),
         )
-        .with_label("prefer inline `type` modifiers");
-        if ctx.compute_fixes
-            && let Some(fix) = consistent_type_import_inline_fix(ctx, import_id, items)
+        .with_label("prefer top-level `import type`");
+        if ctx.include_fixes
+            && let Some(fix) =
+                consistent_type_import_top_level_fix(ctx, clause.expression_id, &clause.items)
         {
             diagnostic = diagnostic.with_fix(fix);
         }
@@ -184,28 +365,92 @@ fn report_import_style(
         return;
     }
 
-    // enforce top level `import type` style for type only named imports
-    if import_kind == DependencyKind::Type || !all_inline_types {
+    // convert whole declarations when every binding is type only
+    if clause.import_kind != dir::DependencyKind::Type
+        && semantic_type_only_item_ids.len() == clause.items.len()
+        && !semantic_type_only_item_ids.is_empty()
+    {
+        let severity = ctx.get_effective_severity(meta, clause.expression_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        let mut diagnostic = LintDiagnostic::new(
+            CONSISTENT_TYPE_IMPORTS.id,
+            CONSISTENT_TYPE_IMPORTS.code,
+            CONSISTENT_TYPE_IMPORTS.category,
+            severity,
+            "all imports in this declaration are only used as types",
+            ctx.module.file_id,
+            ctx.get_span(clause.expression_id),
+        )
+        .with_label("prefer top-level `import type`");
+        if ctx.include_fixes
+            && !clause.has_arguments
+            && let Some(fix) =
+                consistent_type_import_top_level_fix(ctx, clause.expression_id, &clause.items)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        ctx.report(diagnostic);
         return;
     }
 
-    let severity = ctx.get_effective_severity(meta, import_id);
+    // accept declarations that already use top level `import type`
+    if clause.import_kind == dir::DependencyKind::Type {
+        return;
+    }
+
+    // fall back to inline `type` markers for mixed declarations
+    let selected_item_ids =
+        clause_missing_inline_type_only_item_ids(ctx, clause, &semantic_type_only_item_ids);
+    if selected_item_ids.is_empty() || !item_ids_support_inline_style(ctx, &selected_item_ids) {
+        return;
+    }
+
+    report_partial_type_only_imports(
+        ctx,
+        meta,
+        clause,
+        &selected_item_ids,
+        "mark these bindings with inline `type`",
+        consistent_type_import_inline_fix(
+            ctx,
+            clause.expression_id,
+            clause.import_kind,
+            &selected_item_ids,
+        ),
+    );
+}
+
+/// Report one diagnostic for a mixed declaration with type only bindings.
+fn report_partial_type_only_imports(
+    ctx: &mut LintModuleDirContext<'_>,
+    meta: &'static LintMeta,
+    clause: &ImportClause,
+    item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
+    label: &str,
+    fix: Option<LintFix>,
+) {
+    let severity = ctx.get_effective_severity(meta, clause.expression_id);
     if !severity.is_enabled() {
         return;
     }
 
+    let item_names = format_import_item_names(ctx, item_ids);
     let mut diagnostic = LintDiagnostic::new(
         CONSISTENT_TYPE_IMPORTS.id,
         CONSISTENT_TYPE_IMPORTS.code,
         CONSISTENT_TYPE_IMPORTS.category,
         severity,
-        "use `import type { ... }` for type-only imports",
+        format!("imports `{item_names}` are only used as types"),
         ctx.module.file_id,
-        ctx.tree.get_span(import_id),
+        ctx.get_span(clause.expression_id),
     )
-    .with_label("prefer top-level `import type`");
-    if ctx.compute_fixes
-        && let Some(fix) = consistent_type_import_top_level_fix(ctx, import_id, items)
+    .with_label(label);
+    if ctx.include_fixes
+        && let Some(fix) = fix
     {
         diagnostic = diagnostic.with_fix(fix);
     }
@@ -214,51 +459,157 @@ fn report_import_style(
 }
 
 /// Return import item ids that use inline `type` modifiers.
-fn inline_type_item_ids(
-    ctx: &LintModuleAstContext<'_>,
-    items: &[ast::LocalNodeId<ast::DependencyItem>],
-) -> Vec<ast::LocalNodeId<ast::DependencyItem>> {
-    items
+fn clause_inline_type_item_ids(
+    ctx: &LintModuleDirContext<'_>,
+    clause: &ImportClause,
+) -> Vec<dir::LocalNodeId<dir::DependencyItem>> {
+    clause
+        .items
         .iter()
         .copied()
         .filter(|item_id| {
-            let item = ctx.tree.get(*item_id);
-            item.kind == Some(DependencyKind::Type)
+            let item_span = ctx.get_span(*item_id);
+            let item_text = ctx.get_span_text(item_span);
+            dependency_item_strip_inline_type_keyword(item_text).is_some()
         })
         .collect()
 }
 
-/// Return whether every import item uses an inline `type` modifier.
-fn import_all_inline_type_items(
-    ctx: &LintModuleAstContext<'_>,
-    items: &[ast::LocalNodeId<ast::DependencyItem>],
-) -> bool {
-    !items.is_empty()
-        && items.iter().all(|item_id| {
+/// Return semantic type only item ids that still use value import syntax.
+fn clause_semantic_type_only_item_ids(
+    ctx: &LintModuleDirContext<'_>,
+    clause: &ImportClause,
+    reference_usage: &std::collections::HashMap<dir::GlobalSymbolId, SymbolReferenceContextUsage>,
+) -> Vec<dir::LocalNodeId<dir::DependencyItem>> {
+    clause
+        .items
+        .iter()
+        .copied()
+        .filter(|item_id| import_item_is_semantic_type_only(ctx, *item_id, reference_usage))
+        .collect()
+}
+
+/// Return type only item ids that still need inline `type` markers.
+fn clause_missing_inline_type_only_item_ids(
+    ctx: &LintModuleDirContext<'_>,
+    clause: &ImportClause,
+    semantic_type_only_item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
+) -> Vec<dir::LocalNodeId<dir::DependencyItem>> {
+    semantic_type_only_item_ids
+        .iter()
+        .copied()
+        .filter(|item_id| {
+            if clause.import_kind == dir::DependencyKind::Type {
+                return true;
+            }
+
             let item = ctx.tree.get(*item_id);
-            item.kind == Some(DependencyKind::Type)
+            item_kind(item) != Some(dir::DependencyKind::Type)
+        })
+        .collect()
+}
+
+/// Return true when every import item already uses inline `type`.
+fn clause_all_items_are_inline_type(ctx: &LintModuleDirContext<'_>, clause: &ImportClause) -> bool {
+    !clause.items.is_empty()
+        && clause.items.iter().all(|item_id| {
+            let item = ctx.tree.get(*item_id);
+            item_kind(item) == Some(dir::DependencyKind::Type)
         })
 }
 
-/// Return whether all import items support inline `type` modifiers.
-fn import_supports_inline_style(
-    ctx: &LintModuleAstContext<'_>,
-    items: &[ast::LocalNodeId<ast::DependencyItem>],
+/// Return true when every import item supports inline `type` modifiers.
+fn clause_supports_inline_style(ctx: &LintModuleDirContext<'_>, clause: &ImportClause) -> bool {
+    item_ids_support_inline_style(ctx, &clause.items)
+}
+
+/// Return true when every selected item supports inline `type` modifiers.
+fn item_ids_support_inline_style(
+    ctx: &LintModuleDirContext<'_>,
+    item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
 ) -> bool {
-    !items.is_empty()
-        && items.iter().all(|item_id| {
+    !item_ids.is_empty()
+        && item_ids.iter().all(|item_id| {
             let item = ctx.tree.get(*item_id);
-            item.mode == DependencyMode::Item
+            item_mode(item) == Some(dir::DependencyMode::Item)
         })
 }
 
-/// Build one fix that rewrites inline type imports into top-level `import type`.
+/// Return true when one import item is only used from type positions.
+fn import_item_is_semantic_type_only(
+    ctx: &LintModuleDirContext<'_>,
+    item_id: dir::LocalNodeId<dir::DependencyItem>,
+    reference_usage: &std::collections::HashMap<dir::GlobalSymbolId, SymbolReferenceContextUsage>,
+) -> bool {
+    let item = ctx.tree.get(item_id);
+    let Some(symbol_id) = item.symbol() else {
+        return false;
+    };
+
+    let usage = reference_usage
+        .get(&symbol_id.into_global(ctx.module_id()))
+        .copied()
+        .unwrap_or_default();
+
+    usage.is_type_only()
+}
+
+/// Return the dependency item kind when present.
+fn item_kind(item: &dir::DependencyItem) -> Option<dir::DependencyKind> {
+    match item {
+        dir::DependencyItem::UnresolvedRemote { kind, .. }
+        | dir::DependencyItem::UnresolvedLocal { kind, .. }
+        | dir::DependencyItem::Local { kind, .. }
+        | dir::DependencyItem::Remote { kind, .. } => Some(*kind),
+        dir::DependencyItem::Value { .. } => None,
+    }
+}
+
+/// Return the dependency item mode.
+fn item_mode(item: &dir::DependencyItem) -> Option<dir::DependencyMode> {
+    match item {
+        dir::DependencyItem::UnresolvedRemote { mode, .. }
+        | dir::DependencyItem::UnresolvedLocal { mode, .. }
+        | dir::DependencyItem::Value { mode, .. }
+        | dir::DependencyItem::Local { mode, .. }
+        | dir::DependencyItem::Remote { mode, .. } => Some(*mode),
+    }
+}
+
+/// Format import item names for diagnostics.
+fn format_import_item_names(
+    ctx: &LintModuleDirContext<'_>,
+    item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
+) -> String {
+    item_ids
+        .iter()
+        .map(|item_id| import_item_name(ctx, *item_id))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Resolve one readable import item name.
+fn import_item_name(
+    ctx: &LintModuleDirContext<'_>,
+    item_id: dir::LocalNodeId<dir::DependencyItem>,
+) -> String {
+    let item = ctx.tree.get(item_id);
+    if let Some(symbol_id) = item.symbol()
+        && let Some(name_id) = ctx.symbols.get_symbol(symbol_id).name()
+    {
+        return ctx.program.strings.get(name_id).to_string();
+    }
+
+    ctx.get_span_text(ctx.get_span(item_id)).trim().to_string()
+}
+
+/// Build one fix that rewrites a declaration to top level `import type`.
 fn consistent_type_import_top_level_fix(
-    ctx: &LintModuleAstContext<'_>,
-    import_id: ast::LocalNodeId<ast::Expression>,
-    items: &[ast::LocalNodeId<ast::DependencyItem>],
+    ctx: &LintModuleDirContext<'_>,
+    import_id: dir::LocalNodeId<dir::Expression>,
+    items: &[dir::LocalNodeId<dir::DependencyItem>],
 ) -> Option<LintFix> {
-    let import_span = ctx.tree.get_span(import_id);
+    let import_span = ctx.get_span(import_id);
     let import_text = ctx.get_span_text(import_span);
     let keyword_offset = import_text.find("import")?;
 
@@ -275,11 +626,11 @@ fn consistent_type_import_top_level_fix(
     // strip inline `type` prefixes from each import item
     for item_id in items {
         let item = ctx.tree.get(*item_id);
-        if item.kind != Some(DependencyKind::Type) {
+        if item_kind(item) != Some(dir::DependencyKind::Type) {
             continue;
         }
 
-        let item_span = ctx.tree.get_span(*item_id);
+        let item_span = ctx.get_span(*item_id);
         let item_text = ctx.get_span_text(item_span);
         let rewritten_text = dependency_item_strip_inline_type_keyword(item_text)?;
         builder = builder.replace(item_span, rewritten_text);
@@ -289,30 +640,30 @@ fn consistent_type_import_top_level_fix(
     Some(LintFix::safe("Rewrite to `import type` syntax").with_edits(edits))
 }
 
-/// Build one fix that rewrites top-level `import type` into inline `type` specifiers.
+/// Build one fix that rewrites selected items to inline `type` specifiers.
 fn consistent_type_import_inline_fix(
-    ctx: &LintModuleAstContext<'_>,
-    import_id: ast::LocalNodeId<ast::Expression>,
-    items: &[ast::LocalNodeId<ast::DependencyItem>],
+    ctx: &LintModuleDirContext<'_>,
+    import_id: dir::LocalNodeId<dir::Expression>,
+    _import_kind: dir::DependencyKind,
+    item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
 ) -> Option<LintFix> {
-    // only convert named import items because inline `type` only applies there
-    if !import_supports_inline_style(ctx, items) {
-        return None;
+    let mut builder = ctx.edit_builder();
+    let import_span = ctx.get_span(import_id);
+    let import_text = ctx.get_span_text(import_span);
+
+    // remove the top level type keyword first when rewriting `import type`
+    if let Some(removal_span) = import_type_keyword_removal_span(import_span, import_text) {
+        builder = builder.replace(removal_span, "");
     }
 
-    let import_span = ctx.tree.get_span(import_id);
-    let import_text = ctx.get_span_text(import_span);
-    let removal_span = import_type_keyword_removal_span(import_span, import_text)?;
-    let mut builder = ctx.edit_builder().replace(removal_span, "");
-
-    // add inline `type` to each named item
-    for item_id in items {
+    // add inline `type` to each selected item
+    for item_id in item_ids {
         let item = ctx.tree.get(*item_id);
-        if item.mode != DependencyMode::Item {
+        if item_mode(item) != Some(dir::DependencyMode::Item) {
             return None;
         }
 
-        let item_span = ctx.tree.get_span(*item_id);
+        let item_span = ctx.get_span(*item_id);
         let item_text = ctx.get_span_text(item_span);
         let rewritten_text = dependency_item_insert_inline_type_keyword(item_text);
         builder = builder.replace(item_span, rewritten_text);
@@ -322,26 +673,36 @@ fn consistent_type_import_inline_fix(
     Some(LintFix::safe("Rewrite to inline type import syntax").with_edits(edits))
 }
 
-/// Build one fix that rewrites `import type` and inline type specifiers to value imports.
+/// Build one fix that rewrites `import type` and inline specifiers to value imports.
 fn consistent_type_import_no_type_fix(
-    ctx: &LintModuleAstContext<'_>,
-    import_id: ast::LocalNodeId<ast::Expression>,
-    import_kind: DependencyKind,
-    inline_type_items: &[ast::LocalNodeId<ast::DependencyItem>],
+    ctx: &LintModuleDirContext<'_>,
+    import_id: dir::LocalNodeId<dir::Expression>,
+    _import_kind: dir::DependencyKind,
+    inline_type_item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
 ) -> Option<LintFix> {
-    let import_span = ctx.tree.get_span(import_id);
+    let import_span = ctx.get_span(import_id);
     let import_text = ctx.get_span_text(import_span);
+
+    // rewrite plain `import type` declarations in one shot
+    let rewritten_import_text = import_text.replacen("import type", "import", 1);
+    if inline_type_item_ids.is_empty() && rewritten_import_text != import_text {
+        let edits = ctx
+            .edit_builder()
+            .replace(import_span, rewritten_import_text)
+            .into_edits();
+        return Some(LintFix::safe("Rewrite to value import syntax").with_edits(edits));
+    }
+
     let mut builder = ctx.edit_builder();
 
     // remove one top level type keyword for `import type`
-    if import_kind == DependencyKind::Type {
-        let removal_span = import_type_keyword_removal_span(import_span, import_text)?;
+    if let Some(removal_span) = import_type_keyword_removal_span(import_span, import_text) {
         builder = builder.replace(removal_span, "");
     }
 
     // remove inline type markers in import items
-    for item_id in inline_type_items {
-        let item_span = ctx.tree.get_span(*item_id);
+    for item_id in inline_type_item_ids {
+        let item_span = ctx.get_span(*item_id);
         let item_text = ctx.get_span_text(item_span);
         let rewritten_text = dependency_item_strip_inline_type_keyword(item_text)?;
         builder = builder.replace(item_span, rewritten_text);
@@ -351,246 +712,255 @@ fn consistent_type_import_no_type_fix(
     Some(LintFix::safe("Rewrite to value import syntax").with_edits(edits))
 }
 
+/// Return true when one import declaration spells a top level `import type`.
+fn import_declaration_has_top_level_type_keyword(
+    ctx: &LintModuleDirContext<'_>,
+    import_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let import_span = ctx.get_span(import_id);
+    let import_text = ctx.get_span_text(import_span);
+    import_type_keyword_removal_span(import_span, import_text).is_some()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::linter::TestProgram;
+    use crate::linter::{TestProgram, test_modules};
 
+    /// Allow a declaration that already uses top level `import type`.
     #[test]
     fn test_allows_import_type() {
         let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
-        let result = test.lint_ast(
-            "consistent_type_imports/test_allows_import_type.ds",
-            r#"
-import type { Foo, Bar } from "foo"
+        let diagnostics = test.lint_module_dir_with_modules(
+            test_modules! {
+                "consistent_type_imports/source_type.ds" => r#"
+export type Foo = number;
+export type Bar = string;
 "#,
+                "consistent_type_imports/consumer_type.ds" => r#"
+import type { Foo, Bar } from "./source_type.ds";
+
+type Example = (Foo, Bar);
+"#,
+            },
+            "consistent_type_imports/consumer_type.ds",
         );
-        test.result(result)
+
+        test.result(diagnostics)
             .assert_no_lint("consistent-type-imports");
     }
 
+    /// Rewrite all inline type specifiers to top level `import type`.
     #[test]
     fn test_detects_inline_type_imports() {
         let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
-        let result = test.lint_ast(
-            "consistent_type_imports/test_detects_inline_type_imports.ds",
-            r#"
-import { type Foo, type Bar } from "foo"
+        let diagnostics = test.lint_module_dir_with_modules(
+            test_modules! {
+                "consistent_type_imports/source_inline.ds" => r#"
+export type Foo = number;
+export type Bar = string;
 "#,
-        );
-        test.result(result)
-            .assert_lint("consistent-type-imports")
-            .assert_has_fix("consistent-type-imports");
-    }
+                "consistent_type_imports/consumer_inline.ds" => r#"
+import { type Foo, type Bar } from "./source_inline.ds";
 
-    #[test]
-    fn test_allows_mixed_imports() {
-        let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
-        // mixed imports are allowed (can't use `import type` for these)
-        let result = test.lint_ast(
-            "consistent_type_imports/test_allows_mixed_imports.ds",
-            r#"
-import { Foo, type Bar } from "foo"
+type Example = (Foo, Bar);
 "#,
+            },
+            "consistent_type_imports/consumer_inline.ds",
         );
-        test.result(result)
-            .assert_no_lint("consistent-type-imports");
-    }
 
-    #[test]
-    fn test_allows_value_imports() {
-        let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
-        let result = test.lint_ast(
-            "consistent_type_imports/test_allows_value_imports.ds",
-            r#"
-import { foo, bar } from "foo"
-"#,
-        );
-        test.result(result)
-            .assert_no_lint("consistent-type-imports");
-    }
-
-    #[test]
-    fn test_allows_namespace_import() {
-        let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
-        let result = test.lint_ast(
-            "consistent_type_imports/test_allows_namespace_import.ds",
-            r#"
-import * as foo from "foo"
-"#,
-        );
-        test.result(result)
-            .assert_no_lint("consistent-type-imports");
-    }
-
-    #[test]
-    fn test_fix_rewrites_inline_type_imports() {
-        let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
-        let result = test.lint_ast(
-            "consistent_type_imports/test_fix_rewrites_inline_type_imports.ds",
-            r#"
-import { type Foo, type Bar } from "foo"
-"#,
-        );
-        test.result(result)
+        test.result(diagnostics)
             .assert_lint("consistent-type-imports")
             .assert_safe_fixed(
                 r#"
-import type { Foo, Bar } from "foo";
+import type { Foo, Bar } from "./source_inline.ds";
+
+type Example = (Foo, Bar);
 "#,
             );
     }
 
+    /// Convert value imports that are only used in type positions.
     #[test]
-    fn test_fix_rewrites_alias_type_imports() {
+    fn test_detects_value_imports_used_only_as_types() {
         let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
-        let result = test.lint_ast(
-            "consistent_type_imports/test_fix_rewrites_alias_type_imports.ds",
-            r#"
-import { type Foo as FooModel, type Bar as BarModel } from "foo"
+        let diagnostics = test.lint_module_dir_with_modules(
+            test_modules! {
+                "consistent_type_imports/source_semantic.ds" => r#"
+export class Foo {}
+export class Bar {}
 "#,
+                "consistent_type_imports/consumer_semantic.ds" => r#"
+import { Foo, Bar } from "./source_semantic.ds";
+
+type FooExample = Foo;
+type BarExample = Bar;
+"#,
+            },
+            "consistent_type_imports/consumer_semantic.ds",
         );
-        test.result(result)
+
+        test.result(diagnostics)
             .assert_lint("consistent-type-imports")
             .assert_safe_fixed(
                 r#"
-import type { Foo as FooModel, Bar as BarModel } from "foo";
+import type { Foo, Bar } from "./source_semantic.ds";
+
+type FooExample = Foo;
+type BarExample = Bar;
 "#,
             );
     }
 
+    /// Mark only the type only bindings in a mixed declaration.
     #[test]
-    fn test_mutation_detects_single_inline_type_import() {
+    fn test_detects_mixed_type_only_bindings() {
         let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
-        let result = test.lint_ast(
-            "consistent_type_imports/test_mutation_detects_single_inline_type_import.ds",
-            r#"
-import { type OnlyType } from "foo"
+        let diagnostics = test.lint_module_dir_with_modules(
+            test_modules! {
+                "consistent_type_imports/source_mixed.ds" => r#"
+export class Foo {}
+export class Bar {}
 "#,
+                "consistent_type_imports/consumer_mixed.ds" => r#"
+import { Foo, Bar } from "./source_mixed.ds";
+
+type Example = Foo;
+const value = Bar;
+"#,
+            },
+            "consistent_type_imports/consumer_mixed.ds",
         );
-        test.result(result)
+
+        test.result(diagnostics)
             .assert_lint("consistent-type-imports")
             .assert_safe_fixed(
                 r#"
-import type { OnlyType } from "foo";
+import { type Foo, Bar } from "./source_mixed.ds";
+
+type Example = Foo;
+const value = Bar;
 "#,
             );
     }
 
+    /// Keep mixed declarations that already mark the type only binding inline.
+    #[test]
+    fn test_allows_mixed_inline_type_bindings() {
+        let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
+        let diagnostics = test.lint_module_dir_with_modules(
+            test_modules! {
+                "consistent_type_imports/source_mixed_inline.ds" => r#"
+export class Foo {}
+export class Bar {}
+"#,
+                "consistent_type_imports/consumer_mixed_inline.ds" => r#"
+import { type Foo, Bar } from "./source_mixed_inline.ds";
+
+type Example = Foo;
+const value = Bar;
+"#,
+            },
+            "consistent_type_imports/consumer_mixed_inline.ds",
+        );
+
+        test.result(diagnostics)
+            .assert_no_lint("consistent-type-imports");
+    }
+
+    /// Remove type import syntax when the rule prefers value imports.
     #[test]
     fn test_no_type_mode_flags_import_type() {
         let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports)
             .with_options(|options| options.consistent_type_imports_prefer_type_imports = false);
-        let result = test.lint_ast(
-            "consistent_type_imports/test_no_type_mode_flags_import_type.ds",
-            r#"
-import type { Foo } from "foo"
+        let diagnostics = test.lint_module_dir_with_modules(
+            test_modules! {
+                "consistent_type_imports/source_no_type.ds" => r#"
+export type Foo = number;
 "#,
+                "consistent_type_imports/consumer_no_type.ds" => r#"
+import type { Foo } from "./source_no_type.ds";
+
+type Example = Foo;
+"#,
+            },
+            "consistent_type_imports/consumer_no_type.ds",
         );
-        test.result(result)
+
+        test.result(diagnostics)
             .assert_lint("consistent-type-imports")
             .assert_safe_fixed(
                 r#"
-import { Foo } from "foo";
+import { Foo } from "./source_no_type.ds";
+
+type Example = Foo;
 "#,
             );
     }
 
-    #[test]
-    fn test_no_type_mode_flags_inline_type_specifier() {
-        let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports)
-            .with_options(|options| options.consistent_type_imports_prefer_type_imports = false);
-        let result = test.lint_ast(
-            "consistent_type_imports/test_no_type_mode_flags_inline_type_specifier.ds",
-            r#"
-import { type Foo, Bar } from "foo"
-"#,
-        );
-        test.result(result)
-            .assert_lint("consistent-type-imports")
-            .assert_safe_fixed(
-                r#"
-import { Foo, Bar } from "foo";
-"#,
-            );
-    }
-
-    #[test]
-    fn test_no_type_mode_allows_value_imports() {
-        let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports)
-            .with_options(|options| options.consistent_type_imports_prefer_type_imports = false);
-        let result = test.lint_ast(
-            "consistent_type_imports/test_no_type_mode_allows_value_imports.ds",
-            r#"
-import { Foo, Bar } from "foo"
-"#,
-        );
-        test.result(result)
-            .assert_no_lint("consistent-type-imports");
-    }
-
-    #[test]
-    fn test_inline_mode_allows_inline_type_specifiers() {
-        let test =
-            TestProgram::for_rule_without_prelude(ConsistentTypeImports).with_options(|options| {
-                options.consistent_type_imports_prefer_inline_type_imports = true
-            });
-        let result = test.lint_ast(
-            "consistent_type_imports/test_inline_mode_allows_inline_type_specifiers.ds",
-            r#"
-import { type Foo, type Bar } from "foo"
-"#,
-        );
-        test.result(result)
-            .assert_no_lint("consistent-type-imports");
-    }
-
+    /// Prefer inline `type` modifiers when configured.
     #[test]
     fn test_inline_mode_flags_top_level_type_import() {
         let test =
             TestProgram::for_rule_without_prelude(ConsistentTypeImports).with_options(|options| {
                 options.consistent_type_imports_prefer_inline_type_imports = true
             });
-        let result = test.lint_ast(
-            "consistent_type_imports/test_inline_mode_flags_top_level_type_import.ds",
-            r#"
-import type { Foo, Bar } from "foo"
+        let diagnostics = test.lint_module_dir_with_modules(
+            test_modules! {
+                "consistent_type_imports/source_inline_mode.ds" => r#"
+export type Foo = number;
+export type Bar = string;
 "#,
+                "consistent_type_imports/consumer_inline_mode.ds" => r#"
+import type { Foo, Bar } from "./source_inline_mode.ds";
+
+type Example = (Foo, Bar);
+"#,
+            },
+            "consistent_type_imports/consumer_inline_mode.ds",
         );
-        test.result(result)
+
+        test.result(diagnostics)
             .assert_lint("consistent-type-imports")
             .assert_safe_fixed(
                 r#"
-import { type Foo, type Bar } from "foo";
+import { type Foo, type Bar } from "./source_inline_mode.ds";
+
+type Example = (Foo, Bar);
 "#,
             );
     }
 
+    /// Report forbidden `import(...)` type annotations by default.
     #[test]
     fn test_disallow_type_annotations_flags_import_type_expressions() {
         let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
-        let result = test.lint_ast(
-            "consistent_type_imports/test_disallow_type_annotations_flags_import_type_expressions.ds",
+        let diagnostics = test.lint_dir(
+            "consistent_type_imports/test_disallow_type_annotations.ds",
             r#"
-type Foo = import("foo").Foo
+type Foo = import("foo").Foo;
 "#,
         );
-        test.result(result).assert_lint("consistent-type-imports");
+
+        test.result(diagnostics)
+            .assert_lint("consistent-type-imports");
     }
 
+    /// Allow `import(...)` type annotations when the option disables the check.
     #[test]
     fn test_disallow_type_annotations_can_be_disabled() {
         let test =
             TestProgram::for_rule_without_prelude(ConsistentTypeImports).with_options(|options| {
                 options.consistent_type_imports_disallow_type_annotations = false
             });
-        let result = test.lint_ast(
-            "consistent_type_imports/test_disallow_type_annotations_can_be_disabled.ds",
+        let diagnostics = test.lint_dir(
+            "consistent_type_imports/test_allow_type_annotations.ds",
             r#"
-type Foo = import("foo").Foo
+type Foo = import("foo").Foo;
 "#,
         );
-        test.result(result)
+
+        test.result(diagnostics)
             .assert_no_lint("consistent-type-imports");
     }
 }

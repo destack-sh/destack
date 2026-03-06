@@ -1,8 +1,10 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_path_segments, expression_unwrap_parenthesized_syntax};
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::{
+    declaration_has_extends_types, expression_target_symbol, expression_unwrap_statement,
+};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unnecessary constructors.
@@ -12,7 +14,7 @@ declare_lint! {
         id = "no-useless-constructor",
         code = "LU038",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -24,188 +26,260 @@ declare_lint! {
 }
 
 impl LintRule for NoUselessConstructor {
-    fn meta(&self) -> &'static crate::LintMeta {
+    /// Return lint metadata.
+    fn meta(&self) -> &'static LintMeta {
         NoUselessConstructor::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    /// Check module DIR members for redundant constructors.
+    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Member>() {
-            let member = ctx.tree.get(node_id);
-            let ast::Member::Method {
+        // inspect class constructors with bodies
+        for member_id in ctx.tree.iter_node_ids_of_type::<dir::Member>() {
+            let member = ctx.tree.get(member_id);
+            let dir::Member::Method {
                 modifiers,
-                key,
                 signature,
-                body: Some(body_id),
-                ..
+                body: Some(body_expression_id),
+                key: _,
+                symbol: _,
             } = member
             else {
                 continue;
             };
 
-            // check if this is a constructor (no key, mode is Constructor)
-            if key.is_some() {
+            // keep non-constructors out of this rule
+            if signature.mode != Some(dir::FunctionMode::Constructor) {
                 continue;
             }
 
-            // check if mode is constructor
-            let Some(ast::FunctionMode::Constructor) = signature.mode else {
-                continue;
-            };
-
-            // skip protected or private constructors: they carry access semantics
-            if modifiers
-                .and_then(|modifier| modifier.visibility)
-                .is_some_and(|visibility| {
-                    matches!(
-                        visibility,
-                        ast::Visibility::Private | ast::Visibility::Protected
-                    )
-                })
-            {
+            // keep constructors with useful accessibility
+            if constructor_has_useful_accessibility(ctx, member_id, modifiers) {
                 continue;
             }
 
-            // check source parity: constructors are useless when they are empty
-            // or only pass parameters through to `super(...)`
-            let is_useless_constructor = (is_empty_body(ctx, *body_id)
+            // report only empty constructors without parameters or direct super passthroughs
+            let is_useless_constructor = (constructor_body_is_empty(ctx, *body_expression_id)
                 && signature.dynamic_parameters.is_empty())
                 || is_redundant_super_passthrough_constructor(
                     ctx,
                     signature.dynamic_parameters.as_slice(),
-                    *body_id,
+                    *body_expression_id,
                 );
-            if is_useless_constructor {
-                let severity = ctx.get_effective_severity(meta, *body_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-
-                // attach a safe fix only for constructors without explicit modifiers
-                let mut diagnostic = LintDiagnostic::new(
-                    NO_USELESS_CONSTRUCTOR.id,
-                    NO_USELESS_CONSTRUCTOR.code,
-                    NO_USELESS_CONSTRUCTOR.category,
-                    severity,
-                    "useless constructor",
-                    ctx.module.file_id,
-                    ctx.tree.get_span(node_id),
-                )
-                .with_label("empty constructor can be removed");
-
-                let member_span = ctx.tree.get_span(node_id);
-                let member_text = ctx.get_span_text(member_span);
-                if modifiers.is_none() && !contains_comment_token(&member_text) {
-                    let member_span = ctx.tree.get_span(node_id);
-                    let edits = ctx.edit_builder().delete(member_span).into_edits();
-                    let fix =
-                        LintFix::safe("Remove useless constructor declaration").with_edits(edits);
-                    diagnostic = diagnostic.with_fix(fix);
-                }
-
-                ctx.report(diagnostic);
+            if !is_useless_constructor {
+                continue;
             }
+
+            let severity = ctx.get_effective_severity(meta, member_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
+            let mut diagnostic = LintDiagnostic::new(
+                NO_USELESS_CONSTRUCTOR.id,
+                NO_USELESS_CONSTRUCTOR.code,
+                NO_USELESS_CONSTRUCTOR.category,
+                severity,
+                "useless constructor",
+                ctx.module.file_id,
+                ctx.get_span(member_id),
+            )
+            .with_label("remove this constructor");
+
+            // keep fixes out of explicit modifier and comment carrying constructors
+            let member_span = ctx.get_span(member_id);
+            let member_text = ctx.get_span_text(member_span);
+            if modifiers.is_none() && !contains_comment_token(member_text) {
+                let edits = ctx.edit_builder().delete(member_span).into_edits();
+                let fix = LintFix::safe("Remove useless constructor declaration").with_edits(edits);
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
 }
 
-/// Return true when a constructor only forwards parameters to one `super(...)` call.
-fn is_redundant_super_passthrough_constructor(
-    ctx: &LintModuleAstContext<'_>,
-    parameter_ids: &[ast::LocalNodeId<ast::Parameter>],
-    body_id: ast::LocalNodeId<ast::Expression>,
+/// Return true when one constructor accessibility makes the constructor useful.
+fn constructor_has_useful_accessibility(
+    ctx: &LintModuleDirContext<'_>,
+    member_id: dir::LocalNodeId<dir::Member>,
+    modifiers: &Option<dir::BindingModifier>,
 ) -> bool {
-    // resolve the single body expression
-    let body_expression = ctx.tree.get(body_id);
-    let ast::Expression::Block(block_id) = body_expression else {
+    let visibility = modifiers.and_then(|modifier| modifier.visibility);
+
+    // keep private and protected constructors always
+    if matches!(
+        visibility,
+        Some(dir::Visibility::Private | dir::Visibility::Protected)
+    ) {
+        return true;
+    }
+
+    // keep public constructors on subclasses, matching TS-ESLint behavior
+    if visibility == Some(dir::Visibility::Public) {
+        return member_parent_class_has_super_class(ctx, member_id);
+    }
+
+    false
+}
+
+/// Return true when the enclosing class extends something.
+fn member_parent_class_has_super_class(
+    ctx: &LintModuleDirContext<'_>,
+    member_id: dir::LocalNodeId<dir::Member>,
+) -> bool {
+    let Some(parent_id) = ctx.tree.get_parent(member_id.id) else {
         return false;
     };
-    let block = ctx.tree.get(*block_id);
+    if parent_id.ty != dir::NodeType::Declaration {
+        return false;
+    }
+
+    let declaration_id = parent_id.into_typed::<dir::Declaration>();
+    let declaration = ctx.tree.get(declaration_id);
+    let dir::Declaration::Class {
+        descriptor: _,
+        generics: _,
+        heritage: _,
+        scope: _,
+        members: _,
+    } = declaration
+    else {
+        return false;
+    };
+
+    declaration_has_extends_types(declaration)
+}
+
+/// Return true when one constructor body is empty.
+fn constructor_body_is_empty(
+    ctx: &LintModuleDirContext<'_>,
+    body_expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let body_expression = ctx.tree.get(body_expression_id);
+    let dir::Expression::Block { block } = body_expression else {
+        return false;
+    };
+    let block = ctx.tree.get(*block);
+
+    block.expressions.is_empty()
+}
+
+/// Return true when a constructor only forwards parameters to one `super(...)` call.
+fn is_redundant_super_passthrough_constructor(
+    ctx: &LintModuleDirContext<'_>,
+    parameter_ids: &[dir::LocalNodeId<dir::Parameter>],
+    body_expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    // require one block body with exactly one expression
+    let body_expression = ctx.tree.get(body_expression_id);
+    let dir::Expression::Block { block } = body_expression else {
+        return false;
+    };
+    let block = ctx.tree.get(*block);
     if block.expressions.len() != 1 {
         return false;
     }
 
-    // unwrap statement wrappers
-    let mut expression_id = block.expressions[0];
-    if let ast::Expression::Statement(inner_id) = ctx.tree.get(expression_id) {
-        expression_id = *inner_id;
-    }
-
-    // require one `super(...)` call
+    // unwrap statement syntax to the effective expression
+    let expression_id = expression_unwrap_statement(ctx.tree, block.expressions[0]);
     let expression = ctx.tree.get(expression_id);
-    let ast::Expression::Call {
+    let dir::Expression::Call {
         left,
+        static_arguments,
         dynamic_arguments,
-        ..
     } = expression
     else {
         return false;
     };
-    let left_id = expression_unwrap_parenthesized_syntax(ctx.tree, *left);
-    let left_expression = ctx.tree.get(left_id);
-    let is_super_callee = matches!(left_expression, ast::Expression::Super)
-        || expression_path_segments(ctx.tree, left_id).is_some_and(|path_segments| {
-            path_segments.len() == 1 && ctx.strings.get(path_segments[0]).as_ref() == "super"
-        });
-    if !is_super_callee {
+    if static_arguments.is_some() {
         return false;
     }
 
-    // require one argument per parameter in source order
+    // require a direct `super(...)` call
+    if !matches!(ctx.tree.get(*left), dir::Expression::Super) {
+        return false;
+    }
+
+    // require one positional or spread argument per parameter in source order
     if parameter_ids.len() != dynamic_arguments.len() {
         return false;
     }
+
     parameter_ids
         .iter()
         .zip(dynamic_arguments.iter())
         .all(|(parameter_id, argument_id)| {
             match (
-                constructor_parameter_name(ctx, *parameter_id),
-                constructor_argument_name(ctx, *argument_id),
+                constructor_parameter_binding(ctx, *parameter_id),
+                constructor_argument_binding(ctx, *argument_id),
             ) {
                 (
-                    Some((parameter_name, parameter_is_variadic)),
-                    Some((argument_name, argument_is_spread)),
-                ) => parameter_name == argument_name && parameter_is_variadic == argument_is_spread,
+                    Some((parameter_symbol, parameter_is_variadic)),
+                    Some((argument_symbol, argument_is_spread)),
+                ) => {
+                    argument_symbol == parameter_symbol.into_global(ctx.module_id())
+                        && parameter_is_variadic == argument_is_spread
+                }
                 _ => false,
             }
         })
 }
 
-/// Return parameter name and variadic flag for simple constructor parameters.
-fn constructor_parameter_name(
-    ctx: &LintModuleAstContext<'_>,
-    parameter_id: ast::LocalNodeId<ast::Parameter>,
-) -> Option<(ast::StringId, bool)> {
+/// Return the simple parameter symbol and variadic flag for one constructor parameter.
+fn constructor_parameter_binding(
+    ctx: &LintModuleDirContext<'_>,
+    parameter_id: dir::LocalNodeId<dir::Parameter>,
+) -> Option<(dir::LocalSymbolId, bool)> {
     let parameter = ctx.tree.get(parameter_id);
     match parameter {
-        ast::Parameter::Named { name, default, .. } if default.is_none() => Some((*name, false)),
-        ast::Parameter::VariadicNamed { name, .. } => Some((*name, true)),
+        dir::Parameter::Named {
+            modifiers: _,
+            name: _,
+            default,
+            symbol,
+        } if default.is_none() => Some((*symbol, false)),
+        dir::Parameter::VariadicNamed {
+            modifiers: _,
+            name: _,
+            symbol,
+        } => Some((*symbol, true)),
         _ => None,
     }
 }
 
-/// Return argument name and spread flag for simple constructor arguments.
-fn constructor_argument_name(
-    ctx: &LintModuleAstContext<'_>,
-    argument_id: ast::LocalNodeId<ast::Argument>,
-) -> Option<(ast::StringId, bool)> {
+/// Return the simple argument symbol and spread flag for one constructor argument.
+fn constructor_argument_binding(
+    ctx: &LintModuleDirContext<'_>,
+    argument_id: dir::LocalNodeId<dir::Argument>,
+) -> Option<(dir::GlobalSymbolId, bool)> {
     let argument = ctx.tree.get(argument_id);
-    let (value_id, is_spread) = match argument {
-        ast::Argument::Positional { value, .. } => (*value, false),
-        ast::Argument::Spread { value, .. } => (*value, true),
-        _ => return None,
+    let (value_expression_id, is_spread) = match argument {
+        dir::Argument::Positional {
+            modifiers: _,
+            value,
+        } => (*value, false),
+        dir::Argument::Spread {
+            modifiers: _,
+            label: _,
+            value,
+        } => (*value, true),
+        dir::Argument::Named {
+            modifiers: _,
+            name: _,
+            value: _,
+        }
+        | dir::Argument::Labeled {
+            modifiers: _,
+            label: _,
+            value: _,
+        } => return None,
     };
 
-    let Some(path_segments) = expression_path_segments(ctx.tree, value_id) else {
-        return None;
-    };
-    if path_segments.len() != 1 {
-        return None;
-    }
-
-    Some((path_segments[0], is_spread))
+    let value_symbol = expression_target_symbol(ctx.tree, value_expression_id)?;
+    Some((value_symbol, is_spread))
 }
 
 /// Return true when one constructor text may contain comments.
@@ -213,30 +287,16 @@ fn contains_comment_token(text: &str) -> bool {
     text.contains("//") || text.contains("/*")
 }
 
-/// Check if a body is empty.
-fn is_empty_body(
-    ctx: &LintModuleAstContext<'_>,
-    body_id: ast::LocalNodeId<ast::Expression>,
-) -> bool {
-    let body = ctx.tree.get(body_id);
-    match body {
-        ast::Expression::Block(block_id) => {
-            let block = ctx.tree.get(*block_id);
-            block.expressions.is_empty()
-        }
-        _ => false,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::linter::TestProgram;
 
+    /// Flag empty constructors.
     #[test]
     fn test_detects_empty_constructor() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_useless_constructor/test_detects_empty_constructor.ds",
             r#"
 class Foo {
@@ -249,10 +309,11 @@ class Foo {
             .assert_has_fix("no-useless-constructor");
     }
 
+    /// Remove empty constructors when no modifier or comment blocks the edit.
     #[test]
     fn test_fix_removes_empty_constructor() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_useless_constructor/test_fix_removes_empty_constructor.ds",
             r#"
 class Foo {
@@ -278,10 +339,11 @@ class Foo {
             );
     }
 
+    /// Allow constructors that initialize state.
     #[test]
     fn test_allows_constructor_with_initialization() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_useless_constructor/test_allows_constructor_with_initialization.ds",
             r#"
 class Foo {
@@ -294,10 +356,11 @@ class Foo {
         test.result(result).assert_no_lint("no-useless-constructor");
     }
 
+    /// Allow empty constructors that still declare parameters.
     #[test]
     fn test_allows_constructor_with_params() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_useless_constructor/test_allows_constructor_with_params.ds",
             r#"
 class Foo {
@@ -308,10 +371,11 @@ class Foo {
         test.result(result).assert_no_lint("no-useless-constructor");
     }
 
+    /// Allow private empty constructors.
     #[test]
     fn test_allows_private_empty_constructor() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_useless_constructor/test_allows_private_empty_constructor.ds",
             r#"
 class Foo {
@@ -322,10 +386,11 @@ class Foo {
         test.result(result).assert_no_lint("no-useless-constructor");
     }
 
+    /// Allow protected empty constructors.
     #[test]
     fn test_allows_protected_empty_constructor() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_useless_constructor/test_allows_protected_empty_constructor.ds",
             r#"
 class Foo {
@@ -336,10 +401,11 @@ class Foo {
         test.result(result).assert_no_lint("no-useless-constructor");
     }
 
+    /// Report public constructors without fixes when modifiers are present.
     #[test]
     fn test_reports_public_empty_constructor_without_fix() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_useless_constructor/test_reports_public_empty_constructor_without_fix.ds",
             r#"
 class Foo {
@@ -352,10 +418,28 @@ class Foo {
             .assert_has_no_fix("no-useless-constructor");
     }
 
+    /// Allow public constructors on subclasses, matching TS-ESLint semantics.
+    #[test]
+    fn test_allows_public_empty_constructor_on_subclass() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
+        let result = test.lint_dir(
+            "no_useless_constructor/test_allows_public_empty_constructor_on_subclass.ds",
+            r#"
+class Foo extends Base {
+    public constructor() {
+        super()
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-useless-constructor");
+    }
+
+    /// Keep comment carrying constructors out of autofix.
     #[test]
     fn test_reports_commented_empty_constructor_without_fix() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_useless_constructor/test_reports_commented_empty_constructor_without_fix.ds",
             r#"
 class Foo {
@@ -370,12 +454,15 @@ class Foo {
             .assert_has_no_fix("no-useless-constructor");
     }
 
+    /// Flag redundant super passthrough constructors.
     #[test]
     fn test_detects_redundant_super_passthrough_constructor() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_useless_constructor/test_detects_redundant_super_passthrough_constructor.ds",
             r#"
+class Base {}
+
 class Foo extends Base {
     constructor(x: int32, y: string) {
         super(x, y);
@@ -386,12 +473,15 @@ class Foo extends Base {
         test.result(result).assert_lint("no-useless-constructor");
     }
 
+    /// Allow super constructors when arguments change.
     #[test]
     fn test_allows_super_constructor_when_arguments_change() {
         let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_useless_constructor/test_allows_super_constructor_when_arguments_change.ds",
             r#"
+class Base {}
+
 class Foo extends Base {
     constructor(x: int32) {
         super(x + 1);

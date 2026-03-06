@@ -6,8 +6,8 @@ use destack_ast::{
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_starts_nested_declaration_scope, match_case_selector, match_selector_is_default,
-    parameter_default_expression_id, pattern_field_default_expression_id,
+    expression_starts_nested_declaration_scope, parameter_default_expression_id,
+    pattern_field_default_expression_id,
 };
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
@@ -263,11 +263,7 @@ fn match_case_complexity(
         return cases
             .iter()
             .copied()
-            .filter(|case_id| {
-                let case = tree.get(*case_id);
-                let selector = match_case_selector(case);
-                !match_selector_is_default(selector)
-            })
+            .filter(|case_id| !tree.get(*case_id).selector().is_default())
             .count();
     }
 

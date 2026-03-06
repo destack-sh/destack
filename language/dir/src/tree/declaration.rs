@@ -221,6 +221,22 @@ impl Declaration {
         }
     }
 
+    /// Get the heritage block for declarations that carry one.
+    pub fn heritage(&self) -> Option<&Heritage> {
+        match self {
+            Declaration::Struct { heritage, .. }
+            | Declaration::Class { heritage, .. }
+            | Declaration::Enum { heritage, .. }
+            | Declaration::Interface { heritage, .. }
+            | Declaration::Extension { heritage, .. } => Some(heritage),
+            Declaration::Global { .. }
+            | Declaration::Namespace { .. }
+            | Declaration::Type { .. }
+            | Declaration::ImportAlias { .. }
+            | Declaration::Function { .. } => None,
+        }
+    }
+
     /// Get the static parameters of the declaration.
     #[inline]
     pub fn static_parameters(&self) -> Option<&Vec<LocalNodeId<Parameter>>> {

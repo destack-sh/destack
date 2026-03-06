@@ -1154,6 +1154,41 @@ pub enum MatchSelector {
     Default,
 }
 
+impl MatchSelector {
+    /// Return true when this selector is the default arm.
+    pub fn is_default(&self) -> bool {
+        matches!(self, Self::Default)
+    }
+
+    /// Return true when this selector has a guard expression.
+    pub fn has_guard(&self) -> bool {
+        matches!(self, Self::Pattern { guard: Some(_), .. })
+    }
+
+    /// Return the pattern id for pattern selectors.
+    pub fn pattern_id(&self) -> Option<LocalNodeId<Pattern>> {
+        match self {
+            Self::Pattern { pattern, guard: _ } => Some(*pattern),
+            Self::Default => None,
+        }
+    }
+
+    /// Return the guard expression id for pattern selectors.
+    pub fn guard_expression_id(&self) -> Option<LocalNodeId<Expression>> {
+        match self {
+            Self::Pattern {
+                pattern: _,
+                guard: Some(guard_id),
+            } => Some(*guard_id),
+            Self::Pattern {
+                pattern: _,
+                guard: None,
+            }
+            | Self::Default => None,
+        }
+    }
+}
+
 /// A MatchCase is a match case inside a Match expression.
 ///
 /// Examples:
@@ -1176,6 +1211,15 @@ pub enum MatchCase {
         selector: MatchSelector,
         body: LocalNodeId<Block>,
     },
+}
+
+impl MatchCase {
+    /// Return the selector for this match case.
+    pub fn selector(&self) -> &MatchSelector {
+        match self {
+            Self::Expression { selector, body: _ } | Self::Block { selector, body: _ } => selector,
+        }
+    }
 }
 
 impl Node for MatchCase {

@@ -2,8 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    ExpressionDuplicateTracker, expression_numeric_value, match_case_selector,
-    match_selector_expression_id,
+    ExpressionDuplicateTracker, expression_numeric_value, match_selector_expression_id,
 };
 use crate::{
     ConstValue, LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint,
@@ -56,8 +55,7 @@ impl LintRule for NoDuplicateCase {
             let mut seen_number_values: Vec<f64> = Vec::new();
             for case_id in cases {
                 let case = ctx.tree.get(*case_id);
-                let selector = match_case_selector(case);
-                let Some(expr_id) = match_selector_expression_id(ctx, selector) else {
+                let Some(expr_id) = match_selector_expression_id(ctx, case.selector()) else {
                     continue;
                 };
 

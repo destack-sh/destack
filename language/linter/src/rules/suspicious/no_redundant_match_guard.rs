@@ -2,10 +2,7 @@ use destack_ast as ast;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{
-    match_case_selector, match_selector_guard_expression_id, match_selector_pattern_id,
-    span_has_comment_trivia,
-};
+use crate::rules::common::span_has_comment_trivia;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -41,11 +38,11 @@ impl LintRule for NoRedundantMatchGuard {
 
         for node_id in ctx.tree.iter_nodes::<ast::MatchCase>() {
             let match_case = ctx.tree.get(node_id);
-            let selector = match_case_selector(match_case);
-            let Some(pattern_id) = match_selector_pattern_id(selector) else {
+            let selector = match_case.selector();
+            let Some(pattern_id) = selector.pattern_id() else {
                 continue;
             };
-            let Some(guard_id) = match_selector_guard_expression_id(selector) else {
+            let Some(guard_id) = selector.guard_expression_id() else {
                 continue;
             };
 

@@ -190,6 +190,20 @@ pub enum FilenameCase {
     Pascal,
 }
 
+/// Return-await mode for the `return-await` rule.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum ReturnAwaitMode {
+    /// Require await only in error handling contexts and forbid it elsewhere.
+    #[default]
+    InTryCatch,
+    /// Require await only in error handling contexts and do not enforce elsewhere.
+    ErrorHandlingCorrectnessOnly,
+    /// Require await in all contexts.
+    Always,
+    /// Forbid await in all contexts.
+    Never,
+}
+
 /// Module boundary lint options for module boundary aware rules.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LintModuleBoundariesOptions {
@@ -269,6 +283,10 @@ pub struct LinterOptions {
     pub check_misused_promises_in_callbacks: bool,
     /// Check conditionals in `no-misused-promises`.
     pub check_misused_promises_in_conditionals: bool,
+    /// Ignore explicit `void` wrappers in `no-confusing-void-expression`.
+    pub no_confusing_void_expression_ignore_void_operator: bool,
+    /// Await policy for the `return-await` rule.
+    pub return_await_mode: ReturnAwaitMode,
     /// Parameter name prefixes ignored by `no-unused-parameters`.
     pub ignored_unused_parameter_prefixes: Vec<String>,
 
@@ -287,6 +305,10 @@ pub struct LinterOptions {
     pub max_static_params: usize,
     /// Maximum lines per file.
     pub max_lines: usize,
+    /// Ignore full-line comments in `max-lines`.
+    pub max_lines_skip_comments: bool,
+    /// Ignore blank lines in `max-lines`.
+    pub max_lines_skip_blank_lines: bool,
     /// Maximum lines per function.
     pub max_lines_per_function: usize,
     /// Maximum callback nesting.
@@ -316,6 +338,8 @@ pub struct LinterOptions {
     pub min_duplicate_code_near_similarity: u8,
     /// Maximum statements in a try block.
     pub max_try_block_statements: usize,
+    /// Ignore non-declaration chains in `no-multi-assign`.
+    pub no_multi_assign_ignore_non_declaration: bool,
 
     // style options
     /// Preferred array type syntax.
@@ -326,12 +350,30 @@ pub struct LinterOptions {
     pub catch_error_name: String,
     /// Required filename case style.
     pub filename_case: FilenameCase,
+    /// Allow empty interfaces that extend exactly one supertype.
+    pub allow_single_extends_empty_interface: bool,
     /// Allowed uppercase keyword prefixes for inline comments.
     pub comment_keywords: Vec<String>,
     /// Allowed tags for keyword comments.
     pub comment_keyword_tags: Vec<String>,
     /// Minimum non empty lines required for separator heading comments.
     pub comment_separator_heading_min_lines: usize,
+    /// Allow named callbacks in `prefer-arrow-callback`.
+    pub allow_named_functions_in_prefer_arrow_callback: bool,
+    /// Allow unbound `this` in `prefer-arrow-callback`.
+    pub allow_unbound_this_in_prefer_arrow_callback: bool,
+    /// Prefer top-level `import type` in `consistent-type-imports`.
+    pub consistent_type_imports_prefer_type_imports: bool,
+    /// Prefer inline `type` specifiers in `consistent-type-imports`.
+    pub consistent_type_imports_prefer_inline_type_imports: bool,
+    /// Disallow `import("...")` type annotations in `consistent-type-imports`.
+    pub consistent_type_imports_disallow_type_annotations: bool,
+    /// Ignore conditional test positions in `prefer-nullish-coalescing`.
+    pub ignore_conditional_tests_in_prefer_nullish_coalescing: bool,
+    /// Ignore mixed logical expressions in `prefer-nullish-coalescing`.
+    pub ignore_mixed_logical_expressions_in_prefer_nullish_coalescing: bool,
+    /// Ignore ternary checks in `prefer-nullish-coalescing`.
+    pub ignore_ternary_tests_in_prefer_nullish_coalescing: bool,
 
     // restriction options
     /// Magic numbers to allow.
@@ -357,6 +399,8 @@ impl Default for LinterOptions {
             allow_void_discard: true,
             check_misused_promises_in_callbacks: true,
             check_misused_promises_in_conditionals: true,
+            no_confusing_void_expression_ignore_void_operator: false,
+            return_await_mode: ReturnAwaitMode::default(),
             ignored_unused_parameter_prefixes: vec!["_".to_string()],
             // complexity
             max_booleans: 3,
@@ -366,6 +410,8 @@ impl Default for LinterOptions {
             max_depth: 4,
             max_static_params: 4,
             max_lines: 500,
+            max_lines_skip_comments: false,
+            max_lines_skip_blank_lines: false,
             max_lines_per_function: 50,
             max_nested_callbacks: 4,
             max_params: 4,
@@ -380,11 +426,13 @@ impl Default for LinterOptions {
             min_duplicate_code_tokens: 32,
             min_duplicate_code_near_similarity: 100,
             max_try_block_statements: 20,
+            no_multi_assign_ignore_non_declaration: false,
             // style
             array_type: ArrayTypeStyle::default(),
             type_definition_style: TypeDefinitionStyle::default(),
             catch_error_name: "error".to_string(),
             filename_case: FilenameCase::default(),
+            allow_single_extends_empty_interface: false,
             comment_keywords: vec!["NOTE".to_string(), "TODO".to_string(), "FUGU".to_string()],
             comment_keyword_tags: vec![
                 "#Performance".to_string(),
@@ -397,6 +445,14 @@ impl Default for LinterOptions {
                 "#Architecture".to_string(),
             ],
             comment_separator_heading_min_lines: 3,
+            allow_named_functions_in_prefer_arrow_callback: false,
+            allow_unbound_this_in_prefer_arrow_callback: true,
+            consistent_type_imports_prefer_type_imports: true,
+            consistent_type_imports_prefer_inline_type_imports: false,
+            consistent_type_imports_disallow_type_annotations: true,
+            ignore_conditional_tests_in_prefer_nullish_coalescing: true,
+            ignore_mixed_logical_expressions_in_prefer_nullish_coalescing: false,
+            ignore_ternary_tests_in_prefer_nullish_coalescing: false,
             // restriction
             allowed_magic_numbers: vec![-1.0, 0.0, 1.0, 2.0],
             restricted_globals: Vec::new(),
@@ -612,6 +668,10 @@ pub struct DsConfigLinterJson {
     pub max_depth: Option<usize>,
     /// Maximum lines per file.
     pub max_lines: Option<usize>,
+    /// Ignore full-line comments in `max-lines`.
+    pub max_lines_skip_comments: Option<bool>,
+    /// Ignore blank lines in `max-lines`.
+    pub max_lines_skip_blank_lines: Option<bool>,
     /// Maximum lines per function.
     pub max_lines_per_function: Option<usize>,
     /// Maximum callback nesting.
@@ -634,6 +694,8 @@ pub struct DsConfigLinterJson {
     pub max_duplicate_string_occurrences: Option<usize>,
     /// Maximum statements in a try block.
     pub max_try_block_statements: Option<usize>,
+    /// Ignore non-declaration chains in `no-multi-assign`.
+    pub no_multi_assign_ignore_non_declaration: Option<bool>,
 
     // style options
     /// Preferred array type syntax: "array" or "generic".
@@ -644,6 +706,28 @@ pub struct DsConfigLinterJson {
     pub catch_error_name: Option<String>,
     /// Required filename case style.
     pub filename_case: Option<FilenameCaseJson>,
+    /// Allow empty interfaces that extend exactly one supertype.
+    pub allow_single_extends_empty_interface: Option<bool>,
+    /// Await policy for the `return-await` rule.
+    pub return_await_mode: Option<ReturnAwaitModeJson>,
+    /// Allow named callbacks in `prefer-arrow-callback`.
+    pub allow_named_functions_in_prefer_arrow_callback: Option<bool>,
+    /// Allow unbound `this` in `prefer-arrow-callback`.
+    pub allow_unbound_this_in_prefer_arrow_callback: Option<bool>,
+    /// Ignore explicit `void` wrappers in `no-confusing-void-expression`.
+    pub no_confusing_void_expression_ignore_void_operator: Option<bool>,
+    /// Prefer top-level `import type` in `consistent-type-imports`.
+    pub consistent_type_imports_prefer_type_imports: Option<bool>,
+    /// Prefer inline `type` specifiers in `consistent-type-imports`.
+    pub consistent_type_imports_prefer_inline_type_imports: Option<bool>,
+    /// Disallow `import(\"...\")` type annotations in `consistent-type-imports`.
+    pub consistent_type_imports_disallow_type_annotations: Option<bool>,
+    /// Ignore conditional tests in `prefer-nullish-coalescing`.
+    pub ignore_conditional_tests_in_prefer_nullish_coalescing: Option<bool>,
+    /// Ignore mixed logical expressions in `prefer-nullish-coalescing`.
+    pub ignore_mixed_logical_expressions_in_prefer_nullish_coalescing: Option<bool>,
+    /// Ignore ternary checks in `prefer-nullish-coalescing`.
+    pub ignore_ternary_tests_in_prefer_nullish_coalescing: Option<bool>,
 
     // restriction options
     /// Magic numbers to allow.
@@ -683,6 +767,12 @@ impl DsConfigLinterJson {
         if let Some(max_lines) = self.max_lines {
             options.max_lines = max_lines;
         }
+        if let Some(max_lines_skip_comments) = self.max_lines_skip_comments {
+            options.max_lines_skip_comments = max_lines_skip_comments;
+        }
+        if let Some(max_lines_skip_blank_lines) = self.max_lines_skip_blank_lines {
+            options.max_lines_skip_blank_lines = max_lines_skip_blank_lines;
+        }
         if let Some(max_lines_per_function) = self.max_lines_per_function {
             options.max_lines_per_function = max_lines_per_function;
         }
@@ -716,6 +806,11 @@ impl DsConfigLinterJson {
         if let Some(max_try_block_statements) = self.max_try_block_statements {
             options.max_try_block_statements = max_try_block_statements;
         }
+        if let Some(no_multi_assign_ignore_non_declaration) =
+            self.no_multi_assign_ignore_non_declaration
+        {
+            options.no_multi_assign_ignore_non_declaration = no_multi_assign_ignore_non_declaration;
+        }
 
         // style options
         if let Some(array_type) = self.array_type {
@@ -729,6 +824,68 @@ impl DsConfigLinterJson {
         }
         if let Some(filename_case) = self.filename_case {
             options.filename_case = filename_case.into();
+        }
+        if let Some(allow_single_extends_empty_interface) =
+            self.allow_single_extends_empty_interface
+        {
+            options.allow_single_extends_empty_interface = allow_single_extends_empty_interface;
+        }
+        if let Some(return_await_mode) = self.return_await_mode {
+            options.return_await_mode = return_await_mode.into();
+        }
+        if let Some(allow_named_functions_in_prefer_arrow_callback) =
+            self.allow_named_functions_in_prefer_arrow_callback
+        {
+            options.allow_named_functions_in_prefer_arrow_callback =
+                allow_named_functions_in_prefer_arrow_callback;
+        }
+        if let Some(allow_unbound_this_in_prefer_arrow_callback) =
+            self.allow_unbound_this_in_prefer_arrow_callback
+        {
+            options.allow_unbound_this_in_prefer_arrow_callback =
+                allow_unbound_this_in_prefer_arrow_callback;
+        }
+        if let Some(no_confusing_void_expression_ignore_void_operator) =
+            self.no_confusing_void_expression_ignore_void_operator
+        {
+            options.no_confusing_void_expression_ignore_void_operator =
+                no_confusing_void_expression_ignore_void_operator;
+        }
+        if let Some(consistent_type_imports_prefer_type_imports) =
+            self.consistent_type_imports_prefer_type_imports
+        {
+            options.consistent_type_imports_prefer_type_imports =
+                consistent_type_imports_prefer_type_imports;
+        }
+        if let Some(consistent_type_imports_prefer_inline_type_imports) =
+            self.consistent_type_imports_prefer_inline_type_imports
+        {
+            options.consistent_type_imports_prefer_inline_type_imports =
+                consistent_type_imports_prefer_inline_type_imports;
+        }
+        if let Some(consistent_type_imports_disallow_type_annotations) =
+            self.consistent_type_imports_disallow_type_annotations
+        {
+            options.consistent_type_imports_disallow_type_annotations =
+                consistent_type_imports_disallow_type_annotations;
+        }
+        if let Some(ignore_conditional_tests_in_prefer_nullish_coalescing) =
+            self.ignore_conditional_tests_in_prefer_nullish_coalescing
+        {
+            options.ignore_conditional_tests_in_prefer_nullish_coalescing =
+                ignore_conditional_tests_in_prefer_nullish_coalescing;
+        }
+        if let Some(ignore_mixed_logical_expressions_in_prefer_nullish_coalescing) =
+            self.ignore_mixed_logical_expressions_in_prefer_nullish_coalescing
+        {
+            options.ignore_mixed_logical_expressions_in_prefer_nullish_coalescing =
+                ignore_mixed_logical_expressions_in_prefer_nullish_coalescing;
+        }
+        if let Some(ignore_ternary_tests_in_prefer_nullish_coalescing) =
+            self.ignore_ternary_tests_in_prefer_nullish_coalescing
+        {
+            options.ignore_ternary_tests_in_prefer_nullish_coalescing =
+                ignore_ternary_tests_in_prefer_nullish_coalescing;
         }
 
         // restriction options
@@ -1029,6 +1186,34 @@ impl From<FilenameCaseJson> for FilenameCase {
             FilenameCaseJson::Snake => FilenameCase::Snake,
             FilenameCaseJson::Camel => FilenameCase::Camel,
             FilenameCaseJson::Pascal => FilenameCase::Pascal,
+        }
+    }
+}
+
+/// Return-await mode for linter JSON.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+pub enum ReturnAwaitModeJson {
+    /// Require await only in error handling contexts and forbid it elsewhere.
+    InTryCatch,
+    /// Require await only in error handling contexts and do not enforce elsewhere.
+    ErrorHandlingCorrectnessOnly,
+    /// Require await in all contexts.
+    Always,
+    /// Forbid await in all contexts.
+    Never,
+}
+
+impl From<ReturnAwaitModeJson> for ReturnAwaitMode {
+    fn from(value: ReturnAwaitModeJson) -> Self {
+        match value {
+            ReturnAwaitModeJson::InTryCatch => ReturnAwaitMode::InTryCatch,
+            ReturnAwaitModeJson::ErrorHandlingCorrectnessOnly => {
+                ReturnAwaitMode::ErrorHandlingCorrectnessOnly
+            }
+            ReturnAwaitModeJson::Always => ReturnAwaitMode::Always,
+            ReturnAwaitModeJson::Never => ReturnAwaitMode::Never,
         }
     }
 }
