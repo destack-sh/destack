@@ -26,7 +26,7 @@ ci-lint:
 
 # run app test gate
 ci-tests:
-    just test-ci
+    just commit
 
 # run all blocking app ci gates locally
 ci:
@@ -66,25 +66,24 @@ clean:
 
 # --- test ---
 
-# run quick tests for local development
-test-quick:
+# run quick local app tests
+quick:
     cargo test --release --all-targets {{ test-packages }}
 
-# run blocking ci test gates
-test-ci:
-    just test-quick
+# run blocking app test lanes
+commit:
+    just quick
 
-# run nightly test gates
-test-nightly:
-    just test-ci
+# run deep app test lanes
+nightly:
+    just commit
 
-# run release test gates
-test-release:
-    just test-ci
-
-# run quick tests alias
-test:
-    just test-quick
+# backwards compatibility aliases
+alias test-quick := quick
+alias test-ci := commit
+alias test-nightly := nightly
+alias test-release := nightly
+alias test := quick
 
 # --- schema ---
 

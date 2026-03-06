@@ -189,10 +189,6 @@ jobs:
             language/test/fixtures/parser/conformance/biome
           key: ${{ runner.os }}-language-conformance-${{ hashFiles('language/test/fixtures/parser/conformance/*-fetch.sh') }}
 
-      - name: Install conformance fixtures
-        if: steps.language-conformance-cache.outputs.cache-hit != 'true'
-        run: just language/install-parser-conformance
-
       - name: Cache formatter conformance fixtures
         id: language-formatter-conformance-cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
@@ -202,12 +198,8 @@ jobs:
             language/test/fixtures/formatter/conformance/staging/oxfmt
           key: ${{ runner.os }}-language-formatter-conformance-${{ hashFiles('language/test/fixtures/formatter/conformance/*-fetch.sh') }}
 
-      - name: Install formatter conformance fixtures
-        if: steps.language-formatter-conformance-cache.outputs.cache-hit != 'true'
-        run: just language/install-formatter-conformance
-
       - name: Run language ci tests
-        run: just language/test-ci
+        run: just language/commit
 
   language-resolver-windows:
     name: Language Resolver Windows
@@ -356,8 +348,8 @@ jobs:
         with:
           install_js_dependencies: "true"
 
-      - name: Run library ci tests
-        run: just library/test-ci
+      - name: Run library commit tests
+        run: just library/commit
 
   service-app-bridge-format:
     name: Service App Bridge Format
@@ -431,14 +423,14 @@ jobs:
       - name: Ensure language bridge toolchains
         run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just bridge/toolchain-ensure
 
-      - name: Run service ci tests
-        run: just service/test-ci
+      - name: Run service commit tests
+        run: just service/commit
 
-      - name: Run app ci tests
-        run: just app/test-ci
+      - name: Run app commit tests
+        run: just app/commit
 
-      - name: Run bridge ci tests
-        run: just bridge/test-ci
+      - name: Run bridge commit tests
+        run: just bridge/commit
 
   bridge-swift-build:
     name: Bridge Swift Build

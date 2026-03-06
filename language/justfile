@@ -25,13 +25,12 @@ ci-install:
 
 # run language test gates used in ci
 ci-tests:
-    just test-ci
+    just commit
 
 # run all blocking language ci gates locally
 ci:
     just ci-format
     just ci-lint
-    just ci-install
     just ci-tests
 
 # --- setup ---
@@ -84,16 +83,16 @@ install-resolver:
 
     # install pnpm fixture dependencies
     if [ -f "$FIXTURES_DIR/pnpm/package.json" ]; then
-        (cd "$FIXTURES_DIR/pnpm" && pnpm install --ignore-workspace)
+        (cd "$FIXTURES_DIR/pnpm" && CI=1 pnpm install --ignore-workspace)
     fi
     if [ -f "$FIXTURES_DIR/pnpm-workspace/package.json" ]; then
-        (cd "$FIXTURES_DIR/pnpm-workspace" && pnpm install)
+        (cd "$FIXTURES_DIR/pnpm-workspace" && CI=1 pnpm install)
     fi
 
     # install yarn fixture dependencies
     for dir in "$FIXTURES_DIR/yarn" "$FIXTURES_DIR/global-pnp" "$FIXTURES_DIR/pnp"; do
         if [ -f "$dir/package.json" ]; then
-            (cd "$dir" && corepack yarn install)
+            (cd "$dir" && CI=1 corepack yarn install)
         fi
     done
 
@@ -347,45 +346,51 @@ generate-builtin-libs:
 
 # --- test ---
 
-# run quick tests for local development
-test-quick:
-    cargo test --release -p destack_parser --lib
+# run all language crate unit tests
+test-unit:
+    cargo test --release --lib {{ packages-no-linter }}
+    cargo test --release --lib -p destack_linter -- --test-threads={{ linter-test-threads }}
+
+# run quick local language tests
+quick:
+    just install-resolver
+    just test-unit
     just test-smoke
+    just test-codegen
     just test-specification
     just test-query
     just test-formatter
-
-# run blocking ci test gates
-test-ci:
-    just test-quick
-    just test-grammar-mir
-    just test-grammar-specification-sweep-positive
-    just test-grammar-overlay
-    just test-grammar-corpus-routing
-    just test-grammar-destack-node-coverage
+    just test-grammar-all
+    just install-parser-conformance
+    just install-formatter-conformance
     just test-parser-conformance
-    just generate-stress
-    just test-stress
     just test-formatter-conformance
 
-# run full language test sweep for nightly
-test-nightly:
-    just generate-stress
-    just test-all
-    just test-grammar-all
+# run blocking language test lanes
+commit:
+    just quick
 
-# run release test gates
-test-release:
-    just test-ci
+# run full language nightly lane
+nightly:
+    just commit
+    just ecosystem-fetch
+    just generate-stress
+    just test-ecosystem
+    just test-stress
+
+# backwards compatibility aliases
+alias test-quick := quick
+alias test-ci := commit
+alias test-nightly := nightly
+alias test-release := nightly
 
 # run all crate tests
 test-all:
     cargo test --release --all-targets --no-fail-fast {{ packages-no-linter }}
     cargo test --release --all-targets --no-fail-fast -p destack_linter -- --test-threads={{ linter-test-threads }}
 
-# run quick tests (alias for test-quick)
-test:
-    just test-quick
+# run quick tests
+alias test := quick
 
 # run linter tests with capped rust test threads
 test-linter:

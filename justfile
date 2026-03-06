@@ -66,7 +66,7 @@ ci-bridge:
     just bridge/ci
 
 # run all blocking ci gates locally
-ci:
+commit:
     just check-ci-hygiene
     just ci-language
     just ci-library
@@ -74,9 +74,9 @@ ci:
     just ci-app
     just ci-bridge
 
-# canonical pre commit gate
-precommit:
-    just ci
+# backwards compatibility aliases
+alias ci := commit
+alias precommit := commit
 
 # check everything
 check:
@@ -164,41 +164,28 @@ clean:
 
 # --- test ---
 
-# run quick tests for local development
-test-quick:
-    just language/test-quick
-    just library/test-quick
-    just service/test-quick
-    just app/test-quick
-    just bridge/test-quick
+# run quick local test lanes
+quick:
+    just language/quick
+    just library/quick
+    just service/quick
+    just app/quick
+    just bridge/quick
 
-# run blocking ci test gates
-test-ci:
-    just language/test-ci
-    just library/test-ci
-    just service/test-ci
-    just app/test-ci
-    just bridge/test-ci
+# run deep nightly test lanes
+nightly:
+    just language/nightly
+    just library/nightly
+    just service/nightly
+    just app/nightly
+    just bridge/nightly
 
-# run nightly test gates
-test-nightly:
-    just language/test-nightly
-    just library/test-nightly
-    just service/test-nightly
-    just app/test-nightly
-    just bridge/test-nightly
-
-# run release test gates
-test-release:
-    just language/test-release
-    just library/test-release
-    just service/test-release
-    just app/test-release
-    just bridge/test-release
-
-# run quick tests (alias for test-quick)
-test:
-    just test-quick
+# backwards compatibility aliases
+alias test-quick := quick
+alias test-ci := commit
+alias test-nightly := nightly
+alias test-release := nightly
+alias test := quick
 
 # run ide integration tests
 test-ide:

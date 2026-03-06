@@ -61,10 +61,6 @@ jobs:
             language/test/fixtures/parser/conformance/biome
           key: ${{ runner.os }}-language-conformance-${{ hashFiles('language/test/fixtures/parser/conformance/*-fetch.sh') }}
 
-      - name: Install conformance fixtures
-        if: steps.language-conformance-cache.outputs.cache-hit != 'true'
-        run: just language/install-parser-conformance
-
       - name: Cache formatter conformance fixtures
         id: language-formatter-conformance-cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
@@ -74,12 +70,8 @@ jobs:
             language/test/fixtures/formatter/conformance/staging/oxfmt
           key: ${{ runner.os }}-language-formatter-conformance-${{ hashFiles('language/test/fixtures/formatter/conformance/*-fetch.sh') }}
 
-      - name: Install formatter conformance fixtures
-        if: steps.language-formatter-conformance-cache.outputs.cache-hit != 'true'
-        run: just language/install-formatter-conformance
-
-      - name: Run language release tests
-        run: just language/test-release
+      - name: Run language nightly tests
+        run: just language/nightly
 
       - name: Ensure language bridge toolchains
         run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just bridge/toolchain-ensure
@@ -90,8 +82,8 @@ jobs:
       - name: Run library lint
         run: just library/ci-lint
 
-      - name: Run library release tests
-        run: just library/test-release
+      - name: Run library nightly tests
+        run: just library/nightly
 
       - name: Run service format check
         run: just service/ci-format
@@ -111,14 +103,14 @@ jobs:
       - name: Run bridge lint
         run: just bridge/ci-lint
 
-      - name: Run service release tests
-        run: just service/test-release
+      - name: Run service nightly tests
+        run: just service/nightly
 
-      - name: Run app release tests
-        run: just app/test-release
+      - name: Run app nightly tests
+        run: just app/nightly
 
-      - name: Run bridge release tests
-        run: just bridge/test-release
+      - name: Run bridge nightly tests
+        run: just bridge/nightly
 
   runtime-android:
     name: Runtime Android
