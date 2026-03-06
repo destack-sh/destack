@@ -91,9 +91,10 @@ To get started using Destack, despite our best warnings:
 ## Some Questions You Should be Asking
 
 Destack is pretty weird and quite unlike how software development has traditionally worked, with its own new _experimental_ way of thinking about the processes of programming. 
-If you have gotten this far through reading the README, you probably have some, all of, or - maybe, most curiously - none of the following questions:
+If you have gotten this far through reading the README, you probably have some, all of, or - maybe most curiously - none of the following questions:
 
-1. **What even _is_ Destack? Is it a TypeScript dialect (like TSX), a new JS family language (like Rescript), a JavaScript runtime (like V8), a new Node runtime (like Deno), some NPM library (like vitest), a service, an app, a CLI, ...?** 
+1. **What even _is_ Destack? Is it a TypeScript dialect (like TSX), a JS family language (like Rescript), a JavaScript runtime (like V8), a Node runtime (like Deno), an NPM library (like vitest), a service (like PostHog), an app (like Notion), ...?** 
+All of it, none of it.
 Mechanically, Destack _is_ a ~TSX-like language and toolchain with a VM, AOT compiler, Node-like runtime, formatter, linter, rich standard libraries, and a set of common services and apps. 
 Conceptually, Destack is a new kind of thing: a fully integrated computing stack, a software factory toolkit: a Destack.
 
