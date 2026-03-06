@@ -9,12 +9,6 @@ use crate::runtime::replay::log::{ReplayLogState, compute_log_hash};
 
 use super::chunk::ReplayChunk;
 
-/// Replay reader interface for deterministic replay.
-pub trait ReplayReader {
-    /// Read the next event in the replay log.
-    fn next_event(&mut self) -> RuntimeResult<Option<ReplayEvent>>;
-}
-
 /// Replay reader cursor state.
 #[derive(Debug, Clone, Copy)]
 struct ReplayCursor {
@@ -78,7 +72,7 @@ impl ReplayLogReader {
     }
 
     /// Read the next recorded event if available.
-    pub fn next_event(&self) -> RuntimeResult<Option<ReplayEvent>> {
+    pub(crate) fn next_event(&self) -> RuntimeResult<Option<ReplayEvent>> {
         if let Some(expected) = self.trailer_hash
             && expected != self.log_hash
         {
@@ -141,12 +135,6 @@ impl ReplayLogReader {
         }
 
         Ok(None)
-    }
-}
-
-impl ReplayReader for ReplayLogReader {
-    fn next_event(&mut self) -> RuntimeResult<Option<ReplayEvent>> {
-        ReplayLogReader::next_event(self)
     }
 }
 

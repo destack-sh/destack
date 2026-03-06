@@ -11,6 +11,7 @@ use crate::runtime::bindings::{
 use crate::runtime::policy::{Effect, Rule, RuleId};
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::replay::{EntropyKind, EntropySubject, Replay, ReplayError, ReplayHeader};
+use crate::runtime::time::WorldInstant;
 use crate::runtime::world::{
     RuntimeId, WorldCommand, WorldEntity, WorldEntityKind, WorldEntityKindDefinition,
     WorldResource, WorldResourceId,
@@ -465,4 +466,67 @@ fn test_record_replay_resource_world_command() {
         .next_event()
         .expect("read trailing replay event");
     assert!(trailing.is_none());
+}
+
+/// Runtime tick advances replay in the same order they were recorded.
+#[test]
+fn test_record_replay_tick() {
+    // record one virtual time advance
+    let record_state = Replay::new(ExecutionMode::Record, ReplayHeader::default());
+    record_state
+        .record_tick(WorldInstant::new(123_456))
+        .expect("record tick");
+
+    // replay the same virtual time advance
+    let replay_state = Replay::from_log(ExecutionMode::Replay, record_state.log().clone());
+    let replayed = replay_state.next_tick().expect("replay tick");
+
+    // verify the replayed tick matches
+    assert_eq!(replayed, WorldInstant::new(123_456));
+}
+
+/// Replay tick resolution rejects mismatched deadlines.
+#[test]
+fn test_resolve_tick_rejects_mismatch() {
+    // record one virtual time advance
+    let record_state = Replay::new(ExecutionMode::Record, ReplayHeader::default());
+    record_state
+        .record_tick(WorldInstant::new(123_456))
+        .expect("record tick");
+
+    // replaying with a different deadline must fail loudly
+    let replay_state = Replay::from_log(ExecutionMode::Replay, record_state.log().clone());
+    let error = replay_state
+        .resolve_tick(WorldInstant::new(123_457))
+        .expect_err("tick mismatch should fail");
+    assert!(
+        error.message().contains("tick"),
+        "tick mismatch should identify the replay channel"
+    );
+}
+
+/// Replay rejects ticks that move virtual time backwards.
+#[test]
+fn test_replay_rejects_backward_tick() {
+    // record one forward tick and one backward tick in one log
+    let record_state = Replay::new(ExecutionMode::Record, ReplayHeader::default());
+    record_state
+        .record_tick(WorldInstant::new(50))
+        .expect("record tick");
+    record_state
+        .record_tick(WorldInstant::new(40))
+        .expect("record tick");
+
+    // replay should reject the backward move on the second tick
+    let replay_state = Replay::from_log(ExecutionMode::Replay, record_state.log().clone());
+    let _ = replay_state.next_tick().expect("first tick should replay");
+    let error = replay_state
+        .next_tick()
+        .expect_err("backward tick should fail");
+
+    // verify validator reports a tick mismatch
+    assert!(
+        error.message().contains("tick"),
+        "backward ticks should fail on the tick channel"
+    );
 }
