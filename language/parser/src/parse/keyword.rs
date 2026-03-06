@@ -31,11 +31,17 @@ impl Parser {
         self.keyword_is_at(pos, keyword)
     }
 
+    /// Return the keyword after any leading newlines.
+    #[inline]
+    pub fn keyword_after_newlines(&mut self) -> Option<Keyword> {
+        let cursor = self.scanner_cursor_from(self.pos_index());
+        self.keyword_for_index(cursor.index)
+    }
+
     /// Return true when the token after any leading newlines is the given keyword.
     #[inline]
     pub fn is_keyword_after_newlines(&mut self, keyword: Keyword) -> bool {
-        let cursor = self.current_scanner_cursor();
-        self.keyword_is_at(cursor.index, keyword)
+        self.keyword_after_newlines() == Some(keyword)
     }
 
     /// Peek a keyword.
@@ -92,18 +98,9 @@ impl Parser {
     /// Peek a keyword after any newlines.
     #[inline]
     pub fn peek_keyword_after_newlines(&mut self, keyword: Keyword) -> ParseResult<&TokenSpan> {
-        let pos = self.pos_index();
-        self.ensure_token(pos);
-        let pos = if self
-            .tokens()
-            .get(pos)
-            .is_some_and(|token| token.token.ty != TokenType::Newline)
-        {
-            pos
-        } else {
-            self.next_non_newline_index_from_stream(pos)
-        };
-        let matches_keyword = self.is_keyword_after_newlines(keyword);
+        let cursor = self.scanner_cursor_from(self.pos_index());
+        let pos = cursor.index;
+        let matches_keyword = self.keyword_for_index(pos) == Some(keyword);
         let eof_span = self.eof_span();
         let current = self
             .token_ref_at(pos)
