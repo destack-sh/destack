@@ -39,6 +39,9 @@ impl TemporaryPhysicalFileSystem {
         let root = env::temp_dir().join(name);
         PhysicalFileSystem.create_dir_all(&root)?;
 
+        // store one canonical root so all generated paths use one stable form
+        let root = PhysicalFileSystem.canonicalize(&root).unwrap_or(root);
+
         // keep temp roots for debugging when requested
         let keep_on_drop = should_keep_temp_root();
 
