@@ -30,7 +30,7 @@ if [ "$#" -gt 0 ]; then
 fi
 
 if [ "${skip_audio_tests}" = "1" ]; then
-    extra_test_arguments+=("--skip" "platform::audio::tests::")
+	extra_test_arguments+=("--skip" "platform::audio::tests::")
 fi
 
 # ensure target std is available before cargo test

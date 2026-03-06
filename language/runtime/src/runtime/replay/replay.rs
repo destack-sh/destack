@@ -30,10 +30,7 @@ pub struct Replay {
 
 impl Replay {
     /// Create replay state with an explicit execution mode.
-    pub fn new(
-        mode: ExecutionMode,
-        header: ReplayHeader,
-    ) -> Self {
+    pub fn new(mode: ExecutionMode, header: ReplayHeader) -> Self {
         Self::from_log(mode, ReplayLog::new(header))
     }
 
@@ -381,9 +378,6 @@ impl Replay {
 
 impl Default for Replay {
     fn default() -> Self {
-        Self::new(
-            ExecutionMode::Fast,
-            ReplayHeader::default(),
-        )
+        Self::new(ExecutionMode::Fast, ReplayHeader::default())
     }
 }
