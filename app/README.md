@@ -1,6 +1,6 @@
 # App
 
-Destack first-party applications, developer, and operator tools.
+First-party applications and programmer tools.
 
 ## Components
 
