@@ -15,31 +15,31 @@ use super::assert::compare_directory;
 use super::discover::{SOURCE_EXTENSIONS, discover_source_files};
 
 #[derive(Debug, Clone, Copy, Default)]
-pub struct CodegenSuite;
+pub struct EmitSuite;
 
-impl Suite for CodegenSuite {
+impl Suite for EmitSuite {
     fn name(&self) -> &'static str {
-        "codegen"
+        "emit"
     }
 
     fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
-        let codegen_directory = fixtures_dir().join("codegen");
-        discover_test_directories(&codegen_directory, "destack_test::codegen")
+        let emit_directory = fixtures_dir().join("emit");
+        discover_test_directories(&emit_directory, "destack_test::emit")
             .expect("failed to discover tests")
     }
 
     fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
-        run_codegen_case(case)
+        run_emit_case(case)
     }
 }
 
-/// Run all codegen tests.
-pub fn run_codegen_tests(options: &TestOptions) -> std::process::ExitCode {
-    Runner::run_suite(&CodegenSuite, options)
+/// Run all emit tests.
+pub fn run_emit_tests(options: &TestOptions) -> std::process::ExitCode {
+    Runner::run_suite(&EmitSuite, options)
 }
 
-/// Run a single codegen test.
-fn run_codegen_case(test: &TestCase) -> TestResult {
+/// Run a single emit test.
+fn run_emit_case(test: &TestCase) -> TestResult {
     // parse dsconfig.json to get targets
     let dsconfig_path = test.path.join("dsconfig.json");
     let dsconfig = match load_dsconfig(&dsconfig_path) {

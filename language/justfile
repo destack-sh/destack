@@ -356,7 +356,7 @@ quick:
     just install-resolver
     just test-unit
     just test-smoke
-    just test-codegen
+    just test-emit
     just test-specification
     just test-query
     just test-formatter
@@ -400,9 +400,9 @@ test-linter:
 test-smoke:
     cargo test --release -p destack_test --test smoke
 
-# run codegen tests
-test-codegen:
-    cargo test --release -p destack_test --test codegen
+# run emit tests
+test-emit:
+    cargo test --release -p destack_test --test emit
 
 # run mdtest suites (specification + query)
 test-mdtest:
