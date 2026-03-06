@@ -10,6 +10,19 @@ test-packages := "-p destack_cli"
 _default:
     @just --list --unsorted
 
+# keep rust test concurrency on one repo wide knob when configured
+_run-rust-test *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"
+
+    if [ -n "${test_threads}" ]; then
+        export RUST_TEST_THREADS="${test_threads}"
+    fi
+
+    cargo test {{args}}
+
 # --- build ---
 
 # check app crates
@@ -39,7 +52,7 @@ clean:
 
 # run app tests
 test:
-    cargo test --release --all-targets {{ test-packages }}
+    just _run-rust-test --release --all-targets {{ test-packages }}
 
 # run the fast app gate
 quick:

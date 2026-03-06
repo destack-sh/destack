@@ -10,6 +10,10 @@ Because of the breadth and depth of the project, testing is non-trivial, and som
 | **Quick** | Fast, deterministic confidence for normal development and pull requests | `just quick` | Pull request and `main` push verification, split across `CI Hygiene`, scoped `format-check`, scoped `check`, scoped `test`, and tiered runtime jobs |
 | **Full** | Deep verification for broad local validation and release depth | `just full` | Nightly integration, release verification, and release blocking runtime smoke lanes |
 
+When you need to tune test concurrency, set `DESTACK_TEST_THREADS`.
+That knob drives Rust `libtest` concurrency and also feeds custom language harness jobs by default.
+Set `DESTACK_TEST_JOBS` only when a custom harness should use a different worker count than Rust `libtest`.
+
 ## Terminology
 
 | Command family | Meaning |
@@ -83,6 +87,10 @@ The scripts below are the backing implementation for target-specific lanes.
 Run these commands from the repository root.
 
 ```bash
+# tune test concurrency when needed
+DESTACK_TEST_THREADS=8 just quick
+DESTACK_TEST_THREADS=4 DESTACK_TEST_JOBS=16 just language/test-parser-conformance
+
 # gates
 just quick
 just full

@@ -10,6 +10,19 @@ test-packages := "-p destack_bridge_core -p destack_capi -p destack_napi -p dest
 _default:
     @just --list --unsorted
 
+# keep rust test concurrency on one repo wide knob when configured
+_run-rust-test *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"
+
+    if [ -n "${test_threads}" ]; then
+        export RUST_TEST_THREADS="${test_threads}"
+    fi
+
+    cargo test {{args}}
+
 # --- setup ---
 
 # install bridge language toolchains for this host
@@ -90,7 +103,7 @@ clean:
 
 # run bridge tests
 test:
-    cargo test --release --all-targets {{ test-packages }}
+    just _run-rust-test --release --all-targets {{ test-packages }}
     bun run --cwd napi test
     bun run --cwd wasm test
     bun run --cwd typescript test
@@ -120,7 +133,13 @@ test-vscode-bridge:
 
 # test zed extension and shared tree sitter overlays
 test-zed:
-    cd zed && cargo test --release
+    # keep rust test concurrency on the repo wide knob inside zed
+    test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"; \
+    if [ -n "${test_threads}" ]; then \
+        cd zed && RUST_TEST_THREADS="${test_threads}" cargo test --release; \
+    else \
+        cd zed && cargo test --release; \
+    fi
     cd zed && cargo build --target wasm32-wasip2 --release
     bun ../language/grammar/scripts/check-overlay.mjs
 
