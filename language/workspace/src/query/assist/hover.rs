@@ -8,7 +8,7 @@ use crate::format::{
     format_member_hover, format_parameter_hover, format_simple_signature, format_symbol_signature,
 };
 use crate::query::common::{
-    container_name_for_symbol, doc_text_for_node, find_symbol_for_hover_at_offset,
+    container_name_for_symbol, doc_text_for_symbol, find_symbol_for_hover_at_offset,
     get_canonical_symbol, get_dir_node_span,
 };
 
@@ -113,7 +113,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     let profile = session.default_profile_for_module(canonical_id.module_id);
 
     // get documentation for this symbol
-    let documentation = get_symbol_documentation(session, canonical_id);
+    let documentation = doc_text_for_symbol(session, canonical_id);
 
     // try rich signature formatting first (for top level declarations)
     if let Some(formatted) =
@@ -239,54 +239,6 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
             .with_location(location)
             .with_range(range),
     )
-}
-
-/// Get documentation comments for a symbol.
-fn get_symbol_documentation(session: &Session, symbol_id: dir::GlobalSymbolId) -> Option<String> {
-    // resolve the module query context
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
-    let ctx = session.query_context(&module)?;
-
-    // resolve the target symbol
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(symbol_id.local_id);
-
-    // get the primary declaration to find doc comments
-    let declaration_ref = symbol.primary_declaration?;
-    drop(symbols);
-
-    // get the AST node for the declaration
-    let dir_tree = ctx.tree();
-    let ast_node_id = dir_tree.get_source(declaration_ref.local_id.id);
-
-    // try to collect docs on the declaration node first
-    if let Some(doc_text) = doc_text_for_node(ctx.ast, ast_node_id) {
-        return Some(doc_text);
-    }
-
-    // fall back to enclosing nodes when docs are attached to wrapper expressions
-    let declaration_span = ctx.ast.tree.source_map.get_main_or_enclosing(ast_node_id);
-    let mut enclosing = ctx.ast.tree.source_map.get_enclosing_spans(
-        declaration_span.start,
-        declaration_span.end.saturating_sub(1),
-    );
-
-    // sort so the innermost nodes are checked first
-    enclosing.sort_by_key(|span| span.length);
-
-    // walk enclosing spans until documentation is found
-    for span in enclosing {
-        if span.idx == ast_node_id {
-            continue;
-        }
-
-        if let Some(doc_text) = doc_text_for_node(ctx.ast, span.idx) {
-            return Some(doc_text);
-        }
-    }
-
-    None
 }
 
 /// Resolve a type string for a hover target when available.

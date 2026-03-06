@@ -218,6 +218,8 @@ pub struct DestackLanguageServer {
     mutation_idle_notify: Arc<Notify>,
     /// The open documents.
     open_documents: DashMap<String, OpenDocument>,
+    /// Closed document versions used to suppress stale overlay diagnostics after close.
+    closed_document_versions: Arc<DashMap<String, i32>>,
     /// Cached semantic tokens per document.
     semantic_tokens_cache: DashMap<String, SemanticTokensCache>,
     /// Monotonic counter for semantic token result ids.
@@ -262,6 +264,7 @@ impl DestackLanguageServer {
             completed_mutation_sequence: Arc::new(AtomicU64::new(0)),
             mutation_idle_notify: Arc::new(Notify::new()),
             open_documents: DashMap::new(),
+            closed_document_versions: Arc::new(DashMap::new()),
             semantic_tokens_cache: DashMap::new(),
             semantic_tokens_counter: AtomicU64::new(1),
             cancelled_progress_tokens: DashSet::new(),
@@ -730,6 +733,7 @@ impl DestackLanguageServer {
     async fn publish_workspace_updates_static(
         client: &Client,
         session: &Session,
+        closed_document_versions: &DashMap<String, i32>,
         open_versions: &HashMap<String, i32>,
         updates: Vec<WorkspaceUpdateRecord>,
         primary_path: Option<&Path>,
@@ -761,6 +765,19 @@ impl DestackLanguageServer {
             } else {
                 open_versions.get(&uri_string).copied()
             };
+
+            // suppress stale overlay diagnostics once the client has closed the document
+            if is_primary
+                && primary_version.is_some()
+                && closed_document_versions
+                    .get(&uri_string)
+                    .is_some_and(|closed_version| {
+                        version.is_some_and(|version| *closed_version >= version)
+                    })
+            {
+                continue;
+            }
+
             client.publish_diagnostics(uri, diagnostics, version).await;
         }
     }
@@ -788,6 +805,7 @@ impl DestackLanguageServer {
         let workspace_service = self.workspace_service().clone();
         let client = self.client.clone();
         let session = self.session().clone();
+        let closed_document_versions = self.closed_document_versions.clone();
         let completed_mutation_sequence = self.completed_mutation_sequence.clone();
         let mutation_idle_notify = self.mutation_idle_notify.clone();
         tokio::spawn(async move {
@@ -796,6 +814,7 @@ impl DestackLanguageServer {
                 workspace_service,
                 client,
                 session,
+                closed_document_versions,
                 completed_mutation_sequence,
                 mutation_idle_notify,
             )
@@ -832,6 +851,14 @@ impl DestackLanguageServer {
 
             self.mutation_idle_notify.notified().await;
         }
+    }
+
+    /// Wait until all currently queued mutations have completed.
+    #[cfg(any(test, feature = "test"))]
+    pub(crate) async fn wait_for_mutation_idle_for_tests(&self) {
+        let sequence = self.next_mutation_sequence.load(Ordering::Acquire);
+
+        self.wait_for_mutation_sequence(sequence).await;
     }
 
     /// Enqueue one workspace command mutation.
@@ -882,6 +909,7 @@ impl DestackLanguageServer {
         workspace_service: Arc<LspLanguageService>,
         client: Client,
         session: Arc<Session>,
+        closed_document_versions: Arc<DashMap<String, i32>>,
         completed_mutation_sequence: Arc<AtomicU64>,
         mutation_idle_notify: Arc<Notify>,
     ) {
@@ -890,6 +918,7 @@ impl DestackLanguageServer {
                 &workspace_service,
                 &client,
                 session.as_ref(),
+                closed_document_versions.as_ref(),
                 queued_task.task,
             )
             .await;
@@ -927,6 +956,7 @@ impl DestackLanguageServer {
         workspace_service: &Arc<LspLanguageService>,
         client: &Client,
         session: &Session,
+        closed_document_versions: &DashMap<String, i32>,
         task: MutationTask,
     ) {
         match task {
@@ -954,6 +984,7 @@ impl DestackLanguageServer {
                 Self::publish_workspace_updates_static(
                     client,
                     session,
+                    closed_document_versions,
                     &open_versions,
                     result.updates,
                     Some(path.as_path()),
@@ -988,6 +1019,7 @@ impl DestackLanguageServer {
                 Self::publish_workspace_updates_static(
                     client,
                     session,
+                    closed_document_versions,
                     &open_versions,
                     result.updates,
                     None,
@@ -1029,6 +1061,7 @@ impl DestackLanguageServer {
                 Self::publish_workspace_updates_static(
                     client,
                     session,
+                    closed_document_versions,
                     &open_versions,
                     result.updates,
                     None,
@@ -1316,6 +1349,10 @@ impl LanguageServer for DestackLanguageServer {
             )),
             document_formatting_provider: Some(lsp::OneOf::Left(true)),
             document_range_formatting_provider: Some(lsp::OneOf::Left(true)),
+            document_on_type_formatting_provider: Some(lsp::DocumentOnTypeFormattingOptions {
+                first_trigger_character: ";".to_string(),
+                more_trigger_character: Some(vec!["}".to_string()]),
+            }),
             folding_range_provider: Some(lsp::FoldingRangeProviderCapability::Simple(true)),
             selection_range_provider: Some(lsp::SelectionRangeProviderCapability::Simple(true)),
             document_link_provider: Some(lsp::DocumentLinkOptions {
@@ -1462,6 +1499,8 @@ impl LanguageServer for DestackLanguageServer {
                 version,
             },
         );
+        self.closed_document_versions
+            .remove(&params.text_document.uri.to_string());
     }
 
     async fn did_change(&self, params: lsp::DidChangeTextDocumentParams) {
@@ -1525,6 +1564,7 @@ impl LanguageServer for DestackLanguageServer {
 
         // update overlay with new content
         self.overlay_fs.set_overlay(&path, content.clone());
+        self.closed_document_versions.remove(&uri_str);
 
         // invalidate and publish diagnostics
         self.enqueue_virtual_update_task(path, content, Some(params.text_document.version));
@@ -1564,6 +1604,7 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         self.overlay_fs.set_overlay(&path, content.clone());
+        self.closed_document_versions.remove(&uri_str);
 
         if should_invalidate {
             self.enqueue_virtual_update_task(path, content, None);
@@ -1577,6 +1618,10 @@ impl LanguageServer for DestackLanguageServer {
             closed_document_version = Some(document.version);
         }
         self.semantic_tokens_cache.remove(&uri_str);
+        if let Some(version) = closed_document_version {
+            self.closed_document_versions
+                .insert(uri_str.clone(), version);
+        }
 
         // remove overlay to fall back to disk content
         if let Some(path) = params
@@ -1586,6 +1631,13 @@ impl LanguageServer for DestackLanguageServer {
             .map(|p| p.into_owned())
         {
             self.overlay_fs.remove_overlay(&path);
+
+            // resync the closed document back to on-disk content so pull diagnostics
+            // and later workspace reads stop observing the stale open overlay snapshot
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                let content = normalize_line_endings(content);
+                self.enqueue_virtual_update_task(path, content, None);
+            }
         }
 
         // clear diagnostics for closed file
@@ -1916,6 +1968,9 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::DocumentDiagnosticParams,
     ) -> jsonrpc::Result<lsp::DocumentDiagnosticReportResult> {
+        let mutation_fence = self.next_mutation_sequence.load(Ordering::Acquire);
+        self.wait_for_mutation_sequence(mutation_fence).await;
+
         let session = self.session();
         let uri_str = params.text_document.uri.to_string();
         let doc_entry = self.open_documents.get(&uri_str);
@@ -2025,6 +2080,9 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::WorkspaceDiagnosticParams,
     ) -> jsonrpc::Result<lsp::WorkspaceDiagnosticReportResult> {
+        let mutation_fence = self.next_mutation_sequence.load(Ordering::Acquire);
+        self.wait_for_mutation_sequence(mutation_fence).await;
+
         let started_at = Instant::now();
         let session = self.session();
         let previous_ids: std::collections::HashMap<String, String> = params
@@ -3411,6 +3469,54 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         // format range
+        let Some((formatted, edit_range)) =
+            format_range(&file, formatter, start_offset, end_offset)
+        else {
+            return Ok(None);
+        };
+
+        // convert byte range back to LSP range
+        let lsp_range = byte_span_to_range(&file, edit_range);
+
+        Ok(Some(vec![lsp::TextEdit {
+            range: lsp_range,
+            new_text: formatted,
+        }]))
+    }
+
+    async fn on_type_formatting(
+        &self,
+        params: lsp::DocumentOnTypeFormattingParams,
+    ) -> jsonrpc::Result<Option<Vec<lsp::TextEdit>>> {
+        // resolve file
+        let uri_str = params.text_document_position.text_document.uri.to_string();
+        let session = self.session();
+        let Some(doc) = self.open_documents.get(&uri_str) else {
+            return Ok(None);
+        };
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
+            return Ok(None);
+        };
+
+        // get formatter options from program
+        let Some(path) = file.path.as_ref() else {
+            return Ok(None);
+        };
+        let Some(program) = session.find_program_for_path_maybe(path) else {
+            tracing::debug!(path = %path.display(), "lsp.on_type_format.path_not_in_workspace");
+            return Ok(None);
+        };
+        let formatter = program.formatter;
+
+        // convert the typed position to a small formatting window around the trigger
+        let Some(end_offset) = position_to_byte(&file, &params.text_document_position.position)
+        else {
+            return Ok(None);
+        };
+        let trigger_width = params.ch.len() as u32;
+        let start_offset = end_offset.saturating_sub(trigger_width.max(1));
+
+        // format the overlapping expression span
         let Some((formatted, edit_range)) =
             format_range(&file, formatter, start_offset, end_offset)
         else {

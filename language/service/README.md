@@ -13,8 +13,9 @@ Run these from the repository root.
 cargo test -p destack_service
 ```
 
-### Query integration coverage
+### Query and applied LSP coverage
 
 ```sh
 just language/test-query
+just language/test-lsp
 ```

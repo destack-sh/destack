@@ -363,6 +363,7 @@ test:
     # just test-emit
     just test-specification
     just test-query
+    just test-lsp
     just test-resolver
     just test-formatter
     just test-grammar
@@ -496,9 +497,13 @@ test-grammar-specification-sweep-positive:
 profile-grammar-delta args="--target destack --baseline tsx --top 30":
     bun grammar/scripts/profile-grammar-delta.mjs {{args}}
 
-# run query tests (IDE/LSP queries)
+# run query tests
 test-query:
     just _run-destack-test query
+
+# run applied lsp tests
+test-lsp:
+    just _run-destack-test lsp
 
 # run stress tests (requires generated fixtures)
 test-stress:

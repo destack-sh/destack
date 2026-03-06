@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use destack_ast::{AnnotationPosition, Doc};
+use destack_dir as dir;
 
+use crate::Session;
 use crate::program::ModuleAst;
 
 /// Collect documentation strings attached to a node.
@@ -88,17 +90,34 @@ pub(crate) fn doc_strings_for_node_or_enclosing(
     doc_strings
 }
 
-/// Join documentation strings for display.
-pub(crate) fn doc_text_for_node(ast: &ModuleAst, node_id: u32) -> Option<String> {
-    // collect the doc strings for this node
-    let doc_strings = doc_strings_for_node(ast, node_id);
+/// Join documentation strings for a symbol declaration or enclosing declaration nodes.
+pub(crate) fn doc_text_for_symbol(
+    session: &Session,
+    symbol_id: dir::GlobalSymbolId,
+) -> Option<String> {
+    // resolve the module query context
+    let module = session.modules.get(symbol_id.module_id);
+    let module = module.read();
+    let ctx = session.query_context(&module)?;
 
-    // bail when there are no docs
+    // resolve the symbol declaration
+    let symbols = ctx.symbols();
+    let symbol = symbols.get_symbol(symbol_id.local_id);
+    let declaration = symbol.primary_declaration?;
+    drop(symbols);
+
+    // resolve the source node for the declaration
+    let dir_tree = ctx.tree();
+    let ast_node_id = dir_tree.get_source(declaration.local_id.id);
+    let source_file = session.files.get(module.file_id);
+    let source = source_file.text();
+
+    // collect docs from the declaration or its enclosing wrapper nodes
+    let doc_strings = doc_strings_for_node_or_enclosing(ctx.ast, source, ast_node_id);
     if doc_strings.is_empty() {
         return None;
     }
 
-    // join doc blocks with a blank line
     Some(doc_strings.join("\n\n"))
 }
 

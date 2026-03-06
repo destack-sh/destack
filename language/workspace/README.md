@@ -178,10 +178,11 @@ Run these from the repository root.
 cargo test -p destack_workspace
 ```
 
-### Query and language coverage
+### Query, LSP, and language coverage
 
 ```sh
 just language/test-query
+just language/test-lsp
 just language/test-specification
 just language/test-formatter
 ```

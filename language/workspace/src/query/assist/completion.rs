@@ -13,10 +13,10 @@ use crate::format::format_local_type;
 use crate::program::Loader;
 use crate::query::common::{
     ImportEditMode, MemberInfo, MemberKind, MemberName, build_import_display_path,
-    build_import_edits_with_mode, dynamic_parameter_names, ensure_program_export_index,
-    get_canonical_symbol, get_module_by_file_id, matches_symbol_space_filter,
-    module_name_from_path, owned_scope_for_symbol, path_component_count, path_distance,
-    program_for_file, resolve_extension_members_for_symbol,
+    build_import_edits_with_mode, doc_text_for_symbol, dynamic_parameter_names,
+    ensure_program_export_index, get_canonical_symbol, get_module_by_file_id,
+    matches_symbol_space_filter, module_name_from_path, owned_scope_for_symbol,
+    path_component_count, path_distance, program_for_file, resolve_extension_members_for_symbol,
     resolve_nominal_symbol_from_initializer, resolve_reference_members, resolve_symbol_name,
     resolve_type_members, score_completion, search_importable_symbols_for_program, visible_symbols,
 };
@@ -469,6 +469,11 @@ fn completion_for_member(
         }
     }
 
+    // attach symbol documentation when this member resolves to a declaration
+    if let Some(symbol_id) = member.symbol_id {
+        completion = attach_completion_documentation(session, completion, symbol_id);
+    }
+
     // add call snippet for method members with symbols
     if member.kind == MemberKind::Method {
         let symbol_id = member.symbol_id;
@@ -487,6 +492,22 @@ fn completion_for_member(
     }
 
     Some(completion)
+}
+
+/// Attach documentation to a completion when the backing symbol has docs.
+fn attach_completion_documentation(
+    session: &Session,
+    completion: Completion,
+    symbol_id: dir::GlobalSymbolId,
+) -> Completion {
+    // resolve the documentation from the canonical declaration symbol
+    let symbol_id = get_canonical_symbol(session, symbol_id);
+    let documentation = doc_text_for_symbol(session, symbol_id);
+    let Some(documentation) = documentation else {
+        return completion;
+    };
+
+    completion.with_documentation(documentation)
 }
 
 // auto import completion thresholds
@@ -1127,6 +1148,10 @@ fn complete_members(
 
                     let mut completion =
                         Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL);
+                    let member_symbol_id = dir::GlobalSymbolId {
+                        module_id: symbol_id.module_id,
+                        local_id: member_id,
+                    };
 
                     // add type detail from primary declaration
                     let declaration = member_symbol.primary_declaration;
@@ -1147,6 +1172,10 @@ fn complete_members(
                     if completion.detail.is_none() && member_symbol.ty == SymbolType::Function {
                         completion = completion.with_detail("method");
                     }
+
+                    // attach declaration documentation for the member symbol
+                    completion =
+                        attach_completion_documentation(session, completion, member_symbol_id);
 
                     results.push(completion);
                 }
@@ -1514,7 +1543,14 @@ fn complete_types(
         }
 
         let kind = CompletionKind::from(resolve_symbol_type(visible.id, visible.symbol));
-        results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
+        let completion = Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL);
+        let symbol_id = dir::GlobalSymbolId {
+            module_id: ctx.module_id,
+            local_id: visible.id,
+        };
+        let completion = attach_completion_documentation(session, completion, symbol_id);
+
+        results.push(completion);
     }
 
     // include type imports and re exports from dependencies
@@ -1538,7 +1574,14 @@ fn complete_types(
         }
 
         let kind = CompletionKind::from(resolve_symbol_type(symbol_id, symbol));
-        results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
+        let completion = Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL);
+        let symbol_id = dir::GlobalSymbolId {
+            module_id: ctx.module_id,
+            local_id: symbol_id,
+        };
+        let completion = attach_completion_documentation(session, completion, symbol_id);
+
+        results.push(completion);
     }
 
     // ast fallback for incomplete type positions where dir visibility may be missing
@@ -1690,14 +1733,14 @@ fn complete_values(
     for (local_id, name, symbol_type) in symbols_to_process {
         let kind = CompletionKind::from(symbol_type);
         let mut completion = Completion::new(&name, kind).with_sort_order(SORT_LOCAL_SYMBOL);
+        let symbol_id = dir::GlobalSymbolId {
+            module_id,
+            local_id,
+        };
 
         // for functions, generate snippet with parameter placeholders
         if symbol_type == SymbolType::Function {
-            let global_id = dir::GlobalSymbolId {
-                module_id,
-                local_id,
-            };
-            if let Some(param_names) = get_function_param_names(session, global_id) {
+            if let Some(param_names) = get_function_param_names(session, symbol_id) {
                 let (snippet, is_snippet) = generate_call_snippet(&name, &param_names);
                 completion = completion.with_insert_text(snippet);
                 if is_snippet {
@@ -1705,6 +1748,9 @@ fn complete_values(
                 }
             }
         }
+
+        // attach declaration documentation for the visible symbol
+        completion = attach_completion_documentation(session, completion, symbol_id);
 
         results.push(completion);
     }
@@ -1761,7 +1807,14 @@ fn complete_new_expression(
 
             // push a completion entry
             let kind = CompletionKind::from(visible.symbol.ty);
-            results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
+            let completion = Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL);
+            let symbol_id = dir::GlobalSymbolId {
+                module_id: ctx.module_id,
+                local_id: visible.id,
+            };
+            let completion = attach_completion_documentation(session, completion, symbol_id);
+
+            results.push(completion);
         }
     }
 
@@ -1786,7 +1839,14 @@ fn complete_new_expression(
 
             // push a completion entry
             let kind = CompletionKind::from(symbol.ty);
-            results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
+            let completion = Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL);
+            let symbol_id = dir::GlobalSymbolId {
+                module_id: ctx.module_id,
+                local_id: symbol_id,
+            };
+            let completion = attach_completion_documentation(session, completion, symbol_id);
+
+            results.push(completion);
         }
     }
 

@@ -591,6 +591,14 @@ impl LspHarness {
         result
     }
 
+    /// Wait until the server has drained all currently queued mutations.
+    pub async fn wait_for_mutation_idle(&self) {
+        self.service
+            .inner()
+            .wait_for_mutation_idle_for_tests()
+            .await;
+    }
+
     /// Collect diagnostics notifications within the timeout window.
     pub async fn collect_diagnostics_for_timeout(
         &mut self,

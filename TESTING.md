@@ -35,7 +35,8 @@ Set `DESTACK_TEST_JOBS` only when a custom harness should use a different worker
 | [**Smoke**](language/test/fixtures/smoke/) | Correctness | Quick | Broad no-crash and basic no-regression coverage for parser and compiler flows |
 | [**Emit**](language/test/fixtures/emit/) | Correctness | Quick | Emitted output matches curated checked-in snapshots |
 | [**Specification**](language/test/fixtures/specification/) | Correctness | Quick | First-party language semantics and diagnostics |
-| [**Query**](language/test/fixtures/query/) | Correctness | Quick | IDE and LSP behavior such as navigation, completion, rename, and diagnostics |
+| [**Query**](language/test/fixtures/query/) | Correctness | Quick | Query-layer IDE behavior such as navigation, completion, rename, and diagnostics |
+| [**LSP**](language/test/fixtures/lsp/) | Correctness | Quick | Applied LSP editor scenarios over the real in-process language server |
 | [**Resolver**](language/test/fixtures/resolver/) | Correctness | Quick | Node and TypeScript style module and package resolution |
 | [**Formatter**](language/test/fixtures/formatter/) | Correctness | Quick | Formatting behavior on first-party fixtures |
 | [**Grammar**](language/grammar/README.md) | Correctness | Quick | Tree-sitter grammar routing, corpus coverage, and specification sweeps |
@@ -102,6 +103,7 @@ just language/test-smoke
 just language/test-emit
 just language/test-specification
 just language/test-query
+just language/test-lsp
 just language/test-resolver
 just language/test-formatter
 just language/test-grammar
