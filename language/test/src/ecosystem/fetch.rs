@@ -160,6 +160,15 @@ enum EcosystemPackageManager {
     Bun,
 }
 
+/// Command line used for fixture dependency installation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EcosystemInstallCommand {
+    /// The executable to run.
+    command: String,
+    /// The arguments passed to the executable.
+    args: Vec<String>,
+}
+
 /// Yarn mode used for fixture dependency installation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EcosystemYarnFlavor {
@@ -183,17 +192,18 @@ fn ensure_package_dependencies_installed(package_dir: &Path) -> Result<(), Strin
 
     // choose package manager from lockfiles and workspace metadata
     let package_manager = detect_package_manager(package_dir);
-    let (command, args) = install_command_for_package_manager(package_dir, package_manager);
+    let install = install_command_for_package_manager(package_dir, package_manager);
 
     // run install with deterministic ci environment
-    let status = Command::new(command)
-        .args(args.iter().copied())
+    let status = Command::new(&install.command)
+        .args(install.args.iter().map(String::as_str))
         .current_dir(package_dir)
         .env("CI", "1")
         .status()
         .map_err(|error| {
             format!(
-                "{command} install failed to start in {}: {error}",
+                "{} install failed to start in {}: {error}",
+                install.command,
                 package_dir.display()
             )
         })?;
@@ -203,9 +213,10 @@ fn ensure_package_dependencies_installed(package_dir: &Path) -> Result<(), Strin
     }
 
     Err(format!(
-        "{command} install failed in {} with args: {:?}",
+        "{} install failed in {} with args: {:?}",
+        install.command,
         package_dir.display(),
-        args,
+        install.args,
     ))
 }
 
@@ -244,22 +255,42 @@ fn detect_package_manager(package_dir: &Path) -> EcosystemPackageManager {
 fn install_command_for_package_manager(
     package_dir: &Path,
     package_manager: EcosystemPackageManager,
-) -> (&'static str, Vec<&'static str>) {
+) -> EcosystemInstallCommand {
     // use frozen lockfile installs for pnpm packages
     if package_manager == EcosystemPackageManager::Pnpm {
-        return (
-            "pnpm",
-            vec!["install", "--ignore-scripts", "--frozen-lockfile"],
-        );
+        return EcosystemInstallCommand {
+            command: "corepack".to_string(),
+            args: vec![
+                "pnpm".to_string(),
+                "install".to_string(),
+                "--ignore-scripts".to_string(),
+                "--frozen-lockfile".to_string(),
+            ],
+        };
     }
 
     // use yarn classic or berry compatible script-suppression flags
     if package_manager == EcosystemPackageManager::Yarn {
         if detect_yarn_flavor(package_dir) == EcosystemYarnFlavor::Berry {
-            return ("yarn", vec!["install", "--mode", "skip-build"]);
+            return EcosystemInstallCommand {
+                command: "corepack".to_string(),
+                args: vec![
+                    "yarn".to_string(),
+                    "install".to_string(),
+                    "--mode".to_string(),
+                    "skip-build".to_string(),
+                ],
+            };
         }
 
-        return ("yarn", vec!["install", "--ignore-scripts"]);
+        return EcosystemInstallCommand {
+            command: "corepack".to_string(),
+            args: vec![
+                "yarn".to_string(),
+                "install".to_string(),
+                "--ignore-scripts".to_string(),
+            ],
+        };
     }
 
     // prefer npm ci when lockfiles exist
@@ -267,14 +298,23 @@ fn install_command_for_package_manager(
         if package_dir.join("package-lock.json").is_file()
             || package_dir.join("npm-shrinkwrap.json").is_file()
         {
-            return ("npm", vec!["ci", "--ignore-scripts"]);
+            return EcosystemInstallCommand {
+                command: "npm".to_string(),
+                args: vec!["ci".to_string(), "--ignore-scripts".to_string()],
+            };
         }
 
-        return ("npm", vec!["install", "--ignore-scripts"]);
+        return EcosystemInstallCommand {
+            command: "npm".to_string(),
+            args: vec!["install".to_string(), "--ignore-scripts".to_string()],
+        };
     }
 
     // default bun install command
-    ("bun", vec!["install", "--ignore-scripts"])
+    EcosystemInstallCommand {
+        command: "bun".to_string(),
+        args: vec!["install".to_string(), "--ignore-scripts".to_string()],
+    }
 }
 
 /// Detect yarn flavor from checkout metadata.
