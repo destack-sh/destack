@@ -244,7 +244,7 @@ const derefValue = *pointer;
 const doValue = do { 1 };
 const whileValue = while (flag) { break 1; };
 const forValue = for (let i = 0; i < 1; i++) { i; };
-const tryValue = try { risky()?; } catch match err { _ => 0 };
+const tryValue = try { risky()?; } catch match (err) { _ => 0 };
 const comptimeValue = comptime { 1 + 2 };
 const alias = (@memoized(source));
 

@@ -1702,20 +1702,12 @@
     "type": "catch_match_clause",
     "named": true,
     "fields": {
-      "parameter": {
+      "value": {
         "multiple": false,
         "required": true,
         "types": [
           {
-            "type": "array_pattern",
-            "named": true
-          },
-          {
-            "type": "identifier",
-            "named": true
-          },
-          {
-            "type": "object_pattern",
+            "type": "expression",
             "named": true
           }
         ]

@@ -272,7 +272,9 @@ module.exports = function defineGrammar(dialect) {
         return seq(
           'catch',
           'match',
-          field('parameter', choice($.identifier, $._destructuring_pattern)),
+          '(',
+          field('value', $.expression),
+          ')',
           '{',
           repeat($.match_arm),
           '}',
