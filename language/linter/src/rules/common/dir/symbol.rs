@@ -480,3 +480,91 @@ pub fn symbol_value_type_map_for<T>(
     let types = dir.types.read();
     Some(map(&types, symbol_type_id.type_id))
 }
+
+/// Return true when one local symbol is merged with a class declaration in this module.
+pub fn local_symbol_has_other_declarations(
+    symbols: &dir::SymbolTable,
+    symbol_id: dir::LocalSymbolId,
+) -> bool {
+    let symbol = symbols.get_symbol(symbol_id);
+
+    if symbol
+        .secondary_declarations
+        .as_deref()
+        .is_some_and(|declarations| !declarations.is_empty())
+    {
+        return true;
+    }
+
+    let Some(merge_group_id) = symbol.merge_group else {
+        return false;
+    };
+
+    symbols
+        .merge_group_symbols(merge_group_id)
+        .iter()
+        .any(|merged_symbol_id| *merged_symbol_id != symbol_id)
+}
+
+/// Return true when one local symbol is merged with a class declaration in this module.
+pub fn local_symbol_has_class_merge(
+    tree: &dir::NodeTree,
+    symbols: &dir::SymbolTable,
+    symbol_id: dir::LocalSymbolId,
+) -> bool {
+    let symbol = symbols.get_symbol(symbol_id);
+    let Some(merge_group_id) = symbol.merge_group else {
+        return false;
+    };
+
+    for merged_symbol_id in symbols.merge_group_symbols(merge_group_id) {
+        if *merged_symbol_id == symbol_id {
+            continue;
+        }
+
+        if local_symbol_has_class_declaration(tree, symbols, *merged_symbol_id) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Return true when one local symbol declares a class in this module.
+fn local_symbol_has_class_declaration(
+    tree: &dir::NodeTree,
+    symbols: &dir::SymbolTable,
+    symbol_id: dir::LocalSymbolId,
+) -> bool {
+    let symbol = symbols.get_symbol(symbol_id);
+
+    if local_node_is_class_declaration(tree, symbol.primary_declaration.map(|id| id.local_id)) {
+        return true;
+    }
+
+    let Some(secondary_declarations) = symbol.secondary_declarations.as_deref() else {
+        return false;
+    };
+
+    secondary_declarations
+        .iter()
+        .any(|declaration_id| local_node_is_class_declaration(tree, Some(declaration_id.local_id)))
+}
+
+/// Return true when one local node id points at a class declaration.
+fn local_node_is_class_declaration(
+    tree: &dir::NodeTree,
+    declaration_id: Option<dir::LocalNodeIdAny>,
+) -> bool {
+    let Some(declaration_id) = declaration_id else {
+        return false;
+    };
+    if declaration_id.ty != dir::NodeType::Declaration {
+        return false;
+    }
+
+    matches!(
+        tree.get(declaration_id.into_typed::<dir::Declaration>()),
+        dir::Declaration::Class { .. }
+    )
+}

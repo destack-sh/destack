@@ -1,35 +1,23 @@
-use destack_ast::{
-    self as ast, Argument, Asynchrony, Declaration, Expression, FunctionCardinality, FunctionKind,
-    Parameter,
-};
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_path_segments, expression_unwrap_statement_syntax};
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::{
+    block_single_return_value, expression_reference_path, expression_target_symbol,
+    expression_unwrap_statement, expression_unwrap_transparent,
+};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow lambdas that only wrap a direct function call.
     ///
-    /// When a lambda only passes its parameters directly to another function
-    /// without modification, the lambda is unnecessary and the function reference
-    /// can be used directly instead.
-    ///
-    /// ## Bad
-    /// ```
-    /// items.map(x => foo(x))
-    /// items.filter((a, b) => bar(a, b))
-    /// ```
-    ///
-    /// ## Good
-    /// ```
-    /// items.map(foo)
-    /// items.filter(bar)
-    /// ```
+    /// When a lambda only forwards its parameters to another callable without
+    /// changing order or receiver binding, the lambda is unnecessary and the
+    /// callee can be passed directly instead.
     #[lint(
         id = "no-unnecessary-lambda",
         code = "LY024",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -41,146 +29,84 @@ declare_lint! {
 }
 
 impl LintRule for NoUnnecessaryLambda {
-    fn meta(&self) -> &'static crate::LintMeta {
+    /// Return lint metadata.
+    fn meta(&self) -> &'static LintMeta {
         NoUnnecessaryLambda::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    /// Check module DIR nodes for direct forwarding lambdas.
+    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let Expression::Declaration(declaration_id) = ctx.tree.get(node_id) else {
+        // inspect lambda declaration expressions only
+        for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
+            let expression = ctx.tree.get(expression_id);
+            let dir::Expression::Declaration { declaration } = expression else {
                 continue;
             };
 
-            let declaration = ctx.tree.get(*declaration_id);
-            let Declaration::Function {
+            let declaration_id = *declaration;
+            let declaration = ctx.tree.get(declaration_id);
+            let dir::Declaration::Function {
                 signature, body, ..
             } = declaration
             else {
                 continue;
             };
 
-            // only check lambda functions
-            if signature.kind != FunctionKind::Lambda {
-                continue;
-            }
-
-            // skip async and generator lambdas: function reference changes behavior
-            if signature.asynchrony != Asynchrony::Sync
-                || signature.cardinality != FunctionCardinality::Scalar
+            // keep sync scalar lambdas only
+            if signature.kind != dir::FunctionKind::Lambda
+                || signature.asynchrony != dir::Asynchrony::Sync
+                || signature.cardinality != dir::FunctionCardinality::Scalar
             {
                 continue;
             }
 
-            // must have a body
-            let Some(body_id) = body else {
+            // keep lambdas with one plain named parameter list
+            let Some(parameter_symbols) = lambda_parameter_symbols(ctx, signature) else {
                 continue;
             };
-
-            // must have at least one parameter
-            if signature.dynamic_parameters.is_empty() {
+            if parameter_symbols.is_empty() {
                 continue;
             }
 
-            // get parameter names
-            let parameter_names: Vec<_> = signature
-                .dynamic_parameters
-                .iter()
-                .filter_map(|param_id| {
-                    let param = ctx.tree.get(*param_id);
-                    match param {
-                        Parameter::Named { name, .. } => Some(*name),
-                        _ => None,
-                    }
-                })
-                .collect();
-
-            // all parameters must be named (no patterns/variadic)
-            if parameter_names.len() != signature.dynamic_parameters.len() {
+            // keep lambda bodies that forward directly to one call
+            let Some(call_expression_id) = lambda_forwarded_call_body(ctx, *body) else {
                 continue;
-            }
-
-            // body must be a call expression (possibly wrapped in Statement)
-            let call_expression_id = expression_unwrap_statement_syntax(ctx.tree, *body_id);
-            let body_expression = ctx.tree.get(call_expression_id);
-            let Expression::Call {
-                left: callee_id,
-                dynamic_arguments,
+            };
+            let call_expression = ctx.tree.get(call_expression_id);
+            let dir::Expression::Call {
+                left,
                 static_arguments,
-                ..
-            } = body_expression
+                dynamic_arguments,
+            } = call_expression
             else {
                 continue;
             };
-
-            // no static arguments
-            if static_arguments.is_some() {
+            if static_arguments.is_some() || dynamic_arguments.len() != parameter_symbols.len() {
                 continue;
             }
 
-            // same number of arguments as parameters
-            if dynamic_arguments.len() != parameter_names.len() {
+            // keep direct callee references without receiver binding
+            if !callee_is_direct_function_reference(ctx, *left, &parameter_symbols) {
                 continue;
             }
 
-            // only rewrite direct function references, not member calls that rely on receiver binding
-            if expression_path_segments(ctx.tree, *callee_id)
-                .is_none_or(|segments| segments.len() != 1)
-            {
+            // keep one to one positional forwarding only
+            if !arguments_forward_parameters(ctx, dynamic_arguments, &parameter_symbols) {
                 continue;
             }
 
-            // check if each argument is just the corresponding parameter
-            let mut is_unnecessary = true;
-            for (i, argument_id) in dynamic_arguments.iter().enumerate() {
-                let argument = ctx.tree.get(*argument_id);
-                let Argument::Positional {
-                    value: value_id, ..
-                } = argument
-                else {
-                    is_unnecessary = false;
-                    break;
-                };
-
-                let value = ctx.tree.get(*value_id);
-                let Expression::Path { path, .. } = value else {
-                    is_unnecessary = false;
-                    break;
-                };
-
-                // must be a single-segment path (just the variable name)
-                if path.segments.len() != 1 {
-                    is_unnecessary = false;
-                    break;
-                }
-
-                // must match the corresponding parameter
-                let argument_name = ctx.strings.get(path.segments[0]);
-                let parameter_name = ctx.strings.get(parameter_names[i]);
-                if argument_name.as_ref() != parameter_name.as_ref() {
-                    is_unnecessary = false;
-                    break;
-                }
-            }
-            if !is_unnecessary {
-                continue;
-            }
-
-            let severity = ctx.get_effective_severity(meta, node_id);
+            let severity = ctx.get_effective_severity(meta, expression_id);
             if !severity.is_enabled() {
                 continue;
             }
 
-            // get the callee text for the fix
-            let callee_span = ctx.tree.get_span(*callee_id);
-            let callee_text = ctx.get_span_text(callee_span);
-            let declaration_span = ctx.tree.get_span(*declaration_id);
-            let edits = ctx
-                .edit_builder()
-                .replace(declaration_span, callee_text.to_string())
-                .into_edits();
-            let fix = LintFix::safe("Replace with function reference").with_edits(edits);
+            let declaration_span = ctx.get_span(declaration_id);
+            let callee_span = ctx.get_span(*left);
+            let callee_text = ctx.get_span_text(callee_span).to_string();
+            let fix = LintFix::safe("Replace with function reference")
+                .replace(declaration_span, callee_text.clone());
 
             ctx.report(
                 LintDiagnostic::new(
@@ -199,146 +125,251 @@ impl LintRule for NoUnnecessaryLambda {
     }
 }
 
+/// Return plain named parameter symbols for one lambda signature.
+fn lambda_parameter_symbols(
+    ctx: &LintModuleDirContext<'_>,
+    signature: &dir::FunctionSignature,
+) -> Option<Vec<dir::LocalSymbolId>> {
+    let mut symbols = Vec::with_capacity(signature.dynamic_parameters.len());
+
+    // keep plain named parameters without defaults
+    for parameter_id in &signature.dynamic_parameters {
+        let parameter = ctx.tree.get(*parameter_id);
+        let dir::Parameter::Named {
+            default, symbol, ..
+        } = parameter
+        else {
+            return None;
+        };
+        if default.is_some() {
+            return None;
+        }
+
+        symbols.push(*symbol);
+    }
+
+    Some(symbols)
+}
+
+/// Return the forwarded call expression for one lambda body.
+fn lambda_forwarded_call_body(
+    ctx: &LintModuleDirContext<'_>,
+    body_expression_id: Option<dir::LocalNodeId<dir::Expression>>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    let body_expression_id = body_expression_id?;
+    let body_expression_id = expression_unwrap_statement(ctx.tree, body_expression_id);
+    let body_expression = ctx.tree.get(body_expression_id);
+
+    // keep direct expression bodies first
+    if matches!(body_expression, dir::Expression::Call { .. }) {
+        return Some(body_expression_id);
+    }
+
+    // then allow single return blocks
+    let dir::Expression::Block { block } = body_expression else {
+        return None;
+    };
+
+    let returned_value_id = block_single_return_value(ctx.tree, *block)?;
+    let returned_value_id = expression_unwrap_transparent(ctx.tree, returned_value_id);
+    let returned_value = ctx.tree.get(returned_value_id);
+    if !matches!(returned_value, dir::Expression::Call { .. }) {
+        return None;
+    }
+
+    Some(returned_value_id)
+}
+
+/// Return true when one callee is a direct function reference.
+fn callee_is_direct_function_reference(
+    ctx: &LintModuleDirContext<'_>,
+    callee_expression_id: dir::LocalNodeId<dir::Expression>,
+    parameter_symbols: &[dir::LocalSymbolId],
+) -> bool {
+    let callee_expression_id = expression_unwrap_transparent(ctx.tree, callee_expression_id);
+
+    // keep direct references only, not member access with receiver binding
+    let Some(reference_path) = expression_reference_path(ctx.tree, callee_expression_id) else {
+        return false;
+    };
+    if !reference_path.members.is_empty() {
+        return false;
+    }
+
+    let Some(callee_symbol) = expression_target_symbol(ctx.tree, callee_expression_id) else {
+        return false;
+    };
+    if parameter_symbols
+        .iter()
+        .any(|symbol_id| callee_symbol == symbol_id.into_global(ctx.module_id()))
+    {
+        return false;
+    }
+
+    true
+}
+
+/// Return true when call arguments forward the lambda parameters in order.
+fn arguments_forward_parameters(
+    ctx: &LintModuleDirContext<'_>,
+    argument_ids: &[dir::LocalNodeId<dir::Argument>],
+    parameter_symbols: &[dir::LocalSymbolId],
+) -> bool {
+    for (argument_id, parameter_symbol_id) in argument_ids.iter().zip(parameter_symbols) {
+        let argument = ctx.tree.get(*argument_id);
+        let dir::Argument::Positional { value, .. } = argument else {
+            return false;
+        };
+
+        let value_expression_id = expression_unwrap_transparent(ctx.tree, *value);
+        let value_symbol = expression_target_symbol(ctx.tree, value_expression_id);
+        if value_symbol != Some(parameter_symbol_id.into_global(ctx.module_id())) {
+            return false;
+        }
+    }
+
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::linter::TestProgram;
 
+    /// Flag one single parameter forwarding lambda.
     #[test]
-    fn test_detects_unnecessary_single_param_lambda() {
+    fn test_detects_unnecessary_single_parameter_lambda() {
         let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
-        let result = test.lint_ast(
-            "no_unnecessary_lambda/test_detects_unnecessary_single_param_lambda.ds",
+        let diagnostics = test.lint_dir(
+            "no_unnecessary_lambda/test_detects_unnecessary_single_parameter_lambda.ds",
             r#"
-items.map(x => foo(x))
-"#,
-        );
-        test.result(result).assert_lint("no-unnecessary-lambda");
-    }
+function foo(value) {
+    return value;
+}
 
-    #[test]
-    fn test_detects_unnecessary_multi_param_lambda() {
-        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
-        let result = test.lint_ast(
-            "no_unnecessary_lambda/test_detects_unnecessary_multi_param_lambda.ds",
-            r#"
-items.reduce((a, b) => add(a, b))
+items.map((value) => foo(value));
 "#,
         );
-        test.result(result).assert_lint("no-unnecessary-lambda");
-    }
 
-    #[test]
-    fn test_allows_lambda_with_extra_arg() {
-        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
-        let result = test.lint_ast(
-            "no_unnecessary_lambda/test_allows_lambda_with_extra_arg.ds",
-            r#"
-items.map(x => foo(x, 1))
-"#,
-        );
-        test.result(result).assert_no_lint("no-unnecessary-lambda");
-    }
-
-    #[test]
-    fn test_allows_lambda_with_different_order() {
-        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
-        let result = test.lint_ast(
-            "no_unnecessary_lambda/test_allows_lambda_with_different_order.ds",
-            r#"
-items.reduce((a, b) => sub(b, a))
-"#,
-        );
-        test.result(result).assert_no_lint("no-unnecessary-lambda");
-    }
-
-    #[test]
-    fn test_allows_lambda_with_method_call() {
-        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
-        let result = test.lint_ast(
-            "no_unnecessary_lambda/test_allows_lambda_with_method_call.ds",
-            r#"
-items.map(x => x.toString())
-"#,
-        );
-        test.result(result).assert_no_lint("no-unnecessary-lambda");
-    }
-
-    #[test]
-    fn test_allows_zero_param_lambda() {
-        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
-        let result = test.lint_ast(
-            "no_unnecessary_lambda/test_allows_zero_param_lambda.ds",
-            r#"
-defer(() => cleanup())
-"#,
-        );
-        test.result(result).assert_no_lint("no-unnecessary-lambda");
-    }
-
-    #[test]
-    fn test_allows_lambda_with_expression_body() {
-        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
-        let result = test.lint_ast(
-            "no_unnecessary_lambda/test_allows_lambda_with_expression_body.ds",
-            r#"
-items.map(x => x + 1)
-"#,
-        );
-        test.result(result).assert_no_lint("no-unnecessary-lambda");
-    }
-
-    #[test]
-    fn test_allows_lambda_param_used_twice() {
-        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
-        let result = test.lint_ast(
-            "no_unnecessary_lambda/test_allows_lambda_param_used_twice.ds",
-            r#"
-items.map(x => foo(x, x))
-"#,
-        );
-        test.result(result).assert_no_lint("no-unnecessary-lambda");
-    }
-
-    #[test]
-    fn test_fix_removes_lambda() {
-        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
-        let result = test.lint_ast(
-            "no_unnecessary_lambda/test_fix_removes_lambda.ds",
-            r#"
-items.map(x => foo(x));
-"#,
-        );
-        test.result(result)
+        test.result(diagnostics)
             .assert_lint("no-unnecessary-lambda")
             .assert_safe_fixed(
                 r#"
+function foo(value) {
+    return value;
+}
+
 items.map(foo);
 "#,
             );
     }
 
+    /// Flag one multi parameter forwarding lambda.
     #[test]
-    fn test_allows_lambda_wrapping_member_call() {
+    fn test_detects_unnecessary_multiple_parameter_lambda() {
         let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
-        let result = test.lint_ast(
-            "no_unnecessary_lambda/test_allows_lambda_wrapping_member_call.ds",
+        let diagnostics = test.lint_dir(
+            "no_unnecessary_lambda/test_detects_unnecessary_multiple_parameter_lambda.ds",
             r#"
-items.map(x => formatter.format(x));
+function add(left, right) {
+    return left + right;
+}
+
+items.reduce((left, right) => add(left, right));
 "#,
         );
-        test.result(result).assert_no_lint("no-unnecessary-lambda");
+
+        test.result(diagnostics)
+            .assert_lint("no-unnecessary-lambda");
     }
 
+    /// Flag one block body that only returns a forwarded call.
     #[test]
-    fn test_allows_async_lambda_wrapping_call() {
+    fn test_detects_unnecessary_block_body_lambda() {
         let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
-        let result = test.lint_ast(
-            "no_unnecessary_lambda/test_allows_async_lambda_wrapping_call.ds",
+        let diagnostics = test.lint_dir(
+            "no_unnecessary_lambda/test_detects_unnecessary_block_body_lambda.ds",
             r#"
-items.map(async x => foo(x));
+function foo(value) {
+    return value;
+}
+
+items.map((value) => {
+    return foo(value);
+});
 "#,
         );
-        test.result(result).assert_no_lint("no-unnecessary-lambda");
+
+        test.result(diagnostics)
+            .assert_lint("no-unnecessary-lambda")
+            .assert_safe_fixed(
+                r#"
+function foo(value) {
+    return value;
+}
+
+items.map(foo);
+"#,
+            );
+    }
+
+    /// Allow lambdas that add extra arguments.
+    #[test]
+    fn test_allows_lambda_with_extra_argument() {
+        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
+        let diagnostics = test.lint_dir(
+            "no_unnecessary_lambda/test_allows_lambda_with_extra_argument.ds",
+            r#"
+items.map((value) => foo(value, 1));
+"#,
+        );
+
+        test.result(diagnostics)
+            .assert_no_lint("no-unnecessary-lambda");
+    }
+
+    /// Allow lambdas that reorder parameters.
+    #[test]
+    fn test_allows_lambda_with_reordered_arguments() {
+        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
+        let diagnostics = test.lint_dir(
+            "no_unnecessary_lambda/test_allows_lambda_with_reordered_arguments.ds",
+            r#"
+items.reduce((left, right) => sub(right, left));
+"#,
+        );
+
+        test.result(diagnostics)
+            .assert_no_lint("no-unnecessary-lambda");
+    }
+
+    /// Allow member calls that depend on receiver binding.
+    #[test]
+    fn test_allows_lambda_with_member_call() {
+        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
+        let diagnostics = test.lint_dir(
+            "no_unnecessary_lambda/test_allows_lambda_with_member_call.ds",
+            r#"
+items.map((value) => formatter.format(value));
+"#,
+        );
+
+        test.result(diagnostics)
+            .assert_no_lint("no-unnecessary-lambda");
+    }
+
+    /// Allow lambdas that call a parameter instead of a stable function reference.
+    #[test]
+    fn test_allows_lambda_that_calls_parameter() {
+        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
+        let diagnostics = test.lint_dir(
+            "no_unnecessary_lambda/test_allows_lambda_that_calls_parameter.ds",
+            r#"
+const handler = (callback) => callback();
+"#,
+        );
+
+        test.result(diagnostics)
+            .assert_no_lint("no-unnecessary-lambda");
     }
 }

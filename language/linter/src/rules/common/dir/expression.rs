@@ -3,282 +3,42 @@ use destack_dir as dir;
 use destack_source::{ModuleId, Span};
 use destack_workspace::{ProfileId, Program};
 
-use crate::{ConstValue, LintModuleDirContext};
+use crate::ConstValue;
 
+use super::reference::expression_static_string_literal;
 use super::{
     function_return_type, is_any_type, is_async_function_type, is_promise_type,
     symbol_value_type_map_for,
 };
 
-/// The base of a reference path.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ReferenceBase {
-    /// A symbol backed reference.
-    Symbol(dir::GlobalSymbolId),
-    /// A `this` reference.
-    This,
-    /// A `super` reference.
-    Super,
-}
-
-/// A reference path from a base symbol to member names.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ReferencePath {
-    /// The base of the path.
-    pub base: ReferenceBase,
-    /// The member names from the base expression.
-    pub members: Vec<StringId>,
-}
-
-/// Resolve the target symbol for a reference expression.
-pub fn expression_target_symbol(
+/// Return true when one expression is a numeric scalar literal.
+pub fn expression_is_numeric_literal(
     tree: &dir::NodeTree,
     expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<dir::GlobalSymbolId> {
-    // unwrap transparent wrappers first
-    let expression_id = expression_unwrap_transparent(tree, expression_id);
-
-    // return the reference target symbol when present
-    let expression = tree.get(expression_id);
-    expression.target_symbol()
-}
-
-/// Resolve a reference path for member expressions.
-pub fn expression_reference_path(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<ReferencePath> {
-    // collect member names walking left
-    let mut members = Vec::new();
-    let base = expression_reference_path_base(tree, expression_id, &mut members)?;
-
-    // normalize member order
-    members.reverse();
-
-    Some(ReferencePath { base, members })
-}
-
-/// Return true when two expressions have equivalent syntax ignoring parentheses and spacing.
-pub fn expressions_have_equivalent_syntax(
-    ctx: &LintModuleDirContext<'_>,
-    left_id: dir::LocalNodeId<dir::Expression>,
-    right_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    // normalize transparent wrappers before comparisons
-    let left_id = expression_unwrap_transparent(ctx.tree, left_id);
-    let right_id = expression_unwrap_transparent(ctx.tree, right_id);
+    // normalize parenthesized wrappers first
+    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
 
-    // compare canonicalized reference paths first
-    let left_path = expression_reference_path(ctx.tree, left_id);
-    let right_path = expression_reference_path(ctx.tree, right_id);
-    if left_path.is_some() || right_path.is_some() {
-        return left_path == right_path;
-    }
-
-    // compare syntax text with spacing removed
-    let left_text = ctx.get_span_text(ctx.get_span(left_id));
-    let right_text = ctx.get_span_text(ctx.get_span(right_id));
-    normalize_expression_syntax(left_text.as_ref())
-        == normalize_expression_syntax(right_text.as_ref())
-}
-
-/// Return true when the infix source window between two operands contains one operator token.
-///
-/// This is a targeted fallback for lowered DIR shapes where the operator kind
-/// can be ambiguous but operand boundaries are still stable.
-pub fn infix_operator_window_contains(
-    ctx: &LintModuleDirContext<'_>,
-    left_id: dir::LocalNodeId<dir::Expression>,
-    right_id: dir::LocalNodeId<dir::Expression>,
-    operator_text: &str,
-) -> bool {
-    // require a non-empty operator token
-    if operator_text.is_empty() {
-        return false;
-    }
-
-    // resolve operand spans and require one valid source window
-    let left_span = ctx.get_span(left_id);
-    let right_span = ctx.get_span(right_id);
-    if left_span.file != right_span.file || left_span.end >= right_span.start {
-        return false;
-    }
-
-    // scan the source window and match the operator token
-    let source = ctx.source_text().as_bytes();
-    let start = left_span.end as usize;
-    let end = right_span.start as usize;
-    if end > source.len() || start >= end {
-        return false;
-    }
-
-    let operator_bytes = operator_text.as_bytes();
-    let mut byte_index = start;
-    while byte_index + operator_bytes.len() <= end {
-        // skip whitespace around infix operators
-        if source[byte_index].is_ascii_whitespace() {
-            byte_index += 1;
-            continue;
+    matches!(
+        tree.get(expression_id),
+        dir::Expression::ScalarLiteral {
+            value: dir::ScalarLiteral::Integer(_)
+                | dir::ScalarLiteral::Bigint(_)
+                | dir::ScalarLiteral::Float(_),
         }
-
-        // match the exact operator token at this offset
-        if source[byte_index..].starts_with(operator_bytes) {
-            return true;
-        }
-
-        byte_index += 1;
-    }
-
-    false
+    )
 }
-
-/// Normalize expression syntax for token style equality checks.
-fn normalize_expression_syntax(source: &str) -> String {
-    source
-        .chars()
-        .filter(|character| !character.is_whitespace())
-        .collect()
-}
-
-/// Return true when the expression is a global qualified member access.
-pub fn expression_is_global_qualified_member(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-    qualifiers: &[dir::GlobalSymbolId],
-    member_name: StringId,
-) -> bool {
-    // normalize transparent wrappers first
-    let expression_id = expression_unwrap_transparent(tree, expression_id);
-
-    // resolve the member path
-    if let Some(path) = expression_reference_path(tree, expression_id) {
-        // ensure the requested member is present
-        if path.members.as_slice() != [member_name] {
-            return false;
-        }
-
-        // ensure the base is a known global qualifier
-        return match path.base {
-            ReferenceBase::Symbol(symbol) => qualifiers.contains(&symbol),
-            ReferenceBase::This => false,
-            ReferenceBase::Super => false,
-        };
-    }
-
-    // support computed static string access like `window["alert"]`
-    let Some((base_id, property_name)) = expression_static_property_access(tree, expression_id)
-    else {
-        return false;
-    };
-    if property_name != member_name {
-        return false;
-    }
-
-    let Some(base_symbol) = expression_target_symbol(tree, base_id) else {
-        return false;
-    };
-
-    qualifiers.contains(&base_symbol)
-}
-
-/// Return true when one expression resolves to a symbol or its global-qualified member form.
-pub fn expression_is_symbol_or_global_qualified_member(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-    symbol_id: dir::GlobalSymbolId,
-    qualifiers: &[dir::GlobalSymbolId],
-    member_name: StringId,
-) -> bool {
-    // match direct symbol references
-    let target_symbol = expression_target_symbol(tree, expression_id);
-    if target_symbol == Some(symbol_id) {
-        return true;
-    }
-
-    // match global qualified references
-    expression_is_global_qualified_member(tree, expression_id, qualifiers, member_name)
-}
-
-/// Return one static string literal value from an expression.
-pub fn expression_static_string_literal(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<StringId> {
-    // normalize transparent wrappers first
-    let expression_id = expression_unwrap_transparent(tree, expression_id);
-    let expression = tree.get(expression_id);
-
-    // match direct string literals
-    if let dir::Expression::ScalarLiteral {
-        value: dir::ScalarLiteral::String(value),
-    } = expression
-    {
-        return Some(*value);
-    }
-
-    // match template literals without interpolations
-    let dir::Expression::TemplateExpression { value } = expression else {
-        return None;
-    };
-    let dir::TemplateLiteral::String { string } = value else {
-        return None;
-    };
-
-    Some(*string)
-}
-
-/// Return one static regex literal pair as `(pattern, flags)`.
-pub fn expression_regex_literal(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<(StringId, Option<StringId>)> {
-    // normalize transparent wrappers first
-    let expression_id = expression_unwrap_transparent(tree, expression_id);
-    let expression = tree.get(expression_id);
-
-    // match direct regex literals
-    let dir::Expression::ScalarLiteral {
-        value: dir::ScalarLiteral::RegexString { content, flags },
-    } = expression
-    else {
-        return None;
-    };
-
-    Some((*content, *flags))
-}
-
-/// Return one static property access pair as `(left, property_name)`.
-pub fn expression_static_property_access(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<(dir::LocalNodeId<dir::Expression>, StringId)> {
-    // normalize transparent wrappers first
-    let expression_id = expression_unwrap_transparent(tree, expression_id);
-    let expression = tree.get(expression_id);
-
-    // match dot member access
-    if let dir::Expression::Member { left, name, .. } = expression {
-        return Some((*left, *name));
-    }
-
-    // match bracket member access with static string keys
-    let dir::Expression::Index { left, right } = expression else {
-        return None;
-    };
-    let index_id = right.as_ref().copied()?;
-    let property_name = expression_static_string_literal(tree, index_id)?;
-
-    Some((*left, property_name))
-}
-
 /// Return one assignment target expression for assignment-like expressions.
 pub fn expression_assignment_target(
     expression: &dir::Expression,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     match expression {
-        dir::Expression::Assign { left, .. } | dir::Expression::AssignBinary { left, .. } => {
-            Some(*left)
-        }
+        dir::Expression::Assign { left, right: _ }
+        | dir::Expression::AssignBinary {
+            left,
+            operator: _,
+            right: _,
+        } => Some(*left),
         dir::Expression::Unary {
             operator:
                 dir::UnaryOperator::PreIncrement
@@ -294,16 +54,40 @@ pub fn expression_assignment_target(
 /// Return a static import target specifier for import-like expressions.
 pub fn expression_import_target_static_specifier(expression: &dir::Expression) -> Option<StringId> {
     match expression {
-        dir::Expression::Import { target, .. }
-        | dir::Expression::ReExport { target, .. }
-        | dir::Expression::UnresolvedReExport { target, .. } => Some(*target),
-        dir::Expression::UnresolvedImport {
-            target: dir::ImportTarget::String(target),
-            ..
+        dir::Expression::Import {
+            source: _,
+            kind: _,
+            target,
+            target_module: _,
+            items: _,
+            arguments: _,
+        }
+        | dir::Expression::ReExport {
+            target,
+            target_module: _,
+            kind: _,
+            items: _,
+            arguments: _,
+        }
+        | dir::Expression::UnresolvedReExport {
+            target,
+            kind: _,
+            items: _,
+            arguments: _,
         } => Some(*target),
         dir::Expression::UnresolvedImport {
+            source: _,
+            kind: _,
+            target: dir::ImportTarget::String(target),
+            items: _,
+            arguments: _,
+        } => Some(*target),
+        dir::Expression::UnresolvedImport {
+            source: _,
+            kind: _,
             target: dir::ImportTarget::Expression { .. },
-            ..
+            items: _,
+            arguments: _,
         } => None,
         _ => None,
     }
@@ -351,10 +135,25 @@ pub fn argument_expression_id(
     let argument = tree.get(argument_id);
 
     match argument {
-        dir::Argument::Named { value, .. }
-        | dir::Argument::Labeled { value, .. }
-        | dir::Argument::Positional { value, .. }
-        | dir::Argument::Spread { value, .. } => Some(*value),
+        dir::Argument::Named {
+            modifiers: _,
+            name: _,
+            value,
+        }
+        | dir::Argument::Labeled {
+            modifiers: _,
+            label: _,
+            value,
+        }
+        | dir::Argument::Positional {
+            modifiers: _,
+            value,
+        }
+        | dir::Argument::Spread {
+            modifiers: _,
+            label: _,
+            value,
+        } => Some(*value),
     }
 }
 
@@ -369,17 +168,17 @@ pub fn type_expression_contains_reference_segment(
         dir::Expression::LocalReference {
             path,
             static_arguments,
-            ..
+            target_symbol: _,
         }
         | dir::Expression::ModuleReference {
             path,
             static_arguments,
-            ..
+            target_symbol: _,
         }
         | dir::Expression::GlobalReference {
             path,
             static_arguments,
-            ..
+            target_symbol: _,
         } => {
             if path.last_segment() == Some(target_segment) {
                 return true;
@@ -403,7 +202,7 @@ pub fn type_expression_contains_reference_segment(
             target,
             arguments,
             static_arguments,
-            ..
+            qualifier: _,
         } => {
             type_expression_contains_reference_segment(tree, *target, target_segment)
                 || arguments.iter().any(|argument_id| {
@@ -434,7 +233,7 @@ pub fn type_expression_contains_reference_segment(
         dir::Expression::Parenthesized { expression } => {
             type_expression_contains_reference_segment(tree, *expression, target_segment)
         }
-        dir::Expression::TypeUnary { right, .. } => {
+        dir::Expression::TypeUnary { operator: _, right } => {
             type_expression_contains_reference_segment(tree, *right, target_segment)
         }
         dir::Expression::TypeIndex { left, index } => {
@@ -453,7 +252,9 @@ pub fn type_expression_contains_reference_segment(
                 || type_expression_contains_reference_segment(tree, *else_type, target_segment)
         }
         dir::Expression::TypeMapped {
-            parameter, value, ..
+            parameter,
+            modifiers: _,
+            value,
         } => {
             type_expression_contains_reference_segment(tree, parameter.constraint, target_segment)
                 || parameter.key_remap.is_some_and(|key_remap| {
@@ -461,7 +262,7 @@ pub fn type_expression_contains_reference_segment(
                 })
                 || type_expression_contains_reference_segment(tree, *value, target_segment)
         }
-        dir::Expression::TypeTemplateLiteral { spans, .. } => spans.iter().any(|span_id| {
+        dir::Expression::TypeTemplateLiteral { strings: _, spans } => spans.iter().any(|span_id| {
             type_expression_contains_reference_segment(tree, *span_id, target_segment)
         }),
         _ => false,
@@ -479,34 +280,6 @@ pub fn function_signature_return_type_contains_reference_segment(
     };
 
     type_expression_contains_reference_segment(tree, return_type_id, target_segment)
-}
-
-/// Return true when one declaration creates a nested executable scope.
-pub fn declaration_has_nested_executable_scope(declaration: &dir::Declaration) -> bool {
-    matches!(
-        declaration,
-        dir::Declaration::Global { .. }
-            | dir::Declaration::Namespace { .. }
-            | dir::Declaration::Struct { .. }
-            | dir::Declaration::Class { .. }
-            | dir::Declaration::Enum { .. }
-            | dir::Declaration::Interface { .. }
-            | dir::Declaration::Function { .. }
-            | dir::Declaration::Extension { .. }
-    )
-}
-
-/// Return true when one expression enters a nested declaration scope.
-pub fn expression_enters_nested_declaration_scope(
-    tree: &dir::NodeTree,
-    expression: &dir::Expression,
-) -> bool {
-    let dir::Expression::Declaration { declaration } = expression else {
-        return false;
-    };
-
-    let declaration = tree.get(*declaration);
-    declaration_has_nested_executable_scope(declaration)
 }
 
 /// Return the expression id with transparent wrappers unwrapped.
@@ -540,335 +313,75 @@ pub fn expression_unwrap_transparent(
     }
 }
 
-/// Return one parent expression id when the parent node is an expression.
-pub fn expression_parent_id(
+/// Return the expression id with statement wrappers unwrapped.
+pub fn expression_unwrap_statement(
     tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<dir::LocalNodeId<dir::Expression>> {
-    // resolve one parent node
-    let parent = tree.get_parent(expression_id.id)?;
-    if parent.ty != dir::NodeType::Expression {
-        return None;
-    }
-
-    // return one typed parent expression id
-    Some(parent.into_typed::<dir::Expression>())
-}
-
-/// Return true when one expression belongs to an async callable boundary.
-pub fn expression_is_inside_async_callable(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    let mut current_parent_id = tree.get_parent(expression_id.id);
-
-    // walk ancestors until one callable boundary is reached
-    while let Some(parent_id) = current_parent_id {
-        let Some(asynchrony) = callable_boundary_asynchrony(tree, parent_id) else {
-            current_parent_id = tree.get_parent(parent_id.id);
-            continue;
-        };
-
-        return asynchrony == dir::Asynchrony::Async;
-    }
-
-    false
-}
-
-/// Return true when one expression is in an error handling context.
-pub fn expression_affects_error_handling_context(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    let mut current_child_id = expression_id.into_any();
-    let mut current_parent_id = tree.get_parent(current_child_id.id);
-
-    // walk ancestors and keep try context semantics scoped per callable
-    while let Some(parent_id) = current_parent_id {
-        // stop at callable boundaries and keep context local
-        if callable_boundary_asynchrony(tree, parent_id).is_some() {
-            return false;
-        }
-
-        // inspect direct try ancestry for this child path
-        if parent_id.ty == dir::NodeType::Expression {
-            let parent_expression_id = parent_id.into_typed::<dir::Expression>();
-            let parent_expression = tree.get(parent_expression_id);
-            if let dir::Expression::Try {
-                try_expression,
-                catch_expression,
-                finally_expression,
-                ..
-            } = parent_expression
-            {
-                let try_context = try_context_from_direct_child(
-                    *try_expression,
-                    *catch_expression,
-                    *finally_expression,
-                    current_child_id,
-                );
-                match try_context {
-                    Some(TryContext::Try) => {
-                        return true;
-                    }
-                    Some(TryContext::Catch) => {
-                        if finally_expression.is_some() {
-                            return true;
-                        }
-
-                        current_child_id = parent_expression_id.into_any();
-                        current_parent_id = tree.get_parent(current_child_id.id);
-                        continue;
-                    }
-                    Some(TryContext::Finally) => {
-                        current_child_id = parent_expression_id.into_any();
-                        current_parent_id = tree.get_parent(current_child_id.id);
-                        continue;
-                    }
-                    None => {}
-                }
-            }
-        }
-
-        current_child_id = parent_id;
-        current_parent_id = tree.get_parent(current_child_id.id);
-    }
-
-    false
-}
-
-/// Return true when one expression is in a resource-management-sensitive context.
-pub fn expression_affects_resource_management_context(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    let mut current_child_id = expression_id.into_any();
-    let mut current_parent_id = tree.get_parent(current_child_id.id);
-
-    // walk ancestors and keep resource context semantics scoped per callable
-    while let Some(parent_id) = current_parent_id {
-        // stop at callable boundaries and keep context local
-        if callable_boundary_asynchrony(tree, parent_id).is_some() {
-            return false;
-        }
-
-        // inspect enclosing blocks for earlier using declarations
-        if parent_id.ty == dir::NodeType::Block && current_child_id.ty == dir::NodeType::Expression
-        {
-            let block_id = parent_id.into_typed::<dir::Block>();
-            let block = tree.get(block_id);
-            let child_expression_id = current_child_id.into_typed::<dir::Expression>();
-            let child_index = block
-                .expressions
-                .iter()
-                .position(|expression_id| *expression_id == child_expression_id);
-
-            // report when a prior using declaration exists in this block scope
-            if let Some(child_index) = child_index {
-                let has_prior_using_declaration = block.expressions[..child_index]
-                    .iter()
-                    .copied()
-                    .any(|statement_expression_id| {
-                        expression_is_using_declaration(tree, statement_expression_id)
-                    });
-                if has_prior_using_declaration {
-                    return true;
-                }
-            }
-        }
-
-        current_child_id = parent_id;
-        current_parent_id = tree.get_parent(current_child_id.id);
-    }
-
-    false
-}
-
-/// One direct child try context classification.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum TryContext {
-    /// The child belongs to the try branch.
-    Try,
-    /// The child belongs to the catch branch.
-    Catch,
-    /// The child belongs to the finally branch.
-    Finally,
-}
-
-/// Return the async marker for one callable boundary node.
-fn callable_boundary_asynchrony(
-    tree: &dir::NodeTree,
-    node_id: dir::LocalNodeIdAny,
-) -> Option<dir::Asynchrony> {
-    match node_id.ty {
-        dir::NodeType::Declaration => {
-            let declaration = tree.get(node_id.into_typed::<dir::Declaration>());
-            let dir::Declaration::Function { signature, .. } = declaration else {
-                return None;
-            };
-            Some(signature.asynchrony)
-        }
-        dir::NodeType::Member => {
-            let member = tree.get(node_id.into_typed::<dir::Member>());
-            let dir::Member::Method { signature, .. } = member else {
-                return None;
-            };
-            Some(signature.asynchrony)
-        }
-        dir::NodeType::Property => {
-            let property = tree.get(node_id.into_typed::<dir::Property>());
-            let dir::Property::Method { signature, .. } = property else {
-                return None;
-            };
-            Some(signature.asynchrony)
-        }
-        _ => None,
-    }
-}
-
-/// Return one direct try branch for a child node.
-fn try_context_from_direct_child(
-    try_expression_id: dir::LocalNodeId<dir::Expression>,
-    catch_expression_id: Option<dir::LocalNodeId<dir::Expression>>,
-    finally_expression_id: Option<dir::LocalNodeId<dir::Expression>>,
-    child_id: dir::LocalNodeIdAny,
-) -> Option<TryContext> {
-    // classify the direct try branch from expression ids
-    if child_id == try_expression_id.into_any() {
-        return Some(TryContext::Try);
-    }
-    if catch_expression_id.is_some_and(|id| child_id == id.into_any()) {
-        return Some(TryContext::Catch);
-    }
-    if finally_expression_id.is_some_and(|id| child_id == id.into_any()) {
-        return Some(TryContext::Finally);
-    }
-
-    None
-}
-
-/// Return true when one statement expression is a using declaration.
-fn expression_is_using_declaration(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    let expression = tree.get(expression_id);
-
-    // match direct using declarations
-    if matches!(expression, dir::Expression::Using { .. }) {
-        return true;
-    }
-
-    // recurse through transparent statement wrappers
-    if let dir::Expression::Statement { statement } = expression {
-        return expression_is_using_declaration(tree, *statement);
-    }
-    if let dir::Expression::Parenthesized { expression } = expression {
-        return expression_is_using_declaration(tree, *expression);
-    }
-
-    false
-}
-
-/// Return the outermost transparent wrapper that still contains this expression.
-pub fn expression_outer_transparent_ancestor(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
+    mut expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> dir::LocalNodeId<dir::Expression> {
-    // walk through transparent parent wrappers
-    let mut current_expression_id = expression_id;
     loop {
-        let Some(parent_expression_id) = expression_parent_id(tree, current_expression_id) else {
-            return current_expression_id;
+        let expression_id_unwrapped = expression_unwrap_transparent(tree, expression_id);
+        let expression = tree.get(expression_id_unwrapped);
+        let dir::Expression::Statement { statement } = expression else {
+            return expression_id_unwrapped;
         };
 
-        let parent_expression = tree.get(parent_expression_id);
-        if !expression_is_transparent_parent_of(parent_expression, current_expression_id) {
-            return current_expression_id;
+        expression_id = *statement;
+    }
+}
+
+/// Return true when one binary expression is nested under the same operator.
+pub fn binary_expression_is_nested_same_operator(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    operator: dir::BinaryOperator,
+) -> bool {
+    let mut current_node_id = expression_id.id;
+
+    loop {
+        let Some(parent_node_id) = tree.get_parent(current_node_id) else {
+            return false;
+        };
+        if parent_node_id.ty != dir::NodeType::Expression {
+            return false;
         }
 
-        current_expression_id = parent_expression_id;
+        let parent_expression_id = parent_node_id.into_typed::<dir::Expression>();
+        let parent_expression = tree.get(parent_expression_id);
+        match parent_expression {
+            dir::Expression::Parenthesized { expression } if expression.id == current_node_id => {
+                current_node_id = parent_node_id.id;
+            }
+            dir::Expression::Binary {
+                operator: parent_operator,
+                ..
+            } => return *parent_operator == operator,
+            _ => return false,
+        }
     }
 }
 
-/// Return true when the parent expression transparently wraps the child expression.
-fn expression_is_transparent_parent_of(
-    parent_expression: &dir::Expression,
-    child_expression_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    matches!(
-        parent_expression,
-        dir::Expression::Parenthesized { expression } if *expression == child_expression_id
-    ) || matches!(
-        parent_expression,
-        dir::Expression::Maybe { left } if *left == child_expression_id
-    ) || matches!(
-        parent_expression,
-        dir::Expression::Must { left } if *left == child_expression_id
-    ) || matches!(
-        parent_expression,
-        dir::Expression::Instantiation { left, .. } if *left == child_expression_id
-    ) || matches!(
-        parent_expression,
-        dir::Expression::Cast { value, .. } if *value == child_expression_id
-    ) || matches!(
-        parent_expression,
-        dir::Expression::OwnershipCast { value, .. } if *value == child_expression_id
-    ) || matches!(
-        parent_expression,
-        dir::Expression::ValueOf { right, .. } if *right == child_expression_id
-    ) || matches!(
-        parent_expression,
-        dir::Expression::ReferenceOf { right, .. } if *right == child_expression_id
-    ) || matches!(
-        parent_expression,
-        dir::Expression::PointerOf { right, .. } if *right == child_expression_id
-    )
-}
-
-/// Return the surrounding statement expression for a standalone expression.
-pub fn statement_expression_ancestor(
+/// Collect all members of one flattened binary operator chain.
+pub fn binary_expression_chain_members(
     tree: &dir::NodeTree,
     expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<dir::LocalNodeId<dir::Expression>> {
-    // normalize transparent wrappers before checking statement ownership
-    let outer_expression_id = expression_outer_transparent_ancestor(tree, expression_id);
-
-    // resolve one parent expression
-    let parent_expression_id = expression_parent_id(tree, outer_expression_id)?;
-    let parent_expression = tree.get(parent_expression_id);
-
-    // return one statement wrapper parent
-    if let dir::Expression::Statement { statement } = parent_expression
-        && *statement == outer_expression_id
+    operator: dir::BinaryOperator,
+    members: &mut Vec<dir::LocalNodeId<dir::Expression>>,
+) {
+    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
+    let expression = tree.get(expression_id);
+    if let dir::Expression::Binary {
+        left,
+        operator: child_operator,
+        right,
+    } = expression
+        && *child_operator == operator
     {
-        return Some(parent_expression_id);
+        binary_expression_chain_members(tree, *left, operator, members);
+        binary_expression_chain_members(tree, *right, operator, members);
+        return;
     }
 
-    None
-}
-
-/// Return the enclosing statement span for a standalone expression.
-pub fn statement_expression_span(
-    ctx: &LintModuleDirContext<'_>,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<Span> {
-    // resolve the enclosing statement wrapper
-    let statement_expression_id = statement_expression_ancestor(ctx.tree, expression_id)?;
-
-    // return the statement span
-    Some(ctx.get_span(statement_expression_id))
-}
-
-/// Return true when an expression is a standalone statement value.
-///
-/// This accepts transparent wrappers around the expression before the
-/// surrounding statement node.
-pub fn expression_is_standalone_statement(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    statement_expression_ancestor(tree, expression_id).is_some()
+    members.push(expression_id);
 }
 
 /// Return one source span that removes trailing arguments from an argument list.
@@ -956,106 +469,6 @@ pub fn find_first_byte_between(source: &[u8], start: usize, end: usize, byte: u8
 
     None
 }
-
-/// Return receiver text for one member expression.
-pub fn member_receiver_text(
-    ctx: &LintModuleDirContext<'_>,
-    left_expression_id: dir::LocalNodeId<dir::Expression>,
-    member_text: &str,
-    member_name: StringId,
-    is_private: bool,
-) -> Option<String> {
-    let member_name = ctx.program.strings.get(member_name);
-    let suffix = if is_private {
-        format!(".#{}", member_name.as_ref())
-    } else {
-        format!(".{}", member_name.as_ref())
-    };
-
-    // prefer parsing from full member text for best source fidelity
-    if let Some(receiver) = member_text.strip_suffix(&suffix) {
-        let receiver = receiver.trim();
-        if !receiver.is_empty() {
-            return Some(receiver.to_string());
-        }
-    }
-
-    // fall back to left expression span text
-    let left_span = ctx.get_span(left_expression_id);
-    let left_text = ctx.get_span_text(left_span).trim().to_string();
-    if left_text.is_empty() {
-        return None;
-    }
-
-    Some(left_text)
-}
-
-/// Return true when this expression is used as receiver helper target.
-pub fn parent_is_receiver_helper(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-    bind_name: StringId,
-    call_name: StringId,
-    apply_name: StringId,
-) -> bool {
-    let Some(parent) = tree.get_parent(expression_id.id) else {
-        return false;
-    };
-    if parent.ty != dir::NodeType::Expression {
-        return false;
-    }
-
-    // inspect the immediate parent expression for helper member access
-    let parent_id = parent.into_typed::<dir::Expression>();
-    let parent_expression = tree.get(parent_id);
-    matches!(
-        parent_expression,
-        dir::Expression::Member { left, name, .. }
-            | dir::Expression::PrivateMember { left, name, .. }
-            if *left == expression_id
-                && (*name == bind_name || *name == call_name || *name == apply_name)
-    )
-}
-
-/// Return true when a call-like invocation safely binds method receivers.
-pub fn call_like_invocation_is_receiver_bound(
-    tree: &dir::NodeTree,
-    call_like_id: dir::LocalNodeId<dir::Expression>,
-    bind_name: StringId,
-    call_name: StringId,
-    apply_name: StringId,
-) -> bool {
-    let expression = tree.get(call_like_id);
-    let (callee_id, dynamic_arguments) = match expression {
-        dir::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
-        }
-        | dir::Expression::New {
-            left,
-            dynamic_arguments,
-            ..
-        } => (*left, dynamic_arguments.as_slice()),
-        _ => return false,
-    };
-
-    // inspect callee helper usage for bind, call, and apply
-    let callee = tree.get(callee_id);
-    let uses_receiver_helper = matches!(
-        callee,
-        dir::Expression::Member { name, .. } | dir::Expression::PrivateMember { name, .. }
-            if *name == bind_name || *name == call_name || *name == apply_name
-    );
-
-    // non helper callees are safe by construction
-    if !uses_receiver_helper {
-        return true;
-    }
-
-    !dynamic_arguments.is_empty()
-}
-
 /// Return one discarded call-like value and its replacement expression span owner.
 pub fn expression_discarded_call_like_value(
     tree: &dir::NodeTree,
@@ -1465,111 +878,28 @@ pub fn expression_is_potentially_tainted(
     // these expression kinds can carry user controlled data
     matches!(
         expression,
-        dir::Expression::LocalReference { .. }
-            | dir::Expression::ModuleReference { .. }
-            | dir::Expression::Member { .. }
-            | dir::Expression::Call { .. }
-            | dir::Expression::Index { .. }
-            | dir::Expression::Binary { .. }
-            | dir::Expression::TemplateExpression { .. }
+        dir::Expression::LocalReference {
+            path: _,
+            target_symbol: _,
+            static_arguments: _,
+        } | dir::Expression::ModuleReference {
+            path: _,
+            target_symbol: _,
+            static_arguments: _,
+        } | dir::Expression::Member {
+            left: _,
+            name: _,
+            static_arguments: _,
+        } | dir::Expression::Call {
+            left: _,
+            static_arguments: _,
+            dynamic_arguments: _,
+        } | dir::Expression::Index { left: _, right: _ }
+            | dir::Expression::Binary {
+                left: _,
+                operator: _,
+                right: _,
+            }
+            | dir::Expression::TemplateExpression { value: _ }
     )
-}
-
-/// Get the base of a reference path.
-fn expression_reference_path_base(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-    members: &mut Vec<StringId>,
-) -> Option<ReferenceBase> {
-    // inspect the expression node
-    let expression = tree.get(expression_id);
-
-    // match the base or member steps
-    match expression {
-        dir::Expression::Parenthesized { expression } => {
-            expression_reference_path_base(tree, *expression, members)
-        }
-        dir::Expression::Member { left, name, .. } => {
-            members.push(*name);
-            expression_reference_path_base(tree, *left, members)
-        }
-        dir::Expression::This => Some(ReferenceBase::This),
-        dir::Expression::Super => Some(ReferenceBase::Super),
-        _ => expression.target_symbol().map(ReferenceBase::Symbol),
-    }
-}
-
-/// Info about a method call expression (receiver.method(...)).
-#[derive(Debug, Clone, Copy)]
-pub struct MethodCallInfo {
-    /// The call expression id.
-    pub call_id: dir::LocalNodeId<dir::Expression>,
-    /// The receiver expression id (the object the method is called on).
-    pub receiver_id: dir::LocalNodeId<dir::Expression>,
-    /// The method name.
-    pub method_name: StringId,
-}
-
-/// Info about one call-like expression (`call(...)` or `new call(...)`).
-#[derive(Debug, Clone, Copy)]
-pub struct CallLikeExpressionInfo<'a> {
-    /// The call target expression.
-    pub left: dir::LocalNodeId<dir::Expression>,
-    /// Optional static arguments.
-    pub static_arguments: Option<&'a [dir::LocalNodeId<dir::Argument>]>,
-    /// Dynamic arguments.
-    pub dynamic_arguments: &'a [dir::LocalNodeId<dir::Argument>],
-    /// Whether this expression is `new`.
-    pub is_new: bool,
-}
-
-/// Match one call-like expression and extract call target and arguments.
-pub fn expression_call_like(expression: &dir::Expression) -> Option<CallLikeExpressionInfo<'_>> {
-    match expression {
-        dir::Expression::Call {
-            left,
-            static_arguments,
-            dynamic_arguments,
-        } => Some(CallLikeExpressionInfo {
-            left: *left,
-            static_arguments: static_arguments.as_deref(),
-            dynamic_arguments,
-            is_new: false,
-        }),
-        dir::Expression::New {
-            left,
-            static_arguments,
-            dynamic_arguments,
-        } => Some(CallLikeExpressionInfo {
-            left: *left,
-            static_arguments: static_arguments.as_deref(),
-            dynamic_arguments,
-            is_new: true,
-        }),
-        _ => None,
-    }
-}
-
-/// Match a method call expression and extract its parts.
-pub fn expression_method_call(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<MethodCallInfo> {
-    // match call expression
-    let expression = tree.get(expression_id);
-    let dir::Expression::Call { left, .. } = expression else {
-        return None;
-    };
-
-    // match member access for the callee
-    let callee = tree.get(*left);
-    let dir::Expression::Member { left, name, .. } = callee else {
-        return None;
-    };
-
-    Some(MethodCallInfo {
-        call_id: expression_id,
-        receiver_id: *left,
-        method_name: *name,
-    })
 }

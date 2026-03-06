@@ -47,7 +47,9 @@ impl LintRule for ArrayType {
         let mut reported_source_ids = HashSet::new();
 
         for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
-            let Some(source_expression_id) = source_expression_id(ctx, expression_id) else {
+            let Some(source_expression_id) =
+                ctx.source_node_id::<ast::Expression>(expression_id.into_any())
+            else {
                 continue;
             };
 
@@ -124,20 +126,6 @@ enum ArraySyntax {
         type_argument_expression_id: ast::LocalNodeId<ast::Expression>,
     },
 }
-
-/// Return one source AST expression id for a DIR expression id.
-fn source_expression_id(
-    ctx: &LintModuleDirContext<'_>,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<ast::LocalNodeId<ast::Expression>> {
-    let source_id = ctx.tree.get_source(expression_id.id);
-    if ctx.ast.get_node_type(source_id) != ast::NodeType::Expression {
-        return None;
-    }
-
-    Some(ast::LocalNodeId::<ast::Expression>::new(source_id))
-}
-
 /// Return the source array syntax for one AST expression when applicable.
 fn source_array_syntax(
     tree: &ast::NodeTree,

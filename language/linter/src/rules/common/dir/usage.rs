@@ -84,6 +84,35 @@ pub fn collect_module_symbol_usage(
     usage
 }
 
+/// Collect direct reference expression ids for one local symbol in one module.
+pub fn collect_local_symbol_direct_reference_expression_ids(
+    module_id: ModuleId,
+    tree: &dir::NodeTree,
+    symbol_id: dir::LocalSymbolId,
+) -> Vec<dir::LocalNodeId<dir::Expression>> {
+    let mut references = Vec::new();
+    let global_symbol_id = symbol_id.into_global(module_id);
+
+    // collect direct target symbol references in deterministic tree order
+    for (expression_id, expression) in tree.iter_nodes_of_type::<dir::Expression>() {
+        if expression.target_symbol() == Some(global_symbol_id) {
+            references.push(expression_id);
+        }
+    }
+
+    references
+}
+
+/// Return true when one local symbol has direct references in one module.
+pub fn local_symbol_has_direct_references(
+    module_id: ModuleId,
+    tree: &dir::NodeTree,
+    symbol_id: dir::LocalSymbolId,
+) -> bool {
+    tree.iter_nodes_of_type::<dir::Expression>()
+        .any(|(_, expression)| expression.target_symbol() == Some(symbol_id.into_global(module_id)))
+}
+
 /// Collect symbols read by one expression subtree.
 pub fn collect_expression_read_symbol_usage(
     tree: &dir::NodeTree,
@@ -208,14 +237,19 @@ impl NodeVisitor for ReadSymbolCollector {
         expression: &dir::Expression,
     ) {
         // assignment left side is write only here, only visit the right side
-        if let dir::Expression::Assign { right, .. } = expression {
+        if let dir::Expression::Assign { left: _, right } = expression {
             let right_expression = tree.get(*right);
             self.visit_expression(tree, *right, right_expression);
             return;
         }
 
         // let declarator patterns are writes, only visit initializers
-        if let dir::Expression::Let { declarators, .. } = expression {
+        if let dir::Expression::Let {
+            descriptor: _,
+            mutability: _,
+            declarators,
+        } = expression
+        {
             for declarator_id in declarators {
                 let declarator = tree.get(*declarator_id);
                 if let Some(value_expression_id) = declarator.value {
@@ -257,9 +291,17 @@ fn expression_reference_is_read(
             dir::Expression::Parenthesized { expression } if *expression == current_id => {
                 current_id = parent_id;
             }
-            dir::Expression::Cast { value, .. } | dir::Expression::OwnershipCast { value, .. }
-                if *value == current_id =>
-            {
+            dir::Expression::Cast {
+                operator: _,
+                source: _,
+                value,
+                target_type: _,
+            }
+            | dir::Expression::OwnershipCast {
+                operator: _,
+                source: _,
+                value,
+            } if *value == current_id => {
                 current_id = parent_id;
             }
             dir::Expression::Maybe { left } | dir::Expression::Must { left }
@@ -269,12 +311,16 @@ fn expression_reference_is_read(
             }
 
             // plain assignment left side is write only
-            dir::Expression::Assign { left, .. } if *left == current_id => {
+            dir::Expression::Assign { left, right: _ } if *left == current_id => {
                 return false;
             }
 
             // update assignments read previous value only when the result is consumed
-            dir::Expression::AssignBinary { left, .. } if *left == current_id => {
+            dir::Expression::AssignBinary {
+                left,
+                operator: _,
+                right: _,
+            } if *left == current_id => {
                 return !expression_is_standalone_statement(tree, parent_id);
             }
 

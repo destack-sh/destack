@@ -1,9 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{
-    block_is_empty_without_comment, match_case_selector, match_selector_is_default,
-};
+use crate::rules::common::block_is_empty_without_comment;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -77,8 +75,7 @@ impl LintRule for MaxSwitchCases {
 fn switch_case_counts(tree: &ast::NodeTree, case_id: ast::LocalNodeId<ast::MatchCase>) -> bool {
     // resolve selector and skip default cases
     let case = tree.get(case_id);
-    let selector = match_case_selector(case);
-    if match_selector_is_default(selector) {
+    if case.selector().is_default() {
         return false;
     }
 

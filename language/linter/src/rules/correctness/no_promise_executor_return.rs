@@ -2,7 +2,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::expression_target_symbol;
+use crate::rules::common::{callable_return_usage, expression_target_symbol};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -100,7 +100,7 @@ impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
             return;
         };
         let analysis = analyze_executor_returns(self.ctx.tree, declaration_id);
-        if !analysis.has_return_value {
+        if !analysis.returns_value() {
             return;
         }
 
@@ -125,8 +125,8 @@ impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
 
         // compute fixes only when requested by the runner
         if self.ctx.include_fixes
-            && !analysis.has_expression_body_return
-            && let Some(fix) = promise_executor_return_fix(self.ctx, &analysis.return_nodes)
+            && !analysis.has_expression_body_return_value
+            && let Some(fix) = promise_executor_return_fix(self.ctx, &analysis.return_value_nodes)
         {
             diagnostic = diagnostic.with_fix(fix);
         }
@@ -197,96 +197,17 @@ fn executor_declaration(
 fn analyze_executor_returns(
     tree: &dir::NodeTree,
     declaration_id: dir::LocalNodeId<dir::Declaration>,
-) -> ExecutorReturnAnalysis {
+) -> crate::rules::common::CallableReturnUsage {
     // extract the function body
     let declaration = tree.get(declaration_id);
     let dir::Declaration::Function {
         signature, body, ..
     } = declaration
     else {
-        return ExecutorReturnAnalysis::default();
+        return crate::rules::common::CallableReturnUsage::default();
     };
 
-    let Some(body_id) = body else {
-        return ExecutorReturnAnalysis::default();
-    };
-
-    // treat expression bodies as implicit returns for lambdas
-    let body_expression = tree.get(*body_id);
-    if signature.kind == dir::FunctionKind::Lambda
-        && !matches!(body_expression, dir::Expression::Block { .. })
-    {
-        return ExecutorReturnAnalysis {
-            has_return_value: true,
-            return_nodes: Vec::new(),
-            has_expression_body_return: true,
-        };
-    }
-
-    // walk the body for explicit returns with values
-    let mut visitor = ReturnValueVisitor::default();
-    visitor.visit_expression(tree, *body_id, body_expression);
-    ExecutorReturnAnalysis {
-        has_return_value: visitor.found_return_value,
-        return_nodes: visitor.return_nodes,
-        has_expression_body_return: false,
-    }
-}
-
-/// Visitor that checks for return values.
-#[derive(Default)]
-struct ReturnValueVisitor {
-    /// Whether a return value was found.
-    found_return_value: bool,
-    /// Return expressions with values.
-    return_nodes: Vec<dir::LocalNodeId<dir::Expression>>,
-    /// The visitor options.
-    options: NodeVisitorOptions,
-}
-
-impl NodeVisitor for ReturnValueVisitor {
-    fn options(&self) -> &NodeVisitorOptions {
-        &self.options
-    }
-
-    fn visit_expression(
-        &mut self,
-        tree: &dir::NodeTree,
-        id: dir::LocalNodeId<dir::Expression>,
-        expression: &dir::Expression,
-    ) {
-        // detect explicit return values
-        if let dir::Expression::Return { value } = expression
-            && value.is_some()
-        {
-            self.found_return_value = true;
-            self.return_nodes.push(id);
-            return;
-        }
-
-        // walk expression children
-        walk_expression(self, tree, id, expression);
-    }
-
-    fn visit_declaration(
-        &mut self,
-        _tree: &dir::NodeTree,
-        _id: dir::LocalNodeId<dir::Declaration>,
-        _declaration: &dir::Declaration,
-    ) {
-        // skip nested function declarations
-    }
-}
-
-/// Analysis result for one Promise executor declaration.
-#[derive(Default)]
-struct ExecutorReturnAnalysis {
-    /// Whether the executor returns one value.
-    has_return_value: bool,
-    /// Explicit return value nodes found in the executor body.
-    return_nodes: Vec<dir::LocalNodeId<dir::Expression>>,
-    /// Whether the executor uses one expression body return.
-    has_expression_body_return: bool,
+    callable_return_usage(tree, signature, *body)
 }
 
 /// Build an unsafe fix for explicit Promise executor return values.

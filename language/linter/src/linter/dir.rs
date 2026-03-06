@@ -175,6 +175,19 @@ impl<'a> LintModuleDirContext<'a> {
             .and_then(|symbol| self.types.get_value_type_id(symbol))
     }
 
+    /// Return the source AST node id for one DIR node.
+    pub fn source_node_id<T: ast::Node>(
+        &self,
+        node_id: dir::LocalNodeIdAny,
+    ) -> Option<ast::LocalNodeId<T>> {
+        let source_id = self.tree.get_source(node_id.id);
+        if self.ast.get_node_type(source_id) != T::TYPE {
+            return None;
+        }
+
+        Some(ast::LocalNodeId::<T>::new(source_id))
+    }
+
     /// Get a language item from the cache, returning None if not found.
     pub fn get_language_symbol(&self, item: LanguageSymbol) -> Option<dir::GlobalSymbolId> {
         let builtins = self.program.builtins.as_ref()?;

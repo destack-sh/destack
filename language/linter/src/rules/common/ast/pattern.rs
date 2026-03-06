@@ -3,53 +3,12 @@ use destack_ast as ast;
 use super::expression_is_equal;
 use crate::LintModuleAstContext;
 
-/// Return the selector for one match case.
-pub fn match_case_selector(case: &ast::MatchCase) -> &ast::MatchSelector {
-    match case {
-        ast::MatchCase::Expression { selector, .. } => selector,
-        ast::MatchCase::Block { selector, .. } => selector,
-    }
-}
-
-/// Return true when a selector is the default case.
-pub fn match_selector_is_default(selector: &ast::MatchSelector) -> bool {
-    matches!(selector, ast::MatchSelector::Default)
-}
-
-/// Return true when a selector has a guard expression.
-pub fn match_selector_has_guard(selector: &ast::MatchSelector) -> bool {
-    matches!(selector, ast::MatchSelector::Pattern { guard: Some(_), .. })
-}
-
-/// Return the pattern id for a pattern selector.
-pub fn match_selector_pattern_id(
-    selector: &ast::MatchSelector,
-) -> Option<ast::LocalNodeId<ast::Pattern>> {
-    match selector {
-        ast::MatchSelector::Pattern { pattern, .. } => Some(*pattern),
-        ast::MatchSelector::Default => None,
-    }
-}
-
-/// Return the guard expression id for a pattern selector.
-pub fn match_selector_guard_expression_id(
-    selector: &ast::MatchSelector,
-) -> Option<ast::LocalNodeId<ast::Expression>> {
-    match selector {
-        ast::MatchSelector::Pattern {
-            guard: Some(guard_id),
-            ..
-        } => Some(*guard_id),
-        _ => None,
-    }
-}
-
 /// Return the expression id when a selector is an expression pattern.
 pub fn match_selector_expression_id(
     ctx: &LintModuleAstContext<'_>,
     selector: &ast::MatchSelector,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
-    let pattern_id = match_selector_pattern_id(selector)?;
+    let pattern_id = selector.pattern_id()?;
     pattern_expression_id(ctx, pattern_id)
 }
 

@@ -5,6 +5,72 @@ use destack_source::{ModuleId, Span};
 
 use crate::LintModuleDirContext;
 
+/// Resolve one direct binding name and symbol from a simple pattern binding.
+pub fn pattern_binding_name_and_symbol(
+    tree: &dir::NodeTree,
+    pattern_id: dir::LocalNodeId<dir::Pattern>,
+) -> Option<(dir::StringId, dir::LocalSymbolId)> {
+    let pattern = tree.get(pattern_id);
+    let dir::Pattern::Binding { name, symbol, .. } = pattern else {
+        return None;
+    };
+
+    Some((*name, *symbol))
+}
+
+/// Resolve one binding name and symbol pair from a parameter.
+pub fn parameter_binding_name_and_symbol(
+    tree: &dir::NodeTree,
+    parameter_id: dir::LocalNodeId<dir::Parameter>,
+) -> Option<(dir::StringId, dir::LocalSymbolId)> {
+    let parameter = tree.get(parameter_id);
+    match parameter {
+        dir::Parameter::Named { name, symbol, .. }
+        | dir::Parameter::VariadicNamed { name, symbol, .. } => Some((*name, *symbol)),
+        dir::Parameter::Pattern { pattern, .. }
+        | dir::Parameter::VariadicPattern { pattern, .. } => {
+            pattern_binding_name_and_symbol(tree, *pattern)
+        }
+    }
+}
+
+/// Return true when one signature declares a value binding with the target name.
+pub fn signature_declares_value_name(
+    tree: &dir::NodeTree,
+    symbols: &dir::SymbolTable,
+    signature: &dir::FunctionSignature,
+    name: dir::StringId,
+) -> bool {
+    // check the `this` parameter first when present
+    if signature.this_parameter.is_some_and(|parameter_id| {
+        parameter_declares_value_name(tree, symbols, parameter_id, name)
+    }) {
+        return true;
+    }
+
+    // then check regular dynamic parameters
+    signature
+        .dynamic_parameters
+        .iter()
+        .any(|parameter_id| parameter_declares_value_name(tree, symbols, *parameter_id, name))
+}
+
+/// Return true when one parameter declares a value binding with the target name.
+fn parameter_declares_value_name(
+    tree: &dir::NodeTree,
+    symbols: &dir::SymbolTable,
+    parameter_id: dir::LocalNodeId<dir::Parameter>,
+    name: dir::StringId,
+) -> bool {
+    let mut bindings = HashSet::new();
+    collect_parameter_value_binding_symbols(tree, symbols, parameter_id, &mut bindings);
+
+    bindings.into_iter().any(|symbol_id| {
+        let symbol = symbols.get_symbol(symbol_id);
+        symbol.name() == Some(name)
+    })
+}
+
 /// Collect value-space binding symbols declared by one parameter.
 pub fn collect_parameter_value_binding_symbols(
     tree: &dir::NodeTree,

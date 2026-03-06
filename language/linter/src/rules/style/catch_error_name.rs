@@ -1,7 +1,12 @@
-use destack_ast::{self as ast, Pattern};
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::{
+    PromiseCallbackArity, expression_unwrap_transparent, fresh_name_in_symbol_scope_for_rename,
+    local_symbol_has_direct_references, parameter_binding_name_and_symbol,
+    promise_rejection_callback, rename_local_symbol_fix, symbol_primary_declaration_for,
+};
+use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce a specific name for caught errors.
@@ -12,7 +17,7 @@ declare_lint! {
         id = "catch-error-name",
         code = "LY001",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -24,127 +29,362 @@ declare_lint! {
 }
 
 impl LintRule for CatchErrorName {
-    fn meta(&self) -> &'static crate::LintMeta {
+    /// Return lint metadata.
+    fn meta(&self) -> &'static LintMeta {
         CatchErrorName::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    /// Check module DIR expressions for catch binding names.
+    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
         let expected_name = &ctx.options.catch_error_name;
+        let catch_name = ctx.program.strings.intern("catch");
+        let then_name = ctx.program.strings.intern("then");
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expr = ctx.tree.get(node_id);
+        // inspect expressions for catch bindings and promise rejection callbacks
+        for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
+            let expression = ctx.tree.get(expression_id);
 
-            // look for try expressions with catch patterns
-            let ast::Expression::Try {
-                catch_pattern: Some(pattern_id),
-                catch_expression,
-                ..
-            } = expr
-            else {
+            // check try catch binding names
+            if let dir::Expression::Try {
+                try_expression: _,
+                catch_pattern: _,
+                catch_ty: _,
+                catch_expression: _,
+                finally_expression: _,
+                scope: _,
+                symbol: _,
+            } = expression
+            {
+                report_try_catch_binding(ctx, meta, expression, expected_name);
                 continue;
-            };
+            }
 
-            let pattern = ctx.tree.get(*pattern_id);
-
-            // extract the binding name from the pattern
-            let actual_name = match pattern {
-                Pattern::Binding { name, .. } => Some(*name),
-                _ => None,
-            };
-
-            if let Some(name_id) = actual_name {
-                let actual = ctx.strings.get(name_id);
-                if actual.as_ref() != expected_name {
-                    let severity = ctx.get_effective_severity(meta, node_id);
-                    if !severity.is_enabled() {
-                        continue;
-                    }
-
-                    let mut diagnostic = LintDiagnostic::new(
-                        CATCH_ERROR_NAME.id,
-                        CATCH_ERROR_NAME.code,
-                        CATCH_ERROR_NAME.category,
-                        severity,
-                        format!(
-                            "catch error should be named `{}`, not `{}`",
-                            expected_name,
-                            actual.as_ref()
-                        ),
-                        ctx.module.file_id,
-                        ctx.tree.get_span(*pattern_id),
-                    )
-                    .with_label(format!("rename to `{expected_name}`"));
-
-                    // compute fixes only when requested by the runner
-                    if ctx.compute_fixes
-                        && let Some(fix) = catch_error_name_fix(
-                            ctx,
-                            *pattern_id,
-                            name_id,
-                            *catch_expression,
-                            expected_name,
-                        )
-                    {
-                        diagnostic = diagnostic.with_fix(fix);
-                    }
-
-                    ctx.report(diagnostic);
-                }
+            // check promise callback parameter names
+            if let dir::Expression::Call {
+                left: _,
+                static_arguments: _,
+                dynamic_arguments: _,
+            } = expression
+            {
+                report_promise_rejection_callback(
+                    ctx,
+                    meta,
+                    expression,
+                    expected_name,
+                    catch_name,
+                    then_name,
+                );
+                continue;
             }
         }
     }
 }
 
-/// Build a safe fix by renaming the catch binding and aliasing the original name.
-fn catch_error_name_fix(
-    ctx: &LintModuleAstContext<'_>,
-    pattern_id: ast::LocalNodeId<ast::Pattern>,
-    actual_name_id: destack_base::StringId,
-    catch_expression: Option<ast::LocalNodeId<ast::Expression>>,
+/// Report one lint when one try catch binding name does not match the configured name.
+fn report_try_catch_binding(
+    ctx: &mut LintModuleDirContext<'_>,
+    meta: &LintMeta,
+    expression: &dir::Expression,
     expected_name: &str,
-) -> Option<LintFix> {
-    let pattern = ctx.tree.get(pattern_id);
-    let Pattern::Binding {
-        mutability,
-        pattern: nested_pattern,
-        ..
-    } = pattern
+) {
+    // keep try expressions with one catch binding
+    let dir::Expression::Try {
+        try_expression: _,
+        catch_pattern: Some(pattern_id),
+        catch_ty: _,
+        catch_expression: _,
+        finally_expression: _,
+        scope: _,
+        symbol: _,
+    } = expression
     else {
-        return None;
+        return;
     };
 
-    // keep simple binding patterns only
-    if mutability.is_some() || nested_pattern.is_some() {
+    // keep simple catch binding patterns
+    let pattern = ctx.tree.get(*pattern_id);
+    let dir::Pattern::Binding {
+        name: actual_name_id,
+        symbol,
+        mutability: _,
+        pattern: _,
+    } = pattern
+    else {
+        return;
+    };
+    let actual_name = ctx.program.strings.get(*actual_name_id).to_string();
+    if name_matches_expected(&actual_name, expected_name)
+        || name_is_unused_placeholder(ctx, *symbol, &actual_name)
+    {
+        return;
+    }
+
+    // resolve effective severity and skip disabled diagnostics
+    let severity = ctx.get_effective_severity(meta, *pattern_id);
+    if !severity.is_enabled() {
+        return;
+    }
+
+    // report the mismatch and offer one symbol-aware rename fix
+    let mut diagnostic = LintDiagnostic::new(
+        CATCH_ERROR_NAME.id,
+        CATCH_ERROR_NAME.code,
+        CATCH_ERROR_NAME.category,
+        severity,
+        format!(
+            "catch error should be named `{expected_name}`, not `{}`",
+            actual_name
+        ),
+        ctx.module.file_id,
+        ctx.get_span(*pattern_id),
+    )
+    .with_label("rename this catch binding to the configured name");
+    if ctx.include_fixes
+        && let Some(replacement_name) =
+            fresh_name_in_symbol_scope_for_rename(ctx, *symbol, expected_name)
+        && let Some(fix) = rename_local_symbol_fix(
+            ctx,
+            *symbol,
+            &replacement_name,
+            &format!(
+                "Rename catch binding `{}` to `{replacement_name}`",
+                actual_name
+            ),
+        )
+    {
+        diagnostic = diagnostic.with_fix(fix);
+    }
+
+    ctx.report(diagnostic);
+}
+
+/// Report one lint when one promise rejection callback parameter name does not match.
+fn report_promise_rejection_callback(
+    ctx: &mut LintModuleDirContext<'_>,
+    meta: &LintMeta,
+    expression: &dir::Expression,
+    expected_name: &str,
+    catch_name: dir::StringId,
+    then_name: dir::StringId,
+) {
+    // keep call expressions only
+    let dir::Expression::Call {
+        left,
+        static_arguments: _,
+        dynamic_arguments,
+    } = expression
+    else {
+        return;
+    };
+
+    // keep strict promise catch and then callback arities for unicorn parity
+    let Some(callback) = promise_rejection_callback(
+        ctx.tree,
+        *left,
+        dynamic_arguments.len(),
+        catch_name,
+        then_name,
+        PromiseCallbackArity::Exact,
+    ) else {
+        return;
+    };
+
+    // keep callback arguments with one named first parameter
+    let callback_argument_id = dynamic_arguments[callback.callback_argument_index];
+    let Some((parameter_id, actual_name_id, symbol_id)) =
+        callback_parameter_binding_from_argument(ctx, callback_argument_id)
+    else {
+        return;
+    };
+    let actual_name = ctx.program.strings.get(actual_name_id).to_string();
+    if name_matches_expected(&actual_name, expected_name)
+        || name_is_unused_placeholder(ctx, symbol_id, &actual_name)
+    {
+        return;
+    }
+
+    // resolve effective severity and skip disabled diagnostics
+    let severity = ctx.get_effective_severity(meta, parameter_id);
+    if !severity.is_enabled() {
+        return;
+    }
+
+    // report the mismatch and offer one symbol-aware rename fix
+    let mut diagnostic = LintDiagnostic::new(
+        CATCH_ERROR_NAME.id,
+        CATCH_ERROR_NAME.code,
+        CATCH_ERROR_NAME.category,
+        severity,
+        format!(
+            "promise rejection parameter should be named `{expected_name}`, not `{}`",
+            actual_name
+        ),
+        ctx.module.file_id,
+        ctx.get_span(parameter_id),
+    )
+    .with_label("rename this callback parameter to the configured name");
+    if ctx.include_fixes
+        && let Some(replacement_name) =
+            fresh_name_in_symbol_scope_for_rename(ctx, symbol_id, expected_name)
+        && let Some(fix) = rename_local_symbol_fix(
+            ctx,
+            symbol_id,
+            &replacement_name,
+            &format!(
+                "Rename callback parameter `{}` to `{replacement_name}`",
+                actual_name
+            ),
+        )
+    {
+        diagnostic = diagnostic.with_fix(fix);
+    }
+
+    ctx.report(diagnostic);
+}
+
+/// Resolve one callback parameter binding from one call argument.
+fn callback_parameter_binding_from_argument(
+    ctx: &LintModuleDirContext<'_>,
+    argument_id: dir::LocalNodeId<dir::Argument>,
+) -> Option<(
+    dir::LocalNodeId<dir::Parameter>,
+    dir::StringId,
+    dir::LocalSymbolId,
+)> {
+    // resolve the callback argument expression
+    let argument = ctx.tree.get(argument_id);
+    let callback_expression_id = argument.value();
+
+    callback_parameter_binding(ctx, callback_expression_id)
+}
+
+/// Resolve one callback first parameter binding from one callback expression.
+fn callback_parameter_binding(
+    ctx: &LintModuleDirContext<'_>,
+    callback_expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<(
+    dir::LocalNodeId<dir::Parameter>,
+    dir::StringId,
+    dir::LocalSymbolId,
+)> {
+    // keep callback declarations that resolve in the current module
+    let declaration_id = callback_primary_declaration(ctx, callback_expression_id)?;
+    if declaration_id.module_id != ctx.module_id() {
         return None;
     }
 
-    // keep block catch expressions only
-    let catch_expression_id = catch_expression?;
-    let catch_expression = ctx.tree.get(catch_expression_id);
-    if !matches!(catch_expression, ast::Expression::Block(_)) {
-        return None;
+    // keep callbacks with one first parameter binding
+    let parameter_id = first_callback_parameter_in_declaration(ctx.tree, declaration_id.local_id)?;
+    let (name_id, symbol_id) = parameter_binding_name_and_symbol(ctx.tree, parameter_id)?;
+
+    Some((parameter_id, name_id, symbol_id))
+}
+
+/// Resolve one callback primary declaration from one callback expression.
+fn callback_primary_declaration(
+    ctx: &LintModuleDirContext<'_>,
+    callback_expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<dir::GlobalNodeIdAny> {
+    // keep inline callback declarations first
+    let callback_expression_id = expression_unwrap_transparent(ctx.tree, callback_expression_id);
+    let callback_expression = ctx.tree.get(callback_expression_id);
+    if let dir::Expression::Declaration { declaration } = callback_expression {
+        return Some((*declaration).into_global_any(ctx.module_id()));
     }
 
-    let actual_name = ctx.strings.get(actual_name_id);
-    if actual_name.as_ref() == expected_name {
-        return None;
+    // then resolve referenced callback declarations
+    let target_symbol = callback_expression.target_symbol()?;
+    symbol_primary_declaration_for(
+        &ctx.program,
+        ctx.profile_id,
+        ctx.module_id(),
+        ctx.symbols,
+        target_symbol,
+    )
+}
+
+/// Resolve one first callback parameter from one declaration node.
+fn first_callback_parameter_in_declaration(
+    tree: &dir::NodeTree,
+    declaration_id: dir::LocalNodeIdAny,
+) -> Option<dir::LocalNodeId<dir::Parameter>> {
+    // keep function declarations
+    if declaration_id.ty == dir::NodeType::Declaration {
+        let declaration = tree.get(declaration_id.into_typed::<dir::Declaration>());
+        let dir::Declaration::Function {
+            descriptor: _,
+            signature,
+            scope: _,
+            body: _,
+        } = declaration
+        else {
+            return None;
+        };
+
+        return signature.dynamic_parameters.first().copied();
     }
 
-    let block_span = ctx.tree.get_span(catch_expression_id);
-    let block_text = ctx.get_span_text(block_span);
-    let block_start_offset = block_text.find('{')? as u32;
-    let insert_position = block_span.start + block_start_offset + 1;
-    let alias_statement = format!("\n    let {} = {expected_name};", actual_name.as_ref());
+    // keep method declarations
+    if declaration_id.ty == dir::NodeType::Member {
+        let member = tree.get(declaration_id.into_typed::<dir::Member>());
+        let dir::Member::Method {
+            modifiers: _,
+            key: _,
+            signature,
+            body: _,
+            symbol: _,
+        } = member
+        else {
+            return None;
+        };
 
-    let pattern_span = ctx.tree.get_span(pattern_id);
-    let edits = ctx
-        .edit_builder()
-        .replace(pattern_span, expected_name)
-        .insert(insert_position, alias_statement)
-        .into_edits();
+        return signature.dynamic_parameters.first().copied();
+    }
 
-    Some(LintFix::safe("Rename catch binding and preserve old name alias").with_edits(edits))
+    None
+}
+
+/// Return true when one underscore-prefixed name is unused in the current module.
+fn name_is_unused_placeholder(
+    ctx: &LintModuleDirContext<'_>,
+    symbol_id: dir::LocalSymbolId,
+    actual_name: &str,
+) -> bool {
+    if !actual_name.starts_with('_') {
+        return false;
+    }
+
+    !local_symbol_has_direct_references(ctx.module_id(), ctx.tree, symbol_id)
+}
+
+/// Return true when one actual name matches configured catch naming conventions.
+fn name_matches_expected(actual_name: &str, expected_name: &str) -> bool {
+    // allow exact matches first
+    if actual_name == expected_name {
+        return true;
+    }
+
+    // normalize trailing underscores
+    let actual_name = actual_name.trim_end_matches('_');
+    if actual_name == expected_name {
+        return true;
+    }
+
+    // allow suffix style names like `myError`
+    if actual_name.ends_with(expected_name) {
+        return true;
+    }
+
+    // allow suffix style names with leading uppercase like `myError` for `error`
+    let mut expected_chars = expected_name.chars();
+    let Some(first_expected) = expected_chars.next() else {
+        return false;
+    };
+    let expected_uppercase =
+        first_expected.to_uppercase().collect::<String>() + expected_chars.as_str();
+
+    actual_name.ends_with(expected_uppercase.as_str())
 }
 
 #[cfg(test)]
@@ -152,10 +392,11 @@ mod tests {
     use super::*;
     use crate::linter::TestProgram;
 
+    /// Flag mismatched catch binding names.
     #[test]
     fn test_detects_wrong_error_name() {
         let test = TestProgram::for_rule_without_prelude(CatchErrorName);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "catch_error_name/test_detects_wrong_error_name.ds",
             r#"
 try {
@@ -170,10 +411,11 @@ try {
             .assert_has_fix("catch-error-name");
     }
 
+    /// Allow configured catch binding names.
     #[test]
     fn test_allows_correct_name() {
         let test = TestProgram::for_rule_without_prelude(CatchErrorName);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "catch_error_name/test_allows_correct_name.ds",
             r#"
 try {
@@ -186,10 +428,11 @@ try {
         test.result(result).assert_no_lint("catch-error-name");
     }
 
+    /// Allow try blocks without catch clauses.
     #[test]
     fn test_allows_try_without_catch() {
         let test = TestProgram::for_rule_without_prelude(CatchErrorName);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "catch_error_name/test_allows_try_without_catch.ds",
             r#"
 try {
@@ -202,10 +445,11 @@ try {
         test.result(result).assert_no_lint("catch-error-name");
     }
 
+    /// Flag non-configured catch aliases.
     #[test]
     fn test_detects_err_name() {
         let test = TestProgram::for_rule_without_prelude(CatchErrorName);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "catch_error_name/test_detects_err_name.ds",
             r#"
 try {
@@ -218,11 +462,12 @@ try {
         test.result(result).assert_lint("catch-error-name");
     }
 
+    /// Rename catch binding references when no conflicts exist.
     #[test]
-    fn test_fix_renames_catch_binding_and_aliases_old_name() {
+    fn test_fix_renames_catch_binding() {
         let test = TestProgram::for_rule_without_prelude(CatchErrorName);
-        let result = test.lint_ast(
-            "catch_error_name/test_fix_renames_catch_binding_and_aliases_old_name.ds",
+        let result = test.lint_dir(
+            "catch_error_name/test_fix_renames_catch_binding.ds",
             r#"
 try {
     run()
@@ -233,23 +478,54 @@ try {
         );
         test.result(result)
             .assert_lint("catch-error-name")
-            .assert_safe_fixed(
+            .assert_unsafe_fixed(
                 r#"
 try {
     run()
 } catch (error) {
-    let err = error;
-    console.log(err)
+    console.log(error)
 }
 "#,
             );
     }
 
+    /// Rename catch binding with underscore suffix when configured name collides.
     #[test]
-    fn test_no_fix_for_non_binding_catch_pattern() {
+    fn test_fix_renames_catch_binding_with_collision_suffix() {
         let test = TestProgram::for_rule_without_prelude(CatchErrorName);
-        let result = test.lint_ast(
-            "catch_error_name/test_no_fix_for_non_binding_catch_pattern.ds",
+        let result = test.lint_dir(
+            "catch_error_name/test_fix_renames_catch_binding_with_collision_suffix.ds",
+            r#"
+let error = 1;
+
+try {
+    run()
+} catch (err) {
+    console.log(err, error)
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("catch-error-name")
+            .assert_unsafe_fixed(
+                r#"
+let error = 1;
+
+try {
+    run()
+} catch (error_) {
+    console.log(error_, error)
+}
+"#,
+            );
+    }
+
+    /// Allow destructured catch patterns.
+    #[test]
+    fn test_allows_non_binding_catch_pattern() {
+        let test = TestProgram::for_rule_without_prelude(CatchErrorName);
+        let result = test.lint_dir(
+            "catch_error_name/test_allows_non_binding_catch_pattern.ds",
             r#"
 try {
     run()
@@ -258,8 +534,210 @@ try {
 }
 "#,
         );
+        test.result(result).assert_no_lint("catch-error-name");
+    }
+
+    /// Allow suffix naming variants.
+    #[test]
+    fn test_allows_catch_name_suffix_variants() {
+        let test = TestProgram::for_rule_without_prelude(CatchErrorName);
+        let result = test.lint_dir(
+            "catch_error_name/test_allows_catch_name_suffix_variants.ds",
+            r#"
+try {
+    run()
+} catch (networkError_) {
+    console.log(networkError_)
+}
+"#,
+        );
+        test.result(result).assert_no_lint("catch-error-name");
+    }
+
+    /// Allow unused underscore-prefixed catch bindings.
+    #[test]
+    fn test_allows_unused_underscore_prefixed_catch_binding() {
+        let test = TestProgram::for_rule_without_prelude(CatchErrorName);
+        let result = test.lint_dir(
+            "catch_error_name/test_allows_unused_underscore_prefixed_catch_binding.ds",
+            r#"
+try {
+    run()
+} catch (_foo) {
+    console.log("ignored")
+}
+"#,
+        );
+        test.result(result).assert_no_lint("catch-error-name");
+    }
+
+    /// Flag promise catch callback parameter names.
+    #[test]
+    fn test_detects_promise_catch_callback_name() {
+        let test = TestProgram::for_rule_without_prelude(CatchErrorName);
+        let result = test.lint_dir(
+            "catch_error_name/test_detects_promise_catch_callback_name.ds",
+            r#"
+promise.catch((err) => {
+    console.log(err)
+})
+"#,
+        );
+        test.result(result).assert_lint("catch-error-name");
+    }
+
+    /// Flag promise then rejection callback parameter names.
+    #[test]
+    fn test_detects_promise_then_rejection_callback_name() {
+        let test = TestProgram::for_rule_without_prelude(CatchErrorName);
+        let result = test.lint_dir(
+            "catch_error_name/test_detects_promise_then_rejection_callback_name.ds",
+            r#"
+promise.then(
+    (value) => value,
+    (err) => console.log(err),
+)
+"#,
+        );
+        test.result(result).assert_lint("catch-error-name");
+    }
+
+    /// Rename promise callback parameter references when no conflicts exist.
+    #[test]
+    fn test_fix_renames_promise_callback_parameter() {
+        let test = TestProgram::for_rule_without_prelude(CatchErrorName);
+        let result = test.lint_dir(
+            "catch_error_name/test_fix_renames_promise_callback_parameter.ds",
+            r#"
+promise.catch((err) => {
+    console.log(err)
+})
+"#,
+        );
         test.result(result)
-            .assert_no_lint("catch-error-name")
-            .assert_has_no_fix("catch-error-name");
+            .assert_lint("catch-error-name")
+            .assert_unsafe_fixed(
+                r#"
+promise.catch((error) => {
+    console.log(error)
+})
+"#,
+            );
+    }
+
+    /// Flag promise catch function callback parameter names.
+    #[test]
+    fn test_detects_promise_catch_function_callback_name() {
+        let test = TestProgram::for_rule_without_prelude(CatchErrorName);
+        let result = test.lint_dir(
+            "catch_error_name/test_detects_promise_catch_function_callback_name.ds",
+            r#"
+promise.catch(function (err) {
+    console.log(err)
+})
+"#,
+        );
+        test.result(result).assert_lint("catch-error-name");
+    }
+
+    /// Rename promise catch function callback parameter references when no conflicts exist.
+    #[test]
+    fn test_fix_renames_promise_catch_function_callback_parameter() {
+        let test = TestProgram::for_rule_without_prelude(CatchErrorName);
+        let result = test.lint_dir(
+            "catch_error_name/test_fix_renames_promise_catch_function_callback_parameter.ds",
+            r#"
+promise.catch(function (err) {
+    console.log(err)
+})
+"#,
+        );
+        test.result(result)
+            .assert_lint("catch-error-name")
+            .assert_unsafe_fixed(
+                r#"
+promise.catch(function (error) {
+    console.log(error)
+})
+"#,
+            );
+    }
+
+    /// Ignore promise rejection callbacks when the method arity exceeds source parity.
+    #[test]
+    fn test_ignores_promise_callbacks_with_extra_arguments() {
+        let test = TestProgram::for_rule_without_prelude(CatchErrorName);
+        let result = test.lint_dir(
+            "catch_error_name/test_ignores_promise_callbacks_with_extra_arguments.ds",
+            r#"
+promise.catch((err) => {
+    console.log(err)
+}, extra)
+
+promise.then(
+    (value) => value,
+    (err) => console.log(err),
+    extra,
+)
+"#,
+        );
+        test.result(result).assert_no_lint("catch-error-name");
+    }
+
+    /// Allow unused underscore-prefixed promise callback parameters.
+    #[test]
+    fn test_allows_unused_underscore_prefixed_promise_callback_parameter() {
+        let test = TestProgram::for_rule_without_prelude(CatchErrorName);
+        let result = test.lint_dir(
+            "catch_error_name/test_allows_unused_underscore_prefixed_promise_callback_parameter.ds",
+            r#"
+promise.catch((_foo) => {
+    console.log("ignored")
+})
+"#,
+        );
+        test.result(result).assert_no_lint("catch-error-name");
+    }
+
+    /// Flag used underscore-prefixed promise callback parameters.
+    #[test]
+    fn test_detects_used_underscore_prefixed_promise_callback_parameter() {
+        let test = TestProgram::for_rule_without_prelude(CatchErrorName);
+        let result = test.lint_dir(
+            "catch_error_name/test_detects_used_underscore_prefixed_promise_callback_parameter.ds",
+            r#"
+promise.catch((_foo) => {
+    console.log(_foo)
+})
+"#,
+        );
+        test.result(result).assert_lint("catch-error-name");
+    }
+
+    /// Rename promise callback parameter with underscore suffix when configured name collides.
+    #[test]
+    fn test_fix_renames_promise_callback_parameter_with_collision_suffix() {
+        let test = TestProgram::for_rule_without_prelude(CatchErrorName);
+        let result = test.lint_dir(
+            "catch_error_name/test_fix_renames_promise_callback_parameter_with_collision_suffix.ds",
+            r#"
+let error = 1;
+
+promise.catch((err) => {
+    console.log(err, error)
+})
+"#,
+        );
+        test.result(result)
+            .assert_lint("catch-error-name")
+            .assert_unsafe_fixed(
+                r#"
+let error = 1;
+
+promise.catch((error_) => {
+    console.log(error_, error)
+})
+"#,
+            );
     }
 }

@@ -1,7 +1,9 @@
-use destack_ast::{self as ast, Declaration};
+use destack_ast::{self as ast};
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::local_symbol_has_class_merge;
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow empty interface declarations.
@@ -13,7 +15,7 @@ declare_lint! {
         id = "no-empty-interface",
         code = "LY018",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -25,46 +27,61 @@ declare_lint! {
 }
 
 impl LintRule for NoEmptyInterface {
-    fn meta(&self) -> &'static crate::LintMeta {
+    /// Return lint metadata.
+    fn meta(&self) -> &'static LintMeta {
         NoEmptyInterface::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    /// Check module DIR declarations for empty interfaces.
+    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.tree.get(node_id);
-            let Declaration::Interface {
+        // inspect interface declarations only
+        for declaration_id in ctx.tree.iter_node_ids_of_type::<dir::Declaration>() {
+            let declaration = ctx.tree.get(declaration_id);
+            let dir::Declaration::Interface {
                 descriptor,
-                generics,
-                members,
                 heritage,
+                members,
                 ..
             } = declaration
             else {
                 continue;
             };
-
             let Some(interface_name_id) = descriptor.name.map(|name| name.string()) else {
                 continue;
             };
 
-            let extends_count = heritage
-                .extends_types
-                .as_ref()
-                .map(|v| v.len())
-                .unwrap_or(0);
-
+            // keep non-empty interfaces out of this rule
             if !members.is_empty() {
                 continue;
             }
 
-            let severity = ctx.get_effective_severity(meta, node_id);
+            // resolve source declaration data used for fixes
+            let Some(source_declaration_id) =
+                ctx.source_node_id::<ast::Declaration>(declaration_id.into_any())
+            else {
+                continue;
+            };
+            let source_declaration = ctx.ast.get(source_declaration_id);
+            let ast::Declaration::Interface {
+                generics,
+                heritage: source_heritage,
+                ..
+            } = source_declaration
+            else {
+                continue;
+            };
+
+            // honor per node severity
+            let severity = ctx.get_effective_severity(meta, declaration_id);
             if !severity.is_enabled() {
                 continue;
             }
 
-            let span = ctx.tree.get_span(node_id);
+            // report plain empty interfaces first
+            let extends_count = heritage.extends_types.as_ref().map_or(0, Vec::len);
+            let span = ctx.get_span(declaration_id);
             if extends_count == 0 {
                 ctx.report(
                     LintDiagnostic::new(
@@ -81,10 +98,12 @@ impl LintRule for NoEmptyInterface {
                 continue;
             }
 
+            // keep multi-extends and configured single-extends interfaces
             if extends_count != 1 || ctx.options.allow_single_extends_empty_interface {
                 continue;
             }
 
+            // report single-extends interfaces and attach one safe fix when merging allows it
             let mut diagnostic = LintDiagnostic::new(
                 NO_EMPTY_INTERFACE.id,
                 NO_EMPTY_INTERFACE.code,
@@ -95,15 +114,14 @@ impl LintRule for NoEmptyInterface {
                 span,
             )
             .with_label("use `type X = Parent` or `newtype X = Parent` instead");
-
-            if ctx.compute_fixes
-                && !interface_has_class_merge(ctx, node_id, interface_name_id)
+            if ctx.include_fixes
+                && !local_symbol_has_class_merge(ctx.tree, ctx.symbols, descriptor.symbol)
                 && let Some(fix) = no_empty_interface_single_extends_fix(
                     ctx,
-                    node_id,
+                    source_declaration_id,
                     interface_name_id,
                     generics,
-                    heritage,
+                    source_heritage,
                 )
             {
                 diagnostic = diagnostic.with_fix(fix);
@@ -114,65 +132,39 @@ impl LintRule for NoEmptyInterface {
     }
 }
 
-/// Return true when the interface name is merged with a class declaration.
-fn interface_has_class_merge(
-    ctx: &LintModuleAstContext<'_>,
-    interface_id: ast::LocalNodeId<ast::Declaration>,
-    interface_name_id: ast::StringId,
-) -> bool {
-    for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-        if declaration_id == interface_id {
-            continue;
-        }
-
-        let declaration = ctx.tree.get(declaration_id);
-        let Declaration::Class { descriptor, .. } = declaration else {
-            continue;
-        };
-
-        let Some(class_name_id) = descriptor.name.map(|name| name.string()) else {
-            continue;
-        };
-
-        if class_name_id == interface_name_id {
-            return true;
-        }
-    }
-
-    false
-}
-
 /// Build a type alias fix for one empty single-extends interface.
 fn no_empty_interface_single_extends_fix(
-    ctx: &LintModuleAstContext<'_>,
-    interface_id: ast::LocalNodeId<ast::Declaration>,
+    ctx: &LintModuleDirContext<'_>,
+    source_declaration_id: ast::LocalNodeId<ast::Declaration>,
     interface_name_id: ast::StringId,
     generics: &ast::Generics,
     heritage: &ast::Heritage,
 ) -> Option<LintFix> {
+    // keep interfaces with where clauses out of the automatic rewrite
     if generics.where_clauses.is_some() {
         return None;
     }
 
+    // build the replacement alias from the source declaration text
     let parent_id = *heritage.extends_types.as_ref()?.first()?;
-    let parent_text = ctx.get_span_text(ctx.tree.get_span(parent_id));
-    let interface_name = ctx.strings.get(interface_name_id);
+    let parent_text = ctx.get_span_text(ctx.ast.get_span(parent_id));
+    let interface_name = ctx.program.strings.get(interface_name_id);
     let generic_text = generic_parameters_text(ctx, generics.static_parameters.as_deref());
-
     let replacement = format!(
         "type {}{generic_text} = {parent_text}",
         interface_name.as_ref()
     );
     let edits = ctx
         .edit_builder()
-        .replace(ctx.tree.get_span(interface_id), replacement)
+        .replace(ctx.ast.get_span(source_declaration_id), replacement)
         .into_edits();
+
     Some(LintFix::safe("Convert to type alias").with_edits(edits))
 }
 
 /// Build source text for generic parameter declarations.
 fn generic_parameters_text(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintModuleDirContext<'_>,
     parameters: Option<&[ast::LocalNodeId<ast::Parameter>]>,
 ) -> String {
     let Some(parameters) = parameters else {
@@ -182,10 +174,11 @@ fn generic_parameters_text(
         return String::new();
     }
 
+    // keep the exact source text for each generic parameter
     let parameter_text = parameters
         .iter()
         .map(|parameter_id| {
-            ctx.get_span_text(ctx.tree.get_span(*parameter_id))
+            ctx.get_span_text(ctx.ast.get_span(*parameter_id))
                 .to_string()
         })
         .collect::<Vec<_>>()
@@ -193,7 +186,6 @@ fn generic_parameters_text(
 
     format!("<{parameter_text}>")
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -202,31 +194,37 @@ mod tests {
     #[test]
     fn test_detects_empty_interface() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyInterface);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_empty_interface/test_detects_empty_interface.ts",
             r#"
 interface Empty {}
 "#,
         );
+        test.check_clean();
         test.result(result).assert_lint("no-empty-interface");
     }
 
     #[test]
     fn test_detects_single_extends() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyInterface);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_empty_interface/test_detects_single_extends.ts",
             r#"
+interface Parent {
+    value: number;
+}
+
 interface Child extends Parent {}
 "#,
         );
+        test.check_clean();
         test.result(result).assert_lint("no-empty-interface");
     }
 
     #[test]
     fn test_allows_interface_with_members() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyInterface);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_empty_interface/test_allows_interface_with_members.ts",
             r#"
 interface Foo {
@@ -234,44 +232,60 @@ interface Foo {
 }
 "#,
         );
+        test.check_clean();
         test.result(result).assert_no_lint("no-empty-interface");
     }
 
     #[test]
     fn test_allows_multiple_extends() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyInterface);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_empty_interface/test_allows_multiple_extends.ts",
             r#"
+interface A {
+    a: number;
+}
+
+interface B {
+    b: number;
+}
+
 interface Combined extends A, B {}
 "#,
         );
+        test.check_clean();
         test.result(result).assert_no_lint("no-empty-interface");
     }
 
     #[test]
     fn test_allows_extends_with_members() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyInterface);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_empty_interface/test_allows_extends_with_members.ts",
             r#"
+interface Parent {
+    value: number;
+}
+
 interface Child extends Parent {
     extra(): void;
 }
 "#,
         );
+        test.check_clean();
         test.result(result).assert_no_lint("no-empty-interface");
     }
 
     #[test]
     fn test_no_fix_for_empty_interface() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyInterface);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_empty_interface/test_no_fix_for_empty_interface.ts",
             r#"
 interface Empty {}
 "#,
         );
+        test.check_clean();
         test.result(result)
             .assert_lint("no-empty-interface")
             .assert_has_no_fix("no-empty-interface");
@@ -280,16 +294,25 @@ interface Empty {}
     #[test]
     fn test_fix_single_extends() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyInterface);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_empty_interface/test_fix_single_extends.ts",
             r#"
+interface Parent {
+    value: number;
+}
+
 interface Child extends Parent {}
 "#,
         );
+        test.check_clean();
         test.result(result)
             .assert_lint("no-empty-interface")
             .assert_safe_fixed(
                 r#"
+interface Parent {
+    value: number;
+}
+
 type Child = Parent;
 "#,
             );
@@ -299,25 +322,35 @@ type Child = Parent;
     fn test_allows_single_extends_when_option_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyInterface)
             .with_options(|options| options.allow_single_extends_empty_interface = true);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_empty_interface/test_allows_single_extends_when_option_enabled.ts",
             r#"
+interface Parent {
+    value: number;
+}
+
 interface Child extends Parent {}
 "#,
         );
+        test.check_clean();
         test.result(result).assert_no_lint("no-empty-interface");
     }
 
     #[test]
     fn test_no_fix_for_single_extends_with_merged_class() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyInterface);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_empty_interface/test_no_fix_for_single_extends_with_merged_class.ts",
             r#"
+interface Parent {
+    value: number;
+}
+
 interface Child extends Parent {}
 class Child {}
 "#,
         );
+        test.check_clean();
         test.result(result)
             .assert_lint("no-empty-interface")
             .assert_has_no_fix("no-empty-interface");
@@ -326,17 +359,26 @@ class Child {}
     #[test]
     fn test_fix_single_extends_with_generics() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyInterface);
-        let result = test.lint_ast(
+        let result = test.lint_dir(
             "no_empty_interface/test_fix_single_extends_with_generics.ts",
             r#"
-interface Box<T> extends ReadonlyBox<T> {}
+interface Parent<T> {
+    value: T;
+}
+
+interface Box<T> extends Parent<T> {}
 "#,
         );
+        test.check_clean();
         test.result(result)
             .assert_lint("no-empty-interface")
             .assert_safe_fixed(
                 r#"
-type Box<T> = ReadonlyBox<T>;
+interface Parent<T> {
+    value: T;
+}
+
+type Box<T> = Parent<T>;
 "#,
             );
     }

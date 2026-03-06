@@ -830,6 +830,35 @@ pub fn is_array_type(
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::Array { array_symbol })
 }
 
+/// Return the fixed arity when one type resolves to a tuple.
+pub fn tuple_type_arity(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> Option<usize> {
+    let mut current_type_id = normalized_flow_type_id(types, type_id);
+    let mut visited_type_ids = HashSet::new();
+
+    loop {
+        if !visited_type_ids.insert(current_type_id) {
+            return None;
+        }
+
+        let current_type = types.get_type(current_type_id);
+        match current_type {
+            dir::Type::Tuple { elements, .. } => return Some(elements.len()),
+            dir::Type::Value { value } => {
+                current_type_id = *value;
+            }
+            dir::Type::ValueOf { right, .. }
+            | dir::Type::ReferenceOf { right, .. }
+            | dir::Type::PointerOf { right, .. } => {
+                current_type_id = *right;
+            }
+            dir::Type::Reference { symbol, .. } => {
+                current_type_id = primary_reference_target_type_id(types, *symbol)?;
+            }
+            _ => return None,
+        }
+    }
+}
+
 /// Return true when the type is an array or tuple whose elements are strings.
 pub fn is_string_array_type(
     types: &dir::TypeTable,

@@ -1,7 +1,7 @@
 use destack_dir::{self as dir, BinaryOperator, UnaryOperator};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_unwrap_parenthesized;
+use crate::rules::common::{expression_is_numeric_literal, expression_unwrap_parenthesized};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -41,7 +41,7 @@ impl LintRule for NoImplicitCoercion {
                 right,
             } = expression
             {
-                if is_numeric_literal_expression(ctx.tree, *right) {
+                if expression_is_numeric_literal(ctx.tree, *right) {
                     continue;
                 }
 
@@ -147,22 +147,6 @@ fn is_double_negation(
         dir::Expression::Unary {
             operator: UnaryOperator::Not,
             ..
-        }
-    )
-}
-
-/// Return true when the expression is a numeric scalar literal.
-fn is_numeric_literal_expression(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
-    matches!(
-        tree.get(expression_id),
-        dir::Expression::ScalarLiteral {
-            value: dir::ScalarLiteral::Integer(_)
-                | dir::ScalarLiteral::Bigint(_)
-                | dir::ScalarLiteral::Float(_),
         }
     )
 }

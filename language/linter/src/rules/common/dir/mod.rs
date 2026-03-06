@@ -1,13 +1,23 @@
+mod callable;
+mod context;
+mod declaration;
 mod expression;
 mod parameter;
+mod pattern;
+mod reference;
 mod rename;
 mod symbol;
 mod taint;
 mod r#type;
 mod usage;
 
+pub use callable::*;
+pub use context::*;
+pub use declaration::*;
 pub use expression::*;
 pub use parameter::*;
+pub use pattern::*;
+pub use reference::*;
 pub use rename::*;
 pub use symbol::*;
 pub use taint::*;

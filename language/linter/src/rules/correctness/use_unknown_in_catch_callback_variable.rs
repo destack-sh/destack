@@ -4,8 +4,9 @@ use destack_workspace::{LintSeverity, Module, ProfileId};
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    expression_type_map, expression_unwrap_transparent, function_parameter_types_at,
-    is_explicit_any_type, is_promise_type, symbol_primary_declaration_for,
+    PromiseCallbackArity, expression_type_map, expression_unwrap_transparent,
+    function_parameter_types_at, is_explicit_any_type, is_promise_type, promise_rejection_callback,
+    symbol_primary_declaration_for,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -31,10 +32,12 @@ declare_lint! {
 }
 
 impl LintRule for UseUnknownInCatchCallbackVariable {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         UseUnknownInCatchCallbackVariable::meta()
     }
 
+    /// Check module DIR nodes for Promise rejection callback parameter types.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
         let catch_name = ctx.program.strings.intern("catch");
@@ -55,15 +58,17 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
             else {
                 continue;
             };
-            let Some((promise_receiver, callback_argument_index, callback_kind)) =
-                promise_rejection_callback_target(
-                    ctx,
-                    *left,
-                    dynamic_arguments.len(),
-                    catch_name,
-                    then_name,
-                )
-            else {
+            let Some(callback) = promise_rejection_callback(
+                ctx.tree,
+                *left,
+                dynamic_arguments.len(),
+                catch_name,
+                then_name,
+                PromiseCallbackArity::Minimum,
+            ) else {
+                continue;
+            };
+            let Some(promise_receiver) = callback.receiver_expression_id else {
                 continue;
             };
             let is_promise_receiver = expression_type_map(
@@ -83,7 +88,7 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
 
             let callback_argument = ctx
                 .tree
-                .get(dynamic_arguments[callback_argument_index])
+                .get(dynamic_arguments[callback.callback_argument_index])
                 .value();
             let callback_candidates =
                 collect_rejection_callback_candidates(ctx.tree, callback_argument);
@@ -119,7 +124,10 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
                     USE_UNKNOWN_IN_CATCH_CALLBACK_VARIABLE.code,
                     USE_UNKNOWN_IN_CATCH_CALLBACK_VARIABLE.category,
                     severity,
-                    format!("{callback_kind} callback parameter should be unknown"),
+                    format!(
+                        "{} callback parameter should be unknown",
+                        callback.callback_kind
+                    ),
                     ctx.module.file_id,
                     diagnostic_span,
                 )
@@ -156,32 +164,6 @@ fn catch_callback_unknown_fix(
         .replace(type_span, "unknown")
         .into_edits();
     Some(LintFix::safe("Replace `any` with `unknown`").with_edits(edits))
-}
-
-/// Resolve promise rejection callback target info for `catch` and `then`.
-fn promise_rejection_callback_target(
-    ctx: &LintModuleDirContext<'_>,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-    argument_count: usize,
-    catch_name: dir::StringId,
-    then_name: dir::StringId,
-) -> Option<(dir::LocalNodeId<dir::Expression>, usize, &'static str)> {
-    let expression = ctx.tree.get(expression_id);
-    let dir::Expression::Member { left, name, .. } = expression else {
-        return None;
-    };
-
-    // catch(handler): first callback argument is rejection handler
-    if *name == catch_name {
-        return (argument_count >= 1).then_some((*left, 0, "catch"));
-    }
-
-    // then(onFulfilled, onRejected): second callback argument is rejection handler
-    if *name == then_name {
-        return (argument_count >= 2).then_some((*left, 1, "then rejection"));
-    }
-
-    None
 }
 
 /// Collect callback candidates from one rejection callback argument expression.

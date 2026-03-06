@@ -4,7 +4,10 @@ use destack_dir::{self as dir, TypeLiteral};
 use destack_source::LabeledSpan;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_type_map, normalized_flow_type_id};
+use crate::rules::common::{
+    binary_expression_chain_members, binary_expression_is_nested_same_operator,
+    expression_is_in_type_position, expression_type_map, normalized_flow_type_id,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -50,7 +53,7 @@ impl LintRule for NoRedundantTypeConstituents {
                 dir::BinaryOperator::ElementwiseAnd => TypeConstituentChainKind::Intersection,
                 _ => continue,
             };
-            if is_nested_same_operator(ctx.tree, expression_id, *operator) {
+            if binary_expression_is_nested_same_operator(ctx.tree, expression_id, *operator) {
                 continue;
             }
             if !expression_is_in_type_position(ctx.tree, expression_id) {
@@ -88,10 +91,10 @@ fn report_redundant_constituents(
     chain_kind: TypeConstituentChainKind,
 ) {
     let mut expression_constituents = Vec::new();
-    flatten_constituents(
+    binary_expression_chain_members(
         ctx.tree,
         expression_id,
-        chain_kind,
+        chain_kind.operator(),
         &mut expression_constituents,
     );
     if expression_constituents.len() < 2 {
@@ -203,31 +206,6 @@ fn report_redundant_constituents(
 
         ctx.report(diagnostic);
     }
-}
-
-/// Flatten all constituents from one chain expression.
-fn flatten_constituents(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-    chain_kind: TypeConstituentChainKind,
-    constituents: &mut Vec<dir::LocalNodeId<dir::Expression>>,
-) {
-    let expression_id = unwrap_parenthesized_expression(tree, expression_id);
-    let expression = tree.get(expression_id);
-    let expected_operator = chain_kind.operator();
-    if let dir::Expression::Binary {
-        left,
-        operator,
-        right,
-    } = expression
-        && *operator == expected_operator
-    {
-        flatten_constituents(tree, *left, chain_kind, constituents);
-        flatten_constituents(tree, *right, chain_kind, constituents);
-        return;
-    }
-
-    constituents.push(expression_id);
 }
 
 /// Mark redundancies from top and bottom type constituents.
@@ -403,228 +381,20 @@ fn reduced_chain_replacement(
             continue;
         }
 
-        let span = ctx.get_span(constituent.expression_id);
-        let text = ctx.get_span_text(span).trim();
+        let text = ctx
+            .get_span_text(ctx.get_span(constituent.expression_id))
+            .trim()
+            .to_string();
         if !text.is_empty() {
-            kept_parts.push(text.to_string());
+            kept_parts.push(text);
         }
     }
 
-    if kept_parts.is_empty() {
-        return None;
-    }
-    if kept_parts.len() == constituents.len() {
+    if kept_parts.is_empty() || kept_parts.len() == constituents.len() {
         return None;
     }
 
     Some(kept_parts.join(chain_kind.separator()))
-}
-
-/// Return true when this expression is nested under the same chain operator.
-fn is_nested_same_operator(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-    operator: dir::BinaryOperator,
-) -> bool {
-    let mut current_node_id = expression_id.id;
-
-    loop {
-        let Some(parent_node_id) = tree.get_parent(current_node_id) else {
-            return false;
-        };
-        if parent_node_id.ty != dir::NodeType::Expression {
-            return false;
-        }
-
-        let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_node_id.id);
-        let parent_expression = tree.get(parent_expression_id);
-        match parent_expression {
-            dir::Expression::Parenthesized { expression } if expression.id == current_node_id => {
-                current_node_id = parent_node_id.id;
-            }
-            dir::Expression::Binary {
-                operator: parent_operator,
-                ..
-            } => return *parent_operator == operator,
-            _ => return false,
-        }
-    }
-}
-
-/// Return one expression id with enclosing parentheses removed.
-fn unwrap_parenthesized_expression(
-    tree: &dir::NodeTree,
-    mut expression_id: dir::LocalNodeId<dir::Expression>,
-) -> dir::LocalNodeId<dir::Expression> {
-    loop {
-        let expression = tree.get(expression_id);
-        let dir::Expression::Parenthesized { expression } = expression else {
-            return expression_id;
-        };
-        expression_id = *expression;
-    }
-}
-
-/// Return true when one expression belongs to a known type position.
-fn expression_is_in_type_position(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    let mut current_node_id = expression_id.id;
-
-    loop {
-        let Some(parent_node_id) = tree.get_parent(current_node_id) else {
-            return false;
-        };
-        match parent_node_id.ty {
-            dir::NodeType::Expression => {
-                let parent_expression_id =
-                    dir::LocalNodeId::<dir::Expression>::new(parent_node_id.id);
-                let parent_expression = tree.get(parent_expression_id);
-                if expression_is_type_slot_in_parent_expression(parent_expression, current_node_id)
-                {
-                    return true;
-                }
-            }
-            dir::NodeType::Declarator => {
-                let parent_declarator_id =
-                    dir::LocalNodeId::<dir::Declarator>::new(parent_node_id.id);
-                let parent_declarator = tree.get(parent_declarator_id);
-                if parent_declarator
-                    .ty
-                    .is_some_and(|type_expression_id| type_expression_id.id == current_node_id)
-                {
-                    return true;
-                }
-            }
-            dir::NodeType::Declaration => {
-                let parent_declaration_id =
-                    dir::LocalNodeId::<dir::Declaration>::new(parent_node_id.id);
-                let parent_declaration = tree.get(parent_declaration_id);
-                if declaration_type_slot_contains_expression(parent_declaration, current_node_id) {
-                    return true;
-                }
-            }
-            dir::NodeType::Member => {
-                let parent_member_id = dir::LocalNodeId::<dir::Member>::new(parent_node_id.id);
-                let parent_member = tree.get(parent_member_id);
-                if member_type_slot_contains_expression(parent_member, current_node_id) {
-                    return true;
-                }
-            }
-            dir::NodeType::WhereClause => {
-                let parent_where_clause_id =
-                    dir::LocalNodeId::<dir::WhereClause>::new(parent_node_id.id);
-                let parent_where_clause = tree.get(parent_where_clause_id);
-                if parent_where_clause.right.id == current_node_id {
-                    return true;
-                }
-            }
-            _ => {}
-        }
-
-        current_node_id = parent_node_id.id;
-    }
-}
-
-/// Return true when one child expression is in one parent expression type slot.
-fn expression_is_type_slot_in_parent_expression(
-    parent_expression: &dir::Expression,
-    child_expression_id: u32,
-) -> bool {
-    match parent_expression {
-        dir::Expression::TypeUnary { right, .. } => right.id == child_expression_id,
-        dir::Expression::TypeBinary { left, right, .. } => {
-            left.id == child_expression_id || right.id == child_expression_id
-        }
-        dir::Expression::TypeConditional {
-            left,
-            right,
-            then_type,
-            else_type,
-        } => {
-            left.id == child_expression_id
-                || right.id == child_expression_id
-                || then_type.id == child_expression_id
-                || else_type.id == child_expression_id
-        }
-        dir::Expression::TypeMapped {
-            parameter, value, ..
-        } => {
-            parameter.constraint.id == child_expression_id
-                || parameter
-                    .key_remap
-                    .is_some_and(|key_remap_id| key_remap_id.id == child_expression_id)
-                || value.id == child_expression_id
-        }
-        dir::Expression::TypeIndex { left, index } => {
-            left.id == child_expression_id || index.id == child_expression_id
-        }
-        dir::Expression::TypeTemplateLiteral { spans, .. } => spans
-            .iter()
-            .any(|span_expression_id| span_expression_id.id == child_expression_id),
-        dir::Expression::TypeImport { target, .. } => target.id == child_expression_id,
-        dir::Expression::TypeInfer {
-            constraint: Some(constraint),
-            ..
-        } => constraint.id == child_expression_id,
-        dir::Expression::TypePredicate {
-            target: Some(target),
-            ..
-        } => target.id == child_expression_id,
-        dir::Expression::Cast { target_type, .. } => target_type.id == child_expression_id,
-        _ => false,
-    }
-}
-
-/// Return true when one declaration type slot contains this expression.
-fn declaration_type_slot_contains_expression(
-    declaration: &dir::Declaration,
-    expression_id: u32,
-) -> bool {
-    match declaration {
-        dir::Declaration::Type { value, .. } => value.id == expression_id,
-        dir::Declaration::Function { signature, .. } => signature
-            .return_type
-            .is_some_and(|return_type_id| return_type_id.id == expression_id),
-        dir::Declaration::Extension { target_type, .. } => target_type.id == expression_id,
-        dir::Declaration::Struct { heritage, .. }
-        | dir::Declaration::Class { heritage, .. }
-        | dir::Declaration::Interface { heritage, .. }
-        | dir::Declaration::Enum { heritage, .. } => {
-            heritage
-                .extends_types
-                .as_ref()
-                .is_some_and(|types| types.iter().any(|type_id| type_id.id == expression_id))
-                || heritage
-                    .implements_types
-                    .as_ref()
-                    .is_some_and(|types| types.iter().any(|type_id| type_id.id == expression_id))
-                || heritage
-                    .embedded_types
-                    .as_ref()
-                    .is_some_and(|types| types.iter().any(|type_id| type_id.id == expression_id))
-        }
-        _ => false,
-    }
-}
-
-/// Return true when one member type slot contains this expression.
-fn member_type_slot_contains_expression(member: &dir::Member, expression_id: u32) -> bool {
-    match member {
-        dir::Member::Type { ty, value, .. } => {
-            ty.is_some_and(|type_expression_id| type_expression_id.id == expression_id)
-                || value.is_some_and(|value_expression_id| value_expression_id.id == expression_id)
-        }
-        dir::Member::ComptimeConst { ty, .. } => {
-            ty.is_some_and(|type_expression_id| type_expression_id.id == expression_id)
-        }
-        dir::Member::Field { value, .. } => {
-            value.is_some_and(|type_expression_id| type_expression_id.id == expression_id)
-        }
-        dir::Member::Embed { value, .. } => value.id == expression_id,
-        _ => false,
-    }
 }
 
 /// Return one top-rank score for a type constituent when it is a top element.
