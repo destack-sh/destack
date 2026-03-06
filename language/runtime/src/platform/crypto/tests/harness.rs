@@ -1,4 +1,6 @@
-use super::*;
+use destack_vm as vm;
+
+use super::CryptoHarnessContext;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::crypto::{
     CryptoAgreementDeriveKeyRequest, CryptoAgreementDeriveKeyRequestVm, CryptoArgon2idRequest,
@@ -22,8 +24,9 @@ use crate::platform::crypto::{
     CryptoStoreProvider,
 };
 use crate::platform::{
-    NativeArray, PlatformError, VmArray, VmValueCodec, crypto as platform_crypto, resource,
+    NativeArray, PlatformError, VmArray, VmSlice, VmValueCodec, crypto as platform_crypto, resource,
 };
+use crate::runtime::{NativeSlice, NativeStringRef};
 
 #[path = "harness.generated.rs"]
 mod generated;

@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::thread::tests::ThreadHarnessContext;
 use crate::platform::thread::{
     ThreadOptions, ThreadOptionsVm, native as thread_native, vm as thread_vm,
 };

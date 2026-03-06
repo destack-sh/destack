@@ -1,4 +1,25 @@
-use super::*;
+use std::collections::VecDeque;
+use std::sync::{Arc, Condvar, Mutex};
+
+use crate::diagnostic::RuntimeResult;
+use crate::platform::display::{
+    DisplayMonitorEvent, DisplayMonitorEventOpenOptions, WindowEvent, WindowEventOpenOptions,
+};
+use crate::platform::resource::{ResourceEntry, ResourceKind};
+use crate::platform::{NativeArray, core as core_platform, resource};
+use crate::runtime::BindingCallContext;
+
+use super::super::{core, resource as display_resource, window};
+use super::codec::{display_event_from_record, window_event_from_record};
+use super::core::{
+    MonitorEventBinding, MonitorEventFilterState, MonitorEventState, WindowEventBinding,
+    WindowEventFilterState, WindowEventState, display_event_runtime_state,
+    retain_live_without_identity,
+};
+use super::publish::{publish_monitor_topology_deltas, seed_monitor_event_stream};
+use super::queue::{
+    ensure_window_event_thread, pop_pending_batch, pop_pending_record, wait_duration,
+};
 
 /// Open one global monitor-event stream.
 pub(crate) unsafe fn monitor_event_open(

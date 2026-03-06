@@ -1,5 +1,5 @@
 use super::{
-    HarnessValue, assert_ok_or_expected_error, assert_platform_error_codes,
+    HarnessValue, TtyHarnessContext, assert_ok_or_expected_error, assert_platform_error_codes,
     close_tty_worker_resource, decode_harness_value, with_harness_context,
 };
 use crate::diagnostic::RuntimeResult;
@@ -13,7 +13,7 @@ use crate::platform::tty::{
 
 /// Build one minimal termios attributes payload with an empty control-character lane.
 fn empty_termios_attributes(
-    context: &mut super::TtyHarnessContext<'_>,
+    context: &mut TtyHarnessContext<'_>,
 ) -> RuntimeResult<HarnessValue<TtyTermiosAttributes, TtyTermiosAttributesVm>> {
     // build one backend-typed empty control-character lane
     let control_characters = context.bytes_value(&[])?;

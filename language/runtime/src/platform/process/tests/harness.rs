@@ -1,5 +1,20 @@
-use super::*;
+use destack_vm as vm;
+
+use super::{
+    ProcessFdActionKind, ProcessFdActionSpec, ProcessHarnessContext, ProcessSpawnOptionsSpec,
+    ProcessStdioKind, ProcessStdioSpec, ProcessWaitKind, ProcessWaitStatusRecord,
+    native_path_from_utf8, native_path_to_utf8, native_string, vm_path_from_utf8, vm_path_to_utf8,
+    vm_process_fd_action_slice, vm_process_stdio_slice, vm_string, vm_string_slice,
+};
+use crate::diagnostic::RuntimeResult;
 use crate::platform::fs::native as fs_native;
+use crate::platform::process::{
+    GroupId, ProcessFdAction, ProcessFdActionVm, ProcessSpawnOptions, ProcessSpawnOptionsVm,
+    ProcessStdio, ProcessStdioVm, ProcessWaitStatus, ProcessWaitStatusVm, Signal,
+};
+use crate::platform::resource::ResourceId;
+use crate::platform::{NativeArray, VmArray, VmSlice, fs, process as process_platform, resource};
+use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
 
 #[path = "harness.generated.rs"]
 mod generated;
@@ -229,33 +244,33 @@ impl<'call> ProcessHarnessContext<'call> {
                     .iter()
                     .map(|value| match value.kind {
                         ProcessStdioKind::Descriptor => ProcessStdio::ProcessStdioDescriptor(
-                            crate::platform::process::ProcessStdioDescriptor {
+                            process_platform::ProcessStdioDescriptor {
                                 kind: self.call_context.store_string("descriptor"),
                                 descriptor: value.descriptor,
                             },
                         ),
-                        ProcessStdioKind::File => ProcessStdio::ProcessStdioFile(
-                            crate::platform::process::ProcessStdioFile {
+                        ProcessStdioKind::File => {
+                            ProcessStdio::ProcessStdioFile(process_platform::ProcessStdioFile {
                                 kind: self.call_context.store_string("file"),
                                 file: resource::FileHandle(ResourceId(0)),
-                            },
-                        ),
+                            })
+                        }
                         ProcessStdioKind::Inherit => ProcessStdio::ProcessStdioInherit(
-                            crate::platform::process::ProcessStdioInherit {
+                            process_platform::ProcessStdioInherit {
                                 kind: self.call_context.store_string("inherit"),
                             },
                         ),
-                        ProcessStdioKind::Null => ProcessStdio::ProcessStdioNull(
-                            crate::platform::process::ProcessStdioNull {
+                        ProcessStdioKind::Null => {
+                            ProcessStdio::ProcessStdioNull(process_platform::ProcessStdioNull {
                                 kind: self.call_context.store_string("null"),
-                            },
-                        ),
-                        ProcessStdioKind::Pipe => ProcessStdio::ProcessStdioPipe(
-                            crate::platform::process::ProcessStdioPipe {
+                            })
+                        }
+                        ProcessStdioKind::Pipe => {
+                            ProcessStdio::ProcessStdioPipe(process_platform::ProcessStdioPipe {
                                 kind: self.call_context.store_string("pipe"),
                                 pipe: resource::PipeHandle(ResourceId(0)),
-                            },
-                        ),
+                            })
+                        }
                     })
                     .collect::<Vec<_>>();
                 let values = self.call_context.store_slice(native_values);
@@ -279,20 +294,20 @@ impl<'call> ProcessHarnessContext<'call> {
                     .iter()
                     .map(|value| match value.op {
                         ProcessFdActionKind::Close => ProcessFdAction::ProcessFdActionClose(
-                            crate::platform::process::ProcessFdActionClose {
+                            process_platform::ProcessFdActionClose {
                                 kind: self.call_context.store_string("close"),
                                 descriptor: value.source,
                             },
                         ),
                         ProcessFdActionKind::Dup2 => ProcessFdAction::ProcessFdActionDup2(
-                            crate::platform::process::ProcessFdActionDup2 {
+                            process_platform::ProcessFdActionDup2 {
                                 kind: self.call_context.store_string("dup2"),
                                 source: value.source,
                                 target: value.target,
                             },
                         ),
                         ProcessFdActionKind::Open => ProcessFdAction::ProcessFdActionOpen(
-                            crate::platform::process::ProcessFdActionOpen {
+                            process_platform::ProcessFdActionOpen {
                                 kind: self.call_context.store_string("open"),
                                 target: value.target,
                                 path: native_path_from_utf8(self.call_context, &value.path),

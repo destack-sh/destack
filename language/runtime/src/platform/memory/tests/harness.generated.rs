@@ -4,9 +4,9 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError as HarnessPlatformError;
+use crate::platform::memory::tests::MemoryHarnessContext;
 use crate::platform::memory::{
     MemoryAdvice, MemoryNumaPolicy, MemoryProtection, MemoryRange, MemoryRangeVm, MemoryRemapFlags,
     MemoryReserveFlags, ProtectedMemoryRange, ProtectedMemoryRangeVm, native as memory_native,

@@ -1,3 +1,4 @@
+use super::host;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::{OsPath, OsPathBytes, PathBytesAbi};
 use crate::platform::net::{
@@ -12,6 +13,7 @@ use crate::platform::net::{
 };
 use crate::platform::resource::{ListenerHandle, SocketHandle};
 use crate::platform::{NativeArray, PlatformError};
+
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 pub(crate) use host_net::{
@@ -838,7 +840,7 @@ pub(crate) unsafe fn destack_net_recv_msg(
     max_control_bytes: u32,
 ) -> RuntimeResult<()> {
     unsafe {
-        super::host::destack_net_recv_msg(
+        host::destack_net_recv_msg(
             binding,
             out,
             handle,
@@ -890,7 +892,7 @@ pub(crate) unsafe fn destack_net_recv_mmsg(
     for request in requests {
         let mut message = std::mem::MaybeUninit::<SocketRecvMessage>::uninit();
         unsafe {
-            super::host::destack_net_recv_msg(
+            host::destack_net_recv_msg(
                 binding,
                 message.as_mut_ptr(),
                 handle,
@@ -992,7 +994,7 @@ pub(crate) unsafe fn destack_net_uds_connect(
     let path = uds_path(binding, address)?;
 
     // delegate to the os implementation
-    unsafe { super::host::destack_net_uds_connect(binding, out, path) }
+    unsafe { host::destack_net_uds_connect(binding, out, path) }
 }
 
 /// Listen on a UDS address.
@@ -1022,7 +1024,7 @@ pub(crate) unsafe fn destack_net_uds_listen(
     let path = uds_path(binding, address)?;
 
     // delegate to the os implementation
-    unsafe { super::host::destack_net_uds_listen(binding, out, path, backlog) }
+    unsafe { host::destack_net_uds_listen(binding, out, path, backlog) }
 }
 
 /// Create a connected UDS socket pair.

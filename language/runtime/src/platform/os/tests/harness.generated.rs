@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::os::tests::OsHarnessContext;
 use crate::platform::os::{
     BackgroundEvent, BackgroundEventMetadata, BackgroundEventMetadataVm,
     BackgroundEventOpenOptions, BackgroundEventOpenOptionsVm, BackgroundEventVm, BackgroundStatus,

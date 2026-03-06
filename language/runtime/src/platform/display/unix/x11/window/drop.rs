@@ -1,5 +1,16 @@
 use super::constants::XDND_ACCEPTED;
-use super::*;
+use x11rb::connection::Connection;
+use x11rb::protocol::xproto::{
+    Atom, AtomEnum, CLIENT_MESSAGE_EVENT, ClientMessageData, ClientMessageEvent,
+    ConnectionExt as XprotoConnectionExt, EventMask, PropertyNotifyEvent, SelectionNotifyEvent,
+};
+
+use crate::diagnostic::RuntimeResult;
+use crate::platform::display::{WindowDragAction, WindowPosition};
+use crate::platform::resource;
+
+use super::super::model::{X11WindowBinding, XdndPayload};
+use super::super::{core, event};
 
 /// Clear one window-local xdnd session state.
 pub(super) fn clear_xdnd_state(binding: &mut X11WindowBinding) {

@@ -1,5 +1,4 @@
-use super::*;
-
+use super::TtyHarnessContext;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::tty::{TtyMode, TtyModeVm, TtySize, TtySizeVm};
 use crate::platform::{PlatformError, VmSlice};

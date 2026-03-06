@@ -1,5 +1,6 @@
 use destack_vm as vm;
 
+use super::host;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{NativeAbi, VmAbi};
 use crate::platform::fs::{
@@ -21,6 +22,7 @@ use crate::platform::net::{
 };
 use crate::platform::resource::{ListenerHandle, SocketHandle};
 use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice};
+
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 /// Accept a new connection from a listener.
@@ -277,7 +279,7 @@ pub fn destack_net_recv_msg(
 
     // receive one message through the os implementation
     let message = call_out(|out| unsafe {
-        super::host::destack_net_recv_msg(
+        host::destack_net_recv_msg(
             binding,
             out,
             handle,
@@ -329,7 +331,7 @@ pub fn destack_net_recv_mmsg(
     for request in requests {
         let native_buffer = allocate_read_buffer(binding, request.payload);
         let message = call_out(|out| unsafe {
-            super::host::destack_net_recv_msg(
+            host::destack_net_recv_msg(
                 binding,
                 out,
                 handle,
@@ -1327,7 +1329,7 @@ pub fn destack_net_uds_connect(
     // decode the uds address and delegate to the os implementation
     let address = uds_address_from_vm(binding, context, address)?;
     let path = uds_path(binding, address)?;
-    call_out(|out| unsafe { super::host::destack_net_uds_connect(binding, out, path) })
+    call_out(|out| unsafe { host::destack_net_uds_connect(binding, out, path) })
 }
 
 /// Listen on a UDS address.
@@ -1356,7 +1358,7 @@ pub fn destack_net_uds_listen(
     // decode the uds address and delegate to the os implementation
     let address = uds_address_from_vm(binding, context, address)?;
     let path = uds_path(binding, address)?;
-    call_out(|out| unsafe { super::host::destack_net_uds_listen(binding, out, path, backlog) })
+    call_out(|out| unsafe { host::destack_net_uds_listen(binding, out, path, backlog) })
 }
 
 /// Create a connected UDS socket pair.

@@ -1,6 +1,17 @@
-use super::*;
+use std::sync::OnceLock;
+use std::time::{Duration, Instant};
+
+use crate::platform::audio::{
+    AudioBackendCapabilityFlags, AudioDeviceCapabilityFlags, AudioDeviceListFlags,
+    AudioDeviceOpenFlags, AudioEventSubscriptionFlags, AudioStreamFlags,
+    AudioStreamRequirementFlags, AudioStreamStatusFlags, AudioSupportedEventSubscriptionFlags,
+    AudioSupportedStreamClockDomains, AudioSupportedStreamFlags,
+    AudioSupportedStreamRequirementFlags,
+};
 use crate::platform::core as core_platform;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
+
+use super::AudioBackendOpenFlags;
 
 /// Resource label for audio device handles.
 pub(crate) const AUDIO_DEVICE_RESOURCE_LABEL: &str = "audio.device";

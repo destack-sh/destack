@@ -4,6 +4,7 @@ use crate::platform::resource::WindowHandle;
 use crate::runtime::BindingCallContext;
 
 use super::super::super::{core, resource as display_resource};
+use super::{apply_window_transient_owner, ensure_window_thread, set_net_wm_state};
 
 /// Resolve one optional owner handle into one x11 window id.
 fn resolve_owner_window(
@@ -29,7 +30,7 @@ fn resolve_owner_window(
     let owner_binding = owner_binding
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&owner_binding, operation)?;
+    ensure_window_thread(&owner_binding, operation)?;
 
     Ok(Some(owner_binding.window))
 }
@@ -69,7 +70,7 @@ pub(crate) unsafe fn window_set_modal(
     let mut resolved_binding = resolved_binding
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&resolved_binding, "destack.display.window.setModal")?;
+    ensure_window_thread(&resolved_binding, "destack.display.window.setModal")?;
 
     // reject modal state when no owner relationship exists
     if modal && resolved_binding.parent.is_none() && resolved_binding.transient_for.is_none() {
@@ -80,7 +81,7 @@ pub(crate) unsafe fn window_set_modal(
     }
 
     // apply one modal state mutation before updating the snapshot
-    super::set_net_wm_state(
+    set_net_wm_state(
         connection_state.as_ref(),
         resolved_binding.window,
         connection_state.atoms.net_wm_state_modal,
@@ -109,7 +110,7 @@ pub(crate) unsafe fn window_set_parent(
     let mut child_binding = child_binding
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&child_binding, "destack.display.window.setParent")?;
+    ensure_window_thread(&child_binding, "destack.display.window.setParent")?;
 
     // resolve the next effective owner relationship
     let owner_window = resolve_effective_owner_window(
@@ -128,7 +129,7 @@ pub(crate) unsafe fn window_set_parent(
     }
 
     // apply one transient-owner update before mutating the snapshot
-    super::apply_window_transient_owner(
+    apply_window_transient_owner(
         connection_state.as_ref(),
         child_binding.window,
         owner_window,
@@ -136,7 +137,7 @@ pub(crate) unsafe fn window_set_parent(
     )?;
     // evaluate this condition
     if child_binding.modal {
-        super::set_net_wm_state(
+        set_net_wm_state(
             connection_state.as_ref(),
             child_binding.window,
             connection_state.atoms.net_wm_state_modal,
@@ -168,7 +169,7 @@ pub(crate) unsafe fn window_set_transient_for(
     let mut child_binding = child_binding
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&child_binding, "destack.display.window.setTransientFor")?;
+    ensure_window_thread(&child_binding, "destack.display.window.setTransientFor")?;
 
     // resolve the next effective owner relationship
     let owner_window = resolve_effective_owner_window(
@@ -187,7 +188,7 @@ pub(crate) unsafe fn window_set_transient_for(
     }
 
     // apply one transient-owner update before mutating the snapshot
-    super::apply_window_transient_owner(
+    apply_window_transient_owner(
         connection_state.as_ref(),
         child_binding.window,
         owner_window,
@@ -195,7 +196,7 @@ pub(crate) unsafe fn window_set_transient_for(
     )?;
     // evaluate this condition
     if child_binding.modal {
-        super::set_net_wm_state(
+        set_net_wm_state(
             connection_state.as_ref(),
             child_binding.window,
             connection_state.atoms.net_wm_state_modal,

@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::resource::tests::ResourceHarnessContext;
 use crate::platform::resource::{
     ResourceId, ResourceKind, ResourceKindVm, ResourceOwnership, native as resource_native,
     vm as resource_vm,

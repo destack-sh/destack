@@ -1619,7 +1619,6 @@ pub(crate) unsafe fn destack_input_try_read(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     /// Decode release transitions even when another button remains pressed.
     #[test]

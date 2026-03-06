@@ -648,7 +648,11 @@ pub(super) fn unregister_window_drop_target(binding: &mut Win32WindowBinding) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use windows_sys::Win32::System::Ole::{
+        DROPEFFECT_COPY, DROPEFFECT_LINK, DROPEFFECT_MOVE, DROPEFFECT_NONE,
+    };
+
+    use super::resolved_drop_effect;
 
     /// Drop effect resolution should reject unsupported payloads.
     #[test]

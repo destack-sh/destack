@@ -4461,7 +4461,6 @@ pub(super) fn write_output_report(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     /// Drop the oldest keyboard packet when the queue reaches its bounded capacity.
     #[test]

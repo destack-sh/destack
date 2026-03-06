@@ -23,6 +23,11 @@ use crate::runtime::BindingCallContext;
 
 use super::super::model::{WaylandWindowBinding, WaylandWindowHost};
 use super::super::{core as backend_core, event, monitor, resource as display_resource};
+use super::{
+    clamp_logical_aspect, clamp_logical_size, decoration_mode_for_window, drop,
+    logical_to_physical, mode_display, mode_display_mode, normalize_logical_size,
+    normalize_opacity, opacity_multiplier, resolve_window_binding, validate_size_constraints,
+};
 
 /// Resolve role-specific defaults for one wayland window open request.
 fn resolve_role_open_defaults(
@@ -108,7 +113,7 @@ fn resolve_scale_factor_milli(
 fn resolve_initial_display(
     options: WindowOptions,
 ) -> RuntimeResult<Option<resource::DisplayHandle>> {
-    let mode_display = super::mode_display(options.mode);
+    let mode_display = mode_display(options.mode);
 
     // reject conflicting explicit display selections
     if let (Some(display), Some(mode_display)) = (options.display, mode_display)
@@ -145,7 +150,7 @@ fn validate_initial_mode(
     let snapshot = monitor::snapshot_by_display_handle(context, display, operation)?;
 
     // validate optional exclusive mode payload against host-reported modes
-    let Some(display_mode) = super::mode_display_mode(mode) else {
+    let Some(display_mode) = mode_display_mode(mode) else {
         return Ok(());
     };
 
@@ -183,7 +188,7 @@ fn resolve_parent_roles(
     };
 
     // resolve owner window binding and enforce owner-thread affinity
-    let owner_binding = super::resolve_window_binding(context, owner, operation)?;
+    let owner_binding = resolve_window_binding(context, owner, operation)?;
     let owner_binding = owner_binding
         .lock()
         .unwrap_or_else(|error| error.into_inner());
@@ -394,7 +399,7 @@ fn create_window_host(
                             &queue_handle,
                             token.clone(),
                         );
-                        let mode = super::decoration_mode_for_window(chrome, decorated);
+                        let mode = decoration_mode_for_window(chrome, decorated);
                         decoration.set_mode(mode);
                         ids.xdg_decoration = Some(decoration.id());
                     }
@@ -556,7 +561,7 @@ fn create_window_host(
                     .cloned()
                     .ok_or_else(|| core_platform::not_supported(operation))?;
                 let alpha_surface = manager.get_surface(&surface, &queue_handle, ());
-                alpha_surface.set_multiplier(super::opacity_multiplier(opacity));
+                alpha_surface.set_multiplier(opacity_multiplier(opacity));
                 ids.alpha_modifier_surface = Some(alpha_surface.id());
             }
 
@@ -588,11 +593,10 @@ pub(crate) unsafe fn window_open(
     let title = unsafe { options.title.as_str()?.to_string() };
     let (resolved_taskbar_visible, resolved_always_on_top) =
         resolve_role_open_defaults(options.role, options.taskbar_visible, options.always_on_top);
-    let mut size_logical =
-        super::normalize_logical_size(options.size_logical, "options.sizeLogical")?;
-    super::validate_size_constraints(options.constraints, "options.constraints")?;
+    let mut size_logical = normalize_logical_size(options.size_logical, "options.sizeLogical")?;
+    validate_size_constraints(options.constraints, "options.constraints")?;
     if options.opacity.is_some() {
-        super::normalize_opacity(options.opacity.unwrap_or(1.0), "options.opacity")?;
+        normalize_opacity(options.opacity.unwrap_or(1.0), "options.opacity")?;
     }
 
     // validate unsupported initial option lanes for this backend
@@ -622,13 +626,13 @@ pub(crate) unsafe fn window_open(
     }
 
     // clamp initial logical size by constraints and optional aspect ratio
-    size_logical = super::clamp_logical_size(size_logical, options.constraints);
-    size_logical = super::clamp_logical_aspect(size_logical, options.aspect_ratio);
+    size_logical = clamp_logical_size(size_logical, options.constraints);
+    size_logical = clamp_logical_aspect(size_logical, options.aspect_ratio);
 
     // resolve initial scale factor and derive physical size
     let scale_factor_milli =
         resolve_scale_factor_milli(context, display, "destack.display.window.open")?;
-    let size_physical = super::logical_to_physical(size_logical, scale_factor_milli);
+    let size_physical = logical_to_physical(size_logical, scale_factor_milli);
 
     // allocate one runtime binding before host object creation
     let host_id = backend_core::next_window_host_id(context);
@@ -752,8 +756,7 @@ pub(crate) unsafe fn window_close(
     window_handle: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     // resolve target window binding and enforce owner-thread affinity
-    let binding =
-        super::resolve_window_binding(context, window_handle, "destack.display.window.close")?;
+    let binding = resolve_window_binding(context, window_handle, "destack.display.window.close")?;
     let (
         window_id,
         host_surface,
@@ -772,7 +775,7 @@ pub(crate) unsafe fn window_close(
     ) = {
         let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
         // clear transient drop-session state before closing this window
-        if let Err(error) = super::drop::reset_drop_state(context, &mut binding) {
+        if let Err(error) = drop::reset_drop_state(context, &mut binding) {
             return Err(error);
         }
 

@@ -783,7 +783,7 @@ pub(crate) unsafe fn destack_fs_sendfile(
     }
 
     // resolve the socket and file handles
-    let socket = super::util::socket_handle(binding, socket)?;
+    let socket = util::socket_handle(binding, socket)?;
 
     // stream data from the file into the socket
     let mut remaining = length.0;

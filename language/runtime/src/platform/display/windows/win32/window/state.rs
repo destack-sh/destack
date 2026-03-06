@@ -1,4 +1,12 @@
-use super::*;
+use crate::diagnostic::RuntimeResult;
+use crate::platform::display::{DisplayBackend, WindowDescriptor, WindowState};
+use crate::platform::{core as core_platform, resource};
+use crate::runtime::BindingCallContext;
+
+use super::super::resource as display_resource;
+use super::{
+    ensure_window_thread, occlusion_from_visibility, pump_window_messages, refresh_window_snapshot,
+};
 
 /// Read one window descriptor snapshot.
 pub(crate) unsafe fn window_descriptor(

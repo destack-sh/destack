@@ -2,7 +2,13 @@ use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::VmAbi;
-use crate::platform::display::{
+use crate::platform::fs::{
+    OsPath, OsPathBytesVm, OsPathUtf16Vm, OsPathVm, PathBytes, PathBytesAbi, PathBytesVm,
+    PathUtf16, PathUtf16Abi, PathUtf16Vm,
+};
+use crate::platform::{NativeArray, VmArray, VmSlice, display as display_platform, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use display_platform::{
     DisplayBackendCapabilityFlags, DisplayBackendDescriptor, DisplayBackendDescriptorVm,
     DisplayDescriptor, DisplayDescriptorVm, DisplayGammaRamp, DisplayGammaRampVm, DisplayMode,
     DisplayModeVm, DisplayMonitorEvent, DisplayMonitorEventFilter, DisplayMonitorEventFilterVm,
@@ -15,12 +21,6 @@ use crate::platform::display::{
     WindowModeOptions, WindowModeOptionsVm, WindowModePayload, WindowModePayloadVm, WindowOptions,
     WindowOptionsVm, host as host_display,
 };
-use crate::platform::fs::{
-    OsPath, OsPathBytesVm, OsPathUtf16Vm, OsPathVm, PathBytes, PathBytesAbi, PathBytesVm,
-    PathUtf16, PathUtf16Abi, PathUtf16Vm,
-};
-use crate::platform::{NativeArray, VmArray, VmSlice, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 /// Invoke one host call that writes through an output pointer.
 fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
@@ -109,7 +109,7 @@ fn window_mode_options_to_vm(
     let mode = match mode {
         WindowModeOptions::WindowBorderlessModeOptions(mode) => {
             WindowModeOptionsVm::WindowBorderlessModeOptions(
-                crate::platform::display::WindowBorderlessModeOptionsVm {
+                display_platform::WindowBorderlessModeOptionsVm {
                     kind: string_to_vm(context, mode.kind)?,
                     display: mode.display,
                 },
@@ -117,7 +117,7 @@ fn window_mode_options_to_vm(
         }
         WindowModeOptions::WindowExclusiveFullscreenModeOptions(mode) => {
             WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(
-                crate::platform::display::WindowExclusiveFullscreenModeOptionsVm {
+                display_platform::WindowExclusiveFullscreenModeOptionsVm {
                     kind: string_to_vm(context, mode.kind)?,
                     display: mode.display,
                     display_mode: mode.display_mode,
@@ -126,7 +126,7 @@ fn window_mode_options_to_vm(
         }
         WindowModeOptions::WindowWindowedModeOptions(mode) => {
             WindowModeOptionsVm::WindowWindowedModeOptions(
-                crate::platform::display::WindowWindowedModeOptionsVm {
+                display_platform::WindowWindowedModeOptionsVm {
                     kind: string_to_vm(context, mode.kind)?,
                 },
             )
@@ -145,7 +145,7 @@ fn window_mode_options_from_vm(
     let mode = match mode {
         WindowModeOptionsVm::WindowBorderlessModeOptions(mode) => {
             WindowModeOptions::WindowBorderlessModeOptions(
-                crate::platform::display::WindowBorderlessModeOptions {
+                display_platform::WindowBorderlessModeOptions {
                     kind: string_from_vm(binding, context, mode.kind)?,
                     display: mode.display,
                 },
@@ -153,7 +153,7 @@ fn window_mode_options_from_vm(
         }
         WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(mode) => {
             WindowModeOptions::WindowExclusiveFullscreenModeOptions(
-                crate::platform::display::WindowExclusiveFullscreenModeOptions {
+                display_platform::WindowExclusiveFullscreenModeOptions {
                     kind: string_from_vm(binding, context, mode.kind)?,
                     display: mode.display,
                     display_mode: mode.display_mode,
@@ -162,7 +162,7 @@ fn window_mode_options_from_vm(
         }
         WindowModeOptionsVm::WindowWindowedModeOptions(mode) => {
             WindowModeOptions::WindowWindowedModeOptions(
-                crate::platform::display::WindowWindowedModeOptions {
+                display_platform::WindowWindowedModeOptions {
                     kind: string_from_vm(binding, context, mode.kind)?,
                 },
             )
@@ -230,10 +230,10 @@ fn display_event_to_vm(
             let metadata = display_event_metadata_to_vm(context, event.metadata)?;
             let descriptor = display_descriptor_to_vm(context, event.payload.descriptor)?;
             Ok(DisplayMonitorEventVm::DisplayAddedEvent(
-                crate::platform::display::DisplayAddedEventVm {
+                display_platform::DisplayAddedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata,
-                    payload: crate::platform::display::DisplayAddedPayloadVm { descriptor },
+                    payload: display_platform::DisplayAddedPayloadVm { descriptor },
                 },
             ))
         }
@@ -247,10 +247,10 @@ fn display_event_to_vm(
                 .transpose()?;
             let current = display_descriptor_to_vm(context, event.payload.current)?;
             Ok(DisplayMonitorEventVm::DisplayDescriptorChangedEvent(
-                crate::platform::display::DisplayDescriptorChangedEventVm {
+                display_platform::DisplayDescriptorChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata,
-                    payload: crate::platform::display::DisplayDescriptorChangedPayloadVm {
+                    payload: display_platform::DisplayDescriptorChangedPayloadVm {
                         previous,
                         current,
                         changed_mask: event.payload.changed_mask,
@@ -262,7 +262,7 @@ fn display_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             let metadata = display_event_metadata_to_vm(context, event.metadata)?;
             Ok(DisplayMonitorEventVm::DisplayModeChangedEvent(
-                crate::platform::display::DisplayModeChangedEventVm {
+                display_platform::DisplayModeChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata,
                     payload: event.payload,
@@ -273,10 +273,10 @@ fn display_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             let metadata = display_event_metadata_to_vm(context, event.metadata)?;
             Ok(DisplayMonitorEventVm::DisplayPrimaryChangedEvent(
-                crate::platform::display::DisplayPrimaryChangedEventVm {
+                display_platform::DisplayPrimaryChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata,
-                    payload: crate::platform::display::DisplayPrimaryPayloadVm {
+                    payload: display_platform::DisplayPrimaryPayloadVm {
                         previous_id: optional_string_to_vm(context, event.payload.previous_id)?,
                         current_id: optional_string_to_vm(context, event.payload.current_id)?,
                     },
@@ -293,10 +293,10 @@ fn display_event_to_vm(
                 .map(|value| display_descriptor_to_vm(context, value))
                 .transpose()?;
             Ok(DisplayMonitorEventVm::DisplayRemovedEvent(
-                crate::platform::display::DisplayRemovedEventVm {
+                display_platform::DisplayRemovedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata,
-                    payload: crate::platform::display::DisplayRemovedPayloadVm {
+                    payload: display_platform::DisplayRemovedPayloadVm {
                         id: payload_id,
                         descriptor,
                     },
@@ -309,8 +309,8 @@ fn display_event_to_vm(
 /// Convert one native display event metadata payload into its VM representation.
 fn display_event_metadata_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
-    value: crate::platform::display::DisplayMonitorEventMetadata,
-) -> RuntimeResult<crate::platform::display::DisplayMonitorEventMetadataVm> {
+    value: display_platform::DisplayMonitorEventMetadata,
+) -> RuntimeResult<display_platform::DisplayMonitorEventMetadataVm> {
     let display_id = if let Some(value) = value.display_id {
         let value = unsafe { value.as_str()? };
         Some(vm::StringHandle::new(context.intern_string(value)))
@@ -318,7 +318,7 @@ fn display_event_metadata_to_vm(
         None
     };
 
-    Ok(crate::platform::display::DisplayMonitorEventMetadataVm {
+    Ok(display_platform::DisplayMonitorEventMetadataVm {
         backend: value.backend,
         display_id,
         timestamp_ns: value.timestamp_ns,
@@ -424,8 +424,8 @@ fn display_event_array_to_vm(
 /// Convert one native window-event array into one VM array.
 fn window_event_array_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
-    value: NativeArray<crate::platform::display::WindowEvent>,
-) -> RuntimeResult<VmArray<crate::platform::display::WindowEventVm>> {
+    value: NativeArray<display_platform::WindowEvent>,
+) -> RuntimeResult<VmArray<display_platform::WindowEventVm>> {
     let value = unsafe { value.as_slice()? };
     let mut vm_values = Vec::with_capacity(value.len());
 
@@ -611,7 +611,7 @@ fn window_event_to_vm(
         WindowEvent::WindowAspectRatioChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowAspectRatioChangedEvent(
-                crate::platform::display::WindowAspectRatioChangedEventVm {
+                display_platform::WindowAspectRatioChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
@@ -621,7 +621,7 @@ fn window_event_to_vm(
         WindowEvent::WindowChromeChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowChromeChangedEvent(
-                crate::platform::display::WindowChromeChangedEventVm {
+                display_platform::WindowChromeChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
@@ -631,7 +631,7 @@ fn window_event_to_vm(
         WindowEvent::WindowCloseRequestedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowCloseRequestedEvent(
-                crate::platform::display::WindowCloseRequestedEventVm {
+                display_platform::WindowCloseRequestedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                 },
@@ -640,7 +640,7 @@ fn window_event_to_vm(
         WindowEvent::WindowCreatedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowCreatedEvent(
-                crate::platform::display::WindowCreatedEventVm {
+                display_platform::WindowCreatedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                 },
@@ -649,7 +649,7 @@ fn window_event_to_vm(
         WindowEvent::WindowDestroyedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowDestroyedEvent(
-                crate::platform::display::WindowDestroyedEventVm {
+                display_platform::WindowDestroyedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                 },
@@ -658,7 +658,7 @@ fn window_event_to_vm(
         WindowEvent::WindowDisplayChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowDisplayChangedEvent(
-                crate::platform::display::WindowDisplayChangedEventVm {
+                display_platform::WindowDisplayChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
@@ -668,7 +668,7 @@ fn window_event_to_vm(
         WindowEvent::WindowDropCancelledEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowDropCancelledEvent(
-                crate::platform::display::WindowDropCancelledEventVm {
+                display_platform::WindowDropCancelledEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                 },
@@ -677,7 +677,7 @@ fn window_event_to_vm(
         WindowEvent::WindowDropCompletedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowDropCompletedEvent(
-                crate::platform::display::WindowDropCompletedEventVm {
+                display_platform::WindowDropCompletedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                 },
@@ -686,7 +686,7 @@ fn window_event_to_vm(
         WindowEvent::WindowDropStartedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowDropStartedEvent(
-                crate::platform::display::WindowDropStartedEventVm {
+                display_platform::WindowDropStartedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                 },
@@ -695,7 +695,7 @@ fn window_event_to_vm(
         WindowEvent::WindowFileDroppedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowFileDroppedEvent(
-                crate::platform::display::WindowFileDroppedEventVm {
+                display_platform::WindowFileDroppedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: window_drop_file_payload_to_vm(context, event.payload)?,
@@ -705,7 +705,7 @@ fn window_event_to_vm(
         WindowEvent::WindowFileHoverLeftEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowFileHoverLeftEvent(
-                crate::platform::display::WindowFileHoverLeftEventVm {
+                display_platform::WindowFileHoverLeftEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: window_drop_hover_leave_payload_to_vm(context, event.payload)?,
@@ -715,7 +715,7 @@ fn window_event_to_vm(
         WindowEvent::WindowFileHoveredEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowFileHoveredEvent(
-                crate::platform::display::WindowFileHoveredEventVm {
+                display_platform::WindowFileHoveredEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: window_drop_hover_payload_to_vm(context, event.payload)?,
@@ -725,7 +725,7 @@ fn window_event_to_vm(
         WindowEvent::WindowFocusChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowFocusChangedEvent(
-                crate::platform::display::WindowFocusChangedEventVm {
+                display_platform::WindowFocusChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
@@ -735,7 +735,7 @@ fn window_event_to_vm(
         WindowEvent::WindowModalChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowModalChangedEvent(
-                crate::platform::display::WindowModalChangedEventVm {
+                display_platform::WindowModalChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
@@ -745,7 +745,7 @@ fn window_event_to_vm(
         WindowEvent::WindowModeChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowModeChangedEvent(
-                crate::platform::display::WindowModeChangedEventVm {
+                display_platform::WindowModeChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: window_mode_payload_to_vm(context, event.payload)?,
@@ -755,7 +755,7 @@ fn window_event_to_vm(
         WindowEvent::WindowMousePassthroughChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowMousePassthroughChangedEvent(
-                crate::platform::display::WindowMousePassthroughChangedEventVm {
+                display_platform::WindowMousePassthroughChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
@@ -765,7 +765,7 @@ fn window_event_to_vm(
         WindowEvent::WindowOcclusionChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowOcclusionChangedEvent(
-                crate::platform::display::WindowOcclusionChangedEventVm {
+                display_platform::WindowOcclusionChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
@@ -775,7 +775,7 @@ fn window_event_to_vm(
         WindowEvent::WindowOpacityChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowOpacityChangedEvent(
-                crate::platform::display::WindowOpacityChangedEventVm {
+                display_platform::WindowOpacityChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
@@ -785,7 +785,7 @@ fn window_event_to_vm(
         WindowEvent::WindowParentChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowParentChangedEvent(
-                crate::platform::display::WindowParentChangedEventVm {
+                display_platform::WindowParentChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
@@ -795,7 +795,7 @@ fn window_event_to_vm(
         WindowEvent::WindowPositionChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowPositionChangedEvent(
-                crate::platform::display::WindowPositionChangedEventVm {
+                display_platform::WindowPositionChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
@@ -805,7 +805,7 @@ fn window_event_to_vm(
         WindowEvent::WindowRefreshRequestedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowRefreshRequestedEvent(
-                crate::platform::display::WindowRefreshRequestedEventVm {
+                display_platform::WindowRefreshRequestedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                 },
@@ -814,7 +814,7 @@ fn window_event_to_vm(
         WindowEvent::WindowSafeAreaChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowSafeAreaChangedEvent(
-                crate::platform::display::WindowSafeAreaChangedEventVm {
+                display_platform::WindowSafeAreaChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
@@ -824,7 +824,7 @@ fn window_event_to_vm(
         WindowEvent::WindowScaleFactorChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowScaleFactorChangedEvent(
-                crate::platform::display::WindowScaleFactorChangedEventVm {
+                display_platform::WindowScaleFactorChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
@@ -834,7 +834,7 @@ fn window_event_to_vm(
         WindowEvent::WindowSizeChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowSizeChangedEvent(
-                crate::platform::display::WindowSizeChangedEventVm {
+                display_platform::WindowSizeChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
@@ -844,7 +844,7 @@ fn window_event_to_vm(
         WindowEvent::WindowTaskbarVisibilityChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowTaskbarVisibilityChangedEvent(
-                crate::platform::display::WindowTaskbarVisibilityChangedEventVm {
+                display_platform::WindowTaskbarVisibilityChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
@@ -854,7 +854,7 @@ fn window_event_to_vm(
         WindowEvent::WindowTextDroppedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowTextDroppedEvent(
-                crate::platform::display::WindowTextDroppedEventVm {
+                display_platform::WindowTextDroppedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: window_drop_text_payload_to_vm(context, event.payload)?,
@@ -864,7 +864,7 @@ fn window_event_to_vm(
         WindowEvent::WindowThemeChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowThemeChangedEvent(
-                crate::platform::display::WindowThemeChangedEventVm {
+                display_platform::WindowThemeChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
@@ -874,7 +874,7 @@ fn window_event_to_vm(
         WindowEvent::WindowTransientChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowTransientChangedEvent(
-                crate::platform::display::WindowTransientChangedEventVm {
+                display_platform::WindowTransientChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
@@ -884,7 +884,7 @@ fn window_event_to_vm(
         WindowEvent::WindowVisibilityChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowVisibilityChangedEvent(
-                crate::platform::display::WindowVisibilityChangedEventVm {
+                display_platform::WindowVisibilityChangedEventVm {
                     kind: vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
@@ -1249,7 +1249,7 @@ pub(crate) fn destack_display_window_request_attention(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    level: crate::platform::display::WindowAttentionLevel,
+    level: display_platform::WindowAttentionLevel,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_request_attention(binding, window, level) }
 }
@@ -1278,7 +1278,7 @@ pub(crate) fn destack_display_window_set_cursor_icon(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    icon: crate::platform::display::WindowCursorIcon,
+    icon: display_platform::WindowCursorIcon,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_set_cursor_icon(binding, window, icon) }
 }
@@ -1288,7 +1288,7 @@ pub(crate) fn destack_display_window_set_cursor_mode(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    mode: crate::platform::display::WindowCursorMode,
+    mode: display_platform::WindowCursorMode,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_set_cursor_mode(binding, window, mode) }
 }
@@ -1298,7 +1298,7 @@ pub(crate) fn destack_display_window_set_cursor_position(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    position: crate::platform::display::WindowPositionVm,
+    position: display_platform::WindowPositionVm,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_set_cursor_position(binding, window, position) }
 }
@@ -1328,7 +1328,7 @@ pub(crate) fn destack_display_window_set_mode(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    mode: crate::platform::display::WindowModeOptionsVm,
+    mode: display_platform::WindowModeOptionsVm,
 ) -> RuntimeResult<()> {
     let mode = window_mode_options_from_vm(binding, context, mode)?;
     unsafe { host_display::destack_display_window_set_mode(binding, window, mode) }
@@ -1339,7 +1339,7 @@ pub(crate) fn destack_display_window_set_position(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    position: crate::platform::display::WindowPositionVm,
+    position: display_platform::WindowPositionVm,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_set_position(binding, window, position) }
 }
@@ -1359,7 +1359,7 @@ pub(crate) fn destack_display_window_set_size_logical(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    size: crate::platform::display::WindowLogicalSizeVm,
+    size: display_platform::WindowLogicalSizeVm,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_set_size_logical(binding, window, size) }
 }
@@ -1369,7 +1369,7 @@ pub(crate) fn destack_display_window_set_size_constraints(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    constraints: Option<crate::platform::display::WindowSizeConstraintsVm>,
+    constraints: Option<display_platform::WindowSizeConstraintsVm>,
 ) -> RuntimeResult<()> {
     unsafe {
         host_display::destack_display_window_set_size_constraints(binding, window, constraints)
@@ -1381,7 +1381,7 @@ pub(crate) fn destack_display_window_set_size_physical(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    size: crate::platform::display::WindowPhysicalSizeVm,
+    size: display_platform::WindowPhysicalSizeVm,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_set_size_physical(binding, window, size) }
 }
@@ -1402,7 +1402,7 @@ pub(crate) fn destack_display_window_set_visibility(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    visibility: crate::platform::display::WindowVisibility,
+    visibility: display_platform::WindowVisibility,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_set_visibility(binding, window, visibility) }
 }
@@ -1412,7 +1412,7 @@ pub(crate) fn destack_display_window_state(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-) -> RuntimeResult<crate::platform::display::WindowStateVm> {
+) -> RuntimeResult<display_platform::WindowStateVm> {
     call_out(|out| unsafe { host_display::destack_display_window_state(binding, out, window) })
 }
 
@@ -1421,7 +1421,7 @@ pub(crate) fn destack_display_monitor_color_state(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::DisplayHandle,
-) -> RuntimeResult<crate::platform::display::DisplayColorState> {
+) -> RuntimeResult<display_platform::DisplayColorState> {
     call_out(|out| unsafe {
         host_display::destack_display_monitor_color_state(binding, out, handle)
     })
@@ -1444,7 +1444,7 @@ pub(crate) fn destack_display_monitor_hdr_mode(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::DisplayHandle,
-) -> RuntimeResult<crate::platform::display::DisplayHdrMode> {
+) -> RuntimeResult<display_platform::DisplayHdrMode> {
     call_out(|out| unsafe { host_display::destack_display_monitor_hdr_mode(binding, out, handle) })
 }
 
@@ -1464,7 +1464,7 @@ pub(crate) fn destack_display_monitor_set_hdr_mode(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::DisplayHandle,
-    mode: crate::platform::display::DisplayHdrMode,
+    mode: display_platform::DisplayHdrMode,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_monitor_set_hdr_mode(binding, handle, mode) }
 }
@@ -1483,7 +1483,7 @@ pub(crate) fn destack_display_window_begin_resize_drag(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    edge: crate::platform::display::WindowResizeEdge,
+    edge: display_platform::WindowResizeEdge,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_begin_resize_drag(binding, window, edge) }
 }
@@ -1547,7 +1547,7 @@ pub(crate) fn destack_display_window_set_aspect_ratio(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    aspectratio: Option<crate::platform::display::WindowAspectRatio>,
+    aspectratio: Option<display_platform::WindowAspectRatio>,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_set_aspect_ratio(binding, window, aspectratio) }
 }
@@ -1557,7 +1557,7 @@ pub(crate) fn destack_display_window_set_chrome(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    chrome: crate::platform::display::WindowChromeKind,
+    chrome: display_platform::WindowChromeKind,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_set_chrome(binding, window, chrome) }
 }

@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::time::tests::TimeHarnessContext;
 use crate::platform::time::{
     ClockId, ClockMetadata, ClockMetadataVm, ClockSource, SleepClock, TimerClock, TimerFlags,
     TimerOptions, TimerOptionsVm, native as time_native, vm as time_vm,

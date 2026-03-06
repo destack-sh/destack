@@ -1,4 +1,6 @@
-use super::*;
+use destack_vm as vm;
+
+use super::ResourceHarnessContext;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::resource::ResourceKindVm;
 use crate::platform::{PlatformError, ResourceKind};

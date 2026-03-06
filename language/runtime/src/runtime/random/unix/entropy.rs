@@ -110,8 +110,19 @@ fn fill_with_getrandom_flags(buffer: &mut [u8], flags: u32) -> io::Result<()> {
         let ptr = unsafe { buffer.as_mut_ptr().add(offset) } as *mut libc::c_void;
         let remaining = buffer.len() - offset;
 
-        // use caller-provided getrandom flags
+        // use the libc symbol on linux and the raw syscall on android
+        #[cfg(target_os = "linux")]
         let read = unsafe { libc::getrandom(ptr, remaining, flags) };
+        #[cfg(target_os = "android")]
+        let read = unsafe {
+            libc::syscall(
+                libc::SYS_getrandom as libc::c_long,
+                ptr,
+                remaining,
+                flags as libc::c_uint,
+            ) as libc::ssize_t
+        };
+
         if read < 0 {
             let error = io::Error::last_os_error();
             if error.kind() == io::ErrorKind::Interrupted {

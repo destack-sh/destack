@@ -1,17 +1,41 @@
-use super::*;
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::thread::JoinHandle;
+use std::time::Duration;
+
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{
-    AudioBackendDisconnectedEvent, AudioBackendDisconnectedPayload, AudioBackendResetEvent,
-    AudioBackendResetPayload, AudioDefaultCaptureChangedEvent, AudioDefaultCaptureChangedPayload,
+    AudioBackend, AudioBackendDisconnectedEvent, AudioBackendDisconnectedPayload,
+    AudioBackendResetEvent, AudioBackendResetPayload, AudioBackendSelectionPolicy,
+    AudioDefaultCaptureChangedEvent, AudioDefaultCaptureChangedPayload,
     AudioDefaultLoopbackChangedEvent, AudioDefaultLoopbackChangedPayload,
     AudioDefaultPlaybackChangedEvent, AudioDefaultPlaybackChangedPayload, AudioDeviceAddedEvent,
-    AudioDeviceAddedPayload, AudioDeviceFormatChangedEvent, AudioDeviceFormatChangedPayload,
+    AudioDeviceAddedPayload, AudioDeviceDirection, AudioDeviceFormatChangedEvent,
+    AudioDeviceFormatChangedPayload, AudioDeviceListFlags, AudioDeviceListRequest,
     AudioDeviceRemovedEvent, AudioDeviceRemovedPayload, AudioDeviceReroutedEvent,
-    AudioDeviceReroutedPayload, AudioEventMetadata, AudioInterruptionBeganEvent,
-    AudioInterruptionBeganPayload, AudioInterruptionEndedEvent, AudioInterruptionEndedPayload,
-    AudioStreamDeviceChangedEvent, AudioStreamDeviceChangedPayload, AudioStreamStateChangedEvent,
-    AudioStreamStateChangedPayload, AudioStreamXRunEvent, AudioStreamXRunPayload, host,
+    AudioDeviceReroutedPayload, AudioEvent, AudioEventDeliveryMode, AudioEventKind,
+    AudioEventMetadata, AudioEventOverflowPolicy, AudioEventSource, AudioEventSubscriptionFlags,
+    AudioEventSubscriptionOptions, AudioInterruptionBeganEvent, AudioInterruptionBeganPayload,
+    AudioInterruptionEndedEvent, AudioInterruptionEndedPayload, AudioStreamDeviceChangedEvent,
+    AudioStreamDeviceChangedPayload, AudioStreamStateChangedEvent, AudioStreamStateChangedPayload,
+    AudioStreamStateKind, AudioStreamStatusFlags, AudioStreamXRunEvent, AudioStreamXRunPayload,
+    host,
 };
-use std::sync::atomic::{AtomicBool, Ordering};
+use crate::platform::{PlatformError, resource};
+use crate::runtime::BindingCallContext;
+
+use super::{
+    AudioEventBinding, AudioEventRecord, AudioStreamBinding, EVENT_SUBSCRIBE_BACKEND,
+    EVENT_SUBSCRIBE_DEFAULT_ROUTE, EVENT_SUBSCRIBE_DEVICE_HOTPLUG, EVENT_SUBSCRIBE_FORMAT_CHANGE,
+    EVENT_SUBSCRIBE_INTERRUPTION, EVENT_SUBSCRIBE_REROUTE, EVENT_SUBSCRIBE_STREAM,
+    HostDeviceDescriptor, MAX_EVENT_POLL_INTERVAL_NS, MIN_EVENT_POLL_INTERVAL_NS, audio_busy,
+    enumerate_devices_for_request, host_monotonic_nanos, resolve_stream_binding,
+    resolved_default_event_poll_interval_ns, resolved_default_event_queue_capacity,
+    resolved_event_monitor_poll_interval_ns, stream_state_snapshot,
+    supported_backend_event_subscription_flags,
+};
 
 /// Mask for all recognized subscription flags.
 const KNOWN_EVENT_SUBSCRIPTION_FLAGS_MASK: u32 = EVENT_SUBSCRIBE_DEVICE_HOTPLUG.0
@@ -443,19 +467,21 @@ pub(crate) fn register_stream_binding_handle(
     binding
         .stream_handle_raw
         .store(handle.0.0, Ordering::Release);
-    *binding
-        .event_runtime_state
-        .lock()
-        .unwrap_or_else(|error| error.into_inner()) = Some(Arc::downgrade(&runtime_state));
+    let mut event_runtime_state = match binding.event_runtime_state.lock() {
+        Ok(value) => value,
+        Err(error) => error.into_inner(),
+    };
+    *event_runtime_state = Some(Arc::downgrade(&runtime_state));
 }
 
 /// Unregister one closed stream binding from native event delivery.
 pub(crate) fn unregister_stream_binding_handle(binding: &AudioStreamBinding) {
     binding.stream_handle_raw.store(0, Ordering::Release);
-    *binding
-        .event_runtime_state
-        .lock()
-        .unwrap_or_else(|error| error.into_inner()) = None;
+    let mut event_runtime_state = match binding.event_runtime_state.lock() {
+        Ok(value) => value,
+        Err(error) => error.into_inner(),
+    };
+    *event_runtime_state = None;
 }
 
 /// Return one registered stream handle for one stream binding when present.
@@ -479,7 +505,7 @@ pub(crate) fn publish_stream_event_native(
     let runtime_state = stream_binding
         .event_runtime_state
         .lock()
-        .unwrap_or_else(|error| error.into_inner())
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
         .as_ref()
         .and_then(std::sync::Weak::upgrade);
     let Some(runtime_state) = runtime_state else {
@@ -1331,8 +1357,24 @@ pub(crate) fn abi_event(binding: &BindingCallContext, event: AudioEventRecord) -
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::collections::{HashMap, VecDeque};
+
+    use crate::platform::audio::core::{
+        AudioEventBinding, AudioEventRecord, EVENT_POLL_INTERVAL_NS, EVENT_SUBSCRIBE_BACKEND,
+        EVENT_SUBSCRIBE_DEFAULT_ROUTE, EVENT_SUBSCRIBE_DEVICE_HOTPLUG,
+        EVENT_SUBSCRIBE_FORMAT_CHANGE, EVENT_SUBSCRIBE_INTERRUPTION, EVENT_SUBSCRIBE_REROUTE,
+        EVENT_SUBSCRIBE_STREAM, take_event_overflow_error,
+    };
+    use crate::platform::audio::{
+        AudioBackend, AudioBackendSelectionPolicy, AudioEventDeliveryMode, AudioEventKind,
+        AudioEventOverflowPolicy, AudioEventSource, AudioEventSubscriptionFlags,
+        AudioEventSubscriptionOptions, AudioStreamStatusFlags,
+    };
     use crate::platform::diagnostic::PlatformErrorCode;
+
+    use super::{
+        native_only_supported_subscription_flags, push_event_record, tracks_device_events,
+    };
 
     /// Build one minimal event binding for queue-behavior tests.
     fn test_binding(

@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::error::tests::ErrorHarnessContext;
 use crate::platform::error::{
     PlatformError, PlatformErrorCode, PlatformErrorContext, PlatformErrorContextAudio,
     PlatformErrorContextAudioVm, PlatformErrorContextDevice, PlatformErrorContextDeviceVm,

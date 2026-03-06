@@ -1255,7 +1255,15 @@ unsafe extern "C" fn event_tap_callback(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::platform::input::InputEventAction;
+
+    use super::{
+        KCG_EVENT_FLAG_MASK_CAPS_LOCK, KCG_EVENT_FLAG_MASK_COMMAND, KCG_EVENT_FLAG_MASK_CONTROL,
+        KCG_EVENT_FLAG_MASK_OPTION, KCG_EVENT_FLAG_MASK_SHIFT, KCG_KEYCODE_LEFT_CONTROL,
+        KCG_KEYCODE_LEFT_SHIFT, KCG_KEYCODE_RIGHT_SHIFT, MODIFIER_ALT, MODIFIER_CAPS_LOCK,
+        MODIFIER_CONTROL, MODIFIER_META, MODIFIER_SHIFT, flags_changed_action_and_value,
+        modifier_flag_mask_for_keycode, runtime_modifiers_from_cg_flags,
+    };
 
     /// Map shift keycodes to the shift modifier flag.
     #[test]

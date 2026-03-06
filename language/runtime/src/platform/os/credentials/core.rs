@@ -5,6 +5,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::{
     CredentialAccessibility, CredentialAuthenticationPolicy, CredentialAuthenticationRequirement,
+    CredentialAuthenticationResult,
 };
 use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
@@ -205,7 +206,7 @@ pub(crate) fn contains_credentials(
 pub(crate) fn authenticate_credentials(
     binding: &BindingCallContext,
     options: &CredentialAuthenticationOptionsOwned,
-) -> RuntimeResult<crate::platform::os::CredentialAuthenticationResult> {
+) -> RuntimeResult<CredentialAuthenticationResult> {
     // validate prompt fields for host APIs that require text
     validate_authentication_prompt(options)?;
 

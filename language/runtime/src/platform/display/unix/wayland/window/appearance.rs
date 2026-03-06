@@ -12,7 +12,10 @@ use crate::platform::{core as core_platform, resource};
 use crate::runtime::{BindingCallContext, NativeStringRef};
 
 use super::super::{core as backend_core, event};
-use super::icon;
+use super::{
+    create_memfd_file, decoration_mode_for_window, icon, normalize_opacity, opacity_multiplier,
+    require_xdg_toplevel_id, resolve_window_binding,
+};
 
 /// Set always-on-top state.
 pub(crate) unsafe fn window_set_always_on_top(
@@ -21,7 +24,7 @@ pub(crate) unsafe fn window_set_always_on_top(
     always_on_top: bool,
 ) -> RuntimeResult<()> {
     // resolve target window binding and enforce owner-thread affinity
-    let binding = super::resolve_window_binding(
+    let binding = resolve_window_binding(
         context,
         window_handle,
         "destack.display.window.setAlwaysOnTop",
@@ -54,7 +57,7 @@ pub(crate) unsafe fn window_set_decorated(
     decorated: bool,
 ) -> RuntimeResult<()> {
     // resolve target window binding and enforce owner-thread affinity
-    let binding = super::resolve_window_binding(
+    let binding = resolve_window_binding(
         context,
         window_handle,
         "destack.display.window.setDecorated",
@@ -90,7 +93,7 @@ pub(crate) unsafe fn window_set_decorated(
                 )
             })?;
 
-            let mode = super::decoration_mode_for_window(chrome, decorated);
+            let mode = decoration_mode_for_window(chrome, decorated);
             decoration.set_mode(mode);
 
             backend_core::flush_queue(event_queue, "destack.display.window.setDecorated")?;
@@ -110,7 +113,7 @@ pub(crate) unsafe fn window_set_resizable(
     resizable: bool,
 ) -> RuntimeResult<()> {
     // resolve target window binding and enforce owner-thread affinity
-    let binding = super::resolve_window_binding(
+    let binding = resolve_window_binding(
         context,
         window_handle,
         "destack.display.window.setResizable",
@@ -123,8 +126,7 @@ pub(crate) unsafe fn window_set_resizable(
     }
 
     // apply wayland min and max size policy for this window
-    let xdg_toplevel_id =
-        super::require_xdg_toplevel_id(&binding, "destack.display.window.setResizable")?;
+    let xdg_toplevel_id = require_xdg_toplevel_id(&binding, "destack.display.window.setResizable")?;
     let constraints = binding.constraints;
     let current_size = binding.size_physical;
     backend_core::with_connection_dispatch(
@@ -182,7 +184,7 @@ pub(crate) unsafe fn window_set_chrome(
 ) -> RuntimeResult<()> {
     // resolve target window binding and enforce owner-thread affinity
     let binding =
-        super::resolve_window_binding(context, window_handle, "destack.display.window.setChrome")?;
+        resolve_window_binding(context, window_handle, "destack.display.window.setChrome")?;
     let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
 
     // skip no-op chrome transitions
@@ -198,7 +200,7 @@ pub(crate) unsafe fn window_set_chrome(
     };
 
     let decorated = binding.decorated;
-    let mode = super::decoration_mode_for_window(chrome, decorated);
+    let mode = decoration_mode_for_window(chrome, decorated);
 
     // apply one chrome-mode request through xdg-decoration
     backend_core::with_connection_dispatch(
@@ -235,7 +237,7 @@ pub(crate) unsafe fn window_set_taskbar_visible(
     visible: bool,
 ) -> RuntimeResult<()> {
     // resolve target window binding and enforce owner-thread affinity
-    let binding = super::resolve_window_binding(
+    let binding = resolve_window_binding(
         context,
         window_handle,
         "destack.display.window.setTaskbarVisible",
@@ -270,12 +272,11 @@ pub(crate) unsafe fn window_set_title(
     // decode title payload and resolve target window binding
     let title = unsafe { title.as_str()?.to_string() };
     let binding =
-        super::resolve_window_binding(context, window_handle, "destack.display.window.setTitle")?;
+        resolve_window_binding(context, window_handle, "destack.display.window.setTitle")?;
     let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
 
     // apply title request through xdg_toplevel
-    let xdg_toplevel_id =
-        super::require_xdg_toplevel_id(&binding, "destack.display.window.setTitle")?;
+    let xdg_toplevel_id = require_xdg_toplevel_id(&binding, "destack.display.window.setTitle")?;
     backend_core::with_connection_dispatch(
         context,
         "destack.display.window.setTitle",
@@ -310,10 +311,9 @@ pub(crate) unsafe fn window_set_icons(
 
     // resolve target window binding and enforce owner-thread affinity
     let binding =
-        super::resolve_window_binding(context, window_handle, "destack.display.window.setIcons")?;
+        resolve_window_binding(context, window_handle, "destack.display.window.setIcons")?;
     let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    let xdg_toplevel_id =
-        super::require_xdg_toplevel_id(&binding, "destack.display.window.setIcons")?;
+    let xdg_toplevel_id = require_xdg_toplevel_id(&binding, "destack.display.window.setIcons")?;
     let surface_id = binding.host.surface.clone();
     let runtime_state = backend_core::runtime_state(context);
     let window_token = backend_core::window_token_from_surface(&runtime_state, &surface_id)
@@ -376,7 +376,7 @@ pub(crate) unsafe fn window_set_icons(
                 core_platform::invalid_argument("icons", "icon payload is too large")
             })?;
 
-            let mut file = super::create_memfd_file(
+            let mut file = create_memfd_file(
                 "destack.display.window.setIcons",
                 "destack-wayland-icon",
                 byte_length,
@@ -434,7 +434,7 @@ pub(crate) unsafe fn window_set_visibility(
     visibility: WindowVisibility,
 ) -> RuntimeResult<()> {
     // resolve target window binding and enforce owner-thread affinity
-    let binding = super::resolve_window_binding(
+    let binding = resolve_window_binding(
         context,
         window_handle,
         "destack.display.window.setVisibility",
@@ -456,7 +456,7 @@ pub(crate) unsafe fn window_set_visibility(
 
     // apply visibility request to xdg_toplevel
     let xdg_toplevel_id =
-        super::require_xdg_toplevel_id(&binding, "destack.display.window.setVisibility")?;
+        require_xdg_toplevel_id(&binding, "destack.display.window.setVisibility")?;
     backend_core::with_connection_dispatch(
         context,
         "destack.display.window.setVisibility",
@@ -512,9 +512,9 @@ pub(crate) unsafe fn window_set_opacity(
     opacity: f64,
 ) -> RuntimeResult<()> {
     // normalize opacity payload and resolve target window binding
-    let opacity = super::normalize_opacity(opacity, "opacity")?;
+    let opacity = normalize_opacity(opacity, "opacity")?;
     let binding =
-        super::resolve_window_binding(context, window_handle, "destack.display.window.setOpacity")?;
+        resolve_window_binding(context, window_handle, "destack.display.window.setOpacity")?;
     let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
 
     // skip no-op opacity transitions
@@ -571,7 +571,7 @@ pub(crate) unsafe fn window_set_opacity(
                     format!("invalid wp_alpha_modifier_surface id: {error}"),
                 )
             })?;
-            alpha_surface.set_multiplier(super::opacity_multiplier(opacity));
+            alpha_surface.set_multiplier(opacity_multiplier(opacity));
             backend_core::request_surface_presentation_feedback(
                 dispatch_state,
                 event_queue,
@@ -600,8 +600,7 @@ pub(crate) unsafe fn window_opacity(
 ) -> RuntimeResult<()> {
     // validate out pointer and resolve target window binding
     core_platform::ensure_out(out, "out")?;
-    let binding =
-        super::resolve_window_binding(context, window_handle, "destack.display.window.opacity")?;
+    let binding = resolve_window_binding(context, window_handle, "destack.display.window.opacity")?;
     let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
 
     // write current opacity snapshot

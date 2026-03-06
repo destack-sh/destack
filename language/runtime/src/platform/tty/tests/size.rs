@@ -1,6 +1,6 @@
 use super::{
     assert_ok_or_expected_error, assert_platform_error_codes, close_tty_worker_resource,
-    open_pty_or_skip_not_supported, with_harness_context,
+    decode_harness_value, open_pty_or_skip_not_supported, with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{ResourceId, TtyHandle};
@@ -19,7 +19,7 @@ fn test_tty_size_roundtrip_or_not_supported() {
 
         // read one size snapshot and reapply it
         let size = context.destack_tty_get_size(pair.worker)?;
-        let size = super::decode_harness_value(size);
+        let size = decode_harness_value(size);
         if size.rows > 0 && size.columns > 0 {
             let size_value = context.tty_size_value(size);
             let set_result = assert_ok_or_expected_error(
@@ -94,7 +94,7 @@ fn test_tty_size_updates_roundtrip_or_not_supported() {
         }
 
         let updated = context.destack_tty_get_size(pair.worker)?;
-        let updated = super::decode_harness_value(updated);
+        let updated = decode_harness_value(updated);
         assert_eq!(updated.rows, target_size.rows);
         assert_eq!(updated.columns, target_size.columns);
 
@@ -155,7 +155,7 @@ fn test_tty_size_windows_pseudo_console_pixels_are_zero() {
         }
 
         let observed = context.destack_tty_get_size(pair.worker)?;
-        let observed = super::decode_harness_value(observed);
+        let observed = decode_harness_value(observed);
         assert_eq!(observed.x_pixels, 0);
         assert_eq!(observed.y_pixels, 0);
 

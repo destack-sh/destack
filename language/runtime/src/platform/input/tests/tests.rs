@@ -4,9 +4,11 @@ use destack_vm as vm;
 
 use crate::diagnostic::RuntimeResult;
 use crate::runtime::BindingCallContext;
+#[cfg(any(windows, target_os = "macos"))]
+pub(crate) use crate::tests::platform::assert_not_supported_result;
 pub(crate) use crate::tests::platform::{
-    assert_not_supported_result, assert_ok_or_expected_error, assert_platform_error_code,
-    error_code_from_runtime_error, is_not_supported_code,
+    assert_ok_or_expected_error, assert_platform_error_code, error_code_from_runtime_error,
+    is_not_supported_code,
 };
 use crate::tests::runtime::TestRuntime;
 

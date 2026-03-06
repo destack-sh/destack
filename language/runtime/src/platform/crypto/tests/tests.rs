@@ -8,8 +8,8 @@ use std::sync::Mutex;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::resource::ResourceId;
-use crate::platform::{VmSlice, crypto as crypto_platform, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::platform::{crypto as crypto_platform, resource};
+use crate::runtime::BindingCallContext;
 pub(crate) use crate::tests::platform::{
     assert_not_not_supported_platform_code, assert_not_supported_platform_code,
     error_code_from_runtime_error, is_not_supported_code,

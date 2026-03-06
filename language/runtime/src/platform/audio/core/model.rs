@@ -1,6 +1,17 @@
-use super::*;
-use std::sync::Weak;
+use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Condvar, Mutex, Weak};
+use std::thread::JoinHandle;
+
+use crate::diagnostic::RuntimeResult;
+use crate::platform::audio::{
+    AudioBackend, AudioChannelLayout, AudioDeviceCapabilityFlags, AudioDeviceDirection,
+    AudioDeviceOpenOptions, AudioEventKind, AudioEventSource, AudioEventSubscriptionOptions,
+    AudioShareMode, AudioStreamConfig, AudioStreamStateKind, AudioStreamStatusFlags,
+};
+use crate::platform::resource;
+
+use super::{AudioEventRuntimeState, DEFAULT_STREAM_VOLUME, host_monotonic_nanos};
 
 /// One normalized host device descriptor.
 #[derive(Debug, Clone)]

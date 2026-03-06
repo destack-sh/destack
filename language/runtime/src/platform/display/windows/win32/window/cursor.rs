@@ -1,4 +1,18 @@
-use super::*;
+use windows_sys::Win32::Foundation::POINT;
+use windows_sys::Win32::UI::WindowsAndMessaging::{
+    ClientToScreen, LoadCursorW, SetCursor, SetCursorPos,
+};
+
+use crate::diagnostic::RuntimeResult;
+use crate::platform::display::{WindowCursorIcon, WindowCursorMode, WindowPosition};
+use crate::platform::resource;
+use crate::runtime::BindingCallContext;
+
+use super::super::{core, resource as display_resource};
+use super::core::{
+    apply_cursor_mode, cursor_name, ensure_window_thread, refresh_cursor_policy,
+    set_cursor_visibility, upsert_cursor_policy, window_runtime_state,
+};
 
 /// Set one cursor visibility state for one window.
 pub(crate) unsafe fn window_set_cursor_visible(

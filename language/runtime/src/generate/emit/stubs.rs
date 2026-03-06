@@ -4,7 +4,6 @@ use crate::emit::to_pascal_case;
 /// Render a handwritten harness module scaffold.
 pub(crate) fn render_domain_test_harness_stub() -> String {
     let mut output = String::new();
-    output.push_str("use super::*;\n\n");
     output.push_str("#[path = \"harness.generated.rs\"]\n");
     output.push_str("mod generated;\n\n");
     output.push_str("#[allow(unused_imports)]\n");
@@ -170,7 +169,9 @@ fn render_standardized_test_harness_generated(
     if domain == "error" {
         output.push_str("use crate::platform::error as platform_error;\n");
     }
-    output.push_str("use super::*;\n\n");
+    output.push_str(&format!(
+        "use crate::platform::{domain}::tests::{context_name};\n\n"
+    ));
 
     output.push_str(&format!("impl<'call> {context_name}<'call> {{\n"));
     output.push_str("    /// Return the generated VM context if available.\n");

@@ -7,10 +7,8 @@ use destack_vm as vm;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::net::{SocketPair, SocketType, native as net_native, vm as net_vm};
-use crate::platform::tls::{TlsContextOptions, TlsContextOptionsVm, TlsRole, TlsVersion};
-use crate::platform::{ResourceId, VmSlice, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef, NativeStringSlice};
+use crate::platform::{ResourceId, resource};
+use crate::runtime::BindingCallContext;
 use crate::tests::runtime::TestRuntime;
 
 /// TLS harness context used by tests.

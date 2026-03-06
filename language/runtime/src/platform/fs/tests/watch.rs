@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use super::{FsWatchEvent, temp_dir, with_harness_context};
+use super::{FsHarnessContext, FsWatchEvent, temp_dir, with_harness_context};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::fs::{FileMode, WatchMask, WatchOptions};
@@ -23,7 +23,7 @@ fn default_watch_options() -> WatchOptions {
 
 /// Poll watch batches until one event or overflow marker arrives.
 fn poll_watch_events(
-    context: &mut super::FsHarnessContext<'_>,
+    context: &mut FsHarnessContext<'_>,
     handle: WatchHandle,
     timeout: Duration,
 ) -> RuntimeResult<(Vec<FsWatchEvent>, bool)> {

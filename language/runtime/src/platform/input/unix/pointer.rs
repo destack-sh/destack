@@ -108,7 +108,7 @@ fn pointer_state(
 /// Read one pointer snapshot from one opened unix handle.
 #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
 fn pointer_state(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     _handle: resource::InputDeviceHandle,
     _relative: bool,
     operation: &'static str,
@@ -156,7 +156,7 @@ fn set_relative_mode_linux(
 /// Capture one relative-mode flag for one opened unsupported unix pointer handle.
 #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
 fn set_relative_mode_other_unix(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     _handle: resource::InputDeviceHandle,
     _enabled: bool,
     operation: &'static str,

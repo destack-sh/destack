@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::device::tests::DeviceHarnessContext;
 use crate::platform::device::{
     BluetoothAdapterDescriptor, BluetoothAdapterDescriptorVm, BluetoothAdvertisementData,
     BluetoothAdvertisementDataVm, BluetoothAdvertisementManufacturerData,

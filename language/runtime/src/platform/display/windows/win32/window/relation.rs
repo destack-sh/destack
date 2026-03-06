@@ -1,4 +1,12 @@
-use super::*;
+use crate::diagnostic::RuntimeResult;
+use crate::platform::{core as core_platform, resource};
+use crate::runtime::BindingCallContext;
+
+use super::super::{event, resource as display_resource};
+use super::{
+    apply_modal_owner_transition, apply_owner_relationship, ensure_window_thread,
+    owner_relationship, refresh_window_snapshot,
+};
 
 /// Set one window modal state.
 pub(crate) unsafe fn window_set_modal(

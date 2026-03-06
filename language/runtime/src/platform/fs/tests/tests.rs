@@ -8,25 +8,23 @@ use std::path::{Path, PathBuf};
 
 use destack_vm as vm;
 
-use crate::diagnostic::{RuntimeError, RuntimeResult, RuntimeStatus};
+#[cfg(windows)]
+use crate::diagnostic::RuntimeStatus;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+#[cfg(windows)]
 use crate::platform::abi::NativeAbi;
+#[cfg(windows)]
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{
-    self as core_net, AcceptFlags, SocketAddress, SocketAddressVm, SocketFamily, SocketProtocol,
-    SocketType, vm as platform_net_vm,
+    SocketAddress, SocketAddressVm, SocketFamily, SocketProtocol, SocketType,
 };
-use crate::platform::resource::{ListenerHandle, ResourceId, SocketHandle};
 use crate::platform::{
     NativeArray, PlatformError, VmAggregateCodec, VmArray, VmSlice, fs as platform_fs,
 };
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 pub(crate) use crate::tests::platform::assert_platform_error_codes_with_privileged_policy;
 use crate::tests::runtime::TestRuntime;
-use platform_fs::{
-    Dirent, DirentKind, DirentNext, DirentNextVm, DirentVm, OpenOptions, OpenOptionsVm, OsPath,
-    OsPathVm, PathBytesAbi, PathUtf16Abi, WatchBatch, WatchBatchVm, WatchEvent, WatchEventVm,
-    WatchOptions, core as core_fs,
-};
+use platform_fs::{Dirent, DirentKind, DirentVm, OsPath, OsPathVm, WatchEvent, WatchEventVm};
 
 /// Path reference payload used by filesystem test helpers.
 pub(crate) type FsPathRef = harness::HarnessValue<OsPath, OsPathVm>;

@@ -17,6 +17,11 @@ use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
+use super::{
+    destack_net_accept, destack_net_close_listener, destack_net_resolve,
+    destack_net_reverse_lookup, destack_net_reverse_lookup_names, destack_net_socket_pair,
+};
+
 /// Monotonic suffix for temporary UDS socket-pair paths.
 #[derive(Debug, Default)]
 pub(crate) struct WindowsUdsRuntimeState {
@@ -304,7 +309,7 @@ pub(crate) unsafe fn destack_net_uds_accept(
     out: *mut SocketHandle,
     listener: ListenerHandle,
 ) -> RuntimeResult<()> {
-    unsafe { super::destack_net_accept(binding, out, listener, AcceptFlags(0)) }
+    unsafe { destack_net_accept(binding, out, listener, AcceptFlags(0)) }
 }
 
 /// Close a UDS listener handle.
@@ -328,7 +333,7 @@ pub(crate) unsafe fn destack_net_uds_close_listener(
     binding: &BindingCallContext,
     handle: ListenerHandle,
 ) -> RuntimeResult<()> {
-    unsafe { super::destack_net_close_listener(binding, handle) }
+    unsafe { destack_net_close_listener(binding, handle) }
 }
 
 /// Create a connected UDS socket pair.

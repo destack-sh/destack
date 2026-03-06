@@ -1,5 +1,29 @@
 use super::drop::{register_window_drop_target, unregister_window_drop_target};
-use super::*;
+use windows_sys::Win32::Foundation::HWND;
+use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
+use windows_sys::Win32::UI::WindowsAndMessaging::{
+    CW_USEDEFAULT, CreateWindowExW, DestroyWindow, HINSTANCE,
+};
+
+use crate::diagnostic::RuntimeResult;
+use crate::platform::display::{
+    WindowChromeKind, WindowCursorIcon, WindowCursorMode, WindowModeOptions, WindowOptions,
+    WindowPosition, WindowRole, WindowTheme, WindowVisibility,
+};
+use crate::platform::{core as core_platform, resource};
+use crate::runtime::BindingCallContext;
+
+use super::super::model::Win32WindowBinding;
+use super::super::{core, monitor, resource as display_resource};
+use super::core::{
+    clamp_logical_size, current_thread_id, current_window_theme, ensure_window_class_registered,
+    logical_to_physical, next_window_identifier, normalize_logical_size, normalize_opacity,
+    outer_size_from_client_size, refresh_cursor_policy_best_effort, remove_cursor_policy,
+    set_cursor_visibility, show_command_on_open, window_class_name, window_ex_style_for_binding,
+    window_runtime_state, window_style_for_binding,
+};
+use super::mode::{apply_mode_options, restore_exclusive_mode};
+use super::runtime::register_runtime_window;
 
 /// Destroy one host window during error unwind and publish diagnostics on failure.
 fn destroy_window_best_effort(context: &BindingCallContext, hwnd: HWND, operation: &'static str) {

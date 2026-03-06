@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::security::tests::SecurityHarnessContext;
 use crate::platform::security::{
     PlatformCapability, PlatformCapabilityVm, SecurityPolicyMode, SecurityPolicyRule,
     SecurityPolicyRuleVm, native as security_native, vm as security_vm,

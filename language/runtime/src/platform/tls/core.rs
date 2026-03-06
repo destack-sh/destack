@@ -1507,7 +1507,14 @@ fn flush_outgoing_tls_handshake<T: Read + Write>(
 mod tests {
     use std::io::{ErrorKind, Read, Write};
 
-    use super::*;
+    use crate::platform::tls::{
+        TlsHandshakeStatus, TlsHostnameVerificationMode, TlsRole, TlsSessionResumptionMode,
+        TlsVersion,
+    };
+
+    use super::{
+        TlsContextResource, TlsContextRuntimeState, build_client_connection, handshake_step,
+    };
 
     /// Transport that blocks both reads and writes.
     struct WouldBlockTransport;

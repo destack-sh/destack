@@ -1,6 +1,8 @@
 use crate::platform::audio::PlatformAudioState;
 #[cfg(any(windows, target_os = "linux"))]
 use crate::platform::display::PlatformDisplayState;
+#[cfg(target_os = "macos")]
+use crate::platform::display::PlatformDisplayState;
 #[cfg(windows)]
 use crate::platform::fs::PlatformFsState;
 #[cfg(windows)]
@@ -10,13 +12,14 @@ use crate::platform::net::PlatformNetState;
 use crate::platform::os::PlatformOsState;
 
 /// Runtime-owned platform module state slots.
+#[allow(dead_code)]
 #[derive(Debug, Default)]
 pub(crate) struct PlatformState {
     /// Audio module state.
     pub audio: PlatformAudioState,
 
     /// Display module state.
-    #[cfg(any(windows, target_os = "linux"))]
+    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
     pub display: PlatformDisplayState,
 
     /// Filesystem module state.

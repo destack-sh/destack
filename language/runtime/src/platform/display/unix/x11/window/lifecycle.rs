@@ -17,7 +17,12 @@ use crate::runtime::BindingCallContext;
 
 use super::super::super::model::{ExclusiveModeRestore, X11WindowBinding};
 use super::super::super::{core, event, monitor, resource as display_resource};
-use super::{cursor, geometry};
+use super::{
+    apply_fullscreen_state, apply_maximized_state, apply_window_chrome, apply_window_decorated,
+    apply_window_mouse_passthrough, apply_window_size_hints, apply_window_transient_owner, cursor,
+    ensure_window_thread, geometry, mode_display, mode_display_mode, request_window_minimize,
+    set_net_wm_state, set_window_title,
+};
 
 /// Resolve role-specific open defaults for one window open request.
 fn resolve_role_open_defaults(
@@ -54,10 +59,10 @@ pub(super) fn apply_exclusive_mode(
     operation: &'static str,
 ) -> RuntimeResult<Option<ExclusiveModeRestore>> {
     // skip monitor mode mutation when this mode is not exclusive fullscreen
-    let Some(display) = super::mode_display(mode) else {
+    let Some(display) = mode_display(mode) else {
         return Ok(None);
     };
-    let Some(requested_mode) = super::mode_display_mode(mode) else {
+    let Some(requested_mode) = mode_display_mode(mode) else {
         return Ok(None);
     };
 
@@ -225,7 +230,7 @@ pub(crate) unsafe fn window_open(
         .ok_or_else(|| core_platform::invalid_state("x11 setup missing selected screen root"))?;
 
     // validate requested display preference
-    let mode_display = super::mode_display(options.mode);
+    let mode_display = mode_display(options.mode);
     let preferred_display = mode_display.or(options.display);
     // evaluate this condition
     if let Some(display) = preferred_display {
@@ -242,7 +247,7 @@ pub(crate) unsafe fn window_open(
         let transient_binding = transient_binding
             .lock()
             .unwrap_or_else(|error| error.into_inner());
-        super::ensure_window_thread(&transient_binding, "destack.display.window.open")?;
+        ensure_window_thread(&transient_binding, "destack.display.window.open")?;
         Some(transient_binding.window)
     } else if let Some(parent_handle) = options.parent {
         let parent_binding = display_resource::resolve_window_binding(
@@ -253,7 +258,7 @@ pub(crate) unsafe fn window_open(
         let parent_binding = parent_binding
             .lock()
             .unwrap_or_else(|error| error.into_inner());
-        super::ensure_window_thread(&parent_binding, "destack.display.window.open")?;
+        ensure_window_thread(&parent_binding, "destack.display.window.open")?;
         Some(parent_binding.window)
     } else {
         None
@@ -328,26 +333,26 @@ pub(crate) unsafe fn window_open(
                 format!("change_property32 failed: {error}"),
             )
         })?;
-    super::set_window_title(connection_state.as_ref(), window, title)?;
-    super::apply_window_transient_owner(
+    set_window_title(connection_state.as_ref(), window, title)?;
+    apply_window_transient_owner(
         connection_state.as_ref(),
         window,
         transient_for_window,
         "destack.display.window.open",
     )?;
-    super::apply_window_decorated(
+    apply_window_decorated(
         connection_state.as_ref(),
         window,
         resolved_decorated,
         "destack.display.window.open",
     )?;
-    super::apply_window_chrome(
+    apply_window_chrome(
         connection_state.as_ref(),
         window,
         resolved_chrome,
         "destack.display.window.open",
     )?;
-    super::apply_window_size_hints(
+    apply_window_size_hints(
         connection_state.as_ref(),
         window,
         options.resizable,
@@ -359,7 +364,7 @@ pub(crate) unsafe fn window_open(
         },
         "destack.display.window.open",
     )?;
-    super::apply_window_mouse_passthrough(
+    apply_window_mouse_passthrough(
         connection_state.as_ref(),
         window,
         options.mouse_passthrough.unwrap_or(false),
@@ -367,7 +372,7 @@ pub(crate) unsafe fn window_open(
     )?;
     // evaluate this condition
     if !resolved_taskbar_visible {
-        super::set_net_wm_state(
+        set_net_wm_state(
             connection_state.as_ref(),
             window,
             connection_state.atoms.net_wm_state_skip_taskbar,
@@ -376,7 +381,7 @@ pub(crate) unsafe fn window_open(
     }
     // evaluate this condition
     if resolved_always_on_top {
-        super::set_net_wm_state(
+        set_net_wm_state(
             connection_state.as_ref(),
             window,
             connection_state.atoms.net_wm_state_above,
@@ -385,17 +390,17 @@ pub(crate) unsafe fn window_open(
     }
     // evaluate this condition
     if options.modal.unwrap_or(false) {
-        super::set_net_wm_state(
+        set_net_wm_state(
             connection_state.as_ref(),
             window,
             connection_state.atoms.net_wm_state_modal,
             true,
         )?;
     }
-    super::apply_fullscreen_state(connection_state.as_ref(), window, options.mode)?;
+    apply_fullscreen_state(connection_state.as_ref(), window, options.mode)?;
     // evaluate this condition
     if options.visibility == WindowVisibility::Maximized {
-        super::apply_maximized_state(connection_state.as_ref(), window, true)?;
+        apply_maximized_state(connection_state.as_ref(), window, true)?;
     }
     // evaluate this condition
     if options.opacity.is_some() {
@@ -428,7 +433,7 @@ pub(crate) unsafe fn window_open(
 
     // request initial minimize through one wm change-state client message
     if options.visibility == WindowVisibility::Minimized {
-        super::request_window_minimize(
+        request_window_minimize(
             connection_state.as_ref(),
             window,
             "destack.display.window.open",
@@ -585,7 +590,7 @@ pub(crate) unsafe fn window_close(
     )?;
     let mut binding_snapshot = {
         let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-        super::ensure_window_thread(&binding, "destack.display.window.close")?;
+        ensure_window_thread(&binding, "destack.display.window.close")?;
         binding.clone()
     };
 

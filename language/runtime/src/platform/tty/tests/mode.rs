@@ -1,6 +1,6 @@
 use super::{
     assert_ok_or_expected_error, assert_platform_error_codes, close_tty_worker_resource,
-    open_pty_or_skip_not_supported, with_harness_context,
+    decode_harness_value, open_pty_or_skip_not_supported, with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{ResourceId, TtyHandle};
@@ -26,7 +26,7 @@ fn test_tty_mode_roundtrip_or_not_supported() {
 
         // read one mode snapshot and reapply it
         let mode = context.destack_tty_get_mode(pair.worker)?;
-        let mode = super::decode_harness_value(mode);
+        let mode = decode_harness_value(mode);
         let mode_value = context.tty_mode_value(mode);
         context.destack_tty_set_mode(pair.worker, mode_value)?;
 
@@ -108,7 +108,7 @@ fn test_tty_mode_set_raw_mode_roundtrip_or_not_supported() {
         }
 
         let raw_mode = context.destack_tty_get_mode(pair.worker)?;
-        let raw_mode = super::decode_harness_value(raw_mode);
+        let raw_mode = decode_harness_value(raw_mode);
         #[cfg(unix)]
         {
             let raw_mask = tty_flag_u64(libc::ICANON | libc::ECHO | libc::ISIG | libc::IEXTEN);
@@ -126,7 +126,7 @@ fn test_tty_mode_set_raw_mode_roundtrip_or_not_supported() {
 
         context.destack_tty_set_raw_mode(pair.worker, false)?;
         let cooked_mode = context.destack_tty_get_mode(pair.worker)?;
-        let cooked_mode = super::decode_harness_value(cooked_mode);
+        let cooked_mode = decode_harness_value(cooked_mode);
         #[cfg(unix)]
         {
             let cooked_mask = tty_flag_u64(libc::ICANON | libc::ECHO);

@@ -29,19 +29,20 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs;
 #[cfg(windows)]
 use crate::platform::fs::core as core_fs;
-#[cfg(unix)]
-use crate::platform::process::ProcessId;
-#[cfg(windows)]
-use crate::platform::process::{
-    ProcessFdAction, ProcessSpawnOptions, ProcessStdio, native as process_native,
-};
-use crate::platform::process::{ProcessFdFlags, ProcessWaitFlags};
-#[cfg(unix)]
-use crate::platform::process::{ProcessFdSignalFlags, Signal};
+use crate::platform::process as process_platform;
 #[cfg(windows)]
 use crate::platform::resource::{self, ResourceId};
 #[cfg(unix)]
 use crate::platform::resource::{ProcessFdHandle, ResourceId};
+#[cfg(unix)]
+use process_platform::ProcessId;
+#[cfg(windows)]
+use process_platform::{
+    ProcessFdAction, ProcessSpawnOptions, ProcessStdio, native as process_native,
+};
+use process_platform::{ProcessFdFlags, ProcessWaitFlags};
+#[cfg(unix)]
+use process_platform::{ProcessFdSignalFlags, Signal};
 
 /// Read the current process working directory as UTF-8 text.
 fn current_working_directory() -> String {
@@ -316,14 +317,14 @@ fn test_process_spawn_with_actions_pipe_stdout_roundtrip() {
         };
 
         let stdio_values = vec![
-            ProcessStdio::ProcessStdioInherit(crate::platform::process::ProcessStdioInherit {
+            ProcessStdio::ProcessStdioInherit(process_platform::ProcessStdioInherit {
                 kind: call_context.store_string("inherit"),
             }),
-            ProcessStdio::ProcessStdioPipe(crate::platform::process::ProcessStdioPipe {
+            ProcessStdio::ProcessStdioPipe(process_platform::ProcessStdioPipe {
                 kind: call_context.store_string("pipe"),
                 pipe: pipe_handle,
             }),
-            ProcessStdio::ProcessStdioInherit(crate::platform::process::ProcessStdioInherit {
+            ProcessStdio::ProcessStdioInherit(process_platform::ProcessStdioInherit {
                 kind: call_context.store_string("inherit"),
             }),
         ];

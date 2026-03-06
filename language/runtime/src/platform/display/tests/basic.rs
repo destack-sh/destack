@@ -1,16 +1,15 @@
 use super::{
-    decode_display_descriptor, decode_harness_value, decode_monitor_list, decode_monitor_modes,
-    decode_window_descriptor, default_monitor_event_open_options, default_monitor_list_request,
-    default_monitor_open_options, default_window_event_open_options, default_window_options,
-    error_code, harness_string, is_not_supported_code, open_window_or_skip_not_supported,
-    result_or_skip_not_supported, with_harness_context,
+    HarnessValue, decode_display_descriptor, decode_harness_value, decode_monitor_list,
+    decode_monitor_modes, decode_window_descriptor, default_monitor_event_open_options,
+    default_monitor_list_request, default_monitor_open_options, default_window_event_open_options,
+    default_window_options, error_code, harness_string, is_not_supported_code,
+    open_window_or_skip_not_supported, result_or_skip_not_supported, with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
-#[cfg(windows)]
 use crate::platform::display as display_platform;
-#[cfg(windows)]
-use crate::platform::display::DisplayBackend;
 use crate::platform::display::WindowVisibility;
+#[cfg(windows)]
+use display_platform::DisplayBackend;
 
 #[cfg(windows)]
 const DISPLAY_CAP_WINDOW_ICON: u64 = display_platform::DISPLAY_BACKEND_CAP_WINDOW_ICON.0;
@@ -90,10 +89,10 @@ fn test_display_monitor_surface_works_end_to_end() {
             let event = context.destack_display_monitor_event_read(event_stream, 100_000_000)?;
             if matches!(
                 event,
-                super::HarnessValue::Native(
-                    crate::platform::display::DisplayMonitorEvent::DisplayModeChangedEvent(_)
-                ) | super::HarnessValue::Vm(
-                    crate::platform::display::DisplayMonitorEventVm::DisplayModeChangedEvent(_)
+                HarnessValue::Native(
+                    display_platform::DisplayMonitorEvent::DisplayModeChangedEvent(_)
+                ) | HarnessValue::Vm(
+                    display_platform::DisplayMonitorEventVm::DisplayModeChangedEvent(_)
                 )
             ) {
                 saw_mode_changed = true;
@@ -138,15 +137,11 @@ fn test_display_window_surface_works_end_to_end() {
         let event = context.destack_display_window_event_read(event_stream, 100_000_000)?;
         assert!(matches!(
             event,
-            super::HarnessValue::Native(
-                crate::platform::display::WindowEvent::WindowRefreshRequestedEvent(_)
-            ) | super::HarnessValue::Native(
-                crate::platform::display::WindowEvent::WindowCreatedEvent(_)
-            ) | super::HarnessValue::Vm(
-                crate::platform::display::WindowEventVm::WindowRefreshRequestedEvent(_)
-            ) | super::HarnessValue::Vm(
-                crate::platform::display::WindowEventVm::WindowCreatedEvent(_)
-            )
+            HarnessValue::Native(display_platform::WindowEvent::WindowRefreshRequestedEvent(
+                _
+            )) | HarnessValue::Native(display_platform::WindowEvent::WindowCreatedEvent(_))
+                | HarnessValue::Vm(display_platform::WindowEventVm::WindowRefreshRequestedEvent(_))
+                | HarnessValue::Vm(display_platform::WindowEventVm::WindowCreatedEvent(_))
         ));
 
         context.destack_display_window_set_visibility(window, WindowVisibility::Minimized)?;
@@ -166,7 +161,7 @@ fn test_display_backend_capabilities_match_win32_implementation() {
     with_harness_context(|mut context| {
         let backends = context.destack_display_backend_list()?;
         let (win32_available, win32_capability_flags) = match backends {
-            super::HarnessValue::Native(values) => {
+            HarnessValue::Native(values) => {
                 let backends = unsafe { values.as_slice()? };
                 let backend = backends
                     .iter()
@@ -174,7 +169,7 @@ fn test_display_backend_capabilities_match_win32_implementation() {
                     .expect("backend list should contain win32 descriptor");
                 (backend.available, backend.capability_flags.0)
             }
-            super::HarnessValue::Vm(values) => {
+            HarnessValue::Vm(values) => {
                 let vm_context = context
                     .vm_context
                     .map(|vm_context| unsafe {

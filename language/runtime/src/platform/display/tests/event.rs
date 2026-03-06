@@ -3,30 +3,32 @@ use super::HarnessWindowMode;
 #[cfg(any(unix, windows))]
 use super::harness_window_mode_options;
 use super::{
-    HarnessValue, default_monitor_event_open_options, default_window_event_open_options,
-    default_window_options, error_code, monitor_event_open_options,
-    monitor_event_open_options_with_kind_mask, open_window_or_skip_not_supported,
-    result_or_skip_not_supported, window_event_open_options, window_event_open_options_with_filter,
-    with_harness_context,
+    DisplayHarnessContext, HarnessValue, default_monitor_event_open_options,
+    default_window_event_open_options, default_window_options, error_code,
+    monitor_event_open_options, monitor_event_open_options_with_kind_mask,
+    open_window_or_skip_not_supported, result_or_skip_not_supported, window_event_open_options,
+    window_event_open_options_with_filter, with_harness_context,
 };
 #[cfg(any(unix, windows))]
 use crate::diagnostic::RuntimeError;
 #[cfg(any(unix, windows))]
+use crate::diagnostic::RuntimeResult;
+#[cfg(any(unix, windows))]
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::display::DisplayEventOverflowPolicy;
+use crate::platform::{display as display_platform, resource};
+use display_platform::DisplayEventOverflowPolicy;
 #[cfg(any(unix, windows))]
-use crate::platform::display::{
+use display_platform::{
     DisplayBackend, DisplayBackendSelectionPolicy, WindowOcclusionState, WindowVisibility,
 };
 #[cfg(windows)]
 use windows_sys::Win32::UI::WindowsAndMessaging::{SendMessageW, WM_CLOSE, WM_DISPLAYCHANGE};
 
 #[cfg(any(unix, windows))]
-const DISPLAY_CAP_WINDOW_PARENTING: u64 =
-    crate::platform::display::DISPLAY_BACKEND_CAP_WINDOW_PARENTING.0;
+const DISPLAY_CAP_WINDOW_PARENTING: u64 = display_platform::DISPLAY_BACKEND_CAP_WINDOW_PARENTING.0;
 #[cfg(any(unix, windows))]
-const DISPLAY_CAP_WINDOW_MODAL: u64 = crate::platform::display::DISPLAY_BACKEND_CAP_WINDOW_MODAL.0;
+const DISPLAY_CAP_WINDOW_MODAL: u64 = display_platform::DISPLAY_BACKEND_CAP_WINDOW_MODAL.0;
 
 #[cfg(any(unix, windows))]
 /// One available backend summary used by behavior tests.
@@ -51,8 +53,8 @@ enum WindowEventMarker {
 #[cfg(any(unix, windows))]
 /// Return available backend descriptors for the active harness context.
 fn available_backend_descriptors(
-    context: &mut super::DisplayHarnessContext<'_>,
-) -> crate::diagnostic::RuntimeResult<Vec<BackendDescriptorSummary>> {
+    context: &mut DisplayHarnessContext<'_>,
+) -> RuntimeResult<Vec<BackendDescriptorSummary>> {
     let descriptors = context.destack_display_backend_list()?;
     let descriptors = match descriptors {
         HarnessValue::Native(values) => unsafe { values.as_slice()? }
@@ -65,9 +67,9 @@ fn available_backend_descriptors(
             .collect(),
         HarnessValue::Vm(values) => {
             let Some(vm_context) = context.vm_context else {
-                return Err(crate::diagnostic::RuntimeError::from(
-                    crate::platform::PlatformError::invalid_argument("missing vm context"),
-                )
+                return Err(RuntimeError::from(PlatformError::invalid_argument(
+                    "missing vm context",
+                ))
                 .boxed());
             };
             let vm_context =
@@ -96,10 +98,7 @@ fn has_capability(capability_flags: u64, capability: u64) -> bool {
 #[cfg(any(unix, windows))]
 /// Force one window-options payload to use one strict backend.
 fn force_window_backend(
-    options: &mut HarnessValue<
-        crate::platform::display::WindowOptions,
-        crate::platform::display::WindowOptionsVm,
-    >,
+    options: &mut HarnessValue<display_platform::WindowOptions, display_platform::WindowOptionsVm>,
     backend: DisplayBackend,
 ) {
     match options {
@@ -118,8 +117,8 @@ fn force_window_backend(
 /// Force one window-event open options payload to use one strict backend.
 fn force_window_event_backend(
     options: &mut HarnessValue<
-        crate::platform::display::WindowEventOpenOptions,
-        crate::platform::display::WindowEventOpenOptionsVm,
+        display_platform::WindowEventOpenOptions,
+        display_platform::WindowEventOpenOptionsVm,
     >,
     backend: DisplayBackend,
 ) {
@@ -138,9 +137,9 @@ fn force_window_event_backend(
 #[cfg(any(unix, windows))]
 /// Drain one window-event stream until it reports would-block.
 fn drain_window_event_stream(
-    context: &mut super::DisplayHarnessContext<'_>,
-    stream: crate::platform::resource::WindowEventHandle,
-) -> crate::diagnostic::RuntimeResult<()> {
+    context: &mut DisplayHarnessContext<'_>,
+    stream: resource::WindowEventHandle,
+) -> RuntimeResult<()> {
     loop {
         let event = context.destack_display_window_event_try_read(stream);
         match event {
@@ -159,25 +158,22 @@ fn drain_window_event_stream(
 #[cfg(any(unix, windows))]
 /// Classify one window event for one target window handle.
 fn marker_for_window_event(
-    event: &HarnessValue<
-        crate::platform::display::WindowEvent,
-        crate::platform::display::WindowEventVm,
-    >,
-    window: crate::platform::resource::WindowHandle,
+    event: &HarnessValue<display_platform::WindowEvent, display_platform::WindowEventVm>,
+    window: resource::WindowHandle,
 ) -> Option<WindowEventMarker> {
     // classify refresh lanes
     if matches!(
         event,
         HarnessValue::Native(
-            crate::platform::display::WindowEvent::WindowRefreshRequestedEvent(
-                crate::platform::display::WindowRefreshRequestedEvent { metadata, .. }
+            display_platform::WindowEvent::WindowRefreshRequestedEvent(
+                display_platform::WindowRefreshRequestedEvent { metadata, .. }
             )
         ) if metadata.window == window
     ) || matches!(
         event,
         HarnessValue::Vm(
-            crate::platform::display::WindowEventVm::WindowRefreshRequestedEvent(
-                crate::platform::display::WindowRefreshRequestedEventVm { metadata, .. }
+            display_platform::WindowEventVm::WindowRefreshRequestedEvent(
+                display_platform::WindowRefreshRequestedEventVm { metadata, .. }
             )
         ) if metadata.window == window
     ) {
@@ -188,15 +184,15 @@ fn marker_for_window_event(
     if matches!(
         event,
         HarnessValue::Native(
-            crate::platform::display::WindowEvent::WindowDestroyedEvent(
-                crate::platform::display::WindowDestroyedEvent { metadata, .. }
+            display_platform::WindowEvent::WindowDestroyedEvent(
+                display_platform::WindowDestroyedEvent { metadata, .. }
             )
         ) if metadata.window == window
     ) || matches!(
         event,
         HarnessValue::Vm(
-            crate::platform::display::WindowEventVm::WindowDestroyedEvent(
-                crate::platform::display::WindowDestroyedEventVm { metadata, .. }
+            display_platform::WindowEventVm::WindowDestroyedEvent(
+                display_platform::WindowDestroyedEventVm { metadata, .. }
             )
         ) if metadata.window == window
     ) {
@@ -221,19 +217,22 @@ fn test_monitor_event_stream_is_seeded() {
         let event = context.destack_display_monitor_event_read(stream, 100_000_000)?;
         assert!(matches!(
             event,
-            super::HarnessValue::Native(
-                crate::platform::display::DisplayMonitorEvent::DisplayAddedEvent(_)
-            ) | super::HarnessValue::Native(
-                crate::platform::display::DisplayMonitorEvent::DisplayModeChangedEvent(_)
-            ) | super::HarnessValue::Native(
-                crate::platform::display::DisplayMonitorEvent::DisplayPrimaryChangedEvent(_)
-            ) | super::HarnessValue::Vm(
-                crate::platform::display::DisplayMonitorEventVm::DisplayAddedEvent(_)
-            ) | super::HarnessValue::Vm(
-                crate::platform::display::DisplayMonitorEventVm::DisplayModeChangedEvent(_)
-            ) | super::HarnessValue::Vm(
-                crate::platform::display::DisplayMonitorEventVm::DisplayPrimaryChangedEvent(_)
-            )
+            HarnessValue::Native(display_platform::DisplayMonitorEvent::DisplayAddedEvent(_))
+                | HarnessValue::Native(
+                    display_platform::DisplayMonitorEvent::DisplayModeChangedEvent(_)
+                )
+                | HarnessValue::Native(
+                    display_platform::DisplayMonitorEvent::DisplayPrimaryChangedEvent(_)
+                )
+                | HarnessValue::Vm(display_platform::DisplayMonitorEventVm::DisplayAddedEvent(
+                    _
+                ))
+                | HarnessValue::Vm(
+                    display_platform::DisplayMonitorEventVm::DisplayModeChangedEvent(_)
+                )
+                | HarnessValue::Vm(
+                    display_platform::DisplayMonitorEventVm::DisplayPrimaryChangedEvent(_)
+                )
         ));
 
         context.destack_display_monitor_event_close(stream)?;
@@ -257,11 +256,10 @@ fn test_monitor_event_kind_filter_restricts_seeded_events() {
         let event = context.destack_display_monitor_event_read(stream, 100_000_000)?;
         assert!(matches!(
             event,
-            super::HarnessValue::Native(
-                crate::platform::display::DisplayMonitorEvent::DisplayModeChangedEvent(_)
-            ) | super::HarnessValue::Vm(
-                crate::platform::display::DisplayMonitorEventVm::DisplayModeChangedEvent(_)
-            )
+            HarnessValue::Native(display_platform::DisplayMonitorEvent::DisplayModeChangedEvent(_))
+                | HarnessValue::Vm(
+                    display_platform::DisplayMonitorEventVm::DisplayModeChangedEvent(_)
+                )
         ));
 
         context.destack_display_monitor_event_close(stream)?;
@@ -528,16 +526,16 @@ fn test_window_event_filter_restricts_window_and_kind() {
         let event = context.destack_display_window_event_read(stream, 100_000_000)?;
         let is_matching_refresh = matches!(
             event,
-            super::HarnessValue::Native(
-                crate::platform::display::WindowEvent::WindowRefreshRequestedEvent(
-                    crate::platform::display::WindowRefreshRequestedEvent { metadata, .. }
+            HarnessValue::Native(
+                display_platform::WindowEvent::WindowRefreshRequestedEvent(
+                    display_platform::WindowRefreshRequestedEvent { metadata, .. }
                 )
             ) if metadata.window == first_window
         ) || matches!(
             event,
-            super::HarnessValue::Vm(
-                crate::platform::display::WindowEventVm::WindowRefreshRequestedEvent(
-                    crate::platform::display::WindowRefreshRequestedEventVm { metadata, .. }
+            HarnessValue::Vm(
+                display_platform::WindowEventVm::WindowRefreshRequestedEvent(
+                    display_platform::WindowRefreshRequestedEventVm { metadata, .. }
                 )
             ) if metadata.window == first_window
         );
@@ -647,11 +645,11 @@ fn test_window_event_drop_oldest_reports_dropped_count_metadata() {
             let event = context.destack_display_window_event_read(stream, 100_000_000)?;
             let metadata = match event {
                 HarnessValue::Native(
-                    crate::platform::display::WindowEvent::WindowRefreshRequestedEvent(value),
+                    display_platform::WindowEvent::WindowRefreshRequestedEvent(value),
                 ) if value.metadata.window == window => Some(value.metadata),
-                HarnessValue::Vm(
-                    crate::platform::display::WindowEventVm::WindowRefreshRequestedEvent(value),
-                ) if value.metadata.window == window => Some(value.metadata),
+                HarnessValue::Vm(display_platform::WindowEventVm::WindowRefreshRequestedEvent(
+                    value,
+                )) if value.metadata.window == window => Some(value.metadata),
                 _ => None,
             };
 
@@ -733,15 +731,15 @@ fn test_window_event_visibility_changes_emit_expected_payloads() {
                 if matches!(
                     event,
                     HarnessValue::Native(
-                        crate::platform::display::WindowEvent::WindowVisibilityChangedEvent(
-                            crate::platform::display::WindowVisibilityChangedEvent { metadata, payload, .. }
+                        display_platform::WindowEvent::WindowVisibilityChangedEvent(
+                            display_platform::WindowVisibilityChangedEvent { metadata, payload, .. }
                         )
                     ) if metadata.window == window && payload.current_visibility == WindowVisibility::Minimized
                 ) || matches!(
                     event,
                     HarnessValue::Vm(
-                        crate::platform::display::WindowEventVm::WindowVisibilityChangedEvent(
-                            crate::platform::display::WindowVisibilityChangedEventVm { metadata, payload, .. }
+                        display_platform::WindowEventVm::WindowVisibilityChangedEvent(
+                            display_platform::WindowVisibilityChangedEventVm { metadata, payload, .. }
                         )
                     ) if metadata.window == window && payload.current_visibility == WindowVisibility::Minimized
                 ) {
@@ -759,15 +757,15 @@ fn test_window_event_visibility_changes_emit_expected_payloads() {
                 if matches!(
                     event,
                     HarnessValue::Native(
-                        crate::platform::display::WindowEvent::WindowVisibilityChangedEvent(
-                            crate::platform::display::WindowVisibilityChangedEvent { metadata, payload, .. }
+                        display_platform::WindowEvent::WindowVisibilityChangedEvent(
+                            display_platform::WindowVisibilityChangedEvent { metadata, payload, .. }
                         )
                     ) if metadata.window == window && payload.current_visibility == WindowVisibility::Visible
                 ) || matches!(
                     event,
                     HarnessValue::Vm(
-                        crate::platform::display::WindowEventVm::WindowVisibilityChangedEvent(
-                            crate::platform::display::WindowVisibilityChangedEventVm { metadata, payload, .. }
+                        display_platform::WindowEventVm::WindowVisibilityChangedEvent(
+                            display_platform::WindowVisibilityChangedEventVm { metadata, payload, .. }
                         )
                     ) if metadata.window == window && payload.current_visibility == WindowVisibility::Visible
                 ) {
@@ -809,7 +807,7 @@ fn test_window_event_occlusion_changes_follow_visibility_transitions() {
                 64,
                 DisplayEventOverflowPolicy::DropOldest,
                 Some(window),
-                Some(crate::platform::display::WINDOW_EVENT_KIND_OCCLUSION_CHANGED.0),
+                Some(display_platform::WINDOW_EVENT_KIND_OCCLUSION_CHANGED.0),
             );
             force_window_event_backend(&mut event_options, descriptor.backend);
             let Some(stream) = result_or_skip_not_supported(
@@ -830,15 +828,15 @@ fn test_window_event_occlusion_changes_follow_visibility_transitions() {
                 if matches!(
                     event,
                     HarnessValue::Native(
-                        crate::platform::display::WindowEvent::WindowOcclusionChangedEvent(
-                            crate::platform::display::WindowOcclusionChangedEvent { metadata, payload, .. }
+                        display_platform::WindowEvent::WindowOcclusionChangedEvent(
+                            display_platform::WindowOcclusionChangedEvent { metadata, payload, .. }
                         )
                     ) if metadata.window == window && payload.current_occlusion == WindowOcclusionState::Occluded
                 ) || matches!(
                     event,
                     HarnessValue::Vm(
-                        crate::platform::display::WindowEventVm::WindowOcclusionChangedEvent(
-                            crate::platform::display::WindowOcclusionChangedEventVm { metadata, payload, .. }
+                        display_platform::WindowEventVm::WindowOcclusionChangedEvent(
+                            display_platform::WindowOcclusionChangedEventVm { metadata, payload, .. }
                         )
                     ) if metadata.window == window && payload.current_occlusion == WindowOcclusionState::Occluded
                 ) {
@@ -856,15 +854,15 @@ fn test_window_event_occlusion_changes_follow_visibility_transitions() {
                 if matches!(
                     event,
                     HarnessValue::Native(
-                        crate::platform::display::WindowEvent::WindowOcclusionChangedEvent(
-                            crate::platform::display::WindowOcclusionChangedEvent { metadata, payload, .. }
+                        display_platform::WindowEvent::WindowOcclusionChangedEvent(
+                            display_platform::WindowOcclusionChangedEvent { metadata, payload, .. }
                         )
                     ) if metadata.window == window && payload.current_occlusion == WindowOcclusionState::Unknown
                 ) || matches!(
                     event,
                     HarnessValue::Vm(
-                        crate::platform::display::WindowEventVm::WindowOcclusionChangedEvent(
-                            crate::platform::display::WindowOcclusionChangedEventVm { metadata, payload, .. }
+                        display_platform::WindowEventVm::WindowOcclusionChangedEvent(
+                            display_platform::WindowOcclusionChangedEventVm { metadata, payload, .. }
                         )
                     ) if metadata.window == window && payload.current_occlusion == WindowOcclusionState::Unknown
                 ) {
@@ -926,7 +924,7 @@ fn test_window_event_refresh_metadata_sequence_is_monotonic() {
                 let event = context.destack_display_window_event_read(stream, 100_000_000)?;
                 let refresh_metadata = match event {
                     HarnessValue::Native(
-                        crate::platform::display::WindowEvent::WindowRefreshRequestedEvent(value),
+                        display_platform::WindowEvent::WindowRefreshRequestedEvent(value),
                     ) if value.metadata.window == window => Some((
                         value.metadata.sequence,
                         value.metadata.timestamp_ns,
@@ -934,7 +932,7 @@ fn test_window_event_refresh_metadata_sequence_is_monotonic() {
                         value.metadata.dropped_count,
                     )),
                     HarnessValue::Vm(
-                        crate::platform::display::WindowEventVm::WindowRefreshRequestedEvent(value),
+                        display_platform::WindowEventVm::WindowRefreshRequestedEvent(value),
                     ) if value.metadata.window == window => Some((
                         value.metadata.sequence,
                         value.metadata.timestamp_ns,
@@ -1034,15 +1032,15 @@ fn test_window_event_relation_and_modal_payloads_match_state_transitions() {
                     if matches!(
                         event,
                         HarnessValue::Native(
-                            crate::platform::display::WindowEvent::WindowTransientChangedEvent(
-                                crate::platform::display::WindowTransientChangedEvent { metadata, payload, .. }
+                            display_platform::WindowEvent::WindowTransientChangedEvent(
+                                display_platform::WindowTransientChangedEvent { metadata, payload, .. }
                             )
                         ) if metadata.window == child && payload.current_transient_for == Some(owner)
                     ) || matches!(
                         event,
                         HarnessValue::Vm(
-                            crate::platform::display::WindowEventVm::WindowTransientChangedEvent(
-                                crate::platform::display::WindowTransientChangedEventVm { metadata, payload, .. }
+                            display_platform::WindowEventVm::WindowTransientChangedEvent(
+                                display_platform::WindowTransientChangedEventVm { metadata, payload, .. }
                             )
                         ) if metadata.window == child && payload.current_transient_for == Some(owner)
                     ) {
@@ -1059,15 +1057,15 @@ fn test_window_event_relation_and_modal_payloads_match_state_transitions() {
                     if matches!(
                         event,
                         HarnessValue::Native(
-                            crate::platform::display::WindowEvent::WindowTransientChangedEvent(
-                                crate::platform::display::WindowTransientChangedEvent { metadata, payload, .. }
+                            display_platform::WindowEvent::WindowTransientChangedEvent(
+                                display_platform::WindowTransientChangedEvent { metadata, payload, .. }
                             )
                         ) if metadata.window == child && payload.current_transient_for.is_none()
                     ) || matches!(
                         event,
                         HarnessValue::Vm(
-                            crate::platform::display::WindowEventVm::WindowTransientChangedEvent(
-                                crate::platform::display::WindowTransientChangedEventVm { metadata, payload, .. }
+                            display_platform::WindowEventVm::WindowTransientChangedEvent(
+                                display_platform::WindowTransientChangedEventVm { metadata, payload, .. }
                             )
                         ) if metadata.window == child && payload.current_transient_for.is_none()
                     ) {
@@ -1091,15 +1089,15 @@ fn test_window_event_relation_and_modal_payloads_match_state_transitions() {
                     if matches!(
                         event,
                         HarnessValue::Native(
-                            crate::platform::display::WindowEvent::WindowModalChangedEvent(
-                                crate::platform::display::WindowModalChangedEvent { metadata, payload, .. }
+                            display_platform::WindowEvent::WindowModalChangedEvent(
+                                display_platform::WindowModalChangedEvent { metadata, payload, .. }
                             )
                         ) if metadata.window == child && payload.current_modal
                     ) || matches!(
                         event,
                         HarnessValue::Vm(
-                            crate::platform::display::WindowEventVm::WindowModalChangedEvent(
-                                crate::platform::display::WindowModalChangedEventVm { metadata, payload, .. }
+                            display_platform::WindowEventVm::WindowModalChangedEvent(
+                                display_platform::WindowModalChangedEventVm { metadata, payload, .. }
                             )
                         ) if metadata.window == child && payload.current_modal
                     ) {
@@ -1116,15 +1114,15 @@ fn test_window_event_relation_and_modal_payloads_match_state_transitions() {
                     if matches!(
                         event,
                         HarnessValue::Native(
-                            crate::platform::display::WindowEvent::WindowModalChangedEvent(
-                                crate::platform::display::WindowModalChangedEvent { metadata, payload, .. }
+                            display_platform::WindowEvent::WindowModalChangedEvent(
+                                display_platform::WindowModalChangedEvent { metadata, payload, .. }
                             )
                         ) if metadata.window == child && !payload.current_modal
                     ) || matches!(
                         event,
                         HarnessValue::Vm(
-                            crate::platform::display::WindowEventVm::WindowModalChangedEvent(
-                                crate::platform::display::WindowModalChangedEventVm { metadata, payload, .. }
+                            display_platform::WindowEventVm::WindowModalChangedEvent(
+                                display_platform::WindowModalChangedEventVm { metadata, payload, .. }
                             )
                         ) if metadata.window == child && !payload.current_modal
                     ) {
@@ -1196,15 +1194,15 @@ fn test_window_close_emits_single_destroyed_lifecycle_event() {
                 if matches!(
                     event,
                     HarnessValue::Native(
-                        crate::platform::display::WindowEvent::WindowDestroyedEvent(
-                            crate::platform::display::WindowDestroyedEvent { metadata, .. }
+                        display_platform::WindowEvent::WindowDestroyedEvent(
+                            display_platform::WindowDestroyedEvent { metadata, .. }
                         )
                     ) if metadata.window == window
                 ) || matches!(
                     event,
                     HarnessValue::Vm(
-                        crate::platform::display::WindowEventVm::WindowDestroyedEvent(
-                            crate::platform::display::WindowDestroyedEventVm { metadata, .. }
+                        display_platform::WindowEventVm::WindowDestroyedEvent(
+                            display_platform::WindowDestroyedEventVm { metadata, .. }
                         )
                     ) if metadata.window == window
                 ) {
@@ -1214,15 +1212,15 @@ fn test_window_close_emits_single_destroyed_lifecycle_event() {
                 if matches!(
                     event,
                     HarnessValue::Native(
-                        crate::platform::display::WindowEvent::WindowCloseRequestedEvent(
-                            crate::platform::display::WindowCloseRequestedEvent { metadata, .. }
+                        display_platform::WindowEvent::WindowCloseRequestedEvent(
+                            display_platform::WindowCloseRequestedEvent { metadata, .. }
                         )
                     ) if metadata.window == window
                 ) || matches!(
                     event,
                     HarnessValue::Vm(
-                        crate::platform::display::WindowEventVm::WindowCloseRequestedEvent(
-                            crate::platform::display::WindowCloseRequestedEventVm { metadata, .. }
+                        display_platform::WindowEventVm::WindowCloseRequestedEvent(
+                            display_platform::WindowCloseRequestedEventVm { metadata, .. }
                         )
                     ) if metadata.window == window
                 ) {
@@ -1343,11 +1341,10 @@ fn test_window_event_stream_receives_host_close_message() {
             let event = context.destack_display_window_event_read(stream, 100_000_000)?;
             if matches!(
                 event,
-                super::HarnessValue::Native(
-                    crate::platform::display::WindowEvent::WindowCloseRequestedEvent(_)
-                ) | super::HarnessValue::Vm(
-                    crate::platform::display::WindowEventVm::WindowCloseRequestedEvent(_)
-                )
+                HarnessValue::Native(display_platform::WindowEvent::WindowCloseRequestedEvent(_))
+                    | HarnessValue::Vm(display_platform::WindowEventVm::WindowCloseRequestedEvent(
+                        _
+                    ))
             ) {
                 saw_close_requested = true;
                 break;
@@ -1407,22 +1404,18 @@ fn test_window_close_emits_single_lifecycle_events_after_host_close_request() {
 
             if matches!(
                 event,
-                super::HarnessValue::Native(
-                    crate::platform::display::WindowEvent::WindowCloseRequestedEvent(_)
-                ) | super::HarnessValue::Vm(
-                    crate::platform::display::WindowEventVm::WindowCloseRequestedEvent(_)
-                )
+                HarnessValue::Native(display_platform::WindowEvent::WindowCloseRequestedEvent(_))
+                    | HarnessValue::Vm(display_platform::WindowEventVm::WindowCloseRequestedEvent(
+                        _
+                    ))
             ) {
                 close_requested_count = close_requested_count.saturating_add(1);
             }
 
             if matches!(
                 event,
-                super::HarnessValue::Native(
-                    crate::platform::display::WindowEvent::WindowDestroyedEvent(_)
-                ) | super::HarnessValue::Vm(
-                    crate::platform::display::WindowEventVm::WindowDestroyedEvent(_)
-                )
+                HarnessValue::Native(display_platform::WindowEvent::WindowDestroyedEvent(_))
+                    | HarnessValue::Vm(display_platform::WindowEventVm::WindowDestroyedEvent(_))
             ) {
                 destroyed_count = destroyed_count.saturating_add(1);
             }

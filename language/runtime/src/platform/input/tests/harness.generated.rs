@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::input::tests::InputHarnessContext;
 use crate::platform::input::{
     InputAxisMetadata, InputAxisMetadataVm, InputButtonMetadata, InputButtonMetadataVm,
     InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin, InputCompositionEvent,

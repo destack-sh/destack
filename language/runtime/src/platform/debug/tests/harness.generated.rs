@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::debug::tests::DebugHarnessContext;
 use crate::platform::debug::{
     InspectorEndpoint, InspectorEndpointVm, ProfileKind, TraceLevel, native as debug_native,
     vm as debug_vm,

@@ -9,6 +9,7 @@ use security_framework_sys::base::{
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::core as core_platform;
+use crate::platform::crypto::host::unix::core::{invalid_data, permission_denied};
 
 /// Map one Security.framework CFError into one runtime error and release it.
 pub(crate) fn security_operation_error(
@@ -38,7 +39,7 @@ pub(crate) fn security_operation_error(
         Some(code)
             if code == errSecAuthFailed || code == errSecIO || code == errSecInternalComponent =>
         {
-            super::super::core::permission_denied(
+            permission_denied(
                 operation,
                 format!("{action} failed with security status code {code}"),
             )
@@ -47,11 +48,11 @@ pub(crate) fn security_operation_error(
             operation,
             format!("{action} failed because one keychain item was not found"),
         ),
-        Some(code) => super::super::core::invalid_data(
+        Some(code) => invalid_data(
             operation,
             format!("{action} failed with security status code {code}"),
         ),
-        None => super::super::core::invalid_data(
+        None => invalid_data(
             operation,
             format!("{action} failed with one unknown security error"),
         ),
@@ -67,7 +68,7 @@ pub(crate) fn copy_cf_data_bytes(
     let pointer = unsafe { CFDataGetBytePtr(data) };
     let length = unsafe { CFDataGetLength(data) };
     if pointer.is_null() || length < 0 {
-        return Err(super::super::core::invalid_data(
+        return Err(invalid_data(
             operation,
             "failed to decode one CFData payload",
         ));
@@ -93,7 +94,7 @@ pub(crate) fn create_cf_string(value: &str, operation: &'static str) -> RuntimeR
         )
     };
     if string.is_null() {
-        return Err(super::super::core::invalid_data(
+        return Err(invalid_data(
             operation,
             "failed to encode one keychain string value",
         ));

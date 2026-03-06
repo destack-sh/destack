@@ -1,4 +1,27 @@
-use super::*;
+use std::path::Path;
+
+use destack_vm as vm;
+
+use super::{
+    FsDirent, FsHarnessContext, FsMapping, FsPathRef, FsWatchEvent, array_string_native,
+    array_string_vm, array_u8_native, array_u8_vm, decode_dirent_vm, decode_watch_event_vm,
+    native_slice, native_slice_mut, path_bytes_vec, path_ref_bytes_native, path_ref_bytes_vm,
+    path_ref_string_native, path_ref_string_vm, path_utf16_vec,
+    socket_address_native_from_host_port, socket_address_vm_from_host_port, tcp_protocol,
+    tcp_stream_socket_type,
+};
+use crate::diagnostic::{DiagnosticId, RuntimeError, RuntimeResult, RuntimeStatus};
+use crate::platform::abi::NativeAbi;
+use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::fs::{
+    self as platform_fs, Dirent, DirentNext, DirentNextVm, DirentVm, OpenOptions, OpenOptionsVm,
+    OsPathVm, PathBytesAbi, PathUtf16Abi, WatchBatch, WatchBatchVm, WatchEvent, WatchEventVm,
+    WatchOptions, core as core_fs,
+};
+use crate::platform::net::{self as core_net, AcceptFlags, SocketFamily, vm as platform_net_vm};
+use crate::platform::resource::{ListenerHandle, ResourceId, SocketHandle};
+use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice};
+use crate::runtime::{NativeSlice, NativeStringRef};
 use crate::tests::platform::is_privileged_test_mode;
 
 #[path = "harness.generated.rs"]

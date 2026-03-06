@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
-use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::display::tests::DisplayHarnessContext;
 use crate::platform::display::{
     DisplayAddedEvent, DisplayAddedEventVm, DisplayAddedPayload, DisplayAddedPayloadVm,
     DisplayBackend, DisplayBackendCapabilityFlags, DisplayBackendDescriptor,

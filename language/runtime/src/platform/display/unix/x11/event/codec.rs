@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use crate::platform::abi::NativeAbi;
-use crate::platform::core as core_platform;
 use crate::platform::display::{
     DisplayAddedEvent, DisplayAddedPayload, DisplayDescriptorChangedEvent,
     DisplayDescriptorChangedPayload, DisplayMetricChangedMask, DisplayModeChangedEvent,
@@ -17,10 +16,14 @@ use crate::platform::display::{
     WindowTextDroppedEvent, WindowVisibilityChangedEvent, WindowVisibilityPayload,
 };
 use crate::platform::fs::{self as platform_fs, PathBytesAbi, core as core_fs};
+use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 use super::super::super::{core as x11_core, monitor};
-use super::*;
+use super::super::model::{DisplayDescriptorSnapshot, MonitorSnapshot};
+use super::core::{
+    DisplayEventRecord, DisplayEventRecordKind, WindowEventRecord, WindowEventRecordKind,
+};
 
 /// Return the primary display identifier from one monitor snapshot list.
 fn primary_display_id(snapshots: &[MonitorSnapshot]) -> Option<String> {

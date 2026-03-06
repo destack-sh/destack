@@ -1,9 +1,31 @@
-use super::*;
+use destack_vm as vm;
+
+use super::{
+    NetHarnessContext, host_from_vm, native_slice, native_slice_mut, path_ref_vm,
+    path_ref_vm_utf16, reverse_lookup_names_native, reverse_lookup_names_vm,
+    reverse_lookup_records_native, reverse_lookup_records_vm, socket_address_from_raw,
+    socket_address_native_from_host_port, socket_address_raw_native, socket_address_raw_vm,
+    socket_address_vm_from_host_port, socket_addresses_native, socket_addresses_vm,
+    udp_receive_native, udp_receive_vm, uds_path_address_native, uds_path_address_vm,
+    vm_slice_of_slices,
+};
 #[cfg(windows)]
 use crate::diagnostic::{DiagnosticId, RuntimeStatus};
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{NativeAbi, VmAbi};
 #[cfg(windows)]
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::net::{NetInterface, NetInterfaceVm};
+use crate::platform::fs::{OsPath, OsPathBytes, OsPathUtf16, PathBytesAbi, PathUtf16Abi};
+use crate::platform::net::{
+    KeepAliveConfig, KeepAliveConfigVm, Linger, LingerVm, NetInterface, NetInterfaceVm,
+    ResolveFlags, ResolveQuery, ReverseLookupName, SocketAddress, SocketAddressVm,
+    SocketCredentials, SocketCredentialsVm, SocketFamily, SocketMessageFlags,
+    SocketRecvBatchRequest, SocketRecvMessage, SocketSendBatchEntry, SocketSendMessage,
+    SocketSendMessageVm, UdpReceive, UdpReceiveVm, UdsAddress,
+};
+use crate::platform::resource::ListenerHandle;
+use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice, net as platform_net};
+use crate::runtime::{NativeSlice, NativeStringRef};
 
 #[path = "harness.generated.rs"]
 mod generated;

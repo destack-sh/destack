@@ -4,6 +4,7 @@ use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 use super::super::core as backend_core;
+use super::{occlusion_from_visibility, pump_window_messages, resolve_window_binding};
 
 /// Read descriptor metadata for one window.
 pub(crate) unsafe fn window_descriptor(
@@ -13,11 +14,11 @@ pub(crate) unsafe fn window_descriptor(
 ) -> RuntimeResult<()> {
     // validate out pointer and refresh backend window state
     core_platform::ensure_out(out, "out")?;
-    super::pump_window_messages(context)?;
+    pump_window_messages(context)?;
 
     // resolve one binding snapshot and encode descriptor payload
     let binding =
-        super::resolve_window_binding(context, window_handle, "destack.display.window.descriptor")?;
+        resolve_window_binding(context, window_handle, "destack.display.window.descriptor")?;
     let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
     let _host_id = binding.host.id;
 
@@ -57,11 +58,10 @@ pub(crate) unsafe fn window_state(
 ) -> RuntimeResult<()> {
     // validate out pointer and refresh backend window state
     core_platform::ensure_out(out, "out")?;
-    super::pump_window_messages(context)?;
+    pump_window_messages(context)?;
 
     // resolve one binding snapshot and encode state payload
-    let binding =
-        super::resolve_window_binding(context, window_handle, "destack.display.window.state")?;
+    let binding = resolve_window_binding(context, window_handle, "destack.display.window.state")?;
     let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
 
     let state = WindowState {
@@ -74,7 +74,7 @@ pub(crate) unsafe fn window_state(
         role: binding.role,
         display: binding.display,
         focused: binding.focused,
-        occlusion: super::occlusion_from_visibility(binding.visibility),
+        occlusion: occlusion_from_visibility(binding.visibility),
         safe_area_insets: binding.safe_area_insets,
         theme: binding.theme,
         chrome: binding.chrome,

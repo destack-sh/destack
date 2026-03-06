@@ -598,7 +598,6 @@ pub(super) fn stop_haptics_for_xinput(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     /// Parse valid xinput identifiers into user indices.
     #[test]

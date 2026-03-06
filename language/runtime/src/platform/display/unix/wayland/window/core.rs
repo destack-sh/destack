@@ -14,7 +14,7 @@ use crate::runtime::BindingCallContext;
 use wayland_protocols::xdg::decoration::zv1::client::zxdg_toplevel_decoration_v1;
 
 use super::super::model::WaylandWindowBinding;
-use super::super::{core as backend_core, resource as display_resource};
+use super::super::{backend_descriptor_state, core as backend_core, resource as display_resource};
 
 /// Normalize one window logical-size payload.
 pub(super) fn normalize_logical_size(
@@ -331,7 +331,7 @@ pub(in crate::platform::display::host::unix) fn effective_window_capabilities(
     operation: &'static str,
 ) -> RuntimeResult<DisplayBackendCapabilityFlags> {
     // resolve backend descriptor capabilities and this window role snapshot
-    let mut capability_flags = super::super::backend_descriptor_state(context).1.0;
+    let mut capability_flags = backend_descriptor_state(context).1.0;
     let role = with_window_binding(
         context,
         window_handle,

@@ -94,7 +94,7 @@ fn register_runtime_finalizer(
 pub(crate) fn native_device_events_supported() -> bool {
     #[cfg(target_os = "linux")]
     {
-        return super::core::is_backend_supported();
+        return unix_core::backend_supported(AudioBackend::Jack);
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -262,7 +262,7 @@ fn run_device_monitor_thread(
 /// Install callback hooks for JACK monitor-side graph notifications.
 #[cfg(target_os = "linux")]
 fn install_monitor_callbacks(
-    library: &super::core::JackLibrary,
+    library: &jack_core::JackLibrary,
     client: *mut JackClient,
     pending: &Arc<AtomicBool>,
 ) -> RuntimeResult<()> {

@@ -10,6 +10,11 @@ use crate::runtime::{BindingCallContext, NativeStringRef};
 
 use super::super::super::{core, event, resource as display_resource};
 use super::icon::net_wm_icon_payload;
+use super::{
+    apply_window_chrome, apply_window_decorated, apply_window_mouse_passthrough,
+    apply_window_size_hints, ensure_window_thread, request_window_minimize, set_net_wm_state,
+    set_window_title,
+};
 
 /// Set always-on-top state.
 pub(crate) unsafe fn window_set_always_on_top(
@@ -27,9 +32,9 @@ pub(crate) unsafe fn window_set_always_on_top(
         "destack.display.window.setAlwaysOnTop",
     )?;
     let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.setAlwaysOnTop")?;
+    ensure_window_thread(&binding, "destack.display.window.setAlwaysOnTop")?;
     binding.always_on_top = always_on_top;
-    super::set_net_wm_state(
+    set_net_wm_state(
         connection_state.as_ref(),
         binding.window,
         connection_state.atoms.net_wm_state_above,
@@ -55,10 +60,10 @@ pub(crate) unsafe fn window_set_decorated(
         "destack.display.window.setDecorated",
     )?;
     let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.setDecorated")?;
+    ensure_window_thread(&binding, "destack.display.window.setDecorated")?;
 
     // apply one host decoration mutation before updating the snapshot
-    super::apply_window_decorated(
+    apply_window_decorated(
         connection_state.as_ref(),
         binding.window,
         decorated,
@@ -85,10 +90,10 @@ pub(crate) unsafe fn window_set_resizable(
         "destack.display.window.setResizable",
     )?;
     let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.setResizable")?;
+    ensure_window_thread(&binding, "destack.display.window.setResizable")?;
 
     // apply one host size-hints mutation before updating the snapshot
-    super::apply_window_size_hints(
+    apply_window_size_hints(
         connection_state.as_ref(),
         binding.window,
         resizable,
@@ -118,10 +123,10 @@ pub(crate) unsafe fn window_set_chrome(
         "destack.display.window.setChrome",
     )?;
     let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.setChrome")?;
+    ensure_window_thread(&binding, "destack.display.window.setChrome")?;
 
     // apply one host window-type mutation before updating the snapshot
-    super::apply_window_chrome(
+    apply_window_chrome(
         connection_state.as_ref(),
         binding.window,
         chrome,
@@ -148,7 +153,7 @@ pub(crate) unsafe fn window_set_icons(
         "destack.display.window.setIcons",
     )?;
     let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.setIcons")?;
+    ensure_window_thread(&binding, "destack.display.window.setIcons")?;
 
     // apply icon property update or clear it when no icons are configured
     if let Some(icons) = icons {
@@ -205,10 +210,10 @@ pub(crate) unsafe fn window_set_mouse_passthrough(
         "destack.display.window.setMousePassthrough",
     )?;
     let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.setMousePassthrough")?;
+    ensure_window_thread(&binding, "destack.display.window.setMousePassthrough")?;
 
     // apply one host input-shape mutation before updating the snapshot
-    super::apply_window_mouse_passthrough(
+    apply_window_mouse_passthrough(
         connection_state.as_ref(),
         binding.window,
         passthrough,
@@ -243,7 +248,7 @@ pub(crate) unsafe fn window_set_opacity(
         "destack.display.window.setOpacity",
     )?;
     let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.setOpacity")?;
+    ensure_window_thread(&binding, "destack.display.window.setOpacity")?;
     binding.opacity = opacity;
 
     // apply EWMH opacity property on the window
@@ -287,7 +292,7 @@ pub(crate) unsafe fn window_opacity(
         "destack.display.window.opacity",
     )?;
     let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.opacity")?;
+    ensure_window_thread(&binding, "destack.display.window.opacity")?;
     unsafe {
         *out = binding.opacity;
     }
@@ -311,9 +316,9 @@ pub(crate) unsafe fn window_set_taskbar_visible(
         "destack.display.window.setTaskbarVisible",
     )?;
     let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.setTaskbarVisible")?;
+    ensure_window_thread(&binding, "destack.display.window.setTaskbarVisible")?;
     binding.taskbar_visible = visible;
-    super::set_net_wm_state(
+    set_net_wm_state(
         connection_state.as_ref(),
         binding.window,
         connection_state.atoms.net_wm_state_skip_taskbar,
@@ -340,10 +345,10 @@ pub(crate) unsafe fn window_set_title(
         "destack.display.window.setTitle",
     )?;
     let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.setTitle")?;
+    ensure_window_thread(&binding, "destack.display.window.setTitle")?;
 
     // apply host title updates and mutate binding snapshot
-    super::set_window_title(connection_state.as_ref(), binding.window, title)?;
+    set_window_title(connection_state.as_ref(), binding.window, title)?;
     connection_state.connection.flush().map_err(|error| {
         core::io_error(
             "destack.display.window.setTitle",
@@ -371,7 +376,7 @@ pub(crate) unsafe fn window_set_visibility(
         "destack.display.window.setVisibility",
     )?;
     let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.setVisibility")?;
+    ensure_window_thread(&binding, "destack.display.window.setVisibility")?;
 
     // apply host visibility transitions
     let previous_visibility = binding.visibility;
@@ -400,7 +405,7 @@ pub(crate) unsafe fn window_set_visibility(
                 })?;
         }
         WindowVisibility::Minimized => {
-            super::request_window_minimize(
+            request_window_minimize(
                 connection_state.as_ref(),
                 binding.window,
                 "destack.display.window.setVisibility",

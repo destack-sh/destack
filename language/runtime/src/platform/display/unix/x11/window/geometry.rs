@@ -10,7 +10,10 @@ use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 use super::super::super::{core, event, resource as display_resource};
-use super::{appearance, lifecycle};
+use super::{
+    appearance, apply_fullscreen_state, apply_maximized_state, apply_window_size_hints,
+    ensure_window_thread, lifecycle, mode_display,
+};
 
 /// Validate one optional size-constraint payload.
 pub(super) fn validate_size_constraints(
@@ -82,10 +85,10 @@ pub(crate) unsafe fn window_set_mode(
     let mut resolved_binding = resolved_binding
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&resolved_binding, "destack.display.window.setMode")?;
+    ensure_window_thread(&resolved_binding, "destack.display.window.setMode")?;
 
     // validate mode display relation for exclusive fullscreen options
-    let display = super::mode_display(mode);
+    let display = mode_display(mode);
     // evaluate this condition
     if let Some(display) = display {
         display_resource::resolve_display_id(binding, display, "destack.display.window.setMode")?;
@@ -119,7 +122,7 @@ pub(crate) unsafe fn window_set_mode(
     resolved_binding.display = display;
     // evaluate this condition
     if let Err(error) =
-        super::apply_fullscreen_state(connection_state.as_ref(), resolved_binding.window, mode)
+        apply_fullscreen_state(connection_state.as_ref(), resolved_binding.window, mode)
     {
         // rollback monitor mode transition when fullscreen state apply fails
         if let Some(restore) = resolved_binding.exclusive_restore.as_ref() {
@@ -162,7 +165,7 @@ pub(crate) unsafe fn window_set_position(
     let mut resolved_binding = resolved_binding
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&resolved_binding, "destack.display.window.setPosition")?;
+    ensure_window_thread(&resolved_binding, "destack.display.window.setPosition")?;
 
     // apply host configure request and publish state delta
     let previous_position = resolved_binding.position;
@@ -218,13 +221,13 @@ pub(crate) unsafe fn window_set_size_constraints(
     let mut resolved_binding = resolved_binding
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(
+    ensure_window_thread(
         &resolved_binding,
         "destack.display.window.setSizeConstraints",
     )?;
 
     // apply one host normal-hints mutation before updating the snapshot
-    super::apply_window_size_hints(
+    apply_window_size_hints(
         connection_state.as_ref(),
         resolved_binding.window,
         resolved_binding.resizable,
@@ -264,7 +267,7 @@ pub(crate) unsafe fn window_set_size_logical(
     let mut resolved_binding = resolved_binding
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&resolved_binding, "destack.display.window.setSizeLogical")?;
+    ensure_window_thread(&resolved_binding, "destack.display.window.setSizeLogical")?;
 
     // apply host configure request and publish state delta
     let previous_size_logical = resolved_binding.size_logical;
@@ -297,7 +300,7 @@ pub(crate) unsafe fn window_set_size_logical(
     resolved_binding.size_physical = size_physical;
 
     // refresh host normal hints for size-locked windows
-    super::apply_window_size_hints(
+    apply_window_size_hints(
         connection_state.as_ref(),
         resolved_binding.window,
         resolved_binding.resizable,
@@ -346,7 +349,7 @@ pub(crate) unsafe fn window_set_size_physical(
     let mut resolved_binding = resolved_binding
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&resolved_binding, "destack.display.window.setSizePhysical")?;
+    ensure_window_thread(&resolved_binding, "destack.display.window.setSizePhysical")?;
 
     // apply host configure request and publish state delta
     let previous_size_logical = resolved_binding.size_logical;
@@ -378,7 +381,7 @@ pub(crate) unsafe fn window_set_size_physical(
     };
 
     // refresh host normal hints for size-locked windows
-    super::apply_window_size_hints(
+    apply_window_size_hints(
         connection_state.as_ref(),
         resolved_binding.window,
         resolved_binding.resizable,
@@ -430,10 +433,10 @@ pub(crate) unsafe fn window_set_aspect_ratio(
     let mut resolved_binding = resolved_binding
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&resolved_binding, "destack.display.window.setAspectRatio")?;
+    ensure_window_thread(&resolved_binding, "destack.display.window.setAspectRatio")?;
 
     // apply one host normal-hints mutation before updating the snapshot
-    super::apply_window_size_hints(
+    apply_window_size_hints(
         connection_state.as_ref(),
         resolved_binding.window,
         resolved_binding.resizable,
@@ -474,12 +477,12 @@ pub(crate) unsafe fn window_maximize(
     let resolved_binding = resolved_binding
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&resolved_binding, "destack.display.window.maximize")?;
+    ensure_window_thread(&resolved_binding, "destack.display.window.maximize")?;
     let window_id = resolved_binding.window;
     drop(resolved_binding);
 
     // request maximized state through EWMH
-    super::apply_maximized_state(connection_state.as_ref(), window_id, true)?;
+    apply_maximized_state(connection_state.as_ref(), window_id, true)?;
 
     // update visibility state
     unsafe {
@@ -504,19 +507,19 @@ pub(crate) unsafe fn window_restore(
     let resolved_binding = resolved_binding
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&resolved_binding, "destack.display.window.restore")?;
+    ensure_window_thread(&resolved_binding, "destack.display.window.restore")?;
     let window_id = resolved_binding.window;
     drop(resolved_binding);
 
     // clear fullscreen and maximized state lanes before mapping visible
-    super::apply_fullscreen_state(
+    apply_fullscreen_state(
         connection_state.as_ref(),
         window_id,
         WindowModeOptions::WindowWindowedModeOptions(WindowWindowedModeOptions {
             kind: binding.store_string("windowed"),
         }),
     )?;
-    super::apply_maximized_state(connection_state.as_ref(), window_id, false)?;
+    apply_maximized_state(connection_state.as_ref(), window_id, false)?;
 
     // update visibility state
     unsafe { appearance::window_set_visibility(binding, window_handle, WindowVisibility::Visible) }
