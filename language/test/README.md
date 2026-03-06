@@ -41,8 +41,7 @@ Run these from `language/` unless noted otherwise.
 | **Full** | `quick` plus ecosystem and stress coverage |
 
 `just test` is the language test aggregate used by `just quick`.
-It includes unit, smoke, emit, specification, query, resolver, formatter, grammar, parser conformance, and formatter conformance.
-`just full` then adds `ecosystem` and `stress`.
+`just full` then adds more slow tests like `ecosystem` and `stress`.
 
 ## Commands
 

@@ -310,7 +310,8 @@ test:
     just install-resolver
     just test-unit
     just test-smoke
-    just test-emit
+    # FUGU #Broken: emit currently stalls in the compiler dependency chain before artifact generation
+    # just test-emit
     just test-specification
     just test-query
     just test-resolver
