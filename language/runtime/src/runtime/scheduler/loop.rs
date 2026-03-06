@@ -14,6 +14,8 @@ use crate::runtime::poller::{
     HostPoller, PollerEvent, PollerEventPayload, PollerEventSource, PollerProcessStatus,
     PollerToken,
 };
+use crate::runtime::time::{Nanos, WorldInstant};
+use crate::runtime::{DropCounts, DropReason};
 
 /// Default host semantic dispatch batch size before forcing one poller event.
 const DEFAULT_HOST_EVENT_BUDGET: u64 = 32;
@@ -62,10 +64,8 @@ pub struct EventLoop {
     next_microtask_id: u64,
     /// Next task queue sequence identifier to issue.
     next_sequence: u64,
-    /// Number of dropped events with no registered dispatch watch.
-    dropped_unwatched_dispatch_events: u64,
-    /// Number of dropped host queue events due to queue pressure policy.
-    dropped_host_queue_events: u64,
+    /// Drop accounting at the event-loop boundary.
+    drop_counts: DropCounts,
     /// Number of host semantic events dispatched since the last poller event.
     host_events_since_poller: u64,
 }
@@ -129,8 +129,8 @@ impl EventLoop {
             return Ok(Some(Runnable::Microtask(microtask)));
         }
 
-        // move ready timers into the dispatch queue
-        self.enqueue_ready_timers(wall_now_nanos, mono_now_nanos)?;
+        // move due timers into the dispatch queue
+        self.enqueue_due_timers(Nanos::new(wall_now_nanos), Nanos::new(mono_now_nanos))?;
         while let Some(timer) = self.ready_timers.pop_front() {
             // drop canceled timers that were already promoted into the ready queue
             if self.canceled_timers.lock().remove(&timer.handle) {
@@ -203,13 +203,18 @@ impl EventLoop {
         !self.microtasks.is_empty()
     }
 
-    /// Report whether any work remains in the event loop.
-    pub fn has_pending_work(&self) -> bool {
-        if !self.tasks.is_empty()
+    /// Report whether one runnable item is already ready without advancing time.
+    pub fn has_runnable_work(&self) -> bool {
+        !self.tasks.is_empty()
             || !self.microtasks.is_empty()
             || !self.events.is_empty()
             || !self.host_events.is_empty()
             || !self.ready_timers.is_empty()
+    }
+
+    /// Report whether any work remains in the event loop.
+    pub fn has_pending_work(&self) -> bool {
+        if self.has_runnable_work()
             || !self.poller_event_watches.is_empty()
             || !self.host_event_watches.is_empty()
         {
@@ -223,19 +228,26 @@ impl EventLoop {
     /// Schedule a timer in the runtime queue.
     pub fn schedule_timer(&self, timer: Timer) -> RuntimeResult<()> {
         // normalize timer deadlines so scheduling stays deterministic
-        let fire_at_nanos = self.normalize_deadline(timer.fire_at_nanos);
-        let interval_nanos = timer.interval_nanos.map(|interval| {
-            if interval <= 1 {
+        let deadline = super::TimerDeadline {
+            clock: timer.deadline.clock,
+            at: self.normalize_deadline(timer.deadline.at),
+        };
+        let interval = timer.interval.map(|interval| {
+            if interval.get() <= 1 {
                 return interval;
             }
 
-            self.normalize_deadline(interval).max(1)
+            let interval = self.normalize_deadline(interval);
+            if interval.get() == 0 {
+                return Nanos::new(1);
+            }
+
+            interval
         });
         let timer = Timer {
-            clock: timer.clock,
             handle: timer.handle,
-            fire_at_nanos,
-            interval_nanos,
+            deadline,
+            interval,
         };
 
         self.canceled_timers.lock().remove(&timer.handle);
@@ -280,6 +292,11 @@ impl EventLoop {
         self.poller_event_watches.remove(&token)
     }
 
+    /// Return whether one event watch is registered for the given token.
+    pub fn watches_event(&self, token: PollerToken) -> bool {
+        self.poller_event_watches.contains_key(&token)
+    }
+
     /// Register one host semantic event watch.
     pub fn watch_host_event(
         &mut self,
@@ -296,6 +313,11 @@ impl EventLoop {
     /// Remove the host semantic event watch registered for one kind.
     pub fn unwatch_host_event(&mut self, kind: HostEventKind) -> Option<EventLoopWatch> {
         self.host_event_watches.remove(&kind)
+    }
+
+    /// Return whether one host semantic watch is registered for the given kind.
+    pub fn watches_host_event(&self, kind: HostEventKind) -> bool {
+        self.host_event_watches.contains_key(&kind)
     }
 
     /// Build one task for a fired timer watch.
@@ -345,23 +367,15 @@ impl EventLoop {
     }
 
     /// Drain timers that are ready at the given time.
-    pub fn poll_timers(
-        &self,
-        wall_now_nanos: u64,
-        mono_now_nanos: u64,
-    ) -> RuntimeResult<Vec<Timer>> {
+    pub fn poll_timers(&self, wall_now: Nanos, mono_now: Nanos) -> RuntimeResult<Vec<Timer>> {
         let mut queue = self.timers.lock();
-        let ready = queue.poll_ready(wall_now_nanos, mono_now_nanos);
+        let ready = queue.poll_ready(wall_now, mono_now);
         Ok(ready)
     }
 
-    /// Enqueue ready timers from the timer queue.
-    pub fn enqueue_ready_timers(
-        &mut self,
-        wall_now_nanos: u64,
-        mono_now_nanos: u64,
-    ) -> RuntimeResult<()> {
-        let ready = self.poll_timers(wall_now_nanos, mono_now_nanos)?;
+    /// Enqueue timers that are due at the current wall and monotonic timestamps.
+    pub fn enqueue_due_timers(&mut self, wall_now: Nanos, mono_now: Nanos) -> RuntimeResult<()> {
+        let ready = self.poll_timers(wall_now, mono_now)?;
         self.ready_timers.extend(ready);
         Ok(())
     }
@@ -381,60 +395,48 @@ impl EventLoop {
         Ok(count)
     }
 
-    /// Return next wall and monotonic timer deadlines when they exist.
-    pub fn next_timer_deadlines(&self) -> (Option<u64>, Option<u64>) {
-        let mut queue = self.timers.lock();
-        queue.next_deadlines()
-    }
-
-    /// Return the timeout until the next timer is ready in any clock domain.
-    pub fn timeout_until_next_timer(
-        &self,
-        wall_now_nanos: u64,
-        mono_now_nanos: u64,
-    ) -> Option<u64> {
+    /// Return the next wall deadline when any timer can become runnable.
+    pub fn next_deadline(&self, wall_now: Nanos, mono_now: Nanos) -> Option<WorldInstant> {
+        // ready timers are runnable immediately
         if !self.ready_timers.is_empty() {
-            return Some(0);
+            return Some(WorldInstant::from_nanos(wall_now));
         }
 
-        let (wall_deadline, mono_deadline) = self.next_timer_deadlines();
-        let wall_timeout = wall_deadline.map(|deadline| deadline.saturating_sub(wall_now_nanos));
-        let mono_timeout = mono_deadline.map(|deadline| deadline.saturating_sub(mono_now_nanos));
+        // map wall and monotonic timer deadlines into one wall-clock wakeup
+        let mut queue = self.timers.lock();
+        let (wall_deadline, mono_deadline) = queue.next_deadlines();
+        let wall_deadline = wall_deadline
+            .filter(|deadline| *deadline > wall_now)
+            .map(WorldInstant::from_nanos);
+        let mono_deadline = mono_deadline
+            .filter(|deadline| *deadline > mono_now)
+            .map(|deadline| {
+                let delta = deadline.saturating_sub(mono_now);
+                WorldInstant::from_nanos(wall_now.saturating_add(delta))
+            });
 
-        match (wall_timeout, mono_timeout) {
-            (Some(wall_timeout), Some(mono_timeout)) => Some(wall_timeout.min(mono_timeout)),
-            (Some(wall_timeout), None) => Some(wall_timeout),
-            (None, Some(mono_timeout)) => Some(mono_timeout),
+        match (wall_deadline, mono_deadline) {
+            (Some(wall_deadline), Some(mono_deadline)) => Some(wall_deadline.min(mono_deadline)),
+            (Some(wall_deadline), None) => Some(wall_deadline),
+            (None, Some(mono_deadline)) => Some(mono_deadline),
             (None, None) => None,
         }
     }
 
-    /// Record one dropped event with no registered dispatch watch.
-    pub fn record_dropped_unwatched_dispatch_event(&mut self) {
-        self.dropped_unwatched_dispatch_events =
-            self.dropped_unwatched_dispatch_events.saturating_add(1);
+    /// Return the timeout until the next timer is ready in any clock domain.
+    pub fn timeout_until_next_timer(&self, wall_now: Nanos, mono_now: Nanos) -> Option<Nanos> {
+        self.next_deadline(wall_now, mono_now)
+            .map(|deadline| deadline.saturating_sub(WorldInstant::from_nanos(wall_now)))
     }
 
-    /// Record dropped host queue events reported by the host.
-    pub fn record_dropped_host_queue_events(&mut self, dropped_count: u64) {
-        self.dropped_host_queue_events =
-            self.dropped_host_queue_events.saturating_add(dropped_count);
+    /// Record one or more drops observed by the event loop.
+    pub fn record_drop(&mut self, reason: DropReason, count: u64) {
+        self.drop_counts.record(reason, count);
     }
 
-    /// Return the number of dropped events with no registered dispatch watch.
-    pub const fn dropped_unwatched_dispatch_events(&self) -> u64 {
-        self.dropped_unwatched_dispatch_events
-    }
-
-    /// Return the number of dropped host queue events due to queue pressure.
-    pub const fn dropped_host_queue_events(&self) -> u64 {
-        self.dropped_host_queue_events
-    }
-
-    /// Return the total number of dropped dispatch-visible events.
-    pub const fn dropped_dispatch_events(&self) -> u64 {
-        self.dropped_unwatched_dispatch_events
-            .saturating_add(self.dropped_host_queue_events)
+    /// Return drop accounting observed by the event loop.
+    pub const fn drop_counts(&self) -> DropCounts {
+        self.drop_counts
     }
 
     /// Build one task from one watch payload.
@@ -450,16 +452,16 @@ impl EventLoop {
     }
 
     /// Normalize one timer deadline using scheduler options.
-    fn normalize_deadline(&self, deadline_nanos: u64) -> u64 {
+    fn normalize_deadline(&self, deadline: Nanos) -> Nanos {
         // quantize to timer resolution first
-        let mut normalized = deadline_nanos;
+        let mut normalized = deadline;
         if let Some(timer_resolution_ns) = self.options.timer_resolution_ns {
-            normalized = round_up_deadline(normalized, timer_resolution_ns);
+            normalized = round_up_deadline(normalized, Nanos::new(timer_resolution_ns));
         }
 
         // then quantize to the configured coalescing window
         if let Some(max_timer_coalesce_ns) = self.options.max_timer_coalesce_ns {
-            normalized = round_up_deadline(normalized, max_timer_coalesce_ns);
+            normalized = round_up_deadline(normalized, Nanos::new(max_timer_coalesce_ns));
         }
 
         normalized
@@ -467,17 +469,17 @@ impl EventLoop {
 }
 
 /// Round one deadline up to one deterministic quantum.
-fn round_up_deadline(deadline_nanos: u64, quantum_nanos: u64) -> u64 {
-    if quantum_nanos <= 1 {
-        return deadline_nanos;
+fn round_up_deadline(deadline: Nanos, quantum: Nanos) -> Nanos {
+    if quantum.get() <= 1 {
+        return deadline;
     }
 
-    let remainder = deadline_nanos % quantum_nanos;
+    let remainder = deadline.get() % quantum.get();
     if remainder == 0 {
-        return deadline_nanos;
+        return deadline;
     }
 
-    deadline_nanos.saturating_add(quantum_nanos.saturating_sub(remainder))
+    deadline.saturating_add(Nanos::new(quantum.get().saturating_sub(remainder)))
 }
 
 /// Validate one scheduler options payload.
@@ -613,6 +615,7 @@ mod tests {
     use super::EventLoop;
     use crate::host::{HostEvent, HostLifecycleEvent, HostLifecycleState};
     use crate::platform::ResourceId;
+    use crate::runtime::DropReason;
     use crate::runtime::poller::{
         PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
         PollerToken,
@@ -683,14 +686,14 @@ mod tests {
     }
 
     #[test]
-    fn test_dropped_dispatch_counters_track_sources_separately() {
+    fn test_drop_counts_tracks_unwatched_dispatch() {
         let mut event_loop = EventLoop::default();
 
-        event_loop.record_dropped_unwatched_dispatch_event();
-        event_loop.record_dropped_host_queue_events(3);
+        event_loop.record_drop(DropReason::UnwatchedDispatch, 1);
 
-        assert_eq!(event_loop.dropped_unwatched_dispatch_events(), 1);
-        assert_eq!(event_loop.dropped_host_queue_events(), 3);
-        assert_eq!(event_loop.dropped_dispatch_events(), 4);
+        let drop_counts = event_loop.drop_counts();
+        assert_eq!(drop_counts.count(DropReason::UnwatchedDispatch), 1);
+        assert_eq!(drop_counts.count(DropReason::QueuePressure), 0);
+        assert_eq!(drop_counts.total(), 1);
     }
 }

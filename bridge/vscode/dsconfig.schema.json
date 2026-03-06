@@ -1864,15 +1864,6 @@
           "format": "uint64",
           "minimum": 0
         },
-        "tickNs": {
-          "description": "Tick size in nanoseconds for virtual time.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
         "timeZone": {
           "description": "Time zone identifier or fixed offset string.",
           "type": [

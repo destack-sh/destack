@@ -42,10 +42,6 @@ pub struct RuntimeArgs {
     #[arg(long = "runtime-time-epoch-ns")]
     pub time_epoch_ns: Option<u64>,
 
-    /// Runtime virtual time tick size in nanoseconds.
-    #[arg(long = "runtime-time-tick-ns")]
-    pub time_tick_ns: Option<u64>,
-
     /// Runtime time zone identifier.
     #[arg(long = "runtime-time-zone")]
     pub time_zone: Option<String>,
@@ -142,7 +138,6 @@ impl RuntimeArgs {
             && self.replay_chunk_mb.is_none()
             && self.time_mode.is_none()
             && self.time_epoch_ns.is_none()
-            && self.time_tick_ns.is_none()
             && self.time_zone.is_none()
             && self.random_mode.is_none()
             && self.random_seed.is_none()
@@ -189,20 +184,17 @@ impl RuntimeArgs {
             None
         };
 
-        let time = if self.time_mode.is_some()
-            || self.time_epoch_ns.is_some()
-            || self.time_tick_ns.is_some()
-            || self.time_zone.is_some()
-        {
-            Some(TimeOptionsJson {
-                mode: self.time_mode.map(Into::into),
-                epoch_ns: self.time_epoch_ns,
-                tick_ns: self.time_tick_ns,
-                time_zone: self.time_zone.clone(),
-            })
-        } else {
-            None
-        };
+        let time =
+            if self.time_mode.is_some() || self.time_epoch_ns.is_some() || self.time_zone.is_some()
+            {
+                Some(TimeOptionsJson {
+                    mode: self.time_mode.map(Into::into),
+                    epoch_ns: self.time_epoch_ns,
+                    time_zone: self.time_zone.clone(),
+                })
+            } else {
+                None
+            };
 
         let random =
             if self.random_mode.is_some() || self.random_seed.is_some() || self.random_per_runnable

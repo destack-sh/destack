@@ -12,12 +12,14 @@ use crate::platform::random::{
 };
 use crate::platform::resource::{ListenerHandle, ResourceKind};
 use crate::runtime::{
-    Agent, BindingCallContext, enter_binding_call_context, enter_current_agent_context,
+    Agent, BindingCallContext, World, enter_binding_call_context, enter_current_agent_context,
 };
 
 /// Runtime harness for runtime tests.
 #[cfg_attr(windows, allow(dead_code))]
 pub(crate) struct TestRuntime {
+    /// Shared world that owns the agent lifetime.
+    world: std::sync::Arc<World>,
     /// Agent under test.
     pub agent: Box<Agent>,
     /// Host under test.
@@ -71,7 +73,9 @@ impl TestRuntime {
     /// Build a test runtime from explicit runtime options.
     fn from_runtime_options(options: RuntimeOptions) -> Self {
         // build runtime state from explicit options
-        let agent = Agent::new(Vec::new(), &options).expect("runtime test agent should build");
+        let world = World::from_options(&options).expect("runtime test world should build");
+        let agent = Agent::new_in_world(Vec::new(), &options, &world)
+            .expect("runtime test agent should build");
         let host = Host::from_runtime_options(&options);
 
         let tree = NodeTree::new();
@@ -79,6 +83,7 @@ impl TestRuntime {
         let vm_isolate = vm::Isolate::new(tree, strings).expect("test vm isolate should build");
 
         Self {
+            world,
             agent: Box::new(agent),
             host,
             vm_isolate: std::cell::RefCell::new(vm_isolate),
@@ -99,14 +104,15 @@ impl TestRuntime {
         let runtime = self.agent.as_ref() as *const Agent;
         let event_loop = self.agent.event_loop.as_ref() as *const _;
         let host = &self.host as *const Host;
-        let _agent_guard = enter_current_agent_context(runtime, event_loop, host);
+        let world = self.world.as_ref() as *const World;
+        let _agent_guard = enter_current_agent_context(runtime, event_loop, host, world);
 
         // enter a native call context for the binding
         let call_context = BindingCallContext::new(
             &self.agent,
             self.agent.event_loop.as_ref(),
             &self.host,
-            self.agent.bindings.policy_snapshot(),
+            &self.world,
         );
         let _guard = enter_binding_call_context(&call_context);
 
@@ -123,7 +129,8 @@ impl TestRuntime {
         let runtime = self.agent.as_ref() as *const Agent;
         let event_loop = self.agent.event_loop.as_ref() as *const _;
         let host = &self.host as *const Host;
-        let _agent_guard = enter_current_agent_context(runtime, event_loop, host);
+        let world = self.world.as_ref() as *const World;
+        let _agent_guard = enter_current_agent_context(runtime, event_loop, host, world);
 
         // run the VM call with a fresh runtime call context
         let mut isolate = self.vm_isolate.borrow_mut();
@@ -132,7 +139,7 @@ impl TestRuntime {
                 &self.agent,
                 self.agent.event_loop.as_ref(),
                 &self.host,
-                self.agent.bindings.policy_snapshot(),
+                &self.world,
             );
             let _guard = enter_binding_call_context(&call_context);
             run(&call_context, context)

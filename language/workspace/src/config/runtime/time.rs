@@ -16,8 +16,6 @@ pub struct TimeOptions {
     pub mode: TimeMode,
     /// Epoch in nanoseconds for virtual time.
     pub epoch_ns: Option<u64>,
-    /// Tick size in nanoseconds for virtual time.
-    pub tick_ns: Option<u64>,
     /// Time zone identifier or fixed offset string.
     pub time_zone: Option<String>,
 }
@@ -30,8 +28,6 @@ pub struct TimeOptionsJson {
     pub mode: Option<TimeModeJson>,
     /// Epoch in nanoseconds for virtual time.
     pub epoch_ns: Option<u64>,
-    /// Tick size in nanoseconds for virtual time.
-    pub tick_ns: Option<u64>,
     /// Time zone identifier or fixed offset string.
     pub time_zone: Option<String>,
 }
@@ -47,11 +43,6 @@ impl TimeOptionsJson {
         // apply epoch overrides
         if let Some(epoch_ns) = self.epoch_ns {
             options.epoch_ns = Some(epoch_ns);
-        }
-
-        // apply tick overrides
-        if let Some(tick_ns) = self.tick_ns {
-            options.tick_ns = Some(tick_ns);
         }
 
         // apply timezone overrides
