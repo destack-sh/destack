@@ -65,6 +65,7 @@ impl Runner {
         (index, case.clone(), result, duration)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn record_case_result(
         index: usize,
         case: TestCase,

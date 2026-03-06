@@ -89,6 +89,7 @@ pub struct RuntimeRuleJson {
 }
 
 /// Runtime rule selector clause for JSON deserialization.
+#[allow(clippy::large_enum_variant)] // NOTE #Performance #Cleanup: keep the json selector surface flat until this schema settles
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]

@@ -79,15 +79,15 @@ impl LintRule for PreferPatternOverGuard {
             .with_label("replace with literal pattern");
 
             // attach the rewrite only when the source still contains one explicit guard separator
-            if ctx.include_fixes {
-                if let Some(fix) = prefer_pattern_over_guard_fix(
+            if ctx.include_fixes
+                && let Some(fix) = prefer_pattern_over_guard_fix(
                     ctx,
                     pattern_id,
                     guard_expression_id,
                     literal_expression_id,
-                ) {
-                    diagnostic = diagnostic.with_fix(fix);
-                }
+                )
+            {
+                diagnostic = diagnostic.with_fix(fix);
             }
 
             ctx.report(diagnostic);

@@ -1091,9 +1091,8 @@ pub(crate) fn format_declarator<'ast>(
     if shape.pattern_breakable {
         if source.pattern_has_newline {
             write!(f, [format_header_expanded])?;
-        } else if source.pattern_has_comments_or_annotations {
-            write!(f, [format_break_after_operator_for_binary])?;
         } else if pattern_has_nested_default_assignment(tree, *pattern)
+            || source.pattern_has_comments_or_annotations
             || pattern_is_array_like(tree, *pattern)
         {
             write!(f, [format_break_after_operator_for_binary])?;

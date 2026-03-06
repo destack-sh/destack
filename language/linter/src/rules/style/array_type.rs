@@ -200,11 +200,11 @@ fn argument_value_expression(
 
 /// Return true when the array syntax matches the configured preference.
 fn syntax_matches_preference(syntax: ArraySyntax, preferred_style: ArrayTypeStyle) -> bool {
-    match (syntax, preferred_style) {
-        (ArraySyntax::Shorthand { .. }, ArrayTypeStyle::Array) => true,
-        (ArraySyntax::Generic { .. }, ArrayTypeStyle::Generic) => true,
-        _ => false,
-    }
+    matches!(
+        (syntax, preferred_style),
+        (ArraySyntax::Shorthand { .. }, ArrayTypeStyle::Array)
+            | (ArraySyntax::Generic { .. }, ArrayTypeStyle::Generic)
+    )
 }
 
 /// Return true when one DIR expression resolves to an array type.
@@ -312,20 +312,20 @@ fn array_type_fix(
 
 /// Return true when one type argument needs parentheses before appending `[]`.
 fn type_argument_needs_parentheses(expression: &ast::Expression) -> bool {
-    match expression {
+    !matches!(
+        expression,
         ast::Expression::Path { .. }
-        | ast::Expression::TypeLiteral(_)
-        | ast::Expression::Member { .. }
-        | ast::Expression::PrivateMember { .. }
-        | ast::Expression::Index { .. }
-        | ast::Expression::TypeUnary { .. }
-        | ast::Expression::ValueOf { .. }
-        | ast::Expression::ReferenceOf { .. }
-        | ast::Expression::PointerOf { .. }
-        | ast::Expression::Instantiation { .. }
-        | ast::Expression::Parenthesized { .. } => false,
-        _ => true,
-    }
+            | ast::Expression::TypeLiteral(_)
+            | ast::Expression::Member { .. }
+            | ast::Expression::PrivateMember { .. }
+            | ast::Expression::Index { .. }
+            | ast::Expression::TypeUnary { .. }
+            | ast::Expression::ValueOf { .. }
+            | ast::Expression::ReferenceOf { .. }
+            | ast::Expression::PointerOf { .. }
+            | ast::Expression::Instantiation { .. }
+            | ast::Expression::Parenthesized { .. }
+    )
 }
 
 #[cfg(test)]

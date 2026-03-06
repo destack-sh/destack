@@ -113,8 +113,7 @@ pub fn expressions_have_equivalent_syntax(
     // compare syntax text with spacing removed
     let left_text = ctx.get_span_text(ctx.get_span(left_id));
     let right_text = ctx.get_span_text(ctx.get_span(right_id));
-    normalize_expression_syntax(left_text.as_ref())
-        == normalize_expression_syntax(right_text.as_ref())
+    normalize_expression_syntax(left_text) == normalize_expression_syntax(right_text)
 }
 
 /// Return true when the infix source window between two operands contains one operator token.

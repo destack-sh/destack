@@ -119,17 +119,11 @@ impl LintRule for NoArgumentsOrderMismatch {
                 .with_label("these arguments look swapped for this call")
                 .with_secondary(LabeledSpan::new(
                     first_argument_span,
-                    format!(
-                        "this argument matches parameter `{}`",
-                        second_parameter_name_text
-                    ),
+                    format!("this argument matches parameter `{second_parameter_name_text}`"),
                 ))
                 .with_secondary(LabeledSpan::new(
                     second_argument_span,
-                    format!(
-                        "this argument matches parameter `{}`",
-                        first_parameter_name_text
-                    ),
+                    format!("this argument matches parameter `{first_parameter_name_text}`"),
                 )),
             );
         }

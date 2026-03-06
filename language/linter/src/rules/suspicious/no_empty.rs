@@ -48,8 +48,8 @@ impl LintRule for NoEmpty {
             }
 
             // allow empty function and static block bodies
-            if block_is_function_body(ctx.tree, &ctx.parents, node_id)
-                || block_is_static_block_body(ctx.tree, &ctx.parents, node_id)
+            if block_is_function_body(ctx.tree, ctx.parents, node_id)
+                || block_is_static_block_body(ctx.tree, ctx.parents, node_id)
             {
                 continue;
             }

@@ -292,7 +292,7 @@ fn template_text_from_string_literal_source(literal_text: &str) -> Option<String
 
         // escape backticks unless they are already escaped by an odd backslash run
         if character == '`' {
-            if count_backslashes_before(inner_bytes, index) % 2 == 0 {
+            if count_backslashes_before(inner_bytes, index).is_multiple_of(2) {
                 output.push('\\');
             }
             output.push('`');
@@ -302,7 +302,7 @@ fn template_text_from_string_literal_source(literal_text: &str) -> Option<String
 
         // escape `${` unless it is already escaped by an odd backslash run
         if character == '$' && tail.as_bytes().get(1) == Some(&b'{') {
-            if count_backslashes_before(inner_bytes, index) % 2 == 0 {
+            if count_backslashes_before(inner_bytes, index).is_multiple_of(2) {
                 output.push('\\');
             }
             output.push('$');

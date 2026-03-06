@@ -1231,17 +1231,14 @@ fn any_infix_or_postfix_skips_tagged_template_head_comment<T: Node>(
         return false;
     }
 
-    let is_tagged_template_head_comment = matches!(
+    (matches!(
         annotation,
         Annotation::Comment {
             position: AnnotationPosition::BlockInfix,
             ..
         }
-    ) && ctx
-        .annotation_next_non_whitespace_token_type(annotation_id)
-        == Some(TokenType::TemplateString);
-
-    is_tagged_template_head_comment
+    ) && ctx.annotation_next_non_whitespace_token_type(annotation_id)
+        == Some(TokenType::TemplateString))
 }
 
 /// Return whether one expression is a dependency statement with a attribute.
@@ -3028,13 +3025,8 @@ where
 
     for (annotation_index, item) in items.iter().copied().enumerate() {
         // immutable per-item render entry
-        let entry = annotation_render_entry::<T>(
-            f.context(),
-            node_id.clone(),
-            items,
-            annotation_index,
-            item,
-        );
+        let entry =
+            annotation_render_entry::<T>(f.context(), node_id, items, annotation_index, item);
 
         // skip adjacent blank marker duplicates
         if should_skip_repeated_blank_annotation(state, entry) {

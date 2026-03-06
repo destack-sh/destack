@@ -236,11 +236,15 @@ fn mark_top_bottom_redundancies(
     if chain_kind == TypeConstituentChainKind::Union {
         if let Some(dominant_index) = choose_best_top(types, constituents, &top_indices, chain_kind)
         {
-            for index in 0..constituents.len() {
+            for (index, is_redundant) in redundant_indices
+                .iter_mut()
+                .enumerate()
+                .take(constituents.len())
+            {
                 if index == dominant_index {
                     continue;
                 }
-                redundant_indices[index] = true;
+                *is_redundant = true;
                 dominant_by_redundant.entry(index).or_insert(dominant_index);
             }
             return;
@@ -248,22 +252,30 @@ fn mark_top_bottom_redundancies(
     } else if let Some(dominant_index) =
         choose_best_bottom(types, constituents, &bottom_indices, chain_kind)
     {
-        for index in 0..constituents.len() {
+        for (index, is_redundant) in redundant_indices
+            .iter_mut()
+            .enumerate()
+            .take(constituents.len())
+        {
             if index == dominant_index {
                 continue;
             }
-            redundant_indices[index] = true;
+            *is_redundant = true;
             dominant_by_redundant.entry(index).or_insert(dominant_index);
         }
         return;
     } else if let Some(dominant_index) =
         choose_best_top(types, constituents, &top_indices, chain_kind)
     {
-        for index in 0..constituents.len() {
+        for (index, is_redundant) in redundant_indices
+            .iter_mut()
+            .enumerate()
+            .take(constituents.len())
+        {
             if index == dominant_index {
                 continue;
             }
-            redundant_indices[index] = true;
+            *is_redundant = true;
             dominant_by_redundant.entry(index).or_insert(dominant_index);
         }
         return;

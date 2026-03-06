@@ -736,7 +736,7 @@ impl Compiler {
                 .resolved_reference_symbol_for_type_id(&mut ctx.reborrow(), right)
                 .is_some_and(|symbol| symbol == left_symbol),
             Type::Reference { symbol, .. } => {
-                let symbol = self.resolve_type_reference_symbol(&mut ctx.reborrow(), symbol);
+                let symbol = self.resolve_type_reference_symbol(&ctx.reborrow(), symbol);
                 if !self.symbol_is_static_parameter(ctx.symbol_type_view(), symbol) {
                     return false;
                 }

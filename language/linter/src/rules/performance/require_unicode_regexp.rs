@@ -175,7 +175,7 @@ fn unicode_regex_fix(
     ) {
         let expression_span = ctx.tree.get_span(expression_id);
         let expression_text = ctx.get_span_text(expression_span);
-        let expression_text: &str = expression_text.as_ref();
+        let expression_text: &str = expression_text;
         if expression_text.is_empty() {
             return None;
         }
@@ -234,7 +234,7 @@ fn unicode_regex_fix(
         // append the unicode flag to the existing flags literal
         let flags_span = ctx.tree.get_span(*flags_expression_id);
         let flags_text = ctx.get_span_text(flags_span);
-        let replacement_flags = append_flag_to_string_literal(flags_text.as_ref(), 'u')?;
+        let replacement_flags = append_flag_to_string_literal(flags_text, 'u')?;
         let edits = ctx
             .edit_builder()
             .replace(flags_span, replacement_flags)

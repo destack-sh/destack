@@ -293,10 +293,9 @@ fn build_declaration_fix(
         // insert one extra blank line between import groups
         if let Some(next_index) = order.get(position + 1).copied() {
             let next_import = &imports[next_index];
-            let needs_blank = (import.is_side_effect && !next_import.is_side_effect)
-                || (!import.is_side_effect
-                    && !next_import.is_side_effect
-                    && categorize_import(import.target.as_str())
+            let needs_blank = !next_import.is_side_effect
+                && (import.is_side_effect
+                    || categorize_import(import.target.as_str())
                         != categorize_import(next_import.target.as_str()));
             if needs_blank {
                 replacement.push('\n');

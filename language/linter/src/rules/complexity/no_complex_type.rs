@@ -39,7 +39,7 @@ impl LintRule for NoComplexType {
 
         // check only top level type annotation roots
         for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            if !expression_is_type_annotation(ctx.tree, &ctx.parents, expression_id) {
+            if !expression_is_type_annotation(ctx.tree, ctx.parents, expression_id) {
                 continue;
             }
             if has_type_annotation_expression_parent(ctx, expression_id) {
@@ -90,7 +90,7 @@ fn has_type_annotation_expression_parent(
 
     // keep only parents that also live in type annotation positions
     let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-    expression_is_type_annotation(ctx.tree, &ctx.parents, parent_expression_id)
+    expression_is_type_annotation(ctx.tree, ctx.parents, parent_expression_id)
 }
 
 /// Compute one nesting style complexity score for a type expression.

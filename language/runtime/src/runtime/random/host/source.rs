@@ -109,17 +109,17 @@ impl Default for HostRandom {
 fn host_fill_bytes(buffer: &mut [u8]) -> RuntimeResult<()> {
     #[cfg(unix)]
     {
-        return super::super::unix::host_fill_bytes(buffer);
+        super::super::unix::host_fill_bytes(buffer)
     }
 
     #[cfg(windows)]
     {
-        return super::super::windows::host_fill_bytes(buffer);
+        super::super::windows::host_fill_bytes(buffer)
     }
 
     #[cfg(not(any(unix, windows)))]
     {
-        return super::super::unsupported::host_fill_bytes(buffer);
+        super::super::unsupported::host_fill_bytes(buffer)
     }
 }
 
@@ -127,17 +127,17 @@ fn host_fill_bytes(buffer: &mut [u8]) -> RuntimeResult<()> {
 fn host_try_fill_bytes(buffer: &mut [u8]) -> RuntimeResult<()> {
     #[cfg(unix)]
     {
-        return super::super::unix::host_try_fill_bytes(buffer);
+        super::super::unix::host_try_fill_bytes(buffer)
     }
 
     #[cfg(windows)]
     {
-        return super::super::windows::host_try_fill_bytes(buffer);
+        super::super::windows::host_try_fill_bytes(buffer)
     }
 
     #[cfg(not(any(unix, windows)))]
     {
-        return super::super::unsupported::host_try_fill_bytes(buffer);
+        super::super::unsupported::host_try_fill_bytes(buffer)
     }
 }
 
@@ -145,17 +145,17 @@ fn host_try_fill_bytes(buffer: &mut [u8]) -> RuntimeResult<()> {
 fn host_backend_name() -> &'static str {
     #[cfg(unix)]
     {
-        return "getrandom";
+        "getrandom"
     }
 
     #[cfg(windows)]
     {
-        return "bcrypt";
+        "bcrypt"
     }
 
     #[cfg(not(any(unix, windows)))]
     {
-        return "unsupported";
+        "unsupported"
     }
 }
 
@@ -163,16 +163,16 @@ fn host_backend_name() -> &'static str {
 fn host_may_block() -> bool {
     #[cfg(unix)]
     {
-        return true;
+        true
     }
 
     #[cfg(windows)]
     {
-        return false;
+        false
     }
 
     #[cfg(not(any(unix, windows)))]
     {
-        return false;
+        false
     }
 }

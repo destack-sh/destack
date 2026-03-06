@@ -567,16 +567,14 @@ pub(crate) fn format_match_case_with_style<'ast>(
                         } else {
                             write!(f, [hard_line_break(), block_indent(body)])?;
                         }
-                    } else {
-                        if has_line_postfix_boundary_annotation {
-                            if has_inline_star_line_postfix_boundary_comment {
-                                write!(f, [space(), *body])?;
-                            } else {
-                                write!(f, [*body])?;
-                            }
-                        } else {
+                    } else if has_line_postfix_boundary_annotation {
+                        if has_inline_star_line_postfix_boundary_comment {
                             write!(f, [space(), *body])?;
+                        } else {
+                            write!(f, [*body])?;
                         }
+                    } else {
+                        write!(f, [space(), *body])?;
                     }
                 }
             }
@@ -619,16 +617,14 @@ pub(crate) fn format_match_case_with_style<'ast>(
                                 }))]
                             )?;
                         }
-                    } else {
-                        if has_line_postfix_boundary_annotation {
-                            if has_inline_star_line_postfix_boundary_comment {
-                                write!(f, [space(), *body])?;
-                            } else {
-                                write!(f, [*body])?;
-                            }
-                        } else {
+                    } else if has_line_postfix_boundary_annotation {
+                        if has_inline_star_line_postfix_boundary_comment {
                             write!(f, [space(), *body])?;
+                        } else {
+                            write!(f, [*body])?;
                         }
+                    } else {
+                        write!(f, [space(), *body])?;
                     }
                 }
             }

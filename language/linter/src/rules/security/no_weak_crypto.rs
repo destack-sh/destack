@@ -226,11 +226,8 @@ impl<'a, 'b> NoWeakCryptoVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<(&'static str, bool)> {
         // match static property access for crypto methods
-        let Some((receiver_id, method_name)) =
-            expression_static_property_access(self.ctx.tree, expression_id)
-        else {
-            return None;
-        };
+        let (receiver_id, method_name) =
+            expression_static_property_access(self.ctx.tree, expression_id)?;
 
         // left must be the crypto object
         if !self.is_crypto_object(receiver_id) {

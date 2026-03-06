@@ -114,7 +114,7 @@ pub(crate) fn find_preferred_owner_starting_at(tree: &NodeTree, span: Span) -> O
                 0
             };
 
-            let should_replace = best_owner.map_or(true, |current| {
+            let should_replace = best_owner.is_none_or(|current| {
                 let current_kind_rank = if tree.get_node_type(current.idx) == NodeType::Expression {
                     1
                 } else {
@@ -145,7 +145,7 @@ pub(crate) fn find_smallest_owner_enclosing_token(tree: &NodeTree, span: Span) -
                 return;
             }
 
-            let should_replace = best_owner.map_or(true, |current| {
+            let should_replace = best_owner.is_none_or(|current| {
                 candidate.length < current.length
                     || (candidate.length == current.length && candidate.idx < current.idx)
             });
@@ -175,7 +175,7 @@ pub(crate) fn find_smallest_owner_enclosing_range(
                 return;
             }
 
-            let should_replace = best_owner.map_or(true, |current| {
+            let should_replace = best_owner.is_none_or(|current| {
                 candidate.length < current.length
                     || (candidate.length == current.length && candidate.idx < current.idx)
             });

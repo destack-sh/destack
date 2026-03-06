@@ -1165,9 +1165,7 @@ fn postfix_parent_expression_id(
     }
 
     // parenthesized wrapper chain receiver
-    let Some((parent_id, parent_type)) = context.parent(expression_id) else {
-        return None;
-    };
+    let (parent_id, parent_type) = context.parent(expression_id)?;
     if parent_type != NodeType::Expression {
         return None;
     }
@@ -1180,9 +1178,7 @@ fn postfix_parent_expression_id(
         return None;
     }
 
-    let Some((grandparent_id, grandparent_type)) = context.parent(parent_expression_id) else {
-        return None;
-    };
+    let (grandparent_id, grandparent_type) = context.parent(parent_expression_id)?;
     if grandparent_type != NodeType::Expression {
         return None;
     }

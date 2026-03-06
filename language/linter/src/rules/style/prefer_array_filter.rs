@@ -195,11 +195,7 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
         let parameter_symbol = parameter.symbol().into_global(self.ctx.module_id());
 
         // keep one if-without-else body
-        let Some((condition_expression_id, push_call_id)) =
-            self.if_push_from_callback_body(*body_id)
-        else {
-            return None;
-        };
+        let (condition_expression_id, push_call_id) = self.if_push_from_callback_body(*body_id)?;
 
         // keep push calls with one positional value
         let push_call = expression_method_call(self.ctx.tree, push_call_id)?;
@@ -479,13 +475,8 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
         }
         let member_span = self.ctx.get_span(*left);
         let member_text = self.ctx.get_span_text(member_span);
-        let receiver_text = member_receiver_text(
-            self.ctx,
-            *receiver_expression_id,
-            member_text.as_ref(),
-            *name,
-            false,
-        )?;
+        let receiver_text =
+            member_receiver_text(self.ctx, *receiver_expression_id, member_text, *name, false)?;
 
         // read condition text for predicate callback expression
         let condition_text = self

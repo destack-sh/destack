@@ -137,9 +137,7 @@ fn default_export_declaration_fix(
     // only rewrite named function and class declarations
     let declaration = ctx.tree.get(declaration_id);
     let descriptor = declaration.descriptor();
-    if descriptor.name.is_none() {
-        return None;
-    }
+    descriptor.name?;
     if !matches!(
         declaration,
         dir::Declaration::Function { .. } | dir::Declaration::Class { .. }
@@ -150,7 +148,7 @@ fn default_export_declaration_fix(
     // rewrite `export default` into `export` for declaration forms
     let declaration_span = ctx.get_span(declaration_id);
     let declaration_text = ctx.get_span_text(declaration_span);
-    let declaration_text: &str = declaration_text.as_ref();
+    let declaration_text: &str = declaration_text;
     let replacement = declaration_text.replacen("export default ", "export ", 1);
     if replacement == declaration_text {
         return None;

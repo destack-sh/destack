@@ -794,9 +794,7 @@ fn try_attach_comment_delimiter_interior(
     tree: &NodeTree,
     ctx: &CommentSeamContext<'_>,
 ) -> Option<CommentAttachment> {
-    let Some((token_before_span, token_after_span)) = delimiter_seam_boundary_tokens(ctx) else {
-        return None;
-    };
+    let (token_before_span, token_after_span) = delimiter_seam_boundary_tokens(ctx)?;
 
     // only matching delimiter seams can host delimiter-interior comments
     if !delimiter_seam_is_matching_pair(token_before_span, token_after_span) {

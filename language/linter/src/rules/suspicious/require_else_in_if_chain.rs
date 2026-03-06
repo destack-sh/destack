@@ -34,7 +34,7 @@ impl LintRule for RequireElseInIfChain {
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             // only lint the chain head to avoid duplicate diagnostics
-            if expression_is_else_if_branch(ctx.tree, &ctx.parents, node_id) {
+            if expression_is_else_if_branch(ctx.tree, ctx.parents, node_id) {
                 continue;
             }
 

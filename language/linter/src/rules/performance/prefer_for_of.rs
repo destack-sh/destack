@@ -372,11 +372,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
         if let Some(stripped) = strip_dot_member_suffix(&array_text, "length") {
             array_text = stripped.to_string();
         }
-        let replacement = format!(
-            "for (const {binding_name} of {array}) {body}",
-            array = array_text,
-            body = rewritten_body,
-        );
+        let replacement = format!("for (const {binding_name} of {array_text}) {rewritten_body}",);
         let edits = self
             .ctx
             .edit_builder()

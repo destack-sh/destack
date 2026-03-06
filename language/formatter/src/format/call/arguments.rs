@@ -582,10 +582,8 @@ fn separator_line_comment_annotation_info(
         && (following_close_parenthesis || following_close_bracket)
         && position == AnnotationPosition::LinePostfixBoundary;
 
-    if preceding_comma.is_none() && !following_separator {
-        if !has_virtual_trailing_separator {
-            return None;
-        }
+    if preceding_comma.is_none() && !following_separator && !has_virtual_trailing_separator {
+        return None;
     }
 
     if preceding_comma.is_some() && following_close_brace && !following_separator {
@@ -1885,9 +1883,7 @@ pub(crate) fn argument_satisfies_static_seam_comment_annotation_id(
         return None;
     }
 
-    let Some(annotations) = ctx.annotations(argument_id) else {
-        return None;
-    };
+    let annotations = ctx.annotations(argument_id)?;
 
     let mut seam_comment_id = None;
     for annotation_id in annotations {

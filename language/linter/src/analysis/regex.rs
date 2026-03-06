@@ -608,10 +608,7 @@ fn first_problem_for_backreference(
     // collect one problem per target group, or stop when one target is valid
     let mut problems = Vec::new();
     for group_id in target_group_ids {
-        let Some(problem_kind) = classify_backreference_problem(parsed, backreference, group_id)
-        else {
-            return None;
-        };
+        let problem_kind = classify_backreference_problem(parsed, backreference, group_id)?;
         problems.push(BackreferenceProblem {
             kind: problem_kind,
             group_id,
@@ -673,11 +670,8 @@ fn classify_backreference_problem(
     }
 
     // resolve one lowest common ancestor between both paths
-    let Some((group_lca_index, group_common_path)) =
-        path_lowest_common_ancestor_split(&group_path, &backreference_path)
-    else {
-        return None;
-    };
+    let (group_lca_index, group_common_path) =
+        path_lowest_common_ancestor_split(&group_path, &backreference_path)?;
 
     // groups in sibling alternatives are disjunctive
     let group_cut = &group_path[..group_lca_index];
@@ -911,9 +905,7 @@ fn parse_regex_structure(regex: &str) -> Option<ParsedRegexStructure> {
 
         // split one alternative with `|`
         if character == '|' {
-            let Some(group_frame) = group_frames.last_mut() else {
-                return None;
-            };
+            let group_frame = group_frames.last_mut()?;
             nodes[group_frame.alternative_id].end = character_start;
 
             let alternative_start = character_start + character.len_utf8();
@@ -926,9 +918,7 @@ fn parse_regex_structure(regex: &str) -> Option<ParsedRegexStructure> {
 
         // parse one opening group
         if character == '(' {
-            let Some(group_frame) = group_frames.last().copied() else {
-                return None;
-            };
+            let group_frame = group_frames.last().copied()?;
 
             let (group_kind, next_index) =
                 parsed_group_kind(&indexed_characters, index, &mut capture_count)?;

@@ -368,9 +368,9 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     operator: TypeUnaryOperator::AsConst | TypeUnaryOperator::AsComptime,
                     ..
                 }
-            ) {
-                write!(f, [f.context().any_postfix_annotations(node_id)])?;
-            } else if call_or_new_handles_empty_infix || collection_handles_empty_infix {
+            ) || call_or_new_handles_empty_infix
+                || collection_handles_empty_infix
+            {
                 write!(f, [f.context().any_postfix_annotations(node_id)])?;
             } else if path_emits_boundary_annotations_inline(f.context(), node_id) {
                 write!(

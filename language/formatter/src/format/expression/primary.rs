@@ -1060,15 +1060,9 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
             || union_or_intersection_member_count > 2
         {
             write!(f, [token("("), soft_block_indent(&expression), token(")")])?;
-        } else if matches!(inner_expression, Expression::TypeConditional { .. }) {
-            write!(f, [token("("), soft_block_indent(&expression), token(")")])?;
         } else if has_parenthesized_leading_inner_trivia
-            && expression_has_effective_prefix_annotation(f.context(), expression_id)
-        {
-            write!(f, [token("("), soft_block_indent(&expression), token(")")])?;
-        } else if parent_is_postfix_continuation
-            && has_parenthesized_leading_inner_trivia
-            && expression_is_await_like(inner_expression)
+            && (expression_has_effective_prefix_annotation(f.context(), expression_id)
+                || (parent_is_postfix_continuation && expression_is_await_like(inner_expression)))
         {
             write!(
                 f,
@@ -1079,6 +1073,8 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
                     token(")")
                 ]
             )?;
+        } else if matches!(inner_expression, Expression::TypeConditional { .. }) {
+            write!(f, [token("("), soft_block_indent(&expression), token(")")])?;
         } else {
             // prefer one canonical wrapper layout for ordinary parenthesized expressions
             write!(f, [token("("), expression, token(")")])?;
@@ -1300,7 +1296,7 @@ fn expression_has_effective_decorator_prefix_annotation(
         return false;
     };
     context
-        .visit_annotations(declaration_id.clone(), |annotations| {
+        .visit_annotations(*declaration_id, |annotations| {
             annotations.iter().any(|annotation_id| {
                 matches!(
                     context.annotation(*annotation_id),

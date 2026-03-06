@@ -863,10 +863,7 @@ pub(crate) fn split_chain_head_operations(
             }
 
             // keep `member()?.` tails split so optional chains can break before the call pair
-            if operations
-                .get(index + 2)
-                .is_some_and(|following_operation| operation_is_maybe(following_operation))
-            {
+            if operations.get(index + 2).is_some_and(operation_is_maybe) {
                 break;
             }
 

@@ -48,7 +48,7 @@ impl LintRule for CognitiveComplexity {
             };
 
             // compute cognitive complexity for this callable body
-            let complexity = compute_callable_cognitive_complexity(ctx.tree, &ctx.parents, body_id);
+            let complexity = compute_callable_cognitive_complexity(ctx.tree, ctx.parents, body_id);
             if complexity <= max_complexity {
                 return;
             }

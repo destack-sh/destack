@@ -9,6 +9,7 @@ use crate::runtime::{AgentId, RuntimeId};
 use destack_vm as vm;
 
 /// Event types recorded for deterministic replay.
+#[allow(clippy::large_enum_variant)] // NOTE #Performance #Cleanup: replay entropy payloads are intentionally inline for now
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ReplayEvent {
     /// Task queue event for task ordering.
@@ -187,6 +188,7 @@ pub struct EntropySubject {
 }
 
 /// Encoded replay error payload for deterministic replay.
+#[allow(clippy::large_enum_variant)] // NOTE #Performance #Cleanup: keep replay errors simple until the payload model settles
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ReplayError {
     /// VM runtime error payload.

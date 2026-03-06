@@ -108,11 +108,11 @@ impl LintRule for NoShadowRestrictedNames {
                 NO_SHADOW_RESTRICTED_NAMES.code,
                 NO_SHADOW_RESTRICTED_NAMES.category,
                 severity,
-                format!("shadowing of restricted name '{}'", name_str),
+                format!("shadowing of restricted name '{name_str}'"),
                 ctx.module.file_id,
                 ctx.tree.get_span(node_id),
             )
-            .with_label(format!("'{}' is a restricted name", name_str));
+            .with_label(format!("'{name_str}' is a restricted name"));
             if ctx.compute_fixes
                 && let Some(fix) =
                     no_shadow_restricted_names_fix(ctx, ctx.tree.get_span(node_id), name)
@@ -147,11 +147,11 @@ impl LintRule for NoShadowRestrictedNames {
                     NO_SHADOW_RESTRICTED_NAMES.code,
                     NO_SHADOW_RESTRICTED_NAMES.category,
                     severity,
-                    format!("shadowing of restricted name '{}'", name_str),
+                    format!("shadowing of restricted name '{name_str}'"),
                     ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
-                .with_label(format!("'{}' is a restricted name", name_str)),
+                .with_label(format!("'{name_str}' is a restricted name")),
             );
         }
 
@@ -180,11 +180,11 @@ impl LintRule for NoShadowRestrictedNames {
                 NO_SHADOW_RESTRICTED_NAMES.code,
                 NO_SHADOW_RESTRICTED_NAMES.category,
                 severity,
-                format!("shadowing of restricted name '{}'", name_str),
+                format!("shadowing of restricted name '{name_str}'"),
                 ctx.module.file_id,
                 ctx.tree.get_span(node_id),
             )
-            .with_label(format!("'{}' is a restricted name", name_str));
+            .with_label(format!("'{name_str}' is a restricted name"));
             if ctx.compute_fixes
                 && let Some(fix) =
                     no_shadow_restricted_names_fix(ctx, ctx.tree.get_span(node_id), name)

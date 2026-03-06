@@ -135,9 +135,7 @@ fn interface_to_type_fix(
     heritage: &ast::Heritage,
 ) -> Option<LintFix> {
     // keep plain structural interfaces only
-    if descriptor.name.is_none() {
-        return None;
-    }
+    descriptor.name?;
     if !generics.is_empty() || !heritage.is_empty() {
         return None;
     }

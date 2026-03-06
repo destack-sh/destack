@@ -328,9 +328,7 @@ impl Compiler {
                 symbol,
                 source_id,
             );
-            let Some(alias_target_id) = alias_target_id else {
-                return None;
-            };
+            let alias_target_id = alias_target_id?;
             self.ensure_assignability_alias_target_declared(
                 &mut ctx.type_context_reborrow(),
                 symbol,
@@ -593,11 +591,8 @@ impl Compiler {
         } else {
             static_value
         };
-        let Some(value_type_id) =
-            self.static_expression_type_id_for_substitution(source_id, &static_value, ctx.types)
-        else {
-            return None;
-        };
+        let value_type_id =
+            self.static_expression_type_id_for_substitution(source_id, &static_value, ctx.types)?;
         let value_type_id =
             self.unwrapped_value_without_as_comptime_type_id(value_type_id, ctx.types);
         self.integer_literal_value_for_type_id(value_type_id, ctx.types)
@@ -882,7 +877,8 @@ impl Compiler {
         // instantiate static substitutions and normalize the resulting alias target
         let mut materialize_cache = HashMap::new();
         let mut substitute_cache = HashMap::new();
-        let instantiated = self.instantiate_type_with_substitutions(
+
+        self.instantiate_type_with_substitutions(
             &mut ctx.reborrow(),
             source_id,
             Some(symbol),
@@ -890,9 +886,7 @@ impl Compiler {
             &substitutions,
             &mut materialize_cache,
             &mut substitute_cache,
-        );
-
-        instantiated
+        )
     }
 
     /// Resolve one declared type id and emit diagnostics on failure.

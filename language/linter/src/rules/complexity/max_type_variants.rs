@@ -43,7 +43,7 @@ impl LintRule for MaxTypeVariants {
             else {
                 continue;
             };
-            if !expression_is_type_annotation(ctx.tree, &ctx.parents, expression_id) {
+            if !expression_is_type_annotation(ctx.tree, ctx.parents, expression_id) {
                 continue;
             }
             if union_has_parent_union(ctx, expression_id) {
@@ -136,7 +136,7 @@ fn report_variant_overflow<T: ast::Node + Clone>(
     max_type_variants: usize,
 ) {
     // resolve owner span before moving owner id into severity lookup
-    let owner_span = ctx.tree.get_span(owner_id.clone());
+    let owner_span = ctx.tree.get_span(owner_id);
 
     // resolve effective severity
     let severity = ctx.get_effective_severity(meta, owner_id);

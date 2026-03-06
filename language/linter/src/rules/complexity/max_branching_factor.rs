@@ -38,7 +38,7 @@ impl LintRule for MaxBranchingFactor {
         for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
             // check top level if chain branch count
             if let ast::Expression::If { .. } = ctx.tree.get(expression_id) {
-                if expression_is_else_if_branch(ctx.tree, &ctx.parents, expression_id) {
+                if expression_is_else_if_branch(ctx.tree, ctx.parents, expression_id) {
                     continue;
                 }
 

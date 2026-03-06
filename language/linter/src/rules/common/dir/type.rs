@@ -895,7 +895,7 @@ fn is_string_array_type_inner(
             symbol,
             static_arguments,
         } => {
-            if !array_symbol.is_some_and(|array_symbol| *symbol == array_symbol) {
+            if array_symbol.is_none_or(|array_symbol| *symbol != array_symbol) {
                 false
             } else {
                 static_arguments.as_ref().is_some_and(|static_arguments| {
@@ -1697,9 +1697,7 @@ fn type_may_be_nominal_symbol_inner(
         dir::Type::Reference {
             symbol: candidate, ..
         } => {
-            if *candidate == symbol {
-                true
-            } else if symbol_lineage_contains(types, *candidate, symbol) {
+            if *candidate == symbol || symbol_lineage_contains(types, *candidate, symbol) {
                 true
             } else if let Some(instance_type_id) = types.get_instance_type_id(*candidate) {
                 type_may_be_nominal_symbol_inner(types, instance_type_id, symbol, state)

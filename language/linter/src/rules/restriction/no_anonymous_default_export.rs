@@ -152,7 +152,6 @@ fn anonymous_default_declaration_fix(
     // build replacement text with an inserted default name
     let declaration_span = ctx.tree.get_span(declaration_id);
     let declaration_text = ctx.get_span_text(declaration_span);
-    let declaration_text = declaration_text.as_ref();
     let insert_offset = kind.default_name_insert_offset(declaration_text)?;
     let replacement = insert_text(declaration_text, insert_offset, " defaultExport ");
     let edits = ctx

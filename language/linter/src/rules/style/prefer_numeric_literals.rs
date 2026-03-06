@@ -199,9 +199,7 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
 
         // only fix when the full string maps to one literal value with no partial parse behavior
         let value = self.ctx.program.strings.get(string_value);
-        let Some(replacement) = preferred_numeric_literal(value.as_ref(), radix, prefix) else {
-            return None;
-        };
+        let replacement = preferred_numeric_literal(value.as_ref(), radix, prefix)?;
 
         // replace the full parseInt expression
         let expression_span = self.ctx.get_span(expression_id);

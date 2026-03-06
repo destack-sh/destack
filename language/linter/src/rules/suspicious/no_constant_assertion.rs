@@ -134,7 +134,7 @@ fn constant_true_assertion_fix(
         return None;
     }
 
-    let statement_span = expression_statement_span(ctx.tree, &ctx.parents, call_expression_id)?;
+    let statement_span = expression_statement_span(ctx.tree, ctx.parents, call_expression_id)?;
     let edits = ctx.edit_builder().delete(statement_span).into_edits();
     Some(LintFix::safe("Remove constant-true assertion").with_edits(edits))
 }

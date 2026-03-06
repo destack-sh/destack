@@ -46,7 +46,7 @@ impl LintRule for NoElseReturn {
             };
 
             // skip else if chain members for default eslint parity
-            if expression_is_else_if_branch(ctx.tree, &ctx.parents, node_id) {
+            if expression_is_else_if_branch(ctx.tree, ctx.parents, node_id) {
                 continue;
             }
 

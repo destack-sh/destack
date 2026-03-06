@@ -655,13 +655,11 @@ fn instantiation_prefix_wrap_body_ops(
         .body
         .iter()
         .position(chain_operation_has_static_instantiation_arguments);
-    let Some(prefix_body_ops) = (if head_has_static_instantiation_prefix {
+    let prefix_body_ops = (if head_has_static_instantiation_prefix {
         Some(0usize)
     } else {
         static_instantiation_body_index.map(|index| index + 1)
-    }) else {
-        return None;
-    };
+    })?;
 
     let has_member_tail_in_base = base
         .body
@@ -718,11 +716,9 @@ pub(crate) fn chain_layout(
                     ..
                 } | ChainExpression::Instantiation { .. }
             ) || chain_operation_is_static_instantiation_member(first_operation);
-        if should_promote_leading_operation {
-            if !body_has_optional_operation {
-                base.body.push(first_operation.clone());
-                body.remove(0);
-            }
+        if should_promote_leading_operation && !body_has_optional_operation {
+            base.body.push(first_operation.clone());
+            body.remove(0);
         }
     }
 

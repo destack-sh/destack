@@ -105,7 +105,7 @@ fn report_method_static_params<T: ast::Node + Clone>(
     max_static_params: usize,
 ) {
     // resolve owner span before moving owner id
-    let owner_span = ctx.tree.get_span(owner_id.clone());
+    let owner_span = ctx.tree.get_span(owner_id);
 
     // resolve effective severity for this method owner
     let severity = ctx.get_effective_severity(meta, owner_id);
