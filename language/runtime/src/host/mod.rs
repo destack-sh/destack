@@ -1,7 +1,7 @@
 #[cfg(any(test, target_os = "android"))]
 mod android;
 #[cfg(any(target_os = "ios", target_os = "macos"))]
-mod apple;
+pub(crate) mod apple;
 mod core;
 #[cfg(any(test, target_os = "dragonfly"))]
 mod dragonfly;

@@ -20,7 +20,7 @@ impl MacosHost {
     /// Create one macOS host.
     pub(crate) fn new() -> Self {
         Self {
-            state: HostAdapterState::new(HostPlatform::MacOS, None),
+            state: HostAdapterState::new(HostPlatform::MacOS, Some(apple_message::cleanup_runtime)),
         }
     }
 }
@@ -47,7 +47,11 @@ impl HostAdapter for MacosHost {
     }
 
     fn pump_pending_thread_messages(&self, ignore_quit_message: bool) -> RuntimeResult<bool> {
-        let dispatched = apple_message::pump_pending_thread_messages(ignore_quit_message);
+        let runtime_id = Some(self.state.callback_runtime_id());
+        let dispatched = apple_message::pump_pending_thread_messages_for_runtime(
+            runtime_id,
+            ignore_quit_message,
+        );
         Ok(dispatched)
     }
 

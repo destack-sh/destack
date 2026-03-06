@@ -20,7 +20,7 @@ impl IosHost {
     /// Create one iOS host.
     pub(crate) fn new() -> Self {
         Self {
-            state: HostAdapterState::new(HostPlatform::IOS, None),
+            state: HostAdapterState::new(HostPlatform::IOS, Some(apple_message::cleanup_runtime)),
         }
     }
 }
@@ -47,7 +47,11 @@ impl HostAdapter for IosHost {
     }
 
     fn pump_pending_thread_messages(&self, ignore_quit_message: bool) -> RuntimeResult<bool> {
-        let dispatched = apple_message::pump_pending_thread_messages(ignore_quit_message);
+        let runtime_id = Some(self.state.callback_runtime_id());
+        let dispatched = apple_message::pump_pending_thread_messages_for_runtime(
+            runtime_id,
+            ignore_quit_message,
+        );
         Ok(dispatched)
     }
 
