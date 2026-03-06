@@ -629,7 +629,7 @@ fn write_randr_gamma_ramp(
 }
 
 /// Return whether monitor mode-set is supported for the active x11 connection.
-pub(super) fn monitor_mode_set_supported(
+pub(crate) fn monitor_mode_set_supported(
     connection_state: &core::X11ConnectionState,
 ) -> RuntimeResult<bool> {
     // reject mode-set when randr is unavailable
@@ -918,7 +918,7 @@ fn enumerate_fallback_monitor_snapshots(
 }
 
 /// Enumerate one normalized monitor snapshot list for x11.
-pub(super) fn enumerate_monitor_snapshots(
+pub(crate) fn enumerate_monitor_snapshots(
     binding: &BindingCallContext,
 ) -> RuntimeResult<Vec<MonitorSnapshot>> {
     // load one connection snapshot for monitor enumeration
@@ -949,7 +949,7 @@ pub(super) fn enumerate_monitor_snapshots(
 }
 
 /// Convert one owned descriptor into one ABI payload.
-pub(super) fn descriptor_from_owned(
+pub(crate) fn descriptor_from_owned(
     binding: &BindingCallContext,
     value: &DisplayDescriptorSnapshot,
 ) -> DisplayDescriptor {
@@ -977,7 +977,7 @@ pub(super) fn descriptor_from_owned(
 }
 
 /// Close one display endpoint.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_close(
+pub(crate) unsafe fn monitor_close(
     binding: &BindingCallContext,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
@@ -999,7 +999,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_close(
 }
 
 /// Resolve one requested mode to the closest supported mode.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_closest_mode(
+pub(crate) unsafe fn monitor_closest_mode(
     binding: &BindingCallContext,
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
@@ -1047,7 +1047,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_closest_mode(
 }
 
 /// Read the current mode for one opened display.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_current_mode(
+pub(crate) unsafe fn monitor_current_mode(
     binding: &BindingCallContext,
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
@@ -1074,7 +1074,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_current_mode(
 }
 
 /// Read descriptor metadata for one opened display.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_descriptor(
+pub(crate) unsafe fn monitor_descriptor(
     binding: &BindingCallContext,
     out: *mut DisplayDescriptor,
     handle: resource::DisplayHandle,
@@ -1101,7 +1101,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_descriptor(
 }
 
 /// Read the desktop-preferred mode for one opened display.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_desktop_mode(
+pub(crate) unsafe fn monitor_desktop_mode(
     binding: &BindingCallContext,
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
@@ -1128,7 +1128,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_desktop_mode(
 }
 
 /// List available displays.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_list(
+pub(crate) unsafe fn monitor_list(
     binding: &BindingCallContext,
     out: *mut NativeSlice<DisplayDescriptor>,
     _request: DisplayMonitorListRequest,
@@ -1151,7 +1151,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_list(
 }
 
 /// Read available display modes.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_modes(
+pub(crate) unsafe fn monitor_modes(
     binding: &BindingCallContext,
     out: *mut NativeSlice<DisplayMode>,
     handle: resource::DisplayHandle,
@@ -1175,7 +1175,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_modes(
 }
 
 /// Open one display endpoint.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_open(
+pub(crate) unsafe fn monitor_open(
     binding: &BindingCallContext,
     out: *mut resource::DisplayHandle,
     id: NativeStringRef,
@@ -1207,7 +1207,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_open(
 }
 
 /// Read the current primary display handle.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_primary(
+pub(crate) unsafe fn monitor_primary(
     binding: &BindingCallContext,
     out: *mut Option<resource::DisplayHandle>,
     _request: DisplayMonitorListRequest,
@@ -1232,7 +1232,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_primary(
 }
 
 /// Resolve one monitor snapshot by stable display id.
-pub(super) fn monitor_snapshot_by_display_id(
+pub(crate) fn monitor_snapshot_by_display_id(
     binding: &BindingCallContext,
     display_id: &str,
 ) -> RuntimeResult<Option<MonitorSnapshot>> {
@@ -1244,7 +1244,7 @@ pub(super) fn monitor_snapshot_by_display_id(
 }
 
 /// Apply one display mode by stable display id and return the effective current mode.
-pub(super) fn apply_monitor_mode_by_display_id(
+pub(crate) fn apply_monitor_mode_by_display_id(
     binding: &BindingCallContext,
     display_id: &str,
     mode: DisplayMode,
@@ -1386,7 +1386,7 @@ pub(super) fn apply_monitor_mode_by_display_id(
 }
 
 /// Apply one display mode.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_set_mode(
+pub(crate) unsafe fn monitor_set_mode(
     binding: &BindingCallContext,
     handle: resource::DisplayHandle,
     mode: DisplayMode,

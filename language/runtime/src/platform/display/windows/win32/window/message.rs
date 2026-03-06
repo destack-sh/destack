@@ -23,7 +23,7 @@ use super::{
 };
 
 /// Drain pending window-thread messages and dispatch them through the registered wndproc.
-pub(in super::super) fn pump_window_messages(context: &BindingCallContext) -> RuntimeResult<()> {
+pub(crate) fn pump_window_messages(context: &BindingCallContext) -> RuntimeResult<()> {
     // drain pending thread messages while preserving host-managed quit lifecycle
     context.host().pump_pending_thread_messages(true)?;
 
@@ -128,7 +128,7 @@ fn apply_window_message_snapshot(
 }
 
 /// Wndproc for display windows.
-pub(super) unsafe extern "system" fn display_window_proc(
+pub(crate) unsafe extern "system" fn display_window_proc(
     hwnd: HWND,
     message: u32,
     wparam: WPARAM,
@@ -252,7 +252,7 @@ pub(super) unsafe extern "system" fn display_window_proc(
 }
 
 /// Ensure the display window class is registered.
-pub(super) fn ensure_window_class_registered() -> RuntimeResult<()> {
+pub(crate) fn ensure_window_class_registered() -> RuntimeResult<()> {
     // resolve process module instance for class registration
     let instance = unsafe { GetModuleHandleW(std::ptr::null()) } as HINSTANCE;
 

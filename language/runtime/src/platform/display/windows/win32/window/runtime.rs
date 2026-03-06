@@ -8,7 +8,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     GWLP_USERDATA, GetWindowLongPtrW, IsWindow, SetWindowLongPtrW,
 };
 
-use crate::diagnostic::{DiagnosticStore, RuntimeResult};
+use crate::diagnostic::{AgentDiagnosticStore, RuntimeResult};
 use crate::platform::display::WindowCursorMode;
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
@@ -20,27 +20,27 @@ use super::super::{core, event};
 #[derive(Debug)]
 pub(crate) struct WindowRuntimeState {
     /// Shared global cursor visibility state.
-    pub(super) cursor_visible_state: Mutex<Option<bool>>,
+    pub(crate) cursor_visible_state: Mutex<Option<bool>>,
     /// Per-window cursor policy lanes used to derive process-global cursor state.
-    pub(super) cursor_policy_by_window: Mutex<HashMap<resource::WindowHandle, CursorPolicyState>>,
+    pub(crate) cursor_policy_by_window: Mutex<HashMap<resource::WindowHandle, CursorPolicyState>>,
     /// Monotonic counter used for stable cursor policy ordering.
-    pub(super) next_cursor_policy_sequence: AtomicU64,
+    pub(crate) next_cursor_policy_sequence: AtomicU64,
     /// Monotonic counter used for stable runtime window identifiers.
     next_window_identifier: AtomicU64,
     /// Runtime diagnostics store for callback and best-effort lanes.
-    pub(super) diagnostics: Arc<DiagnosticStore>,
+    pub(crate) diagnostics: Arc<AgentDiagnosticStore>,
 }
 
 impl Default for WindowRuntimeState {
     /// Create one default window runtime state.
     fn default() -> Self {
-        Self::new(Arc::new(DiagnosticStore::default()))
+        Self::new(Arc::new(AgentDiagnosticStore::default()))
     }
 }
 
 impl WindowRuntimeState {
     /// Create one window runtime state with explicit diagnostics storage.
-    fn new(diagnostics: Arc<DiagnosticStore>) -> Self {
+    fn new(diagnostics: Arc<AgentDiagnosticStore>) -> Self {
         Self {
             cursor_visible_state: Mutex::new(None),
             cursor_policy_by_window: Mutex::new(HashMap::new()),
@@ -53,33 +53,33 @@ impl WindowRuntimeState {
 
 /// Per-window cursor policy snapshot.
 #[derive(Debug, Clone, Copy)]
-pub(super) struct CursorPolicyState {
+pub(crate) struct CursorPolicyState {
     /// Host window handle associated with this policy.
-    pub(super) hwnd: HWND,
+    pub(crate) hwnd: HWND,
     /// Per-window cursor visibility preference.
-    pub(super) cursor_visible: bool,
+    pub(crate) cursor_visible: bool,
     /// Per-window cursor mode preference.
-    pub(super) cursor_mode: WindowCursorMode,
+    pub(crate) cursor_mode: WindowCursorMode,
     /// Monotonic sequence used for most-recent policy ordering.
-    pub(super) sequence: u64,
+    pub(crate) sequence: u64,
 }
 
 /// Runtime mapping payload for one live hwnd.
 #[derive(Clone)]
-pub(super) struct WindowRuntimeEntry {
+pub(crate) struct WindowRuntimeEntry {
     /// Runtime window handle associated with this hwnd.
-    pub(super) window: resource::WindowHandle,
+    pub(crate) window: resource::WindowHandle,
     /// Weak binding reference for this window.
-    pub(super) binding: Weak<Mutex<Win32WindowBinding>>,
+    pub(crate) binding: Weak<Mutex<Win32WindowBinding>>,
     /// Runtime-owned display event stream state.
-    pub(super) event_runtime_state: Arc<event::DisplayEventRuntimeState>,
+    pub(crate) event_runtime_state: Arc<event::DisplayEventRuntimeState>,
     /// Runtime-owned window state for cursor/global cleanup lanes.
-    pub(super) window_runtime_state: Arc<WindowRuntimeState>,
+    pub(crate) window_runtime_state: Arc<WindowRuntimeState>,
 }
 
 /// Return runtime-owned win32 window state.
-pub(super) fn window_runtime_state(context: &BindingCallContext) -> Arc<WindowRuntimeState> {
-    let diagnostics = Arc::clone(&context.runtime().diagnostics);
+pub(crate) fn window_runtime_state(context: &BindingCallContext) -> Arc<WindowRuntimeState> {
+    let diagnostics = Arc::clone(&context.runtime().diagnostic);
     context
         .runtime()
         .platform_state
@@ -88,7 +88,7 @@ pub(super) fn window_runtime_state(context: &BindingCallContext) -> Arc<WindowRu
 }
 
 /// Allocate one stable runtime window identifier.
-pub(super) fn next_window_identifier(context: &BindingCallContext) -> u64 {
+pub(crate) fn next_window_identifier(context: &BindingCallContext) -> u64 {
     let runtime_state = window_runtime_state(context);
     runtime_state
         .next_window_identifier
@@ -96,14 +96,14 @@ pub(super) fn next_window_identifier(context: &BindingCallContext) -> u64 {
 }
 
 /// Allocate one stable cursor-policy sequence number.
-pub(super) fn next_cursor_policy_sequence(runtime_state: &Arc<WindowRuntimeState>) -> u64 {
+pub(crate) fn next_cursor_policy_sequence(runtime_state: &Arc<WindowRuntimeState>) -> u64 {
     runtime_state
         .next_cursor_policy_sequence
         .fetch_add(1, Ordering::Relaxed)
 }
 
 /// Register one live hwnd mapping for runtime window callbacks.
-pub(super) fn register_runtime_window(
+pub(crate) fn register_runtime_window(
     hwnd: HWND,
     entry: WindowRuntimeEntry,
     operation: &'static str,
@@ -137,7 +137,7 @@ pub(super) fn register_runtime_window(
 }
 
 /// Unregister one live hwnd mapping.
-pub(super) fn unregister_runtime_window(hwnd: HWND) {
+pub(crate) fn unregister_runtime_window(hwnd: HWND) {
     let pointer = unsafe { SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0) } as *mut WindowRuntimeEntry;
 
     // evaluate this condition
@@ -151,7 +151,7 @@ pub(super) fn unregister_runtime_window(hwnd: HWND) {
 }
 
 /// Resolve one runtime hwnd entry.
-pub(super) fn runtime_window_entry(hwnd: HWND) -> Option<WindowRuntimeEntry> {
+pub(crate) fn runtime_window_entry(hwnd: HWND) -> Option<WindowRuntimeEntry> {
     let pointer = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) } as *mut WindowRuntimeEntry;
 
     // evaluate this condition
@@ -164,12 +164,12 @@ pub(super) fn runtime_window_entry(hwnd: HWND) -> Option<WindowRuntimeEntry> {
 }
 
 /// Return the current host thread identifier.
-pub(super) fn current_thread_id() -> u32 {
+pub(crate) fn current_thread_id() -> u32 {
     unsafe { GetCurrentThreadId() }
 }
 
 /// Ensure the calling thread owns this window binding.
-pub(super) fn ensure_window_thread(
+pub(crate) fn ensure_window_thread(
     binding: &Win32WindowBinding,
     operation: &'static str,
 ) -> RuntimeResult<()> {
@@ -190,6 +190,6 @@ pub(super) fn ensure_window_thread(
 }
 
 /// Resolve whether one live window handle is still valid.
-pub(super) fn is_live_hwnd(hwnd: HWND) -> bool {
+pub(crate) fn is_live_hwnd(hwnd: HWND) -> bool {
     unsafe { IsWindow(hwnd) != 0 }
 }

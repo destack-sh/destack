@@ -13,7 +13,7 @@ use super::super::model::{X11WindowBinding, XdndPayload};
 use super::super::{core, event};
 
 /// Clear one window-local xdnd session state.
-pub(super) fn clear_xdnd_state(binding: &mut X11WindowBinding) {
+pub(crate) fn clear_xdnd_state(binding: &mut X11WindowBinding) {
     binding.xdnd_source_window = None;
     binding.xdnd_version = None;
     binding.xdnd_types.clear();
@@ -320,7 +320,7 @@ fn read_xdnd_selection_payload(
 }
 
 /// Handle one `XdndEnter` client message.
-pub(super) fn handle_xdnd_enter(
+pub(crate) fn handle_xdnd_enter(
     connection_state: &core::X11ConnectionState,
     binding: &mut X11WindowBinding,
     value: &ClientMessageEvent,
@@ -342,7 +342,7 @@ pub(super) fn handle_xdnd_enter(
 }
 
 /// Handle one `XdndPosition` client message.
-pub(super) fn handle_xdnd_position(
+pub(crate) fn handle_xdnd_position(
     connection_state: &core::X11ConnectionState,
     binding: &mut X11WindowBinding,
     value: &ClientMessageEvent,
@@ -409,7 +409,7 @@ pub(super) fn handle_xdnd_position(
 }
 
 /// Handle one `XdndDrop` client message.
-pub(super) fn handle_xdnd_drop(
+pub(crate) fn handle_xdnd_drop(
     runtime_state: &Arc<core::X11RuntimeState>,
     window_handle: resource::WindowHandle,
     connection_state: &core::X11ConnectionState,
@@ -485,7 +485,7 @@ pub(super) fn handle_xdnd_drop(
 }
 
 /// Handle one `XdndLeave` client message.
-pub(super) fn handle_xdnd_leave(
+pub(crate) fn handle_xdnd_leave(
     runtime_state: &Arc<core::X11RuntimeState>,
     window_handle: resource::WindowHandle,
     binding: &mut X11WindowBinding,
@@ -508,7 +508,7 @@ pub(super) fn handle_xdnd_leave(
 }
 
 /// Handle one `SelectionNotify` event for xdnd data transfers.
-pub(super) fn handle_xdnd_selection_notify(
+pub(crate) fn handle_xdnd_selection_notify(
     runtime_state: &Arc<core::X11RuntimeState>,
     window_handle: resource::WindowHandle,
     connection_state: &core::X11ConnectionState,

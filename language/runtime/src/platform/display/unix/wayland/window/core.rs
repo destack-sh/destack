@@ -17,7 +17,7 @@ use super::super::model::WaylandWindowBinding;
 use super::super::{backend_descriptor_state, core as backend_core, resource as display_resource};
 
 /// Normalize one window logical-size payload.
-pub(super) fn normalize_logical_size(
+pub(crate) fn normalize_logical_size(
     value: WindowLogicalSize,
     field: &'static str,
 ) -> RuntimeResult<WindowLogicalSize> {
@@ -41,7 +41,7 @@ pub(super) fn normalize_logical_size(
 }
 
 /// Normalize one window physical-size payload.
-pub(super) fn normalize_physical_size(
+pub(crate) fn normalize_physical_size(
     value: WindowPhysicalSize,
     field: &'static str,
 ) -> RuntimeResult<WindowPhysicalSize> {
@@ -57,7 +57,7 @@ pub(super) fn normalize_physical_size(
 }
 
 /// Normalize one whole-window opacity payload.
-pub(super) fn normalize_opacity(value: f64, field: &'static str) -> RuntimeResult<f64> {
+pub(crate) fn normalize_opacity(value: f64, field: &'static str) -> RuntimeResult<f64> {
     // reject non-finite values
     if !value.is_finite() {
         return Err(core_platform::invalid_argument(
@@ -78,13 +78,13 @@ pub(super) fn normalize_opacity(value: f64, field: &'static str) -> RuntimeResul
 }
 
 /// Convert one normalized opacity value into one alpha-modifier multiplier.
-pub(super) fn opacity_multiplier(value: f64) -> u32 {
+pub(crate) fn opacity_multiplier(value: f64) -> u32 {
     let scaled = (value * u32::MAX as f64).round();
     scaled.clamp(0.0, u32::MAX as f64) as u32
 }
 
 /// Validate one optional size-constraint payload.
-pub(super) fn validate_size_constraints(
+pub(crate) fn validate_size_constraints(
     constraints: Option<WindowSizeConstraints>,
     field: &'static str,
 ) -> RuntimeResult<()> {
@@ -116,7 +116,7 @@ pub(super) fn validate_size_constraints(
 }
 
 /// Convert one logical-size payload into one physical-size payload.
-pub(super) fn logical_to_physical(
+pub(crate) fn logical_to_physical(
     logical: WindowLogicalSize,
     scale_factor_milli: u32,
 ) -> WindowPhysicalSize {
@@ -135,7 +135,7 @@ pub(super) fn logical_to_physical(
 }
 
 /// Clamp one logical-size payload to optional size constraints.
-pub(super) fn clamp_logical_size(
+pub(crate) fn clamp_logical_size(
     value: WindowLogicalSize,
     constraints: Option<WindowSizeConstraints>,
 ) -> WindowLogicalSize {
@@ -162,7 +162,7 @@ pub(super) fn clamp_logical_size(
 }
 
 /// Clamp one logical-size payload to optional aspect-ratio lock.
-pub(super) fn clamp_logical_aspect(
+pub(crate) fn clamp_logical_aspect(
     value: WindowLogicalSize,
     aspect_ratio: Option<WindowAspectRatio>,
 ) -> WindowLogicalSize {
@@ -186,7 +186,7 @@ pub(super) fn clamp_logical_aspect(
 }
 
 /// Resolve one preferred display handle from one mode payload.
-pub(super) fn mode_display(mode: WindowModeOptions) -> Option<resource::DisplayHandle> {
+pub(crate) fn mode_display(mode: WindowModeOptions) -> Option<resource::DisplayHandle> {
     match mode {
         WindowModeOptions::WindowWindowedModeOptions(_) => None,
         WindowModeOptions::WindowBorderlessModeOptions(value) => value.display,
@@ -195,7 +195,7 @@ pub(super) fn mode_display(mode: WindowModeOptions) -> Option<resource::DisplayH
 }
 
 /// Resolve one preferred display mode from one mode payload.
-pub(super) fn mode_display_mode(mode: WindowModeOptions) -> Option<DisplayMode> {
+pub(crate) fn mode_display_mode(mode: WindowModeOptions) -> Option<DisplayMode> {
     match mode {
         WindowModeOptions::WindowExclusiveFullscreenModeOptions(value) => value.display_mode,
         _ => None,
@@ -203,7 +203,7 @@ pub(super) fn mode_display_mode(mode: WindowModeOptions) -> Option<DisplayMode> 
 }
 
 /// Compare two mode payloads by semantic fields.
-pub(super) fn same_window_mode(left: WindowModeOptions, right: WindowModeOptions) -> bool {
+pub(crate) fn same_window_mode(left: WindowModeOptions, right: WindowModeOptions) -> bool {
     match (left, right) {
         (
             WindowModeOptions::WindowWindowedModeOptions(_),
@@ -222,9 +222,7 @@ pub(super) fn same_window_mode(left: WindowModeOptions, right: WindowModeOptions
 }
 
 /// Resolve one occlusion value from one wayland visibility state.
-pub(in crate::platform::display::host::unix) fn occlusion_from_visibility(
-    visibility: WindowVisibility,
-) -> WindowOcclusionState {
+pub(crate) fn occlusion_from_visibility(visibility: WindowVisibility) -> WindowOcclusionState {
     // minimized windows are compositor-hidden from presentation
     if visibility == WindowVisibility::Minimized {
         return WindowOcclusionState::Occluded;
@@ -235,7 +233,7 @@ pub(in crate::platform::display::host::unix) fn occlusion_from_visibility(
 }
 
 /// Return one wayland decoration mode for one runtime chrome and decorated state.
-pub(super) fn decoration_mode_for_window(
+pub(crate) fn decoration_mode_for_window(
     chrome: WindowChromeKind,
     decorated: bool,
 ) -> zxdg_toplevel_decoration_v1::Mode {
@@ -254,7 +252,7 @@ pub(super) fn decoration_mode_for_window(
 }
 
 /// Ensure the calling thread owns one window binding.
-pub(super) fn ensure_window_thread(
+pub(crate) fn ensure_window_thread(
     binding: &WaylandWindowBinding,
     operation: &'static str,
 ) -> RuntimeResult<()> {
@@ -271,7 +269,7 @@ pub(super) fn ensure_window_thread(
 }
 
 /// Resolve one window binding and enforce owner-thread affinity.
-pub(super) fn resolve_window_binding(
+pub(crate) fn resolve_window_binding(
     context: &BindingCallContext,
     window_handle: resource::WindowHandle,
     operation: &'static str,
@@ -285,7 +283,7 @@ pub(super) fn resolve_window_binding(
 }
 
 /// Resolve one required xdg_toplevel id from one window binding.
-pub(super) fn require_xdg_toplevel_id(
+pub(crate) fn require_xdg_toplevel_id(
     binding: &WaylandWindowBinding,
     operation: &'static str,
 ) -> RuntimeResult<wayland_client::backend::ObjectId> {
@@ -301,7 +299,7 @@ pub(super) fn require_xdg_toplevel_id(
 }
 
 /// Resolve one window binding and run one immutable callback under the binding lock.
-pub(super) fn with_window_binding<R>(
+pub(crate) fn with_window_binding<R>(
     context: &BindingCallContext,
     window_handle: resource::WindowHandle,
     operation: &'static str,
@@ -313,7 +311,7 @@ pub(super) fn with_window_binding<R>(
 }
 
 /// Resolve one window binding and run one mutable callback under the binding lock.
-pub(super) fn with_window_binding_mut<R>(
+pub(crate) fn with_window_binding_mut<R>(
     context: &BindingCallContext,
     window_handle: resource::WindowHandle,
     operation: &'static str,
@@ -325,7 +323,7 @@ pub(super) fn with_window_binding_mut<R>(
 }
 
 /// Resolve one effective capability mask for one opened wayland window.
-pub(in crate::platform::display::host::unix) fn effective_window_capabilities(
+pub(crate) fn effective_window_capabilities(
     context: &BindingCallContext,
     window_handle: resource::WindowHandle,
     operation: &'static str,
@@ -359,7 +357,7 @@ pub(in crate::platform::display::host::unix) fn effective_window_capabilities(
 }
 
 /// Create one anonymous in-memory file descriptor for wayland shm uploads.
-pub(super) fn create_memfd_file(
+pub(crate) fn create_memfd_file(
     operation: &'static str,
     name: &'static str,
     length: usize,
@@ -398,6 +396,6 @@ pub(super) fn create_memfd_file(
 }
 
 /// Pump one iteration of pending wayland window messages.
-pub(in super::super) fn pump_window_messages(context: &BindingCallContext) -> RuntimeResult<()> {
+pub(crate) fn pump_window_messages(context: &BindingCallContext) -> RuntimeResult<()> {
     backend_core::dispatch_pending(context, "destack.display.window.eventRead")
 }

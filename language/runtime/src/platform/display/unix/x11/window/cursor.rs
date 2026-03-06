@@ -167,7 +167,7 @@ pub(crate) unsafe fn window_set_cursor_visible(
 }
 
 /// Release one cached native cursor handle from one window binding.
-pub(super) fn release_window_cursor(
+pub(crate) fn release_window_cursor(
     connection_state: &core::X11ConnectionState,
     binding: &mut X11WindowBinding,
     operation: &'static str,

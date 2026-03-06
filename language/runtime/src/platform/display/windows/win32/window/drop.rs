@@ -564,7 +564,7 @@ unsafe extern "system" fn drop_target_drop_data(
 }
 
 /// Register one drop target for one live window binding.
-pub(super) fn register_window_drop_target(
+pub(crate) fn register_window_drop_target(
     binding: &mut Win32WindowBinding,
     window: resource::WindowHandle,
     event_runtime_state: &Arc<event::DisplayEventRuntimeState>,
@@ -621,7 +621,7 @@ pub(super) fn register_window_drop_target(
 }
 
 /// Unregister one drop target from one live window binding.
-pub(super) fn unregister_window_drop_target(binding: &mut Win32WindowBinding) {
+pub(crate) fn unregister_window_drop_target(binding: &mut Win32WindowBinding) {
     let callback_pointer = binding.drop_target_callback as *mut c_void;
     let ole_initialized = binding.drop_target_ole_initialized;
     binding.drop_target_callback = 0;

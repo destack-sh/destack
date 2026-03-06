@@ -9,7 +9,7 @@ use crate::platform::resource;
 use crate::runtime::{BindingCallContext, NativeStringRef};
 
 /// Close one window.
-pub(in crate::platform::display::host::unix) unsafe fn window_close(
+pub(crate) unsafe fn window_close(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
@@ -17,7 +17,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_close(
 }
 
 /// Read descriptor metadata for one window.
-pub(in crate::platform::display::host::unix) unsafe fn window_descriptor(
+pub(crate) unsafe fn window_descriptor(
     binding: &BindingCallContext,
     out: *mut WindowDescriptor,
     window: resource::WindowHandle,
@@ -26,7 +26,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_descriptor(
 }
 
 /// Open one window.
-pub(in crate::platform::display::host::unix) unsafe fn window_open(
+pub(crate) unsafe fn window_open(
     binding: &BindingCallContext,
     out: *mut resource::WindowHandle,
     options: WindowOptions,
@@ -35,7 +35,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_open(
 }
 
 /// Request user attention for one window.
-pub(in crate::platform::display::host::unix) unsafe fn window_request_attention(
+pub(crate) unsafe fn window_request_attention(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     level: WindowAttentionLevel,
@@ -44,7 +44,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_request_attention(
 }
 
 /// Request one redraw for one window.
-pub(in crate::platform::display::host::unix) unsafe fn window_request_refresh(
+pub(crate) unsafe fn window_request_refresh(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
@@ -52,7 +52,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_request_refresh(
 }
 
 /// Set always-on-top state.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_always_on_top(
+pub(crate) unsafe fn window_set_always_on_top(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     alwaysontop: bool,
@@ -61,7 +61,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_always_on_top(
 }
 
 /// Set cursor icon for one window.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_cursor_icon(
+pub(crate) unsafe fn window_set_cursor_icon(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     icon: WindowCursorIcon,
@@ -70,7 +70,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_cursor_icon(
 }
 
 /// Set cursor interaction mode for one window.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_cursor_mode(
+pub(crate) unsafe fn window_set_cursor_mode(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     mode: WindowCursorMode,
@@ -79,7 +79,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_cursor_mode(
 }
 
 /// Set cursor position for one window.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_cursor_position(
+pub(crate) unsafe fn window_set_cursor_position(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     position: WindowPosition,
@@ -88,7 +88,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_cursor_positio
 }
 
 /// Set cursor visibility for one window.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_cursor_visible(
+pub(crate) unsafe fn window_set_cursor_visible(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     visible: bool,
@@ -97,7 +97,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_cursor_visible
 }
 
 /// Set window decoration state.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_decorated(
+pub(crate) unsafe fn window_set_decorated(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     decorated: bool,
@@ -106,7 +106,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_decorated(
 }
 
 /// Set one window mode.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_mode(
+pub(crate) unsafe fn window_set_mode(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     mode: WindowModeOptions,
@@ -115,7 +115,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_mode(
 }
 
 /// Set one window position.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_position(
+pub(crate) unsafe fn window_set_position(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     position: WindowPosition,
@@ -124,7 +124,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_position(
 }
 
 /// Set window resizable state.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_resizable(
+pub(crate) unsafe fn window_set_resizable(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     resizable: bool,
@@ -133,7 +133,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_resizable(
 }
 
 /// Set logical size constraints.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_size_constraints(
+pub(crate) unsafe fn window_set_size_constraints(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     constraints: Option<WindowSizeConstraints>,
@@ -144,7 +144,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_size_constrain
 }
 
 /// Set one logical window size.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_size_logical(
+pub(crate) unsafe fn window_set_size_logical(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     size: WindowLogicalSize,
@@ -153,7 +153,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_size_logical(
 }
 
 /// Set one physical window size.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_size_physical(
+pub(crate) unsafe fn window_set_size_physical(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     size: WindowPhysicalSize,
@@ -162,7 +162,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_size_physical(
 }
 
 /// Set one window title string.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_title(
+pub(crate) unsafe fn window_set_title(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     title: NativeStringRef,
@@ -171,7 +171,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_title(
 }
 
 /// Set one window visibility state.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_visibility(
+pub(crate) unsafe fn window_set_visibility(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     visibility: WindowVisibility,
@@ -180,7 +180,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_visibility(
 }
 
 /// Read one window state snapshot.
-pub(in crate::platform::display::host::unix) unsafe fn window_state(
+pub(crate) unsafe fn window_state(
     binding: &BindingCallContext,
     out: *mut WindowState,
     window: resource::WindowHandle,
@@ -189,7 +189,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_state(
 }
 
 /// Set one window aspect-ratio lock.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_aspect_ratio(
+pub(crate) unsafe fn window_set_aspect_ratio(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     aspectratio: Option<WindowAspectRatio>,
@@ -198,7 +198,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_aspect_ratio(
 }
 
 /// Set one window chrome kind.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_chrome(
+pub(crate) unsafe fn window_set_chrome(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     chrome: WindowChromeKind,
@@ -207,7 +207,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_chrome(
 }
 
 /// Set one window icon set.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_icons(
+pub(crate) unsafe fn window_set_icons(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     icons: Option<WindowIconSet>,
@@ -216,7 +216,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_icons(
 }
 
 /// Set one window modal state.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_modal(
+pub(crate) unsafe fn window_set_modal(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     modal: bool,
@@ -225,7 +225,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_modal(
 }
 
 /// Set one window mouse passthrough state.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_mouse_passthrough(
+pub(crate) unsafe fn window_set_mouse_passthrough(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     passthrough: bool,
@@ -236,7 +236,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_mouse_passthro
 }
 
 /// Set one window opacity.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_opacity(
+pub(crate) unsafe fn window_set_opacity(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     opacity: f64,
@@ -245,7 +245,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_opacity(
 }
 
 /// Read one window opacity.
-pub(in crate::platform::display::host::unix) unsafe fn window_opacity(
+pub(crate) unsafe fn window_opacity(
     binding: &BindingCallContext,
     out: *mut f64,
     window: resource::WindowHandle,
@@ -254,7 +254,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_opacity(
 }
 
 /// Focus one window.
-pub(in crate::platform::display::host::unix) unsafe fn window_focus(
+pub(crate) unsafe fn window_focus(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
@@ -262,7 +262,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_focus(
 }
 
 /// Raise one window.
-pub(in crate::platform::display::host::unix) unsafe fn window_raise(
+pub(crate) unsafe fn window_raise(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
@@ -270,7 +270,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_raise(
 }
 
 /// Minimize one window.
-pub(in crate::platform::display::host::unix) unsafe fn window_minimize(
+pub(crate) unsafe fn window_minimize(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
@@ -278,7 +278,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_minimize(
 }
 
 /// Maximize one window.
-pub(in crate::platform::display::host::unix) unsafe fn window_maximize(
+pub(crate) unsafe fn window_maximize(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
@@ -286,7 +286,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_maximize(
 }
 
 /// Restore one window.
-pub(in crate::platform::display::host::unix) unsafe fn window_restore(
+pub(crate) unsafe fn window_restore(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
@@ -294,7 +294,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_restore(
 }
 
 /// Set one window parent relationship.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_parent(
+pub(crate) unsafe fn window_set_parent(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     parent: Option<resource::WindowHandle>,
@@ -303,7 +303,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_parent(
 }
 
 /// Set one window transient relationship.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_transient_for(
+pub(crate) unsafe fn window_set_transient_for(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     transientfor: Option<resource::WindowHandle>,
@@ -312,7 +312,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_transient_for(
 }
 
 /// Set one window taskbar visibility state.
-pub(in crate::platform::display::host::unix) unsafe fn window_set_taskbar_visible(
+pub(crate) unsafe fn window_set_taskbar_visible(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     visible: bool,
@@ -321,7 +321,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_taskbar_visibl
 }
 
 /// Begin one native window move drag.
-pub(in crate::platform::display::host::unix) unsafe fn window_begin_move_drag(
+pub(crate) unsafe fn window_begin_move_drag(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
@@ -329,7 +329,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_begin_move_drag(
 }
 
 /// Begin one native window resize drag.
-pub(in crate::platform::display::host::unix) unsafe fn window_begin_resize_drag(
+pub(crate) unsafe fn window_begin_resize_drag(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     edge: WindowResizeEdge,

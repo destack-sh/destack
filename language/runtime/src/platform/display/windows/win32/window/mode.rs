@@ -9,12 +9,12 @@ use super::super::{core, event, monitor, resource as display_resource};
 use super::{apply_window_rect, apply_window_style};
 
 /// Return whether one mode payload resolves to windowed.
-pub(super) fn is_windowed_mode(mode: WindowModeOptions) -> bool {
+pub(crate) fn is_windowed_mode(mode: WindowModeOptions) -> bool {
     matches!(mode, WindowModeOptions::WindowWindowedModeOptions(_))
 }
 
 /// Return whether one mode payload resolves to exclusive fullscreen.
-pub(super) fn is_exclusive_mode(mode: WindowModeOptions) -> bool {
+pub(crate) fn is_exclusive_mode(mode: WindowModeOptions) -> bool {
     matches!(
         mode,
         WindowModeOptions::WindowExclusiveFullscreenModeOptions(_)
@@ -22,7 +22,7 @@ pub(super) fn is_exclusive_mode(mode: WindowModeOptions) -> bool {
 }
 
 /// Resolve one mode payload to its optional preferred display handle.
-pub(super) fn mode_display(mode: WindowModeOptions) -> Option<resource::DisplayHandle> {
+pub(crate) fn mode_display(mode: WindowModeOptions) -> Option<resource::DisplayHandle> {
     // resolve this variant
     match mode {
         WindowModeOptions::WindowWindowedModeOptions(_) => None,
@@ -32,7 +32,7 @@ pub(super) fn mode_display(mode: WindowModeOptions) -> Option<resource::DisplayH
 }
 
 /// Resolve one mode payload to its optional preferred exclusive mode.
-pub(super) fn mode_display_mode(mode: WindowModeOptions) -> Option<DisplayMode> {
+pub(crate) fn mode_display_mode(mode: WindowModeOptions) -> Option<DisplayMode> {
     // resolve this variant
     match mode {
         WindowModeOptions::WindowExclusiveFullscreenModeOptions(options) => options.display_mode,
@@ -41,7 +41,7 @@ pub(super) fn mode_display_mode(mode: WindowModeOptions) -> Option<DisplayMode> 
 }
 
 /// Compare two mode payloads by semantic fields, excluding discriminator string handles.
-pub(super) fn same_window_mode(left: WindowModeOptions, right: WindowModeOptions) -> bool {
+pub(crate) fn same_window_mode(left: WindowModeOptions, right: WindowModeOptions) -> bool {
     // compare mode payload by semantic fields
     match (left, right) {
         (
@@ -79,7 +79,7 @@ fn mode_target_display(
 }
 
 /// Restore one captured exclusive-fullscreen display mode snapshot.
-pub(super) fn restore_exclusive_mode(
+pub(crate) fn restore_exclusive_mode(
     context: &BindingCallContext,
     restore: &ExclusiveModeRestore,
     operation: &'static str,
@@ -109,7 +109,7 @@ pub(super) fn restore_exclusive_mode(
 }
 
 /// Apply one window-mode transition and associated exclusive-display state changes.
-pub(super) fn apply_mode_options(
+pub(crate) fn apply_mode_options(
     context: &BindingCallContext,
     binding: &mut Win32WindowBinding,
     mode: WindowModeOptions,

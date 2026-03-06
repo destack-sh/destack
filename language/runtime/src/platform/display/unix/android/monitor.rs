@@ -7,7 +7,7 @@ use crate::platform::resource;
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 /// Close one display endpoint.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_close(
+pub(crate) unsafe fn monitor_close(
     binding: &BindingCallContext,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
@@ -15,7 +15,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_close(
 }
 
 /// Resolve one requested mode to the closest supported mode.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_closest_mode(
+pub(crate) unsafe fn monitor_closest_mode(
     binding: &BindingCallContext,
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
@@ -25,7 +25,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_closest_mode(
 }
 
 /// Read the current mode for one opened display.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_current_mode(
+pub(crate) unsafe fn monitor_current_mode(
     binding: &BindingCallContext,
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
@@ -34,7 +34,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_current_mode(
 }
 
 /// Read descriptor metadata for one opened display.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_descriptor(
+pub(crate) unsafe fn monitor_descriptor(
     binding: &BindingCallContext,
     out: *mut DisplayDescriptor,
     handle: resource::DisplayHandle,
@@ -43,7 +43,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_descriptor(
 }
 
 /// Read the desktop-preferred mode for one opened display.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_desktop_mode(
+pub(crate) unsafe fn monitor_desktop_mode(
     binding: &BindingCallContext,
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
@@ -52,7 +52,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_desktop_mode(
 }
 
 /// List available displays.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_list(
+pub(crate) unsafe fn monitor_list(
     binding: &BindingCallContext,
     out: *mut NativeSlice<DisplayDescriptor>,
     request: DisplayMonitorListRequest,
@@ -61,7 +61,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_list(
 }
 
 /// Read available display modes.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_modes(
+pub(crate) unsafe fn monitor_modes(
     binding: &BindingCallContext,
     out: *mut NativeSlice<DisplayMode>,
     handle: resource::DisplayHandle,
@@ -70,7 +70,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_modes(
 }
 
 /// Open one display endpoint.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_open(
+pub(crate) unsafe fn monitor_open(
     binding: &BindingCallContext,
     out: *mut resource::DisplayHandle,
     id: NativeStringRef,
@@ -80,7 +80,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_open(
 }
 
 /// Read the current primary display handle.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_primary(
+pub(crate) unsafe fn monitor_primary(
     binding: &BindingCallContext,
     out: *mut Option<resource::DisplayHandle>,
     request: DisplayMonitorListRequest,
@@ -89,7 +89,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_primary(
 }
 
 /// Apply one display mode.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_set_mode(
+pub(crate) unsafe fn monitor_set_mode(
     binding: &BindingCallContext,
     handle: resource::DisplayHandle,
     mode: DisplayMode,
@@ -98,7 +98,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_set_mode(
 }
 
 /// Read display color state.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_color_state(
+pub(crate) unsafe fn monitor_color_state(
     binding: &BindingCallContext,
     out: *mut DisplayColorState,
     handle: resource::DisplayHandle,
@@ -107,7 +107,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_color_state(
 }
 
 /// Read display HDR mode.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_hdr_mode(
+pub(crate) unsafe fn monitor_hdr_mode(
     binding: &BindingCallContext,
     out: *mut DisplayHdrMode,
     handle: resource::DisplayHandle,
@@ -116,7 +116,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_hdr_mode(
 }
 
 /// Set display HDR mode.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_set_hdr_mode(
+pub(crate) unsafe fn monitor_set_hdr_mode(
     binding: &BindingCallContext,
     handle: resource::DisplayHandle,
     mode: DisplayHdrMode,
@@ -125,7 +125,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_set_hdr_mode(
 }
 
 /// Read display gamma ramp.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_gamma_ramp(
+pub(crate) unsafe fn monitor_gamma_ramp(
     binding: &BindingCallContext,
     out: *mut DisplayGammaRamp,
     handle: resource::DisplayHandle,
@@ -134,7 +134,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_gamma_ramp(
 }
 
 /// Set display gamma ramp.
-pub(in crate::platform::display::host::unix) unsafe fn monitor_set_gamma_ramp(
+pub(crate) unsafe fn monitor_set_gamma_ramp(
     binding: &BindingCallContext,
     handle: resource::DisplayHandle,
     ramp: DisplayGammaRamp,

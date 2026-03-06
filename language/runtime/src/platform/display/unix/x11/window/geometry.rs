@@ -16,7 +16,7 @@ use super::{
 };
 
 /// Validate one optional size-constraint payload.
-pub(super) fn validate_size_constraints(
+pub(crate) fn validate_size_constraints(
     constraints: Option<WindowSizeConstraints>,
     operation: &'static str,
 ) -> RuntimeResult<()> {

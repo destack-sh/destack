@@ -180,9 +180,7 @@ fn publish_drop_hover(
 }
 
 /// Clear one active drop session and all associated offer state.
-pub(in crate::platform::display::host::unix::wayland) fn clear_drop_session(
-    dispatch_state: &mut WaylandConnectionDispatchState,
-) {
+pub(crate) fn clear_drop_session(dispatch_state: &mut WaylandConnectionDispatchState) {
     if let Some(offer_id) = dispatch_state.drop_session_state.offer.clone() {
         dispatch_state.data_offer_state_by_id.remove(&offer_id);
     }
@@ -191,7 +189,7 @@ pub(in crate::platform::display::host::unix::wayland) fn clear_drop_session(
 }
 
 /// Handle one `wl_data_offer` event for one active runtime connection.
-pub(in crate::platform::display::host::unix::wayland) fn handle_data_offer_event(
+pub(crate) fn handle_data_offer_event(
     dispatch_state: &mut WaylandConnectionDispatchState,
     offer: &wl_data_offer::WlDataOffer,
     event: wl_data_offer::Event,
@@ -209,7 +207,7 @@ pub(in crate::platform::display::host::unix::wayland) fn handle_data_offer_event
 }
 
 /// Handle one `wl_data_device` event for one active runtime connection.
-pub(in crate::platform::display::host::unix::wayland) fn handle_data_device_event(
+pub(crate) fn handle_data_device_event(
     dispatch_state: &mut WaylandConnectionDispatchState,
     event: wl_data_device::Event,
 ) {
@@ -323,7 +321,7 @@ pub(in crate::platform::display::host::unix::wayland) fn handle_data_device_even
 }
 
 /// Finalize one pending drop session and publish payload events.
-pub(in crate::platform::display::host::unix::wayland) fn finalize_pending_drop_session(
+pub(crate) fn finalize_pending_drop_session(
     connection: &Connection,
     event_queue: &mut EventQueue<WaylandConnectionDispatchState>,
     dispatch_state: &mut WaylandConnectionDispatchState,
@@ -461,7 +459,7 @@ pub(in crate::platform::display::host::unix::wayland) fn finalize_pending_drop_s
 }
 
 /// Reset one window-local drop state snapshot.
-pub(super) fn reset_drop_state(
+pub(crate) fn reset_drop_state(
     context: &BindingCallContext,
     binding: &mut WaylandWindowBinding,
 ) -> RuntimeResult<()> {

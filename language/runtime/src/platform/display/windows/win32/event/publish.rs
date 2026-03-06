@@ -19,7 +19,7 @@ use super::core::{
 use super::queue::{publish_monitor_event, publish_window_event, push_monitor_record};
 
 /// Publish one mode-changed monitor event.
-pub(in super::super::super) fn publish_mode_changed_event(
+pub(crate) fn publish_mode_changed_event(
     binding: &BindingCallContext,
     display_id: &str,
     mode: DisplayMode,
@@ -35,7 +35,7 @@ pub(in super::super::super) fn publish_mode_changed_event(
 }
 
 /// Publish one descriptor-changed monitor event.
-pub(in super::super::super) fn publish_descriptor_changed_event(
+pub(crate) fn publish_descriptor_changed_event(
     binding: &BindingCallContext,
     descriptor: &DisplayDescriptorSnapshot,
     changed_mask: u32,
@@ -51,9 +51,7 @@ pub(in super::super::super) fn publish_descriptor_changed_event(
 }
 
 /// Refresh the cached monitor topology snapshot from the current host state.
-pub(in super::super::super) fn refresh_monitor_topology_cache(
-    binding: &BindingCallContext,
-) -> RuntimeResult<()> {
+pub(crate) fn refresh_monitor_topology_cache(binding: &BindingCallContext) -> RuntimeResult<()> {
     // refresh monitor snapshots from host state
     let snapshots = monitor::enumerate_monitor_snapshots()?;
 
@@ -69,7 +67,7 @@ pub(in super::super::super) fn refresh_monitor_topology_cache(
 }
 
 /// Publish monitor topology events observed since the last cached snapshot.
-pub(in super::super::super) fn publish_monitor_topology_deltas(
+pub(crate) fn publish_monitor_topology_deltas(
     runtime_state: &Arc<DisplayEventRuntimeState>,
 ) -> RuntimeResult<()> {
     let next_snapshots = monitor::enumerate_monitor_snapshots()?;
@@ -99,7 +97,7 @@ pub(in super::super::super) fn publish_monitor_topology_deltas(
 }
 
 /// Seed one monitor-event stream with current monitor snapshot events.
-pub(in super::super) fn seed_monitor_event_stream(
+pub(crate) fn seed_monitor_event_stream(
     state: &mut MonitorEventState,
     filter: &MonitorEventFilterState,
 ) -> RuntimeResult<Vec<MonitorSnapshot>> {
@@ -145,7 +143,7 @@ pub(in super::super) fn seed_monitor_event_stream(
 }
 
 /// Publish one created window event.
-pub(in super::super::super) fn publish_window_created_event(
+pub(crate) fn publish_window_created_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -156,7 +154,7 @@ pub(in super::super::super) fn publish_window_created_event(
 }
 
 /// Publish one destroyed window event.
-pub(in super::super::super) fn publish_window_destroyed_event(
+pub(crate) fn publish_window_destroyed_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -167,7 +165,7 @@ pub(in super::super::super) fn publish_window_destroyed_event(
 }
 
 /// Publish one close-requested window event.
-pub(in super::super::super) fn publish_window_close_requested_event(
+pub(crate) fn publish_window_close_requested_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -178,7 +176,7 @@ pub(in super::super::super) fn publish_window_close_requested_event(
 }
 
 /// Publish one refresh-requested window event.
-pub(in super::super::super) fn publish_window_refresh_event(
+pub(crate) fn publish_window_refresh_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -303,7 +301,7 @@ fn publish_window_scale_event(
 }
 
 /// Publish one mode-changed window event.
-pub(in super::super::super) fn publish_window_mode_event(
+pub(crate) fn publish_window_mode_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
     previous_mode: WindowModeOptions,
@@ -325,7 +323,7 @@ pub(in super::super::super) fn publish_window_mode_event(
 }
 
 /// Publish one display-changed window event.
-pub(in super::super::super) fn publish_window_display_event(
+pub(crate) fn publish_window_display_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
     previous_display: Option<resource::DisplayHandle>,
@@ -567,7 +565,7 @@ fn publish_window_aspect_ratio_event(
 }
 
 /// Publish one drop-started window event.
-pub(in super::super::super) fn publish_window_drop_started_event(
+pub(crate) fn publish_window_drop_started_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -583,7 +581,7 @@ pub(in super::super::super) fn publish_window_drop_started_event(
 }
 
 /// Publish one file-hovered window event.
-pub(in super::super::super) fn publish_window_file_hovered_event(
+pub(crate) fn publish_window_file_hovered_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
     path_utf16: Option<Vec<u16>>,
@@ -605,7 +603,7 @@ pub(in super::super::super) fn publish_window_file_hovered_event(
 }
 
 /// Publish one drop-cancelled window event.
-pub(in super::super::super) fn publish_window_drop_cancelled_event(
+pub(crate) fn publish_window_drop_cancelled_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -621,7 +619,7 @@ pub(in super::super::super) fn publish_window_drop_cancelled_event(
 }
 
 /// Publish one drop-completed window event.
-pub(in super::super::super) fn publish_window_drop_completed_event(
+pub(crate) fn publish_window_drop_completed_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -637,7 +635,7 @@ pub(in super::super::super) fn publish_window_drop_completed_event(
 }
 
 /// Publish one file-hover-left window event.
-pub(in super::super::super) fn publish_window_file_hover_left_event(
+pub(crate) fn publish_window_file_hover_left_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
     previous_path_utf16: Option<Vec<u16>>,
@@ -659,7 +657,7 @@ pub(in super::super::super) fn publish_window_file_hover_left_event(
 }
 
 /// Publish one file-dropped window event.
-pub(in super::super::super) fn publish_window_file_dropped_event(
+pub(crate) fn publish_window_file_dropped_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
     path_utf16: Option<Vec<u16>>,
@@ -681,7 +679,7 @@ pub(in super::super::super) fn publish_window_file_dropped_event(
 }
 
 /// Publish one text-dropped window event.
-pub(in super::super::super) fn publish_window_text_dropped_event(
+pub(crate) fn publish_window_text_dropped_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
     text: String,
@@ -703,7 +701,7 @@ pub(in super::super::super) fn publish_window_text_dropped_event(
 }
 
 /// Publish all state transitions observed between two window snapshots.
-pub(in super::super::super) fn publish_state_deltas(
+pub(crate) fn publish_state_deltas(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
     previous: &Win32WindowBinding,

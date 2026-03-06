@@ -17,7 +17,7 @@ use super::{
 };
 
 /// Resolve one initialized wayland connection state for one operation.
-pub(super) fn connection_state(
+pub(crate) fn connection_state(
     context: &BindingCallContext,
     operation: &'static str,
 ) -> RuntimeResult<Arc<WaylandConnectionState>> {
@@ -53,7 +53,7 @@ pub(super) fn connection_state(
 }
 
 /// Execute one callback with mutable queue and dispatch-state access.
-pub(super) fn with_connection_dispatch<R>(
+pub(crate) fn with_connection_dispatch<R>(
     context: &BindingCallContext,
     operation: &'static str,
     callback: impl FnOnce(
@@ -82,7 +82,7 @@ pub(super) fn with_connection_dispatch<R>(
 }
 
 /// Pump pending wayland events for this runtime.
-pub(super) fn dispatch_pending(
+pub(crate) fn dispatch_pending(
     context: &BindingCallContext,
     operation: &'static str,
 ) -> RuntimeResult<()> {
@@ -133,7 +133,7 @@ pub(super) fn dispatch_pending(
 }
 
 /// Execute one callback with active seat and interaction serial lanes.
-pub(super) fn with_interaction_serial<R>(
+pub(crate) fn with_interaction_serial<R>(
     context: &BindingCallContext,
     operation: &'static str,
     callback: impl FnOnce(
@@ -166,7 +166,7 @@ pub(super) fn with_interaction_serial<R>(
 }
 
 /// Clear one active drop session when it targets one surface being destroyed.
-pub(super) fn clear_drop_session_for_surface(
+pub(crate) fn clear_drop_session_for_surface(
     context: &BindingCallContext,
     surface_id: &wayland_client::backend::ObjectId,
     operation: &'static str,
@@ -190,7 +190,7 @@ pub(super) fn clear_drop_session_for_surface(
 }
 
 /// Flush one event queue and map transport errors to one runtime error payload.
-pub(super) fn flush_queue(
+pub(crate) fn flush_queue(
     event_queue: &mut EventQueue<WaylandConnectionDispatchState>,
     operation: &'static str,
 ) -> RuntimeResult<()> {
@@ -200,7 +200,7 @@ pub(super) fn flush_queue(
 }
 
 /// Resolve one xdg toplevel object from one raw wayland object id.
-pub(super) fn resolve_xdg_toplevel(
+pub(crate) fn resolve_xdg_toplevel(
     connection: &Connection,
     toplevel_id: wayland_client::backend::ObjectId,
     operation: &'static str,
@@ -210,7 +210,7 @@ pub(super) fn resolve_xdg_toplevel(
 }
 
 /// Resolve one xdg surface object from one raw wayland object id.
-pub(super) fn resolve_xdg_surface(
+pub(crate) fn resolve_xdg_surface(
     connection: &Connection,
     surface_id: wayland_client::backend::ObjectId,
     operation: &'static str,
@@ -220,7 +220,7 @@ pub(super) fn resolve_xdg_surface(
 }
 
 /// Resolve one wl surface object from one raw wayland object id.
-pub(super) fn resolve_wl_surface(
+pub(crate) fn resolve_wl_surface(
     connection: &Connection,
     surface_id: wayland_client::backend::ObjectId,
     operation: &'static str,
@@ -230,7 +230,7 @@ pub(super) fn resolve_wl_surface(
 }
 
 /// Request compositor activation for one wl_surface through xdg-activation.
-pub(super) fn request_surface_activation(
+pub(crate) fn request_surface_activation(
     context: &BindingCallContext,
     surface_id: wayland_client::backend::ObjectId,
     operation: &'static str,
@@ -283,7 +283,7 @@ pub(super) fn request_surface_activation(
 }
 
 /// Request one presentation-feedback callback for one committed surface.
-pub(super) fn request_surface_presentation_feedback(
+pub(crate) fn request_surface_presentation_feedback(
     dispatch_state: &WaylandConnectionDispatchState,
     event_queue: &EventQueue<WaylandConnectionDispatchState>,
     surface: &wl_surface::WlSurface,

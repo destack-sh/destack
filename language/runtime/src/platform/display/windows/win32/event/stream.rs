@@ -338,6 +338,9 @@ pub(crate) unsafe fn window_event_open(
     core_platform::ensure_out(out, "out")?;
     let filter = WindowEventFilterState::from_open_options(options)?;
 
+    // drain pending window callbacks before the new stream subscribes
+    window::pump_window_messages(context)?;
+
     // allocate stream binding with configured queue state
     let binding = Arc::new(WindowEventBinding {
         state: Mutex::new(WindowEventState {

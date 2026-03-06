@@ -8,17 +8,17 @@ use crate::platform::core as core_platform;
 use super::core::{DisplayEventRecord, EventQueueState, WindowEventBinding, WindowEventRecord};
 
 /// Convert one remaining timeout payload into a condition wait duration.
-pub(super) fn wait_duration(remaining_ns: u64) -> Duration {
+pub(crate) fn wait_duration(remaining_ns: u64) -> Duration {
     Duration::from_nanos(remaining_ns)
 }
 
 /// Return the current host thread identifier.
-pub(super) fn current_thread_id() -> u32 {
+pub(crate) fn current_thread_id() -> u32 {
     unsafe { GetCurrentThreadId() }
 }
 
 /// Ensure one window-event stream operation is running on its owner thread.
-pub(super) fn ensure_window_event_thread(
+pub(crate) fn ensure_window_event_thread(
     binding: &WindowEventBinding,
     operation: &'static str,
 ) -> RuntimeResult<()> {
@@ -38,7 +38,7 @@ pub(super) fn ensure_window_event_thread(
 }
 
 /// Consume one latched overflow condition from one event queue state.
-pub(super) fn consume_overflow_error<Record, State: EventQueueState<Record>>(
+pub(crate) fn consume_overflow_error<Record, State: EventQueueState<Record>>(
     state: &mut State,
     operation: &'static str,
 ) -> RuntimeResult<()> {
@@ -52,7 +52,7 @@ pub(super) fn consume_overflow_error<Record, State: EventQueueState<Record>>(
 }
 
 /// Pop one pending record from one event queue state.
-pub(super) fn pop_pending_record<Record, State: EventQueueState<Record>>(
+pub(crate) fn pop_pending_record<Record, State: EventQueueState<Record>>(
     state: &mut State,
     operation: &'static str,
     would_block_message: &'static str,
@@ -71,7 +71,7 @@ pub(super) fn pop_pending_record<Record, State: EventQueueState<Record>>(
 }
 
 /// Pop one pending batch from one event queue state.
-pub(super) fn pop_pending_batch<Record, State: EventQueueState<Record>>(
+pub(crate) fn pop_pending_batch<Record, State: EventQueueState<Record>>(
     state: &mut State,
     max_events: usize,
     operation: &'static str,
@@ -177,17 +177,17 @@ where
 }
 
 /// Push one monitor-event record into one stream queue.
-pub(super) fn push_monitor_event(state: &mut MonitorEventState, event: DisplayEventRecord) {
+pub(crate) fn push_monitor_event(state: &mut MonitorEventState, event: DisplayEventRecord) {
     push_event(state, event);
 }
 
 /// Push one window-event record into one stream queue.
-pub(super) fn push_window_event(state: &mut WindowEventState, event: WindowEventRecord) {
+pub(crate) fn push_window_event(state: &mut WindowEventState, event: WindowEventRecord) {
     push_event(state, event);
 }
 
 /// Retain live subscriber bindings while removing one identity.
-pub(super) fn retain_live_without_identity<T>(registry: &mut Vec<Weak<T>>, identity: usize) {
+pub(crate) fn retain_live_without_identity<T>(registry: &mut Vec<Weak<T>>, identity: usize) {
     registry.retain(|value| {
         let Some(active) = value.upgrade() else {
             return false;
@@ -214,7 +214,7 @@ fn collect_live_subscribers<T>(registry: &mut Vec<Weak<T>>) -> Vec<Arc<T>> {
 }
 
 /// Publish one monitor-event record to all active stream subscribers.
-pub(super) fn publish_monitor_event(
+pub(crate) fn publish_monitor_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     record: DisplayEventRecord,
 ) {
@@ -244,7 +244,7 @@ pub(super) fn publish_monitor_event(
 }
 
 /// Publish one window-event record to all active stream subscribers.
-pub(super) fn publish_window_event(
+pub(crate) fn publish_window_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     record: WindowEventRecord,
 ) {

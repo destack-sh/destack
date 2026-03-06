@@ -11,13 +11,13 @@ use super::{core, dimension_to_i32};
 
 /// Decoded icon-image payload normalized to BGRA8 bytes.
 #[derive(Debug, Clone)]
-pub(super) struct DecodedWindowIconImage {
+pub(crate) struct DecodedWindowIconImage {
     /// Icon width in pixels.
-    pub(super) width: u32,
+    pub(crate) width: u32,
     /// Icon height in pixels.
-    pub(super) height: u32,
+    pub(crate) height: u32,
     /// Packed BGRA8 icon pixel bytes.
-    pub(super) pixels_bgra: Vec<u8>,
+    pub(crate) pixels_bgra: Vec<u8>,
 }
 
 /// Resolve one icon-system metric with one stable fallback.
@@ -32,7 +32,7 @@ fn icon_metric(metric: i32, fallback: u32) -> u32 {
 }
 
 /// Return target icon dimensions for small and big icon lanes.
-pub(super) fn icon_target_dimensions(small_default: u32, big_default: u32) -> (u32, u32, u32, u32) {
+pub(crate) fn icon_target_dimensions(small_default: u32, big_default: u32) -> (u32, u32, u32, u32) {
     let small_width = icon_metric(SM_CXSMICON, small_default);
     let small_height = icon_metric(SM_CYSMICON, small_default);
     let big_width = icon_metric(SM_CXICON, big_default);
@@ -41,7 +41,7 @@ pub(super) fn icon_target_dimensions(small_default: u32, big_default: u32) -> (u
 }
 
 /// Decode one window-icon set into validated BGRA payloads.
-pub(super) fn decode_window_icons(
+pub(crate) fn decode_window_icons(
     icons: WindowIconSet,
 ) -> RuntimeResult<Vec<DecodedWindowIconImage>> {
     let images = unsafe { icons.images.as_slice()? };
@@ -124,7 +124,7 @@ pub(super) fn decode_window_icons(
 }
 
 /// Select one icon image that best matches one target dimension.
-pub(super) fn best_icon_index(
+pub(crate) fn best_icon_index(
     images: &[DecodedWindowIconImage],
     target_width: u32,
     target_height: u32,
@@ -146,7 +146,7 @@ pub(super) fn best_icon_index(
 }
 
 /// Create one Win32 `HICON` handle from one decoded BGRA icon payload.
-pub(super) fn create_hicon(
+pub(crate) fn create_hicon(
     image: &DecodedWindowIconImage,
     operation: &'static str,
 ) -> RuntimeResult<isize> {
@@ -197,7 +197,7 @@ fn destroy_owned_icon(icon: isize) {
 }
 
 /// Destroy one pair of icon handles without double free.
-pub(super) fn destroy_owned_icons(small_icon: isize, big_icon: isize) {
+pub(crate) fn destroy_owned_icons(small_icon: isize, big_icon: isize) {
     // evaluate this condition
     if small_icon != 0 {
         destroy_owned_icon(small_icon);

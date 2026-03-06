@@ -37,6 +37,20 @@ pub(crate) fn u32_to_nonzero_usize(field: &'static str, value: u32) -> RuntimeRe
     Ok(value as usize)
 }
 
+/// Convert one u32 value into one host usize.
+#[cfg(any(unix, windows))]
+#[allow(dead_code)]
+pub(crate) fn u32_to_usize(value: u32) -> usize {
+    value as usize
+}
+
+/// Convert one u32 value into one host isize.
+#[cfg(any(unix, windows))]
+#[allow(dead_code)]
+pub(crate) fn u32_to_isize(field: &'static str, value: u32) -> RuntimeResult<isize> {
+    isize::try_from(value).map_err(|_| invalid_argument(field, "value exceeds host isize range"))
+}
+
 /// Resolve one optional u64 nanosecond value into one bounded duration.
 pub(crate) fn duration_from_option_ns(value: Option<u64>, default: u64, min: u64) -> Duration {
     Duration::from_nanos(option_u64_or_min(value, default, min))

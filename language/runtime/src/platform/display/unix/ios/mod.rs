@@ -2,6 +2,6 @@ mod event;
 mod monitor;
 mod window;
 
-pub(super) use event::*;
-pub(super) use monitor::*;
-pub(super) use window::*;
+pub(crate) use event::*;
+pub(crate) use monitor::*;
+pub(crate) use window::*;
