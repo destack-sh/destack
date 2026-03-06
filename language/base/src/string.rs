@@ -1,5 +1,5 @@
 use parking_lot::RwLock;
-use rustc_hash::{FxHashMap, FxHasher};
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHasher};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Debug, Formatter};
 use std::hash::{Hash, Hasher};
@@ -116,7 +116,7 @@ impl LocalStringPool {
         Self {
             buffer: String::with_capacity(total_bytes),
             spans: Vec::with_capacity(string_count),
-            index: FxHashMap::default(),
+            index: FxHashMap::with_capacity_and_hasher(string_count, FxBuildHasher),
         }
     }
 

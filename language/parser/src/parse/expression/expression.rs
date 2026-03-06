@@ -11,9 +11,76 @@ use destack_ast::{
 use super::super::annotation::PendingDecorators;
 
 /// The recursion interval for stack growth checks in expression parsing.
-const STACK_GROW_CHECK_INTERVAL: u32 = 256;
+const STACK_GROW_CHECK_INTERVAL: u32 = if cfg!(debug_assertions) { 1 } else { 256 };
 
 impl Parser {
+    /// Try to parse a plain identifier expression once the caller proved the current token shape.
+    #[inline]
+    pub(crate) fn try_parse_plain_identifier_expression_from_identifier(
+        &mut self,
+        start: &ParserMark,
+        pos_index: usize,
+        next_raw_index: usize,
+        next_raw_token_type: TokenType,
+    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        if self.should_try_contextual_type_literal() {
+            return Ok(None);
+        }
+
+        if matches!(next_raw_token_type, TokenType::Arrow | TokenType::ArrowWide) {
+            return Ok(None);
+        }
+
+        // labelled statements need the full expression entry path
+        if self.options.is_in_statement_position() && next_raw_token_type == TokenType::Colon {
+            return Ok(None);
+        }
+
+        // declaration disambiguation only applies to `global` and `module`
+        let declaration_identifier_start = self
+            .token_ref_at(pos_index)
+            .map(|token| token.span.start as usize);
+        let has_declaration_identifier_prefix = declaration_identifier_start
+            .and_then(|start| self.file.text().as_bytes().get(start))
+            .copied()
+            .is_some_and(|first_byte| first_byte == b'g' || first_byte == b'm');
+        if has_declaration_identifier_prefix {
+            let is_global_identifier = self.is_global_identifier_at(pos_index);
+            let is_module_identifier = self.language.supports_module_declaration()
+                && self.is_module_identifier_at(pos_index);
+            if is_global_identifier || is_module_identifier {
+                let next_cursor = self.scanner_cursor_from(next_raw_index);
+                let next_token_type = next_cursor.token_type;
+                let next_token_index = next_cursor.index;
+                let next_has_line_break = next_cursor.has_line_break_before;
+
+                // contextual global declarations need descriptor parsing even in non statement contexts
+                let can_start_global_declaration = matches!(
+                    next_token_type,
+                    TokenType::OpenBrace | TokenType::Identifier | TokenType::Literal
+                );
+                if is_global_identifier && can_start_global_declaration {
+                    return Ok(None);
+                }
+
+                let is_module_declaration_start = is_module_identifier
+                    && !next_has_line_break
+                    && DECLARATION_START_TOKENS.contains(&next_token_type)
+                    && matches!(next_token_type, TokenType::Identifier | TokenType::Literal)
+                    && (next_token_type != TokenType::Identifier
+                        || !is_type_relation_keyword(self.keyword_for_index(next_token_index)));
+                if is_module_declaration_start {
+                    return Ok(None);
+                }
+            }
+        }
+
+        let identifier_expression_id = self.eat_identifier_expression_path(start)?;
+        let expression_id = self.eat_expression_continuation(start, identifier_expression_id)?;
+
+        Ok(Some(expression_id))
+    }
+
     /// Eat an expression with options known by the caller, skipping option equality checks.
     #[inline(always)]
     pub(crate) fn eat_expression_with_options_unchecked(
@@ -133,69 +200,18 @@ impl Parser {
         }
 
         let pos_index = self.pos_index();
-
         if self.keyword_for_index(pos_index).is_some() {
-            return Ok(None);
-        }
-
-        if self.should_try_contextual_type_literal() {
             return Ok(None);
         }
 
         let next_raw_index = self.index_for_next();
         let next_raw_token_type = self.token_type_at(next_raw_index);
-        if matches!(next_raw_token_type, TokenType::Arrow | TokenType::ArrowWide) {
-            return Ok(None);
-        }
-        // labelled statements need the full expression entry path
-        if self.options.is_in_statement_position() && next_raw_token_type == TokenType::Colon {
-            return Ok(None);
-        }
-
-        // declaration disambiguation only applies to `global` and `module`
-        let declaration_identifier_start = self
-            .token_ref_at(pos_index)
-            .map(|token| token.span.start as usize);
-        let has_declaration_identifier_prefix = declaration_identifier_start
-            .and_then(|start| self.file.text().as_bytes().get(start))
-            .copied()
-            .is_some_and(|first_byte| first_byte == b'g' || first_byte == b'm');
-        if has_declaration_identifier_prefix {
-            let is_global_identifier = self.is_global_identifier_at(pos_index);
-            let is_module_identifier = self.language.supports_module_declaration()
-                && self.is_module_identifier_at(pos_index);
-            if is_global_identifier || is_module_identifier {
-                let next_cursor = self.scanner_cursor_from(next_raw_index);
-                let next_token_type = next_cursor.token_type;
-                let next_token_index = next_cursor.index;
-                let next_has_line_break = next_cursor.has_line_break_before;
-
-                // contextual global declarations need descriptor parsing even in non statement contexts
-                let can_start_global_declaration = matches!(
-                    next_token_type,
-                    TokenType::OpenBrace | TokenType::Identifier | TokenType::Literal
-                );
-                if is_global_identifier && can_start_global_declaration {
-                    return Ok(None);
-                }
-
-                let is_module_declaration_start = is_module_identifier
-                    && !next_has_line_break
-                    && DECLARATION_START_TOKENS.contains(&next_token_type)
-                    && matches!(next_token_type, TokenType::Identifier | TokenType::Literal)
-                    && (next_token_type != TokenType::Identifier
-                        || !is_type_relation_keyword(self.keyword_for_index(next_token_index)));
-                if is_module_declaration_start {
-                    return Ok(None);
-                }
-            }
-        }
-
-        let identifier_expression_id = self.eat_identifier_expression_path(start)?;
-
-        let expression_id = self.eat_expression_continuation(start, identifier_expression_id)?;
-
-        Ok(Some(expression_id))
+        self.try_parse_plain_identifier_expression_from_identifier(
+            start,
+            pos_index,
+            next_raw_index,
+            next_raw_token_type,
+        )
     }
 
     /// Try to parse a plain identifier path in type positions.
