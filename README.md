@@ -131,7 +131,7 @@ More importantly, we need to program machines in _some_ symbolic system to contr
 
 8. **Why not abandon standards entirely and fix _all_ the problems in a whole new stack?** 
 It's tempting to design the "optimal" stack, but even if AI could magically migrate everything, historically, new "big bang" systems usually fail.
-The core tensions in Destack is deciding which technologies are: 
+The core tension of Destack is deciding which technologies are: 
 a) expressive enough to support universal software,
 b) performant enough to run all software at machine speed, and 
 c) familiar enough to be intuitive and reviewable.
@@ -139,7 +139,7 @@ The intersection of a, b, and c turns out web-shaped.
 
 9. **Why is Destack itself built on top of Rust, considering Destack and "TS++" are so great?** 
 Destack is _currently_ primarily implemented in Rust, especially the language toolchain, but that is just the pragmatic bootstrapping path to eventual self-hosting.
-Library, services, and apps are already written in Destack as much as possible, and we have a plan for gradually migrating the full stack to be fully self-hosted.
+Library, services, and apps are already written in Destack as much as possible, and we want to gradually migrate the full stack to be fully self-hosted soon(ish).
 
 ---
 
