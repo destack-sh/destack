@@ -168,6 +168,92 @@ fn test_workspace_service_read_query_rejects_expected_revision() {
     ));
 }
 
+/// Resolve cross-module references for exported symbols.
+#[test]
+fn test_workspace_service_query_find_references_cross_module() {
+    let test = TestLanguageService::new("workspace_service_find_references_cross_module");
+    let lib_source = "export function ping(): void {}\n";
+    let main_source = "import { ping } from \"./lib.ds\";\nping();\n";
+    let lib_path = test.write_text("lib.ds", lib_source);
+    let main_path = test.write_text("main.ds", main_source);
+    let lib_uri = test.uri_for_path(&lib_path);
+
+    // apply virtual updates for both files
+    let _ = test.update_virtual_text(&lib_path, lib_source);
+    let _ = test.update_virtual_text(&main_path, main_source);
+
+    // query references from the exported symbol definition
+    let ping_offset = lib_source
+        .find("ping")
+        .unwrap_or_else(|| panic!("expected 'ping' in lib source")) as u32;
+    let response = test
+        .service
+        .execute_read_query_for_path(
+            &lib_path,
+            query::QueryRequest::FindReferences(query::FindReferencesRequest {
+                uri: lib_uri,
+                offset: ping_offset,
+                include_declaration: true,
+            }),
+        )
+        .expect("expected references query response");
+    let query::QueryResponse::FindReferences(query::FindReferencesResponse { result }) =
+        response.response
+    else {
+        panic!("expected references query response payload");
+    };
+    let result = result.expect("expected references query result");
+
+    // assert all three references: definition, import specifier, and call site
+    assert_eq!(result.references.len(), 3);
+}
+
+/// Rename exported functions across module boundaries.
+#[test]
+fn test_workspace_service_query_rename_cross_module() {
+    let test = TestLanguageService::new("workspace_service_rename_cross_module");
+    let lib_source = "export function greet(name: string): string {\n    return name;\n}\n";
+    let main_source = "import { greet } from \"./lib.ds\";\nconst output = greet(\"Ada\");\n";
+    let lib_path = test.write_text("lib.ds", lib_source);
+    let main_path = test.write_text("main.ds", main_source);
+    let lib_uri = test.uri_for_path(&lib_path);
+
+    // apply virtual updates for both files
+    let _ = test.update_virtual_text(&lib_path, lib_source);
+    let _ = test.update_virtual_text(&main_path, main_source);
+
+    // query rename from the exported definition
+    let greet_offset = lib_source
+        .find("greet")
+        .unwrap_or_else(|| panic!("expected 'greet' in lib source")) as u32;
+    let response = test
+        .service
+        .execute_write_query_envelope_for_path(
+            &lib_path,
+            query::QueryRequestEnvelope {
+                expected_revision: Some(
+                    test.service
+                        .revision_for_path(&lib_path)
+                        .expect("expected revision for rename"),
+                ),
+                request: query::QueryRequest::Rename(query::RenameRequest {
+                    uri: lib_uri,
+                    offset: greet_offset,
+                    new_name: "salute".to_string(),
+                }),
+            },
+        )
+        .expect("expected rename query response");
+    let query::QueryResponse::Rename(query::RenameResponse { result }) = response.response else {
+        panic!("expected rename query response payload");
+    };
+    let result = result.expect("expected rename query result");
+
+    // assert scope: two files touched, three symbol edits total
+    assert_eq!(result.edits.file_count(), 2);
+    assert_eq!(result.edits.total_edits(), 3);
+}
+
 /// Return a busy error when a read query arrives during an active mutation guard.
 #[test]
 fn test_workspace_service_read_query_returns_busy_during_mutation() {
