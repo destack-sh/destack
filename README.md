@@ -110,14 +110,14 @@ However, while Destack passes 96.48% of test262, it's not ECMAScript compliant a
 Destack also doesn't support legacy features like duck-typing thenables (we do explicit `Promise` only).
 
 4. **Why not support both a JavaScript "slow mode" and a TypeScript "fast mode"?**
-Running "regular" Javascript _well_ is complex as it's essentially whole second lane alongside a strict TypeScript AOT model. 
+Running "regular" Javascript _well_ is complex as it's essentially a whole second lane alongside the strict TypeScript AOT model. 
 Further, _just_ supporting untyped JS is not that useful - we would also need a full web surface for the many frontend JS libraries.
-Modern "backend" code uses TypeScript and Node-ish APIs already, while "frontend" stuff doesn't work well natively anyway (without implementing a new browser).
+Modern "backend" code uses TypeScript and Node APIs already, while "frontend" stuff doesn't work well natively anyway (without implementing a new browser).
 
 5. **How does Destack interact with the existing JavaScript/TypeScript/Node/web ecosystem?**
-Destack is not a browser.
 Destack runs TS directly, and "TS++" (`.ds` files) can transpile into `.js`/`.ts` for browsers and other JS-only runtimes. 
-On the backend, Destack supports Node APIs, similar to other Node-style runtimes (Bun/Deno).
+Destack is not a browser, and has no renderer (yet).
+On the backend, Destack supports Node APIs, similar to other Node-derived runtimes (Bun/Deno).
 However, Destack does _not_ fully support arbitrary JS/TS code *on the native path*, and it also does not fully support _all_ web standards.
 
 6. **Why can't we just use TypeScript/web for front-end and Rust/C++/Go for back-end?** 
