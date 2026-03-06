@@ -21,7 +21,8 @@ The current language suite taxonomy is:
 | **Smoke** | Correctness | Quick | `fixtures/smoke/` | Broad sanity checks for parser and compiler flows |
 | **Emit** | Correctness | Standalone | `fixtures/emit/` | Emitted output matches curated snapshots |
 | **Specification** | Correctness | Quick | `fixtures/specification/` | First-party language semantics and diagnostics |
-| **Query** | Correctness | Quick | `fixtures/query/` | IDE and LSP behavior |
+| **Query** | Correctness | Quick | `fixtures/query/` | Query-layer IDE behavior |
+| **LSP** | Correctness | Quick | `fixtures/lsp/` | Applied editor scenarios over the real in-process LSP server |
 | **Resolver** | Correctness | Quick | `fixtures/resolver/` | Module and package resolution |
 | **Formatter** | Correctness | Quick | `fixtures/formatter/` | Formatting behavior on first-party fixtures |
 | **Parser Conformance** | Conformance | Quick | `fixtures/parser/conformance/` | Behavior against pinned upstream parser suites |
@@ -42,7 +43,7 @@ Run these from `language/` unless noted otherwise.
 
 `just test` is the language test aggregate used by `just quick`.
 `just test-emit` stays standalone until the emit pipeline is mature enough to trust in the fast gate.
-`just full` then adds more slow tests like `ecosystem` and `stress`.
+`just full` then adds the slower ecosystem and stress lanes.
 
 ## Concurrency
 
@@ -73,6 +74,7 @@ just test-smoke
 just test-emit
 just test-specification
 just test-query
+just test-lsp
 just test-resolver
 just test-formatter
 just test-grammar
@@ -88,11 +90,23 @@ just generate-stress
 just test-stress
 ```
 
-## MDTest
+## Mdtest
 
-The MDTest framework powers both `specification` and `query`.
+The mdtest framework powers the specification, query, and LSP suites.
 Specification fixtures define language semantics and diagnostics in markdown.
-Query fixtures define IDE and LSP behavior through source markers and expected results.
+Query fixtures define lower-level query behavior through source markers and expected results.
+LSP fixtures define applied editor scenarios through `ds:path` source blocks and `lsp ...` expectation blocks.
+
+## Direct Entry Points
+
+Use the justfile commands as the public interface.
+The direct Cargo entry points are useful when working on one harness in isolation.
+
+```bash
+cargo test -p destack_test --test specification
+cargo test -p destack_test --test query
+cargo test -p destack_test --test lsp
+```
 
 ## Performance
 
