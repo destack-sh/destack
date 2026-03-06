@@ -22,32 +22,56 @@ pub(crate) struct DelimiterAnalysis {
 /// Parenthesized group shape alias used by expression dispatch.
 pub(crate) type ParenthesizedGroupShape = DelimiterAnalysis;
 
-/// The raw follow token facts for a parenthesized group.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct ParenthesizedFollowToken {
-    /// The semantic token index of the matching close parenthesis.
-    pub close_index: usize,
-    /// The raw token type immediately following the close parenthesis.
-    pub follow_token_type: TokenType,
-}
-
 impl Parser {
-    /// Return the raw token type that follows the current parenthesized group.
-    pub(super) fn parenthesized_follow_token(&mut self) -> Option<ParenthesizedFollowToken> {
-        if self.peek_token_type() != TokenType::OpenParenthesis {
-            return None;
+    /// Return the shape for the current open parenthesis.
+    pub(super) fn parenthesized_group_shape(&mut self) -> ParseResult<ParenthesizedGroupShape> {
+        let ambient_context = self.current_ambient_context();
+        let expression_context = self.current_expression_context();
+        let open_index = self.pos_index();
+
+        // tree literal starts like `(<div>...)` do not need delimiter-shape lookahead
+        let has_parenthesized_tree_literal = self.language.supports_jsx()
+            && !ambient_context.is_in_type()
+            && !expression_context.is_in_arrow_return_type()
+            && self.parenthesized_group_starts_with_tree_literal(open_index);
+
+        // plain path: in JS/TS value contexts, branch on the token after ')'
+        let can_use_plain_group_follow = !self.language.is_destack()
+            && !ambient_context.is_in_type()
+            && !expression_context.is_in_arrow_return_type()
+            && !self.has_active_split()
+            && !has_parenthesized_tree_literal;
+        if can_use_plain_group_follow {
+            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+                speculation_stats.parenthesized_follow_token_calls += 1;
+            }
+
+            if let Some(close_index) = self.matching_pair_or_lex(open_index) {
+                let follow_token_type = self.token_type_at(close_index + 1);
+                if follow_token_type != TokenType::End {
+                    if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+                        speculation_stats.parenthesized_follow_token_hits += 1;
+                    }
+
+                    if matches!(follow_token_type, TokenType::Arrow | TokenType::ArrowWide) {
+                        return Ok(ParenthesizedGroupShape {
+                            close_index: Some(close_index),
+                            has_arrow_follow: true,
+                            ..ParenthesizedGroupShape::default()
+                        });
+                    }
+
+                    if follow_token_type != TokenType::Colon {
+                        return Ok(ParenthesizedGroupShape::default());
+                    }
+                }
+            }
         }
 
-        let open_index = self.pos_index();
-        let close_index = self.matching_pair_or_lex(open_index)?;
-        let follow_token_type = self.token_type_at(close_index + 1);
-        if follow_token_type == TokenType::End {
-            None
+        if has_parenthesized_tree_literal {
+            Ok(ParenthesizedGroupShape::default())
         } else {
-            Some(ParenthesizedFollowToken {
-                close_index,
-                follow_token_type,
-            })
+            self.try_lookahead_parenthesized_group_shape()
         }
     }
 
@@ -55,6 +79,12 @@ impl Parser {
     pub(super) fn try_lookahead_parenthesized_group_shape(
         &mut self,
     ) -> ParseResult<ParenthesizedGroupShape> {
+        let ambient = self.current_ambient_context();
+
+        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.delimiter_analysis_lookups += 1;
+        }
+
         // skip cache when split token state can change current token semantics
         if !self.has_active_split() {
             let lookahead_index = self.pos_index();
@@ -66,12 +96,18 @@ impl Parser {
                 .copied()
                 .unwrap_or(false)
             {
+                if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+                    speculation_stats.delimiter_analysis_cache_hits += 1;
+                }
                 return Ok(self.delimiter_analyses[lookahead_index]);
             }
         }
 
         // tree literal lexing can mutate token stream state during lookahead
-        let needs_snapshot = self.allow_tree_literals() && !self.options.is_in_type();
+        let needs_snapshot = self.allow_tree_literals() && !ambient.is_in_type();
+        if needs_snapshot && let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.delimiter_analysis_snapshot_lookups += 1;
+        }
         let lookahead_result = if needs_snapshot {
             let lookahead_mark = self.mark_rewind();
             let lookahead_result = self.lookahead_delimiter_analysis_inner();
@@ -100,6 +136,13 @@ impl Parser {
 
     /// Compute delimiter analysis metadata for the current opening token.
     fn lookahead_delimiter_analysis_inner(&mut self) -> ParseResult<DelimiterAnalysis> {
+        let ambient = self.current_ambient_context();
+        let expression = self.current_expression_context();
+
+        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.delimiter_analysis_scans += 1;
+        }
+
         let open_index = self.pos_index();
         self.ensure_token(open_index);
         let Some(open_token) = self.tokens().get(open_index).copied() else {
@@ -141,8 +184,8 @@ impl Parser {
             Some(TokenType::Arrow | TokenType::ArrowWide)
         );
         let has_colon_follow = matches!(follow_token_type, Some(TokenType::Colon));
-        let needs_parameter_shape_for_arrow_return = self.options.is_in_arrow_return_type();
-        let needs_parameter_shape_for_typed_colon = self.options.is_in_type() && has_colon_follow;
+        let needs_parameter_shape_for_arrow_return = expression.is_in_arrow_return_type();
+        let needs_parameter_shape_for_typed_colon = ambient.is_in_type() && has_colon_follow;
 
         // js and ts can usually decide lambda eligibility from the token after ')'
         // skip deep shape scanning unless parameter shape data is required
@@ -177,12 +220,10 @@ impl Parser {
         let open_index = open_pos as usize;
 
         // tree literals can contain raw `)` text, so groups that start as tree literals use expression matching
-        let tree_literals_allowed = self.language.supports_jsx()
-            && !self.options.is_in_type()
-            && (self.allow_tree_literals() || self.options.is_in_tree_literal());
+        let tree_literals_allowed = self.expression_tree_literals_allowed();
         let needs_tree_aware_parenthesis_matching = open_token_type == TokenType::OpenParenthesis
             && tree_literals_allowed
-            && (self.options.is_in_tree_literal()
+            && (self.current_ambient_context().is_in_tree_literal()
                 || self.parenthesized_group_starts_with_tree_literal(open_index));
         if needs_tree_aware_parenthesis_matching {
             let close_pos = self.find_matching_close_in_expression(

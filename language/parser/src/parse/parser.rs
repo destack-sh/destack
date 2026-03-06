@@ -83,12 +83,541 @@ pub struct ParserOptions {
     pub left_precedence: Option<u16>,
 }
 
+/// Hot expression-local parser context.
+///
+/// This is the first compatibility step toward splitting `ParserOptions`
+/// into parser settings, ambient parser state, and expression-local mode.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct ParserExpressionContext {
+    /// Packed expression-local flags.
+    flags: u8,
+    /// The left precedence preceding the current expression.
+    pub left_precedence: Option<u16>,
+}
+
+/// Parser-owned ambient state outside the hot expression-local mode.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+pub struct ParserAmbientContext {
+    /// Packed ambient parser flags.
+    flags: u32,
+}
+
+impl Default for ParserExpressionContext {
+    fn default() -> Self {
+        Self {
+            flags: Self::ALLOW_SEQUENCE_EXPRESSION_FLAG,
+            left_precedence: None,
+        }
+    }
+}
+
 impl Default for ParserOptions {
     fn default() -> Self {
         Self {
             flags: Self::ALLOW_SEQUENCE_EXPRESSION_FLAG,
             left_precedence: None,
         }
+    }
+}
+
+#[allow(unused)]
+impl ParserAmbientContext {
+    const IN_STATIC_FLAG: u32 = 1 << 0;
+    const IN_COMPTIME_FLAG: u32 = 1 << 1;
+    const IN_TYPE_FLAG: u32 = 1 << 2;
+    const IN_SUPER_TYPE_FLAG: u32 = 1 << 3;
+    const IN_VARIANT_FLAG: u32 = 1 << 4;
+    const IN_BEFORE_TYPE_FLAG: u32 = 1 << 5;
+    const IN_MATCH_CASE_FLAG: u32 = 1 << 6;
+    const IN_UNION_PATTERN_FLAG: u32 = 1 << 7;
+    const IN_DECLARE_CONTEXT_FLAG: u32 = 1 << 8;
+    const IN_STATEMENT_CONTEXT_FLAG: u32 = 1 << 9;
+    const IN_BEFORE_BLOCK_FLAG: u32 = 1 << 10;
+    const IN_TREE_LITERAL_FLAG: u32 = 1 << 11;
+    const IN_DECORATOR_FLAG: u32 = 1 << 12;
+    const IN_TYPE_MAPPED_CONSTRAINT_FLAG: u32 = 1 << 13;
+    const IN_FOR_EACH_FLAG: u32 = 1 << 14;
+    const IN_NEW_RECEIVER_FLAG: u32 = 1 << 15;
+    const IN_TYPEOF_QUERY_FLAG: u32 = 1 << 16;
+    const IN_GENERATOR_FLAG: u32 = 1 << 17;
+    const FORBID_YIELD_FLAG: u32 = 1 << 18;
+    const FORBID_AWAIT_FLAG: u32 = 1 << 19;
+    const ALLOW_PRIVATE_HASH_KEY_FLAG: u32 = 1 << 20;
+    const DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG: u32 = 1 << 21;
+
+    #[inline]
+    const fn has_flag(self, flag: u32) -> bool {
+        (self.flags & flag) != 0
+    }
+
+    #[inline]
+    fn with_flag(mut self, flag: u32, enabled: bool) -> Self {
+        if enabled {
+            self.flags |= flag;
+        } else {
+            self.flags &= !flag;
+        }
+        self
+    }
+
+    /// Return true when parsing in a static context.
+    #[inline]
+    pub(crate) const fn is_in_static(self) -> bool {
+        self.has_flag(Self::IN_STATIC_FLAG)
+    }
+
+    /// Return true when parsing in a comptime context.
+    #[inline]
+    pub(crate) const fn is_in_comptime(self) -> bool {
+        self.has_flag(Self::IN_COMPTIME_FLAG)
+    }
+
+    /// Return true when parsing in a type context.
+    #[inline]
+    pub(crate) const fn is_in_type(self) -> bool {
+        self.has_flag(Self::IN_TYPE_FLAG)
+    }
+
+    /// Return true when parsing a super type.
+    #[inline]
+    pub(crate) const fn is_in_super_type(self) -> bool {
+        self.has_flag(Self::IN_SUPER_TYPE_FLAG)
+    }
+
+    /// Return true when parsing a variant.
+    #[inline]
+    pub(crate) const fn is_in_variant(self) -> bool {
+        self.has_flag(Self::IN_VARIANT_FLAG)
+    }
+
+    /// Return true when parsing before a type position.
+    #[inline]
+    pub(crate) const fn is_in_before_type(self) -> bool {
+        self.has_flag(Self::IN_BEFORE_TYPE_FLAG)
+    }
+
+    /// Return true when parsing inside a match case.
+    #[inline]
+    pub(crate) const fn is_in_match_case(self) -> bool {
+        self.has_flag(Self::IN_MATCH_CASE_FLAG)
+    }
+
+    /// Return true when parsing a union pattern.
+    #[inline]
+    pub(crate) const fn is_in_union_pattern(self) -> bool {
+        self.has_flag(Self::IN_UNION_PATTERN_FLAG)
+    }
+
+    /// Return true when parsing in a declare context.
+    #[inline]
+    pub(crate) const fn is_in_declare_context(self) -> bool {
+        self.has_flag(Self::IN_DECLARE_CONTEXT_FLAG)
+    }
+
+    /// Return true when parsing in statement context.
+    #[inline]
+    pub(crate) const fn is_in_statement_context(self) -> bool {
+        self.has_flag(Self::IN_STATEMENT_CONTEXT_FLAG)
+    }
+
+    /// Return true when parsing before a block.
+    #[inline]
+    pub(crate) const fn is_in_before_block(self) -> bool {
+        self.has_flag(Self::IN_BEFORE_BLOCK_FLAG)
+    }
+
+    /// Return true when parsing inside a tree literal.
+    #[inline]
+    pub(crate) const fn is_in_tree_literal(self) -> bool {
+        self.has_flag(Self::IN_TREE_LITERAL_FLAG)
+    }
+
+    /// Return true when parsing inside a decorator.
+    #[inline]
+    pub(crate) const fn is_in_decorator(self) -> bool {
+        self.has_flag(Self::IN_DECORATOR_FLAG)
+    }
+
+    /// Return true when parsing a mapped-type constraint.
+    #[inline]
+    pub(crate) const fn is_in_type_mapped_constraint(self) -> bool {
+        self.has_flag(Self::IN_TYPE_MAPPED_CONSTRAINT_FLAG)
+    }
+
+    /// Return true when parsing a for-each clause.
+    #[inline]
+    pub(crate) const fn is_in_for_each(self) -> bool {
+        self.has_flag(Self::IN_FOR_EACH_FLAG)
+    }
+
+    /// Return true when parsing a new receiver.
+    #[inline]
+    pub(crate) const fn is_in_new_receiver(self) -> bool {
+        self.has_flag(Self::IN_NEW_RECEIVER_FLAG)
+    }
+
+    /// Return true when parsing a typeof query.
+    #[inline]
+    pub(crate) const fn is_in_typeof_query(self) -> bool {
+        self.has_flag(Self::IN_TYPEOF_QUERY_FLAG)
+    }
+
+    /// Return true when parsing inside a generator.
+    #[inline]
+    pub(crate) const fn is_in_generator(self) -> bool {
+        self.has_flag(Self::IN_GENERATOR_FLAG)
+    }
+
+    /// Return true when `yield` is forbidden.
+    #[inline]
+    pub(crate) const fn is_forbid_yield(self) -> bool {
+        self.has_flag(Self::FORBID_YIELD_FLAG)
+    }
+
+    /// Return true when `await` is forbidden.
+    #[inline]
+    pub(crate) const fn is_forbid_await(self) -> bool {
+        self.has_flag(Self::FORBID_AWAIT_FLAG)
+    }
+
+    /// Return true when private hash keys are allowed.
+    #[inline]
+    pub(crate) const fn allows_private_hash_key(self) -> bool {
+        self.has_flag(Self::ALLOW_PRIVATE_HASH_KEY_FLAG)
+    }
+
+    /// Return true when ambiguous tree literals are disallowed.
+    #[inline]
+    pub(crate) const fn is_disallow_ambiguous_tree_literal(self) -> bool {
+        self.has_flag(Self::DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG)
+    }
+
+    /// Reset to the ambient state preserved by `ParserOptions::nested()`.
+    #[inline]
+    pub(crate) fn nested(self) -> Self {
+        Self::default()
+            .with_flag(Self::IN_GENERATOR_FLAG, self.is_in_generator())
+            .with_flag(Self::IN_COMPTIME_FLAG, self.is_in_comptime())
+            .with_flag(Self::FORBID_YIELD_FLAG, self.is_forbid_yield())
+            .with_flag(Self::FORBID_AWAIT_FLAG, self.is_forbid_await())
+            .with_flag(Self::IN_DECORATOR_FLAG, self.is_in_decorator())
+            .with_flag(
+                Self::DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG,
+                self.is_disallow_ambiguous_tree_literal(),
+            )
+            .with_flag(Self::IN_DECLARE_CONTEXT_FLAG, self.is_in_declare_context())
+            .with_flag(
+                Self::IN_STATEMENT_CONTEXT_FLAG,
+                self.is_in_statement_context(),
+            )
+    }
+
+    /// Set type context.
+    #[inline]
+    pub(crate) fn with_type(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_TYPE_FLAG, enabled)
+    }
+
+    /// Set static context.
+    #[inline]
+    pub(crate) fn with_static(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_STATIC_FLAG, enabled)
+    }
+
+    /// Set comptime context.
+    #[inline]
+    pub(crate) fn with_comptime(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_COMPTIME_FLAG, enabled)
+    }
+
+    /// Set variant context.
+    #[inline]
+    pub(crate) fn with_variant(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_VARIANT_FLAG, enabled)
+    }
+
+    /// Set before-type context.
+    #[inline]
+    pub(crate) fn with_before_type(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_BEFORE_TYPE_FLAG, enabled)
+    }
+
+    /// Set match-case context.
+    #[inline]
+    pub(crate) fn with_match_case(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_MATCH_CASE_FLAG, enabled)
+    }
+
+    /// Set union-pattern context.
+    #[inline]
+    pub(crate) fn with_union_pattern(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_UNION_PATTERN_FLAG, enabled)
+    }
+
+    /// Set declare-context state.
+    #[inline]
+    pub(crate) fn with_declare_context(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_DECLARE_CONTEXT_FLAG, enabled)
+    }
+
+    /// Set tree-literal context.
+    #[inline]
+    pub(crate) fn with_tree_literal(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_TREE_LITERAL_FLAG, enabled)
+    }
+
+    /// Set super-type context.
+    #[inline]
+    pub(crate) fn with_super_type(self, enabled: bool) -> Self {
+        let context = self.with_flag(Self::IN_SUPER_TYPE_FLAG, enabled);
+        if enabled {
+            context.with_type(true)
+        } else {
+            context
+        }
+    }
+
+    /// Set statement-context state.
+    #[inline]
+    pub(crate) fn with_statement_context(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_STATEMENT_CONTEXT_FLAG, enabled)
+    }
+
+    /// Set before-block context.
+    #[inline]
+    pub(crate) fn with_before_block(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_BEFORE_BLOCK_FLAG, enabled)
+    }
+
+    /// Set decorator context.
+    #[inline]
+    pub(crate) fn with_decorator(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_DECORATOR_FLAG, enabled)
+    }
+
+    /// Set mapped-type-constraint context.
+    #[inline]
+    pub(crate) fn with_type_mapped_constraint(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_TYPE_MAPPED_CONSTRAINT_FLAG, enabled)
+    }
+
+    /// Set for-each context.
+    #[inline]
+    pub(crate) fn with_for_each(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_FOR_EACH_FLAG, enabled)
+    }
+
+    /// Set new-receiver context.
+    #[inline]
+    pub(crate) fn with_new_receiver(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_NEW_RECEIVER_FLAG, enabled)
+    }
+
+    /// Set typeof-query context.
+    #[inline]
+    pub(crate) fn with_typeof_query(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_TYPEOF_QUERY_FLAG, enabled)
+    }
+
+    /// Set forbid-await context.
+    #[inline]
+    pub(crate) fn with_forbid_await(self, enabled: bool) -> Self {
+        self.with_flag(Self::FORBID_AWAIT_FLAG, enabled)
+    }
+
+    /// Set generator context.
+    #[inline]
+    pub(crate) fn with_generator(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_GENERATOR_FLAG, enabled)
+    }
+
+    /// Set forbid-yield context.
+    #[inline]
+    pub(crate) fn with_forbid_yield(self, enabled: bool) -> Self {
+        self.with_flag(Self::FORBID_YIELD_FLAG, enabled)
+    }
+
+    /// Set private-hash-key allowance.
+    #[inline]
+    pub(crate) fn with_allow_private_hash_key(self, enabled: bool) -> Self {
+        self.with_flag(Self::ALLOW_PRIVATE_HASH_KEY_FLAG, enabled)
+    }
+}
+
+#[allow(unused)]
+impl ParserExpressionContext {
+    const IN_PARENTHESIS_FLAG: u8 = 1 << 0;
+    const IN_STATEMENT_POSITION_FLAG: u8 = 1 << 1;
+    const IN_TERNARY_CONDITION_FLAG: u8 = 1 << 2;
+    const IN_TYPE_CONDITIONAL_RIGHT_FLAG: u8 = 1 << 3;
+    const IN_ARROW_RETURN_TYPE_FLAG: u8 = 1 << 4;
+    const ALLOW_SEQUENCE_EXPRESSION_FLAG: u8 = 1 << 5;
+
+    #[inline]
+    const fn has_flag(self, flag: u8) -> bool {
+        (self.flags & flag) != 0
+    }
+
+    #[inline]
+    fn with_flag(mut self, flag: u8, enabled: bool) -> Self {
+        if enabled {
+            self.flags |= flag;
+        } else {
+            self.flags &= !flag;
+        }
+        self
+    }
+
+    /// Return true when parsing inside parentheses.
+    #[inline]
+    pub(crate) const fn is_in_parenthesis(self) -> bool {
+        self.has_flag(Self::IN_PARENTHESIS_FLAG)
+    }
+
+    /// Return true when parsing in statement position.
+    #[inline]
+    pub(crate) const fn is_in_statement_position(self) -> bool {
+        self.has_flag(Self::IN_STATEMENT_POSITION_FLAG)
+    }
+
+    /// Return true when parsing a ternary then branch.
+    #[inline]
+    pub(crate) const fn is_in_ternary_condition(self) -> bool {
+        self.has_flag(Self::IN_TERNARY_CONDITION_FLAG)
+    }
+
+    /// Return true when type conditional parsing is active on the right side.
+    #[inline]
+    pub(crate) const fn is_in_type_conditional_right(self) -> bool {
+        self.has_flag(Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG)
+    }
+
+    /// Return true when parsing an arrow return type.
+    #[inline]
+    pub(crate) const fn is_in_arrow_return_type(self) -> bool {
+        self.has_flag(Self::IN_ARROW_RETURN_TYPE_FLAG)
+    }
+
+    /// Return true when comma sequence expressions are allowed.
+    #[inline]
+    pub(crate) const fn allows_sequence_expression(self) -> bool {
+        self.has_flag(Self::ALLOW_SEQUENCE_EXPRESSION_FLAG)
+    }
+
+    /// Set statement position.
+    #[inline]
+    pub(crate) fn with_statement_position(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_STATEMENT_POSITION_FLAG, enabled)
+    }
+
+    /// Set parenthesis state.
+    #[inline]
+    pub(crate) fn with_parenthesis(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_PARENTHESIS_FLAG, enabled)
+    }
+
+    /// Set ternary condition state.
+    #[inline]
+    pub(crate) fn with_ternary_condition(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_TERNARY_CONDITION_FLAG, enabled)
+    }
+
+    /// Set type conditional right state.
+    #[inline]
+    pub(crate) fn with_type_conditional_right(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG, enabled)
+    }
+
+    /// Set arrow return type state.
+    #[inline]
+    pub(crate) fn with_arrow_return_type(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_ARROW_RETURN_TYPE_FLAG, enabled)
+    }
+
+    /// Set sequence expression allowance.
+    #[inline]
+    pub(crate) fn with_sequence_expression(self, enabled: bool) -> Self {
+        self.with_flag(Self::ALLOW_SEQUENCE_EXPRESSION_FLAG, enabled)
+    }
+
+    /// Set left precedence.
+    #[inline]
+    pub(crate) fn in_left_precedence(self, precedence: u16) -> Self {
+        Self {
+            left_precedence: Some(precedence),
+            ..self
+        }
+    }
+
+    /// Clear left precedence.
+    #[inline]
+    pub(crate) fn not_in_left_precedence(self) -> Self {
+        Self {
+            left_precedence: None,
+            ..self
+        }
+    }
+
+    /// Clear statement position.
+    #[inline]
+    pub(crate) fn not_in_statement_position(self) -> Self {
+        self.with_statement_position(false)
+    }
+
+    /// Clear parenthesis state.
+    #[inline]
+    pub(crate) fn not_in_parenthesis(self) -> Self {
+        self.with_parenthesis(false)
+    }
+
+    /// Set ternary condition state.
+    #[inline]
+    pub(crate) fn in_ternary_condition(self) -> Self {
+        self.with_ternary_condition(true)
+    }
+
+    /// Clear ternary condition state.
+    #[inline]
+    pub(crate) fn not_in_ternary_condition(self) -> Self {
+        self.with_ternary_condition(false)
+    }
+
+    /// Clear type conditional right state.
+    #[inline]
+    pub(crate) fn not_in_type_conditional_right(self) -> Self {
+        self.with_type_conditional_right(false)
+    }
+
+    /// Set type conditional right state.
+    #[inline]
+    pub(crate) fn in_type_conditional_right(self) -> Self {
+        self.with_type_conditional_right(true)
+    }
+
+    /// Clear sequence expression allowance.
+    #[inline]
+    pub(crate) fn not_in_sequence_expression(self) -> Self {
+        self.with_sequence_expression(false)
+    }
+
+    /// Clear arrow return type state.
+    #[inline]
+    pub(crate) fn not_in_arrow_return_type(self) -> Self {
+        self.with_arrow_return_type(false)
+    }
+
+    /// Reset position-sensitive expression state.
+    #[inline]
+    pub(crate) fn not_in_position(self) -> Self {
+        self.not_in_parenthesis()
+            .not_in_statement_position()
+            .not_in_type_conditional_right()
+    }
+
+    /// Reset to the expression-local state preserved by `ParserOptions::nested()`.
+    #[inline]
+    pub(crate) fn nested(self) -> Self {
+        Self::default().with_sequence_expression(self.allows_sequence_expression())
     }
 }
 
@@ -109,6 +638,22 @@ pub struct ParserSpeculationStats {
     pub rewind_calls: u64,
     /// The number of parser restores with tree rollback.
     pub restore_calls: u64,
+    /// The number of normalized scanner cursor reads.
+    pub current_scanner_cursor_calls: u64,
+    /// The number of scanner cursor advances.
+    pub advance_to_scanner_cursor_calls: u64,
+    /// The number of parenthesized follow-token lookups.
+    pub parenthesized_follow_token_calls: u64,
+    /// The number of parenthesized follow-token hits.
+    pub parenthesized_follow_token_hits: u64,
+    /// The number of parenthesized delimiter analysis lookups.
+    pub delimiter_analysis_lookups: u64,
+    /// The number of cached delimiter analysis hits.
+    pub delimiter_analysis_cache_hits: u64,
+    /// The number of delimiter analyses that needed token-stream snapshots.
+    pub delimiter_analysis_snapshot_lookups: u64,
+    /// The number of delimiter analyses that executed inner scans.
+    pub delimiter_analysis_scans: u64,
     /// The number of statement keyword dispatch calls.
     pub statement_keyword_dispatch_calls: u64,
     /// The number of statement keyword dispatch prefilter rejections.
@@ -342,6 +887,153 @@ impl ParserOptions {
     #[inline]
     pub(crate) const fn is_disallow_ambiguous_tree_literal(self) -> bool {
         self.has_flag(Self::DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG)
+    }
+
+    /// Return the hot expression-local portion of these options.
+    #[inline]
+    pub(crate) const fn expression_context(self) -> ParserExpressionContext {
+        let mut flags = 0;
+        if self.is_in_parenthesis() {
+            flags |= ParserExpressionContext::IN_PARENTHESIS_FLAG;
+        }
+        if self.is_in_statement_position() {
+            flags |= ParserExpressionContext::IN_STATEMENT_POSITION_FLAG;
+        }
+        if self.is_in_ternary_condition() {
+            flags |= ParserExpressionContext::IN_TERNARY_CONDITION_FLAG;
+        }
+        if self.is_in_type_conditional_right() {
+            flags |= ParserExpressionContext::IN_TYPE_CONDITIONAL_RIGHT_FLAG;
+        }
+        if self.is_in_arrow_return_type() {
+            flags |= ParserExpressionContext::IN_ARROW_RETURN_TYPE_FLAG;
+        }
+        if self.allows_sequence_expression() {
+            flags |= ParserExpressionContext::ALLOW_SEQUENCE_EXPRESSION_FLAG;
+        }
+        ParserExpressionContext {
+            flags,
+            left_precedence: self.left_precedence,
+        }
+    }
+
+    /// Return the ambient parser portion of these options.
+    #[inline]
+    pub(crate) const fn ambient_context(self) -> ParserAmbientContext {
+        let mut flags = 0;
+        if self.is_in_static() {
+            flags |= ParserAmbientContext::IN_STATIC_FLAG;
+        }
+        if self.is_in_comptime() {
+            flags |= ParserAmbientContext::IN_COMPTIME_FLAG;
+        }
+        if self.is_in_type() {
+            flags |= ParserAmbientContext::IN_TYPE_FLAG;
+        }
+        if self.is_in_super_type() {
+            flags |= ParserAmbientContext::IN_SUPER_TYPE_FLAG;
+        }
+        if self.is_in_variant() {
+            flags |= ParserAmbientContext::IN_VARIANT_FLAG;
+        }
+        if self.is_in_before_type() {
+            flags |= ParserAmbientContext::IN_BEFORE_TYPE_FLAG;
+        }
+        if self.is_in_match_case() {
+            flags |= ParserAmbientContext::IN_MATCH_CASE_FLAG;
+        }
+        if self.is_in_union_pattern() {
+            flags |= ParserAmbientContext::IN_UNION_PATTERN_FLAG;
+        }
+        if self.is_in_declare_context() {
+            flags |= ParserAmbientContext::IN_DECLARE_CONTEXT_FLAG;
+        }
+        if self.is_in_statement_context() {
+            flags |= ParserAmbientContext::IN_STATEMENT_CONTEXT_FLAG;
+        }
+        if self.is_in_before_block() {
+            flags |= ParserAmbientContext::IN_BEFORE_BLOCK_FLAG;
+        }
+        if self.is_in_tree_literal() {
+            flags |= ParserAmbientContext::IN_TREE_LITERAL_FLAG;
+        }
+        if self.is_in_decorator() {
+            flags |= ParserAmbientContext::IN_DECORATOR_FLAG;
+        }
+        if self.is_in_type_mapped_constraint() {
+            flags |= ParserAmbientContext::IN_TYPE_MAPPED_CONSTRAINT_FLAG;
+        }
+        if self.is_in_for_each() {
+            flags |= ParserAmbientContext::IN_FOR_EACH_FLAG;
+        }
+        if self.is_in_new_receiver() {
+            flags |= ParserAmbientContext::IN_NEW_RECEIVER_FLAG;
+        }
+        if self.is_in_typeof_query() {
+            flags |= ParserAmbientContext::IN_TYPEOF_QUERY_FLAG;
+        }
+        if self.is_in_generator() {
+            flags |= ParserAmbientContext::IN_GENERATOR_FLAG;
+        }
+        if self.is_forbid_yield() {
+            flags |= ParserAmbientContext::FORBID_YIELD_FLAG;
+        }
+        if self.is_forbid_await() {
+            flags |= ParserAmbientContext::FORBID_AWAIT_FLAG;
+        }
+        if self.allows_private_hash_key() {
+            flags |= ParserAmbientContext::ALLOW_PRIVATE_HASH_KEY_FLAG;
+        }
+        if self.is_disallow_ambiguous_tree_literal() {
+            flags |= ParserAmbientContext::DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG;
+        }
+        ParserAmbientContext { flags }
+    }
+
+    /// Replace the hot expression-local portion of these options.
+    #[inline]
+    pub(crate) fn with_expression_context(mut self, context: ParserExpressionContext) -> Self {
+        self.set_in_parenthesis(context.is_in_parenthesis());
+        if context.is_in_statement_position() {
+            self.set_in_statement_position(true);
+            self.set_in_statement_context(true);
+        } else {
+            self.set_in_statement_position(false);
+        }
+        self.set_in_ternary_condition(context.is_in_ternary_condition());
+        self.set_in_type_conditional_right(context.is_in_type_conditional_right());
+        self.set_in_arrow_return_type(context.is_in_arrow_return_type());
+        self.set_allow_sequence_expression(context.allows_sequence_expression());
+        self.left_precedence = context.left_precedence;
+        self
+    }
+
+    /// Replace the ambient parser portion of these options.
+    #[inline]
+    pub(crate) fn with_ambient_context(mut self, context: ParserAmbientContext) -> Self {
+        self.set_in_static(context.is_in_static());
+        self.set_in_comptime(context.is_in_comptime());
+        self.set_in_type(context.is_in_type());
+        self.set_in_super_type(context.is_in_super_type());
+        self.set_in_variant(context.is_in_variant());
+        self.set_in_before_type(context.is_in_before_type());
+        self.set_in_match_case(context.is_in_match_case());
+        self.set_in_union_pattern(context.is_in_union_pattern());
+        self.set_in_declare_context(context.is_in_declare_context());
+        self.set_in_statement_context(context.is_in_statement_context());
+        self.set_in_before_block(context.is_in_before_block());
+        self.set_in_tree_literal(context.is_in_tree_literal());
+        self.set_in_decorator(context.is_in_decorator());
+        self.set_in_type_mapped_constraint(context.is_in_type_mapped_constraint());
+        self.set_in_for_each(context.is_in_for_each());
+        self.set_in_new_receiver(context.is_in_new_receiver());
+        self.set_in_typeof_query(context.is_in_typeof_query());
+        self.set_in_generator(context.is_in_generator());
+        self.set_forbid_yield(context.is_forbid_yield());
+        self.set_forbid_await(context.is_forbid_await());
+        self.set_allow_private_hash_key(context.allows_private_hash_key());
+        self.set_disallow_ambiguous_tree_literal(context.is_disallow_ambiguous_tree_literal());
+        self
     }
 
     #[inline]
@@ -772,6 +1464,10 @@ pub struct Parser {
     pub(crate) statement_stack_depth: u32,
     /// The parser options.
     pub(crate) options: ParserOptions,
+    /// The cached hot expression-local context.
+    pub(crate) expression_context: ParserExpressionContext,
+    /// The cached ambient parser context.
+    pub(crate) ambient_context: ParserAmbientContext,
 
     /// The Node AST tree.
     pub tree: NodeTree,
@@ -812,6 +1508,31 @@ pub(crate) struct NonNewlineTokenCursor {
     pub skipped_newline_count: usize,
     /// Whether this cursor position is preceded by a line break.
     pub has_line_break_before: bool,
+}
+
+impl NonNewlineTokenCursor {
+    /// Return true when this cursor starts after a statement boundary.
+    #[inline]
+    pub(crate) const fn starts_after_statement_boundary(self) -> bool {
+        self.has_line_break_before
+            || matches!(
+                self.token_type,
+                TokenType::Semicolon | TokenType::End | TokenType::CloseBrace
+            )
+    }
+
+    /// Return true when this cursor cannot start an immediate operand.
+    #[inline]
+    pub(crate) const fn omits_restricted_operand(self) -> bool {
+        self.starts_after_statement_boundary()
+            || matches!(
+                self.token_type,
+                TokenType::CloseParenthesis
+                    | TokenType::CloseBracket
+                    | TokenType::Comma
+                    | TokenType::Colon
+            )
+    }
 }
 
 /// Scanner lookahead facts at the current parser position.
@@ -927,6 +1648,8 @@ impl Parser {
             expression_stack_depth: 0,
             statement_stack_depth: 0,
             options: ParserOptions::default(),
+            expression_context: ParserExpressionContext::default(),
+            ambient_context: ParserAmbientContext::default(),
             language,
             tree: NodeTree::with_capacity(estimated_nodes),
             strings,
@@ -972,6 +1695,12 @@ impl Parser {
             .set_disallow_ambiguous_tree_literal(settings.disallow_ambiguous_tree_literal);
     }
 
+    /// Enable or disable parser speculation counters.
+    #[inline]
+    pub fn set_collect_speculation_stats(&mut self, enabled: bool) {
+        self.speculation_stats = enabled.then(ParserSpeculationStats::default);
+    }
+
     /// Get the span of all side annotations.
     #[inline]
     pub fn compute_side_span(&self) -> MultiSpan {
@@ -996,6 +1725,7 @@ impl Parser {
             self.language.supports_jsx() && self.language.is_typescript(),
         );
         self.options = options;
+        self.sync_context_caches_from_options();
         self.errors.clear();
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             *speculation_stats = ParserSpeculationStats::default();
@@ -1039,6 +1769,25 @@ impl Parser {
     /// Snapshot speculative parser dispatch counters.
     pub fn speculation_snapshot(&self) -> Option<ParserSpeculationStats> {
         self.speculation_stats
+    }
+
+    /// Return the cached hot expression-local context.
+    #[inline(always)]
+    pub(crate) fn current_expression_context(&self) -> ParserExpressionContext {
+        self.expression_context
+    }
+
+    /// Return the cached ambient parser context.
+    #[inline(always)]
+    pub(crate) fn current_ambient_context(&self) -> ParserAmbientContext {
+        self.ambient_context
+    }
+
+    /// Refresh cached parser contexts from the current broad options.
+    #[inline(always)]
+    pub(crate) fn sync_context_caches_from_options(&mut self) {
+        self.expression_context = self.options.expression_context();
+        self.ambient_context = self.options.ambient_context();
     }
 
     /// Return the current semantic tokens.
@@ -1102,6 +1851,10 @@ impl Parser {
             return self.next_non_newline_index_from_stream(start);
         }
 
+        if self.token_type_at(start) != TokenType::Newline {
+            return start;
+        }
+
         self.next_non_newline_index_from_stream(start)
     }
 
@@ -1126,6 +1879,16 @@ impl Parser {
             };
         }
 
+        let token_type = self.token_type_at(start);
+        if token_type != TokenType::Newline {
+            return NonNewlineTokenCursor {
+                index: start,
+                token_type,
+                skipped_newline_count: 0,
+                has_line_break_before: self.line_terminator_before_index(start),
+            };
+        }
+
         let TokenStreamCursor {
             index,
             token_type,
@@ -1144,13 +1907,19 @@ impl Parser {
     /// Return scanner-style cursor information at the current parser position.
     #[inline]
     pub(crate) fn current_scanner_cursor(&mut self) -> NonNewlineTokenCursor {
+        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.current_scanner_cursor_calls += 1;
+        }
         self.peek_scanner_facts().1
     }
 
     /// Advance to the current scanner cursor and return it.
     #[inline]
     pub(crate) fn advance_to_scanner_cursor(&mut self) -> NonNewlineTokenCursor {
-        let cursor = self.current_scanner_cursor();
+        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.advance_to_scanner_cursor_calls += 1;
+        }
+        let cursor = self.peek_scanner_facts().1;
         if cursor.index != self.scanner.pos() {
             self.advance_to(cursor.index);
         }
@@ -1166,7 +1935,7 @@ impl Parser {
         }
 
         // tree literal lexing needs parser driven mode switches before aggressive lookahead
-        if self.allow_tree_literals() && !self.options.is_in_type() {
+        if self.allow_tree_literals() && !self.current_ambient_context().is_in_type() {
             return self.token_stream.matching_pair(index);
         }
 
@@ -1329,6 +2098,13 @@ impl Parser {
                 skipped_newline_count: 0,
                 has_line_break_before: self.line_terminator_before_index(pos),
             }
+        } else if current_raw_token_type != TokenType::Newline {
+            NonNewlineTokenCursor {
+                index: pos,
+                token_type: current_raw_token_type,
+                skipped_newline_count: 0,
+                has_line_break_before: self.line_terminator_before_index(pos),
+            }
         } else {
             self.scanner_cursor_from(pos)
         };
@@ -1448,6 +2224,27 @@ impl Parser {
         self.lookahead_index(3)
     }
 
+    /// Return scanner lookahead facts from a raw token index.
+    #[inline]
+    pub(crate) fn scanner_lookahead_from(&mut self, next_raw_index: usize) -> ScannerLookahead {
+        let next_raw_token_type = self.token_type_at(next_raw_index);
+        let next_cursor = if next_raw_token_type != TokenType::Newline {
+            NonNewlineTokenCursor {
+                index: next_raw_index,
+                token_type: next_raw_token_type,
+                skipped_newline_count: 0,
+                has_line_break_before: self.line_terminator_before_index(next_raw_index),
+            }
+        } else {
+            self.scanner_cursor_from(next_raw_index)
+        };
+
+        ScannerLookahead {
+            next_raw_token_type,
+            next_cursor,
+        }
+    }
+
     /// Return scanner lookahead facts for the current parser position.
     #[inline]
     pub(crate) fn peek_scanner_lookahead(&mut self) -> ScannerLookahead {
@@ -1459,12 +2256,7 @@ impl Parser {
         }
 
         let next_raw_index = self.index_for_next();
-        let next_raw_token_type = self.token_type_at(next_raw_index);
-        let next_cursor = self.scanner_cursor_from(next_raw_index);
-        let scanner_lookahead = ScannerLookahead {
-            next_raw_token_type,
-            next_cursor,
-        };
+        let scanner_lookahead = self.scanner_lookahead_from(next_raw_index);
 
         self.scanner.scanner_lookahead_cache = Some((pos, scanner_lookahead));
         scanner_lookahead
@@ -1598,6 +2390,7 @@ impl Parser {
     pub(crate) fn swap_options(&mut self, options: ParserOptions) -> ParserOptions {
         let old_options = self.options;
         self.options = options;
+        self.sync_context_caches_from_options();
         old_options
     }
 
@@ -1605,9 +2398,98 @@ impl Parser {
     #[inline(always)]
     pub(crate) fn restore_options(&mut self, old_options: ParserOptions) {
         self.options = old_options;
+        self.sync_context_caches_from_options();
     }
+
+    /// Swap only the hot expression-local context and return the previous value.
+    #[inline(always)]
+    pub(crate) fn swap_expression_context(
+        &mut self,
+        context: ParserExpressionContext,
+    ) -> ParserExpressionContext {
+        let old_context = self.expression_context;
+        self.expression_context = context;
+        self.options = self.options.with_expression_context(context);
+        old_context
+    }
+
+    /// Restore the hot expression-local context from a previous swap.
+    #[inline(always)]
+    pub(crate) fn restore_expression_context(&mut self, old_context: ParserExpressionContext) {
+        self.expression_context = old_context;
+        self.options = self.options.with_expression_context(old_context);
+    }
+
+    /// Swap only the ambient parser context and return the previous value.
+    #[inline(always)]
+    pub(crate) fn swap_ambient_context(
+        &mut self,
+        context: ParserAmbientContext,
+    ) -> ParserAmbientContext {
+        let old_context = self.ambient_context;
+        self.ambient_context = context;
+        self.options = self.options.with_ambient_context(context);
+        old_context
+    }
+
+    /// Restore the ambient parser context from a previous swap.
+    #[inline(always)]
+    pub(crate) fn restore_ambient_context(&mut self, old_context: ParserAmbientContext) {
+        self.ambient_context = old_context;
+        self.options = self.options.with_ambient_context(old_context);
+    }
+
+    /// Swap both parser context caches and return the previous values.
+    #[inline(always)]
+    pub(crate) fn swap_parser_contexts(
+        &mut self,
+        ambient_context: ParserAmbientContext,
+        expression_context: ParserExpressionContext,
+    ) -> (ParserAmbientContext, ParserExpressionContext) {
+        let old_ambient_context = self.ambient_context;
+        let old_expression_context = self.expression_context;
+        self.ambient_context = ambient_context;
+        self.expression_context = expression_context;
+        self.options = self
+            .options
+            .with_ambient_context(ambient_context)
+            .with_expression_context(expression_context);
+        (old_ambient_context, old_expression_context)
+    }
+
+    /// Restore both parser context caches from a previous swap.
+    #[inline(always)]
+    pub(crate) fn restore_parser_contexts(
+        &mut self,
+        old_ambient_context: ParserAmbientContext,
+        old_expression_context: ParserExpressionContext,
+    ) {
+        self.ambient_context = old_ambient_context;
+        self.expression_context = old_expression_context;
+        self.options = self
+            .options
+            .with_ambient_context(old_ambient_context)
+            .with_expression_context(old_expression_context);
+    }
+
+    /// Execute a function with replacement parser contexts.
+    #[inline(always)]
+    pub(crate) fn with_parser_contexts<T>(
+        &mut self,
+        ambient_context: ParserAmbientContext,
+        expression_context: ParserExpressionContext,
+        func: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        let (old_ambient_context, old_expression_context) =
+            self.swap_parser_contexts(ambient_context, expression_context);
+        let result = func(self);
+        self.restore_parser_contexts(old_ambient_context, old_expression_context);
+        result
+    }
+
     /// Execute a function with new parser options.
     /// The previous options are restored after the function returns.
+    #[cfg(test)]
     #[inline(always)]
     pub(crate) fn with_options<T>(
         &mut self,
@@ -1644,7 +2526,7 @@ impl Parser {
     pub fn mark(&self) -> ParserMark {
         // snapshot token stream when tree state or split state can affect lookahead
         let should_snapshot_token_stream = (self.allow_tree_literals()
-            && !self.options.is_in_type())
+            && !self.current_ambient_context().is_in_type())
             || self.token_stream.has_split_state();
         let token_stream_mark = should_snapshot_token_stream.then(|| self.token_stream.mark());
         ParserMark::new(
@@ -1661,7 +2543,7 @@ impl Parser {
     pub fn mark_rewind(&self) -> ParserMark {
         // snapshot token stream when tree state or split state can affect lookahead
         let should_snapshot_token_stream = (self.allow_tree_literals()
-            && !self.options.is_in_type())
+            && !self.current_ambient_context().is_in_type())
             || self.token_stream.has_split_state();
         let token_stream_mark = should_snapshot_token_stream.then(|| self.token_stream.mark());
         ParserMark {
