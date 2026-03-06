@@ -3,10 +3,59 @@ set shell := ["bash", "-cu"]
 # all language crates
 packages := "-p destack_base -p destack_ast -p destack_builtin -p destack_test_mirbench -p destack_codegen_native -p destack_codegen_lib -p destack_codegen_js -p destack_compiler -p destack_compiler_macros -p destack_dir -p destack_fir -p destack_formatter -p destack_heap -p destack_json -p destack_linter -p destack_linter_macros -p destack_vm -p destack_vm_abi -p destack_mir -p destack_parser -p destack_resolver -p destack_runtime -p destack_source -p destack_test -p destack_unicode -p destack_workspace -p destack_service"
 packages-no-linter := "-p destack_base -p destack_ast -p destack_builtin -p destack_test_mirbench -p destack_codegen_native -p destack_codegen_lib -p destack_codegen_js -p destack_compiler -p destack_compiler_macros -p destack_dir -p destack_fir -p destack_formatter -p destack_heap -p destack_json -p destack_linter_macros -p destack_vm -p destack_vm_abi -p destack_mir -p destack_parser -p destack_resolver -p destack_runtime -p destack_source -p destack_test -p destack_unicode -p destack_workspace -p destack_service"
-linter-test-threads := "2"
 
 _default:
     @just --list --unsorted
+
+# keep rust test concurrency on one repo wide knob when configured
+_run-rust-test *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"
+
+    if [ -n "${test_threads}" ]; then
+        export RUST_TEST_THREADS="${test_threads}"
+    fi
+
+    cargo test {{args}}
+
+# keep custom harness worker pools on one repo wide knob when configured
+_run-destack-test test_binary *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"
+    test_jobs="${DESTACK_TEST_JOBS:-${DESTACK_TEST_THREADS:-}}"
+
+    if [ -n "${test_threads}" ]; then
+        export RUST_TEST_THREADS="${test_threads}"
+    fi
+
+    command=(
+        cargo
+        test
+        --release
+        -p
+        destack_test
+        --test
+        "{{test_binary}}"
+    )
+
+    if [ -n "${test_jobs}" ]; then
+        command+=(-- -j "${test_jobs}")
+        set -- {{args}}
+        if [ "$#" -gt 0 ]; then
+            command+=("$@")
+        fi
+    else
+        set -- {{args}}
+        if [ "$#" -gt 0 ]; then
+            command+=(-- "$@")
+        fi
+    fi
+
+    "${command[@]}"
 
 # --- setup ---
 
@@ -110,9 +159,9 @@ test-runtime-privileged:
         echo "test-runtime-privileged requires elevated privileges (run as root/admin)"
         exit 1
     fi
-    LC_ALL=C LANG=C LC_CTYPE=C DESTACK_TEST_PRIVILEGED=1 cargo test -p destack_runtime platform::process::tests:: -- --nocapture
-    LC_ALL=C LANG=C LC_CTYPE=C DESTACK_TEST_PRIVILEGED=1 cargo test -p destack_runtime platform::fs::tests:: -- --nocapture
-    LC_ALL=C LANG=C LC_CTYPE=C DESTACK_TEST_PRIVILEGED=1 cargo test -p destack_runtime platform::net::tests:: -- --nocapture
+    LC_ALL=C LANG=C LC_CTYPE=C DESTACK_TEST_PRIVILEGED=1 just _run-rust-test -p destack_runtime platform::process::tests:: -- --nocapture
+    LC_ALL=C LANG=C LC_CTYPE=C DESTACK_TEST_PRIVILEGED=1 just _run-rust-test -p destack_runtime platform::fs::tests:: -- --nocapture
+    LC_ALL=C LANG=C LC_CTYPE=C DESTACK_TEST_PRIVILEGED=1 just _run-rust-test -p destack_runtime platform::net::tests:: -- --nocapture
 
 # install runtime target toolchains and host prerequisites where possible
 install-toolchain:
@@ -158,7 +207,7 @@ check-runtime-wasip1:
 check-runtime-linux:
     LC_ALL=C LANG=C LC_CTYPE=C cargo check -p destack_runtime
     LC_ALL=C LANG=C LC_CTYPE=C cargo clippy -p destack_runtime --all-targets -- -D warnings
-    LC_ALL=C LANG=C LC_CTYPE=C cargo test -p destack_runtime runtime::host::linux:: -- --nocapture
+    LC_ALL=C LANG=C LC_CTYPE=C just _run-rust-test -p destack_runtime runtime::host::linux:: -- --nocapture
     just _smoke-runtime-host
 
 # check runtime wayland backend against one real compositor on linux host
@@ -169,7 +218,7 @@ check-runtime-linux-wayland:
 check-runtime-macos:
     LC_ALL=C LANG=C LC_CTYPE=C cargo check -p destack_runtime
     LC_ALL=C LANG=C LC_CTYPE=C cargo clippy -p destack_runtime --all-targets -- -D warnings
-    LC_ALL=C LANG=C LC_CTYPE=C cargo test -p destack_runtime runtime::host::macos:: -- --nocapture
+    LC_ALL=C LANG=C LC_CTYPE=C just _run-rust-test -p destack_runtime runtime::host::macos:: -- --nocapture
     just _smoke-runtime-host
 
 # check runtime on windows host
@@ -302,8 +351,8 @@ generate-builtin-libs:
 
 # run all language crate unit tests
 test-unit:
-    cargo test --release --lib {{ packages-no-linter }}
-    cargo test --release --lib -p destack_linter -- --test-threads={{ linter-test-threads }}
+    just _run-rust-test --release --lib {{ packages-no-linter }}
+    just _run-rust-test --release --lib -p destack_linter
 
 # run the fast language test suite
 test:
@@ -338,40 +387,40 @@ full:
 
 # run all crate tests
 test-all:
-    cargo test --release --all-targets --no-fail-fast {{ packages-no-linter }}
-    cargo test --release --all-targets --no-fail-fast -p destack_linter -- --test-threads={{ linter-test-threads }}
+    just _run-rust-test --release --all-targets --no-fail-fast {{ packages-no-linter }}
+    just _run-rust-test --release --all-targets --no-fail-fast -p destack_linter
 
-# run linter tests with capped rust test threads
+# run linter tests
 test-linter:
-    cargo test --release --all-targets --no-fail-fast -p destack_linter -- --test-threads={{ linter-test-threads }}
+    just _run-rust-test --release --all-targets --no-fail-fast -p destack_linter
 
 # run smoke tests
 test-smoke:
-    cargo test --release -p destack_test --test smoke
+    just _run-destack-test smoke
 
 # run emit tests
 test-emit:
-    cargo test --release -p destack_test --test emit
+    just _run-destack-test emit
 
 # run conformance tests
 test-parser-conformance:
-    cargo test --release -p destack_test --test parser-conformance
+    just _run-destack-test parser-conformance
 
 # update conformance test baselines
 test-parser-conformance-update:
-    cargo test --release -p destack_test --test parser-conformance -- --update-known-failures
+    just _run-destack-test parser-conformance --update-known-failures
 
 # run formatter tests
 test-formatter:
-    cargo test --release -p destack_test --test formatter
+    just _run-destack-test formatter
 
 # run formatter conformance tests
 test-formatter-conformance:
-    cargo test --release -p destack_test --test formatter-conformance
+    just _run-destack-test formatter-conformance
 
 # update formatter conformance known failures
 test-formatter-conformance-update:
-    cargo test --release -p destack_test --test formatter-conformance -- --update-known-failures
+    just _run-destack-test formatter-conformance --update-known-failures
 
 # snapshot formatter output for a corpus
 snapshot-formatter-corpus root="test/fixtures/formatter/conformance/staging/oxfmt" out="/tmp/destack-snapshot-formatter-corpus":
@@ -391,15 +440,15 @@ compare-formatter-corpus baseline candidate:
 
 # run ecosystem tests
 test-ecosystem:
-    cargo test --release -p destack_test --test ecosystem
+    just _run-destack-test ecosystem
 
 # run resolver tests
 test-resolver:
-    cargo test --release -p destack_resolver
+    just _run-rust-test --release -p destack_resolver
 
 # run specification tests (type checking specification)
 test-specification:
-    cargo test --release -p destack_test --test specification
+    just _run-destack-test specification
 
 # validate tree sitter overlay coverage
 test-grammar-overlay:
@@ -449,11 +498,11 @@ profile-grammar-delta args="--target destack --baseline tsx --top 30":
 
 # run query tests (IDE/LSP queries)
 test-query:
-    cargo test --release -p destack_test --test query
+    just _run-destack-test query
 
 # run stress tests (requires generated fixtures)
 test-stress:
-    cargo test --release -p destack_test --test stress
+    just _run-destack-test stress
 
 # --- stress fixtures ---
 

@@ -15,19 +15,19 @@ Unit tests enter the language gate model through `just test-unit`.
 
 The current language suite taxonomy is:
 
-| Suite | Family | Location | Purpose |
-|-------|--------|----------|---------|
-| **Unit** | Core correctness | crate local tests | Internal invariants and focused logic |
-| **Smoke** | Core correctness | `fixtures/smoke/` | Broad sanity checks for parser and compiler flows |
-| **Emit** | Core correctness | `fixtures/emit/` | Emitted output matches curated snapshots |
-| **Specification** | Core correctness | `fixtures/specification/` | First-party language semantics and diagnostics |
-| **Query** | Core correctness | `fixtures/query/` | IDE and LSP behavior |
-| **Resolver** | Core correctness | `fixtures/resolver/` | Module and package resolution |
-| **Formatter** | Core correctness | `fixtures/formatter/` | Formatting behavior on first-party fixtures |
-| **Parser Conformance** | External conformance | `fixtures/parser/conformance/` | Behavior against pinned upstream parser suites |
-| **Formatter Conformance** | External conformance | `fixtures/formatter/conformance/` | Behavior against pinned upstream formatter suites |
-| **Ecosystem** | External ecosystem coverage | `fixtures/ecosystem/` | Curated TS-first Node, backend, and tooling packages |
-| **Stress** | Robustness | `fixtures/stress/` | Correctness on very large and pathological inputs |
+| Suite | Family | Gate | Location | Purpose |
+|-------|--------|------|----------|---------|
+| **Unit** | Correctness | Quick | crate local tests | Internal invariants and focused logic |
+| **Smoke** | Correctness | Quick | `fixtures/smoke/` | Broad sanity checks for parser and compiler flows |
+| **Emit** | Correctness | Standalone | `fixtures/emit/` | Emitted output matches curated snapshots |
+| **Specification** | Correctness | Quick | `fixtures/specification/` | First-party language semantics and diagnostics |
+| **Query** | Correctness | Quick | `fixtures/query/` | IDE and LSP behavior |
+| **Resolver** | Correctness | Quick | `fixtures/resolver/` | Module and package resolution |
+| **Formatter** | Correctness | Quick | `fixtures/formatter/` | Formatting behavior on first-party fixtures |
+| **Parser Conformance** | Conformance | Quick | `fixtures/parser/conformance/` | Behavior against pinned upstream parser suites |
+| **Formatter Conformance** | Conformance | Quick | `fixtures/formatter/conformance/` | Behavior against pinned upstream formatter suites |
+| **Ecosystem** | Conformance | Full | `fixtures/ecosystem/` | Curated TS-first Node, backend, and tooling packages |
+| **Stress** | Correctness | Full | `fixtures/stress/` | Correctness on very large and pathological inputs |
 
 `node-conformance` will join the external conformance family once it lands.
 
@@ -41,7 +41,21 @@ Run these from `language/` unless noted otherwise.
 | **Full** | `quick` plus ecosystem and stress coverage |
 
 `just test` is the language test aggregate used by `just quick`.
+`just test-emit` stays standalone until the emit pipeline is mature enough to trust in the fast gate.
 `just full` then adds more slow tests like `ecosystem` and `stress`.
+
+## Concurrency
+
+Use `DESTACK_TEST_THREADS` to control Rust `libtest` concurrency and the default custom harness worker count.
+Set `DESTACK_TEST_JOBS` only when a custom harness should use a different worker count than `libtest`.
+
+```bash
+# cap everything to 4 workers
+DESTACK_TEST_THREADS=4 just quick
+
+# keep rust tests at 4 but let a custom harness fan out further
+DESTACK_TEST_THREADS=4 DESTACK_TEST_JOBS=16 just test-parser-conformance
+```
 
 ## Commands
 
