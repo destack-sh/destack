@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
-use crate::runtime::time::{HostClock, HostClockSource, VirtualClock};
+use crate::runtime::time::{HostClock, HostClockSource, Nanos, VirtualClock, WorldInstant};
 use destack_workspace::TimeOptions;
-
-/// Default virtual clock tick size in nanoseconds.
-const DEFAULT_VIRTUAL_TICK_NS: u64 = 1_000_000;
 
 /// Runtime clock sources and time policies.
 #[derive(Debug, Clone)]
@@ -22,8 +19,7 @@ impl Clock {
     pub fn from_options(options: &TimeOptions) -> Self {
         // resolve virtual clock configuration
         let epoch_nanos = options.epoch_ns.unwrap_or(0);
-        let tick_nanos = options.tick_ns.unwrap_or(DEFAULT_VIRTUAL_TICK_NS).max(1);
-        let virtual_clock = VirtualClock::new(epoch_nanos, tick_nanos);
+        let virtual_clock = VirtualClock::new(epoch_nanos);
 
         Self {
             virtual_clock,
@@ -39,8 +35,7 @@ impl Clock {
     ) -> Self {
         // resolve virtual clock configuration
         let epoch_nanos = options.epoch_ns.unwrap_or(0);
-        let tick_nanos = options.tick_ns.unwrap_or(DEFAULT_VIRTUAL_TICK_NS).max(1);
-        let virtual_clock = VirtualClock::new(epoch_nanos, tick_nanos);
+        let virtual_clock = VirtualClock::new(epoch_nanos);
 
         Self {
             virtual_clock,
@@ -55,28 +50,48 @@ impl Clock {
     }
 
     /// Return the current host wall time in nanoseconds.
+    pub fn host_wall(&self) -> Nanos {
+        Nanos::new(self.host_clock.wall_nanos())
+    }
+
+    /// Return the current host wall time in nanoseconds.
     pub fn host_wall_nanos(&self) -> u64 {
-        self.host_clock.wall_nanos()
+        self.host_wall().get()
+    }
+
+    /// Return the current virtual wall time in nanoseconds.
+    pub fn virtual_wall(&self) -> Nanos {
+        self.virtual_clock.wall()
     }
 
     /// Return the current virtual wall time in nanoseconds.
     pub fn virtual_wall_nanos(&self) -> u64 {
-        self.virtual_clock.wall_nanos()
+        self.virtual_wall().get()
+    }
+
+    /// Return the current host monotonic time in nanoseconds.
+    pub fn host_mono(&self) -> Nanos {
+        Nanos::new(self.host_clock.mono_nanos())
     }
 
     /// Return the current host monotonic time in nanoseconds.
     pub fn host_mono_nanos(&self) -> u64 {
-        self.host_clock.mono_nanos()
+        self.host_mono().get()
+    }
+
+    /// Return the current virtual monotonic time in nanoseconds.
+    pub fn virtual_mono(&self) -> Nanos {
+        self.virtual_clock.mono()
     }
 
     /// Return the current virtual monotonic time in nanoseconds.
     pub fn virtual_mono_nanos(&self) -> u64 {
-        self.virtual_clock.mono_nanos()
+        self.virtual_mono().get()
     }
 
-    /// Advance the virtual clock by a delta.
-    pub fn advance_virtual(&self, delta_nanos: u64) -> u64 {
-        self.virtual_clock.advance(delta_nanos)
+    /// Advance the virtual clock to one wall-clock deadline.
+    pub fn advance_virtual_to(&self, deadline: WorldInstant) -> WorldInstant {
+        self.virtual_clock.advance_to(deadline)
     }
 
     /// Sleep for one host duration in nanoseconds.
@@ -84,19 +99,9 @@ impl Clock {
         self.host_clock.sleep_nanos(duration_nanos);
     }
 
-    /// Sleep for one virtual duration in nanoseconds.
-    pub fn virtual_sleep_nanos(&self, duration_nanos: u64) {
-        let _ = self.virtual_clock.advance(duration_nanos);
-    }
-
     /// Sleep until one host wall deadline in nanoseconds.
     pub fn host_sleep_until_nanos(&self, deadline_nanos: u64) {
         self.host_clock.sleep_until_nanos(deadline_nanos);
-    }
-
-    /// Sleep until one virtual wall deadline in nanoseconds.
-    pub fn virtual_sleep_until_nanos(&self, deadline_nanos: u64) {
-        let _ = self.virtual_clock.advance_to(deadline_nanos);
     }
 }
 

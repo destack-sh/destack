@@ -7,8 +7,8 @@ use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::time::{TimerClock, TimerOptions};
 use crate::platform::{PlatformError, ResourceTable, resource};
 use crate::runtime::BindingCallContext;
-use crate::runtime::scheduler::Timer as EventLoopTimer;
-use crate::runtime::time::Clock;
+use crate::runtime::scheduler::{Timer as EventLoopTimer, TimerDeadline};
+use crate::runtime::time::{Clock, Nanos};
 use destack_workspace::TimeMode;
 
 /// Runtime state for one scheduled timer handle.
@@ -16,16 +16,16 @@ use destack_workspace::TimeMode;
 struct TimerState {
     /// Clock domain used for deadline calculations.
     clock: TimerClock,
-    /// Optional repeating interval in nanoseconds.
-    interval_ns: Option<u64>,
+    /// Optional repeating interval.
+    interval: Option<Nanos>,
     /// Next deadline in the selected clock domain.
-    next_deadline_ns: u64,
+    next_deadline: Nanos,
     /// Active marker for this timer handle.
     active: bool,
     /// Paused marker for this timer handle.
     paused: bool,
     /// Remaining duration captured during pause.
-    paused_remaining_ns: u64,
+    paused_remaining: Nanos,
 }
 
 /// Return one invalid timer-handle error.
@@ -56,23 +56,23 @@ fn invalid_period_error(field: &str) -> Box<RuntimeError> {
 }
 
 /// Resolve one clock domain into one current nanosecond timestamp.
-fn now_for_clock(context: &BindingCallContext, clock: TimerClock) -> u64 {
+fn now_for_clock(context: &BindingCallContext, clock: TimerClock) -> Nanos {
     match clock {
-        TimerClock::Wall => context.world().wall_nanos(),
-        TimerClock::Monotonic => context.world().mono_nanos(),
+        TimerClock::Wall => context.world().wall(),
+        TimerClock::Monotonic => context.world().mono(),
     }
 }
 
 /// Resolve one timer clock domain into one current nanosecond timestamp.
-fn now_for_timer_clock(clock: &Clock, time_mode: TimeMode, timer_clock: TimerClock) -> u64 {
+fn now_for_timer_clock(clock: &Clock, time_mode: TimeMode, timer_clock: TimerClock) -> Nanos {
     match timer_clock {
         TimerClock::Wall => match time_mode {
-            TimeMode::Host => clock.host_wall_nanos(),
-            TimeMode::Virtual => clock.virtual_wall_nanos(),
+            TimeMode::Host => clock.host_wall(),
+            TimeMode::Virtual => clock.virtual_wall(),
         },
         TimerClock::Monotonic => match time_mode {
-            TimeMode::Host => clock.host_mono_nanos(),
-            TimeMode::Virtual => clock.virtual_mono_nanos(),
+            TimeMode::Host => clock.host_mono(),
+            TimeMode::Virtual => clock.virtual_mono(),
         },
     }
 }
@@ -148,29 +148,29 @@ pub(crate) fn on_event_loop_timer_fire(
     }
 
     // complete one-shot timers on the first fire
-    if state.interval_ns.is_none() {
+    if state.interval.is_none() {
         state.active = false;
         state.paused = false;
-        state.paused_remaining_ns = 0;
+        state.paused_remaining = Nanos::new(0);
         return Ok(true);
     }
 
     // keep interval timers aligned to the next future deadline
-    let interval_nanos = state.interval_ns.unwrap_or(0);
-    if interval_nanos == 0 {
+    let interval = state.interval.unwrap_or(Nanos::new(0));
+    if interval.get() == 0 {
         state.active = false;
         state.paused = false;
-        state.paused_remaining_ns = 0;
+        state.paused_remaining = Nanos::new(0);
         return Ok(false);
     }
 
-    state.next_deadline_ns = state.next_deadline_ns.saturating_add(interval_nanos);
-    let now_nanos = now_for_timer_clock(clock, time_mode, state.clock);
-    if state.next_deadline_ns <= now_nanos {
-        let elapsed = now_nanos.saturating_sub(state.next_deadline_ns);
-        let skipped_periods = elapsed / interval_nanos + 1;
-        let skip_delta = interval_nanos.saturating_mul(skipped_periods);
-        state.next_deadline_ns = state.next_deadline_ns.saturating_add(skip_delta);
+    state.next_deadline = state.next_deadline.saturating_add(interval);
+    let now = now_for_timer_clock(clock, time_mode, state.clock);
+    if state.next_deadline <= now {
+        let elapsed = now.saturating_sub(state.next_deadline);
+        let skipped_periods = elapsed.get() / interval.get() + 1;
+        let skip_delta = interval.get().saturating_mul(skipped_periods);
+        state.next_deadline = state.next_deadline.saturating_add(Nanos::new(skip_delta));
     }
 
     Ok(true)
@@ -181,10 +181,11 @@ fn insert_timer_state(context: &BindingCallContext, state: TimerState) -> resour
     let entry = ResourceEntry::new(ResourceKind::Timer)
         .with_label("timer.schedule")
         .with_payload(Arc::new(Mutex::new(state)));
-    let resource_id = context
-        .agent()
-        .resources
-        .insert(entry, Some(context.engine()));
+    let resource_id =
+        context
+            .agent()
+            .resources
+            .insert(context.world(), entry, Some(context.engine()));
     resource::TimerHandle(resource_id)
 }
 
@@ -199,10 +200,12 @@ fn schedule_timer_state(
     }
 
     context.event_loop().schedule_timer(EventLoopTimer {
-        clock: state.clock,
         handle: handle.0,
-        fire_at_nanos: state.next_deadline_ns,
-        interval_nanos: state.interval_ns,
+        deadline: TimerDeadline {
+            clock: state.clock,
+            at: state.next_deadline,
+        },
+        interval: state.interval,
     })
 }
 
@@ -214,43 +217,43 @@ fn refresh_timer_state(context: &BindingCallContext, state: &mut TimerState) {
     }
 
     // evaluate one-shot timer completion
-    if state.interval_ns.is_none() {
+    if state.interval.is_none() {
         let now = now_for_clock(context, state.clock);
-        if now >= state.next_deadline_ns {
+        if now >= state.next_deadline {
             state.active = false;
         }
         return;
     }
 
     // roll repeating timers to the next future deadline
-    let interval = state.interval_ns.unwrap_or(0);
-    if interval == 0 {
+    let interval = state.interval.unwrap_or(Nanos::new(0));
+    if interval.get() == 0 {
         state.active = false;
         return;
     }
 
     let now = now_for_clock(context, state.clock);
-    if now < state.next_deadline_ns {
+    if now < state.next_deadline {
         return;
     }
 
-    let elapsed = now.saturating_sub(state.next_deadline_ns);
-    let periods = elapsed / interval + 1;
-    let advance = interval.saturating_mul(periods);
-    state.next_deadline_ns = state.next_deadline_ns.saturating_add(advance);
+    let elapsed = now.saturating_sub(state.next_deadline);
+    let periods = elapsed.get() / interval.get() + 1;
+    let advance = interval.get().saturating_mul(periods);
+    state.next_deadline = state.next_deadline.saturating_add(Nanos::new(advance));
 }
 
 /// Return remaining nanoseconds for one timer state snapshot.
-fn remaining_nanos(context: &BindingCallContext, state: &TimerState) -> u64 {
+fn remaining_nanos(context: &BindingCallContext, state: &TimerState) -> Nanos {
     if !state.active {
-        return 0;
+        return Nanos::new(0);
     }
     if state.paused {
-        return state.paused_remaining_ns;
+        return state.paused_remaining;
     }
 
     let now = now_for_clock(context, state.clock);
-    state.next_deadline_ns.saturating_sub(now)
+    state.next_deadline.saturating_sub(now)
 }
 
 /// Create one timer state and schedule it.
@@ -266,11 +269,11 @@ fn create_timer(
     // insert one state payload into the resource table
     let state = TimerState {
         clock: options.clock,
-        interval_ns,
-        next_deadline_ns: deadline_ns,
+        interval: interval_ns.map(Nanos::new),
+        next_deadline: Nanos::new(deadline_ns),
         active: true,
         paused: false,
-        paused_remaining_ns: 0,
+        paused_remaining: Nanos::new(0),
     };
     let handle = insert_timer_state(context, state);
 
@@ -281,7 +284,7 @@ fn create_timer(
         let _ = context
             .agent()
             .resources
-            .remove(handle.0, Some(context.engine()));
+            .remove(context.world(), handle.0, Some(context.engine()));
         return Err(error);
     }
 
@@ -300,7 +303,7 @@ pub(crate) unsafe fn destack_timer_cancel(
     let entry = context
         .agent()
         .resources
-        .remove(handle.0, Some(context.engine()))
+        .remove(context.world(), handle.0, Some(context.engine()))
         .ok_or_else(invalid_timer_handle_error)?;
     if entry.kind != ResourceKind::Timer {
         return Err(invalid_timer_handle_error());
@@ -357,7 +360,7 @@ pub(crate) unsafe fn destack_timer_pause(
     }
 
     // capture one remaining duration and pause scheduling
-    state.paused_remaining_ns = remaining_nanos(context, &state);
+    state.paused_remaining = remaining_nanos(context, &state);
     state.paused = true;
     context.event_loop().cancel_timer(handle.0)?;
     Ok(())
@@ -388,7 +391,7 @@ pub(crate) unsafe fn destack_timer_remaining_ns(
 
     // write one remaining duration
     unsafe {
-        *out = remaining;
+        *out = remaining.get();
     }
     Ok(())
 }
@@ -408,8 +411,8 @@ pub(crate) unsafe fn destack_timer_reset(
 
     // apply one new relative deadline and resume scheduling
     let now = now_for_clock(context, state.clock);
-    state.next_deadline_ns = now.saturating_add(delayns);
-    state.paused_remaining_ns = 0;
+    state.next_deadline = now.saturating_add(Nanos::new(delayns));
+    state.paused_remaining = Nanos::new(0);
     state.paused = false;
     state.active = true;
     context.event_loop().cancel_timer(handle.0)?;
@@ -433,8 +436,8 @@ pub(crate) unsafe fn destack_timer_resume(
 
     // restore one deadline from paused remaining duration
     let now = now_for_clock(context, state.clock);
-    state.next_deadline_ns = now.saturating_add(state.paused_remaining_ns);
-    state.paused_remaining_ns = 0;
+    state.next_deadline = now.saturating_add(state.paused_remaining);
+    state.paused_remaining = Nanos::new(0);
     state.paused = false;
     schedule_timer_state(context, handle, &state)
 }
@@ -456,7 +459,7 @@ pub(crate) unsafe fn destack_timer_update_interval(
     // resolve one timer state payload
     let state = timer_state_for_handle(context, handle)?;
     let mut state = state.lock();
-    state.interval_ns = Some(periodns);
+    state.interval = Some(Nanos::new(periodns));
 
     // keep paused and inactive timers unscheduled
     if !state.active || state.paused {
@@ -514,8 +517,8 @@ pub(crate) unsafe fn destack_timer_interval(
 
     // create and schedule one repeating timer handle
     let now = now_for_clock(context, options.clock);
-    let deadline = now.saturating_add(periodns);
-    let handle = create_timer(context, options, deadline, Some(periodns))?;
+    let deadline = now.saturating_add(Nanos::new(periodns));
+    let handle = create_timer(context, options, deadline.get(), Some(periodns))?;
 
     // write one output handle
     unsafe {
@@ -541,8 +544,8 @@ pub(crate) unsafe fn destack_timer_once(
 
     // create and schedule one one-shot timer handle
     let now = now_for_clock(context, options.clock);
-    let deadline = now.saturating_add(delayns);
-    let handle = create_timer(context, options, deadline, None)?;
+    let deadline = now.saturating_add(Nanos::new(delayns));
+    let handle = create_timer(context, options, deadline.get(), None)?;
 
     // write one output handle
     unsafe {

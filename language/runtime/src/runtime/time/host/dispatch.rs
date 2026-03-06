@@ -233,11 +233,17 @@ pub(crate) unsafe fn host_sleep_nanos(
 ) -> RuntimeResult<()> {
     // route sleep through virtual or host mode behavior
     if context.is_virtual_clock() {
-        context.sleep_nanos(duration);
-        return Ok(());
+        let _ = duration;
+
+        return Err(
+            RuntimeError::from(PlatformError::not_supported("destack.time.sleep.ns")).boxed(),
+        );
     }
 
-    host_time::host_sleep_nanos(duration)
+    // host mode: block the current thread directly
+    context.sleep_nanos(duration);
+
+    Ok(())
 }
 
 /// Sleep for one duration on one clock domain.
@@ -248,14 +254,19 @@ pub(crate) unsafe fn host_sleep_on_nanos(
 ) -> RuntimeResult<()> {
     // route clock-domain sleep through runtime policy
     if context.is_virtual_clock() {
-        match clock {
-            SleepClock::Wall | SleepClock::Monotonic => context.sleep_nanos(duration),
-        }
+        let _ = (duration, clock);
 
-        return Ok(());
+        return Err(
+            RuntimeError::from(PlatformError::not_supported("destack.time.sleepOn.ns")).boxed(),
+        );
     }
 
-    host_time::host_sleep_nanos(duration)
+    // host mode: delegate to the selected clock domain
+    match clock {
+        SleepClock::Wall | SleepClock::Monotonic => context.sleep_nanos(duration),
+    }
+
+    Ok(())
 }
 
 /// Sleep until one wall deadline in nanoseconds.
@@ -265,8 +276,11 @@ pub(crate) unsafe fn host_sleep_until_nanos(
 ) -> RuntimeResult<()> {
     // route wall-deadline sleep through runtime policy
     if context.is_virtual_clock() {
-        context.sleep_until_wall_nanos(deadline);
-        return Ok(());
+        let _ = deadline;
+
+        return Err(
+            RuntimeError::from(PlatformError::not_supported("destack.time.sleepUntil.ns")).boxed(),
+        );
     }
 
     // convert absolute wall deadline to one host sleep duration
@@ -276,7 +290,9 @@ pub(crate) unsafe fn host_sleep_until_nanos(
     }
 
     let duration = deadline.saturating_sub(now);
-    host_time::host_sleep_nanos(duration)
+    context.sleep_nanos(duration);
+
+    Ok(())
 }
 
 /// Sleep until one deadline on one clock domain.
@@ -287,12 +303,12 @@ pub(crate) unsafe fn host_sleep_until_on_nanos(
 ) -> RuntimeResult<()> {
     // route domain deadline sleep through runtime policy
     if context.is_virtual_clock() {
-        match clock {
-            SleepClock::Wall => context.sleep_until_wall_nanos(deadline),
-            SleepClock::Monotonic => context.sleep_until_mono_nanos(deadline),
-        }
+        let _ = (deadline, clock);
 
-        return Ok(());
+        return Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.time.sleepUntilOn.ns",
+        ))
+        .boxed());
     }
 
     // convert absolute domain deadline to one host sleep duration
@@ -305,5 +321,7 @@ pub(crate) unsafe fn host_sleep_until_on_nanos(
     }
 
     let duration = deadline.saturating_sub(now);
-    host_time::host_sleep_nanos(duration)
+    context.sleep_nanos(duration);
+
+    Ok(())
 }
