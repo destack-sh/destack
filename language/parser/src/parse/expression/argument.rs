@@ -1,3 +1,4 @@
+use crate::parse::parser::NonNewlineTokenCursor;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
@@ -5,15 +6,31 @@ use destack_ast::{
 };
 
 impl Parser {
-    pub fn can_follow_type_arguments_in_expression(&mut self) -> bool {
-        let cursor = self.current_scanner_cursor();
+    /// Return true when a static argument follow cursor can continue an expression.
+    fn can_follow_type_arguments_with_cursor(
+        &mut self,
+        cursor: NonNewlineTokenCursor,
+        allow_object_literal: bool,
+        allow_statement_keyword: bool,
+    ) -> bool {
+        let mut can_follow = if cursor.has_line_break_before {
+            true
+        } else {
+            self.can_follow_type_arguments_at_index(cursor.index)
+        };
 
-        // a line break terminates the current expression statement
-        if cursor.has_line_break_before {
-            return true;
+        if allow_object_literal && cursor.token_type == TokenType::OpenBrace {
+            can_follow = true;
         }
 
-        self.can_follow_type_arguments_at_index(cursor.index)
+        if allow_statement_keyword
+            && cursor.token_type == TokenType::Identifier
+            && self.keyword_for_index(cursor.index).is_some()
+        {
+            can_follow = true;
+        }
+
+        can_follow
     }
 
     /// Check whether a static argument list can be followed by a specific token.
@@ -97,19 +114,6 @@ impl Parser {
         false
     }
 
-    /// Check whether static arguments can be followed by an object literal.
-    #[inline]
-    pub(super) fn can_follow_type_arguments_in_object_literal(&mut self) -> bool {
-        self.peek_is(TokenType::OpenBrace)
-    }
-
-    /// Check whether static arguments can be followed by a statement-start keyword.
-    #[inline]
-    pub(super) fn can_follow_type_arguments_with_statement_keyword(&mut self) -> bool {
-        let cursor = self.current_scanner_cursor();
-        cursor.token_type == TokenType::Identifier && self.keyword_for_index(cursor.index).is_some()
-    }
-
     /// Speculatively eat static arguments and validate a compatible follow token.
     pub(crate) fn eat_static_arguments_with_follow_maybe(
         &mut self,
@@ -126,11 +130,11 @@ impl Parser {
         }
 
         // static argument start
+        let start_cursor = allow_newline_prefix.then(|| self.scanner_cursor_from(self.pos_index()));
         let has_static_argument_start =
             if self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft) {
                 true
-            } else if allow_newline_prefix {
-                let cursor = self.current_scanner_cursor();
+            } else if let Some(cursor) = start_cursor {
                 cursor.has_line_break_before
                     && matches!(
                         cursor.token_type,
@@ -148,8 +152,10 @@ impl Parser {
         let speculative_start_idx = self.tree.next_id();
 
         // normalize optional line break prefix before `<...>`
-        if allow_newline_prefix {
-            self.advance_to_scanner_cursor();
+        if let Some(cursor) = start_cursor
+            && cursor.index != self.pos_index()
+        {
+            self.advance_to(cursor.index);
         }
 
         match self.eat_static_arguments() {
@@ -170,15 +176,12 @@ impl Parser {
                 }
 
                 // validate that a follow token makes sense for a type argument list
-                let mut can_follow = self.can_follow_type_arguments_in_expression();
-                if allow_object_literal && self.can_follow_type_arguments_in_object_literal() {
-                    can_follow = true;
-                }
-                if allow_statement_keyword
-                    && self.can_follow_type_arguments_with_statement_keyword()
-                {
-                    can_follow = true;
-                }
+                let follow_cursor = self.scanner_cursor_from(self.pos_index());
+                let can_follow = self.can_follow_type_arguments_with_cursor(
+                    follow_cursor,
+                    allow_object_literal,
+                    allow_statement_keyword,
+                );
                 if can_follow {
                     Some(static_arguments)
                 } else {

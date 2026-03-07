@@ -1,5 +1,6 @@
 use super::common::{DECLARATION_START_TOKENS, DescriptorHead, is_type_relation_keyword};
-use super::lookahead::ParenthesizedGroupShape;
+use super::lookahead::DelimiterAnalysis;
+use crate::parse::parser::ParserOptions;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
@@ -81,16 +82,13 @@ impl Parser {
         Ok(Some(expression_id))
     }
 
-    /// Eat an expression with options known by the caller, skipping option equality checks.
+    /// Eat an expression with a replacement expression-local context.
     #[inline(always)]
-    pub(crate) fn eat_expression_with_options_unchecked(
+    pub(crate) fn eat_expression_with_context_unchecked(
         &mut self,
-        options: ParserOptions,
+        context: ParserOptions,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        let old_options = self.swap_options(options);
-        let result = self.eat_expression_inner_with_stack_guard();
-        self.restore_options(old_options);
-        result
+        self.eat_expression(self.options.with_expression_context(context))
     }
 
     #[inline(always)]
@@ -135,15 +133,11 @@ impl Parser {
             return self.eat_expression_inner_with_stack_guard();
         }
 
-        let mut options = self.options;
-        options.set_in_statement_position(false);
+        let context = self.options.not_in_statement_position();
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             speculation_stats.with_options_calls += 1;
         }
-        let old_options = self.swap_options(options);
-        let result = self.eat_expression_inner_with_stack_guard();
-        self.restore_options(old_options);
-        result
+        self.eat_expression(self.options.with_expression_context(context))
     }
 
     /// Eat an expression with stack growth checks.
@@ -325,77 +319,33 @@ impl Parser {
         self.is_contextual_type_literal_identifier()
     }
 
-    /// Try to parse a plain parenthesized expression without lambda lookahead.
-    fn try_parse_plain_parenthesized_expression(
+    /// Parse one grouped inner expression and consume the closing `)`.
+    fn eat_parenthesized_inner_expression(
         &mut self,
-        start: &ParserMark,
-        group_shape: ParenthesizedGroupShape,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.parenthesized_expression_plain_calls += 1;
-        }
-
-        // this plain path only applies to JS and TS value contexts
-        if self.language.is_destack()
-            || self.options.is_in_type()
-            || self.options.is_in_arrow_return_type()
-            || self.has_active_split()
-        {
-            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.parenthesized_expression_plain_misses += 1;
-            }
-            return Ok(None);
-        }
-
-        // lambda and typed-lambda forms still need full lookahead handling
-        if group_shape.has_arrow_follow || group_shape.has_colon_follow {
-            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.parenthesized_expression_plain_misses += 1;
-            }
-            return Ok(None);
-        }
-
-        let expression_id = self.parse_plain_parenthesized_expression_unchecked(start)?;
-
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.parenthesized_expression_plain_hits += 1;
-        }
-
-        Ok(Some(expression_id))
-    }
-
-    /// Parse a plain parenthesized expression in js and ts value contexts.
-    #[inline]
-    fn parse_plain_parenthesized_expression_unchecked(
-        &mut self,
-        start: &ParserMark,
-    ) -> ParseResult<LocalNodeId<Expression>> {
-        // parse the grouped expression directly
-        self.bump(); // eat open parenthesis
-        self.eat_newlines_maybe()?;
-
-        // js and ts: empty sequence expression
-        if self.peek_is(TokenType::CloseParenthesis) {
-            self.bump(); // eat closing parenthesis
-            return Ok(self.tree.insert(
-                Expression::SequenceExpression {
-                    expressions: vec![],
-                },
-                self.get_span_from(start),
-            ));
-        }
-
-        // parse the grouped expression body
+        preserve_type_context: bool,
+    ) -> ParseResult<(LocalNodeId<Expression>, TokenType)> {
         let inner_start = self.pos();
-        let mut inner_options = self.options.nested().in_parenthesis();
+        let mut inner_options = self.options.nested().with_parenthesis(true);
         inner_options.set_allow_sequence_expression(true);
-        let expression_id = self.eat_expression_with_options_unchecked(inner_options)?;
+        if preserve_type_context && self.options.is_in_type() {
+            inner_options = inner_options.in_type();
+        }
+
+        let expression_id = self.eat_expression_with_context_unchecked(inner_options)?;
         self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseParenthesis)?;
 
-        // preserve tuple and sequence spans when nested expressions already produced them
-        let inner_token_type = self.token_type_at(inner_start as usize);
-        let expression_id = match self.tree.get(expression_id) {
+        Ok((expression_id, self.token_type_at(inner_start as usize)))
+    }
+
+    /// Finish a parenthesized expression after the inner value has been parsed.
+    fn finish_parenthesized_expression(
+        &mut self,
+        start: &ParserMark,
+        expression_id: LocalNodeId<Expression>,
+        inner_token_type: TokenType,
+    ) -> LocalNodeId<Expression> {
+        match self.tree.get(expression_id) {
             Expression::TupleExpression { .. }
                 if inner_token_type != TokenType::OpenParenthesis =>
             {
@@ -414,99 +364,96 @@ impl Parser {
                 },
                 self.get_span_from(start),
             ),
-        };
-
-        Ok(expression_id)
+        }
     }
 
-    /// Parse a parenthesized primary expression using precomputed group metadata.
+    /// Try to parse a parenthesized lambda from one known group shape.
+    fn try_eat_parenthesized_lambda_from_shape(
+        &mut self,
+        start: &ParserMark,
+        group_shape: DelimiterAnalysis,
+    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        let has_parenthesized_parameter_shape = group_shape.has_top_level_parameter_colon
+            || group_shape.has_top_level_comma
+            || group_shape.is_empty;
+        let can_parse_lambda_in_arrow_return = !self.options.is_in_arrow_return_type()
+            || self.options.is_in_type() && has_parenthesized_parameter_shape;
+        let Some(follow_token_type) = group_shape.follow_token_type else {
+            return Ok(None);
+        };
+
+        let is_colon_lambda = follow_token_type == TokenType::Colon;
+        let is_colon_lambda_allowed = !is_colon_lambda
+            || (self.language.is_destack() || self.language.is_typescript())
+                && !self.options.is_in_before_type()
+                && !self.options.is_in_match_case()
+                && (!self.options.is_in_type() || !group_shape.has_top_level_comma);
+        if !can_parse_lambda_in_arrow_return || !is_colon_lambda_allowed {
+            return Ok(None);
+        }
+
+        if is_colon_lambda && self.options.is_in_ternary_condition() {
+            let speculative_start = self.mark();
+            let speculative_start_idx = self.tree.next_id();
+            if let Ok(lambda_id) =
+                self.eat_function(start, DeclarationDescriptor::default(), false, false)
+            {
+                let has_ternary_delimiter = self.peek_is(TokenType::Colon)
+                    || self.is_token_after_newlines(self.pos(), TokenType::Colon);
+                let should_accept = match self.tree.get(lambda_id) {
+                    Declaration::Function { body, .. } => {
+                        (body.is_some() || self.options.is_in_type()) && has_ternary_delimiter
+                    }
+                    _ => has_ternary_delimiter,
+                };
+                if should_accept {
+                    return Ok(Some(self.tree.insert(
+                        Expression::Declaration(lambda_id),
+                        self.get_span_from(start),
+                    )));
+                }
+            }
+
+            self.restore(speculative_start, speculative_start_idx);
+            return Ok(None);
+        }
+
+        let lambda_id = self.eat_function(start, DeclarationDescriptor::default(), false, false)?;
+
+        Ok(Some(self.tree.insert(
+            Expression::Declaration(lambda_id),
+            self.get_span_from(start),
+        )))
+    }
+
+    /// Parse a parenthesized primary expression from one known group shape.
     fn eat_parenthesized_primary_from_shape(
         &mut self,
         start: &ParserMark,
-        group_shape: ParenthesizedGroupShape,
+        group_shape: DelimiterAnalysis,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        // plain path for non-lambda grouped expressions
-        if let Some(group_expression_id) =
-            self.try_parse_plain_parenthesized_expression(start, group_shape)?
-        {
-            return Ok(group_expression_id);
+        let is_plain_js_or_ts_group = !self.language.is_destack()
+            && !self.options.is_in_type()
+            && !self.options.is_in_arrow_return_type()
+            && !self.has_active_split()
+            && group_shape.follow_token_type.is_none();
+
+        // plain js and ts groups
+        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.parenthesized_expression_plain_calls += 1;
         }
-
-        let has_top_level_comma = group_shape.has_top_level_comma;
-        let mut lambda_expression_id = None;
-
-        // parse direct arrow lambdas without deep group lookahead
-        if !self.options.is_in_arrow_return_type() && group_shape.has_arrow_follow {
-            let lambda_id =
-                self.eat_function(start, DeclarationDescriptor::default(), false, false)?;
-            lambda_expression_id = Some(self.tree.insert(
-                Expression::Declaration(lambda_id),
-                self.get_span_from(start),
-            ));
-        }
-
-        // look ahead for colon lambdas and tuple cues when needed
-        if lambda_expression_id.is_none() {
-            let ParenthesizedGroupShape {
-                has_arrow_follow,
-                has_colon_follow,
-                has_top_level_parameter_colon,
-                is_empty: is_empty_parenthesized_group,
-                ..
-            } = group_shape;
-            let has_parenthesized_parameter_shape = has_top_level_parameter_colon
-                || has_top_level_comma
-                || is_empty_parenthesized_group;
-            let is_colon_lambda_allowed = has_colon_follow
-                && (self.language.is_destack() || self.language.is_typescript())
-                && !self.options.is_in_before_type()
-                && !self.options.is_in_match_case()
-                && (!self.options.is_in_type() || !has_top_level_comma);
-            let can_parse_lambda_in_arrow_return = !self.options.is_in_arrow_return_type()
-                || self.options.is_in_type() && has_parenthesized_parameter_shape;
-
-            // parse lambda when we see a likely arrow or colon
-            if (has_arrow_follow || is_colon_lambda_allowed) && can_parse_lambda_in_arrow_return {
-                // avoid colon lambdas that steal ternary delimiters
-                if self.options.is_in_ternary_condition() && has_colon_follow {
-                    let speculative_start = self.mark();
-                    let speculative_start_idx = self.tree.next_id();
-                    if let Ok(lambda_id) =
-                        self.eat_function(start, DeclarationDescriptor::default(), false, false)
-                    {
-                        let has_ternary_delimiter = self.peek_is(TokenType::Colon)
-                            || self.is_token_after_newlines(self.pos(), TokenType::Colon);
-                        let should_accept = match self.tree.get(lambda_id) {
-                            Declaration::Function { body, .. } => {
-                                (body.is_some() || self.options.is_in_type())
-                                    && has_ternary_delimiter
-                            }
-                            _ => has_ternary_delimiter,
-                        };
-                        if should_accept {
-                            lambda_expression_id = Some(self.tree.insert(
-                                Expression::Declaration(lambda_id),
-                                self.get_span_from(start),
-                            ));
-                        } else {
-                            self.restore(speculative_start, speculative_start_idx);
-                        }
-                    } else {
-                        self.restore(speculative_start, speculative_start_idx);
-                    }
-                } else {
-                    let lambda_id =
-                        self.eat_function(start, DeclarationDescriptor::default(), false, false)?;
-                    lambda_expression_id = Some(self.tree.insert(
-                        Expression::Declaration(lambda_id),
-                        self.get_span_from(start),
-                    ));
-                }
+        if is_plain_js_or_ts_group {
+            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+                speculation_stats.parenthesized_expression_plain_hits += 1;
             }
+        } else if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.parenthesized_expression_plain_misses += 1;
         }
 
-        // tuple or parenthesized expression
-        if let Some(lambda_expression_id) = lambda_expression_id {
+        if !is_plain_js_or_ts_group
+            && let Some(lambda_expression_id) =
+                self.try_eat_parenthesized_lambda_from_shape(start, group_shape)?
+        {
             return Ok(lambda_expression_id);
         }
 
@@ -534,11 +481,11 @@ impl Parser {
             ));
         }
 
-        // tuple when we see a named element or top-level comma
+        // tuple when we see a named element or top level comma
         if (self.language.is_destack()
             && self.peek_is(TokenType::Identifier)
             && self.peek_next_is(TokenType::Colon))
-            || has_top_level_comma
+            || group_shape.has_top_level_comma
         {
             let tuple_elements = self
                 .eat_sequence_literal_body(None, TokenType::CloseParenthesis)
@@ -554,43 +501,21 @@ impl Parser {
         }
 
         // tuple or parenthesized expression for the remaining cases
-        let inner_start = self.pos();
-        let mut inner_options = self.options.nested().in_parenthesis();
-        inner_options.set_allow_sequence_expression(true);
-        if self.options.is_in_type() {
-            inner_options = inner_options.in_type();
-        }
-        let expression_id = self.eat_expression_with_options_unchecked(inner_options)?;
-        self.eat_newlines_maybe()?;
+        let preserve_type_context = !is_plain_js_or_ts_group;
+        let (expression_id, inner_token_type) =
+            self.eat_parenthesized_inner_expression(preserve_type_context)?;
 
-        self.eat_token(TokenType::CloseParenthesis)?;
-        let inner_token_type = self.token_type_at(inner_start as usize);
-        let expression_id = match self.tree.get(expression_id) {
-            // if it was a tuple starting here, expand it to cover the entire span
-            // (except if that tuple has its own parenthesis already when nesting)
-            Expression::TupleExpression { .. }
-                if inner_token_type != TokenType::OpenParenthesis =>
-            {
-                self.tree.set_span(expression_id, self.get_span_from(start));
-                expression_id
-            }
-            // if it was a sequence expression starting here, expand it to cover the entire span
-            Expression::SequenceExpression { .. }
-                if inner_token_type != TokenType::OpenParenthesis =>
-            {
-                self.tree.set_span(expression_id, self.get_span_from(start));
-                expression_id
-            }
-            // otherwise it was a manually parenthesized expression, wrap it
-            _ => self.tree.insert(
-                Expression::Parenthesized {
-                    expression: expression_id,
-                },
-                self.get_span_from(start),
-            ),
-        };
+        Ok(self.finish_parenthesized_expression(start, expression_id, inner_token_type))
+    }
 
-        Ok(expression_id)
+    /// Parse an open parenthesis primary expression.
+    fn eat_parenthesized_primary(
+        &mut self,
+        start: &ParserMark,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let _group_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_GROUP);
+        let group_shape = self.parenthesized_group_shape()?;
+        self.eat_parenthesized_primary_from_shape(start, group_shape)
     }
 
     /// Eat an expression body without stack growth checks.
@@ -775,9 +700,9 @@ impl Parser {
 
                     // identifier context setup
                     let pos_index = self.pos_index();
-                    let scanner_lookahead = self.peek_scanner_lookahead();
-                    let next_raw_token_type = scanner_lookahead.next_raw_token_type;
-                    let next_cursor = scanner_lookahead.next_cursor;
+                    let next_raw_index = self.index_for_next();
+                    let next_raw_token_type = self.token_type_at(next_raw_index);
+                    let next_cursor = self.scanner_cursor_from(next_raw_index);
                     let next_token_type = next_cursor.token_type;
                     let next_token_index = next_cursor.index;
                     let next_has_line_break = next_cursor.has_line_break_before;
@@ -901,7 +826,7 @@ impl Parser {
                                 right_options = right_options.in_type_conditional_right();
                             }
                             let right =
-                                self.eat_expression_with_options_unchecked(right_options)?;
+                                self.eat_expression_with_context_unchecked(right_options)?;
 
                             // unparenthesized arrow functions are not unary operands
                             if self.is_unparenthesized_lambda_expression(right) {
@@ -926,22 +851,25 @@ impl Parser {
                             self.bump(); // eat type unary operator (always because right associative)
                             self.eat_newlines_maybe()?;
                             let operator_span = self.get_span_from(&operator_start);
-                            let mut right_options = self
+                            let mut right_expression_context = self
                                 .options
                                 .not_in_position()
-                                .in_type()
                                 .in_left_precedence(operator.precedence());
+                            let right_ambient_context = self
+                                .options
+                                .with_type(true)
+                                .with_typeof_query(operator == TypeUnaryOperator::Typeof);
 
                             // parse typeof targets with contextual keyword tolerance
-                            if operator == TypeUnaryOperator::Typeof {
-                                right_options = right_options.in_typeof_query();
-                            }
-
                             if self.options.is_in_type_conditional_right() {
-                                right_options = right_options.in_type_conditional_right();
+                                right_expression_context =
+                                    right_expression_context.in_type_conditional_right();
                             }
-                            let right =
-                                self.eat_expression_with_options_unchecked(right_options)?;
+                            let right = self.eat_expression(
+                                self.options
+                                    .with_ambient_context(right_ambient_context)
+                                    .with_expression_context(right_expression_context),
+                            )?;
                             let expression = Expression::TypeUnary { operator, right };
                             let expression_id =
                                 self.tree.insert(expression, self.get_span_from(&start));
@@ -1062,64 +990,7 @@ impl Parser {
                     // parenthesis
                     // may be tuple, lambda, or parenthesized expression
                     else if token_type == TokenType::OpenParenthesis {
-                        let _group_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_GROUP);
-
-                        // tree literal starts like `(<div>...)` do not need delimiter-shape lookahead
-                        let has_parenthesized_tree_literal = self.language.supports_jsx()
-                            && !self.options.is_in_type()
-                            && !self.options.is_in_arrow_return_type()
-                            && {
-                                let next_index =
-                                    self.next_non_newline_index_from(self.pos_index() + 1);
-                                self.token_type_at(next_index) == TokenType::LessThan
-                                    && self.with_pos(next_index, |parser| {
-                                        parser.can_start_tree_literal()
-                                    })
-                            };
-
-                        // plain path: in JS/TS value contexts, branch on the token after ')'
-                        let can_use_plain_group_follow = !self.language.is_destack()
-                            && !self.options.is_in_type()
-                            && !self.options.is_in_arrow_return_type()
-                            && !self.has_active_split()
-                            && !has_parenthesized_tree_literal;
-                        if can_use_plain_group_follow
-                            && let Some(parenthesized_follow) = self.parenthesized_follow_token()
-                        {
-                            let follow_token_type = parenthesized_follow.follow_token_type;
-
-                            // direct arrow after ')' means this is a lambda head
-                            if matches!(follow_token_type, TokenType::Arrow | TokenType::ArrowWide)
-                            {
-                                let lambda_id = self.eat_function_with_parenthesized_head_hint(
-                                    &start,
-                                    DeclarationDescriptor::default(),
-                                    false,
-                                    false,
-                                    parenthesized_follow.close_index,
-                                    follow_token_type,
-                                )?;
-                                self.tree.insert(
-                                    Expression::Declaration(lambda_id),
-                                    self.get_span_from(&start),
-                                )
-                            }
-                            // non-colon follow cannot be a typed lambda head
-                            else if follow_token_type != TokenType::Colon {
-                                self.parse_plain_parenthesized_expression_unchecked(&start)?
-                            }
-                            // colon follow needs the full shape pipeline for ternary/lambda disambiguation
-                            else {
-                                let group_shape = self.try_lookahead_parenthesized_group_shape()?;
-                                self.eat_parenthesized_primary_from_shape(&start, group_shape)?
-                            }
-                        } else if has_parenthesized_tree_literal {
-                            let group_shape = ParenthesizedGroupShape::default();
-                            self.eat_parenthesized_primary_from_shape(&start, group_shape)?
-                        } else {
-                            let group_shape = self.try_lookahead_parenthesized_group_shape()?;
-                            self.eat_parenthesized_primary_from_shape(&start, group_shape)?
-                        }
+                        self.eat_parenthesized_primary(&start)?
                     }
                     //
                     // ------------------------------------------------------------
@@ -1131,7 +1002,7 @@ impl Parser {
                     else if self.options.is_in_type() && self.peek_is(TokenType::Multiply) {
                         self.bump(); // eat *
                         let mutability = self.eat_reference_mutability_maybe()?;
-                        let right = self.eat_expression_with_options_unchecked(
+                        let right = self.eat_expression_with_context_unchecked(
                             self.options.not_in_position(),
                         )?;
                         let expression = Expression::PointerOf { mutability, right };
@@ -1150,7 +1021,7 @@ impl Parser {
                         if self.options.is_in_type_conditional_right() {
                             right_options = right_options.in_type_conditional_right();
                         }
-                        let right = self.eat_expression_with_options_unchecked(right_options)?;
+                        let right = self.eat_expression_with_context_unchecked(right_options)?;
                         let expression = Expression::Unary { operator, right };
                         let expression_id =
                             self.tree.insert(expression, self.get_span_from(&start));
@@ -1166,12 +1037,15 @@ impl Parser {
                         let mut right_options = self
                             .options
                             .not_in_position()
-                            .in_type()
                             .in_left_precedence(operator.precedence());
                         if self.options.is_in_type_conditional_right() {
                             right_options = right_options.in_type_conditional_right();
                         }
-                        let right = self.eat_expression_with_options_unchecked(right_options)?;
+                        let right = self.eat_expression(
+                            self.options
+                                .with_type(true)
+                                .with_expression_context(right_options),
+                        )?;
                         let expression = Expression::TypeUnary { operator, right };
                         let expression_id =
                             self.tree.insert(expression, self.get_span_from(&start));
@@ -1184,7 +1058,7 @@ impl Parser {
                         self.bump(); // eat ^
                         let mutability = self.eat_reference_mutability_maybe()?;
                         let variance = self.eat_variance_bound_maybe()?;
-                        let right = self.eat_expression_with_options_unchecked(
+                        let right = self.eat_expression_with_context_unchecked(
                             self.options.not_in_position(),
                         )?;
                         let expression = Expression::ValueOf {
@@ -1200,7 +1074,7 @@ impl Parser {
                         self.bump(); // eat &
                         let mutability = self.eat_reference_mutability_maybe()?;
                         let variance = self.eat_variance_bound_maybe()?;
-                        let right = self.eat_expression_with_options_unchecked(
+                        let right = self.eat_expression_with_context_unchecked(
                             self.options.not_in_position(),
                         )?;
                         let expression = Expression::ReferenceOf {
@@ -1217,13 +1091,10 @@ impl Parser {
                     //
                     // array literal
                     else if token_type == TokenType::OpenBracket {
-                        let element_options = self.options.not_in_position();
-                        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                            speculation_stats.with_options_calls += 1;
-                        }
-                        let old_options = self.swap_options(element_options);
-                        let elements = self.eat_array_literal()?;
-                        self.restore_options(old_options);
+                        let elements = self
+                            .with_options(self.options.not_in_position(), |parser| {
+                                parser.eat_array_literal()
+                            })?;
                         self.tree.insert(
                             Expression::ArrayExpression { elements },
                             self.get_span_from(&start),
@@ -1237,17 +1108,10 @@ impl Parser {
                         if self.options.is_in_type() && self.can_start_type_mapped_expression() {
                             self.eat_type_mapped_expression()?
                         } else {
-                            let object_options = if self.options.is_in_type() {
-                                self.options.not_in_position().in_type()
-                            } else {
-                                self.options.not_in_position()
-                            };
-                            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                                speculation_stats.with_options_calls += 1;
-                            }
-                            let old_options = self.swap_options(object_options);
-                            let properties = self.eat_object_literal()?;
-                            self.restore_options(old_options);
+                            let properties = self
+                                .with_options(self.options.not_in_position(), |parser| {
+                                    parser.eat_object_literal()
+                                })?;
                             self.tree.insert(
                                 Expression::ObjectExpression {
                                     ty: None,
@@ -1291,14 +1155,9 @@ impl Parser {
                     }
                     // tree literal
                     else if token_type == TokenType::LessThan && self.can_start_tree_literal() {
-                        let tree_options = self.options.not_in_position();
-                        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                            speculation_stats.with_options_calls += 1;
-                        }
-                        let old_options = self.swap_options(tree_options);
-                        let tree_literal = self.eat_tree_literal();
-                        self.restore_options(old_options);
-                        tree_literal?
+                        self.with_options(self.options.not_in_position(), |parser| {
+                            parser.eat_tree_literal()
+                        })?
                     }
                     // template literal
                     else if self.is_template_literal_start() {
