@@ -166,6 +166,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function backendList(): Result<Slice<DisplayBackendDescriptor>, PlatformError>;
 }

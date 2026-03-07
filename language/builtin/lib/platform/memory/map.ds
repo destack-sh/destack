@@ -1,9 +1,5 @@
 import type { PlatformError } from "../error/index.ds";
-import {
-    MemoryNumaPolicy,
-    MemoryProtection,
-    MemoryReserveFlags,
-} from "./types.ds";
+import { MemoryNumaPolicy, MemoryProtection, MemoryReserveFlags } from "./types.ds";
 
 /// Memory range descriptor.
 export struct MemoryRange {
@@ -32,19 +28,22 @@ declare namespace memory {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.memory.map.reserve",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["memory.map"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function reserve(length: uint64, addressHint: uint64, flags: MemoryReserveFlags): Result<MemoryRange, PlatformError>;
+    @binding("destack.memory.map.reserve", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["memory.map"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function reserve(
+        length: uint64,
+        addressHint: uint64,
+        flags: MemoryReserveFlags,
+    ): Result<MemoryRange, PlatformError>;
 
     /// Commit one reserved range.
     ///
@@ -63,19 +62,22 @@ declare namespace memory {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.memory.map.commit",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["memory.map"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function commit(address: uint64, length: uint64, protection: MemoryProtection): Result<void, PlatformError>;
+    @binding("destack.memory.map.commit", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["memory.map"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function commit(
+        address: uint64,
+        length: uint64,
+        protection: MemoryProtection,
+    ): Result<void, PlatformError>;
 
     /// Decommit one range.
     ///
@@ -94,18 +96,17 @@ declare namespace memory {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.memory.map.decommit",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["memory.map"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.memory.map.decommit", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["memory.map"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function decommit(address: uint64, length: uint64): Result<void, PlatformError>;
 
     /// Release one reserved range.
@@ -125,18 +126,17 @@ declare namespace memory {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.memory.map.release",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["memory.map"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.memory.map.release", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["memory.map"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function release(address: uint64, length: uint64): Result<void, PlatformError>;
 
     /// Bind one range to a NUMA policy.
@@ -156,18 +156,17 @@ declare namespace memory {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.memory.map.numaBind",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["memory.numa"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.memory.map.numaBind", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["memory.numa"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function numaBind(
         address: uint64,
         length: uint64,

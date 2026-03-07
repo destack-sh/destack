@@ -22,18 +22,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.process.group.cgroupJoin",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["process.cgroup"],
-            platforms: ["linux"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.group.cgroupJoin", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["process.cgroup"],
+        platforms: ["linux"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function cgroupJoin(path: string): Result<void, PlatformError>;
 
     /// Read one control-group resource limit.
@@ -53,18 +52,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.process.group.cgroupGetLimit",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["process.cgroup"],
-            platforms: ["linux"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.group.cgroupGetLimit", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["process.cgroup"],
+        platforms: ["linux"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function cgroupGetLimit(
         path: string,
         resource: ProcessLimitResource,
@@ -87,18 +85,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.process.group.cgroupSetLimit",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["process.cgroup"],
-            platforms: ["linux"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.group.cgroupSetLimit", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["process.cgroup"],
+        platforms: ["linux"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function cgroupSetLimit(
         path: string,
         resource: ProcessLimitResource,
@@ -122,18 +119,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.process.group.jobAssign",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["process.cgroup"],
-            platforms: ["windows"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.group.jobAssign", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["process.cgroup"],
+        platforms: ["windows"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function jobAssign(name: string, pids: Slice<ProcessId>): Result<void, PlatformError>;
 
     /// Set one Windows job object resource limit.
@@ -153,18 +149,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.process.group.jobSetLimit",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["process.cgroup"],
-            platforms: ["windows"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.group.jobSetLimit", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["process.cgroup"],
+        platforms: ["windows"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function jobSetLimit(
         name: string,
         resource: ProcessLimitResource,

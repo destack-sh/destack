@@ -238,7 +238,7 @@ export struct WindowExclusiveFullscreenModeOptions {
 
 /// Window mode configuration.
 export newtype WindowModeOptions =
-    WindowWindowedModeOptions
+    | WindowWindowedModeOptions
     | WindowBorderlessModeOptions
     | WindowExclusiveFullscreenModeOptions;
 
@@ -440,6 +440,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function windowOpen(options: WindowOptions): Result<WindowHandle, PlatformError>;
 
@@ -467,6 +468,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function windowClose(window: WindowHandle): Result<void, PlatformError>;
 
@@ -494,6 +496,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "eventLoop",
     })
     export function windowDescriptor(window: WindowHandle): Result<WindowDescriptor, PlatformError>;
 
@@ -521,6 +524,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "eventLoop",
     })
     export function windowState(window: WindowHandle): Result<WindowState, PlatformError>;
 
@@ -549,6 +553,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "eventLoop",
     })
     export function windowCapabilities(window: WindowHandle): Result<DisplayBackendCapabilityFlags, PlatformError>;
 
@@ -576,8 +581,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetTitle(window: WindowHandle, title: string): Result<void, PlatformError>;
+    export function windowSetTitle(
+        window: WindowHandle,
+        title: string,
+    ): Result<void, PlatformError>;
 
     /// Set one window icon set.
     ///
@@ -605,8 +614,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetIcons(window: WindowHandle, icons: WindowIconSet | void): Result<void, PlatformError>;
+    export function windowSetIcons(
+        window: WindowHandle,
+        icons: WindowIconSet | void,
+    ): Result<void, PlatformError>;
 
     /// Set one window position.
     ///
@@ -632,8 +645,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetPosition(window: WindowHandle, position: WindowPosition): Result<void, PlatformError>;
+    export function windowSetPosition(
+        window: WindowHandle,
+        position: WindowPosition,
+    ): Result<void, PlatformError>;
 
     /// Set one logical window size.
     ///
@@ -659,8 +676,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetSizeLogical(window: WindowHandle, size: WindowLogicalSize): Result<void, PlatformError>;
+    export function windowSetSizeLogical(
+        window: WindowHandle,
+        size: WindowLogicalSize,
+    ): Result<void, PlatformError>;
 
     /// Set one physical window size.
     ///
@@ -686,8 +707,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetSizePhysical(window: WindowHandle, size: WindowPhysicalSize): Result<void, PlatformError>;
+    export function windowSetSizePhysical(
+        window: WindowHandle,
+        size: WindowPhysicalSize,
+    ): Result<void, PlatformError>;
 
     /// Set logical size constraints.
     ///
@@ -714,6 +739,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function windowSetSizeConstraints(
         window: WindowHandle,
@@ -745,6 +771,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function windowSetAspectRatio(
         window: WindowHandle,
@@ -775,8 +802,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetVisibility(window: WindowHandle, visibility: WindowVisibility): Result<void, PlatformError>;
+    export function windowSetVisibility(
+        window: WindowHandle,
+        visibility: WindowVisibility,
+    ): Result<void, PlatformError>;
 
     /// Minimize one window.
     ///
@@ -802,6 +833,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function windowMinimize(window: WindowHandle): Result<void, PlatformError>;
 
@@ -829,6 +861,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function windowMaximize(window: WindowHandle): Result<void, PlatformError>;
 
@@ -856,6 +889,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function windowRestore(window: WindowHandle): Result<void, PlatformError>;
 
@@ -883,8 +917,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetMode(window: WindowHandle, mode: WindowModeOptions): Result<void, PlatformError>;
+    export function windowSetMode(
+        window: WindowHandle,
+        mode: WindowModeOptions,
+    ): Result<void, PlatformError>;
 
     /// Set window resizable state.
     ///
@@ -910,8 +948,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetResizable(window: WindowHandle, resizable: boolean): Result<void, PlatformError>;
+    export function windowSetResizable(
+        window: WindowHandle,
+        resizable: boolean,
+    ): Result<void, PlatformError>;
 
     /// Set window decoration state.
     ///
@@ -937,8 +979,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetDecorated(window: WindowHandle, decorated: boolean): Result<void, PlatformError>;
+    export function windowSetDecorated(
+        window: WindowHandle,
+        decorated: boolean,
+    ): Result<void, PlatformError>;
 
     /// Set one window chrome style.
     ///
@@ -964,8 +1010,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetChrome(window: WindowHandle, chrome: WindowChromeKind): Result<void, PlatformError>;
+    export function windowSetChrome(
+        window: WindowHandle,
+        chrome: WindowChromeKind,
+    ): Result<void, PlatformError>;
 
     /// Set taskbar visibility for one window.
     ///
@@ -991,8 +1041,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetTaskbarVisible(window: WindowHandle, visible: boolean): Result<void, PlatformError>;
+    export function windowSetTaskbarVisible(
+        window: WindowHandle,
+        visible: boolean,
+    ): Result<void, PlatformError>;
 
     /// Set always-on-top state.
     ///
@@ -1018,8 +1072,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetAlwaysOnTop(window: WindowHandle, alwaysOnTop: boolean): Result<void, PlatformError>;
+    export function windowSetAlwaysOnTop(
+        window: WindowHandle,
+        alwaysOnTop: boolean,
+    ): Result<void, PlatformError>;
 
     /// Set one window opacity.
     ///
@@ -1045,8 +1103,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetOpacity(window: WindowHandle, opacity: float64): Result<void, PlatformError>;
+    export function windowSetOpacity(
+        window: WindowHandle,
+        opacity: float64,
+    ): Result<void, PlatformError>;
 
     /// Read one window opacity value.
     ///
@@ -1072,6 +1134,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "eventLoop",
     })
     export function windowOpacity(window: WindowHandle): Result<float64, PlatformError>;
 
@@ -1099,6 +1162,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function windowFocus(window: WindowHandle): Result<void, PlatformError>;
 
@@ -1126,6 +1190,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function windowRaise(window: WindowHandle): Result<void, PlatformError>;
 
@@ -1155,8 +1220,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetParent(window: WindowHandle, parent: WindowHandle | void): Result<void, PlatformError>;
+    export function windowSetParent(
+        window: WindowHandle,
+        parent: WindowHandle | void,
+    ): Result<void, PlatformError>;
 
     /// Set one transient-owner relationship.
     ///
@@ -1184,6 +1253,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function windowSetTransientFor(
         window: WindowHandle,
@@ -1215,8 +1285,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetModal(window: WindowHandle, modal: boolean): Result<void, PlatformError>;
+    export function windowSetModal(
+        window: WindowHandle,
+        modal: boolean,
+    ): Result<void, PlatformError>;
 
     /// Set mouse passthrough behavior for one window.
     ///
@@ -1242,8 +1316,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetMousePassthrough(window: WindowHandle, passthrough: boolean): Result<void, PlatformError>;
+    export function windowSetMousePassthrough(
+        window: WindowHandle,
+        passthrough: boolean,
+    ): Result<void, PlatformError>;
 
     /// Request one redraw for one window.
     ///
@@ -1269,6 +1347,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "eventLoop",
     })
     export function windowRequestRefresh(window: WindowHandle): Result<void, PlatformError>;
 
@@ -1296,8 +1375,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "eventLoop",
     })
-    export function windowRequestAttention(window: WindowHandle, level: WindowAttentionLevel): Result<void, PlatformError>;
+    export function windowRequestAttention(
+        window: WindowHandle,
+        level: WindowAttentionLevel,
+    ): Result<void, PlatformError>;
 
     /// Set cursor interaction mode for one window.
     ///
@@ -1323,8 +1406,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetCursorMode(window: WindowHandle, mode: WindowCursorMode): Result<void, PlatformError>;
+    export function windowSetCursorMode(
+        window: WindowHandle,
+        mode: WindowCursorMode,
+    ): Result<void, PlatformError>;
 
     /// Set cursor icon for one window.
     ///
@@ -1350,8 +1437,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetCursorIcon(window: WindowHandle, icon: WindowCursorIcon): Result<void, PlatformError>;
+    export function windowSetCursorIcon(
+        window: WindowHandle,
+        icon: WindowCursorIcon,
+    ): Result<void, PlatformError>;
 
     /// Set cursor visibility for one window.
     ///
@@ -1377,8 +1468,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetCursorVisible(window: WindowHandle, visible: boolean): Result<void, PlatformError>;
+    export function windowSetCursorVisible(
+        window: WindowHandle,
+        visible: boolean,
+    ): Result<void, PlatformError>;
 
     /// Set cursor position for one window.
     ///
@@ -1406,8 +1501,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowSetCursorPosition(window: WindowHandle, position: WindowPosition): Result<void, PlatformError>;
+    export function windowSetCursorPosition(
+        window: WindowHandle,
+        position: WindowPosition,
+    ): Result<void, PlatformError>;
 
     /// Begin one native move-drag interaction.
     ///
@@ -1433,6 +1532,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function windowBeginMoveDrag(window: WindowHandle): Result<void, PlatformError>;
 
@@ -1460,7 +1560,10 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowBeginResizeDrag(window: WindowHandle, edge: WindowResizeEdge): Result<void, PlatformError>;
-
+    export function windowBeginResizeDrag(
+        window: WindowHandle,
+        edge: WindowResizeEdge,
+    ): Result<void, PlatformError>;
 }

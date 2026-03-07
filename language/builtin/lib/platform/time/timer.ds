@@ -3,8 +3,8 @@ import type { PlatformError } from "../error/index.ds";
 
 /// Flags for timer scheduling behavior.
 export newtype TimerFlags = uint32;
-
 /// Timer scheduling bindings for the native runtime.
+
 declare namespace time {
     /// Timer clock domain selector.
     export enum TimerClock {
@@ -39,19 +39,21 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.timer.once",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.timer"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
-    export function timerOnce(delayNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>;
+    @binding("destack.time.timer.once", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.timer"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
+    export function timerOnce(
+        delayNs: uint64,
+        options: TimerOptions,
+    ): Result<TimerHandle, PlatformError>;
 
     /// Schedule a repeating timer.
     ///
@@ -70,19 +72,21 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.timer.interval",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.timer"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
-    export function timerInterval(periodNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>;
+    @binding("destack.time.timer.interval", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.timer"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
+    export function timerInterval(
+        periodNs: uint64,
+        options: TimerOptions,
+    ): Result<TimerHandle, PlatformError>;
 
     /// Schedule a timer for an absolute deadline.
     ///
@@ -101,19 +105,21 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.timer.at",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.timer"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
-    export function timerAt(deadlineNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>;
+    @binding("destack.time.timer.at", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.timer"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
+    export function timerAt(
+        deadlineNs: uint64,
+        options: TimerOptions,
+    ): Result<TimerHandle, PlatformError>;
 
     /// Cancel one scheduled timer.
     ///
@@ -132,18 +138,17 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.timer.cancel",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.timer"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.time.timer.cancel", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.timer"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function timerCancel(handle: TimerHandle): Result<void, PlatformError>;
 
     /// Pause one running timer.
@@ -163,18 +168,17 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.timer.pause",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.timer"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.time.timer.pause", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.timer"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function timerPause(handle: TimerHandle): Result<void, PlatformError>;
 
     /// Resume one paused timer.
@@ -194,18 +198,17 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.timer.resume",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.timer"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.time.timer.resume", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.timer"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function timerResume(handle: TimerHandle): Result<void, PlatformError>;
 
     /// Return whether one timer is currently active.
@@ -225,18 +228,17 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.timer.isActive",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.timer"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.time.timer.isActive", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.timer"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function timerIsActive(handle: TimerHandle): Result<boolean, PlatformError>;
 
     /// Return remaining timer delay in nanoseconds.
@@ -256,18 +258,17 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.timer.remainingNs",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.timer"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.time.timer.remainingNs", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.timer"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function timerRemainingNs(handle: TimerHandle): Result<uint64, PlatformError>;
 
     /// Reset one timer with a new relative delay.
@@ -287,18 +288,17 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.timer.reset",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.timer"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.time.timer.reset", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.timer"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function timerReset(handle: TimerHandle, delayNs: uint64): Result<void, PlatformError>;
 
     /// Update one timer interval period.
@@ -318,17 +318,19 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.timer.updateInterval",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.timer"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
-    export function timerUpdateInterval(handle: TimerHandle, periodNs: uint64): Result<void, PlatformError>;
+    @binding("destack.time.timer.updateInterval", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.timer"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
+    export function timerUpdateInterval(
+        handle: TimerHandle,
+        periodNs: uint64,
+    ): Result<void, PlatformError>;
 }

@@ -73,6 +73,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function locationServicesEnabled(): Result<boolean, PlatformError>;
 
@@ -100,6 +101,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function locationLastKnown(): Result<LocationSample, PlatformError>;
 
@@ -127,6 +129,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function locationWatchOpen(options: LocationWatchOptions): Result<LocationWatchHandle, PlatformError>;
 
@@ -154,6 +157,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function locationWatchClose(handle: LocationWatchHandle): Result<void, PlatformError>;
 
@@ -181,6 +185,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function locationWatchRead(
         handle: LocationWatchHandle,
@@ -211,6 +216,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function locationWatchTryRead(handle: LocationWatchHandle): Result<LocationSample, PlatformError>;
 }

@@ -68,7 +68,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.dir.mkdir", { effect: "external", replay: "recordable", capabilities: ["fs.write"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.dir.mkdir", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function mkdir(path: OsPath, mode: FileMode): Result<void, PlatformError>;
 
     /// Create a directory relative to a directory handle.
@@ -88,7 +97,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.dir.mkdirat", { effect: "external", replay: "recordable", capabilities: ["fs.write"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.dir.mkdirat", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function mkdirat(
         dir: DirectoryHandle,
         path: OsPath,
@@ -112,7 +130,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.dir.rmdir", { effect: "external", replay: "recordable", capabilities: ["fs.write"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.dir.rmdir", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function rmdir(path: OsPath): Result<void, PlatformError>;
 
     /// Open a directory and return a handle.
@@ -132,7 +159,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.dir.opendir", { effect: "external", replay: "recordable", capabilities: ["fs.read"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.dir.opendir", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function opendir(path: OsPath): Result<DirectoryHandle, PlatformError>;
 
     /// Read directory entries from an open directory handle.
@@ -152,7 +188,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.dir.readdir", { effect: "external", replay: "recordable", capabilities: ["fs.read"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.dir.readdir", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function readdir(handle: DirectoryHandle): Result<Array<Dirent>, PlatformError>;
 
     /// Read a single directory entry from an open directory handle.
@@ -172,7 +217,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.dir.readdirNext", { effect: "external", replay: "recordable", capabilities: ["fs.read"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.dir.readdirNext", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function readdirNext(handle: DirectoryHandle): Result<DirentNext, PlatformError>;
 
     /// Reset an open directory handle to the first entry.
@@ -192,7 +246,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.dir.rewinddir", { effect: "external", replay: "recordable", capabilities: ["fs.read"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.dir.rewinddir", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function rewinddir(handle: DirectoryHandle): Result<void, PlatformError>;
 
     /// Resolve the directory descriptor for an open directory handle.
@@ -212,7 +275,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.dir.dirfd", { effect: "external", replay: "recordable", capabilities: ["fs.handle"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.dir.dirfd", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.handle"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function dirfd(handle: DirectoryHandle): Result<FileHandle, PlatformError>;
 
     /// Close a directory handle.
@@ -232,7 +304,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.dir.closedir", { effect: "external", replay: "recordable", capabilities: ["fs.handle"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.dir.closedir", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.handle"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function closedir(handle: DirectoryHandle): Result<void, PlatformError>;
 
     /// Create a temporary directory.
@@ -252,6 +333,15 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.dir.mkdtemp", { effect: "external", replay: "recordable", capabilities: ["fs.temp"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.dir.mkdtemp", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.temp"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function mkdtemp(template: OsPath): Result<OsPath, PlatformError>;
 }

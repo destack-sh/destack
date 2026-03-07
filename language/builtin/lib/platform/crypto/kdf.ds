@@ -84,18 +84,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.kdf.hkdf",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.kdf"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.kdf.hkdf", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.kdf"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function kdfHkdf(request: CryptoHkdfRequest): Result<Slice<uint8>, PlatformError>;
 
     /// Derive one key with PBKDF2.
@@ -112,18 +111,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.kdf.pbkdf2",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.kdf"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.kdf.pbkdf2", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.kdf"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function kdfPbkdf2(request: CryptoPbkdf2Request): Result<Slice<uint8>, PlatformError>;
 
     /// Derive one key with scrypt.
@@ -140,18 +138,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.kdf.scrypt",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.kdf"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.kdf.scrypt", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.kdf"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function kdfScrypt(request: CryptoScryptRequest): Result<Slice<uint8>, PlatformError>;
 
     /// Derive one key with Argon2id.
@@ -168,17 +165,16 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.kdf.argon2id",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.kdf"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.kdf.argon2id", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.kdf"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function kdfArgon2id(request: CryptoArgon2idRequest): Result<Slice<uint8>, PlatformError>;
 }

@@ -23,18 +23,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.event.open",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.event"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.event.open", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.event"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function eventOpen(initial: uint64): Result<EventToken, PlatformError>;
 
     /// Close a user-event token.
@@ -54,18 +53,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.event.close",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.event"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.event.close", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.event"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function eventClose(token: EventToken): Result<void, PlatformError>;
 
     /// Signal a user-event token.
@@ -86,18 +84,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.event.signal",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.event"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.event.signal", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.event"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function eventSignal(token: EventToken, value: uint64): Result<void, PlatformError>;
 
     /// Attach an event token to a poll target key.
@@ -117,17 +114,20 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.event.attach",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.event"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function eventAttach(token: EventToken, target: ResourceId, key: uint64): Result<void, PlatformError>;
+    @binding("destack.io.event.attach", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.event"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function eventAttach(
+        token: EventToken,
+        target: ResourceId,
+        key: uint64,
+    ): Result<void, PlatformError>;
 }

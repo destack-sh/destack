@@ -45,18 +45,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.poll.open",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.poll"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.poll.open", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.poll"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function pollOpen(backend: PollBackend): Result<PollHandle, PlatformError>;
 
     /// Close a poll instance.
@@ -76,18 +75,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.poll.close",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.poll"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.poll.close", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.poll"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function pollClose(handle: PollHandle): Result<void, PlatformError>;
 
     /// Register one target with a poll instance.
@@ -107,18 +105,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.poll.register",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.poll"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.poll.register", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.poll"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function pollRegister(
         handle: PollHandle,
         target: ResourceId,
@@ -143,18 +140,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.poll.update",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.poll"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.poll.update", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.poll"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function pollUpdate(
         handle: PollHandle,
         target: ResourceId,
@@ -179,19 +175,21 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.poll.deregister",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.poll"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function pollDeregister(handle: PollHandle, target: ResourceId): Result<void, PlatformError>;
+    @binding("destack.io.poll.deregister", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.poll"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function pollDeregister(
+        handle: PollHandle,
+        target: ResourceId,
+    ): Result<void, PlatformError>;
 
     /// Wait for poll events.
     ///
@@ -210,18 +208,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.poll.wait",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.poll"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.poll.wait", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.poll"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function pollWait(
         handle: PollHandle,
         timeoutNs: uint64,

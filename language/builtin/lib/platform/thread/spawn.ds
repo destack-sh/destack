@@ -28,19 +28,22 @@ declare namespace thread {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.thread.spawn.start",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["thread.spawn"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function spawn(entry: string, argument: uint64, options: ThreadOptions): Result<ThreadHandle, PlatformError>;
+    @binding("destack.thread.spawn.start", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["thread.spawn"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function spawn(
+        entry: string,
+        argument: uint64,
+        options: ThreadOptions,
+    ): Result<ThreadHandle, PlatformError>;
 
     /// Join one host thread.
     ///
@@ -59,18 +62,17 @@ declare namespace thread {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.thread.spawn.join",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["thread.spawn"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.thread.spawn.join", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["thread.spawn"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function join(handle: ThreadHandle): Result<uint32, PlatformError>;
 
     /// Detach one host thread.
@@ -90,17 +92,16 @@ declare namespace thread {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.thread.spawn.detach",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["thread.spawn"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.thread.spawn.detach", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["thread.spawn"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function detach(handle: ThreadHandle): Result<void, PlatformError>;
 }

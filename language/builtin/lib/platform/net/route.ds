@@ -55,7 +55,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.route.routeList", { effect: "external", replay: "recordable", capabilities: ["net.route.read"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.route.routeList", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.route.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function routeList(family: SocketFamily): Result<Array<RouteEntry>, PlatformError>;
 
     /// Add a route table entry.
@@ -77,7 +86,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.route.routeAdd", { effect: "external", replay: "recordable", capabilities: ["net.route.write"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.route.routeAdd", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.route.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function routeAdd(route: RouteEntry): Result<void, PlatformError>;
 
     /// Remove a route table entry.
@@ -99,7 +117,15 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.route.routeDelete", { effect: "external", replay: "recordable", capabilities: ["net.route.write"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.route.routeDelete", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.route.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function routeDelete(route: RouteEntry): Result<void, PlatformError>;
-
 }

@@ -155,6 +155,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbList(): Result<Slice<UsbDeviceDescriptor>, PlatformError>;
 
@@ -182,6 +183,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbWatchOpen(): Result<UsbWatchHandle, PlatformError>;
 
@@ -209,6 +211,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbWatchClose(handle: UsbWatchHandle): Result<void, PlatformError>;
 
@@ -236,8 +239,12 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function usbWatchRead(handle: UsbWatchHandle, timeoutNs: uint64): Result<UsbHotplugEvent, PlatformError>;
+    export function usbWatchRead(
+        handle: UsbWatchHandle,
+        timeoutNs: uint64,
+    ): Result<UsbHotplugEvent, PlatformError>;
 
     /// Poll one USB hotplug event without blocking.
     ///
@@ -263,6 +270,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function usbWatchTryRead(handle: UsbWatchHandle): Result<UsbHotplugEvent, PlatformError>;
 
@@ -290,6 +298,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbOpen(id: string): Result<UsbDeviceHandle, PlatformError>;
 
@@ -317,6 +326,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbClose(handle: UsbDeviceHandle): Result<void, PlatformError>;
 
@@ -344,8 +354,12 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function usbClaimInterface(handle: UsbDeviceHandle, interfaceNumber: uint8): Result<void, PlatformError>;
+    export function usbClaimInterface(
+        handle: UsbDeviceHandle,
+        interfaceNumber: uint8,
+    ): Result<void, PlatformError>;
 
     /// Release USB interface.
     ///
@@ -371,8 +385,12 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function usbReleaseInterface(handle: UsbDeviceHandle, interfaceNumber: uint8): Result<void, PlatformError>;
+    export function usbReleaseInterface(
+        handle: UsbDeviceHandle,
+        interfaceNumber: uint8,
+    ): Result<void, PlatformError>;
 
     /// Set USB interface alternate setting.
     ///
@@ -398,6 +416,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbSetInterfaceAlternateSetting(
         handle: UsbDeviceHandle,
@@ -429,6 +448,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbDescriptor(handle: UsbDeviceHandle): Result<UsbDeviceDescriptor, PlatformError>;
 
@@ -456,6 +476,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbStringLanguageList(handle: UsbDeviceHandle): Result<Slice<uint16>, PlatformError>;
 
@@ -483,6 +504,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbStringDescriptor(
         handle: UsbDeviceHandle,
@@ -513,6 +535,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbConfigurationList(handle: UsbDeviceHandle): Result<Slice<UsbConfigurationDescriptor>, PlatformError>;
 
@@ -540,6 +563,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbConfigurationGet(handle: UsbDeviceHandle): Result<uint8, PlatformError>;
 
@@ -567,8 +591,12 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function usbConfigurationSet(handle: UsbDeviceHandle, configurationValue: uint8): Result<void, PlatformError>;
+    export function usbConfigurationSet(
+        handle: UsbDeviceHandle,
+        configurationValue: uint8,
+    ): Result<void, PlatformError>;
 
     /// Read control-transfer response bytes.
     ///
@@ -594,6 +622,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbControlRead(
         handle: UsbDeviceHandle,
@@ -625,6 +654,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbControlWrite(
         handle: UsbDeviceHandle,
@@ -657,6 +687,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbBulkRead(
         handle: UsbDeviceHandle,
@@ -689,6 +720,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbBulkWrite(
         handle: UsbDeviceHandle,
@@ -721,6 +753,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbInterruptRead(
         handle: UsbDeviceHandle,
@@ -753,6 +786,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbInterruptWrite(
         handle: UsbDeviceHandle,
@@ -785,6 +819,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbIsochronousRead(
         handle: UsbDeviceHandle,
@@ -817,6 +852,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbIsochronousWrite(
         handle: UsbDeviceHandle,
@@ -850,6 +886,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbTransferCancel(
         handle: UsbDeviceHandle,
@@ -880,6 +917,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbTransferCancelAll(handle: UsbDeviceHandle): Result<void, PlatformError>;
 
@@ -907,6 +945,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbClearHalt(
         handle: UsbDeviceHandle,
@@ -937,6 +976,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbReset(handle: UsbDeviceHandle): Result<void, PlatformError>;
 
@@ -964,6 +1004,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbKernelDriverActive(
         handle: UsbDeviceHandle,
@@ -994,6 +1035,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbKernelDriverDetach(
         handle: UsbDeviceHandle,
@@ -1024,6 +1066,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function usbKernelDriverAttach(
         handle: UsbDeviceHandle,

@@ -20,19 +20,21 @@ declare namespace ffi {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.ffi.symbol.lookup",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["ffi.symbol"],
-            platforms: ["windows", "unix"],
-            simulation: "stub",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function symbolLookup(library: LibraryHandle, name: string): Result<SymbolHandle, PlatformError>;
+    @binding("destack.ffi.symbol.lookup", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["ffi.symbol"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function symbolLookup(
+        library: LibraryHandle,
+        name: string,
+    ): Result<SymbolHandle, PlatformError>;
 
     /// Return a raw address for a resolved symbol handle.
     ///
@@ -51,17 +53,16 @@ declare namespace ffi {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.ffi.symbol.address",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["ffi.symbol"],
-            platforms: ["windows", "unix"],
-            simulation: "stub",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.ffi.symbol.address", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["ffi.symbol"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function symbolAddress(symbol: SymbolHandle): Result<uint64, PlatformError>;
 }

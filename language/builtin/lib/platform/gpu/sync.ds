@@ -109,6 +109,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function fenceCreate(
         device: GpuDeviceHandle,
@@ -140,6 +141,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function fenceDestroy(handle: GpuFenceHandle): Result<void, PlatformError>;
 
@@ -168,6 +170,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function queueSignal(
         queue: GpuQueueHandle,
@@ -200,6 +203,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function queueWait(
         queue: GpuQueueHandle,
@@ -233,6 +237,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function queueWorkDone(
         queue: GpuQueueHandle,
@@ -264,6 +269,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function queueTimestampPeriod(queue: GpuQueueHandle): Result<float64, PlatformError>;
 
@@ -293,6 +299,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function querySetCreate(
         device: GpuDeviceHandle,
@@ -324,6 +331,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function querySetDestroy(handle: GpuQuerySetHandle): Result<void, PlatformError>;
 
@@ -352,6 +360,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function querySetInfo(handle: GpuQuerySetHandle): Result<GpuQuerySetInfo, PlatformError>;
 
@@ -380,6 +389,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandWriteTimestamp(
         commandList: GpuCommandListHandle,
@@ -412,6 +422,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandBeginOcclusionQuery(
         renderPass: GpuRenderPassHandle,
@@ -444,6 +455,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandEndOcclusionQuery(renderPass: GpuRenderPassHandle): Result<void, PlatformError>;
 
@@ -472,6 +484,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandBeginRenderPipelineStatisticsQuery(
         renderPass: GpuRenderPassHandle,
@@ -504,10 +517,9 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
-    export function commandEndRenderPipelineStatisticsQuery(
-        renderPass: GpuRenderPassHandle,
-    ): Result<void, PlatformError>;
+    export function commandEndRenderPipelineStatisticsQuery(renderPass: GpuRenderPassHandle): Result<void, PlatformError>;
 
     /// Begin one pipeline-statistics query in one compute pass.
     ///
@@ -534,6 +546,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandBeginComputePipelineStatisticsQuery(
         computePass: GpuComputePassHandle,
@@ -566,10 +579,9 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
-    export function commandEndComputePipelineStatisticsQuery(
-        computePass: GpuComputePassHandle,
-    ): Result<void, PlatformError>;
+    export function commandEndComputePipelineStatisticsQuery(computePass: GpuComputePassHandle): Result<void, PlatformError>;
 
     /// Resolve one query range into one destination buffer.
     ///
@@ -596,6 +608,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandResolveQueries(
         commandList: GpuCommandListHandle,

@@ -1,26 +1,13 @@
 {
-  "path": "platform.rs",
-  "sourceSets": {
-    "platform": {
-      "auto": "platform/**/*.ds",
-      "runtimes": [
-        "native_hosted",
-        "native_freestanding",
-        "native_embedded"
-      ],
-      "outputs": [
-        "native"
-      ]
-    }
-  },
-  "libs": [
-    {
-      "name": "platform",
-      "sources": "platform",
-      "ambient": false,
-      "dependencies": [
-        "native"
-      ]
-    }
-  ]
+    "path": "platform.rs",
+    "sourceSets": {
+        "platform": {
+            "auto": "platform/**/*.ds",
+            "runtimes": ["native_hosted", "native_freestanding", "native_embedded"],
+            "outputs": ["native"],
+        },
+    },
+    "libs": [
+        {"name": "platform", "sources": "platform", "ambient": false, "dependencies": ["native"]},
+    ],
 }

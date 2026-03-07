@@ -2,11 +2,7 @@ import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { AudioDeviceHandle, AudioStreamHandle } from "../resource/index.ds";
 import { AudioBackend } from "./backend.ds";
-import {
-    AudioChannelLayout,
-    AudioSampleFormat,
-    AudioShareMode,
-} from "./device.ds";
+import { AudioChannelLayout, AudioSampleFormat, AudioShareMode } from "./device.ds";
 
 /// Stream option flags.
 export newtype AudioStreamFlags = uint32;
@@ -234,6 +230,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function streamSupport(
         device: AudioDeviceHandle,
@@ -268,6 +265,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function streamOpen(
         device: AudioDeviceHandle,
@@ -300,6 +298,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function streamClose(handle: AudioStreamHandle): Result<void, PlatformError>;
 
@@ -328,6 +327,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function streamStart(handle: AudioStreamHandle): Result<void, PlatformError>;
 
@@ -356,8 +356,12 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function streamPause(handle: AudioStreamHandle, pause: boolean): Result<void, PlatformError>;
+    export function streamPause(
+        handle: AudioStreamHandle,
+        pause: boolean,
+    ): Result<void, PlatformError>;
 
     /// Stop one audio stream.
     ///
@@ -384,6 +388,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function streamStop(handle: AudioStreamHandle): Result<void, PlatformError>;
 
@@ -412,6 +417,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function streamAbort(handle: AudioStreamHandle): Result<void, PlatformError>;
 
@@ -440,6 +446,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function streamState(handle: AudioStreamHandle): Result<AudioStreamState, PlatformError>;
 
@@ -468,6 +475,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function streamDescriptor(handle: AudioStreamHandle): Result<AudioStreamDescriptor, PlatformError>;
 
@@ -497,6 +505,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function streamTiming(handle: AudioStreamHandle): Result<AudioStreamTiming, PlatformError>;
 
@@ -525,6 +534,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function streamAvailability(handle: AudioStreamHandle): Result<AudioStreamAvailability, PlatformError>;
 
@@ -553,6 +563,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function streamFlush(handle: AudioStreamHandle): Result<void, PlatformError>;
 
@@ -581,8 +592,12 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function streamDrain(handle: AudioStreamHandle, timeoutNs: uint64): Result<void, PlatformError>;
+    export function streamDrain(
+        handle: AudioStreamHandle,
+        timeoutNs: uint64,
+    ): Result<void, PlatformError>;
 
     /// Set one stream name.
     ///
@@ -609,8 +624,12 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function streamSetName(handle: AudioStreamHandle, name: string): Result<void, PlatformError>;
+    export function streamSetName(
+        handle: AudioStreamHandle,
+        name: string,
+    ): Result<void, PlatformError>;
 
     /// Set one stream gain multiplier.
     ///
@@ -637,8 +656,12 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function streamSetVolume(handle: AudioStreamHandle, linearGain: float64): Result<void, PlatformError>;
+    export function streamSetVolume(
+        handle: AudioStreamHandle,
+        linearGain: float64,
+    ): Result<void, PlatformError>;
 
     /// Set one stream mute state.
     ///
@@ -665,8 +688,12 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function streamSetMute(handle: AudioStreamHandle, muted: boolean): Result<void, PlatformError>;
+    export function streamSetMute(
+        handle: AudioStreamHandle,
+        muted: boolean,
+    ): Result<void, PlatformError>;
 
     /// Write one packet of audio frames.
     ///
@@ -693,8 +720,12 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function streamWrite(handle: AudioStreamHandle, data: Slice<uint8>): Result<uint64, PlatformError>;
+    export function streamWrite(
+        handle: AudioStreamHandle,
+        data: Slice<uint8>,
+    ): Result<uint64, PlatformError>;
 
     /// Try to write one packet of audio frames without blocking.
     ///
@@ -721,8 +752,12 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
-    export function streamTryWrite(handle: AudioStreamHandle, data: Slice<uint8>): Result<uint64, PlatformError>;
+    export function streamTryWrite(
+        handle: AudioStreamHandle,
+        data: Slice<uint8>,
+    ): Result<uint64, PlatformError>;
 
     /// Write one packet from vectorized buffers.
     ///
@@ -749,8 +784,12 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function streamWritev(handle: AudioStreamHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>;
+    export function streamWritev(
+        handle: AudioStreamHandle,
+        buffers: Slice<Slice<uint8>>,
+    ): Result<uint64, PlatformError>;
 
     /// Try to write one packet from vectorized buffers without blocking.
     ///
@@ -777,8 +816,12 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
-    export function streamTryWritev(handle: AudioStreamHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>;
+    export function streamTryWritev(
+        handle: AudioStreamHandle,
+        buffers: Slice<Slice<uint8>>,
+    ): Result<uint64, PlatformError>;
 
     /// Write one packet for one target presentation time.
     ///
@@ -806,6 +849,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function streamWriteAt(
         handle: AudioStreamHandle,
@@ -839,6 +883,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function streamWriteAtv(
         handle: AudioStreamHandle,
@@ -871,8 +916,12 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function streamRead(handle: AudioStreamHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>;
+    export function streamRead(
+        handle: AudioStreamHandle,
+        maxBytes: uint32,
+    ): Result<Slice<uint8>, PlatformError>;
 
     /// Try to read one packet of captured audio frames without blocking.
     ///
@@ -899,8 +948,12 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
-    export function streamTryRead(handle: AudioStreamHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>;
+    export function streamTryRead(
+        handle: AudioStreamHandle,
+        maxBytes: uint32,
+    ): Result<Slice<uint8>, PlatformError>;
 
     /// Read one packet into vectorized buffers.
     ///
@@ -927,8 +980,12 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function streamReadv(handle: AudioStreamHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>;
+    export function streamReadv(
+        handle: AudioStreamHandle,
+        buffers: Slice<Slice<uint8>>,
+    ): Result<uint64, PlatformError>;
 
     /// Try to read one packet into vectorized buffers without blocking.
     ///
@@ -955,8 +1012,12 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
-    export function streamTryReadv(handle: AudioStreamHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>;
+    export function streamTryReadv(
+        handle: AudioStreamHandle,
+        buffers: Slice<Slice<uint8>>,
+    ): Result<uint64, PlatformError>;
 }
 
 /// Default stream behavior.
@@ -979,23 +1040,17 @@ export const AUDIO_STREAM_NEVER_DROP_INPUT: AudioStreamFlags = AudioStreamFlags(
 export const AUDIO_STREAM_PRIME_OUTPUT_BUFFERS: AudioStreamFlags = AudioStreamFlags(0x80);
 
 /// Default stream requirement behavior.
-export const AUDIO_STREAM_REQUIRE_NONE: AudioStreamRequirementFlags =
-    AudioStreamRequirementFlags(0x0);
+export const AUDIO_STREAM_REQUIRE_NONE: AudioStreamRequirementFlags = AudioStreamRequirementFlags(0x0);
 /// Require non-interleaved stream buffers.
-export const AUDIO_STREAM_REQUIRE_NON_INTERLEAVED: AudioStreamRequirementFlags =
-    AudioStreamRequirementFlags(0x1);
+export const AUDIO_STREAM_REQUIRE_NON_INTERLEAVED: AudioStreamRequirementFlags = AudioStreamRequirementFlags(0x1);
 /// Require scheduled write submission support.
-export const AUDIO_STREAM_REQUIRE_SCHEDULED_WRITE: AudioStreamRequirementFlags =
-    AudioStreamRequirementFlags(0x2);
+export const AUDIO_STREAM_REQUIRE_SCHEDULED_WRITE: AudioStreamRequirementFlags = AudioStreamRequirementFlags(0x2);
 /// Require pause and resume support.
-export const AUDIO_STREAM_REQUIRE_PAUSE: AudioStreamRequirementFlags =
-    AudioStreamRequirementFlags(0x4);
+export const AUDIO_STREAM_REQUIRE_PAUSE: AudioStreamRequirementFlags = AudioStreamRequirementFlags(0x4);
 /// Require hardware timestamp correlation support.
-export const AUDIO_STREAM_REQUIRE_HARDWARE_TIMESTAMPS: AudioStreamRequirementFlags =
-    AudioStreamRequirementFlags(0x8);
+export const AUDIO_STREAM_REQUIRE_HARDWARE_TIMESTAMPS: AudioStreamRequirementFlags = AudioStreamRequirementFlags(0x8);
 /// Require bit-exact PCM with no backend-side conversion.
-export const AUDIO_STREAM_REQUIRE_BIT_EXACT_PCM: AudioStreamRequirementFlags =
-    AudioStreamRequirementFlags(0x10);
+export const AUDIO_STREAM_REQUIRE_BIT_EXACT_PCM: AudioStreamRequirementFlags = AudioStreamRequirementFlags(0x10);
 
 /// Input underflow status bit.
 export const AUDIO_STREAM_STATUS_INPUT_UNDERFLOW: AudioStreamStatusFlags = AudioStreamStatusFlags(0x1);

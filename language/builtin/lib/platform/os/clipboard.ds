@@ -37,6 +37,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function clipboardHasText(): Result<boolean, PlatformError>;
 
@@ -64,6 +65,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function clipboardReadText(): Result<string, PlatformError>;
 
@@ -91,6 +93,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function clipboardWriteText(text: string): Result<void, PlatformError>;
 
@@ -118,6 +121,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function clipboardReadBytes(format: ClipboardBinaryFormat): Result<Slice<uint8>, PlatformError>;
 
@@ -145,8 +149,12 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function clipboardWriteBytes(format: ClipboardBinaryFormat, bytes: Slice<uint8>): Result<void, PlatformError>;
+    export function clipboardWriteBytes(
+        format: ClipboardBinaryFormat,
+        bytes: Slice<uint8>,
+    ): Result<void, PlatformError>;
 
     /// Read clipboard sequence number.
     ///
@@ -173,6 +181,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function clipboardSequence(): Result<uint64, PlatformError>;
 
@@ -200,6 +209,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function clipboardClear(): Result<void, PlatformError>;
 }

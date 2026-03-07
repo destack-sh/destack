@@ -159,6 +159,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function contactList(query: ContactQuery): Result<ContactPage, PlatformError>;
 
@@ -186,8 +187,12 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function contactSearch(queryText: string, query: ContactQuery): Result<ContactPage, PlatformError>;
+    export function contactSearch(
+        queryText: string,
+        query: ContactQuery,
+    ): Result<ContactPage, PlatformError>;
 
     /// Read one contact by identifier.
     ///
@@ -213,6 +218,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function contactRead(id: string): Result<Contact, PlatformError>;
 
@@ -240,6 +246,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function contactCreate(contact: ContactDraft): Result<string, PlatformError>;
 
@@ -267,6 +274,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function contactUpdate(id: string, contact: ContactDraft): Result<void, PlatformError>;
 
@@ -294,6 +302,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function contactDelete(id: string): Result<void, PlatformError>;
 }

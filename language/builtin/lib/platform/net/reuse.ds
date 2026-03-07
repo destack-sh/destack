@@ -20,7 +20,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.reuse.setReuseAddr", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.reuse.setReuseAddr", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function setReuseAddr(
         handle: SocketHandle,
         enabled: boolean,
@@ -43,7 +52,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.reuse.setReusePort", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.reuse.setReusePort", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function setReusePort(
         handle: SocketHandle,
         enabled: boolean,
@@ -66,7 +84,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.reuse.getReuseAddr", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.reuse.getReuseAddr", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function getReuseAddr(handle: SocketHandle): Result<boolean, PlatformError>;
 
     /// Read SO_REUSEPORT.
@@ -86,6 +113,15 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.reuse.getReusePort", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.reuse.getReusePort", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function getReusePort(handle: SocketHandle): Result<boolean, PlatformError>;
 }

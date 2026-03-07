@@ -1,6 +1,12 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
-import { DirectoryHandle, FileHandle, PipeHandle, ResourceId, SocketHandle } from "../resource/index.ds";
+import {
+    DirectoryHandle,
+    FileHandle,
+    PipeHandle,
+    ResourceId,
+    SocketHandle,
+} from "../resource/index.ds";
 import {
     AllocFlags,
     FdFlags,
@@ -18,8 +24,8 @@ import {
     SyncFlags,
 } from "./flags.ds";
 import { OsPath } from "./path.ds";
-
 /// File bindings for the native runtime.
+
 declare namespace fs {
     /// Open a file and return a handle.
     ///
@@ -38,8 +44,21 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.open", { effect: "external", replay: "recordable", capabilities: ["fs.read", "fs.write"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function open(path: OsPath, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>;
+    @binding("destack.fs.file.open", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.read", "fs.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function open(
+        path: OsPath,
+        flags: OpenFlags,
+        mode: FileMode,
+    ): Result<FileHandle, PlatformError>;
 
     /// Close an open file handle.
     ///
@@ -58,7 +77,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.close", { effect: "external", replay: "recordable", capabilities: ["fs.handle"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.close", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.handle"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function close(handle: FileHandle): Result<void, PlatformError>;
 
     /// Open a file relative to a directory handle.
@@ -78,7 +106,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.openat", { effect: "external", replay: "recordable", capabilities: ["fs.read", "fs.write"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.openat", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.read", "fs.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function openat(
         dir: DirectoryHandle,
         path: OsPath,
@@ -87,7 +124,7 @@ declare namespace fs {
     ): Result<FileHandle, PlatformError>;
 
     /// Options for openat2-style calls.
-export struct OpenOptions {
+    export struct OpenOptions {
         /// Open flags.
         flags: OpenFlags;
         /// File mode for creation.
@@ -119,7 +156,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.openat2", { effect: "external", replay: "recordable", capabilities: ["fs.read", "fs.write"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.openat2", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.read", "fs.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function openat2(
         dir: DirectoryHandle,
         path: OsPath,
@@ -143,7 +189,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.read", { effect: "external", replay: "recordable", capabilities: ["fs.read"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.read", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function read(handle: FileHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;
 
     /// Write to a file from the provided slice.
@@ -163,7 +218,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.write", { effect: "external", replay: "recordable", capabilities: ["fs.write"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.write", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function write(handle: FileHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;
 
     /// Read from a file at the given file offset.
@@ -183,8 +247,21 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.pread", { effect: "external", replay: "recordable", capabilities: ["fs.read"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function pread(handle: FileHandle, buffer: Slice<uint8>, offset: FileOffset): Result<uint64, PlatformError>;
+    @binding("destack.fs.file.pread", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function pread(
+        handle: FileHandle,
+        buffer: Slice<uint8>,
+        offset: FileOffset,
+    ): Result<uint64, PlatformError>;
 
     /// Write to a file at the given file offset.
     ///
@@ -203,8 +280,21 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.pwrite", { effect: "external", replay: "recordable", capabilities: ["fs.write"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function pwrite(handle: FileHandle, buffer: Slice<uint8>, offset: FileOffset): Result<uint64, PlatformError>;
+    @binding("destack.fs.file.pwrite", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function pwrite(
+        handle: FileHandle,
+        buffer: Slice<uint8>,
+        offset: FileOffset,
+    ): Result<uint64, PlatformError>;
 
     /// Read into multiple buffers.
     ///
@@ -223,8 +313,20 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.readv", { effect: "external", replay: "recordable", capabilities: ["fs.read"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function readv(handle: FileHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>;
+    @binding("destack.fs.file.readv", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function readv(
+        handle: FileHandle,
+        buffers: Slice<Slice<uint8>>,
+    ): Result<uint64, PlatformError>;
 
     /// Write from multiple buffers.
     ///
@@ -243,8 +345,20 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.writev", { effect: "external", replay: "recordable", capabilities: ["fs.write"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function writev(handle: FileHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>;
+    @binding("destack.fs.file.writev", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function writev(
+        handle: FileHandle,
+        buffers: Slice<Slice<uint8>>,
+    ): Result<uint64, PlatformError>;
 
     /// Read into multiple buffers at the given file offset.
     ///
@@ -263,8 +377,21 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.preadv", { effect: "external", replay: "recordable", capabilities: ["fs.read"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function preadv(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>;
+    @binding("destack.fs.file.preadv", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function preadv(
+        handle: FileHandle,
+        buffers: Slice<Slice<uint8>>,
+        offset: FileOffset,
+    ): Result<uint64, PlatformError>;
 
     /// Write from multiple buffers at the given file offset.
     ///
@@ -283,8 +410,21 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.pwritev", { effect: "external", replay: "recordable", capabilities: ["fs.write"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function pwritev(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>;
+    @binding("destack.fs.file.pwritev", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function pwritev(
+        handle: FileHandle,
+        buffers: Slice<Slice<uint8>>,
+        offset: FileOffset,
+    ): Result<uint64, PlatformError>;
 
     /// Read into multiple buffers at the given file offset with explicit read flags.
     ///
@@ -303,7 +443,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.preadv2", { effect: "external", replay: "recordable", capabilities: ["fs.read"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.preadv2", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function preadv2(
         handle: FileHandle,
         buffers: Slice<Slice<uint8>>,
@@ -328,7 +477,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.pwritev2", { effect: "external", replay: "recordable", capabilities: ["fs.write"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.pwritev2", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function pwritev2(
         handle: FileHandle,
         buffers: Slice<Slice<uint8>>,
@@ -353,7 +511,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.truncate", { effect: "external", replay: "recordable", capabilities: ["fs.write"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.truncate", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function truncate(path: OsPath, size: FileOffset): Result<void, PlatformError>;
 
     /// Truncate a file by handle.
@@ -373,7 +540,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.ftruncate", { effect: "external", replay: "recordable", capabilities: ["fs.write"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.ftruncate", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function ftruncate(handle: FileHandle, size: FileOffset): Result<void, PlatformError>;
 
     /// Synchronize a file's in-core state with storage.
@@ -393,7 +569,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.fsync", { effect: "external", replay: "recordable", capabilities: ["fs.sync"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.fsync", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.sync"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function fsync(handle: FileHandle): Result<void, PlatformError>;
 
     /// Synchronize file data only.
@@ -412,7 +597,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.fdatasync", { effect: "external", replay: "recordable", capabilities: ["fs.sync"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.fdatasync", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.sync"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function fdatasync(handle: FileHandle): Result<void, PlatformError>;
 
     /// Synchronize a filesystem by file handle.
@@ -431,7 +625,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.syncfs", { effect: "external", replay: "recordable", capabilities: ["fs.sync"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.syncfs", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.sync"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function syncfs(handle: FileHandle): Result<void, PlatformError>;
 
     /// Synchronize a file range.
@@ -450,7 +653,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.syncFileRange", { effect: "external", replay: "recordable", capabilities: ["fs.sync"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.syncFileRange", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.sync"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function syncFileRange(
         handle: FileHandle,
         offset: FileOffset,
@@ -475,7 +687,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.fallocate", { effect: "external", replay: "recordable", capabilities: ["fs.write"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.fallocate", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function fallocate(
         handle: FileHandle,
         offset: FileOffset,
@@ -500,7 +721,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.copyFileRange", { effect: "external", replay: "recordable", capabilities: ["fs.read", "fs.write"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.copyFileRange", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.read", "fs.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function copyFileRange(
         src: FileHandle,
         srcOffset: FileOffset,
@@ -526,7 +756,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.sendfile", { effect: "external", replay: "recordable", capabilities: ["fs.read", "fs.write"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.sendfile", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.read", "fs.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function sendfile(
         socket: SocketHandle,
         file: FileHandle,
@@ -551,7 +790,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.splice", { effect: "external", replay: "recordable", capabilities: ["io.zero.copy"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.splice", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.zero.copy"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function splice(
         source: ResourceId,
         sourceCursor: SpliceCursor,
@@ -578,7 +826,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.tee", { effect: "external", replay: "recordable", capabilities: ["io.zero.copy"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.tee", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.zero.copy"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function tee(
         sourcePipe: PipeHandle,
         targetPipe: PipeHandle,
@@ -603,7 +860,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.vmsplice", { effect: "external", replay: "recordable", capabilities: ["io.zero.copy"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.vmsplice", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.zero.copy"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function vmsplice(
         pipe: PipeHandle,
         buffers: Slice<Slice<uint8>>,
@@ -627,7 +893,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.seek", { effect: "external", replay: "recordable", capabilities: ["fs.handle"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.seek", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.handle"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function seek(
         handle: FileHandle,
         offset: FileOffset,
@@ -651,7 +926,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.fadvise", { effect: "external", replay: "recordable", capabilities: ["fs.metadata"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.fadvise", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.metadata"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function fadvise(
         handle: FileHandle,
         offset: FileOffset,
@@ -676,7 +960,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.dup", { effect: "external", replay: "recordable", capabilities: ["fs.handle"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.dup", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.handle"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function dup(handle: FileHandle): Result<FileHandle, PlatformError>;
 
     /// Duplicate a file handle to a specific target.
@@ -696,7 +989,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.dup2", { effect: "external", replay: "recordable", capabilities: ["fs.handle"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.dup2", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.handle"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function dup2(handle: FileHandle, target: FileHandle): Result<FileHandle, PlatformError>;
 
     /// Duplicate a file handle to a specific target with flags.
@@ -716,8 +1018,21 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.dup3", { effect: "external", replay: "recordable", capabilities: ["fs.handle"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function dup3(handle: FileHandle, target: FileHandle, flags: OpenFlags): Result<FileHandle, PlatformError>;
+    @binding("destack.fs.file.dup3", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.handle"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function dup3(
+        handle: FileHandle,
+        target: FileHandle,
+        flags: OpenFlags,
+    ): Result<FileHandle, PlatformError>;
 
     /// Apply file locks to a file handle.
     ///
@@ -736,7 +1051,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.lock", { effect: "external", replay: "recordable", capabilities: ["fs.lock"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.lock", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.lock"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function lock(handle: FileHandle, flags: FileLockFlags): Result<void, PlatformError>;
 
     /// Read file descriptor flags.
@@ -756,7 +1080,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.getFdFlags", { effect: "external", replay: "recordable", capabilities: ["fs.handle"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.getFdFlags", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.handle"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function getFdFlags(handle: FileHandle): Result<FdFlags, PlatformError>;
 
     /// Write file descriptor flags.
@@ -776,7 +1109,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.setFdFlags", { effect: "external", replay: "recordable", capabilities: ["fs.handle"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.setFdFlags", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.handle"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function setFdFlags(handle: FileHandle, flags: FdFlags): Result<void, PlatformError>;
 
     /// Read file status flags.
@@ -796,7 +1138,16 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.getStatusFlags", { effect: "external", replay: "recordable", capabilities: ["fs.handle"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.file.getStatusFlags", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.handle"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function getStatusFlags(handle: FileHandle): Result<StatusFlags, PlatformError>;
 
     /// Write file status flags.
@@ -816,6 +1167,18 @@ export struct OpenOptions {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.file.setStatusFlags", { effect: "external", replay: "recordable", capabilities: ["fs.handle"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function setStatusFlags(handle: FileHandle, flags: StatusFlags): Result<void, PlatformError>;
+    @binding("destack.fs.file.setStatusFlags", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.handle"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function setStatusFlags(
+        handle: FileHandle,
+        flags: StatusFlags,
+    ): Result<void, PlatformError>;
 }

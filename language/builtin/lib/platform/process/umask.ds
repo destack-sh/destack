@@ -19,17 +19,16 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.umask.set",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.identity.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.umask.set", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.identity.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function umask(mask: uint32): Result<uint32, PlatformError>;
 }

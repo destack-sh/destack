@@ -33,18 +33,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.fd.stdioStdin",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.stdio"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.fd.stdioStdin", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.stdio"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function stdioStdin(): Result<FileHandle, PlatformError>;
 
     /// Open one standard output stream handle.
@@ -64,18 +63,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.fd.stdioStdout",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.stdio"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.fd.stdioStdout", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.stdio"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function stdioStdout(): Result<FileHandle, PlatformError>;
 
     /// Open one standard error stream handle.
@@ -95,18 +93,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.fd.stdioStderr",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.stdio"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.fd.stdioStderr", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.stdio"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function stdioStderr(): Result<FileHandle, PlatformError>;
 
     /// Open one process descriptor for the target process id.
@@ -126,18 +123,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.fd.processFdOpen",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.handle"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.fd.processFdOpen", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.handle"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function processFdOpen(
         pid: ProcessId,
         flags: ProcessFdFlags,
@@ -160,18 +156,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.fd.processFdClose",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.handle"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.fd.processFdClose", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.handle"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function processFdClose(handle: ProcessFdHandle): Result<void, PlatformError>;
 
     /// Send one signal through a process descriptor.
@@ -191,18 +186,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.fd.processFdSendSignal",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.signal.send"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.fd.processFdSendSignal", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.signal.send"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function processFdSendSignal(
         handle: ProcessFdHandle,
         signal: Signal,
@@ -226,18 +220,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.fd.processFdWait",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.wait"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.fd.processFdWait", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.wait"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function processFdWait(
         handle: ProcessFdHandle,
         timeoutNs: uint64,
@@ -260,21 +253,18 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.fd.processFdTryWait",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.wait"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
-    export function processFdTryWait(
-        handle: ProcessFdHandle,
-    ): Result<ProcessWaitStatus, PlatformError>;
+    @binding("destack.process.fd.processFdTryWait", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.wait"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
+    export function processFdTryWait(handle: ProcessFdHandle): Result<ProcessWaitStatus, PlatformError>;
 
     /// Open one signal descriptor for the provided signal mask.
     ///
@@ -293,18 +283,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.fd.signalFdOpen",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.signal.receive"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.fd.signalFdOpen", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.signal.receive"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function signalFdOpen(
         signals: Slice<Signal>,
         flags: SignalFdFlags,
@@ -327,18 +316,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.fd.signalFdClose",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.signal.receive"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.fd.signalFdClose", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.signal.receive"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function signalFdClose(handle: SignalFdHandle): Result<void, PlatformError>;
 
     /// Read one queued signal event from a signal descriptor.
@@ -358,18 +346,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.fd.signalFdRead",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.signal.receive"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.fd.signalFdRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.signal.receive"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function signalFdRead(handle: SignalFdHandle): Result<SignalEvent, PlatformError>;
 
     /// Poll one queued signal event from a signal descriptor without blocking.
@@ -389,18 +376,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.fd.signalFdTryRead",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.signal.receive"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.fd.signalFdTryRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.signal.receive"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function signalFdTryRead(handle: SignalFdHandle): Result<SignalEvent, PlatformError>;
 
     /// Replace the active signal mask for one signal descriptor.
@@ -420,18 +406,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.fd.signalFdSetMask",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.signal.receive"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.fd.signalFdSetMask", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.signal.receive"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function signalFdSetMask(
         handle: SignalFdHandle,
         signals: Slice<Signal>,

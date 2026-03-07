@@ -71,18 +71,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.completion.open",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.completion"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.completion.open", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.completion"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function completionOpen(entries: uint32): Result<CompletionHandle, PlatformError>;
 
     /// Close a completion queue.
@@ -102,18 +101,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.completion.close",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.completion"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.completion.close", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.completion"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function completionClose(handle: CompletionHandle): Result<void, PlatformError>;
 
     /// Wait for completion events.
@@ -133,18 +131,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.completion.wait",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.completion"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.completion.wait", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.completion"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function completionWait(
         handle: CompletionHandle,
         timeoutNs: uint64,
@@ -168,19 +165,21 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.completion.cancel",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.completion"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function completionCancel(handle: CompletionHandle, target: ResourceId): Result<uint32, PlatformError>;
+    @binding("destack.io.completion.cancel", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.completion"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function completionCancel(
+        handle: CompletionHandle,
+        target: ResourceId,
+    ): Result<uint32, PlatformError>;
 
     /// Submit one completion operation.
     ///
@@ -199,18 +198,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.completion.submit",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.submit"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.completion.submit", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.submit"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function completionSubmit(
         handle: CompletionHandle,
         operation: CompletionOperation,
@@ -233,18 +231,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.completion.submitBatch",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.submit"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.completion.submitBatch", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.submit"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function completionSubmitBatch(
         handle: CompletionHandle,
         operationWords: Slice<uint64>,
@@ -269,18 +266,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.completion.enter",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.submit"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.completion.enter", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.submit"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function completionEnter(
         handle: CompletionHandle,
         minComplete: uint32,

@@ -33,18 +33,17 @@ declare namespace tty {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tty.mode.getMode",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tty.mode"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tty.mode.getMode", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tty.mode"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function getMode(handle: TtyHandle): Result<TtyMode, PlatformError>;
 
     /// Apply terminal mode flags.
@@ -64,18 +63,17 @@ declare namespace tty {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tty.mode.setMode",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tty.mode"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tty.mode.setMode", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tty.mode"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function setMode(handle: TtyHandle, mode: TtyMode): Result<void, PlatformError>;
 
     /// Enable or disable raw terminal mode.
@@ -95,17 +93,16 @@ declare namespace tty {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tty.mode.setRawMode",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tty.mode"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tty.mode.setRawMode", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tty.mode"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function setRawMode(handle: TtyHandle, enabled: boolean): Result<void, PlatformError>;
 }

@@ -60,6 +60,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function hapticsEffects(handle: InputDeviceHandle): Result<Array<InputHapticEffectType>, PlatformError>;
 
@@ -88,6 +89,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function hapticsPlay(
         handle: InputDeviceHandle,
@@ -119,6 +121,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function hapticsStop(handle: InputDeviceHandle): Result<void, PlatformError>;
 }

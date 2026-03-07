@@ -73,18 +73,17 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tls.context.open",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tls.context"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tls.context.open", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tls.context"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function contextOpen(options: TlsContextOptions): Result<TlsContextHandle, PlatformError>;
 
     /// Close one tls context object.
@@ -104,18 +103,17 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tls.context.close",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tls.context"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tls.context.close", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tls.context"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function contextClose(handle: TlsContextHandle): Result<void, PlatformError>;
 
     /// Set one local certificate chain and private key on a tls context.
@@ -135,18 +133,17 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.tls.context.setIdentityPem",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["tls.context", "tls.identity.use", "tls.identity.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tls.context.setIdentityPem", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["tls.context", "tls.identity.use", "tls.identity.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function contextSetIdentityPem(
         handle: TlsContextHandle,
         certificateChainPem: Slice<uint8>,
@@ -170,18 +167,17 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.tls.context.setTrustAnchorsPem",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["tls.context", "tls.trust.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tls.context.setTrustAnchorsPem", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["tls.context", "tls.trust.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function contextSetTrustAnchorsPem(
         handle: TlsContextHandle,
         trustAnchorsPem: Slice<uint8>,
@@ -204,18 +200,17 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.tls.context.setCipherSuites",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["tls.context", "tls.policy"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tls.context.setCipherSuites", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["tls.context", "tls.policy"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function contextSetCipherSuites(
         handle: TlsContextHandle,
         suites: Slice<string>,
@@ -238,18 +233,17 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.tls.context.setGroups",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["tls.context", "tls.policy"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tls.context.setGroups", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["tls.context", "tls.policy"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function contextSetGroups(
         handle: TlsContextHandle,
         groups: Slice<string>,
@@ -272,18 +266,17 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.tls.context.setSignatureAlgorithms",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["tls.context", "tls.policy"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tls.context.setSignatureAlgorithms", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["tls.context", "tls.policy"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function contextSetSignatureAlgorithms(
         handle: TlsContextHandle,
         algorithms: Slice<string>,
@@ -306,18 +299,17 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.tls.context.setHostnameVerificationMode",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["tls.context", "tls.hostname.verify"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tls.context.setHostnameVerificationMode", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["tls.context", "tls.hostname.verify"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function contextSetHostnameVerificationMode(
         handle: TlsContextHandle,
         mode: TlsHostnameVerificationMode,
@@ -340,18 +332,17 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.tls.context.setSessionResumption",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["tls.context", "tls.resumption"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tls.context.setSessionResumption", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["tls.context", "tls.resumption"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function contextSetSessionResumption(
         handle: TlsContextHandle,
         mode: TlsSessionResumptionMode,
@@ -374,18 +365,17 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.tls.context.setKeylogEnabled",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["tls.context", "tls.keylog"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tls.context.setKeylogEnabled", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["tls.context", "tls.keylog"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function contextSetKeylogEnabled(
         handle: TlsContextHandle,
         enabled: boolean,

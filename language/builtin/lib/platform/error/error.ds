@@ -272,12 +272,12 @@ export struct PlatformSystemSourceOther {
 
 /// Host-level system source metadata.
 export newtype PlatformSystemSource =
-    PlatformSystemSourceErrno |
-    PlatformSystemSourceWinsock |
-    PlatformSystemSourceHResult |
-    PlatformSystemSourceEai |
-    PlatformSystemSourceSignal |
-    PlatformSystemSourceOther;
+    | PlatformSystemSourceErrno
+    | PlatformSystemSourceWinsock
+    | PlatformSystemSourceHResult
+    | PlatformSystemSourceEai
+    | PlatformSystemSourceSignal
+    | PlatformSystemSourceOther;
 
 /// Byte-path payload attached to an error context.
 export struct PlatformPathPayloadBytes {
@@ -488,29 +488,29 @@ export struct PlatformErrorContextIoDriver {
 
 /// Typed context for platform error metadata.
 export newtype PlatformErrorContext =
-    PlatformErrorContextGeneric |
-    PlatformErrorContextIo |
-    PlatformErrorContextNet |
-    PlatformErrorContextProcess |
-    PlatformErrorContextTimer |
-    PlatformErrorContextResource |
-    PlatformErrorContextSecurity |
-    PlatformErrorContextFfi |
-    PlatformErrorContextThread |
-    PlatformErrorContextIpc |
-    PlatformErrorContextDevice |
-    PlatformErrorContextDisplay |
-    PlatformErrorContextAudio |
-    PlatformErrorContextGpu |
-    PlatformErrorContextIoDriver;
+    | PlatformErrorContextGeneric
+    | PlatformErrorContextIo
+    | PlatformErrorContextNet
+    | PlatformErrorContextProcess
+    | PlatformErrorContextTimer
+    | PlatformErrorContextResource
+    | PlatformErrorContextSecurity
+    | PlatformErrorContextFfi
+    | PlatformErrorContextThread
+    | PlatformErrorContextIpc
+    | PlatformErrorContextDevice
+    | PlatformErrorContextDisplay
+    | PlatformErrorContextAudio
+    | PlatformErrorContextGpu
+    | PlatformErrorContextIoDriver;
 
 /// Error returned by platform bindings.
 export newtype PlatformError = {
-    code: PlatformErrorCode,
-    op?: string,
-    source?: PlatformSystemSource,
-    context?: PlatformErrorContext,
-    message?: string,
+    code: PlatformErrorCode;
+    op?: string;
+    source?: PlatformSystemSource;
+    context?: PlatformErrorContext;
+    message?: string;
 };
 
 /// Error bindings for runtime error propagation.
@@ -532,17 +532,16 @@ export declare namespace error {
     ///
     /// # Replay
     /// Deterministic.
-    @binding(
-        "destack.error.error.takePlatformError",
-        {
-            effect: "deterministic",
-            replay: "nonrecordable",
-            capabilities: ["diagnostic.read"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.error.error.takePlatformError", {
+        effect: "deterministic",
+        replay: "nonrecordable",
+        capabilities: ["diagnostic.read"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function takePlatformError(errorId: uint64): Result<PlatformError, PlatformError>;
 }

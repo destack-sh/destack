@@ -32,18 +32,17 @@ declare namespace os {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.os.mount.list",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["os.mount"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.os.mount.list", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.mount"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function mountList(): Result<Array<MountEntry>, PlatformError>;
 
     /// Mount one filesystem target.
@@ -63,18 +62,17 @@ declare namespace os {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.os.mount.add",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["os.mount"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.os.mount.add", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.mount"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function mountAdd(
         source: string,
         target: OsPath,
@@ -100,17 +98,16 @@ declare namespace os {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.os.mount.remove",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["os.mount"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.os.mount.remove", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.mount"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function mountRemove(target: OsPath, flags: uint64): Result<void, PlatformError>;
 }

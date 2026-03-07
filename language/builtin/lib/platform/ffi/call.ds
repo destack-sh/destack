@@ -21,18 +21,17 @@ declare namespace ffi {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.ffi.call.invoke",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["ffi.call"],
-            platforms: ["windows", "unix"],
-            simulation: "stub",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.ffi.call.invoke", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["ffi.call"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function call(
         symbol: SymbolHandle,
         abi: uint32,

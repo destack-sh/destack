@@ -71,6 +71,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function documentPick(options: DocumentPickOptions): Result<Array<DocumentDescriptor>, PlatformError>;
 
@@ -98,8 +99,12 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function documentOpen(uri: string, access: DocumentAccess): Result<DocumentHandle, PlatformError>;
+    export function documentOpen(
+        uri: string,
+        access: DocumentAccess,
+    ): Result<DocumentHandle, PlatformError>;
 
     /// Close one opened document handle.
     ///
@@ -125,6 +130,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function documentClose(handle: DocumentHandle): Result<void, PlatformError>;
 
@@ -152,6 +158,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function documentRead(
         handle: DocumentHandle,
@@ -183,8 +190,12 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
-    export function documentTryRead(handle: DocumentHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>;
+    export function documentTryRead(
+        handle: DocumentHandle,
+        maxBytes: uint32,
+    ): Result<Slice<uint8>, PlatformError>;
 
     /// Write one chunk of document bytes.
     ///
@@ -210,6 +221,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function documentWrite(
         handle: DocumentHandle,
@@ -241,6 +253,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function documentFlush(handle: DocumentHandle): Result<void, PlatformError>;
 }

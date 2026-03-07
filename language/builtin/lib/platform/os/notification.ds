@@ -75,7 +75,10 @@ export struct NotificationCalendarDateTrigger {
 }
 
 /// Notification trigger payload.
-export newtype NotificationTrigger = NotificationImmediateTrigger | NotificationTimeIntervalTrigger | NotificationCalendarDateTrigger;
+export newtype NotificationTrigger =
+    | NotificationImmediateTrigger
+    | NotificationTimeIntervalTrigger
+    | NotificationCalendarDateTrigger;
 
 /// Notification action descriptor.
 export struct NotificationAction {
@@ -200,7 +203,10 @@ export struct NotificationDismissedEvent {
 }
 
 /// Host notification event payload.
-export newtype NotificationEvent = NotificationDeliveredEvent | NotificationInteractedEvent | NotificationDismissedEvent;
+export newtype NotificationEvent =
+    | NotificationDeliveredEvent
+    | NotificationInteractedEvent
+    | NotificationDismissedEvent;
 
 /// Host notification bindings.
 declare namespace os {
@@ -228,6 +234,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function notificationPermissionState(): Result<NotificationPermissionState, PlatformError>;
 
@@ -255,6 +262,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function notificationRequestPermission(): Result<NotificationPermissionState, PlatformError>;
 
@@ -282,6 +290,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function notificationPost(request: NotificationRequest): Result<string, PlatformError>;
 
@@ -309,6 +318,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function notificationSchedule(request: NotificationRequest): Result<string, PlatformError>;
 
@@ -336,6 +346,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function notificationPendingList(): Result<Array<NotificationScheduledDescriptor>, PlatformError>;
 
@@ -363,6 +374,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function notificationPendingCancel(id: string): Result<void, PlatformError>;
 
@@ -390,6 +402,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function notificationPendingCancelAll(): Result<void, PlatformError>;
 
@@ -417,6 +430,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function notificationCategorySet(categories: Array<NotificationCategory>): Result<void, PlatformError>;
 
@@ -444,6 +458,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function notificationCategoryList(): Result<Array<NotificationCategory>, PlatformError>;
 
@@ -471,6 +486,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function notificationCancel(id: string): Result<void, PlatformError>;
 
@@ -498,6 +514,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function notificationCancelAll(): Result<void, PlatformError>;
 
@@ -525,6 +542,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function notificationEventOpen(options: NotificationEventOpenOptions): Result<NotificationEventHandle, PlatformError>;
 
@@ -552,6 +570,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function notificationEventClose(handle: NotificationEventHandle): Result<void, PlatformError>;
 
@@ -579,6 +598,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function notificationEventRead(
         handle: NotificationEventHandle,
@@ -609,6 +629,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function notificationEventTryRead(handle: NotificationEventHandle): Result<NotificationEvent, PlatformError>;
 }

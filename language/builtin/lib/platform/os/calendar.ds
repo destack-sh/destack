@@ -234,6 +234,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function calendarList(): Result<Array<CalendarDescriptor>, PlatformError>;
 
@@ -261,6 +262,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function calendarEventList(query: CalendarEventQuery): Result<Array<CalendarEvent>, PlatformError>;
 
@@ -288,6 +290,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function calendarEventRead(id: string): Result<CalendarEvent, PlatformError>;
 
@@ -315,6 +318,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function calendarEventCreate(event: CalendarEventDraft): Result<string, PlatformError>;
 
@@ -342,8 +346,12 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function calendarEventUpdate(id: string, event: CalendarEventDraft): Result<void, PlatformError>;
+    export function calendarEventUpdate(
+        id: string,
+        event: CalendarEventDraft,
+    ): Result<void, PlatformError>;
 
     /// Delete one calendar event.
     ///
@@ -369,6 +377,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function calendarEventDelete(id: string): Result<void, PlatformError>;
 }

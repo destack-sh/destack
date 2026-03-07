@@ -29,18 +29,17 @@ declare namespace os {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.os.power.state",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["os.power"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.os.power.state", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.power"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function powerState(): Result<PowerState, PlatformError>;
 
     /// Request host suspend.
@@ -60,17 +59,16 @@ declare namespace os {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.os.power.suspend",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["os.power"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.os.power.suspend", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.power"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function suspend(): Result<void, PlatformError>;
 }

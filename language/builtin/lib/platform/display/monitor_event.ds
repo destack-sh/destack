@@ -6,11 +6,7 @@ import {
     DisplayBackendSelectionPolicy,
     DisplayEventQueueOptions,
 } from "./backend.ds";
-import {
-    DisplayDescriptor,
-    DisplayMetricChangedMask,
-    DisplayMode,
-} from "./monitor.ds";
+import { DisplayDescriptor, DisplayMetricChangedMask, DisplayMode } from "./monitor.ds";
 
 /// Display added-event payload.
 export struct DisplayAddedPayload {
@@ -117,7 +113,12 @@ export struct DisplayModeChangedEvent {
 }
 
 /// Monitor event payload.
-export newtype DisplayMonitorEvent = DisplayAddedEvent | DisplayRemovedEvent | DisplayPrimaryChangedEvent | DisplayDescriptorChangedEvent | DisplayModeChangedEvent;
+export newtype DisplayMonitorEvent =
+    | DisplayAddedEvent
+    | DisplayRemovedEvent
+    | DisplayPrimaryChangedEvent
+    | DisplayDescriptorChangedEvent
+    | DisplayModeChangedEvent;
 
 /// Monitor-event kind filter mask.
 export newtype DisplayMonitorEventKindMask = uint32;
@@ -183,10 +184,9 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function monitorEventOpen(
-        options: DisplayMonitorEventOpenOptions,
-    ): Result<DisplayEventHandle, PlatformError>;
+    export function monitorEventOpen(options: DisplayMonitorEventOpenOptions): Result<DisplayEventHandle, PlatformError>;
 
     /// Close one global monitor-event stream.
     ///
@@ -212,6 +212,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function monitorEventClose(handle: DisplayEventHandle): Result<void, PlatformError>;
 
@@ -239,8 +240,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function monitorEventRead(handle: DisplayEventHandle, timeoutNs: uint64): Result<DisplayMonitorEvent, PlatformError>;
+    export function monitorEventRead(
+        handle: DisplayEventHandle,
+        timeoutNs: uint64,
+    ): Result<DisplayMonitorEvent, PlatformError>;
 
     /// Poll one monitor event without blocking.
     ///
@@ -267,6 +272,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "eventLoop",
     })
     export function monitorEventTryRead(handle: DisplayEventHandle): Result<DisplayMonitorEvent, PlatformError>;
 
@@ -294,6 +300,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function monitorEventReadBatch(
         handle: DisplayEventHandle,
@@ -325,6 +332,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "eventLoop",
     })
     export function monitorEventTryReadBatch(
         handle: DisplayEventHandle,

@@ -193,18 +193,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.certificate.import",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.certificate.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.certificate.import", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.certificate.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function certificateImport(
         store: CryptoStoreHandle,
         format: CryptoCertificateFormat,
@@ -227,18 +226,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.certificate.export",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.certificate.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.certificate.export", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.certificate.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function certificateExport(
         handle: CryptoCertificateHandle,
         format: CryptoCertificateFormat,
@@ -260,21 +258,18 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.certificate.descriptor",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.certificate.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function certificateDescriptor(
-        handle: CryptoCertificateHandle,
-    ): Result<CryptoCertificateDescriptor, PlatformError>;
+    @binding("destack.crypto.certificate.descriptor", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.certificate.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function certificateDescriptor(handle: CryptoCertificateHandle): Result<CryptoCertificateDescriptor, PlatformError>;
 
     /// Verify one certificate chain against one trust policy.
     ///
@@ -293,21 +288,18 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.certificate.verify",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.certificate.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function certificateVerify(
-        request: CryptoCertificateVerifyRequest,
-    ): Result<CryptoCertificateVerifyResult, PlatformError>;
+    @binding("destack.crypto.certificate.verify", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.certificate.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function certificateVerify(request: CryptoCertificateVerifyRequest): Result<CryptoCertificateVerifyResult, PlatformError>;
 
     /// Delete one certificate from one store when allowed.
     ///
@@ -326,17 +318,16 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.certificate.delete",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.certificate.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.certificate.delete", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.certificate.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function certificateDelete(handle: CryptoCertificateHandle): Result<void, PlatformError>;
 }

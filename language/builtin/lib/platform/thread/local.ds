@@ -20,18 +20,17 @@ declare namespace thread {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.thread.local.create",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["thread.local"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.thread.local.create", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["thread.local"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function localCreate(): Result<ThreadLocalKey, PlatformError>;
 
     /// Store one thread-local value.
@@ -51,18 +50,17 @@ declare namespace thread {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.thread.local.set",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["thread.local"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.thread.local.set", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["thread.local"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function localSet(key: ThreadLocalKey, value: uint64): Result<void, PlatformError>;
 
     /// Read one thread-local value.
@@ -82,18 +80,17 @@ declare namespace thread {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.thread.local.get",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["thread.local"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.thread.local.get", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["thread.local"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function localGet(key: ThreadLocalKey): Result<uint64, PlatformError>;
 
     /// Delete one thread-local key.
@@ -113,17 +110,16 @@ declare namespace thread {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.thread.local.delete",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["thread.local"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.thread.local.delete", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["thread.local"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function localDelete(key: ThreadLocalKey): Result<void, PlatformError>;
 }

@@ -33,18 +33,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.crypto.probe.keyAlgorithms",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["crypto.probe"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.crypto.probe.keyAlgorithms", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["crypto.probe"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function probeKeyAlgorithms(): Result<Slice<CryptoKeyAlgorithm>, PlatformError>;
 
     /// List supported key formats.
@@ -64,18 +63,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.crypto.probe.keyFormats",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["crypto.probe"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.crypto.probe.keyFormats", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["crypto.probe"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function probeKeyFormats(): Result<Slice<CryptoKeyFormat>, PlatformError>;
 
     /// List supported key residencies.
@@ -95,18 +93,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.crypto.probe.keyResidencies",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["crypto.probe"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.crypto.probe.keyResidencies", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["crypto.probe"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function probeKeyResidencies(): Result<Slice<CryptoKeyResidency>, PlatformError>;
 
     /// List supported digest algorithms.
@@ -126,18 +123,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.crypto.probe.digestAlgorithms",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["crypto.probe"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.crypto.probe.digestAlgorithms", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["crypto.probe"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function probeDigestAlgorithms(): Result<Slice<CryptoDigestAlgorithm>, PlatformError>;
 
     /// List supported signature algorithms.
@@ -157,18 +153,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.crypto.probe.signatureAlgorithms",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["crypto.probe"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.crypto.probe.signatureAlgorithms", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["crypto.probe"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function probeSignatureAlgorithms(): Result<Slice<CryptoSignatureAlgorithm>, PlatformError>;
 
     /// List supported cipher algorithms.
@@ -188,18 +183,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.crypto.probe.cipherAlgorithms",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["crypto.probe"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.crypto.probe.cipherAlgorithms", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["crypto.probe"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function probeCipherAlgorithms(): Result<Slice<CryptoCipherAlgorithm>, PlatformError>;
 
     /// List supported MAC algorithms.
@@ -219,18 +213,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.crypto.probe.macAlgorithms",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["crypto.probe"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.crypto.probe.macAlgorithms", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["crypto.probe"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function probeMacAlgorithms(): Result<Slice<CryptoMacAlgorithm>, PlatformError>;
 
     /// List supported KDF algorithms.
@@ -250,18 +243,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.crypto.probe.kdfAlgorithms",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["crypto.probe"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.crypto.probe.kdfAlgorithms", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["crypto.probe"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function probeKdfAlgorithms(): Result<Slice<CryptoKdfAlgorithm>, PlatformError>;
 
     /// List supported key-agreement algorithms.
@@ -281,18 +273,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.crypto.probe.agreementAlgorithms",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["crypto.probe"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.crypto.probe.agreementAlgorithms", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["crypto.probe"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function probeAgreementAlgorithms(): Result<Slice<CryptoKeyAgreementAlgorithm>, PlatformError>;
 
     /// List supported key-wrap algorithms.
@@ -312,18 +303,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.crypto.probe.keyWrapAlgorithms",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["crypto.probe"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.crypto.probe.keyWrapAlgorithms", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["crypto.probe"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function probeKeyWrapAlgorithms(): Result<Slice<CryptoKeyWrapAlgorithm>, PlatformError>;
 
     /// List supported named curves.
@@ -343,17 +333,16 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.crypto.probe.namedCurves",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["crypto.probe"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.crypto.probe.namedCurves", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["crypto.probe"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function probeNamedCurves(): Result<Slice<CryptoNamedCurve>, PlatformError>;
 }

@@ -308,7 +308,21 @@ export struct AudioEventSubscriptionOptions {
 }
 
 /// Audio event payload.
-export newtype AudioEvent = AudioDeviceAddedEvent | AudioDeviceRemovedEvent | AudioDefaultPlaybackChangedEvent | AudioDefaultCaptureChangedEvent | AudioDefaultLoopbackChangedEvent | AudioDeviceFormatChangedEvent | AudioDeviceReroutedEvent | AudioInterruptionBeganEvent | AudioInterruptionEndedEvent | AudioBackendDisconnectedEvent | AudioStreamXRunEvent | AudioStreamDeviceChangedEvent | AudioStreamStateChangedEvent | AudioBackendResetEvent;
+export newtype AudioEvent =
+    | AudioDeviceAddedEvent
+    | AudioDeviceRemovedEvent
+    | AudioDefaultPlaybackChangedEvent
+    | AudioDefaultCaptureChangedEvent
+    | AudioDefaultLoopbackChangedEvent
+    | AudioDeviceFormatChangedEvent
+    | AudioDeviceReroutedEvent
+    | AudioInterruptionBeganEvent
+    | AudioInterruptionEndedEvent
+    | AudioBackendDisconnectedEvent
+    | AudioStreamXRunEvent
+    | AudioStreamDeviceChangedEvent
+    | AudioStreamStateChangedEvent
+    | AudioBackendResetEvent;
 
 /// Audio event bindings.
 declare namespace audio {
@@ -339,6 +353,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function eventOpen(options: AudioEventSubscriptionOptions): Result<AudioEventHandle, PlatformError>;
 
@@ -367,6 +382,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function eventClose(handle: AudioEventHandle): Result<void, PlatformError>;
 
@@ -395,6 +411,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function eventRead(
         handle: AudioEventHandle,
@@ -427,6 +444,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function eventReadBatch(
         handle: AudioEventHandle,
@@ -459,6 +477,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function eventTryRead(handle: AudioEventHandle): Result<AudioEvent, PlatformError>;
 
@@ -487,6 +506,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function eventTryReadBatch(
         handle: AudioEventHandle,

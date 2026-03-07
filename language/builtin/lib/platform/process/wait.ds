@@ -55,7 +55,12 @@ export struct ProcessWaitContinuedStatus {
 }
 
 /// Child process status payload.
-export newtype ProcessWaitStatus = ProcessWaitRunningStatus | ProcessWaitExitedStatus | ProcessWaitSignaledStatus | ProcessWaitStoppedStatus | ProcessWaitContinuedStatus;
+export newtype ProcessWaitStatus =
+    | ProcessWaitRunningStatus
+    | ProcessWaitExitedStatus
+    | ProcessWaitSignaledStatus
+    | ProcessWaitStoppedStatus
+    | ProcessWaitContinuedStatus;
 
 /// Process wait bindings for the native runtime.
 declare namespace process {
@@ -76,18 +81,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.wait.handle",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.wait"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.wait.handle", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.wait"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function wait(
         handle: ProcessHandle,
         flags: ProcessWaitFlags,
@@ -110,21 +114,18 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.wait.tryWait",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.wait"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
-    export function tryWait(
-        handle: ProcessHandle,
-    ): Result<ProcessWaitStatus, PlatformError>;
+    @binding("destack.process.wait.tryWait", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.wait"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
+    export function tryWait(handle: ProcessHandle): Result<ProcessWaitStatus, PlatformError>;
 
     /// Wait for a process identifier.
     ///
@@ -143,18 +144,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.wait.pid",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.wait"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.wait.pid", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.wait"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function waitPid(
         pid: ProcessId,
         flags: ProcessWaitFlags,

@@ -491,7 +491,36 @@ export struct WindowTextDroppedEvent {
 }
 
 /// Window event payload.
-export newtype WindowEvent = WindowCreatedEvent | WindowCloseRequestedEvent | WindowDestroyedEvent | WindowFocusChangedEvent | WindowVisibilityChangedEvent | WindowOcclusionChangedEvent | WindowPositionChangedEvent | WindowSizeChangedEvent | WindowScaleFactorChangedEvent | WindowRefreshRequestedEvent | WindowModeChangedEvent | WindowDisplayChangedEvent | WindowThemeChangedEvent | WindowChromeChangedEvent | WindowTaskbarVisibilityChangedEvent | WindowSafeAreaChangedEvent | WindowOpacityChangedEvent | WindowParentChangedEvent | WindowTransientChangedEvent | WindowModalChangedEvent | WindowMousePassthroughChangedEvent | WindowAspectRatioChangedEvent | WindowDropStartedEvent | WindowFileHoveredEvent | WindowDropCancelledEvent | WindowDropCompletedEvent | WindowFileHoverLeftEvent | WindowFileDroppedEvent | WindowTextDroppedEvent;
+export newtype WindowEvent =
+    | WindowCreatedEvent
+    | WindowCloseRequestedEvent
+    | WindowDestroyedEvent
+    | WindowFocusChangedEvent
+    | WindowVisibilityChangedEvent
+    | WindowOcclusionChangedEvent
+    | WindowPositionChangedEvent
+    | WindowSizeChangedEvent
+    | WindowScaleFactorChangedEvent
+    | WindowRefreshRequestedEvent
+    | WindowModeChangedEvent
+    | WindowDisplayChangedEvent
+    | WindowThemeChangedEvent
+    | WindowChromeChangedEvent
+    | WindowTaskbarVisibilityChangedEvent
+    | WindowSafeAreaChangedEvent
+    | WindowOpacityChangedEvent
+    | WindowParentChangedEvent
+    | WindowTransientChangedEvent
+    | WindowModalChangedEvent
+    | WindowMousePassthroughChangedEvent
+    | WindowAspectRatioChangedEvent
+    | WindowDropStartedEvent
+    | WindowFileHoveredEvent
+    | WindowDropCancelledEvent
+    | WindowDropCompletedEvent
+    | WindowFileHoverLeftEvent
+    | WindowFileDroppedEvent
+    | WindowTextDroppedEvent;
 
 /// Window-event kind filter mask.
 export newtype WindowEventKindMask = uint64;
@@ -606,6 +635,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function windowEventOpen(options: WindowEventOpenOptions): Result<WindowEventHandle, PlatformError>;
 
@@ -633,6 +663,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function windowEventClose(handle: WindowEventHandle): Result<void, PlatformError>;
 
@@ -660,8 +691,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function windowEventRead(handle: WindowEventHandle, timeoutNs: uint64): Result<WindowEvent, PlatformError>;
+    export function windowEventRead(
+        handle: WindowEventHandle,
+        timeoutNs: uint64,
+    ): Result<WindowEvent, PlatformError>;
 
     /// Poll one window event without blocking.
     ///
@@ -688,6 +723,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "eventLoop",
     })
     export function windowEventTryRead(handle: WindowEventHandle): Result<WindowEvent, PlatformError>;
 
@@ -715,6 +751,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function windowEventReadBatch(
         handle: WindowEventHandle,
@@ -746,6 +783,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "eventLoop",
     })
     export function windowEventTryReadBatch(
         handle: WindowEventHandle,

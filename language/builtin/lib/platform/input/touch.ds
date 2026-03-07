@@ -76,6 +76,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function touchState(handle: InputDeviceHandle): Result<InputTouchState, PlatformError>;
 }

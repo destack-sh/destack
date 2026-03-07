@@ -29,18 +29,17 @@ declare namespace ipc {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.ipc.pipe.open",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["ipc.pipe"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.ipc.pipe.open", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["ipc.pipe"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function pipeOpen(flags: uint32): Result<PipePair, PlatformError>;
 
     /// Close one pipe endpoint.
@@ -60,18 +59,17 @@ declare namespace ipc {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.ipc.pipe.close",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["ipc.pipe"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.ipc.pipe.close", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["ipc.pipe"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function pipeClose(handle: PipeHandle): Result<void, PlatformError>;
 
     /// Read bytes from a pipe endpoint.
@@ -91,19 +89,21 @@ declare namespace ipc {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.ipc.pipe.read",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["ipc.pipe"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function pipeRead(handle: PipeHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;
+    @binding("destack.ipc.pipe.read", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["ipc.pipe"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function pipeRead(
+        handle: PipeHandle,
+        buffer: Slice<uint8>,
+    ): Result<uint64, PlatformError>;
 
     /// Write bytes to a pipe endpoint.
     ///
@@ -122,17 +122,19 @@ declare namespace ipc {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.ipc.pipe.write",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["ipc.pipe"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function pipeWrite(handle: PipeHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;
+    @binding("destack.ipc.pipe.write", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["ipc.pipe"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function pipeWrite(
+        handle: PipeHandle,
+        buffer: Slice<uint8>,
+    ): Result<uint64, PlatformError>;
 }

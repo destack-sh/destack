@@ -41,6 +41,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function rawHidRead(
         handle: InputDeviceHandle,
@@ -74,6 +75,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function rawHidTryRead(
         handle: InputDeviceHandle,
@@ -105,6 +107,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function rawHidWrite(
         handle: InputDeviceHandle,
@@ -136,6 +139,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function rawHidGetFeature(
         handle: InputDeviceHandle,
@@ -167,6 +171,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function rawHidSetFeature(
         handle: InputDeviceHandle,

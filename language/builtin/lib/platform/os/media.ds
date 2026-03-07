@@ -88,6 +88,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function mediaList(query: MediaQuery): Result<MediaPage, PlatformError>;
 
@@ -115,6 +116,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function mediaRead(id: string): Result<MediaAssetDescriptor, PlatformError>;
 
@@ -142,8 +144,12 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function mediaImportPath(path: OsPath, kind: MediaAssetKind): Result<string, PlatformError>;
+    export function mediaImportPath(
+        path: OsPath,
+        kind: MediaAssetKind,
+    ): Result<string, PlatformError>;
 
     /// Delete media assets by identifier.
     ///
@@ -169,6 +175,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function mediaDelete(ids: Array<string>): Result<uint32, PlatformError>;
 }

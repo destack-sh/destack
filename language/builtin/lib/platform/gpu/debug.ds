@@ -28,6 +28,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function setLabel(handle: ResourceId, label: string): Result<void, PlatformError>;
 }

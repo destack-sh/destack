@@ -185,6 +185,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bufferCreate(
         device: GpuDeviceHandle,
@@ -216,6 +217,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bufferDestroy(handle: GpuBufferHandle): Result<void, PlatformError>;
 
@@ -244,6 +246,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bufferWrite(
         handle: GpuBufferHandle,
@@ -276,6 +279,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bufferRead(
         handle: GpuBufferHandle,
@@ -308,6 +312,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bufferMap(
         handle: GpuBufferHandle,
@@ -341,6 +346,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bufferUnmap(handle: GpuBufferHandle): Result<void, PlatformError>;
 
@@ -369,6 +375,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function bufferInfo(handle: GpuBufferHandle): Result<GpuBufferInfo, PlatformError>;
 
@@ -397,6 +404,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function textureCreate(
         device: GpuDeviceHandle,
@@ -428,6 +436,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function textureDestroy(handle: GpuTextureHandle): Result<void, PlatformError>;
 
@@ -456,6 +465,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function textureInfo(handle: GpuTextureHandle): Result<GpuTextureInfo, PlatformError>;
 
@@ -484,6 +494,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function textureViewCreate(
         texture: GpuTextureHandle,
@@ -515,6 +526,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function textureViewDestroy(handle: GpuTextureViewHandle): Result<void, PlatformError>;
 
@@ -543,6 +555,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function samplerCreate(
         device: GpuDeviceHandle,
@@ -574,6 +587,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function samplerDestroy(handle: GpuSamplerHandle): Result<void, PlatformError>;
 }

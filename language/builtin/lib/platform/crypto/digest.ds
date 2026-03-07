@@ -19,18 +19,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.digest.compute",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.digest"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.digest.compute", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.digest"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function digestCompute(
         algorithm: CryptoDigestAlgorithm,
         payload: Slice<uint8>,
@@ -50,18 +49,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.digest.open",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.digest"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.digest.open", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.digest"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function digestOpen(algorithm: CryptoDigestAlgorithm): Result<CryptoDigestHandle, PlatformError>;
 
     /// Update one streaming digest context.
@@ -78,18 +76,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.digest.update",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.digest"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.digest.update", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.digest"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function digestUpdate(
         handle: CryptoDigestHandle,
         payload: Slice<uint8>,
@@ -109,18 +106,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.digest.finish",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.digest"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.digest.finish", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.digest"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function digestFinish(handle: CryptoDigestHandle): Result<Slice<uint8>, PlatformError>;
 
     /// Reset one streaming digest context to its initial state.
@@ -137,18 +133,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.digest.reset",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.digest"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.digest.reset", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.digest"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function digestReset(handle: CryptoDigestHandle): Result<void, PlatformError>;
 
     /// Close one streaming digest context.
@@ -165,17 +160,16 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.digest.close",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.digest"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.digest.close", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.digest"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function digestClose(handle: CryptoDigestHandle): Result<void, PlatformError>;
 }

@@ -193,10 +193,9 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function monitorList(
-        request: DisplayMonitorListRequest,
-    ): Result<Slice<DisplayDescriptor>, PlatformError>;
+    export function monitorList(request: DisplayMonitorListRequest): Result<Slice<DisplayDescriptor>, PlatformError>;
 
     /// Read the current primary display handle.
     ///
@@ -223,10 +222,9 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function monitorPrimary(
-        request: DisplayMonitorListRequest,
-    ): Result<DisplayHandle | void, PlatformError>;
+    export function monitorPrimary(request: DisplayMonitorListRequest): Result<DisplayHandle | void, PlatformError>;
 
     /// Open one display endpoint.
     ///
@@ -253,6 +251,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function monitorOpen(
         id: string,
@@ -284,6 +283,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "eventLoop",
     })
     export function monitorClose(handle: DisplayHandle): Result<void, PlatformError>;
 
@@ -311,6 +311,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "eventLoop",
     })
     export function monitorDescriptor(handle: DisplayHandle): Result<DisplayDescriptor, PlatformError>;
 
@@ -339,6 +340,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function monitorModes(handle: DisplayHandle): Result<Slice<DisplayMode>, PlatformError>;
 
@@ -366,6 +368,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function monitorCurrentMode(handle: DisplayHandle): Result<DisplayMode, PlatformError>;
 
@@ -394,6 +397,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function monitorDesktopMode(handle: DisplayHandle): Result<DisplayMode, PlatformError>;
 
@@ -422,6 +426,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function monitorClosestMode(
         handle: DisplayHandle,
@@ -453,8 +458,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function monitorSetMode(handle: DisplayHandle, mode: DisplayMode): Result<void, PlatformError>;
+    export function monitorSetMode(
+        handle: DisplayHandle,
+        mode: DisplayMode,
+    ): Result<void, PlatformError>;
 
     /// Read one display color-state snapshot.
     ///
@@ -480,6 +489,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function monitorColorState(handle: DisplayHandle): Result<DisplayColorState, PlatformError>;
 
@@ -507,6 +517,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function monitorHdrMode(handle: DisplayHandle): Result<DisplayHdrMode, PlatformError>;
 
@@ -534,8 +545,12 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function monitorSetHdrMode(handle: DisplayHandle, mode: DisplayHdrMode): Result<void, PlatformError>;
+    export function monitorSetHdrMode(
+        handle: DisplayHandle,
+        mode: DisplayHdrMode,
+    ): Result<void, PlatformError>;
 
     /// Read one display gamma ramp.
     ///
@@ -561,6 +576,7 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
     export function monitorGammaRamp(handle: DisplayHandle): Result<DisplayGammaRamp, PlatformError>;
 
@@ -588,7 +604,10 @@ declare namespace display {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "eventLoop",
     })
-    export function monitorSetGammaRamp(handle: DisplayHandle, ramp: DisplayGammaRamp): Result<void, PlatformError>;
-
+    export function monitorSetGammaRamp(
+        handle: DisplayHandle,
+        ramp: DisplayGammaRamp,
+    ): Result<void, PlatformError>;
 }

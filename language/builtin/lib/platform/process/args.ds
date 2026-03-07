@@ -20,17 +20,16 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.args.list",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.run"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.args.list", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.run"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function args(): Result<Slice<string>, PlatformError>;
 }

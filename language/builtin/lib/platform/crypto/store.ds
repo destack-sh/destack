@@ -332,18 +332,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.crypto.store.probeKinds",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["crypto.probe"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.crypto.store.probeKinds", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["crypto.probe"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function storeProbeKinds(): Result<Array<CryptoStoreKind>, PlatformError>;
 
     /// Return capabilities for one store backend identity.
@@ -362,18 +361,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.crypto.store.probeCapability",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["crypto.probe"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.crypto.store.probeCapability", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["crypto.probe"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function storeProbeCapability(
         kind: CryptoStoreKind,
         provider?: CryptoStoreProvider,
@@ -400,18 +398,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.store.open",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.store.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.store.open", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.store.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function storeOpen(options: CryptoStoreOptions): Result<CryptoStoreHandle, PlatformError>;
 
     /// Close one crypto store.
@@ -432,18 +429,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.store.close",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.store.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.store.close", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.store.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function storeClose(handle: CryptoStoreHandle): Result<void, PlatformError>;
 
     /// List keys from one store.
@@ -464,18 +460,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.store.listKeys",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.store.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.store.listKeys", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.store.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function storeListKeys(
         handle: CryptoStoreHandle,
         query: CryptoKeyQuery,
@@ -499,18 +494,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.store.listCertificates",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.store.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.store.listCertificates", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.store.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function storeListCertificates(
         handle: CryptoStoreHandle,
         query: CryptoCertificateQuery,

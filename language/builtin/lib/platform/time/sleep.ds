@@ -1,6 +1,6 @@
 import type { PlatformError } from "../error/index.ds";
-
 /// Sleep bindings for the native runtime.
+
 declare namespace time {
     /// Sleep clock domain.
     export enum SleepClock {
@@ -27,18 +27,17 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.sleep.ns",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.wall.sleep"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.time.sleep.ns", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.wall.sleep"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function sleepNs(duration: uint64): Result<void, PlatformError>;
 
     /// Sleep until the given wall-clock deadline in nanoseconds.
@@ -58,18 +57,17 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.sleep.untilNs",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.wall.sleep"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.time.sleep.untilNs", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.wall.sleep"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function sleepUntilNs(deadline: uint64): Result<void, PlatformError>;
 
     /// Sleep for at least the given duration on one clock domain.
@@ -89,18 +87,17 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.sleep.onNs",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.wall.sleep"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.time.sleep.onNs", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.wall.sleep"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function sleepOnNs(duration: uint64, clock: SleepClock): Result<void, PlatformError>;
 
     /// Sleep until one deadline on one clock domain.
@@ -120,17 +117,19 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.sleep.untilOnNs",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.wall.sleep"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "sometimes",
-        },
-    )
-    export function sleepUntilOnNs(deadline: uint64, clock: SleepClock): Result<void, PlatformError>;
+    @binding("destack.time.sleep.untilOnNs", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.wall.sleep"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function sleepUntilOnNs(
+        deadline: uint64,
+        clock: SleepClock,
+    ): Result<void, PlatformError>;
 }

@@ -152,7 +152,11 @@ export struct SerialErrorEvent {
 }
 
 /// Serial event.
-export newtype SerialEvent = SerialReadReadyEvent | SerialWriteReadyEvent | SerialSignalsChangedEvent | SerialErrorEvent;
+export newtype SerialEvent =
+    | SerialReadReadyEvent
+    | SerialWriteReadyEvent
+    | SerialSignalsChangedEvent
+    | SerialErrorEvent;
 
 /// Serial bindings.
 declare namespace device {
@@ -181,6 +185,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function serialList(): Result<Slice<SerialPortDescriptor>, PlatformError>;
 
@@ -208,8 +213,12 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function serialOpen(id: string, config: SerialPortConfig): Result<SerialPortHandle, PlatformError>;
+    export function serialOpen(
+        id: string,
+        config: SerialPortConfig,
+    ): Result<SerialPortHandle, PlatformError>;
 
     /// Close serial endpoint.
     ///
@@ -235,6 +244,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function serialClose(handle: SerialPortHandle): Result<void, PlatformError>;
 
@@ -262,8 +272,12 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function serialConfigure(handle: SerialPortHandle, config: SerialPortConfig): Result<void, PlatformError>;
+    export function serialConfigure(
+        handle: SerialPortHandle,
+        config: SerialPortConfig,
+    ): Result<void, PlatformError>;
 
     /// Read serial bytes.
     ///
@@ -289,6 +303,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function serialRead(
         handle: SerialPortHandle,
@@ -320,8 +335,12 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
-    export function serialTryRead(handle: SerialPortHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>;
+    export function serialTryRead(
+        handle: SerialPortHandle,
+        maxBytes: uint32,
+    ): Result<Slice<uint8>, PlatformError>;
 
     /// Write serial bytes.
     ///
@@ -347,6 +366,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function serialWrite(
         handle: SerialPortHandle,
@@ -378,6 +398,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function serialFlush(handle: SerialPortHandle): Result<void, PlatformError>;
 
@@ -405,6 +426,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function serialDiscardInput(handle: SerialPortHandle): Result<void, PlatformError>;
 
@@ -432,6 +454,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function serialDiscardOutput(handle: SerialPortHandle): Result<void, PlatformError>;
 
@@ -459,6 +482,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function serialSignalBits(handle: SerialPortHandle): Result<uint32, PlatformError>;
 
@@ -486,6 +510,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function serialSetControlLines(
         handle: SerialPortHandle,
@@ -517,8 +542,12 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function serialSetBreak(handle: SerialPortHandle, enabled: boolean): Result<void, PlatformError>;
+    export function serialSetBreak(
+        handle: SerialPortHandle,
+        enabled: boolean,
+    ): Result<void, PlatformError>;
 
     /// Wait for one serial event.
     ///
@@ -544,6 +573,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function serialReadEvent(
         handle: SerialPortHandle,
@@ -574,6 +604,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function serialTryEvent(handle: SerialPortHandle): Result<SerialEvent, PlatformError>;
 }

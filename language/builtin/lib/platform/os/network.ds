@@ -93,6 +93,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function networkState(): Result<NetworkState, PlatformError>;
 
@@ -120,6 +121,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function networkWatchOpen(): Result<NetworkWatchHandle, PlatformError>;
 
@@ -147,6 +149,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function networkWatchClose(handle: NetworkWatchHandle): Result<void, PlatformError>;
 
@@ -174,6 +177,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function networkWatchRead(
         handle: NetworkWatchHandle,
@@ -204,6 +208,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function networkWatchTryRead(handle: NetworkWatchHandle): Result<NetworkEvent, PlatformError>;
 }

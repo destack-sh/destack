@@ -90,6 +90,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function clockNow(domain: AudioClockDomain): Result<uint64, PlatformError>;
 
@@ -123,6 +124,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function streamClock(
         handle: AudioStreamHandle,

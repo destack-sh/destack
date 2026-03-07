@@ -31,18 +31,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.mac.compute",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.mac"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.mac.compute", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.mac"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function macCompute(
         key: CryptoKeyHandle,
         parameters: CryptoMacParameters,
@@ -63,18 +62,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.mac.verify",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.mac"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.mac.verify", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.mac"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function macVerify(
         key: CryptoKeyHandle,
         parameters: CryptoMacParameters,
@@ -96,18 +94,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.mac.open",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.mac"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.mac.open", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.mac"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function macOpen(
         key: CryptoKeyHandle,
         parameters: CryptoMacParameters,
@@ -127,19 +124,21 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.mac.update",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.mac"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function macUpdate(handle: CryptoMacHandle, payload: Slice<uint8>): Result<void, PlatformError>;
+    @binding("destack.crypto.mac.update", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.mac"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function macUpdate(
+        handle: CryptoMacHandle,
+        payload: Slice<uint8>,
+    ): Result<void, PlatformError>;
 
     /// Finalize one streaming MAC context and return one tag.
     ///
@@ -155,18 +154,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.mac.finish",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.mac"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.mac.finish", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.mac"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function macFinish(handle: CryptoMacHandle): Result<Slice<uint8>, PlatformError>;
 
     /// Reset one streaming MAC context to its initial state.
@@ -183,18 +181,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.mac.reset",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.mac"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.mac.reset", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.mac"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function macReset(handle: CryptoMacHandle): Result<void, PlatformError>;
 
     /// Close one streaming MAC context.
@@ -211,17 +208,16 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.mac.close",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.mac"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.mac.close", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.mac"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function macClose(handle: CryptoMacHandle): Result<void, PlatformError>;
 }

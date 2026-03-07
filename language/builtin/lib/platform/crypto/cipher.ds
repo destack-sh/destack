@@ -55,18 +55,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.cipher.encrypt",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.cipher"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.cipher.encrypt", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.cipher"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function cipherEncrypt(
         key: CryptoKeyHandle,
         parameters: CryptoCipherParameters,
@@ -87,18 +86,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.cipher.decrypt",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.cipher"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.cipher.decrypt", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.cipher"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function cipherDecrypt(
         key: CryptoKeyHandle,
         parameters: CryptoCipherParameters,
@@ -119,18 +117,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.cipher.open",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.cipher"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.cipher.open", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.cipher"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function cipherOpen(
         key: CryptoKeyHandle,
         direction: CryptoCipherDirection,
@@ -151,18 +148,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.cipher.updateAdditionalData",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.cipher"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.cipher.updateAdditionalData", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.cipher"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function cipherUpdateAdditionalData(
         handle: CryptoCipherHandle,
         additionalData: Slice<uint8>,
@@ -182,18 +178,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.cipher.update",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.cipher"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.cipher.update", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.cipher"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function cipherUpdate(
         handle: CryptoCipherHandle,
         payload: Slice<uint8>,
@@ -216,18 +211,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.cipher.finish",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.cipher"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.cipher.finish", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.cipher"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function cipherFinish(
         handle: CryptoCipherHandle,
         finalPayload: Slice<uint8>,
@@ -247,18 +241,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.cipher.reset",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.cipher"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.cipher.reset", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.cipher"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function cipherReset(
         handle: CryptoCipherHandle,
         parameters: CryptoCipherParameters,
@@ -278,17 +271,16 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.cipher.close",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.cipher"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.cipher.close", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.cipher"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function cipherClose(handle: CryptoCipherHandle): Result<void, PlatformError>;
 }

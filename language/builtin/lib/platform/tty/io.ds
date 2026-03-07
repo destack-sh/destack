@@ -21,18 +21,17 @@ declare namespace tty {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tty.io.read",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tty.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tty.io.read", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tty.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function read(handle: TtyHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;
 
     /// Write bytes to a terminal.
@@ -52,17 +51,16 @@ declare namespace tty {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tty.io.write",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tty.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tty.io.write", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tty.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function write(handle: TtyHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;
 }

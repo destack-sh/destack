@@ -28,19 +28,22 @@ declare namespace tty {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tty.pty.open",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tty.pty"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function ptyOpen(rows: uint32, columns: uint32, flags: uint32): Result<PtyPair, PlatformError>;
+    @binding("destack.tty.pty.open", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tty.pty"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function ptyOpen(
+        rows: uint32,
+        columns: uint32,
+        flags: uint32,
+    ): Result<PtyPair, PlatformError>;
 
     /// Close one pseudo-terminal controller.
     ///
@@ -59,17 +62,16 @@ declare namespace tty {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tty.pty.close",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tty.pty"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tty.pty.close", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tty.pty"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function ptyClose(handle: PtyHandle): Result<void, PlatformError>;
 }

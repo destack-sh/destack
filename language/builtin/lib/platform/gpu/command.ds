@@ -215,6 +215,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function commandEncoderOpen(
         device: GpuDeviceHandle,
@@ -246,6 +247,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandEncoderClose(handle: GpuCommandListHandle): Result<void, PlatformError>;
 
@@ -274,6 +276,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function commandEncoderFinish(handle: GpuCommandListHandle): Result<void, PlatformError>;
 
@@ -302,6 +305,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function renderBundleEncoderOpen(
         device: GpuDeviceHandle,
@@ -333,6 +337,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function renderBundleEncoderClose(handle: GpuRenderBundleEncoderHandle): Result<void, PlatformError>;
 
@@ -361,10 +366,9 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function renderBundleEncoderFinish(
-        handle: GpuRenderBundleEncoderHandle,
-    ): Result<GpuRenderBundleHandle, PlatformError>;
+    export function renderBundleEncoderFinish(handle: GpuRenderBundleEncoderHandle): Result<GpuRenderBundleHandle, PlatformError>;
 
     /// Begin one compute pass.
     ///
@@ -392,6 +396,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandComputePassBegin(
         handle: GpuCommandListHandle,
@@ -423,6 +428,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandComputePassEnd(handle: GpuComputePassHandle): Result<void, PlatformError>;
 
@@ -452,6 +458,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandRenderPassBegin(
         handle: GpuCommandListHandle,
@@ -483,6 +490,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandRenderPassEnd(handle: GpuRenderPassHandle): Result<void, PlatformError>;
 
@@ -511,6 +519,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandExecuteBundles(
         handle: GpuRenderPassHandle,
@@ -542,6 +551,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function renderBundleDestroy(handle: GpuRenderBundleHandle): Result<void, PlatformError>;
 
@@ -570,6 +580,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function renderBundleSetPipeline(
         handle: GpuRenderBundleEncoderHandle,
@@ -601,6 +612,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function renderBundleSetBindGroup(
         handle: GpuRenderBundleEncoderHandle,
@@ -634,6 +646,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function renderBundleSetVertexBuffer(
         handle: GpuRenderBundleEncoderHandle,
@@ -668,6 +681,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function renderBundleSetIndexBuffer(
         handle: GpuRenderBundleEncoderHandle,
@@ -702,6 +716,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function renderBundleDraw(
         handle: GpuRenderBundleEncoderHandle,
@@ -736,6 +751,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function renderBundleDrawIndexed(
         handle: GpuRenderBundleEncoderHandle,
@@ -771,6 +787,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function renderBundleDrawIndirect(
         handle: GpuRenderBundleEncoderHandle,
@@ -805,6 +822,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function renderBundleDrawIndexedIndirect(
         handle: GpuRenderBundleEncoderHandle,
@@ -839,6 +857,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function renderBundleInsertDebugMarker(
         handle: GpuRenderBundleEncoderHandle,
@@ -870,6 +889,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function renderBundlePushDebugGroup(
         handle: GpuRenderBundleEncoderHandle,
@@ -901,6 +921,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function renderBundlePopDebugGroup(handle: GpuRenderBundleEncoderHandle): Result<void, PlatformError>;
 
@@ -929,6 +950,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandBindComputePipeline(
         handle: GpuComputePassHandle,
@@ -960,6 +982,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandBindRenderPipeline(
         handle: GpuRenderPassHandle,
@@ -991,6 +1014,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandSetComputeBindGroup(
         handle: GpuComputePassHandle,
@@ -1024,6 +1048,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandSetRenderBindGroup(
         handle: GpuRenderPassHandle,
@@ -1057,6 +1082,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandSetVertexBuffer(
         handle: GpuRenderPassHandle,
@@ -1091,6 +1117,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandSetIndexBuffer(
         handle: GpuRenderPassHandle,
@@ -1125,6 +1152,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandSetViewport(
         handle: GpuRenderPassHandle,
@@ -1161,6 +1189,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandSetScissor(
         handle: GpuRenderPassHandle,
@@ -1195,6 +1224,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandSetBlendConstant(
         handle: GpuRenderPassHandle,
@@ -1229,6 +1259,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandSetStencilReference(
         handle: GpuRenderPassHandle,
@@ -1260,6 +1291,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandInsertDebugMarker(
         handle: GpuCommandListHandle,
@@ -1291,6 +1323,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandPushDebugGroup(
         handle: GpuCommandListHandle,
@@ -1322,6 +1355,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandPopDebugGroup(handle: GpuCommandListHandle): Result<void, PlatformError>;
 
@@ -1350,6 +1384,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandComputePassInsertDebugMarker(
         handle: GpuComputePassHandle,
@@ -1381,6 +1416,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandComputePassPushDebugGroup(
         handle: GpuComputePassHandle,
@@ -1412,10 +1448,9 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
-    export function commandComputePassPopDebugGroup(
-        handle: GpuComputePassHandle,
-    ): Result<void, PlatformError>;
+    export function commandComputePassPopDebugGroup(handle: GpuComputePassHandle): Result<void, PlatformError>;
 
     /// Insert one debug marker in one render-pass scope.
     ///
@@ -1442,6 +1477,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandRenderPassInsertDebugMarker(
         handle: GpuRenderPassHandle,
@@ -1473,6 +1509,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandRenderPassPushDebugGroup(
         handle: GpuRenderPassHandle,
@@ -1504,10 +1541,9 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
-    export function commandRenderPassPopDebugGroup(
-        handle: GpuRenderPassHandle,
-    ): Result<void, PlatformError>;
+    export function commandRenderPassPopDebugGroup(handle: GpuRenderPassHandle): Result<void, PlatformError>;
 
     /// Dispatch one compute workgroup grid.
     ///
@@ -1534,6 +1570,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandDispatch(
         handle: GpuComputePassHandle,
@@ -1567,6 +1604,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandDispatchIndirect(
         handle: GpuComputePassHandle,
@@ -1599,6 +1637,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandDraw(
         handle: GpuRenderPassHandle,
@@ -1633,6 +1672,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandDrawIndexed(
         handle: GpuRenderPassHandle,
@@ -1668,6 +1708,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandDrawIndirect(
         handle: GpuRenderPassHandle,
@@ -1702,6 +1743,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandDrawIndexedIndirect(
         handle: GpuRenderPassHandle,
@@ -1737,6 +1779,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandMultiDrawIndirect(
         handle: GpuRenderPassHandle,
@@ -1772,6 +1815,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandMultiDrawIndexedIndirect(
         handle: GpuRenderPassHandle,
@@ -1806,6 +1850,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandMultiDrawIndirectCount(
         handle: GpuRenderPassHandle,
@@ -1842,6 +1887,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandMultiDrawIndexedIndirectCount(
         handle: GpuRenderPassHandle,
@@ -1878,6 +1924,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandCopyBuffer(
         handle: GpuCommandListHandle,
@@ -1913,6 +1960,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandClearBuffer(
         handle: GpuCommandListHandle,
@@ -1946,6 +1994,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandCopyTextureToTexture(
         handle: GpuCommandListHandle,
@@ -1979,6 +2028,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandCopyTextureToBuffer(
         handle: GpuCommandListHandle,
@@ -2012,6 +2062,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function commandCopyBufferToTexture(
         handle: GpuCommandListHandle,
@@ -2045,6 +2096,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function queueSubmit(
         queue: GpuQueueHandle,
@@ -2077,6 +2129,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function queueWriteBuffer(
         queue: GpuQueueHandle,
@@ -2112,6 +2165,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function queueWriteTexture(
         queue: GpuQueueHandle,
@@ -2146,6 +2200,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function queueWaitIdle(
         queue: GpuQueueHandle,

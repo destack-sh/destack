@@ -20,18 +20,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.cwd.get",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.workdir.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.cwd.get", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.workdir.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function cwd(): Result<OsPath, PlatformError>;
 
     /// Change the current working directory.
@@ -51,17 +50,16 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.cwd.chdir",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.workdir.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.cwd.chdir", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.workdir.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function chdir(path: OsPath): Result<void, PlatformError>;
 }

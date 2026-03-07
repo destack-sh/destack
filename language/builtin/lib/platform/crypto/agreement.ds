@@ -1,10 +1,7 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { CryptoKeyHandle } from "../resource/index.ds";
-import {
-    CryptoDigestAlgorithm,
-    CryptoKeyAgreementAlgorithm,
-} from "./algorithm.ds";
+import { CryptoDigestAlgorithm, CryptoKeyAgreementAlgorithm } from "./algorithm.ds";
 
 /// Key-agreement key-derivation request.
 export struct CryptoAgreementDeriveKeyRequest {
@@ -36,18 +33,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.agreement.deriveSharedSecret",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.key.agree"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.agreement.deriveSharedSecret", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.key.agree"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function agreementDeriveSharedSecret(
         privateKey: CryptoKeyHandle,
         peerPublicKey: CryptoKeyHandle,
@@ -70,18 +66,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.agreement.deriveKey",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.key.agree", "crypto.kdf"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.agreement.deriveKey", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.key.agree", "crypto.kdf"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function agreementDeriveKey(
         privateKey: CryptoKeyHandle,
         peerPublicKey: CryptoKeyHandle,
