@@ -125,7 +125,7 @@ impl Parser {
             }
             TripleSlashDirective::NoDefaultLib => {
                 let span = Span::new(self.file_id, line_start as u32, line_end as u32);
-                let expression_id = self.tree.insert(Expression::Stub, span);
+                let expression_id = self.insert_node(Expression::Stub, span);
                 return Some(expression_id);
             }
         };
@@ -141,7 +141,7 @@ impl Parser {
             arguments: None,
         };
 
-        Some(self.tree.insert(import, span))
+        Some(self.insert_node(import, span))
     }
 
     /// Parse one triple slash directive line.
@@ -274,7 +274,7 @@ impl Parser {
         self.eat_token(TokenType::CloseParenthesis)?;
 
         // import
-        let import_id = self.tree.insert(
+        let import_id = self.insert_node(
             Expression::Import {
                 source: ImportSource::ImportCall,
                 kind: DependencyKind::Value,
@@ -382,7 +382,7 @@ impl Parser {
         let arguments = self.eat_dependency_arguments_maybe()?;
 
         // import
-        let import_id = self.tree.insert(
+        let import_id = self.insert_node(
             Expression::Import {
                 source: ImportSource::ImportStatement,
                 kind: kind.unwrap_or(DependencyKind::Value),
@@ -568,10 +568,10 @@ impl Parser {
             kind: kind.unwrap_or(DependencyKind::Value),
             target,
         };
-        let declaration_id = self.tree.insert(declaration, self.get_span_from(start));
+        let declaration_id = self.insert_node(declaration, self.get_span_from(start));
         self.tree.set_main_span(declaration_id, name_span);
         let expression = Expression::Declaration(declaration_id);
-        self.tree.insert(expression, self.get_span_from(start))
+        self.insert_node(expression, self.get_span_from(start))
     }
 
     /// Eat an export declaration (including the `export` keyword and an optional body).
@@ -603,7 +603,7 @@ impl Parser {
 
             let value =
                 self.eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
-            let item = self.tree.insert(
+            let item = self.insert_node(
                 DependencyItem {
                     mode: DependencyMode::Default,
                     kind: Some(DependencyKind::Value),
@@ -613,7 +613,7 @@ impl Parser {
                 },
                 self.get_span_from(&start),
             );
-            let export = self.tree.insert(
+            let export = self.insert_node(
                 Expression::Export {
                     kind: DependencyKind::Value,
                     target: None,
@@ -629,7 +629,7 @@ impl Parser {
             self.bump(); // eat as
             self.bump(); // eat namespace
             let (name, name_span) = self.eat_identifier_with_span()?;
-            let export_id = self.tree.insert(
+            let export_id = self.insert_node(
                 Expression::ExportNamespace { name },
                 self.get_span_from(&start),
             );
@@ -641,7 +641,7 @@ impl Parser {
             self.bump(); // eat assign
             let value =
                 self.eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
-            let item = self.tree.insert(
+            let item = self.insert_node(
                 DependencyItem {
                     mode: DependencyMode::Namespace,
                     kind: Some(DependencyKind::Value),
@@ -651,7 +651,7 @@ impl Parser {
                 },
                 self.get_span_from(&start),
             );
-            let export = self.tree.insert(
+            let export = self.insert_node(
                 Expression::Export {
                     kind: DependencyKind::Value,
                     target: None,
@@ -690,8 +690,8 @@ impl Parser {
                 alias: None,
                 value: None,
             };
-            let item_id = self.tree.insert(item, self.get_span_from(&start));
-            let export = self.tree.insert(
+            let item_id = self.insert_node(item, self.get_span_from(&start));
+            let export = self.insert_node(
                 Expression::Export {
                     kind: kind.unwrap_or(DependencyKind::Value),
                     target: Some(target),
@@ -750,7 +750,7 @@ impl Parser {
         }
 
         // export
-        let export_id = self.tree.insert(
+        let export_id = self.insert_node(
             Expression::Export {
                 kind: kind.unwrap_or(DependencyKind::Value),
                 target,
@@ -886,7 +886,7 @@ impl Parser {
                 alias: Some(alias),
                 value: None,
             };
-            let item_id = self.tree.insert(item, self.get_span_from(&start));
+            let item_id = self.insert_node(item, self.get_span_from(&start));
             self.tree.set_main_span(item_id, alias_span);
             items.push(item_id);
         }
@@ -908,7 +908,7 @@ impl Parser {
                 alias: Some(alias),
                 value: None,
             };
-            let item_id = self.tree.insert(item, self.get_span_from(&start));
+            let item_id = self.insert_node(item, self.get_span_from(&start));
             self.tree.set_main_span(item_id, alias_span);
             items.push(item_id);
         }
@@ -988,7 +988,7 @@ impl Parser {
             };
 
             // item
-            let item = self.tree.insert(
+            let item = self.insert_node(
                 DependencyItem {
                     mode: DependencyMode::Default,
                     kind,
@@ -1026,7 +1026,7 @@ impl Parser {
             };
 
             // item
-            let item = self.tree.insert(
+            let item = self.insert_node(
                 DependencyItem {
                     mode: DependencyMode::Item,
                     kind,

@@ -32,7 +32,7 @@ impl Parser {
             self.bump(); // eat close bracket
             let index_span = self.get_span_from(&start);
             let span = Span::new(index_span.file, receiver_span.start, index_span.end);
-            let index_id = self.tree.insert(
+            let index_id = self.insert_node(
                 Expression::Index {
                     position,
                     left: receiver_id,
@@ -70,7 +70,7 @@ impl Parser {
         };
         let index_span = self.get_span_from(&start);
         let span = Span::new(index_span.file, receiver_span.start, index_span.end);
-        let index_id = self.tree.insert(index_expression, span);
+        let index_id = self.insert_node(index_expression, span);
         Ok(index_id)
     }
 
@@ -114,7 +114,7 @@ impl Parser {
         let dynamic_arguments = self.eat_dynamic_arguments_maybe()?.unwrap_or_default();
 
         // call
-        let call_id = self.tree.insert(
+        let call_id = self.insert_node(
             Expression::New {
                 left,
                 static_arguments,
@@ -182,7 +182,7 @@ impl Parser {
         let dynamic_arguments = self.eat_dynamic_arguments()?;
 
         // call
-        let call_id = self.tree.insert(
+        let call_id = self.insert_node(
             Expression::Call {
                 position,
                 left: receiver_id,
@@ -213,7 +213,7 @@ mod tests {
             segments: smallvec![receiver_str],
         };
         let span = parser.peek().unwrap().span;
-        parser.tree.insert(
+        parser.insert_node(
             Expression::Path {
                 path: receiver_path,
                 static_arguments: None,

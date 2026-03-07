@@ -27,7 +27,7 @@ impl Parser {
             descriptor,
             expressions,
         };
-        Ok(self.tree.insert(global, self.get_span_from(start)))
+        Ok(self.insert_node(global, self.get_span_from(start)))
     }
 
     /// Eat a namespace declaration (incl. `namespace` or `module` keyword).
@@ -126,11 +126,11 @@ impl Parser {
                 generics: generics.clone(),
                 expressions: nested_expressions,
             };
-            let current_id = self.tree.insert(namespace, self.get_span_from(start));
+            let current_id = self.insert_node(namespace, self.get_span_from(start));
             self.tree.set_main_span(current_id, span);
             namespace_id = Some(current_id);
 
-            let expression_id = self.tree.insert(
+            let expression_id = self.insert_node(
                 Expression::Declaration(current_id),
                 self.get_span_from(start),
             );
@@ -144,7 +144,7 @@ impl Parser {
         }
 
         Ok(namespace_id.unwrap_or_else(|| {
-            self.tree.insert(
+            self.insert_node(
                 Declaration::Namespace {
                     descriptor: base_descriptor,
                     kind: namespace_kind,

@@ -5,6 +5,8 @@ use std::ptr::NonNull;
 #[cfg(feature = "parser_timings")]
 use std::rc::Rc;
 use std::sync::Arc;
+#[cfg(feature = "parser_timings")]
+use std::time::Instant;
 
 use crate::{TokenStream, TokenStreamCursor, TokenStreamMark, is_semantic};
 use destack_ast::{
@@ -1187,6 +1189,19 @@ impl Parser {
         }
     }
 
+    /// Record a parser timing sample directly.
+    #[cfg(feature = "parser_timings")]
+    #[inline]
+    pub(crate) fn record_timing(
+        &self,
+        tag: crate::parse::timing::ParserTimingTag,
+        duration: std::time::Duration,
+    ) {
+        if let Some(timings) = self.timings.as_ref() {
+            timings.record(tag, duration);
+        }
+    }
+
     /// Snapshot speculative parser dispatch counters.
     pub fn speculation_snapshot(&self) -> Option<ParserSpeculationStats> {
         self.speculation_stats
@@ -1201,6 +1216,7 @@ impl Parser {
     /// Ensure a token exists at the given index.
     #[inline]
     pub(crate) fn ensure_token(&mut self, index: usize) {
+        let _timing = self.timing_scope(crate::parse::timing::tags::PARSE_LEX_ENSURE_TOKEN);
         self.token_stream.ensure_token(index);
     }
 
@@ -1237,6 +1253,7 @@ impl Parser {
     /// Return the next non newline token index from a start index.
     #[inline]
     pub(crate) fn next_non_newline_index_from_stream(&mut self, start: usize) -> usize {
+        let _timing = self.timing_scope(crate::parse::timing::tags::PARSE_LEX_NEXT_NON_NEWLINE);
         self.token_stream.next_non_newline_index_from(start)
     }
 
@@ -1312,6 +1329,8 @@ impl Parser {
     /// Return the matching pair index for an opening token index, lexing ahead if needed.
     #[inline]
     pub(crate) fn matching_pair_or_lex(&mut self, index: usize) -> Option<usize> {
+        let _timing = self.timing_scope(crate::parse::timing::tags::PARSE_LEX_MATCHING_PAIR);
+
         // fully materialized streams can serve pair lookups without incremental lex checks
         if self.token_stream.is_lexed_to_end() {
             return self.token_stream.matching_pair(index);
@@ -1339,6 +1358,8 @@ impl Parser {
     /// Ensure a token exists at the given index and return it.
     #[inline]
     pub(crate) fn token_at(&mut self, index: usize) -> Option<TokenSpan> {
+        let _timing = self.timing_scope(crate::parse::timing::tags::PARSE_LEX_TOKEN_AT);
+
         if let Some(token) = self.tokens().get(index).copied() {
             return Some(token);
         }
@@ -1467,8 +1488,19 @@ impl Parser {
 
         let token = self.tokens().get(index)?;
         let identifier = if token.token.ty == TokenType::Identifier {
+            #[cfg(feature = "parser_timings")]
+            let started_at = Instant::now();
+
             let span_str = self.file.span_str(token.span);
-            Some(self.strings.intern(span_str))
+            let identifier = self.strings.intern(span_str);
+
+            #[cfg(feature = "parser_timings")]
+            self.record_timing(
+                crate::parse::timing::tags::PARSE_ALLOC_IDENTIFIER_INTERN,
+                started_at.elapsed(),
+            );
+
+            Some(identifier)
         } else {
             None
         };
@@ -1504,6 +1536,7 @@ impl Parser {
     /// Return whether trivia before the token at index contains a line terminator.
     #[inline]
     pub(crate) fn line_terminator_before_index(&mut self, index: usize) -> bool {
+        let _timing = self.timing_scope(crate::parse::timing::tags::PARSE_LEX_LINE_TERMINATOR);
         self.token_stream.line_terminator_before(index)
     }
 
@@ -1607,7 +1640,7 @@ impl Parser {
 
         // comment only files need one returned expression owner
         if expressions.is_empty() {
-            let stub = self.tree.insert(Expression::Stub, stub_span);
+            let stub = self.insert_node(Expression::Stub, stub_span);
             expressions.push(stub);
             return;
         }
@@ -1623,7 +1656,7 @@ impl Parser {
         }
 
         // insert one internal anchor so trivia can attach without parse errors
-        let _ = self.tree.insert(Expression::Stub, stub_span);
+        let _ = self.insert_node(Expression::Stub, stub_span);
     }
 
     /// Get the current position in the tokens.
@@ -1696,6 +1729,8 @@ impl Parser {
     /// Gets a mark of the current position.
     #[inline(always)]
     pub fn mark(&self) -> ParserMark {
+        let _timing = self.timing_scope(crate::parse::timing::tags::PARSE_ALLOC_MARK);
+
         // snapshot token stream when tree state or split state can affect lookahead
         let should_snapshot_token_stream = (self.allow_tree_literals()
             && !self.options.is_in_type())
@@ -1764,6 +1799,8 @@ impl Parser {
 
     /// Rewind the position to the given mark and remove any nodes created since.
     pub fn restore(&mut self, mark: ParserMark, idx: u32) {
+        let _timing = self.timing_scope(crate::parse::timing::tags::PARSE_ALLOC_RESTORE);
+
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             speculation_stats.restore_calls += 1;
         }
@@ -1794,7 +1831,7 @@ impl Parser {
         span: Span,
     ) -> LocalNodeId<Expression> {
         // wrap expression as statement first so annotation remap has a stable target
-        let statement_id = self.tree.insert(Expression::Statement(expression_id), span);
+        let statement_id = self.insert_node(Expression::Statement(expression_id), span);
 
         // semantic annotations on statement expressions must follow the statement owner
         if self.tree.has_annotations(expression_id.id) {
@@ -1806,6 +1843,17 @@ impl Parser {
         }
 
         statement_id
+    }
+
+    /// Insert a node into the AST tree.
+    #[inline]
+    pub(crate) fn insert_node<T>(&mut self, node: T, span: Span) -> LocalNodeId<T>
+    where
+        T: destack_ast::Node,
+        NodeTree: destack_ast::NodeTreeImpl<T>,
+    {
+        let _timing = self.timing_scope(crate::parse::timing::tags::PARSE_ALLOC_NODE);
+        self.tree.insert(node, span)
     }
 
     /// Get a mark and return the span of the current position.

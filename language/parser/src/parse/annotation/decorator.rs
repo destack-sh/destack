@@ -92,7 +92,7 @@ impl Parser {
         decorator_id: LocalNodeId<Decorator>,
     ) {
         let span = self.tree.get_span(decorator_id);
-        let annotation_id = self.tree.insert(
+        let annotation_id = self.insert_node(
             Annotation::Decorator {
                 node: decorator_id,
                 position: AnnotationPosition::BlockPrefix,

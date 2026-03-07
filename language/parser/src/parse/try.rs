@@ -40,7 +40,7 @@ impl Parser {
         if self.is_block_start() {
             // try block
             let try_expression = self.eat_block(BlockContext::Expression)?;
-            let try_expression = self.tree.insert(
+            let try_expression = self.insert_node(
                 Expression::Block(try_expression),
                 self.get_span_from(&start),
             );
@@ -137,7 +137,7 @@ impl Parser {
             };
 
             // try
-            let try_id = self.tree.insert(
+            let try_id = self.insert_node(
                 Expression::Try {
                     try_expression,
                     catch_pattern,
@@ -155,7 +155,7 @@ impl Parser {
             let expression_id = self.with_options(expression_options, |parser| {
                 parser.eat_expression(parser.options)
             })?;
-            let try_id = self.tree.insert(
+            let try_id = self.insert_node(
                 Expression::Try {
                     try_expression: expression_id,
                     catch_pattern: None,

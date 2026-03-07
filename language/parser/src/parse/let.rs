@@ -111,7 +111,7 @@ impl Parser {
             break;
         }
 
-        let let_id = self.tree.insert(
+        let let_id = self.insert_node(
             Expression::Let {
                 kind,
                 descriptor,
@@ -293,7 +293,7 @@ impl Parser {
             break;
         }
 
-        let using_id = self.tree.insert(
+        let using_id = self.insert_node(
             Expression::Using {
                 asynchrony,
                 descriptor,
@@ -356,7 +356,7 @@ impl Parser {
                     && (!is_underscore_identifier || allow_underscore_binding)
                 {
                     let (name, name_span) = self.eat_binding_identifier_with_span()?;
-                    let pattern_id = self.tree.insert(
+                    let pattern_id = self.insert_node(
                         Pattern::Binding {
                             mutability: None,
                             name,
@@ -424,7 +424,7 @@ impl Parser {
         };
 
         // declarator
-        let declarator_id = self.tree.insert(
+        let declarator_id = self.insert_node(
             Declarator {
                 pattern: pattern_id,
                 ty,

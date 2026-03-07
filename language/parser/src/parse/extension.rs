@@ -87,7 +87,7 @@ impl Parser {
         // extension
         let generics = Generics::new(static_parameters, where_clauses);
         let heritage = Heritage::new(None, implements_types);
-        let extension_id = self.tree.insert(
+        let extension_id = self.insert_node(
             Declaration::Extension {
                 descriptor,
                 generics,

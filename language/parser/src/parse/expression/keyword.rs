@@ -83,7 +83,7 @@ impl Parser {
         start: &ParserMark,
         declaration_id: LocalNodeId<Declaration>,
     ) -> LocalNodeId<Expression> {
-        self.tree.insert(
+        self.insert_node(
             Expression::Declaration(declaration_id),
             self.get_span_from(start),
         )
@@ -688,7 +688,7 @@ impl Parser {
             Keyword::Null => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
                 self.bump(); // eat null
-                Ok(Some(self.tree.insert(
+                Ok(Some(self.insert_node(
                     Expression::TypeLiteral(TypeLiteral::Null),
                     self.get_span_from(start),
                 )))

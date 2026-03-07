@@ -25,7 +25,7 @@ impl Parser {
         // js/ts: empty statement
         if !self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
             self.bump();
-            let block_id = self.tree.insert(
+            let block_id = self.insert_node(
                 Block {
                     context: BlockContext::Statement,
                     format: BlockFormat::Implicit,
@@ -60,7 +60,7 @@ impl Parser {
         }
 
         // wrap a non-block expression into an implicit statement block
-        let block_id = self.tree.insert(
+        let block_id = self.insert_node(
             Block {
                 context: BlockContext::Statement,
                 format: BlockFormat::Implicit,
@@ -205,7 +205,7 @@ impl Parser {
             else_expression: else_expression_id,
         };
 
-        let if_id = self.tree.insert(if_node, self.get_span_from(&start));
+        let if_id = self.insert_node(if_node, self.get_span_from(&start));
         Ok(if_id)
     }
 }
