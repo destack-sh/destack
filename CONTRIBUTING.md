@@ -24,8 +24,8 @@ We value clarity, correctness, and performance.
 ## Code Style
 
 Before opening a PR, run `just quick` from the repository root.
-This runs the same quick gate that CI enforces across language, library, service, app, and bridge.
-Use `just quick` for fast local confidence, `just fmt` for formatting, `just check` for static checks, and `just full` for the deepest local verification sweep.
+This runs the same repository quick gate that CI enforces across language, library, service, app, and bridge.
+Use `just quick` for normal local confidence, `just fmt` for formatting, `just check` for static checks, and `just full` for the deepest local verification sweep.
 See [TESTING.md](TESTING.md) for the full test matrix and suite details.
 
 ## Commit Style
@@ -68,16 +68,16 @@ To contribute to Destack and build it yourself locally you will need at least `c
 We use `justfile`s as the source of truth for all commands:
 ```sh
 just install        # setup everything
-just check          # run static checks
-just test           # run scoped test suites
+just check          # run repository static checks
+just test           # run area test aggregates
 just fmt            # format all code
-just quick          # run the fast repository gate
-just full           # run the full repository gate
+just quick          # run the repository quick gate
+just full           # run the repository full gate
 just clean          # clean all build artifacts
 just publish        # publish all packages
 ```
 
-If you are working in one area only, use scoped gates:
+If you are working in one area only, use scoped area gates:
 ```sh
 just language/quick
 just language/full

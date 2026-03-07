@@ -72,14 +72,11 @@ Otherwise it builds and stages CLI binaries for the configured `DESTACK_RELEASE_
 ## CI Release Flow
 
 The release workflow is tag driven and intentionally not `workflow_dispatch` driven.
-It validates release metadata first, then runs scoped `full` gates, runtime reusable workflows, release runtime smoke workflows, artifact packaging, signature generation, installer verification, and publishing.
+It validates release metadata first, then runs scoped `full` gates, runtime reusable workflows, artifact packaging, signature generation, installer verification, and publishing.
 
 Important workflow pieces:
 
 - [release.yml](/Users/florian/symbol/destack/.github/workflows/release.yml)
-- [release-runtime-smoke-unix.yml](/Users/florian/symbol/destack/.github/workflows/release-runtime-smoke-unix.yml)
-- [release-runtime-smoke-windows.yml](/Users/florian/symbol/destack/.github/workflows/release-runtime-smoke-windows.yml)
-- [release-runtime-smoke-windows-gnu.yml](/Users/florian/symbol/destack/.github/workflows/release-runtime-smoke-windows-gnu.yml)
 
 ## Changelog
 

@@ -33,19 +33,19 @@ instead of wrangling many disparate languages, tools, libraries, approaches, run
 - [**Destack Bridge**](bridge/README.md): Two-way bridges to the existing world.
 - [**Destack Templates**](template/README.md): Ready-to-clone starter kits for common use cases.
 
-Aspiritionally, **Destack is a meta framework for developing and maintaining your _own_ stack using foundational [building blocks](https://caseymuratori.com/blog_0016)**.
+Destack is designed as a sort of meta framework for developing and maintaining your _own_ stack using foundational [building blocks](https://caseymuratori.com/blog_0016).
 Destack is more of a "software factory toolkit" than "ready-to-wear software"; we do provide some common apps with a plugin system, but Destack is optimized for programmers building their own software processes in one correct, optimal, integrated system.
 
 ---
 
 ## Higher-Order Programming
 
-It has been more than 50 years since C introduced higher order programming as we know it today, yet programming is still astoundingly immature.
+It has been more than 50 years since C introduced higher order programming as we still know it today, yet programming is still astoundingly immature.
 We routinely fail to build trivial software correctly, and even when it works, it is incredibly inefficient, and even when it is, it's not well integrated with other software.
 
 Software is very useful, we have a lot of it, and there is about to be much, much more.
 There are even new exciting possibilities to marry symbolic and probabilistic computation.
-But we believe the deep opaqueness, inefficiency, and fragmentation of software can only be solved by reimagining the full software process; in the limit, that means unifying the disparate parts that have remained separate purely for historical reasons.
+But we believe the deep opaqueness, inefficiency, and fragmentation of software can only be solved by reimagining the full software process end-to-end; in the limit, that requires unifying the disparate parts that have remained separate purely for historical reasons.
 
 The more we can express in software, the higher order the abstractions we can program.
 In the beginning, software was the digital shadow of "real" systems, but done correctly, software is an enabling technology for new systems that were previously impossible.
@@ -150,9 +150,8 @@ See [TARGETS.md](TARGETS.md).
 
 | Tier | Target triples |
 |------|----------------|
-| **Tier 1**: full support | `aarch64-apple-darwin`, `x86_64-pc-windows-msvc`, `x86_64-pc-windows-gnu`, `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` |
+| **Tier 1**: full support | `aarch64-apple-darwin`, `x86_64-pc-windows-msvc`, `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` |
 | **Tier 2**: pending support | `aarch64-apple-ios`, `aarch64-linux-android` |
-| **Tier 3**: eventual support | `wasm32-wasip1` |
 
 ## Contributing
 

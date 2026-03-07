@@ -25,7 +25,7 @@ _run-rust-test *args:
 
 # --- build ---
 
-# check app crates
+# run app static checks
 check:
     cargo clippy --release {{ packages }}
 
@@ -50,17 +50,17 @@ clean:
 
 # --- test ---
 
-# run app tests
+# run the app test aggregate
 test:
     just _run-rust-test --release --all-targets {{ test-packages }}
 
-# run the fast app gate
+# run the app quick gate
 quick:
     just format-check
     just check
     just test
 
-# run the full app gate
+# run the app full gate
 full:
     just quick
 

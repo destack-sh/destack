@@ -101,7 +101,7 @@ Formatter performance is measured with the same `bench_stats` pattern used by ot
 Run `cargo run --release -p destack_formatter --example bench_stats -- --help` for all options.
 Default corpus root is `test/fixtures/ecosystem/checkouts`.
 Default corpus profile is `standard`, which targets a larger representative workload for iterative perf work.
-Use `--corpus full` to benchmark all fetched ecosystem checkouts under `--root`.
+Use `--corpus full` to bench all fetched ecosystem checkouts under `--root`.
 Use `--corpus quick` for a smaller representative set.
 For quick smoke runs you can use `--root test/fixtures/formatter/conformance/staging/oxfmt`.
 Use `--mode real-world` to respect file-level ignore directives and report product behavior.
@@ -201,6 +201,6 @@ just language/test-formatter-conformance
 ### Performance and fuzzing
 
 ```sh
-just language/benchmark-formatter-stats "--help"
+just language/bench-formatter-stats "--help"
 just language/fuzz-formatter 300
 ```

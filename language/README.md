@@ -47,6 +47,6 @@ just language/build
 just language/test
 just language/quick
 just language/full
-just language/benchmark
+just language/bench
 just language/fuzz 60
 ```

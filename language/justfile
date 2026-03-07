@@ -59,7 +59,7 @@ _run-destack-test test_binary *args:
 
 # --- setup ---
 
-# install test fixtures (conformance suites, ecosystem packages, resolver fixtures)
+# install language test fixtures
 install:
     ./test/fixtures/parser/conformance/test262-fetch.sh
     ./test/fixtures/parser/conformance/babel-fetch.sh
@@ -123,33 +123,9 @@ fetch-ecosystem:
 
 # --- build ---
 
-# check (clippy)
+# run language static checks
 check:
     cargo clippy --release {{ packages }}
-
-# run runtime smoke binary on the active host target
-_smoke-runtime-host:
-    CARGO_INCREMENTAL=0 cargo run -p destack_runtime --bin runtime-smoke --quiet
-
-# build and run the release runtime smoke binary for one host-runnable target
-smoke-runtime-release target="":
-    ../scripts/toolchain/smoke-runtime-release.sh "{{target}}"
-
-# run runtime smoke binary on windows gnu target through wine
-smoke-runtime-windows-gnu *args:
-    ../scripts/toolchain/smoke-runtime-windows-gnu.sh {{args}}
-
-# check runtime on windows gnu target with compile, clippy, and executable tests
-check-runtime-windows-gnu filter='':
-    ../scripts/toolchain/check-runtime-windows-gnu.sh "{{filter}}"
-
-# build and run one crate's tests for windows target through wine
-_runtime-windows-gnu-test-crate crate filter='':
-    ../scripts/toolchain/test-runtime-windows-gnu-crate.sh "{{crate}}" "{{filter}}"
-
-# build and run runtime tests for windows target through wine
-_runtime-windows-gnu-test filter='':
-    ../scripts/toolchain/test-runtime-windows-gnu.sh "{{filter}}"
 
 # run privileged runtime platform tests for process, fs, and net
 test-runtime-privileged:
@@ -179,10 +155,6 @@ ensure-toolchain:
 lint-toolchain:
     ../scripts/toolchain/runtime-toolchain.sh lint
 
-# check runtime for cross targets using Zig as the C toolchain
-check-runtime-cross-targets:
-    ../scripts/toolchain/check-runtime-cross-targets.sh
-
 # check runtime for android target using one configured ndk toolchain
 check-runtime-android:
     ../scripts/toolchain/check-runtime-android.sh
@@ -199,16 +171,11 @@ install-runtime-android-ndk:
 check-runtime-ios:
     ../scripts/toolchain/check-runtime-ios.sh
 
-# check runtime for wasip1 target
-check-runtime-wasip1:
-    ../scripts/toolchain/check-runtime-wasip1.sh
-
 # check runtime on linux host
 check-runtime-linux:
     LC_ALL=C LANG=C LC_CTYPE=C cargo check -p destack_runtime
     LC_ALL=C LANG=C LC_CTYPE=C cargo clippy -p destack_runtime --all-targets -- -D warnings
     LC_ALL=C LANG=C LC_CTYPE=C just _run-rust-test -p destack_runtime runtime::host::linux:: -- --nocapture
-    just _smoke-runtime-host
 
 # check runtime wayland backend against one real compositor on linux host
 check-runtime-linux-wayland:
@@ -219,33 +186,32 @@ check-runtime-macos:
     LC_ALL=C LANG=C LC_CTYPE=C cargo check -p destack_runtime
     LC_ALL=C LANG=C LC_CTYPE=C cargo clippy -p destack_runtime --all-targets -- -D warnings
     LC_ALL=C LANG=C LC_CTYPE=C just _run-rust-test -p destack_runtime runtime::host::macos:: -- --nocapture
-    just _smoke-runtime-host
 
 # check runtime on windows host
 check-runtime-windows-msvc:
     ../scripts/toolchain/check-runtime-windows-msvc.sh
 
-# build
+# build language packages
 build:
     cargo build --release {{ packages }}
     just generate-schema
 
-# format code
+# format language code
 format:
     cargo fmt {{ packages }}
 
-# check formatting
+# check language formatting
 format-check:
     cargo fmt --check {{ packages }}
 
 # alias for format
 alias fmt := format
 
-# generate docs
+# build language docs
 doc:
     cargo doc --release {{ packages }} --no-deps
 
-# clean
+# clean language build artifacts
 clean:
     cargo clean
 
@@ -354,7 +320,7 @@ test-unit:
     just _run-rust-test --release --lib {{ packages-no-linter }}
     just _run-rust-test --release --lib -p destack_linter
 
-# run the fast language test suite
+# run the language test aggregate
 test:
     just install-resolver
     just test-unit
@@ -372,13 +338,13 @@ test:
     just test-parser-conformance
     just test-formatter-conformance
 
-# run the fast language gate
+# run the language quick gate
 quick:
     just format-check
     just check
     just test
 
-# run the full language gate
+# run the language full gate
 full:
     just quick
     just fetch-ecosystem
@@ -427,12 +393,12 @@ test-formatter-conformance-update:
 snapshot-formatter-corpus root="test/fixtures/formatter/conformance/staging/oxfmt" out="/tmp/destack-snapshot-formatter-corpus":
     ./formatter/scripts/corpus_snapshot.sh "{{root}}" "{{out}}"
 
-# benchmark formatter parse and print throughput on a corpus
-benchmark-formatter-corpus root="test/fixtures/ecosystem" runs="5":
+# bench formatter parse and print throughput on a corpus
+bench-formatter-corpus root="test/fixtures/ecosystem" runs="5":
     ./formatter/scripts/corpus_bench.sh "{{root}}" "{{runs}}"
 
 # run formatter bench stats
-benchmark-formatter-stats args="--help":
+bench-formatter-stats args="--help":
     cargo run --release -p destack_formatter --example bench_stats -- {{args}}
 
 # diff two formatter corpus snapshots
@@ -527,32 +493,32 @@ generate-stress-resolver:
 generate-stress-checker:
     ./test/fixtures/stress/generate.sh checker
 
-# --- benchmark ---
+# --- bench ---
 
-# run the benchmark suite
-benchmark:
-    just benchmark-parser
-    just benchmark-lexer
-    just benchmark-compiler
+# run the bench suite
+bench:
+    just bench-parser
+    just bench-lexer
+    just bench-compiler
 
-# run compiler benchmarks
-benchmark-compiler:
+# run compiler benches
+bench-compiler:
     cargo bench -p destack_compiler -- destack_compile
 
 # run compiler bench stats
-benchmark-compiler-stats args="--help":
+bench-compiler-stats args="--help":
     cargo run -p destack_compiler --example bench_stats --features bench -- {{args}}
 
 # run linter bench stats
-benchmark-linter-stats args="--help":
+bench-linter-stats args="--help":
     cargo run -p destack_linter --example bench_stats -- {{args}}
 
-# run lexer benchmarks
-benchmark-lexer:
+# run lexer benches
+bench-lexer:
     cargo bench -p destack_parser -- destack_lex
 
-# run parser benchmarks
-benchmark-parser:
+# run parser benches
+bench-parser:
     cargo bench -p destack_parser -- destack_ast
 
 # --- fuzz ---

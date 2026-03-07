@@ -39,7 +39,7 @@ ensure-toolchain:
 
 # --- build ---
 
-# check bridge crates and typescript bridge packages
+# run bridge static checks
 check:
     cargo clippy --release {{ packages }}
     bun x tsc --noEmit -p napi/tsconfig.json
@@ -101,7 +101,7 @@ clean:
 
 # --- test ---
 
-# run bridge tests
+# run the bridge test aggregate
 test:
     just _run-rust-test --release --all-targets {{ test-packages }}
     bun run --cwd napi test
@@ -110,16 +110,16 @@ test:
     just test-vscode
     just test-zed
 
-# run the fast bridge gate
-quick:
+# run the bridge quick gate
+quick *args:
     just format-check
     just check
     just test
+    just validate-zed-grammars-strict {{args}}
 
-# run the full bridge gate
-full:
-    just quick
-    just validate-zed-grammars
+# run the bridge full gate
+full *args:
+    just quick {{args}}
     just test-language-bridges
     just test-vscode-bridge
 
