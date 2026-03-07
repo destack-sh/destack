@@ -1,6 +1,5 @@
-set unstable
 set shell := ["bash", "-cu"]
-set script-interpreter := ["bash", "-euo", "pipefail"]
+set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 set dotenv-load := true
 set dotenv-filename := "../.env.local"
 
@@ -13,19 +12,8 @@ _default:
     @just --list --unsorted
 
 # keep rust test concurrency on one repo wide knob when configured
-[script]
 _run-rust-test *args:
-    cargo_bin="cargo"
-    if [ "${OS:-}" = "Windows_NT" ] && command -v cargo.exe >/dev/null 2>&1; then
-        cargo_bin="cargo.exe"
-    fi
-
-    test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"
-    if [ -n "${test_threads}" ]; then
-        export RUST_TEST_THREADS="${test_threads}"
-    fi
-
-    "${cargo_bin}" test {{args}}
+    cargo_bin="cargo"; if [ "${OS:-}" = "Windows_NT" ] && command -v cargo.exe >/dev/null 2>&1; then cargo_bin="cargo.exe"; fi; test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"; if [ -n "${test_threads}" ]; then export RUST_TEST_THREADS="${test_threads}"; fi; "${cargo_bin}" test {{args}}
 
 # --- setup ---
 
@@ -225,37 +213,8 @@ publish-pypi dry="--dry-run":
     fi
 
 # publish nuget package dry by default
-[script]
 publish-nuget dry="--dry-run":
-    dotnet_bin="$(command -v dotnet 2>/dev/null || true)"
-    if [ -z "${dotnet_bin}" ] && [ -x "${HOME}/.dotnet/dotnet" ]; then
-        dotnet_bin="${HOME}/.dotnet/dotnet"
-    fi
-    if [ -z "${dotnet_bin}" ]; then
-        echo "missing dotnet command, run: just bridge/ensure-toolchain"
-        exit 1
-    fi
-
-    (cd dotnet && "${dotnet_bin}" pack -c Release --nologo src/Destack/Destack.csproj)
-
-    if [ "{{dry}}" = "--dry-run" ]; then
-        echo "Dry run: built and packed nuget package"
-        exit 0
-    fi
-
-    nuget_api_key="${NUGET_OIDC_API_KEY:-${NUGET_API_KEY:-}}"
-    if [ -z "${nuget_api_key}" ]; then
-        echo "missing nuget publish key, set NUGET_OIDC_API_KEY or NUGET_API_KEY"
-        exit 1
-    fi
-
-    version="$(cat ../VERSION.txt)"
-    nupkg_path="dotnet/src/Destack/bin/Release/Destack.${version}.nupkg"
-    snupkg_path="dotnet/src/Destack/bin/Release/Destack.${version}.snupkg"
-    "${dotnet_bin}" nuget push "${nupkg_path}" --source "https://api.nuget.org/v3/index.json" --api-key "${nuget_api_key}" --skip-duplicate
-    if [ -f "${snupkg_path}" ]; then
-        "${dotnet_bin}" nuget push "${snupkg_path}" --source "https://api.nuget.org/v3/index.json" --api-key "${nuget_api_key}" --skip-duplicate
-    fi
+    bash scripts/publish-nuget.sh "{{dry}}"
 
 # publish maven package dry by default
 publish-maven dry="--dry-run":

@@ -2,9 +2,8 @@ use destack_ast::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, BindingKind, Block, CommentStyle,
     Declaration, DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, DependencyMode,
     EnumField, EnumKind, Expression, FunctionKind, IfCondition, IfKind, ImportAliasTarget,
-    ImportSource, ImportTarget, IntType, Key, Member, Mutability, Name, Parameter, Pattern,
-    PatternField, PostfixPosition, Property, ScalarLiteral, TemplateLiteral, TokenType,
-    LetKind,
+    ImportSource, ImportTarget, IntType, Key, LetKind, Member, Mutability, Name, Parameter,
+    Pattern, PatternField, PostfixPosition, Property, ScalarLiteral, TemplateLiteral, TokenType,
     TypeBinaryOperator, TypeLiteral, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
     VarianceBound,
 };
