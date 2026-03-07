@@ -15,7 +15,6 @@ use crate::runtime::policy::{
     Effect, Fault, FaultTarget, FaultType, Hook, Policy, Rule, RuleId, Trigger,
 };
 use crate::runtime::time::WorldInstant;
-use crate::runtime::world::RuntimeId;
 use crate::runtime::{
     Agent, BindingCallContext, BranchId, CheckpointId, World, WorldCommand, WorldEdge,
     WorldEdgeKindDefinition, WorldEntity, WorldEntityKindDefinition,

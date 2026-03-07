@@ -31,6 +31,7 @@ pub(crate) struct PlatformState {
     pub input: PlatformInputState,
 
     /// Network module state.
+    #[allow(dead_code)]
     pub net: PlatformNetState,
 
     /// OS module state.
