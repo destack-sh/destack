@@ -16,7 +16,7 @@ use super::core::{map_keyring_error, open_keyring_entry, write_entry_secret};
 
 /// Read one credential record from the Linux keyring backend.
 pub(crate) fn read_credentials(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     query: &CredentialQueryOwned,
 ) -> RuntimeResult<CredentialRecordOwned> {
     // reject access-group routes because linux keyring has no access-group model
@@ -104,7 +104,7 @@ pub(crate) fn write_credentials(
 
 /// Delete one credential record from the Linux keyring backend.
 pub(crate) fn delete_credentials(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     service: &str,
     account: &str,
     access_group: Option<&str>,
@@ -134,7 +134,7 @@ pub(crate) fn delete_credentials(
 
 /// Return whether one credential record exists in the Linux keyring backend.
 pub(crate) fn contains_credentials(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     service: &str,
     account: &str,
     access_group: Option<&str>,
@@ -174,7 +174,7 @@ pub(crate) fn contains_credentials(
 
 /// Run one host authentication challenge on Linux keyring backend.
 pub(crate) fn authenticate_credentials(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     _options: &CredentialAuthenticationOptionsOwned,
 ) -> RuntimeResult<CredentialAuthenticationResult> {
     Err(core_platform::not_supported(

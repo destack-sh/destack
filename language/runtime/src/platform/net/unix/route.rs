@@ -1369,13 +1369,13 @@ fn mutate_ipv6_route(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_add(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     route: RouteEntry,
 ) -> RuntimeResult<()> {
     // reject unix targets without route-mutation support
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
-        let _ = (binding, route);
+        let _ = (_binding, route);
         route_not_supported("destack.net.routeAdd")
     }
 
@@ -1394,7 +1394,7 @@ pub(crate) unsafe fn destack_net_route_add(
 
     #[cfg(target_os = "macos")]
     {
-        mutate_macos_route(binding, route, libc::RTM_ADD, "write(PF_ROUTE:RTM_ADD)")
+        mutate_macos_route(_binding, route, libc::RTM_ADD, "write(PF_ROUTE:RTM_ADD)")
     }
 }
 
@@ -1418,13 +1418,13 @@ pub(crate) unsafe fn destack_net_route_add(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_delete(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     route: RouteEntry,
 ) -> RuntimeResult<()> {
     // reject unix targets without route-mutation support
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
-        let _ = (binding, route);
+        let _ = (_binding, route);
         route_not_supported("destack.net.routeDelete")
     }
 
@@ -1444,7 +1444,7 @@ pub(crate) unsafe fn destack_net_route_delete(
     #[cfg(target_os = "macos")]
     {
         mutate_macos_route(
-            binding,
+            _binding,
             route,
             libc::RTM_DELETE,
             "write(PF_ROUTE:RTM_DELETE)",

@@ -53,8 +53,8 @@ pub(crate) unsafe fn destack_process_get_limit(
     }
 
     let value = ProcessLimit {
-        soft: raw_limit.rlim_cur as u64,
-        hard: raw_limit.rlim_max as u64,
+        soft: raw_limit.rlim_cur,
+        hard: raw_limit.rlim_max,
     };
     unsafe {
         *out = value;
