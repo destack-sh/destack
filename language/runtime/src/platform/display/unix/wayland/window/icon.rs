@@ -2,9 +2,6 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
 use crate::platform::display::{WindowIconPixelFormat, WindowIconSet};
 
-/// Preferred icon dimension for compositor task-switcher surfaces.
-const WAYLAND_ICON_TARGET_DIMENSION: u32 = 64;
-
 /// Prepared icon buffer payload for wl_shm icon uploads.
 pub(crate) struct WaylandIconBuffer {
     /// Icon width in pixels.
@@ -76,8 +73,12 @@ pub(crate) fn decode_icon_buffer(
     // decode icon image payloads after validation
     let images = unsafe { icons.images.as_slice()? };
     let selected = images.iter().min_by_key(|image| {
-        let width_delta = image.width.abs_diff(WAYLAND_ICON_TARGET_DIMENSION);
-        let height_delta = image.height.abs_diff(WAYLAND_ICON_TARGET_DIMENSION);
+        let width_delta = image
+            .width
+            .abs_diff(super::constants::WAYLAND_ICON_TARGET_DIMENSION);
+        let height_delta = image
+            .height
+            .abs_diff(super::constants::WAYLAND_ICON_TARGET_DIMENSION);
         let target_score = (width_delta as u64).saturating_add(height_delta as u64);
         let area = (image.width as u64).saturating_mul(image.height as u64);
         (target_score, u64::MAX.saturating_sub(area))

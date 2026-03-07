@@ -1,5 +1,3 @@
-use std::thread::ThreadId;
-
 use wayland_client::backend::ObjectId;
 
 use crate::platform::display::{
@@ -53,7 +51,7 @@ pub(crate) struct DisplayDescriptorSnapshot {
     pub(crate) hdr_support: DisplaySupportStatus,
 }
 
-/// Snapshot payload for one wayland monitor endpoint.
+/// Snapshot payload for one Wayland monitor endpoint.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct MonitorSnapshot {
     /// Descriptor payload for this monitor.
@@ -68,12 +66,12 @@ pub(crate) struct MonitorSnapshot {
 
 /// Resource payload for one opened display handle.
 #[derive(Debug, Clone)]
-pub(crate) struct WaylandDisplayBinding {
+pub(crate) struct WaylandDisplayHostState {
     /// Stable monitor identifier.
     pub(crate) id: String,
 }
 
-/// Runtime payload for one wayland host window lane.
+/// Runtime payload for one Wayland host window lane.
 #[derive(Debug, Clone)]
 pub(crate) struct WaylandWindowHost {
     /// Stable host-surface identity.
@@ -104,15 +102,13 @@ pub(crate) struct WaylandWindowHost {
     pub(crate) confined_pointer: Option<ObjectId>,
 }
 
-/// Resource payload for one opened wayland window handle.
+/// Resource payload for one opened Wayland window handle.
 #[derive(Debug, Clone)]
-pub(crate) struct WaylandWindowBinding {
+pub(crate) struct WaylandWindowHostState {
     /// Stable runtime identifier.
     pub(crate) id: String,
     /// Host payload identity.
     pub(crate) host: WaylandWindowHost,
-    /// Owner thread identifier that created this window.
-    pub(crate) owner_thread_id: ThreadId,
     /// Current host-visible title.
     pub(crate) title: String,
     /// Current window role.

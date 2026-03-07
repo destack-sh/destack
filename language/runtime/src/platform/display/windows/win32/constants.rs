@@ -8,10 +8,6 @@ pub(crate) const WINDOW_RESOURCE_LABEL: &str = "display.window";
 pub(crate) const DISPLAY_EVENT_RESOURCE_LABEL: &str = "display.monitor.event";
 /// Resource-table label for opened window-event stream handles.
 pub(crate) const WINDOW_EVENT_RESOURCE_LABEL: &str = "display.window.event";
-/// Default queue capacity for monitor and window event streams.
-pub(crate) const DEFAULT_EVENT_QUEUE_CAPACITY: usize = 256;
-/// Default wait slice for window event blocking reads.
-pub(crate) const DEFAULT_WINDOW_EVENT_WAIT_SLICE_NS: u64 = 10_000_000;
 /// Window message `wparam` lane used for force-close paths.
 pub(crate) const WINDOW_CLOSE_FORCE_WPARAM: usize = 1;
 /// Display metric mask bit for bounds updates.
@@ -90,6 +86,9 @@ pub(crate) const WINDOW_EVENT_KIND_CHROME_CHANGED: u64 =
 /// Window-event kind bit for `taskbarVisibilityChanged`.
 pub(crate) const WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED.0;
+/// Window-event kind bit for `safeAreaChanged`.
+pub(crate) const WINDOW_EVENT_KIND_SAFE_AREA_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_SAFE_AREA_CHANGED.0;
 /// Window-event kind bit for `opacityChanged`.
 pub(crate) const WINDOW_EVENT_KIND_OPACITY_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_OPACITY_CHANGED.0;
@@ -145,6 +144,7 @@ pub(crate) const WINDOW_EVENT_KIND_MASK_ALL: u64 = WINDOW_EVENT_KIND_CREATED
     | WINDOW_EVENT_KIND_THEME_CHANGED
     | WINDOW_EVENT_KIND_CHROME_CHANGED
     | WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED
+    | WINDOW_EVENT_KIND_SAFE_AREA_CHANGED
     | WINDOW_EVENT_KIND_OPACITY_CHANGED
     | WINDOW_EVENT_KIND_PARENT_CHANGED
     | WINDOW_EVENT_KIND_TRANSIENT_CHANGED

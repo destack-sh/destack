@@ -66,7 +66,7 @@ pub(crate) struct MonitorSnapshot {
 
 /// Resource payload for one opened monitor handle.
 #[derive(Debug, Clone)]
-pub(crate) struct Win32DisplayBinding {
+pub(crate) struct Win32DisplayHostState {
     /// Stable monitor identifier.
     pub(crate) id: String,
 }
@@ -82,13 +82,11 @@ pub(crate) struct ExclusiveModeRestore {
 
 /// Resource payload for one opened window handle.
 #[derive(Debug, Clone)]
-pub(crate) struct Win32WindowBinding {
+pub(crate) struct Win32WindowHostState {
     /// Stable runtime identifier.
     pub(crate) id: String,
     /// Native Win32 window handle.
     pub(crate) hwnd: HWND,
-    /// Owner thread identifier that created this window.
-    pub(crate) owner_thread_id: u32,
     /// Current host-visible title.
     pub(crate) title: String,
     /// Current window role.

@@ -19,7 +19,7 @@ use display_platform::{
     WindowDropTextPayload, WindowDropTextPayloadVm, WindowEvent, WindowEventOpenOptionsVm,
     WindowEventVm, WindowIconImage, WindowIconImageVm, WindowIconSet, WindowIconSetVm,
     WindowModeOptions, WindowModeOptionsVm, WindowModePayload, WindowModePayloadVm, WindowOptions,
-    WindowOptionsVm, host as host_display,
+    WindowOptionsVm, native as host_display,
 };
 
 /// Invoke one host call that writes through an output pointer.

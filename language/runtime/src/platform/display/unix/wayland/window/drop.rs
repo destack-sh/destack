@@ -11,11 +11,11 @@ use crate::platform::display::WindowPosition;
 use crate::platform::resource::WindowHandle;
 use crate::runtime::BindingCallContext;
 
-use super::super::core::{
-    self as backend_core, WaylandConnectionDispatchState, WaylandDropSessionState,
+use crate::platform::display::unix::wayland::core::{
+    self as wayland_core, WaylandConnectionDispatchState, WaylandDropSessionState,
 };
-use super::super::event;
-use super::super::model::WaylandWindowBinding;
+use crate::platform::display::unix::wayland::event;
+use crate::platform::display::unix::wayland::model::WaylandWindowHostState;
 
 /// Return one preferred drop mime type for one offered mime-type set.
 fn preferred_drop_mime_type(mime_types: &[String]) -> Option<String> {
@@ -139,7 +139,7 @@ fn create_pipe_pair(operation: &'static str) -> RuntimeResult<(File, File)> {
     let result = unsafe { libc::pipe2(file_descriptors.as_mut_ptr(), libc::O_CLOEXEC) };
     if result != 0 {
         let error = std::io::Error::last_os_error();
-        return Err(backend_core::io_error(
+        return Err(wayland_core::io_error(
             operation,
             format!("pipe2 failed for drop payload transfer: {error}"),
         ));
@@ -152,40 +152,47 @@ fn create_pipe_pair(operation: &'static str) -> RuntimeResult<(File, File)> {
 
 /// Publish one drop-started event when one session has not started yet.
 fn publish_drop_started(
-    runtime_state: &Arc<backend_core::WaylandRuntimeState>,
+    runtime_state: &Arc<wayland_core::WaylandRuntimeState>,
     window_handle: WindowHandle,
     dispatch_state: &mut WaylandConnectionDispatchState,
 ) {
     // skip when this session already started
-    if dispatch_state.drop_session_state.started {
+    if dispatch_state.input.drop_session_state.started {
         return;
     }
 
-    dispatch_state.drop_session_state.started = true;
+    dispatch_state.input.drop_session_state.started = true;
     event::publish_window_drop_started(runtime_state, window_handle);
 }
 
 /// Publish one file-hovered event for one active drop session.
 fn publish_drop_hover(
-    runtime_state: &Arc<backend_core::WaylandRuntimeState>,
+    runtime_state: &Arc<wayland_core::WaylandRuntimeState>,
     window_handle: WindowHandle,
     dispatch_state: &WaylandConnectionDispatchState,
 ) {
     event::publish_window_file_hovered(
         runtime_state,
         window_handle,
-        dispatch_state.drop_session_state.last_hovered_path.clone(),
-        dispatch_state.drop_session_state.position,
+        dispatch_state
+            .input
+            .drop_session_state
+            .last_hovered_path
+            .clone(),
+        dispatch_state.input.drop_session_state.position,
     );
 }
 
 /// Clear one active drop session and all associated offer state.
 pub(crate) fn clear_drop_session(dispatch_state: &mut WaylandConnectionDispatchState) {
-    if let Some(offer_id) = dispatch_state.drop_session_state.offer.clone() {
-        dispatch_state.data_offer_state_by_id.remove(&offer_id);
+    if let Some(offer_id) = dispatch_state.input.drop_session_state.offer.clone() {
+        dispatch_state
+            .input
+            .data_offer_state_by_id
+            .remove(&offer_id);
     }
 
-    dispatch_state.drop_session_state = WaylandDropSessionState::default();
+    dispatch_state.input.drop_session_state = WaylandDropSessionState::default();
 }
 
 /// Handle one `wl_data_offer` event for one active runtime connection.
@@ -197,6 +204,7 @@ pub(crate) fn handle_data_offer_event(
     // track offered mime types for this offer id
     if let wl_data_offer::Event::Offer { mime_type } = event {
         let offer_state = dispatch_state
+            .input
             .data_offer_state_by_id
             .entry(offer.id())
             .or_default();
@@ -219,6 +227,7 @@ pub(crate) fn handle_data_device_event(
     match event {
         wl_data_device::Event::DataOffer { id } => {
             dispatch_state
+                .input
                 .data_offer_state_by_id
                 .entry(id.id())
                 .or_default();
@@ -230,78 +239,75 @@ pub(crate) fn handle_data_device_event(
             y,
             id,
         } => {
-            let Some(token) =
-                backend_core::window_token_from_surface(&runtime_state, &surface.id())
-            else {
+            let Some(token) = runtime_state.window_token_from_surface(&surface.id()) else {
                 return;
             };
-            let Some(window_handle) =
-                backend_core::window_handle_from_id(&runtime_state, &token.window_id)
-            else {
+            let Some(window_handle) = runtime_state.window_handle_from_id(&token.window_id) else {
                 return;
             };
 
-            dispatch_state.drop_session_state.surface = Some(surface.id());
-            dispatch_state.drop_session_state.position = Some(position_from_fixed(x, y));
-            dispatch_state.drop_session_state.offer = id.as_ref().map(Proxy::id);
-            dispatch_state.drop_session_state.drop_pending = false;
-            dispatch_state.drop_session_state.last_hovered_path = None;
+            dispatch_state.input.drop_session_state.surface = Some(surface.id());
+            dispatch_state.input.drop_session_state.position = Some(position_from_fixed(x, y));
+            dispatch_state.input.drop_session_state.offer = id.as_ref().map(Proxy::id);
+            dispatch_state.input.drop_session_state.drop_pending = false;
+            dispatch_state.input.drop_session_state.last_hovered_path = None;
             publish_drop_started(&runtime_state, window_handle, dispatch_state);
 
             if let Some(offer) = id {
                 let offered_mime_types = dispatch_state
+                    .input
                     .data_offer_state_by_id
                     .get(&offer.id())
                     .map(|value| value.mime_types.clone())
                     .unwrap_or_default();
                 let accepted_mime_type = preferred_drop_mime_type(&offered_mime_types);
-                dispatch_state.drop_session_state.accepted_mime_type = accepted_mime_type.clone();
+                dispatch_state.input.drop_session_state.accepted_mime_type =
+                    accepted_mime_type.clone();
                 offer.accept(serial, accepted_mime_type);
             }
 
             publish_drop_hover(&runtime_state, window_handle, dispatch_state);
         }
         wl_data_device::Event::Motion { time: _, x, y } => {
-            dispatch_state.drop_session_state.position = Some(position_from_fixed(x, y));
+            dispatch_state.input.drop_session_state.position = Some(position_from_fixed(x, y));
 
-            let Some(surface_id) = dispatch_state.drop_session_state.surface.as_ref() else {
+            let Some(surface_id) = dispatch_state.input.drop_session_state.surface.as_ref() else {
                 return;
             };
-            let Some(token) = backend_core::window_token_from_surface(&runtime_state, surface_id)
-            else {
+            let Some(token) = runtime_state.window_token_from_surface(surface_id) else {
                 return;
             };
-            let Some(window_handle) =
-                backend_core::window_handle_from_id(&runtime_state, &token.window_id)
-            else {
+            let Some(window_handle) = runtime_state.window_handle_from_id(&token.window_id) else {
                 return;
             };
 
             publish_drop_hover(&runtime_state, window_handle, dispatch_state);
         }
         wl_data_device::Event::Drop => {
-            dispatch_state.drop_session_state.drop_pending = true;
+            dispatch_state.input.drop_session_state.drop_pending = true;
         }
         wl_data_device::Event::Leave => {
-            if dispatch_state.drop_session_state.drop_pending {
+            if dispatch_state.input.drop_session_state.drop_pending {
                 return;
             }
 
-            let surface_id = dispatch_state.drop_session_state.surface.clone();
+            let surface_id = dispatch_state.input.drop_session_state.surface.clone();
             if let Some(surface_id) = surface_id {
-                if let Some(token) =
-                    backend_core::window_token_from_surface(&runtime_state, &surface_id)
+                if let Some(token) = runtime_state.window_token_from_surface(&surface_id)
                     && let Some(window_handle) =
-                        backend_core::window_handle_from_id(&runtime_state, &token.window_id)
+                        runtime_state.window_handle_from_id(&token.window_id)
                 {
-                    if let Some(previous_path) =
-                        dispatch_state.drop_session_state.last_hovered_path.take()
+                    if let Some(previous_path) = dispatch_state
+                        .input
+                        .drop_session_state
+                        .last_hovered_path
+                        .take()
                     {
                         event::publish_window_file_hover_left(
                             &runtime_state,
                             window_handle,
                             Some(previous_path),
-                            dispatch_state.drop_session_state.position,
+                            dispatch_state.input.drop_session_state.position,
                         );
                     }
 
@@ -328,7 +334,7 @@ pub(crate) fn finalize_pending_drop_session(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // skip when no drop transfer is pending
-    if !dispatch_state.drop_session_state.drop_pending {
+    if !dispatch_state.input.drop_session_state.drop_pending {
         return Ok(());
     }
 
@@ -336,31 +342,32 @@ pub(crate) fn finalize_pending_drop_session(
         clear_drop_session(dispatch_state);
         return Ok(());
     };
-    let Some(surface_id) = dispatch_state.drop_session_state.surface.clone() else {
+    let Some(surface_id) = dispatch_state.input.drop_session_state.surface.clone() else {
         clear_drop_session(dispatch_state);
         return Ok(());
     };
-    let Some(token) = backend_core::window_token_from_surface(&runtime_state, &surface_id) else {
+    let Some(token) = runtime_state.window_token_from_surface(&surface_id) else {
         clear_drop_session(dispatch_state);
         return Ok(());
     };
-    let Some(window_handle) = backend_core::window_handle_from_id(&runtime_state, &token.window_id)
-    else {
+    let Some(window_handle) = runtime_state.window_handle_from_id(&token.window_id) else {
         clear_drop_session(dispatch_state);
         return Ok(());
     };
-    let Some(offer_id) = dispatch_state.drop_session_state.offer.clone() else {
+    let Some(offer_id) = dispatch_state.input.drop_session_state.offer.clone() else {
         event::publish_window_drop_cancelled(&runtime_state, window_handle);
         clear_drop_session(dispatch_state);
         return Ok(());
     };
 
     let offered_mime_types = dispatch_state
+        .input
         .data_offer_state_by_id
         .get(&offer_id)
         .map(|value| value.mime_types.clone())
         .unwrap_or_default();
     let mime_type = dispatch_state
+        .input
         .drop_session_state
         .accepted_mime_type
         .clone()
@@ -373,13 +380,13 @@ pub(crate) fn finalize_pending_drop_session(
 
     let data_offer =
         wl_data_offer::WlDataOffer::from_id(connection, offer_id.clone()).map_err(|error| {
-            backend_core::io_error(operation, format!("invalid wl_data_offer id: {error}"))
+            wayland_core::io_error(operation, format!("invalid wl_data_offer id: {error}"))
         })?;
     let (mut read_file, write_file) = create_pipe_pair(operation)?;
 
     data_offer.receive(mime_type.clone(), write_file.as_fd());
     drop(write_file);
-    backend_core::flush_queue(event_queue, operation)?;
+    wayland_core::flush_queue(event_queue, operation)?;
 
     let mut poll_file_descriptor = libc::pollfd {
         fd: read_file.as_raw_fd(),
@@ -389,7 +396,7 @@ pub(crate) fn finalize_pending_drop_session(
     let poll_result = unsafe { libc::poll(&mut poll_file_descriptor, 1, 250) };
     if poll_result < 0 {
         let error = std::io::Error::last_os_error();
-        return Err(backend_core::io_error(
+        return Err(wayland_core::io_error(
             operation,
             format!("drop payload poll failed: {error}"),
         ));
@@ -398,16 +405,21 @@ pub(crate) fn finalize_pending_drop_session(
     let mut payload = Vec::new();
     if poll_result > 0 {
         read_file.read_to_end(&mut payload).map_err(|error| {
-            backend_core::io_error(operation, format!("drop payload read failed: {error}"))
+            wayland_core::io_error(operation, format!("drop payload read failed: {error}"))
         })?;
     }
 
-    if let Some(previous_path) = dispatch_state.drop_session_state.last_hovered_path.take() {
+    if let Some(previous_path) = dispatch_state
+        .input
+        .drop_session_state
+        .last_hovered_path
+        .take()
+    {
         event::publish_window_file_hover_left(
             &runtime_state,
             window_handle,
             Some(previous_path),
-            dispatch_state.drop_session_state.position,
+            dispatch_state.input.drop_session_state.position,
         );
     }
 
@@ -421,7 +433,7 @@ pub(crate) fn finalize_pending_drop_session(
                         &runtime_state,
                         window_handle,
                         Some(path),
-                        dispatch_state.drop_session_state.position,
+                        dispatch_state.input.drop_session_state.position,
                     );
                 }
 
@@ -432,7 +444,7 @@ pub(crate) fn finalize_pending_drop_session(
                     &runtime_state,
                     window_handle,
                     text,
-                    dispatch_state.drop_session_state.position,
+                    dispatch_state.input.drop_session_state.position,
                 );
 
                 true
@@ -461,11 +473,11 @@ pub(crate) fn finalize_pending_drop_session(
 /// Reset one window-local drop state snapshot.
 pub(crate) fn reset_drop_state(
     context: &BindingCallContext,
-    binding: &mut WaylandWindowBinding,
+    host_state: &mut WaylandWindowHostState,
 ) -> RuntimeResult<()> {
-    backend_core::clear_drop_session_for_surface(
+    wayland_core::clear_drop_session_for_surface(
         context,
-        &binding.host.surface,
+        &host_state.host.surface,
         "destack.display.window.close",
     )
 }

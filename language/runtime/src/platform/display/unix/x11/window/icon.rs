@@ -6,7 +6,6 @@ use crate::platform::display::{WindowIconPixelFormat, WindowIconSet};
 pub(crate) fn net_wm_icon_payload(icons: WindowIconSet) -> RuntimeResult<Vec<u32>> {
     // decode the image slice and require at least one icon image
     let images = unsafe { icons.images.as_slice()? };
-    // evaluate this condition
     if images.is_empty() {
         return Err(core_platform::invalid_argument(
             "icons",
@@ -16,9 +15,7 @@ pub(crate) fn net_wm_icon_payload(icons: WindowIconSet) -> RuntimeResult<Vec<u32
 
     // estimate output size and reserve once
     let mut total_words = 0usize;
-    // iterate this sequence
     for image in images {
-        // evaluate this condition
         if image.width == 0 || image.height == 0 {
             return Err(core_platform::invalid_argument(
                 "icons",
@@ -48,7 +45,6 @@ pub(crate) fn net_wm_icon_payload(icons: WindowIconSet) -> RuntimeResult<Vec<u32
             core_platform::invalid_argument("icons", "icon pixel payload is too large")
         })?;
         let pixels = unsafe { image.pixels.as_slice()? };
-        // evaluate this condition
         if pixels.len() != expected_length {
             return Err(core_platform::invalid_argument(
                 "icons",
@@ -61,7 +57,6 @@ pub(crate) fn net_wm_icon_payload(icons: WindowIconSet) -> RuntimeResult<Vec<u32
 
         payload.push(image.width);
         payload.push(image.height);
-        // iterate this sequence
         for pixel in pixels.chunks_exact(4) {
             let (red, green, blue, alpha) = match image.pixel_format {
                 WindowIconPixelFormat::Rgba8 => (pixel[0], pixel[1], pixel[2], pixel[3]),

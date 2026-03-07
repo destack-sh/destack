@@ -8,10 +8,6 @@ pub(crate) const WINDOW_RESOURCE_LABEL: &str = "display.window";
 pub(crate) const DISPLAY_EVENT_RESOURCE_LABEL: &str = "display.monitor.event";
 /// Resource-table label for opened window-event stream handles.
 pub(crate) const WINDOW_EVENT_RESOURCE_LABEL: &str = "display.window.event";
-/// Default queue capacity for monitor and window event streams.
-pub(crate) const DEFAULT_EVENT_QUEUE_CAPACITY: usize = 256;
-/// Default wait-slice interval for blocking event stream reads.
-pub(crate) const DEFAULT_EVENT_WAIT_SLICE_NS: u64 = 10_000_000;
 /// Prefix for stable wayland display identifiers.
 pub(crate) const DISPLAY_ID_PREFIX: &str = "wayland-output-";
 /// xdg_toplevel state value for maximized.
@@ -87,6 +83,39 @@ pub(crate) const WINDOW_EVENT_KIND_SIZE_CHANGED: u64 =
 /// Window-event kind bit for `scaleFactorChanged`.
 pub(crate) const WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED.0;
+/// Window-event kind bit for `displayChanged`.
+pub(crate) const WINDOW_EVENT_KIND_DISPLAY_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_DISPLAY_CHANGED.0;
+/// Window-event kind bit for `themeChanged`.
+pub(crate) const WINDOW_EVENT_KIND_THEME_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_THEME_CHANGED.0;
+/// Window-event kind bit for `chromeChanged`.
+pub(crate) const WINDOW_EVENT_KIND_CHROME_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_CHROME_CHANGED.0;
+/// Window-event kind bit for `taskbarVisibilityChanged`.
+pub(crate) const WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED.0;
+/// Window-event kind bit for `safeAreaChanged`.
+pub(crate) const WINDOW_EVENT_KIND_SAFE_AREA_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_SAFE_AREA_CHANGED.0;
+/// Window-event kind bit for `opacityChanged`.
+pub(crate) const WINDOW_EVENT_KIND_OPACITY_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_OPACITY_CHANGED.0;
+/// Window-event kind bit for `parentChanged`.
+pub(crate) const WINDOW_EVENT_KIND_PARENT_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_PARENT_CHANGED.0;
+/// Window-event kind bit for `transientChanged`.
+pub(crate) const WINDOW_EVENT_KIND_TRANSIENT_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_TRANSIENT_CHANGED.0;
+/// Window-event kind bit for `modalChanged`.
+pub(crate) const WINDOW_EVENT_KIND_MODAL_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_MODAL_CHANGED.0;
+/// Window-event kind bit for `mousePassthroughChanged`.
+pub(crate) const WINDOW_EVENT_KIND_MOUSE_PASSTHROUGH_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_MOUSE_PASSTHROUGH_CHANGED.0;
+/// Window-event kind bit for `aspectRatioChanged`.
+pub(crate) const WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED.0;
 /// Window-event kind bit for `modeChanged`.
 pub(crate) const WINDOW_EVENT_KIND_MODE_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_MODE_CHANGED.0;
@@ -124,6 +153,17 @@ pub(crate) const WINDOW_EVENT_KIND_MASK_ALL: u64 = WINDOW_EVENT_KIND_CREATED
     | WINDOW_EVENT_KIND_POSITION_CHANGED
     | WINDOW_EVENT_KIND_SIZE_CHANGED
     | WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED
+    | WINDOW_EVENT_KIND_DISPLAY_CHANGED
+    | WINDOW_EVENT_KIND_THEME_CHANGED
+    | WINDOW_EVENT_KIND_CHROME_CHANGED
+    | WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED
+    | WINDOW_EVENT_KIND_SAFE_AREA_CHANGED
+    | WINDOW_EVENT_KIND_OPACITY_CHANGED
+    | WINDOW_EVENT_KIND_PARENT_CHANGED
+    | WINDOW_EVENT_KIND_TRANSIENT_CHANGED
+    | WINDOW_EVENT_KIND_MODAL_CHANGED
+    | WINDOW_EVENT_KIND_MOUSE_PASSTHROUGH_CHANGED
+    | WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED
     | WINDOW_EVENT_KIND_MODE_CHANGED
     | WINDOW_EVENT_KIND_REFRESH_REQUESTED
     | WINDOW_EVENT_KIND_DROP_STARTED

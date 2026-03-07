@@ -11,11 +11,11 @@ use crate::platform::display::{WindowChromeKind, WindowIconSet, WindowRole, Wind
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::{BindingCallContext, NativeStringRef};
 
-use super::super::{core as backend_core, event};
 use super::{
     create_memfd_file, decoration_mode_for_window, icon, normalize_opacity, opacity_multiplier,
-    require_xdg_toplevel_id, resolve_window_binding,
+    require_xdg_toplevel_id, resolve_window_host_state,
 };
+use crate::platform::display::unix::wayland::{core as wayland_core, event};
 
 /// Set always-on-top state.
 pub(crate) unsafe fn window_set_always_on_top(
@@ -23,16 +23,16 @@ pub(crate) unsafe fn window_set_always_on_top(
     window_handle: resource::WindowHandle,
     always_on_top: bool,
 ) -> RuntimeResult<()> {
-    // resolve target window binding and enforce owner-thread affinity
-    let binding = resolve_window_binding(
+    // resolve target window host state and mutate host state
+    let host_state = resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setAlwaysOnTop",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
     // top-level and popup roles do not expose one portable always-on-top request lane
-    if binding.role != WindowRole::Overlay {
+    if host_state.role != WindowRole::Overlay {
         return Err(core_platform::not_supported(
             "destack.display.window.setAlwaysOnTop",
         ));
@@ -45,7 +45,7 @@ pub(crate) unsafe fn window_set_always_on_top(
         ));
     }
 
-    binding.always_on_top = true;
+    host_state.always_on_top = true;
 
     Ok(())
 }
@@ -56,29 +56,29 @@ pub(crate) unsafe fn window_set_decorated(
     window_handle: resource::WindowHandle,
     decorated: bool,
 ) -> RuntimeResult<()> {
-    // resolve target window binding and enforce owner-thread affinity
-    let binding = resolve_window_binding(
+    // resolve target window host state and mutate host state
+    let host_state = resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setDecorated",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
     // skip no-op decoration transitions
-    if binding.decorated == decorated {
+    if host_state.decorated == decorated {
         return Ok(());
     }
 
     // require one negotiated decoration object for this window
-    let Some(decoration_id) = binding.host.xdg_decoration.clone() else {
+    let Some(decoration_id) = host_state.host.xdg_decoration.clone() else {
         return Err(core_platform::not_supported(
             "destack.display.window.setDecorated",
         ));
     };
-    let chrome = binding.chrome;
+    let chrome = host_state.chrome;
 
     // apply one decoration mode request through xdg-decoration
-    backend_core::with_connection_dispatch(
+    wayland_core::with_connection_dispatch(
         context,
         "destack.display.window.setDecorated",
         |connection, event_queue, _dispatch_state| {
@@ -87,7 +87,7 @@ pub(crate) unsafe fn window_set_decorated(
                 decoration_id,
             )
             .map_err(|error| {
-                backend_core::io_error(
+                wayland_core::io_error(
                     "destack.display.window.setDecorated",
                     format!("invalid zxdg_toplevel_decoration id: {error}"),
                 )
@@ -96,13 +96,13 @@ pub(crate) unsafe fn window_set_decorated(
             let mode = decoration_mode_for_window(chrome, decorated);
             decoration.set_mode(mode);
 
-            backend_core::flush_queue(event_queue, "destack.display.window.setDecorated")?;
+            wayland_core::flush_queue(event_queue, "destack.display.window.setDecorated")?;
 
             Ok(())
         },
     )?;
 
-    binding.decorated = decorated;
+    host_state.decorated = decorated;
     Ok(())
 }
 
@@ -112,28 +112,29 @@ pub(crate) unsafe fn window_set_resizable(
     window_handle: resource::WindowHandle,
     resizable: bool,
 ) -> RuntimeResult<()> {
-    // resolve target window binding and enforce owner-thread affinity
-    let binding = resolve_window_binding(
+    // resolve target window host state and mutate host state
+    let host_state = resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setResizable",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
     // skip no-op resizable transitions
-    if binding.resizable == resizable {
+    if host_state.resizable == resizable {
         return Ok(());
     }
 
     // apply wayland min and max size policy for this window
-    let xdg_toplevel_id = require_xdg_toplevel_id(&binding, "destack.display.window.setResizable")?;
-    let constraints = binding.constraints;
-    let current_size = binding.size_physical;
-    backend_core::with_connection_dispatch(
+    let xdg_toplevel_id =
+        require_xdg_toplevel_id(&host_state, "destack.display.window.setResizable")?;
+    let constraints = host_state.constraints;
+    let current_size = host_state.size_physical;
+    wayland_core::with_connection_dispatch(
         context,
         "destack.display.window.setResizable",
         |connection, event_queue, _dispatch_state| {
-            let toplevel = backend_core::resolve_xdg_toplevel(
+            let toplevel = wayland_core::resolve_xdg_toplevel(
                 connection,
                 xdg_toplevel_id,
                 "destack.display.window.setResizable",
@@ -165,13 +166,13 @@ pub(crate) unsafe fn window_set_resizable(
                 toplevel.set_max_size(0, 0);
             }
 
-            backend_core::flush_queue(event_queue, "destack.display.window.setResizable")?;
+            wayland_core::flush_queue(event_queue, "destack.display.window.setResizable")?;
 
             Ok(())
         },
     )?;
 
-    binding.resizable = resizable;
+    host_state.resizable = resizable;
 
     Ok(())
 }
@@ -182,28 +183,29 @@ pub(crate) unsafe fn window_set_chrome(
     window_handle: resource::WindowHandle,
     chrome: WindowChromeKind,
 ) -> RuntimeResult<()> {
-    // resolve target window binding and enforce owner-thread affinity
-    let binding =
-        resolve_window_binding(context, window_handle, "destack.display.window.setChrome")?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    // resolve target window host state and mutate host state
+    let host_state =
+        resolve_window_host_state(context, window_handle, "destack.display.window.setChrome")?;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
 
     // skip no-op chrome transitions
-    if binding.chrome == chrome {
+    if host_state.chrome == chrome {
         return Ok(());
     }
 
     // require one negotiated decoration object for this window
-    let Some(decoration_id) = binding.host.xdg_decoration.clone() else {
+    let Some(decoration_id) = host_state.host.xdg_decoration.clone() else {
         return Err(core_platform::not_supported(
             "destack.display.window.setChrome",
         ));
     };
 
-    let decorated = binding.decorated;
+    let decorated = host_state.decorated;
     let mode = decoration_mode_for_window(chrome, decorated);
 
     // apply one chrome-mode request through xdg-decoration
-    backend_core::with_connection_dispatch(
+    wayland_core::with_connection_dispatch(
         context,
         "destack.display.window.setChrome",
         |connection, event_queue, _dispatch_state| {
@@ -212,20 +214,26 @@ pub(crate) unsafe fn window_set_chrome(
                 decoration_id,
             )
             .map_err(|error| {
-                backend_core::io_error(
+                wayland_core::io_error(
                     "destack.display.window.setChrome",
                     format!("invalid zxdg_toplevel_decoration id: {error}"),
                 )
             })?;
 
             decoration.set_mode(mode);
-            backend_core::flush_queue(event_queue, "destack.display.window.setChrome")?;
+            wayland_core::flush_queue(event_queue, "destack.display.window.setChrome")?;
 
             Ok(())
         },
     )?;
 
-    binding.chrome = chrome;
+    host_state.chrome = chrome;
+    let current = host_state.clone();
+    drop(host_state);
+
+    // publish all affected state deltas
+    let runtime_state = wayland_core::runtime_state(context);
+    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
 
     Ok(())
 }
@@ -236,16 +244,17 @@ pub(crate) unsafe fn window_set_taskbar_visible(
     window_handle: resource::WindowHandle,
     visible: bool,
 ) -> RuntimeResult<()> {
-    // resolve target window binding and enforce owner-thread affinity
-    let binding = resolve_window_binding(
+    // resolve target window host state and mutate host state
+    let host_state = resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setTaskbarVisible",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
 
     // top-level roles do not expose one portable taskbar-visibility request lane
-    if binding.role == WindowRole::Toplevel {
+    if host_state.role == WindowRole::Toplevel {
         return Err(core_platform::not_supported(
             "destack.display.window.setTaskbarVisible",
         ));
@@ -258,7 +267,13 @@ pub(crate) unsafe fn window_set_taskbar_visible(
         ));
     }
 
-    binding.taskbar_visible = false;
+    host_state.taskbar_visible = false;
+    let current = host_state.clone();
+    drop(host_state);
+
+    // publish all affected state deltas
+    let runtime_state = wayland_core::runtime_state(context);
+    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
 
     Ok(())
 }
@@ -269,32 +284,32 @@ pub(crate) unsafe fn window_set_title(
     window_handle: resource::WindowHandle,
     title: NativeStringRef,
 ) -> RuntimeResult<()> {
-    // decode title payload and resolve target window binding
+    // decode title payload and resolve target window host state
     let title = unsafe { title.as_str()?.to_string() };
-    let binding =
-        resolve_window_binding(context, window_handle, "destack.display.window.setTitle")?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    let host_state =
+        resolve_window_host_state(context, window_handle, "destack.display.window.setTitle")?;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
     // apply title request through xdg_toplevel
-    let xdg_toplevel_id = require_xdg_toplevel_id(&binding, "destack.display.window.setTitle")?;
-    backend_core::with_connection_dispatch(
+    let xdg_toplevel_id = require_xdg_toplevel_id(&host_state, "destack.display.window.setTitle")?;
+    wayland_core::with_connection_dispatch(
         context,
         "destack.display.window.setTitle",
         |connection, event_queue, _dispatch_state| {
-            let toplevel = backend_core::resolve_xdg_toplevel(
+            let toplevel = wayland_core::resolve_xdg_toplevel(
                 connection,
                 xdg_toplevel_id,
                 "destack.display.window.setTitle",
             )?;
 
             toplevel.set_title(title.clone());
-            backend_core::flush_queue(event_queue, "destack.display.window.setTitle")?;
+            wayland_core::flush_queue(event_queue, "destack.display.window.setTitle")?;
 
             Ok(())
         },
     )?;
 
-    binding.title = title;
+    host_state.title = title;
 
     Ok(())
 }
@@ -309,37 +324,39 @@ pub(crate) unsafe fn window_set_icons(
     icon::validate_icon_set(icons)?;
     let icon_buffer = icon::decode_icon_buffer(icons)?;
 
-    // resolve target window binding and enforce owner-thread affinity
-    let binding =
-        resolve_window_binding(context, window_handle, "destack.display.window.setIcons")?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    let xdg_toplevel_id = require_xdg_toplevel_id(&binding, "destack.display.window.setIcons")?;
-    let surface_id = binding.host.surface.clone();
-    let runtime_state = backend_core::runtime_state(context);
-    let window_token = backend_core::window_token_from_surface(&runtime_state, &surface_id)
+    // resolve target window host state and mutate host state
+    let host_state =
+        resolve_window_host_state(context, window_handle, "destack.display.window.setIcons")?;
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let xdg_toplevel_id = require_xdg_toplevel_id(&host_state, "destack.display.window.setIcons")?;
+    let surface_id = host_state.host.surface.clone();
+    let runtime_state = wayland_core::runtime_state(context);
+    let window_token = runtime_state
+        .window_token_from_surface(&surface_id)
         .ok_or_else(|| {
-            backend_core::io_error(
+            wayland_core::io_error(
                 "destack.display.window.setIcons",
                 "missing wayland window dispatch token",
             )
         })?;
 
     // apply one icon update through xdg-toplevel-icon and wl_shm
-    backend_core::with_connection_dispatch(
+    wayland_core::with_connection_dispatch(
         context,
         "destack.display.window.setIcons",
         |connection, event_queue, dispatch_state| {
             let manager = dispatch_state
+                .globals
                 .toplevel_icon_manager
                 .as_ref()
                 .cloned()
                 .ok_or_else(|| core_platform::not_supported("destack.display.window.setIcons"))?;
-            let toplevel = backend_core::resolve_xdg_toplevel(
+            let toplevel = wayland_core::resolve_xdg_toplevel(
                 connection,
                 xdg_toplevel_id,
                 "destack.display.window.setIcons",
             )?;
-            let surface = backend_core::resolve_wl_surface(
+            let surface = wayland_core::resolve_wl_surface(
                 connection,
                 surface_id,
                 "destack.display.window.setIcons",
@@ -348,14 +365,14 @@ pub(crate) unsafe fn window_set_icons(
             // clear icon when no icon payload was provided
             if icon_buffer.is_none() {
                 manager.set_icon(&toplevel, None);
-                backend_core::request_surface_presentation_feedback(
+                wayland_core::request_surface_presentation_feedback(
                     dispatch_state,
                     event_queue,
                     &surface,
                     window_token.clone(),
                 );
                 surface.commit();
-                backend_core::flush_queue(event_queue, "destack.display.window.setIcons")?;
+                wayland_core::flush_queue(event_queue, "destack.display.window.setIcons")?;
                 return Ok(());
             }
 
@@ -367,10 +384,12 @@ pub(crate) unsafe fn window_set_icons(
             };
 
             // upload icon pixels through one temporary wl_shm buffer
-            let shm =
-                dispatch_state.shm.as_ref().cloned().ok_or_else(|| {
-                    core_platform::not_supported("destack.display.window.setIcons")
-                })?;
+            let shm = dispatch_state
+                .globals
+                .shm
+                .as_ref()
+                .cloned()
+                .ok_or_else(|| core_platform::not_supported("destack.display.window.setIcons"))?;
             let byte_length = icon_buffer.pixels_argb8888.len();
             let byte_length_i32 = i32::try_from(byte_length).map_err(|_| {
                 core_platform::invalid_argument("icons", "icon payload is too large")
@@ -383,13 +402,13 @@ pub(crate) unsafe fn window_set_icons(
             )?;
             file.write_all(icon_buffer.pixels_argb8888.as_slice())
                 .map_err(|error| {
-                    backend_core::io_error(
+                    wayland_core::io_error(
                         "destack.display.window.setIcons",
                         format!("icon upload write failed: {error}"),
                     )
                 })?;
             file.flush().map_err(|error| {
-                backend_core::io_error(
+                wayland_core::io_error(
                     "destack.display.window.setIcons",
                     format!("icon upload flush failed: {error}"),
                 )
@@ -409,7 +428,7 @@ pub(crate) unsafe fn window_set_icons(
             let icon = manager.create_icon(&queue_handle, ());
             icon.add_buffer(&buffer, 1);
             manager.set_icon(&toplevel, Some(&icon));
-            backend_core::request_surface_presentation_feedback(
+            wayland_core::request_surface_presentation_feedback(
                 dispatch_state,
                 event_queue,
                 &surface,
@@ -420,7 +439,7 @@ pub(crate) unsafe fn window_set_icons(
             buffer.destroy();
             pool.destroy();
 
-            backend_core::flush_queue(event_queue, "destack.display.window.setIcons")?;
+            wayland_core::flush_queue(event_queue, "destack.display.window.setIcons")?;
 
             Ok(())
         },
@@ -433,16 +452,16 @@ pub(crate) unsafe fn window_set_visibility(
     window_handle: resource::WindowHandle,
     visibility: WindowVisibility,
 ) -> RuntimeResult<()> {
-    // resolve target window binding and enforce owner-thread affinity
-    let binding = resolve_window_binding(
+    // resolve target window host state and mutate host state
+    let host_state = resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setVisibility",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
     // skip no-op visibility transitions
-    let previous_visibility = binding.visibility;
+    let previous_visibility = host_state.visibility;
     if previous_visibility == visibility {
         return Ok(());
     }
@@ -456,12 +475,12 @@ pub(crate) unsafe fn window_set_visibility(
 
     // apply visibility request to xdg_toplevel
     let xdg_toplevel_id =
-        require_xdg_toplevel_id(&binding, "destack.display.window.setVisibility")?;
-    backend_core::with_connection_dispatch(
+        require_xdg_toplevel_id(&host_state, "destack.display.window.setVisibility")?;
+    wayland_core::with_connection_dispatch(
         context,
         "destack.display.window.setVisibility",
         |connection, event_queue, _dispatch_state| {
-            let toplevel = backend_core::resolve_xdg_toplevel(
+            let toplevel = wayland_core::resolve_xdg_toplevel(
                 connection,
                 xdg_toplevel_id,
                 "destack.display.window.setVisibility",
@@ -485,16 +504,16 @@ pub(crate) unsafe fn window_set_visibility(
                 }
             }
 
-            backend_core::flush_queue(event_queue, "destack.display.window.setVisibility")?;
+            wayland_core::flush_queue(event_queue, "destack.display.window.setVisibility")?;
 
             Ok(())
         },
     )?;
 
-    binding.visibility = visibility;
-    drop(binding);
+    host_state.visibility = visibility;
+    drop(host_state);
 
-    let runtime_state = backend_core::runtime_state(context);
+    let runtime_state = wayland_core::runtime_state(context);
     event::publish_window_visibility_changed(
         &runtime_state,
         window_handle,
@@ -511,41 +530,44 @@ pub(crate) unsafe fn window_set_opacity(
     window_handle: resource::WindowHandle,
     opacity: f64,
 ) -> RuntimeResult<()> {
-    // normalize opacity payload and resolve target window binding
+    // normalize opacity payload and resolve target window host state
     let opacity = normalize_opacity(opacity, "opacity")?;
-    let binding =
-        resolve_window_binding(context, window_handle, "destack.display.window.setOpacity")?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    let host_state =
+        resolve_window_host_state(context, window_handle, "destack.display.window.setOpacity")?;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
 
     // skip no-op opacity transitions
-    if (binding.opacity - opacity).abs() <= f64::EPSILON {
+    if (host_state.opacity - opacity).abs() <= f64::EPSILON {
         return Ok(());
     }
 
     // apply opacity through one optional alpha-modifier surface lane
-    let surface_id = binding.host.surface.clone();
-    let alpha_modifier_surface_id = binding.host.alpha_modifier_surface.clone();
-    let runtime_state = backend_core::runtime_state(context);
-    let window_token = backend_core::window_token_from_surface(&runtime_state, &surface_id)
+    let surface_id = host_state.host.surface.clone();
+    let alpha_modifier_surface_id = host_state.host.alpha_modifier_surface.clone();
+    let runtime_state = wayland_core::runtime_state(context);
+    let window_token = runtime_state
+        .window_token_from_surface(&surface_id)
         .ok_or_else(|| {
-            backend_core::io_error(
+            wayland_core::io_error(
                 "destack.display.window.setOpacity",
                 "missing wayland window dispatch token",
             )
         })?;
-    let next_alpha_modifier_surface_id = backend_core::with_connection_dispatch(
+    let next_alpha_modifier_surface_id = wayland_core::with_connection_dispatch(
         context,
         "destack.display.window.setOpacity",
         |connection, event_queue, dispatch_state| {
             // require one negotiated alpha-modifier manager
             let manager = dispatch_state
+                .globals
                 .alpha_modifier_manager
                 .as_ref()
                 .cloned()
                 .ok_or_else(|| core_platform::not_supported("destack.display.window.setOpacity"))?;
 
-            // resolve this window surface for the opacity update
-            let surface = backend_core::resolve_wl_surface(
+            // resolve the target surface for the opacity update
+            let surface = wayland_core::resolve_wl_surface(
                 connection,
                 surface_id.clone(),
                 "destack.display.window.setOpacity",
@@ -566,28 +588,33 @@ pub(crate) unsafe fn window_set_opacity(
                 alpha_surface_id.clone(),
             )
             .map_err(|error| {
-                backend_core::io_error(
+                wayland_core::io_error(
                     "destack.display.window.setOpacity",
                     format!("invalid wp_alpha_modifier_surface id: {error}"),
                 )
             })?;
             alpha_surface.set_multiplier(opacity_multiplier(opacity));
-            backend_core::request_surface_presentation_feedback(
+            wayland_core::request_surface_presentation_feedback(
                 dispatch_state,
                 event_queue,
                 &surface,
                 window_token.clone(),
             );
             surface.commit();
-            backend_core::flush_queue(event_queue, "destack.display.window.setOpacity")?;
+            wayland_core::flush_queue(event_queue, "destack.display.window.setOpacity")?;
 
             Ok(Some(alpha_surface_id))
         },
     )?;
 
     // update runtime opacity snapshots after protocol commit succeeds
-    binding.opacity = opacity;
-    binding.host.alpha_modifier_surface = next_alpha_modifier_surface_id;
+    host_state.opacity = opacity;
+    host_state.host.alpha_modifier_surface = next_alpha_modifier_surface_id;
+    let current = host_state.clone();
+    drop(host_state);
+
+    // publish all affected state deltas
+    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
 
     Ok(())
 }
@@ -598,14 +625,15 @@ pub(crate) unsafe fn window_opacity(
     out: *mut f64,
     window_handle: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    // validate out pointer and resolve target window binding
+    // validate out pointer and resolve target window host state
     core_platform::ensure_out(out, "out")?;
-    let binding = resolve_window_binding(context, window_handle, "destack.display.window.opacity")?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    let host_state =
+        resolve_window_host_state(context, window_handle, "destack.display.window.opacity")?;
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
     // write current opacity snapshot
     unsafe {
-        *out = binding.opacity;
+        *out = host_state.opacity;
     }
 
     Ok(())

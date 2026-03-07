@@ -13,7 +13,7 @@ use super::super::super::core::{
     OS_CREDENTIALS_CONTAINS_OPERATION, OS_CREDENTIALS_DELETE_OPERATION,
     OS_CREDENTIALS_READ_OPERATION, OS_CREDENTIALS_WRITE_OPERATION, invalid_data,
 };
-use super::core::{callback_runtime_id, decode_authentication_mechanism, host_status_result};
+use super::core::{decode_authentication_mechanism, host_runtime_id, host_status_result};
 
 /// Initial scratch buffer size for Android host credential reads.
 const INITIAL_ANDROID_READ_BUFFER_BYTES: usize = 512;
@@ -26,7 +26,7 @@ pub(crate) fn read_credentials(
     query: &CredentialQueryOwned,
 ) -> RuntimeResult<CredentialRecordOwned> {
     // resolve callback runtime identifier and callback function
-    let runtime_id = callback_runtime_id(binding, OS_CREDENTIALS_READ_OPERATION)?;
+    let runtime_id = host_runtime_id(binding, OS_CREDENTIALS_READ_OPERATION)?;
 
     // encode string arguments for host callback ABI
     let service = binding.store_string(&query.service);
@@ -119,7 +119,7 @@ pub(crate) fn write_credentials(
     options: &CredentialWriteOptionsOwned,
 ) -> RuntimeResult<()> {
     // resolve callback runtime identifier and callback function
-    let runtime_id = callback_runtime_id(binding, OS_CREDENTIALS_WRITE_OPERATION)?;
+    let runtime_id = host_runtime_id(binding, OS_CREDENTIALS_WRITE_OPERATION)?;
 
     // encode string and payload arguments for host callback ABI
     let service = binding.store_string(&options.service);
@@ -161,7 +161,7 @@ pub(crate) fn delete_credentials(
     access_group: Option<&str>,
 ) -> RuntimeResult<()> {
     // resolve callback runtime identifier and callback function
-    let runtime_id = callback_runtime_id(binding, OS_CREDENTIALS_DELETE_OPERATION)?;
+    let runtime_id = host_runtime_id(binding, OS_CREDENTIALS_DELETE_OPERATION)?;
 
     // encode string arguments for host callback ABI
     let service = binding.store_string(service);
@@ -185,7 +185,7 @@ pub(crate) fn contains_credentials(
     access_group: Option<&str>,
 ) -> RuntimeResult<bool> {
     // resolve callback runtime identifier and callback function
-    let runtime_id = callback_runtime_id(binding, OS_CREDENTIALS_CONTAINS_OPERATION)?;
+    let runtime_id = host_runtime_id(binding, OS_CREDENTIALS_CONTAINS_OPERATION)?;
 
     // encode string arguments for host callback ABI
     let service = binding.store_string(service);
@@ -216,7 +216,7 @@ pub(crate) fn authenticate_credentials(
     options: &CredentialAuthenticationOptionsOwned,
 ) -> RuntimeResult<CredentialAuthenticationResult> {
     // resolve callback runtime identifier and callback function
-    let runtime_id = callback_runtime_id(binding, OS_CREDENTIALS_AUTHENTICATE_OPERATION)?;
+    let runtime_id = host_runtime_id(binding, OS_CREDENTIALS_AUTHENTICATE_OPERATION)?;
 
     // encode prompt fields for host callback ABI
     let title = binding.store_string(&options.title);

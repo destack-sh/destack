@@ -5,16 +5,17 @@ use std::sync::{Arc, Mutex};
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::display::{
-    DisplayBackendCapabilityFlags, DisplayMode, WindowAspectRatio, WindowChromeKind,
-    WindowLogicalSize, WindowModeOptions, WindowOcclusionState, WindowPhysicalSize, WindowRole,
-    WindowSizeConstraints, WindowVisibility,
+    DisplayBackendCapabilityFlags, WindowAspectRatio, WindowChromeKind, WindowLogicalSize,
+    WindowOcclusionState, WindowPhysicalSize, WindowRole, WindowSizeConstraints, WindowVisibility,
 };
 use crate::platform::{core as core_platform, display as display_platform, resource};
 use crate::runtime::BindingCallContext;
 use wayland_protocols::xdg::decoration::zv1::client::zxdg_toplevel_decoration_v1;
 
-use super::super::model::WaylandWindowBinding;
-use super::super::{backend_descriptor_state, core as backend_core, resource as display_resource};
+use crate::platform::display::unix::wayland::model::WaylandWindowHostState;
+use crate::platform::display::unix::wayland::{
+    backend_descriptor_state, core as wayland_core, resource as display_resource,
+};
 
 /// Normalize one window logical-size payload.
 pub(crate) fn normalize_logical_size(
@@ -185,42 +186,6 @@ pub(crate) fn clamp_logical_aspect(
     }
 }
 
-/// Resolve one preferred display handle from one mode payload.
-pub(crate) fn mode_display(mode: WindowModeOptions) -> Option<resource::DisplayHandle> {
-    match mode {
-        WindowModeOptions::WindowWindowedModeOptions(_) => None,
-        WindowModeOptions::WindowBorderlessModeOptions(value) => value.display,
-        WindowModeOptions::WindowExclusiveFullscreenModeOptions(value) => Some(value.display),
-    }
-}
-
-/// Resolve one preferred display mode from one mode payload.
-pub(crate) fn mode_display_mode(mode: WindowModeOptions) -> Option<DisplayMode> {
-    match mode {
-        WindowModeOptions::WindowExclusiveFullscreenModeOptions(value) => value.display_mode,
-        _ => None,
-    }
-}
-
-/// Compare two mode payloads by semantic fields.
-pub(crate) fn same_window_mode(left: WindowModeOptions, right: WindowModeOptions) -> bool {
-    match (left, right) {
-        (
-            WindowModeOptions::WindowWindowedModeOptions(_),
-            WindowModeOptions::WindowWindowedModeOptions(_),
-        ) => true,
-        (
-            WindowModeOptions::WindowBorderlessModeOptions(left),
-            WindowModeOptions::WindowBorderlessModeOptions(right),
-        ) => left.display == right.display,
-        (
-            WindowModeOptions::WindowExclusiveFullscreenModeOptions(left),
-            WindowModeOptions::WindowExclusiveFullscreenModeOptions(right),
-        ) => left.display == right.display && left.display_mode == right.display_mode,
-        _ => false,
-    }
-}
-
 /// Resolve one occlusion value from one wayland visibility state.
 pub(crate) fn occlusion_from_visibility(visibility: WindowVisibility) -> WindowOcclusionState {
     // minimized windows are compositor-hidden from presentation
@@ -251,43 +216,26 @@ pub(crate) fn decoration_mode_for_window(
     }
 }
 
-/// Ensure the calling thread owns one window binding.
-pub(crate) fn ensure_window_thread(
-    binding: &WaylandWindowBinding,
-    operation: &'static str,
-) -> RuntimeResult<()> {
-    // reject operations from non-owner threads
-    let current_thread_id = std::thread::current().id();
-    if current_thread_id != binding.owner_thread_id {
-        return Err(core_platform::invalid_argument(
-            "window",
-            format!("{operation} must run on the owner thread of this window"),
-        ));
-    }
-
-    Ok(())
-}
-
-/// Resolve one window binding and enforce owner-thread affinity.
-pub(crate) fn resolve_window_binding(
+/// Resolve one window host state.
+pub(crate) fn resolve_window_host_state(
     context: &BindingCallContext,
     window_handle: resource::WindowHandle,
     operation: &'static str,
-) -> RuntimeResult<Arc<Mutex<WaylandWindowBinding>>> {
-    let binding = display_resource::resolve_window_binding(context, window_handle, operation)?;
-    let binding_guard = binding.lock().unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&binding_guard, operation)?;
+) -> RuntimeResult<Arc<Mutex<WaylandWindowHostState>>> {
+    let host_state =
+        display_resource::resolve_window_host_state(context, window_handle, operation)?;
+    let binding_guard = host_state.lock().unwrap_or_else(|error| error.into_inner());
     drop(binding_guard);
 
-    Ok(binding)
+    Ok(host_state)
 }
 
-/// Resolve one required xdg_toplevel id from one window binding.
+/// Resolve one required xdg_toplevel id from one window host state.
 pub(crate) fn require_xdg_toplevel_id(
-    binding: &WaylandWindowBinding,
+    host_state: &WaylandWindowHostState,
     operation: &'static str,
 ) -> RuntimeResult<wayland_client::backend::ObjectId> {
-    let Some(toplevel_id) = binding.host.xdg_toplevel.clone() else {
+    let Some(toplevel_id) = host_state.host.xdg_toplevel.clone() else {
         return Err(core_platform::not_supported(operation));
     };
 
@@ -298,28 +246,28 @@ pub(crate) fn require_xdg_toplevel_id(
     Ok(toplevel_id)
 }
 
-/// Resolve one window binding and run one immutable callback under the binding lock.
-pub(crate) fn with_window_binding<R>(
+/// Resolve one window host state and run one immutable callback under the host_state lock.
+pub(crate) fn with_window_host_state<R>(
     context: &BindingCallContext,
     window_handle: resource::WindowHandle,
     operation: &'static str,
-    callback: impl FnOnce(&WaylandWindowBinding) -> RuntimeResult<R>,
+    callback: impl FnOnce(&WaylandWindowHostState) -> RuntimeResult<R>,
 ) -> RuntimeResult<R> {
-    let binding = resolve_window_binding(context, window_handle, operation)?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    callback(&binding)
+    let host_state = resolve_window_host_state(context, window_handle, operation)?;
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    callback(&host_state)
 }
 
-/// Resolve one window binding and run one mutable callback under the binding lock.
-pub(crate) fn with_window_binding_mut<R>(
+/// Resolve one window host state and run one mutable callback under the host_state lock.
+pub(crate) fn with_window_host_state_mut<R>(
     context: &BindingCallContext,
     window_handle: resource::WindowHandle,
     operation: &'static str,
-    callback: impl FnOnce(&mut WaylandWindowBinding) -> RuntimeResult<R>,
+    callback: impl FnOnce(&mut WaylandWindowHostState) -> RuntimeResult<R>,
 ) -> RuntimeResult<R> {
-    let binding = resolve_window_binding(context, window_handle, operation)?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    callback(&mut binding)
+    let host_state = resolve_window_host_state(context, window_handle, operation)?;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    callback(&mut host_state)
 }
 
 /// Resolve one effective capability mask for one opened wayland window.
@@ -330,12 +278,9 @@ pub(crate) fn effective_window_capabilities(
 ) -> RuntimeResult<DisplayBackendCapabilityFlags> {
     // resolve backend descriptor capabilities and this window role snapshot
     let mut capability_flags = backend_descriptor_state(context).1.0;
-    let role = with_window_binding(
-        context,
-        window_handle,
-        operation,
-        |binding| Ok(binding.role),
-    )?;
+    let role = with_window_host_state(context, window_handle, operation, |host_state| {
+        Ok(host_state.role)
+    })?;
 
     // window capability flags are method-level and role-specific: role-open bits are not applicable
     capability_flags &= !display_platform::DISPLAY_BACKEND_CAP_WINDOW_ROLE_POPUP.0;
@@ -364,14 +309,14 @@ pub(crate) fn create_memfd_file(
 ) -> RuntimeResult<File> {
     // build one stable memfd label for diagnostics
     let name = CString::new(name).map_err(|error| {
-        backend_core::io_error(operation, format!("invalid memfd name: {error}"))
+        wayland_core::io_error(operation, format!("invalid memfd name: {error}"))
     })?;
 
     // allocate one anonymous file descriptor
     let file_descriptor = unsafe { libc::memfd_create(name.as_ptr(), libc::MFD_CLOEXEC) };
     if file_descriptor < 0 {
         let error = std::io::Error::last_os_error();
-        return Err(backend_core::io_error(
+        return Err(wayland_core::io_error(
             operation,
             format!("memfd_create failed: {error}"),
         ));
@@ -384,7 +329,7 @@ pub(crate) fn create_memfd_file(
         unsafe {
             libc::close(file_descriptor);
         }
-        return Err(backend_core::io_error(
+        return Err(wayland_core::io_error(
             operation,
             format!("ftruncate failed: {error}"),
         ));
@@ -393,9 +338,4 @@ pub(crate) fn create_memfd_file(
     // transfer ownership to std::fs::File
     let file = unsafe { File::from_raw_fd(file_descriptor) };
     Ok(file)
-}
-
-/// Pump one iteration of pending wayland window messages.
-pub(crate) fn pump_window_messages(context: &BindingCallContext) -> RuntimeResult<()> {
-    backend_core::dispatch_pending(context, "destack.display.window.eventRead")
 }

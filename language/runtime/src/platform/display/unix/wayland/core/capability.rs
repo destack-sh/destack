@@ -1,8 +1,8 @@
 use crate::platform::display::{self as display_platform, DisplayBackendCapabilityFlags};
 use crate::runtime::BindingCallContext;
 
-use super::super::monitor;
 use super::connection_state;
+use crate::platform::display::unix::wayland::monitor;
 
 /// Return backend descriptor availability and capability flags for wayland.
 pub(crate) fn backend_descriptor_state(

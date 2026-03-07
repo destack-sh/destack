@@ -8,12 +8,11 @@ use x11rb::protocol::xproto::{
     ConnectionExt as XprotoConnectionExt, EventMask,
 };
 
-use super::super::core;
 use super::constants::*;
+use crate::platform::display::unix::x11::core;
 
 /// Return the selected display handle lane for one window mode.
 pub(crate) fn mode_display(mode: WindowModeOptions) -> Option<resource::DisplayHandle> {
-    // resolve this variant
     match mode {
         WindowModeOptions::WindowBorderlessModeOptions(value) => value.display,
         WindowModeOptions::WindowExclusiveFullscreenModeOptions(value) => Some(value.display),
@@ -23,7 +22,6 @@ pub(crate) fn mode_display(mode: WindowModeOptions) -> Option<resource::DisplayH
 
 /// Return the selected display mode lane for one window mode.
 pub(crate) fn mode_display_mode(mode: WindowModeOptions) -> Option<DisplayMode> {
-    // resolve this variant
     match mode {
         WindowModeOptions::WindowExclusiveFullscreenModeOptions(value) => value.display_mode,
         _ => None,
@@ -144,4 +142,31 @@ pub(crate) fn request_window_minimize(
         .map_err(|error| core::io_error(operation, format!("send_event failed: {error}")))?;
 
     Ok(())
+}
+
+/// Query one ICCCM `WM_STATE` value for the target x11 window.
+pub(crate) fn query_window_wm_state(
+    connection_state: &core::X11ConnectionState,
+    window: u32,
+    operation: &'static str,
+) -> RuntimeResult<Option<u32>> {
+    let reply = connection_state
+        .connection
+        .get_property(
+            false,
+            window,
+            connection_state.atoms.wm_state,
+            connection_state.atoms.wm_state,
+            0,
+            2,
+        )
+        .map_err(|error| {
+            core::io_error(operation, format!("get_property request failed: {error}"))
+        })?
+        .reply()
+        .map_err(|error| {
+            core::io_error(operation, format!("get_property reply failed: {error}"))
+        })?;
+
+    Ok(reply.value32().and_then(|mut value| value.next()))
 }
