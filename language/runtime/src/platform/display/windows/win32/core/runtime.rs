@@ -7,8 +7,8 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     GWLP_USERDATA, GetWindowLongPtrW, IsWindow, SetWindowLongPtrW,
 };
 
-use crate::diagnostic::{AgentDiagnosticStore, RuntimeResult};
-use crate::host::{RuntimeIngressObserver, register_runtime_ingress_observer};
+use crate::diagnostic::{DiagnosticStore, RuntimeResult};
+use crate::host::core::{RuntimeIngressObserver, register_runtime_ingress_observer};
 use crate::platform::display::windows::win32::event::{
     DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
 };
@@ -32,7 +32,7 @@ pub(crate) struct Win32RuntimeState {
     /// Monotonic counter used for stable runtime window identifiers.
     next_window_identifier: AtomicU64,
     /// Runtime diagnostics store for callback and best-effort lanes.
-    pub(crate) diagnostics: Arc<AgentDiagnosticStore>,
+    pub(crate) diagnostics: Arc<DiagnosticStore>,
     /// Runtime-owned monitor-event log.
     pub(crate) monitor_events: Mutex<RuntimeEventLog<DisplayEventRecord>>,
     /// Wake signal for monitor-event readers.
@@ -54,13 +54,13 @@ pub(crate) struct Win32RuntimeState {
 impl Default for Win32RuntimeState {
     /// Create one default Win32 runtime state.
     fn default() -> Self {
-        Self::new(Arc::new(AgentDiagnosticStore::default()))
+        Self::new(Arc::new(DiagnosticStore::default()))
     }
 }
 
 impl Win32RuntimeState {
     /// Create one Win32 runtime state with explicit diagnostics storage.
-    fn new(diagnostics: Arc<AgentDiagnosticStore>) -> Self {
+    fn new(diagnostics: Arc<DiagnosticStore>) -> Self {
         Self {
             cursor_visible_state: Mutex::new(None),
             cursor_policy_by_window: Mutex::new(HashMap::new()),
@@ -269,7 +269,7 @@ impl RuntimeIngressObserver for Win32RuntimeIngressObserver {
 
 /// Return runtime-owned Win32 display state.
 pub(crate) fn runtime_state(context: &BindingCallContext) -> Arc<Win32RuntimeState> {
-    let diagnostics = Arc::clone(&context.agent().diagnostic);
+    let diagnostics = Arc::clone(&context.agent().diagnostics);
     let runtime_state = context
         .agent()
         .platform_state

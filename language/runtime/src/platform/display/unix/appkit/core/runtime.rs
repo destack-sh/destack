@@ -10,8 +10,8 @@ use objc2_core_graphics::{
 };
 
 use super::delegate::AppKitWindowDelegate;
-use crate::diagnostic::{AgentDiagnosticStore, RuntimeResult};
-use crate::host::{RuntimeIngressObserver, register_runtime_ingress_observer};
+use crate::diagnostic::{DiagnosticStore, RuntimeResult};
+use crate::host::core::{RuntimeIngressObserver, register_runtime_ingress_observer};
 use crate::platform::display::unix::appkit::event::{
     self as appkit_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord,
     WindowEventStream,
@@ -125,7 +125,7 @@ pub(crate) struct AppKitRuntimeState {
     /// Wake signal for window-event readers.
     pub(crate) window_event_signal: Condvar,
     /// Runtime diagnostics store for callback and best-effort lanes.
-    pub(crate) diagnostics: Arc<AgentDiagnosticStore>,
+    pub(crate) diagnostics: Arc<DiagnosticStore>,
     /// The last application theme observed from the host.
     pub(crate) current_theme: Mutex<WindowTheme>,
     /// Registered monitor-event streams for this runtime.
@@ -180,7 +180,7 @@ impl AppKitRuntimeState {
             monitor_event_signal: Condvar::new(),
             window_events: Mutex::new(RuntimeEventLog::default()),
             window_event_signal: Condvar::new(),
-            diagnostics: Arc::clone(&binding.agent().diagnostic),
+            diagnostics: Arc::clone(&binding.agent().diagnostics),
             current_theme: Mutex::new(window::current_window_theme()),
             monitor_streams: RuntimeStreamRegistry::default(),
             window_streams: RuntimeStreamRegistry::default(),

@@ -5,8 +5,8 @@ use x11rb::connection::Connection;
 
 use super::connection::X11ConnectionState;
 use super::ingress;
-use crate::diagnostic::AgentDiagnosticStore;
-use crate::host::{RuntimeIngressObserver, register_runtime_ingress_observer};
+use crate::diagnostic::DiagnosticStore;
+use crate::host::core::{RuntimeIngressObserver, register_runtime_ingress_observer};
 use crate::platform::display::unix::x11::event::{
     self as x11_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
 };
@@ -20,7 +20,7 @@ pub(crate) struct X11RuntimeState {
     /// Lazy X11 connection state.
     pub(crate) connection: Mutex<Option<Arc<X11ConnectionState>>>,
     /// Runtime diagnostics store for callback and best-effort lanes.
-    pub(crate) diagnostics: Arc<AgentDiagnosticStore>,
+    pub(crate) diagnostics: Arc<DiagnosticStore>,
     /// Runtime-owned monitor-event log.
     pub(crate) monitor_events: Mutex<RuntimeEventLog<DisplayEventRecord>>,
     /// Wake signal for monitor-event readers.
@@ -82,7 +82,7 @@ impl X11RuntimeState {
     pub(crate) fn from_context(binding: &BindingCallContext) -> Self {
         Self {
             connection: Mutex::new(None),
-            diagnostics: Arc::clone(&binding.agent().diagnostic),
+            diagnostics: Arc::clone(&binding.agent().diagnostics),
             monitor_events: Mutex::new(RuntimeEventLog::default()),
             monitor_event_signal: Condvar::new(),
             window_events: Mutex::new(RuntimeEventLog::default()),

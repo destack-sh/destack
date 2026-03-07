@@ -2,9 +2,11 @@ use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::display::unix::appkit::{core as appkit_core, resource as display_resource};
-use crate::platform::display::{DisplayMonitorEvent, DisplayMonitorEventOpenOptions};
+use crate::platform::display::{
+    DisplayMonitorEvent, DisplayMonitorEventOpenOptions, options as display_options,
+};
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{NativeArray, core as core_platform, display as display_runtime, resource};
+use crate::platform::{NativeArray, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 use crate::runtime::bindings::BindingAffinity;
 
@@ -100,7 +102,7 @@ pub(crate) unsafe fn monitor_event_open(
     let resolved_stream = Arc::new(MonitorEventStream {
         stream_id: runtime_state.next_monitor_stream_id(),
         state: std::sync::Mutex::new(MonitorEventState {
-            queue_capacity: display_runtime::resolved_event_queue_capacity(
+            queue_capacity: display_options::resolved_event_queue_capacity(
                 binding,
                 options.queue.queue_capacity,
             ),
@@ -195,7 +197,7 @@ pub(crate) unsafe fn monitor_event_read(
         "destack.display.monitor.eventRead",
         "event read timed out",
         deadline,
-        display_runtime::event_wait_slice_ns(binding),
+        display_options::event_wait_slice_ns(binding),
         || {
             next_monitor_event(
                 binding,
@@ -248,7 +250,7 @@ pub(crate) unsafe fn monitor_event_read_batch(
         "destack.display.monitor.eventReadBatch",
         "event read timed out",
         deadline,
-        display_runtime::event_wait_slice_ns(binding),
+        display_options::event_wait_slice_ns(binding),
         || {
             let events = drain_monitor_events(
                 binding,
