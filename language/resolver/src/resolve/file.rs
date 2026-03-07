@@ -261,7 +261,7 @@ impl Resolver {
                         .symlink_metadata(path)
                         .is_ok_and(|metadata| metadata.is_symlink)
                     {
-                        let link = self.resolve_symlink_path(&normalized).map_err(|error| {
+                        let link = self.resolve_symlink_path(path).map_err(|error| {
                             #[cfg(target_os = "windows")]
                             if error.kind() == io::ErrorKind::InvalidInput {
                                 return ResolveError::UnsupportedPath {
