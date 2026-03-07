@@ -2447,6 +2447,19 @@ fn test_format_unary_minus_semicolon_guard_comment_blank_line_is_idempotent() {
     );
 }
 
+/// Unary minus with one inline block comment should stay idempotent.
+#[test]
+fn test_format_unary_minus_inline_block_comment_is_idempotent() {
+    let source = r#"c = [
+  - /**/ 66, 66, 57, 45, 47, 33, 53, 82, 81, 76, 66, 57, 45, 47, 33, 53, 82, 81, 223323
+];"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        javascript_fixture_format_options(),
+    );
+}
+
 /// Inline block comments between closing delimiters and semicolons should stay on the left boundary.
 #[test]
 fn test_format_inline_block_comment_between_closing_paren_and_semicolon_is_idempotent() {

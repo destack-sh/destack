@@ -345,7 +345,7 @@ mod tests {
         );
     }
 
-    /// Parser annotations should keep loop-to-let spacing as one statement-boundary seam.
+    /// Parser annotations should keep loop-to-let spacing as one block-prefix blank seam.
     #[test]
     fn test_block_insert_semicolon_annotation_contract_after_loop() {
         let source = r#"{
@@ -461,7 +461,7 @@ mod tests {
                 )
             })
             .count();
-        assert_eq!(let_blank_annotations, 0);
+        assert_eq!(let_blank_annotations, 1);
 
         let let_blank_block_prefix = let_annotations
             .iter()
@@ -475,7 +475,7 @@ mod tests {
                 )
             })
             .count();
-        assert_eq!(let_blank_block_prefix, 0);
+        assert_eq!(let_blank_block_prefix, 1);
 
         let let_blank_line_prefix = let_annotations
             .iter()
@@ -491,7 +491,7 @@ mod tests {
             .count();
         assert_eq!(let_blank_line_prefix, 0);
 
-        assert!(!context.has_blank_prefix_annotation(let_after_loop_id));
+        assert!(context.has_blank_prefix_annotation(let_after_loop_id));
     }
 
     /// One blank line between loop and following let should stay one blank line.
