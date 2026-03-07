@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use parking_lot::Mutex;
 
-use super::RandomStreamId;
+use super::{RandomStreamId, ScopedRandomStreamKey};
 
 /// Step size for deterministic random streams.
 const STREAM_INCREMENT: u64 = 0x9e3779b97f4a7c15;
@@ -36,19 +36,6 @@ pub(crate) struct VirtualRandom {
     streams: Mutex<HashMap<RandomStreamId, u64>>,
     /// Cached scoped stream identities keyed by runtime and agent scope.
     scoped_streams: Mutex<HashMap<ScopedRandomStreamKey, RandomStreamId>>,
-}
-
-/// Key for one runtime and agent scoped implicit random stream.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct ScopedRandomStreamKey {
-    /// Runtime identifier component.
-    runtime_id: u64,
-    /// Agent identifier component.
-    agent_id: u64,
-    /// Task identifier component when per-runnable streams are enabled.
-    task_id: Option<u64>,
-    /// Microtask identifier component when per-runnable streams are enabled.
-    microtask_id: Option<u64>,
 }
 
 impl VirtualRandom {

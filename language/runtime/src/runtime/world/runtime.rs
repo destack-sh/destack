@@ -47,15 +47,17 @@ impl World {
         entry: &Entry,
         args: &[heap::Value],
     ) -> RuntimeResult<EngineOutput> {
-        let mut runtimes = self.runtimes.write();
-        let runtime = runtimes.get_mut(&runtime_id).ok_or_else(|| {
-            RuntimeError::Internal {
-                message: format!("runtime {} does not exist", runtime_id.0),
-            }
-            .boxed()
-        })?;
+        self.with_checkpoint_blocked(|| {
+            let mut runtimes = self.runtimes.write();
+            let runtime = runtimes.get_mut(&runtime_id).ok_or_else(|| {
+                RuntimeError::Internal {
+                    message: format!("runtime {} does not exist", runtime_id.0),
+                }
+                .boxed()
+            })?;
 
-        runtime.run_entrypoint(self, entry, args)
+            runtime.run_entrypoint(self, entry, args)
+        })
     }
 
     /// Return the stored runtime ids in stable order.

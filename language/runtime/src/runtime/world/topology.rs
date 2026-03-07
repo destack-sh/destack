@@ -482,7 +482,7 @@ impl WorldEdge {
 
 /// World topology graph and kind catalog.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct Topology {
+pub struct Topology {
     /// Registered entity kinds by kind id.
     entity_kinds: BTreeMap<WorldEntityKind, WorldEntityKindDefinition>,
     /// Registered edge kinds by kind id.

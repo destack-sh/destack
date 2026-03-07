@@ -9,7 +9,8 @@ use crate::host::{Host, HostEvent, HostEventKind, HostLifecycleEvent, HostLifecy
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
 use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineOutcome, EngineOutput, Entry, NativeContinuation,
+    Engine, EngineContinuation, EngineOutcome, EngineOutput, EngineSnapshot, Entry,
+    NativeContinuation,
 };
 use crate::runtime::poller::{
     HostPoller, HostPollerFlags, HostPollerWakeHandle, PlatformHandle, PlatformInterest,
@@ -121,6 +122,24 @@ impl Engine for TestEngine {
         Ok(EngineOutcome::Completed {
             output: void_output(),
         })
+    }
+
+    /// Capture one durable engine snapshot for tests.
+    fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot> {
+        Err(crate::diagnostic::RuntimeError::Internal {
+            message: "test engine snapshots are not implemented".to_string(),
+        }
+        .boxed())
+    }
+
+    /// Restore one durable engine snapshot for tests.
+    fn restore(&mut self, snapshot: &EngineSnapshot) -> RuntimeResult<()> {
+        let _ = snapshot;
+
+        Err(crate::diagnostic::RuntimeError::Internal {
+            message: "test engine snapshot restore is not implemented".to_string(),
+        }
+        .boxed())
     }
 }
 

@@ -1,19 +1,26 @@
 mod apply;
+mod branch;
 mod builtin;
+mod checkpoint;
 mod command;
 mod constants;
 mod ingress;
+mod lineage;
 mod policy;
 mod resource;
 mod runtime;
+mod snapshot;
 mod tick;
 pub(crate) mod topology;
 mod wake;
 mod world;
 
+pub use branch::*;
+pub use checkpoint::*;
 pub(crate) use command::*;
 pub use constants::*;
 pub use ingress::*;
 pub use resource::*;
+pub use snapshot::*;
 pub use wake::*;
 pub use world::*;

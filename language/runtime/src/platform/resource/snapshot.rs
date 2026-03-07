@@ -16,7 +16,7 @@ pub enum ResourceSnapshotPolicy {
 }
 
 /// Descriptor for reattaching an external resource.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResourceDescriptor {
     /// Resource kind for validation.
     pub kind: ResourceKind,
@@ -25,7 +25,7 @@ pub struct ResourceDescriptor {
 }
 
 /// Snapshot payload for a resource.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResourceSnapshot {
     /// Resource identifier in the table.
     pub resource_id: ResourceId,

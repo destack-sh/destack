@@ -13,38 +13,6 @@ use postcard::experimental::serialized_size;
 
 use super::chunk::ReplayChunk;
 
-/// Identifier for a replay branch.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct BranchId(u128);
-
-impl BranchId {
-    /// Create a new branch identifier.
-    pub const fn new(value: u128) -> Self {
-        Self(value)
-    }
-
-    /// Return the raw branch identifier value.
-    pub const fn get(self) -> u128 {
-        self.0
-    }
-}
-
-/// Identifier for a replay checkpoint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct CheckpointId(u128);
-
-impl CheckpointId {
-    /// Create a new checkpoint identifier.
-    pub const fn new(value: u128) -> Self {
-        Self(value)
-    }
-
-    /// Return the raw checkpoint identifier value.
-    pub const fn get(self) -> u128 {
-        self.0
-    }
-}
-
 /// Default maximum number of events in a chunk.
 const DEFAULT_MAX_EVENTS_PER_CHUNK: usize = 1024;
 /// Default maximum chunk size in bytes.
@@ -78,8 +46,6 @@ pub(super) struct ReplayLogState {
     header: ReplayHeader,
     /// Replay log trailer metadata.
     trailer: ReplayTrailer,
-    /// Branch identifier for this log stream.
-    branch_id: BranchId,
     /// Maximum number of events per chunk.
     max_events_per_chunk: usize,
     /// Maximum chunk size in bytes.
@@ -144,7 +110,6 @@ impl ReplayLog {
             state: Arc::new(Mutex::new(ReplayLogState {
                 header,
                 trailer,
-                branch_id: BranchId::new(0),
                 max_events_per_chunk,
                 max_chunk_bytes,
                 next_sequence: LogSequence::new(0),
@@ -171,10 +136,10 @@ impl ReplayLog {
     }
 
     /// Return the current branch identifier.
-    pub fn branch_id(&self) -> BranchId {
+    pub fn branch_id(&self) -> crate::runtime::world::BranchId {
         // lock state for reading
         let state = self.state.lock();
-        state.branch_id
+        state.header.branch_id
     }
 
     /// Create a replay reader for this log.

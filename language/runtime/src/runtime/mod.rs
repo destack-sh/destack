@@ -8,7 +8,6 @@ pub(crate) mod poller;
 pub mod random;
 pub mod replay;
 pub mod scheduler;
-pub mod snapshot;
 #[cfg(test)]
 mod tests;
 pub(crate) mod time;

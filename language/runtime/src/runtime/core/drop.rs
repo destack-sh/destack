@@ -1,5 +1,7 @@
+use serde::{Deserialize, Serialize};
+
 /// One explicit drop reason recorded by runtime owners.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DropReason {
     /// Events dropped before delivery because an upstream queue overflowed.
     QueuePressure,
@@ -10,7 +12,7 @@ pub enum DropReason {
 }
 
 /// Drop accounting grouped by reason at one ownership boundary.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DropCounts {
     /// Events dropped because an upstream queue overflowed.
     pub queue_pressure: u64,

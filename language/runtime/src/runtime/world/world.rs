@@ -1,7 +1,8 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
-use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use parking_lot::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
@@ -14,46 +15,30 @@ use crate::runtime::{AgentId, Runtime};
 use crate::simulation::Simulation;
 use destack_workspace::{ExecutionMode, RandomMode, ReplayPayloadMode, RuntimeOptions, TimeMode};
 
+use super::lineage::{Lineage, ROOT_BRANCH_ID};
 use super::topology::Topology;
 pub use super::topology::{
     RuntimeId, WorldEdge, WorldEdgeId, WorldEdgeKind, WorldEdgeKindDefinition, WorldEntity,
     WorldEntityId, WorldEntityKind, WorldEntityKindDefinition,
 };
 use super::{
-    INITIAL_AGENT_ID, INITIAL_CONTROL_REVISION, INITIAL_RUNTIME_ID, WorldResource, WorldResourceId,
+    BranchId, CheckpointState, INITIAL_AGENT_ID, INITIAL_CONTROL_REVISION, INITIAL_RUNTIME_ID,
+    WorldResource, WorldResourceId,
 };
 
 /// Number of bytes in a megabyte for replay chunk sizing.
 const BYTES_PER_MB: u64 = 1024 * 1024;
 
-/// World-owned control counters for revision and id allocation.
-#[derive(Debug)]
-pub(super) struct WorldControl {
-    /// Next runtime id to allocate.
-    pub next_runtime_id: u64,
-    /// Next agent id to allocate.
-    pub next_agent_id: u64,
-    /// Current world command revision.
-    pub revision: u64,
-}
-
-impl Default for WorldControl {
-    fn default() -> Self {
-        Self {
-            next_runtime_id: INITIAL_RUNTIME_ID,
-            next_agent_id: INITIAL_AGENT_ID,
-            revision: INITIAL_CONTROL_REVISION,
-        }
-    }
-}
-
 /// Shared deterministic runtime world.
 #[derive(Debug)]
 pub struct World {
+    /// Active branch identifier for this live world instance.
+    pub(super) branch_id: BranchId,
     /// Live runtimes owned by this world.
     pub(super) runtimes: RwLock<BTreeMap<RuntimeId, Box<Runtime>>>,
     /// Shared simulation state for all agents using this world.
     pub(super) simulation: RwLock<Simulation>,
+
     /// Effective world time mode after execution-mode resolution.
     pub(super) time_mode: TimeMode,
     /// Effective world random mode after execution-mode resolution.
@@ -66,8 +51,18 @@ pub struct World {
     pub(super) replay: Replay,
     /// Active policy state.
     pub(super) policy: RwLock<PolicyState>,
-    /// World-owned revision and id allocation state.
-    pub(super) control: RwLock<WorldControl>,
+    /// One global mutation gate for replayable world control changes.
+    pub(super) mutation_lock: Mutex<()>,
+    /// The next runtime id to allocate.
+    pub(super) next_runtime_id: AtomicU64,
+    /// The next agent id to allocate.
+    pub(super) next_agent_id: AtomicU64,
+    /// The current world command revision.
+    pub(super) revision: AtomicU64,
+    /// World-owned lineage and durable restore metadata.
+    pub(super) lineage: Arc<RwLock<Lineage>>,
+    /// World-owned checkpoint readiness state.
+    pub(super) checkpoint_state: RwLock<CheckpointState>,
     /// Topology registry for world metadata.
     pub(super) topology: RwLock<Topology>,
     /// Logical resource records keyed by world resource identifier.
@@ -106,6 +101,7 @@ impl World {
         // replay header: options with chunk-size override
         let mut replay_header = ReplayHeader {
             execution_mode: options.execution,
+            branch_id: ROOT_BRANCH_ID,
             replay_payload,
             ..ReplayHeader::default()
         };
@@ -130,6 +126,7 @@ impl World {
 
         // final world state
         Ok(Arc::new(Self {
+            branch_id: ROOT_BRANCH_ID,
             runtimes: RwLock::new(BTreeMap::new()),
             simulation: RwLock::new(Simulation::default()),
             time_mode,
@@ -138,7 +135,12 @@ impl World {
             random,
             replay,
             policy: RwLock::new(PolicyState::new(policy)),
-            control: RwLock::new(WorldControl::default()),
+            mutation_lock: Mutex::new(()),
+            next_runtime_id: AtomicU64::new(INITIAL_RUNTIME_ID),
+            next_agent_id: AtomicU64::new(INITIAL_AGENT_ID),
+            revision: AtomicU64::new(INITIAL_CONTROL_REVISION),
+            lineage: Arc::new(RwLock::new(Lineage::default())),
+            checkpoint_state: RwLock::new(CheckpointState::Ready),
             topology: RwLock::new(topology),
             resources: RwLock::new(BTreeMap::new()),
         }))
@@ -186,25 +188,21 @@ impl World {
 
     /// Return the current world command revision.
     pub fn revision(&self) -> u64 {
-        self.control.read().revision
+        self.revision.load(Ordering::SeqCst)
     }
 
     /// Allocate one runtime identifier.
     pub(crate) fn allocate_runtime_id(&self) -> RuntimeId {
-        let mut control = self.control.write();
-        let runtime_id = RuntimeId(control.next_runtime_id);
-        control.next_runtime_id = control.next_runtime_id.saturating_add(1);
+        let runtime_id = self.next_runtime_id.fetch_add(1, Ordering::SeqCst);
 
-        runtime_id
+        RuntimeId(runtime_id)
     }
 
     /// Allocate one agent identifier.
     pub(crate) fn allocate_agent_id(&self) -> AgentId {
-        let mut control = self.control.write();
-        let agent_id = AgentId(control.next_agent_id);
-        control.next_agent_id = control.next_agent_id.saturating_add(1);
+        let agent_id = self.next_agent_id.fetch_add(1, Ordering::SeqCst);
 
-        agent_id
+        AgentId(agent_id)
     }
 
     /// Borrow the shared world clock.

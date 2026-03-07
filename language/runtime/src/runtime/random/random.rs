@@ -16,7 +16,7 @@ pub struct Random {
 }
 
 /// Identifier for a deterministic random stream.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct RandomStreamId(u64);
 
 impl RandomStreamId {
@@ -32,6 +32,19 @@ impl RandomStreamId {
     pub const fn get(self) -> u64 {
         self.0
     }
+}
+
+/// Key for one runtime and agent scoped implicit random stream.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct ScopedRandomStreamKey {
+    /// Runtime identifier component.
+    pub runtime_id: u64,
+    /// Agent identifier component.
+    pub agent_id: u64,
+    /// Task identifier component when per-runnable streams are enabled.
+    pub task_id: Option<u64>,
+    /// Microtask identifier component when per-runnable streams are enabled.
+    pub microtask_id: Option<u64>,
 }
 
 impl Default for Random {
