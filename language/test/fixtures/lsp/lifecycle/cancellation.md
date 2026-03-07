@@ -4013,7 +4013,7 @@ const ref_3998 = targetValue();
 const ref_3999 = targetValue();
 ```
 
-```lsp scenario references-progress-cancel
+```lsp cancel_references_progress cancel [0]
 ```
 
 ### Policy cancellation through progress
@@ -4031,7 +4031,7 @@ const second = value;
 export { first, second };
 ```
 
-```lsp scenario references-progress-cancelled-by-policy
+```lsp cancel_references_progress_by_policy cancel [0]
 ```
 
 ## Request IDs
@@ -8047,7 +8047,7 @@ const ref_3998 = targetValue();
 const ref_3999 = targetValue();
 ```
 
-```lsp scenario references-request-cancel
+```lsp cancel_references_request cancel [0]
 ```
 
 ### Policy cancellation by request id
@@ -8065,6 +8065,91 @@ const second = value;
 export { first, second };
 ```
 
-```lsp scenario references-request-cancelled-by-policy
+```lsp cancel_references_request_by_policy cancel [0]
 ```
 
+## Cancellation Pressure
+
+### Cancel a references request after an overlay adds another use
+References cancellation should still cancel after the overlay grows the request set.
+
+```ds:lib.ds
+export function /*cancel*/ping(): void {}
+```
+
+```ds:main.ds
+import { ping } from "./lib.ds";
+ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping();
+```
+
+```ds:lib.ds[1]
+export function /*cancel*/ping(): void {}
+```
+
+```ds:main.ds[1]
+import { ping } from "./lib.ds";
+ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping();
+```
+
+```lsp cancel_references_request cancel [1]
+```
+
+### Cancel reference progress after an overlay adds another use
+Progress cancellation should still cancel after the overlay grows the request set.
+
+```ds:lib.ds
+export function /*cancel*/ping(): void {}
+```
+
+```ds:main.ds
+import { ping } from "./lib.ds";
+ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping();
+```
+
+```ds:lib.ds[1]
+export function /*cancel*/ping(): void {}
+```
+
+```ds:main.ds[1]
+import { ping } from "./lib.ds";
+ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping();
+```
+
+```lsp cancel_references_progress_by_policy cancel [1]
+```
+
+### Cancel by policy after a reindex command
+Policy cancellation should still cut off the request after command churn.
+
+```ds:lib.ds
+export function /*cancel*/ping(): void {}
+```
+
+```ds:main.ds
+import { ping } from "./lib.ds";
+ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping();
+```
+
+```lsp execute_command destack.reindex [0]
+```
+
+```lsp cancel_references_request_by_policy cancel [0]
+```
+
+### Cancel progress by policy after a rescan command
+Policy progress cancellation should still cut off the request after command churn.
+
+```ds:lib.ds
+export function /*cancel*/ping(): void {}
+```
+
+```ds:main.ds
+import { ping } from "./lib.ds";
+ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping(); ping();
+```
+
+```lsp execute_command destack.rescan [0]
+```
+
+```lsp cancel_references_progress_by_policy cancel [0]
+```

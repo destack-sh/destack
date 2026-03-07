@@ -147,6 +147,11 @@ impl LspTestState {
         self.editor.active_file_path.as_deref()
     }
 
+    /// Return whether one file currently has an open editor overlay.
+    pub fn is_file_open(&self, file_path: &str) -> bool {
+        self.editor.open_documents.contains_key(file_path)
+    }
+
     /// Return one named marker from the loaded fixture.
     pub fn marker(&self, marker_name: &str) -> Option<&Marker> {
         self.fixture.marker(marker_name)
@@ -216,6 +221,34 @@ impl LspTestState {
         for file_path in file_paths {
             self.open_file(&file_path)?;
         }
+
+        Ok(())
+    }
+
+    /// Open one file with explicit overlay text and make it the active document.
+    pub fn open_file_with_text(&mut self, file_path: &str, text: &str) -> Result<(), String> {
+        // require a real reopen so open-text steps model one actual didOpen path
+        if self.editor.open_documents.contains_key(file_path) {
+            return Err(format!(
+                "cannot open overlay text for already open file {file_path}"
+            ));
+        }
+
+        let version = 1;
+
+        self.driver.open_file_with_text(file_path, text, version)?;
+        self.editor.open_documents.insert(
+            file_path.to_string(),
+            OpenDocumentState {
+                file_path: file_path.to_string(),
+                text: text.to_string(),
+                version,
+            },
+        );
+        self.editor.active_file_path = Some(file_path.to_string());
+        self.editor.caret_offset = 0;
+        self.editor.selection_start = None;
+        self.editor.selection_end = None;
 
         Ok(())
     }
@@ -397,6 +430,16 @@ impl LspTestState {
             start_marker.offset,
             end_marker.offset,
         )
+    }
+
+    /// Select text between two byte offsets in one file.
+    pub fn select_offsets_in_file(
+        &mut self,
+        file_path: &str,
+        start_offset: usize,
+        end_offset: usize,
+    ) -> Result<(), String> {
+        self.select_offsets(file_path, start_offset, end_offset)
     }
 
     /// Select one parsed range.
@@ -928,6 +971,11 @@ impl LspTestState {
     /// Execute one workspace command and wait until queued mutations become idle.
     pub fn execute_command(&mut self, command: &str) -> Result<Option<lsp::LSPAny>, String> {
         self.driver.execute_command(command)
+    }
+
+    /// Wait until queued server mutations become idle.
+    pub fn wait_for_mutation_idle(&mut self) {
+        self.driver.wait_for_mutation_idle();
     }
 
     /// Return normalized semantic diagnostics for one file, or the active file when none is provided.

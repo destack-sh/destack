@@ -23,7 +23,7 @@ const MAX_PROGRESS_MESSAGES: usize = 128;
 pub struct LspDriver {
     /// The runtime used to drive async LSP operations.
     runtime: Runtime,
-    /// The temporary workspace filesystem for this scenario.
+    /// The temporary workspace filesystem for this case.
     filesystem: TemporaryPhysicalFileSystem,
     /// The initialized in-process LSP harness.
     harness: LspHarness,
@@ -95,6 +95,69 @@ impl LspDriver {
 
         fs::write(&path, text)
             .map_err(|error| format!("failed to write fixture file {file_path}: {error}"))
+    }
+
+    /// Create one materialized workspace file and notify the server.
+    pub fn create_file_text(&mut self, file_path: &str, text: &str) -> Result<(), String> {
+        let path = self.path_for(file_path);
+        let uri = uri_for_path(&path);
+
+        // create parent directories before writing the new file
+        if let Some(parent_path) = path.parent() {
+            fs::create_dir_all(parent_path).map_err(|error| {
+                format!("failed to create parent directories for {file_path}: {error}")
+            })?;
+        }
+
+        // write the file to disk before notifying the server
+        fs::write(&path, text)
+            .map_err(|error| format!("failed to create fixture file {file_path}: {error}"))?;
+
+        // notify the real didCreateFiles path so indexing updates stay honest
+        self.runtime.block_on(async {
+            self.harness.did_create(uri).await;
+            self.harness.wait_for_mutation_idle().await;
+        });
+
+        Ok(())
+    }
+
+    /// Overwrite one closed workspace file and notify the watched-file path.
+    pub fn change_closed_file_text(&mut self, file_path: &str, text: &str) -> Result<(), String> {
+        let path = self.path_for(file_path);
+        let uri = uri_for_path(&path);
+
+        // write the updated text to disk before notifying the server
+        fs::write(&path, text)
+            .map_err(|error| format!("failed to update fixture file {file_path}: {error}"))?;
+
+        // notify the watched-file path for closed-document churn
+        self.runtime.block_on(async {
+            self.harness
+                .did_change_watched(uri, lsp::FileChangeType::CHANGED)
+                .await;
+            self.harness.wait_for_mutation_idle().await;
+        });
+
+        Ok(())
+    }
+
+    /// Delete one materialized workspace file and notify the server.
+    pub fn delete_file_text(&mut self, file_path: &str) -> Result<(), String> {
+        let path = self.path_for(file_path);
+        let uri = uri_for_path(&path);
+
+        // remove the file before notifying the server
+        fs::remove_file(&path)
+            .map_err(|error| format!("failed to delete fixture file {file_path}: {error}"))?;
+
+        // notify the real didDeleteFiles path so diagnostics clear honestly
+        self.runtime.block_on(async {
+            self.harness.did_delete(uri).await;
+            self.harness.wait_for_mutation_idle().await;
+        });
+
+        Ok(())
     }
 
     /// Open one fixture file and wait until queued server mutations become idle.
@@ -1127,6 +1190,13 @@ impl LspDriver {
         });
 
         Ok(result)
+    }
+
+    /// Wait until queued server mutations become idle.
+    pub fn wait_for_mutation_idle(&mut self) {
+        self.runtime.block_on(async {
+            self.harness.wait_for_mutation_idle().await;
+        });
     }
 
     /// Start one typed request and keep it pending.

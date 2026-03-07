@@ -6,7 +6,7 @@ use crate::lsp::{
     verify_document_symbols, verify_workspace_symbols,
 };
 
-/// Run the symbol scenarios declared by one fixture.
+/// Run the symbol cases declared by one fixture.
 pub(crate) fn run_symbol_cases(
     fixture: &LspFixture,
     test_state: &mut LspTestState,

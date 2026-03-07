@@ -12,16 +12,16 @@ pub struct LspFixture {
     pub path: PathBuf,
     /// The virtual files declared by this fixture.
     pub files: Vec<LspSourceFile>,
+    /// The step-indexed workspace snapshots declared by stepped source blocks.
+    pub step_snapshots: BTreeMap<usize, LspStepSnapshot>,
     /// The named markers declared across all files.
     pub markers: BTreeMap<String, Marker>,
     /// The ranges declared across all files.
     pub ranges: Vec<Range>,
-    /// The bespoke scenario behaviors declared by fixture metadata.
-    pub scenarios: Vec<LspScenario>,
+    /// The explicit ordered step assertions and actions keyed by step index.
+    pub step_cases: BTreeMap<usize, Vec<LspStepCase>>,
     /// The capability expectations declared by fixture metadata.
     pub expectations: LspExpectations,
-    /// The fixture-relative open-text overrides keyed by target file path.
-    pub open_text_overrides: BTreeMap<String, String>,
 }
 
 /// One grouped expectation payload for a fixture.
@@ -59,75 +59,221 @@ pub struct LspExpectations {
     pub commands: CommandExpectations,
 }
 
-/// One bespoke applied-LSP scenario declared by fixture metadata.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum LspScenario {
-    /// The each-marker cross-module definition walk.
-    DefinitionEachMarkerCrossModule,
-    /// The each-marker same-file definition walk.
-    DefinitionEachMarkerSameFile,
-    /// The each-range cross-module references walk.
-    ReferencesEachRangeCrossModule,
-    /// The quick-info existence check.
-    QuickInfoExists,
-    /// The indentation assertions on the active line.
-    IndentationCurrentLine,
-    /// The grouped quick-info assertions.
-    QuickInfos,
-    /// The negative signature-help check.
-    NoSignatureHelp,
-    /// The trigger-character signature-help check.
-    SignatureHelpTriggerCharacter,
-    /// The trigger-reason negative signature-help check.
-    NoSignatureHelpForTriggerReason,
-    /// The initial open-overlay document diagnostic check.
-    DocumentDiagnosticOpenOverlay,
-    /// The marker-window diagnostic helper check.
-    DiagnosticMarkerWindows,
-    /// The overlay change document diagnostic check.
-    DocumentDiagnosticChangeOverlay,
-    /// The save-persisted document diagnostic check.
-    DocumentDiagnosticSavePersistsOverlay,
-    /// The close-reverted document diagnostic check.
-    DocumentDiagnosticCloseRevertsOverlay,
-    /// The clean workspace no-diagnostic check.
-    NoErrorsCleanWorkspace,
-    /// The request-id references cancellation check.
-    ReferencesRequestCancel,
-    /// The progress-token references cancellation check.
-    ReferencesProgressCancel,
-    /// The auto-policy request-id cancellation check.
-    ReferencesRequestCancelledByPolicy,
-    /// The auto-policy progress-token cancellation check.
-    ReferencesProgressCancelledByPolicy,
-    /// The multi-file edit responsiveness check.
-    MultifileEditResponsiveness,
-    /// The end-to-end edit roundtrip check.
-    EditRoundtrip,
-    /// The select-all replace check.
-    EditSelectAllReplace,
-    /// The replace and insert-lines edit check.
-    EditReplaceAndInsertLines,
-    /// The select-range replace check.
-    EditSelectRangeReplace,
-    /// The paste, delete, and bof edit check.
-    EditPasteDeleteAndBof,
-    /// The delete-line edit check.
-    EditDeleteLine,
-    /// The delete-line-range edit check.
-    EditDeleteLineRange,
-    /// The replace-line edit check.
-    EditReplaceLine,
-    /// The no-op document formatting check.
-    DocumentFormattingChangesNothing,
-    /// The marker-driven selection formatting check.
-    FormatSelectionMarkers,
-    /// The on-type formatting check.
-    OnTypeFormattingBrace,
-    /// The formatting option roundtrip check.
-    FormatOptionRoundtrip,
-    /// The format toggle roundtrip check.
-    FormatDisableEnableRoundtrip,
+/// One stepped workspace snapshot for a fixture step.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LspStepSnapshot {
+    /// The fixture step index.
+    pub index: usize,
+    /// The virtual files declared at this step.
+    pub files: Vec<LspSourceFile>,
+    /// The files removed from the workspace at this step.
+    pub removed_file_paths: Vec<String>,
+    /// The named markers declared at this step.
+    pub markers: BTreeMap<String, Marker>,
+    /// The ranges declared at this step.
+    pub ranges: Vec<Range>,
+}
+
+/// One fully resolved workspace snapshot for a fixture step.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ResolvedLspStepSnapshot {
+    /// The fixture step index.
+    pub index: usize,
+    /// The full virtual file set visible at this step.
+    pub files: Vec<LspSourceFile>,
+    /// The full marker set visible at this step.
+    pub markers: BTreeMap<String, Marker>,
+    /// The full range set visible at this step.
+    pub ranges: Vec<Range>,
+}
+
+/// One explicit step-owned action or assertion.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LspStepCase {
+    /// Open one file from disk before later step assertions run.
+    OpenFile { file_path: String },
+    /// Focus one named marker before later step assertions run.
+    GoToMarker { marker_name: String },
+    /// Select the span between two named markers before later step assertions run.
+    SelectMarkers {
+        start_marker_name: String,
+        end_marker_name: String,
+    },
+    /// Select the full contents of one file before later step assertions run.
+    SelectAll { file_path: String },
+    /// Move the caret to the beginning of the active file.
+    GoToBof,
+    /// Move the caret right by a codepoint count.
+    MoveRight { count: usize },
+    /// Replace the current selection before later step assertions run.
+    ReplaceSelection { text: String },
+    /// Paste text at the caret before later step assertions run.
+    Paste { text: String },
+    /// Delete codepoints to the left of the caret before later step assertions run.
+    Backspace { count: usize },
+    /// Delete codepoints at the caret before later step assertions run.
+    DeleteAtCaret { count: usize },
+    /// Delete one zero-based line before later step assertions run.
+    DeleteLine { index: usize },
+    /// Delete one inclusive zero-based line range before later step assertions run.
+    DeleteLineRange {
+        start_index: usize,
+        end_index_inclusive: usize,
+    },
+    /// Replace one zero-based line before later step assertions run.
+    ReplaceLine { index: usize, text: String },
+    /// Open one file with explicit overlay text before step assertions run.
+    OpenText { file_path: String, text: String },
+    /// Execute one workspace command before step assertions run.
+    ExecuteCommand { command: String },
+    /// Save one open file before step assertions run.
+    SaveFile { file_path: String },
+    /// Close one open file before step assertions run.
+    CloseFile { file_path: String },
+    /// Verify exact definition locations for one marker at this step.
+    Definition {
+        marker_name: String,
+        snapshot_text: String,
+    },
+    /// Verify exact references for one marker at this step.
+    References {
+        marker_name: String,
+        snapshot_text: String,
+    },
+    /// Verify that quick info exists for one marker at this step.
+    QuickInfoExists { marker_name: String },
+    /// Verify exact quick info for one marker at this step.
+    QuickInfo { marker_name: String },
+    /// Verify exact indentation at one marker at this step.
+    Indentation {
+        marker_name: String,
+        number_of_spaces: usize,
+    },
+    /// Verify that signature help stays absent at one marker.
+    NoSignatureHelp { marker_name: String },
+    /// Verify that trigger-character signature help appears at one marker.
+    SignatureHelpTrigger {
+        marker_name: String,
+        trigger_character: String,
+    },
+    /// Verify that trigger-reason signature help stays absent at one marker.
+    NoSignatureHelpForTriggerReason { marker_name: String },
+    /// Verify exact document diagnostics for one file at this step.
+    DocumentDiagnostic {
+        file_path: String,
+        snapshot_text: String,
+    },
+    /// Verify exact workspace diagnostics at this step.
+    WorkspaceDiagnostic { snapshot_text: String },
+    /// Verify exact current file contents for one file at this step.
+    CurrentFile { file_path: String, text: String },
+    /// Verify exact code actions for one marker at this step.
+    CodeAction {
+        marker_name: String,
+        snapshot_text: String,
+    },
+    /// Verify exact completion items for one marker at this step.
+    Completion {
+        marker_name: String,
+        snapshot_text: String,
+    },
+    /// Verify exact resolved completion data for one marker at this step.
+    CompletionResolve {
+        marker_name: String,
+        snapshot_text: String,
+    },
+    /// Verify exact document links for one file at this step.
+    DocumentLink {
+        file_path: String,
+        snapshot_text: String,
+    },
+    /// Verify exact document symbols for one file at this step.
+    DocumentSymbols {
+        file_path: String,
+        snapshot_text: String,
+    },
+    /// Verify exact workspace symbols for one query at this step.
+    WorkspaceSymbols {
+        query: String,
+        snapshot_text: String,
+    },
+    /// Verify exact folding ranges for one file at this step.
+    FoldingRange {
+        file_path: String,
+        snapshot_text: String,
+    },
+    /// Verify exact inlay hints for one file at this step.
+    InlayHint {
+        file_path: String,
+        snapshot_text: String,
+    },
+    /// Verify exact code lenses for one file at this step.
+    CodeLens {
+        file_path: String,
+        snapshot_text: String,
+    },
+    /// Verify exact semantic tokens for one file at this step.
+    SemanticTokens {
+        file_path: String,
+        snapshot_text: String,
+    },
+    /// Verify exact semantic-token delta application for one file at this step.
+    SemanticTokensDelta {
+        file_path: String,
+        snapshot_text: String,
+    },
+    /// Verify exact incoming call hierarchy edges for one marker at this step.
+    CallHierarchyIncoming {
+        marker_name: String,
+        snapshot_text: String,
+    },
+    /// Verify exact outgoing call hierarchy edges for one marker at this step.
+    CallHierarchyOutgoing {
+        marker_name: String,
+        snapshot_text: String,
+    },
+    /// Verify exact type hierarchy supertypes for one marker at this step.
+    TypeHierarchySupertypes {
+        marker_name: String,
+        snapshot_text: String,
+    },
+    /// Verify exact type hierarchy subtypes for one marker at this step.
+    TypeHierarchySubtypes {
+        marker_name: String,
+        snapshot_text: String,
+    },
+    /// Verify exact error window helpers against one diagnostic span.
+    DiagnosticMarkerWindows {
+        start_marker_name: String,
+        end_marker_name: String,
+    },
+    /// Verify that one file has no diagnostics at this step.
+    NoErrors { file_path: String },
+    /// Format one full file and verify its resulting text.
+    FormatDocument { file_path: String },
+    /// Format one selected span and verify its resulting text.
+    FormatSelection {
+        start_marker_name: String,
+        end_marker_name: String,
+    },
+    /// Apply on-type formatting at one marker and verify its resulting text.
+    OnTypeFormatting { marker_name: String },
+    /// Disable fixture-scoped formatting support.
+    DisableFormatting,
+    /// Enable fixture-scoped formatting support.
+    EnableFormatting,
+    /// Set one fixture-scoped formatting option.
+    SetFormatOption { name: String, value: String },
+    /// Verify the current formatting option state.
+    VerifyFormatOptions { snapshot_text: String },
+    /// Cancel one references request by request id.
+    CancelReferencesRequest { marker_name: String },
+    /// Cancel one references request by work-done progress token.
+    CancelReferencesProgress { marker_name: String },
+    /// Cancel one references request through the auto policy path.
+    CancelReferencesRequestByPolicy { marker_name: String },
+    /// Cancel one references progress path through the auto policy path.
+    CancelReferencesProgressByPolicy { marker_name: String },
 }
 
 /// One hover expectation block.
@@ -390,9 +536,133 @@ impl LspFixture {
         self.ranges.iter().find(|range| range.text == text)
     }
 
-    /// Return whether one bespoke scenario is declared by this fixture.
-    pub fn has_scenario(&self, scenario: LspScenario) -> bool {
-        self.scenarios.contains(&scenario)
+    /// Return one step snapshot by index.
+    pub fn step_snapshot(&self, index: usize) -> Option<&LspStepSnapshot> {
+        self.step_snapshots.get(&index)
+    }
+
+    /// Return one fully resolved step snapshot with prior file state carried forward.
+    pub fn resolved_step_snapshot(&self, index: usize) -> Option<ResolvedLspStepSnapshot> {
+        let step_indices = self.step_indices();
+        if !step_indices.is_empty() && !step_indices.contains(&index) {
+            return None;
+        }
+
+        let mut files_by_path = self
+            .files
+            .iter()
+            .cloned()
+            .map(|file| (file.path.clone(), file))
+            .collect::<BTreeMap<_, _>>();
+        let mut markers_by_name = self.markers.clone();
+        let mut ranges_by_file = BTreeMap::<String, Vec<Range>>::new();
+
+        // base ranges
+        for range in &self.ranges {
+            ranges_by_file
+                .entry(range.file_path.clone())
+                .or_default()
+                .push(range.clone());
+        }
+
+        // carry forward each changed file snapshot up to the requested step
+        for step in 0..=index {
+            let Some(snapshot) = self.step_snapshot(step) else {
+                continue;
+            };
+
+            overlay_step_snapshot(
+                snapshot,
+                &mut files_by_path,
+                &mut markers_by_name,
+                &mut ranges_by_file,
+            );
+        }
+
+        let mut files = files_by_path.into_values().collect::<Vec<_>>();
+        let mut ranges = ranges_by_file.into_values().flatten().collect::<Vec<_>>();
+
+        // compare resolved snapshots in stable declaration order
+        files.sort_by(|left, right| left.path.cmp(&right.path));
+
+        // compare resolved ranges in stable source order
+        ranges.sort_by(|left, right| {
+            (
+                left.file_path.as_str(),
+                left.start_offset,
+                left.end_offset,
+                left.text.as_str(),
+            )
+                .cmp(&(
+                    right.file_path.as_str(),
+                    right.start_offset,
+                    right.end_offset,
+                    right.text.as_str(),
+                ))
+        });
+
+        Some(ResolvedLspStepSnapshot {
+            index,
+            files,
+            markers: markers_by_name,
+            ranges,
+        })
+    }
+
+    /// Return the ordered step indices declared by stepped files or step-owned blocks.
+    pub fn step_indices(&self) -> Vec<usize> {
+        let mut indices = self.step_snapshots.keys().copied().collect::<Vec<_>>();
+
+        for index in self.step_cases.keys().copied() {
+            if !indices.contains(&index) {
+                indices.push(index);
+            }
+        }
+
+        indices.sort_unstable();
+        indices
+    }
+
+    /// Return whether this fixture declares an explicit multi-step sequence.
+    pub fn has_step_sequence(&self) -> bool {
+        self.step_indices().iter().any(|index| *index > 0) || !self.step_cases.is_empty()
+    }
+
+    /// Validate that explicit step indices form one contiguous sequence from zero.
+    pub fn validate_step_sequence(&self) -> Result<(), String> {
+        let step_indices = self.step_indices();
+        if step_indices.is_empty() {
+            return Ok(());
+        }
+
+        // stepped fixtures always start from the base workspace state
+        if step_indices.first().copied() != Some(0) {
+            return Err("stepped fixtures must declare a base [0] state".to_string());
+        }
+
+        // reject sparse or out-of-order step numbering loudly
+        for (expected_index, actual_index) in step_indices.iter().copied().enumerate() {
+            if actual_index != expected_index {
+                return Err(format!(
+                    "stepped fixtures must use contiguous step indices: expected [{expected_index}] before [{actual_index}]"
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Return whether this fixture declares any declarative runnable cases.
+    pub fn has_declarative_cases(&self) -> bool {
+        self.expectations.has_runnable_cases()
+    }
+
+    /// Return the step-owned cases for one index.
+    pub fn step_cases(&self, index: usize) -> &[LspStepCase] {
+        self.step_cases
+            .get(&index)
+            .map(|cases| cases.as_slice())
+            .unwrap_or(&[])
     }
 
     /// Return the first file path in declaration order.
@@ -404,53 +674,54 @@ impl LspFixture {
     }
 }
 
-impl LspScenario {
-    /// Parse one scenario name from fixture metadata.
-    pub fn parse(name: &str) -> Option<Self> {
-        match name {
-            "definition-each-marker-cross-module" => Some(Self::DefinitionEachMarkerCrossModule),
-            "definition-each-marker-same-file" => Some(Self::DefinitionEachMarkerSameFile),
-            "references-each-range-cross-module" => Some(Self::ReferencesEachRangeCrossModule),
-            "quick-info-exists" => Some(Self::QuickInfoExists),
-            "indentation-current-line" => Some(Self::IndentationCurrentLine),
-            "quick-infos" => Some(Self::QuickInfos),
-            "no-signature-help" => Some(Self::NoSignatureHelp),
-            "signature-help-trigger-character" => Some(Self::SignatureHelpTriggerCharacter),
-            "no-signature-help-for-trigger-reason" => Some(Self::NoSignatureHelpForTriggerReason),
-            "document-diagnostic-open-overlay" => Some(Self::DocumentDiagnosticOpenOverlay),
-            "diagnostic-marker-windows" => Some(Self::DiagnosticMarkerWindows),
-            "document-diagnostic-change-overlay" => Some(Self::DocumentDiagnosticChangeOverlay),
-            "document-diagnostic-save-persists-overlay" => {
-                Some(Self::DocumentDiagnosticSavePersistsOverlay)
-            }
-            "document-diagnostic-close-reverts-overlay" => {
-                Some(Self::DocumentDiagnosticCloseRevertsOverlay)
-            }
-            "no-errors-clean-workspace" => Some(Self::NoErrorsCleanWorkspace),
-            "references-request-cancel" => Some(Self::ReferencesRequestCancel),
-            "references-progress-cancel" => Some(Self::ReferencesProgressCancel),
-            "references-request-cancelled-by-policy" => {
-                Some(Self::ReferencesRequestCancelledByPolicy)
-            }
-            "references-progress-cancelled-by-policy" => {
-                Some(Self::ReferencesProgressCancelledByPolicy)
-            }
-            "multifile-edit-responsiveness" => Some(Self::MultifileEditResponsiveness),
-            "edit-roundtrip" => Some(Self::EditRoundtrip),
-            "edit-select-all-replace" => Some(Self::EditSelectAllReplace),
-            "edit-replace-and-insert-lines" => Some(Self::EditReplaceAndInsertLines),
-            "edit-select-range-replace" => Some(Self::EditSelectRangeReplace),
-            "edit-paste-delete-and-bof" => Some(Self::EditPasteDeleteAndBof),
-            "edit-delete-line" => Some(Self::EditDeleteLine),
-            "edit-delete-line-range" => Some(Self::EditDeleteLineRange),
-            "edit-replace-line" => Some(Self::EditReplaceLine),
-            "document-formatting-changes-nothing" => Some(Self::DocumentFormattingChangesNothing),
-            "format-selection-markers" => Some(Self::FormatSelectionMarkers),
-            "on-type-formatting-brace" => Some(Self::OnTypeFormattingBrace),
-            "format-option-roundtrip" => Some(Self::FormatOptionRoundtrip),
-            "format-disable-enable-roundtrip" => Some(Self::FormatDisableEnableRoundtrip),
-            _ => None,
-        }
+/// Overlay one partial step snapshot onto one resolved workspace state.
+fn overlay_step_snapshot(
+    snapshot: &LspStepSnapshot,
+    files_by_path: &mut BTreeMap<String, LspSourceFile>,
+    markers_by_name: &mut BTreeMap<String, Marker>,
+    ranges_by_file: &mut BTreeMap<String, Vec<Range>>,
+) {
+    let changed_file_paths = snapshot
+        .files
+        .iter()
+        .map(|file| file.path.clone())
+        .collect::<Vec<_>>();
+
+    // replace the changed file texts
+    for file in &snapshot.files {
+        files_by_path.insert(file.path.clone(), file.clone());
+    }
+
+    // drop deleted files from the resolved workspace state
+    for file_path in &snapshot.removed_file_paths {
+        files_by_path.remove(file_path);
+    }
+
+    // drop stale markers for changed files before inserting the new set
+    markers_by_name.retain(|_, marker| !changed_file_paths.contains(&marker.file_path));
+
+    // drop markers for deleted files before later steps run
+    markers_by_name.retain(|_, marker| !snapshot.removed_file_paths.contains(&marker.file_path));
+
+    for marker in snapshot.markers.values() {
+        markers_by_name.insert(marker.name.clone(), marker.clone());
+    }
+
+    // drop stale ranges for changed files before inserting the new set
+    for file_path in &changed_file_paths {
+        ranges_by_file.remove(file_path);
+    }
+
+    // drop ranges for deleted files before later steps run
+    for file_path in &snapshot.removed_file_paths {
+        ranges_by_file.remove(file_path);
+    }
+
+    for range in &snapshot.ranges {
+        ranges_by_file
+            .entry(range.file_path.clone())
+            .or_default()
+            .push(range.clone());
     }
 }
 
@@ -468,3 +739,36 @@ impl fmt::Display for FixtureParseError {
 }
 
 impl std::error::Error for FixtureParseError {}
+
+impl LspExpectations {
+    /// Return whether these expectations include runnable declarative cases.
+    pub fn has_runnable_cases(&self) -> bool {
+        !self.symbols.document.is_empty()
+            || self.symbols.workspace_query.is_some()
+            || !self.symbols.workspace.is_empty()
+            || !self.completion.items.is_empty()
+            || self.completion.resolve_label.is_some()
+            || self.document_links.snapshot_text.is_some()
+            || self.folding_ranges.snapshot_text.is_some()
+            || self.inlay_hints.snapshot_text.is_some()
+            || self.code_lenses.snapshot_text.is_some()
+            || self.formatting.document_expected_text.is_some()
+            || self.formatting.range_expected_text.is_some()
+            || self.formatting.current_file_text.is_some()
+            || !self.code_actions.actions.is_empty()
+            || self.code_actions.expected_text.is_some()
+            || self.semantic_tokens.full_expected_text.is_some()
+            || self.semantic_tokens.range_expected_text.is_some()
+            || self.semantic_tokens.delta_source_text.is_some()
+            || self.semantic_tokens.delta_expected_text.is_some()
+            || self.hierarchy.call_incoming_text.is_some()
+            || self.hierarchy.call_outgoing_text.is_some()
+            || self.hierarchy.type_supertypes_text.is_some()
+            || self.hierarchy.type_subtypes_text.is_some()
+            || self.diagnostics.workspace_text.is_some()
+            || self.diagnostics.workspace_partial_text.is_some()
+            || self.diagnostics.selection_range_text.is_some()
+            || self.edits.current_file_text.is_some()
+            || !self.commands.execute.is_empty()
+    }
+}

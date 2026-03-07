@@ -36,7 +36,8 @@ function render(input: number, scale: number): number {
 const output = render(1, /*signature_trigger*/2);
 ```
 
-```lsp scenario signature-help-trigger-character
+```lsp signature_help_trigger signature_trigger [0]
+,
 ```
 
 ```lsp signature_label
@@ -55,7 +56,7 @@ Signature help should stay absent when the caret is on a non-call value name.
 const /*no_signature*/value = 1;
 ```
 
-```lsp scenario no-signature-help
+```lsp no_signature_help no_signature [0]
 ```
 
 ### Trigger-reason checks stay empty
@@ -66,6 +67,5 @@ Trigger-reason requests should stay empty when the caret is not at a callable po
 const /*no_signature_trigger*/value = 1;
 ```
 
-```lsp scenario no-signature-help-for-trigger-reason
+```lsp no_signature_help_for_trigger_reason no_signature_trigger [0]
 ```
-

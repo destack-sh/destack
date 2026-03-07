@@ -1,13 +1,12 @@
 use crate::lsp::runner::primary_file_path;
 use crate::lsp::{
-    ExpectedCodeAction, FormatOptionValue, LspFixture, LspScenario, LspTestState,
-    NormalizedCodeAction, normalize_code_actions, verify_code_actions, verify_exact_eq,
-    verify_file_text, verify_workspace_edit_count, workspace_edit_edit_count,
+    ExpectedCodeAction, LspFixture, LspTestState, NormalizedCodeAction, normalize_code_actions,
+    verify_code_actions, verify_file_text, verify_workspace_edit_count, workspace_edit_edit_count,
 };
 
 const RENAME_TARGET_NAME: &str = "salute";
 
-/// Run the refactor scenarios declared by one fixture.
+/// Run the refactor cases declared by one fixture.
 pub(crate) fn run_refactor_cases(
     fixture: &LspFixture,
     test_state: &mut LspTestState,
@@ -40,21 +39,12 @@ pub(crate) fn run_refactor_cases(
         test_state.verify().current_file_content_is(expected_text)?;
     }
 
-    // whole-document formatting should also support exact no-op assertions
-    if fixture.has_scenario(LspScenario::DocumentFormattingChangesNothing) {
-        let source_file_path = fixture.first_file_path()?;
-
-        test_state.go_to().file(&source_file_path)?;
-        test_state.verify().format_document_changes_nothing()?;
-    }
-
     // range formatting
-    if !fixture.has_scenario(LspScenario::FormatSelectionMarkers)
-        && let Some(expected_text) = fixture
-            .expectations
-            .formatting
-            .range_expected_text
-            .as_deref()
+    if let Some(expected_text) = fixture
+        .expectations
+        .formatting
+        .range_expected_text
+        .as_deref()
     {
         let source_file_path = primary_file_path(fixture)?;
         let range = fixture.ranges.first().cloned().ok_or_else(|| {
@@ -68,126 +58,6 @@ pub(crate) fn run_refactor_cases(
         let actual_text = test_state.current_document_text(&source_file_path)?;
 
         verify_file_text(actual_text, expected_text)?;
-    }
-
-    // selection formatting should flow through the tsserver-shaped format facade
-    if fixture.has_scenario(LspScenario::FormatSelectionMarkers) {
-        let expected_text = fixture
-            .expectations
-            .formatting
-            .range_expected_text
-            .as_deref()
-            .ok_or_else(|| {
-                "format selection fixture is missing an lsp range_formatting block".to_string()
-            })?;
-        let source_file_path = primary_file_path(fixture)?;
-
-        test_state.go_to().file(&source_file_path)?;
-        test_state
-            .format()
-            .selection("format_start", "format_end")?;
-
-        test_state.verify().current_file_content_is(expected_text)?;
-    }
-
-    // on-type formatting should apply exact edits through the native format facade
-    if fixture.has_scenario(LspScenario::OnTypeFormattingBrace) {
-        let expected_text = fixture
-            .expectations
-            .formatting
-            .current_file_text
-            .as_deref()
-            .ok_or_else(|| {
-                "on-type formatting fixture is missing an lsp current_file block".to_string()
-            })?;
-        let source_file_path = primary_file_path(fixture)?;
-
-        test_state.go_to().file(&source_file_path)?;
-        test_state.format().on_type("on_type", "}")?;
-
-        test_state.verify().current_file_content_is(expected_text)?;
-    }
-
-    // format options should roundtrip through the native tsserver-shaped facade
-    if fixture.has_scenario(LspScenario::FormatOptionRoundtrip) {
-        let source_file_path = fixture
-            .files
-            .iter()
-            .map(|file| file.path.clone())
-            .next()
-            .ok_or_else(|| "format option fixture is missing a file".to_string())?;
-
-        test_state.go_to().file(&source_file_path)?;
-        let original_options = test_state.format().copy_format_options();
-
-        verify_exact_eq("default tab size", &original_options.tab_size, &4)?;
-        verify_exact_eq(
-            "default insert spaces",
-            &original_options.insert_spaces,
-            &true,
-        )?;
-
-        test_state
-            .format()
-            .set_option("tabSize", FormatOptionValue::Number(2))?;
-        test_state
-            .format()
-            .set_option("insertSpaces", FormatOptionValue::Bool(false))?;
-        test_state
-            .format()
-            .set_option("trimFinalNewlines", FormatOptionValue::Bool(true))?;
-
-        let updated_options = test_state.format().copy_format_options();
-        verify_exact_eq("updated tab size", &updated_options.tab_size, &2)?;
-        verify_exact_eq(
-            "updated insert spaces",
-            &updated_options.insert_spaces,
-            &false,
-        )?;
-        verify_exact_eq(
-            "updated trim final newlines",
-            &updated_options.trim_final_newlines,
-            &Some(true),
-        )?;
-
-        test_state
-            .format()
-            .set_format_options(original_options.clone());
-
-        let restored_options = test_state.format().copy_format_options();
-        verify_exact_eq(
-            "restored format options",
-            &restored_options,
-            &original_options,
-        )?;
-    }
-
-    // edit formatting toggles should gate application of format edits
-    if fixture.has_scenario(LspScenario::FormatDisableEnableRoundtrip) {
-        let expected_text = fixture
-            .expectations
-            .formatting
-            .current_file_text
-            .as_deref()
-            .ok_or_else(|| {
-                "format toggle fixture is missing an lsp current_file block".to_string()
-            })?;
-        let source_file_path = primary_file_path(fixture)?;
-        let original_text = fixture
-            .file(&source_file_path)
-            .map(|file| file.text.clone())
-            .ok_or_else(|| format!("format toggle fixture is missing file {source_file_path}"))?;
-
-        test_state.go_to().file(&source_file_path)?;
-        test_state.edit().disable_formatting();
-        test_state.format().document()?;
-        test_state
-            .verify()
-            .current_file_content_is(&original_text)?;
-
-        test_state.edit().enable_formatting();
-        test_state.format().document()?;
-        test_state.verify().current_file_content_is(expected_text)?;
     }
 
     // code actions
