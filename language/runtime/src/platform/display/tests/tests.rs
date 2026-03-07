@@ -136,7 +136,7 @@ where
 #[cfg(target_os = "macos")]
 /// Run one display case through the required affinity helper when needed.
 pub(crate) fn run_display_case_or_return(case_name: &str) -> bool {
-    run_main_thread_case_or_return(case_name, option_env!("CARGO_BIN_EXE_runtime_affinity"))
+    run_main_thread_case_or_return(case_name)
 }
 
 #[cfg(not(target_os = "macos"))]

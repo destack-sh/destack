@@ -9,18 +9,18 @@ use crate::platform::display::tests::affinity as display_affinity_tests;
 
 /// Environment marker for subprocess affinity execution.
 const AFFINITY_CHILD_ENV: &str = "DESTACK_RUNTIME_AFFINITY_CHILD";
+/// Environment key for one explicit affinity helper executable path.
+const AFFINITY_HELPER_ENV: &str = "DESTACK_RUNTIME_AFFINITY_HELPER";
 
 /// Run one main-thread-sensitive test case through one child helper process when needed.
-pub(crate) fn run_main_thread_case_or_return(
-    case_name: &str,
-    explicit_helper_path: Option<&str>,
-) -> bool {
+pub(crate) fn run_main_thread_case_or_return(case_name: &str) -> bool {
     // the child process already owns the correct thread
     if std::env::var_os(AFFINITY_CHILD_ENV).is_some() {
         return false;
     }
 
-    let helper = affinity_helper_executable(explicit_helper_path);
+    // resolve the helper path from the outer runner
+    let helper = affinity_helper_executable();
     let mut command = Command::new(helper);
     command
         .arg("--case")
@@ -40,14 +40,13 @@ pub(crate) fn run_main_thread_case_or_return(
 }
 
 /// Run one affinity-sensitive display case on the correct process thread.
-pub(crate) fn run_display_main_thread_case(case_name: &str) {
+pub fn run_display_main_thread_case(case_name: &str) {
     #[cfg(target_os = "macos")]
     {
         let case_name = case_name.to_string();
         run_with_apple_main_thread_service(move || {
             display_affinity_tests::run_case(case_name.as_str());
         });
-        return;
     }
 
     #[cfg(not(target_os = "macos"))]
@@ -56,26 +55,36 @@ pub(crate) fn run_display_main_thread_case(case_name: &str) {
     }
 }
 
-/// Resolve the harness-free affinity helper executable.
-fn affinity_helper_executable(explicit_helper_path: Option<&str>) -> PathBuf {
-    // prefer the exact helper path passed from the current test binary
-    if let Some(path) = explicit_helper_path {
+/// Resolve the runtime affinity helper from one explicit runner-provided path.
+fn affinity_helper_executable() -> PathBuf {
+    // prefer the exact helper path provided by the outer test runner
+    if let Some(path) = std::env::var_os(AFFINITY_HELPER_ENV) {
         let path = PathBuf::from(path);
         if path.exists() {
             return path;
         }
+
+        panic!(
+            "{AFFINITY_HELPER_ENV} points to one missing runtime affinity helper: {}",
+            path.display()
+        );
     }
 
-    // cargo may also expose the helper path at runtime for some layouts
+    // allow direct cargo wiring when it is available
     if let Some(path) = std::env::var_os("CARGO_BIN_EXE_runtime_affinity") {
         let path = PathBuf::from(path);
         if path.exists() {
             return path;
         }
+
+        panic!(
+            "CARGO_BIN_EXE_runtime_affinity points to one missing runtime affinity helper: {}",
+            path.display()
+        );
     }
 
     panic!(
-        "failed to resolve runtime affinity helper: expected one explicit helper path or CARGO_BIN_EXE_runtime_affinity"
+        "missing runtime affinity helper path: set {AFFINITY_HELPER_ENV} or provide CARGO_BIN_EXE_runtime_affinity"
     );
 }
 
@@ -85,7 +94,7 @@ pub(crate) fn run_with_apple_main_thread_service(run: impl FnOnce() + Send + 'st
     let worker = thread::spawn(run);
 
     // keep the process main thread free to service AppKit callbacks
-    apple_host_message::service_registered_runtimes_until(true, || worker.is_finished());
+    apple_host_message::service_registered_runtimes_until(true, || worker.is_finished()).unwrap();
 
     // propagate the worker result after the main-thread service loop exits
     if let Err(payload) = worker.join() {

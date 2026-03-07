@@ -492,9 +492,9 @@ fn expect_optional_lane(result: RuntimeResult<()>, allow_would_block: bool) -> R
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
 pub(super) fn test_display_monitor_surface_supports_strict_backend_selection() {
-    if run_display_case_or_return(
-        "platform::display::tests::backend::test_display_monitor_surface_supports_strict_backend_selection",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_display_monitor_surface_supports_strict_backend_selection
+    )) {
         return;
     }
 
@@ -534,9 +534,9 @@ pub(super) fn test_display_monitor_surface_supports_strict_backend_selection() {
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
 pub(super) fn test_display_window_surface_supports_strict_backend_selection() {
-    if run_display_case_or_return(
-        "platform::display::tests::backend::test_display_window_surface_supports_strict_backend_selection",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_display_window_surface_supports_strict_backend_selection
+    )) {
         return;
     }
 
@@ -599,9 +599,9 @@ pub(super) fn test_display_window_surface_supports_strict_backend_selection() {
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
 pub(super) fn test_display_monitor_desktop_mode_is_consistent_with_modes() {
-    if run_display_case_or_return(
-        "platform::display::tests::backend::test_display_monitor_desktop_mode_is_consistent_with_modes",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_display_monitor_desktop_mode_is_consistent_with_modes
+    )) {
         return;
     }
 
@@ -669,9 +669,9 @@ pub(super) fn test_display_monitor_desktop_mode_is_consistent_with_modes() {
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
 pub(super) fn test_display_window_remaining_surface_calls_follow_backend_contract() {
-    if run_display_case_or_return(
-        "platform::display::tests::backend::test_display_window_remaining_surface_calls_follow_backend_contract",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_display_window_remaining_surface_calls_follow_backend_contract
+    )) {
         return;
     }
 
@@ -1030,9 +1030,9 @@ pub(super) fn test_display_window_remaining_surface_calls_follow_backend_contrac
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 #[cfg_attr(test, test)]
 pub(super) fn test_display_backend_identity_tracks_strict_backend_selection() {
-    if run_display_case_or_return(
-        "platform::display::tests::backend::test_display_backend_identity_tracks_strict_backend_selection",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_display_backend_identity_tracks_strict_backend_selection
+    )) {
         return;
     }
 
@@ -1140,9 +1140,9 @@ pub(super) fn test_display_backend_identity_tracks_strict_backend_selection() {
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
 pub(super) fn test_display_window_capabilities_match_opened_window_backend() {
-    if run_display_case_or_return(
-        "platform::display::tests::backend::test_display_window_capabilities_match_opened_window_backend",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_display_window_capabilities_match_opened_window_backend
+    )) {
         return;
     }
 
@@ -1184,9 +1184,9 @@ pub(super) fn test_display_window_capabilities_match_opened_window_backend() {
 #[cfg(target_os = "linux")]
 #[cfg_attr(test, test)]
 pub(super) fn test_display_x11_capabilities_match_implemented_contract() {
-    if run_display_case_or_return(
-        "platform::display::tests::backend::test_display_x11_capabilities_match_implemented_contract",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_display_x11_capabilities_match_implemented_contract
+    )) {
         return;
     }
 
@@ -1435,9 +1435,9 @@ pub(super) fn test_display_x11_capabilities_match_implemented_contract() {
 #[cfg(target_os = "linux")]
 #[cfg_attr(test, test)]
 pub(super) fn test_display_wayland_capabilities_match_implemented_contract() {
-    if run_display_case_or_return(
-        "platform::display::tests::backend::test_display_wayland_capabilities_match_implemented_contract",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_display_wayland_capabilities_match_implemented_contract
+    )) {
         return;
     }
 
@@ -1922,9 +1922,9 @@ pub(super) fn test_display_wayland_capabilities_match_implemented_contract() {
 #[cfg(target_os = "linux")]
 #[cfg_attr(test, test)]
 pub(super) fn test_display_linux_backend_capabilities_respect_ceiling_inventory() {
-    if run_display_case_or_return(
-        "platform::display::tests::backend::test_display_linux_backend_capabilities_respect_ceiling_inventory",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_display_linux_backend_capabilities_respect_ceiling_inventory
+    )) {
         return;
     }
 
@@ -1952,9 +1952,9 @@ pub(super) fn test_display_linux_backend_capabilities_respect_ceiling_inventory(
 #[cfg(target_os = "linux")]
 #[cfg_attr(test, test)]
 pub(super) fn test_display_wayland_window_event_filter_accepts_scale_factor_kind() {
-    if run_display_case_or_return(
-        "platform::display::tests::backend::test_display_wayland_window_event_filter_accepts_scale_factor_kind",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_display_wayland_window_event_filter_accepts_scale_factor_kind
+    )) {
         return;
     }
 
@@ -1985,9 +1985,9 @@ pub(super) fn test_display_wayland_window_event_filter_accepts_scale_factor_kind
 #[cfg(target_os = "windows")]
 #[cfg_attr(test, test)]
 pub(super) fn test_display_win32_with_occlusion_capability_reports_unknown_visible_state() {
-    if run_display_case_or_return(
-        "platform::display::tests::backend::test_display_win32_with_occlusion_capability_reports_unknown_visible_state",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_display_win32_with_occlusion_capability_reports_unknown_visible_state
+    )) {
         return;
     }
 
@@ -2011,9 +2011,9 @@ pub(super) fn test_display_win32_with_occlusion_capability_reports_unknown_visib
 #[cfg(target_os = "windows")]
 #[cfg_attr(test, test)]
 pub(super) fn test_display_win32_capabilities_match_implemented_contract() {
-    if run_display_case_or_return(
-        "platform::display::tests::backend::test_display_win32_capabilities_match_implemented_contract",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_display_win32_capabilities_match_implemented_contract
+    )) {
         return;
     }
 
@@ -2157,9 +2157,9 @@ pub(super) fn test_display_win32_capabilities_match_implemented_contract() {
 #[cfg(target_os = "macos")]
 #[cfg_attr(test, test)]
 pub(super) fn test_display_appkit_capabilities_match_implemented_contract() {
-    if run_display_case_or_return(
-        "platform::display::tests::backend::test_display_appkit_capabilities_match_implemented_contract",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_display_appkit_capabilities_match_implemented_contract
+    )) {
         return;
     }
 

@@ -6,7 +6,7 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{
     ResourceAffinity, ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind, ResourceOwnership,
 };
-use crate::runtime::{ExecutionContext, ExecutionContextId, ExecutionContextId};
+use crate::runtime::{ExecutionContext, ExecutionContextId};
 
 /// Finalizer that records how many times one resource is finalized.
 struct CountingFinalizer {

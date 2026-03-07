@@ -19,7 +19,7 @@ fn test_on_before_binding_allows_hook_callback_deny() {
     let world = Arc::new(World::default());
     let agent =
         Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
-    let host = Host::from_runtime_options(&options);
+    let host = Host::from_runtime_options(&options, agent.runtime_id);
 
     // register one deny callback for matching binding names
     let callback_id =
@@ -57,7 +57,7 @@ fn test_on_before_binding_respects_hook_selector_binding_glob() {
     let world = Arc::new(World::default());
     let agent =
         Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
-    let host = Host::from_runtime_options(&options);
+    let host = Host::from_runtime_options(&options, agent.runtime_id);
 
     // register one deny callback with one non-matching binding pattern
     let callback_id = agent.hooks.on_before(
@@ -85,7 +85,7 @@ fn test_on_before_binding_dispatches_custom_effect_handler() {
     let world = Arc::new(World::default());
     let agent =
         Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
-    let host = Host::from_runtime_options(&options);
+    let host = Host::from_runtime_options(&options, agent.runtime_id);
 
     // install one custom-effect rule for one binding pattern
     world

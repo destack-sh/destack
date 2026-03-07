@@ -1,4 +1,7 @@
 #[cfg(any(unix, windows))]
+#[macro_use]
+mod registry;
+#[cfg(any(unix, windows))]
 pub(crate) mod affinity;
 #[cfg(any(unix, windows))]
 mod backend;

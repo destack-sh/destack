@@ -35,9 +35,9 @@ const DISPLAY_CAP_WINDOW_DROP_EVENTS: u64 =
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
 pub(super) fn test_display_monitor_surface_works_end_to_end() {
-    if run_display_case_or_return(
-        "platform::display::tests::basic::test_display_monitor_surface_works_end_to_end",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_display_monitor_surface_works_end_to_end
+    )) {
         return;
     }
 
@@ -121,9 +121,9 @@ pub(super) fn test_display_monitor_surface_works_end_to_end() {
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
 pub(super) fn test_display_window_surface_works_end_to_end() {
-    if run_display_case_or_return(
-        "platform::display::tests::basic::test_display_window_surface_works_end_to_end",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_display_window_surface_works_end_to_end
+    )) {
         return;
     }
 
@@ -171,9 +171,9 @@ pub(super) fn test_display_window_surface_works_end_to_end() {
 #[cfg(windows)]
 #[cfg_attr(test, test)]
 pub(super) fn test_display_backend_capabilities_match_win32_implementation() {
-    if run_display_case_or_return(
-        "platform::display::tests::basic::test_display_backend_capabilities_match_win32_implementation",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_display_backend_capabilities_match_win32_implementation
+    )) {
         return;
     }
 

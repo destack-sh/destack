@@ -15,12 +15,9 @@ pub mod runtime;
 #[cfg(not(feature = "generate_bindings"))]
 pub mod simulation;
 
-#[cfg(any(test, target_os = "macos"))]
-mod tests;
-
-#[cfg(target_os = "macos")]
+#[cfg(all(not(feature = "generate_bindings"), target_os = "macos"))]
 #[doc(hidden)]
-pub fn run_display_affinity_case(case_name: &str) {
-    // FUGU #Cleanup: move this helper bridge behind a cleaner internal affinity support surface
-    tests::affinity::run_display_main_thread_case(case_name);
-}
+pub mod tests;
+
+#[cfg(all(not(feature = "generate_bindings"), test, not(target_os = "macos")))]
+mod tests;

@@ -16,9 +16,9 @@ use crate::platform::display::{DisplayColorState, DisplayHdrMode};
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
 pub(super) fn test_monitor_closest_mode_returns_supported_mode() {
-    if run_display_case_or_return(
-        "platform::display::tests::monitor::test_monitor_closest_mode_returns_supported_mode",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_monitor_closest_mode_returns_supported_mode
+    )) {
         return;
     }
 
@@ -54,9 +54,9 @@ pub(super) fn test_monitor_closest_mode_returns_supported_mode() {
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
 pub(super) fn test_monitor_open_unknown_id_reports_not_found() {
-    if run_display_case_or_return(
-        "platform::display::tests::monitor::test_monitor_open_unknown_id_reports_not_found",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_monitor_open_unknown_id_reports_not_found
+    )) {
         return;
     }
 
@@ -83,9 +83,9 @@ pub(super) fn test_monitor_open_unknown_id_reports_not_found() {
 #[cfg(windows)]
 #[cfg_attr(test, test)]
 pub(super) fn test_monitor_descriptor_reports_orientation_and_capability_fields() {
-    if run_display_case_or_return(
-        "platform::display::tests::monitor::test_monitor_descriptor_reports_orientation_and_capability_fields",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_monitor_descriptor_reports_orientation_and_capability_fields
+    )) {
         return;
     }
 
@@ -118,9 +118,9 @@ pub(super) fn test_monitor_descriptor_reports_orientation_and_capability_fields(
 #[cfg(windows)]
 #[cfg_attr(test, test)]
 pub(super) fn test_monitor_color_state_and_hdr_mode_are_consistent() {
-    if run_display_case_or_return(
-        "platform::display::tests::monitor::test_monitor_color_state_and_hdr_mode_are_consistent",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_monitor_color_state_and_hdr_mode_are_consistent
+    )) {
         return;
     }
 
@@ -175,9 +175,7 @@ pub(super) fn test_monitor_color_state_and_hdr_mode_are_consistent() {
 #[cfg(windows)]
 #[cfg_attr(test, test)]
 pub(super) fn test_monitor_set_hdr_mode_system_is_noop() {
-    if run_display_case_or_return(
-        "platform::display::tests::monitor::test_monitor_set_hdr_mode_system_is_noop",
-    ) {
+    if run_display_case_or_return(display_case_name!(test_monitor_set_hdr_mode_system_is_noop)) {
         return;
     }
 
@@ -205,9 +203,9 @@ pub(super) fn test_monitor_set_hdr_mode_system_is_noop() {
 #[cfg(windows)]
 #[cfg_attr(test, test)]
 pub(super) fn test_monitor_gamma_ramp_lane_roundtrips_current_values() {
-    if run_display_case_or_return(
-        "platform::display::tests::monitor::test_monitor_gamma_ramp_lane_roundtrips_current_values",
-    ) {
+    if run_display_case_or_return(display_case_name!(
+        test_monitor_gamma_ramp_lane_roundtrips_current_values
+    )) {
         return;
     }
 
