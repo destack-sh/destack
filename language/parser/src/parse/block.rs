@@ -304,7 +304,7 @@ impl Parser {
         // parenthesized lambda heads keep statement mode
         if token_type == TokenType::OpenParenthesis && self.options.is_in_statement_position() {
             let open_index = self.pos_index();
-            if let Some(close_index) = self.matching_pair_or_lex(open_index) {
+            if let Some(close_index) = self.plain_parenthesized_lambda_close_index(open_index) {
                 let follow_index = self.next_non_newline_index_from(close_index + 1);
                 let follow_token_type = self.token_type_at(follow_index);
                 if matches!(
