@@ -625,15 +625,14 @@ impl Parser {
         let start = self.mark_span();
         let (strings, spans) = self.eat_template_literal_parts(false, |parser| {
             // reset outer precedence so interpolation unions parse fully
-            let interpolation_ambient_context = parser.options.with_type(true);
-            let interpolation_expression_context =
-                parser.options.not_in_position().not_in_left_precedence();
-            parser.eat_expression(
-                parser
-                    .options
-                    .with_ambient_context(interpolation_ambient_context)
-                    .with_expression_context(interpolation_expression_context),
-            )
+            let interpolation_options = parser
+                .options
+                .not_in_position()
+                .not_in_left_precedence()
+                .in_type();
+            parser.with_options(interpolation_options, |parser| {
+                parser.eat_expression(parser.options)
+            })
         })?;
 
         let expression = Expression::TypeTemplateLiteral { strings, spans };
@@ -825,13 +824,10 @@ impl Parser {
         let elements = if self.peek_is(TokenType::CloseBracket) {
             vec![]
         } else {
-            let element_expression_context =
-                self.options.not_in_position().not_in_left_precedence();
-            self.with_options(
-                self.options
-                    .with_expression_context(element_expression_context),
-                |parser| parser.eat_sequence_literal_body(None, TokenType::CloseBracket),
-            )?
+            let element_options = self.options.not_in_position().not_in_left_precedence();
+            self.with_options(element_options, |parser| {
+                parser.eat_sequence_literal_body(None, TokenType::CloseBracket)
+            })?
         };
         self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseBracket)?;
@@ -852,8 +848,8 @@ impl Parser {
         // track whether we expect an element (at start or after comma)
         let mut expect_element = first_element.is_none();
         while self.has_more_tokens() {
-            self.eat_newlines_maybe()?;
-            let token_type = self.peek_token_type();
+            let cursor = self.advance_to_scanner_cursor();
+            let token_type = cursor.token_type;
 
             // stop at the closing token (trailing commas are allowed, no hole)
             if token_type == close_token {
@@ -910,11 +906,9 @@ impl Parser {
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
         // object literal properties are always expression properties, not variant members
-        let property_ambient_context = self.options.with_variant(false);
-        let properties = self.with_options(
-            self.options.with_ambient_context(property_ambient_context),
-            |parser| parser.eat_properties(),
-        )?;
+        let mut property_options = self.options;
+        property_options.set_in_variant(false);
+        let properties = self.with_options(property_options, |parser| parser.eat_properties())?;
 
         // JS/TS object shorthand only supports identifier names
         if (self.language.is_javascript() || self.language.is_typescript())
@@ -1259,11 +1253,8 @@ impl Parser {
         let static_arguments = if path.is_some()
             && (self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft))
         {
-            let static_ambient_context = self.options.with_tree_literal(false);
-            Some(self.with_options(
-                self.options.with_ambient_context(static_ambient_context),
-                |parser| parser.eat_static_arguments(),
-            )?)
+            let static_options = self.options.not_in_tree_literal();
+            Some(self.with_options(static_options, |parser| parser.eat_static_arguments())?)
         } else {
             None
         };
@@ -1284,14 +1275,10 @@ impl Parser {
                     if self.peek_is(TokenType::Divide) || self.peek_is(TokenType::GreaterThan) {
                         break;
                     }
-                    let argument_ambient_context = self.options.with_tree_literal(true);
-                    let argument_expression_context = self.options.not_in_position();
-                    let argument = self.with_options(
-                        self.options
-                            .with_ambient_context(argument_ambient_context)
-                            .with_expression_context(argument_expression_context),
-                        |parser| parser.eat_tree_literal_argument(),
-                    )?;
+                    let argument_options = self.options.not_in_position().in_tree_literal();
+                    let argument = self.with_options(argument_options, |parser| {
+                        parser.eat_tree_literal_argument()
+                    })?;
                     arguments.push(argument);
                     self.eat_newlines_maybe()?;
                 }
@@ -1372,15 +1359,13 @@ impl Parser {
 
                     // keep eating child elements
                     // NOTE #Robustness: uses statement position so {expr} parses as block (expression container)
-                    let element_ambient_context = self.options.with_tree_literal(true);
-                    let element_expression_context =
-                        self.options.not_in_position().with_statement_position(true);
-                    let element = self.with_options(
-                        self.options
-                            .with_ambient_context(element_ambient_context)
-                            .with_expression_context(element_expression_context),
-                        |parser| parser.eat_tree_argument(),
-                    )?;
+                    let element_options = self
+                        .options
+                        .not_in_position()
+                        .in_tree_literal()
+                        .in_statement_position();
+                    let element =
+                        self.with_options(element_options, |parser| parser.eat_tree_argument())?;
                     elements.push(element);
                     self.skip_tree_whitespace()?; // skip whitespace-only tree content
                 }
