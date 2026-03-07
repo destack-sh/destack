@@ -1,3 +1,5 @@
+#![cfg_attr(not(test), allow(dead_code))]
+
 use destack_base::LocalStringPool;
 use destack_mir::NodeTree;
 use destack_vm as vm;
@@ -76,7 +78,7 @@ impl TestRuntime {
         let world = World::from_options(&options).expect("runtime test world should build");
         let agent = Agent::new_in_world(Vec::new(), &options, &world)
             .expect("runtime test agent should build");
-        let host = Host::from_runtime_options(&options);
+        let host = Host::from_runtime_options(&options, agent.runtime_id);
 
         let tree = NodeTree::new();
         let strings = LocalStringPool::new().into_immutable();
@@ -106,7 +108,13 @@ impl TestRuntime {
         let event_loop = self.agent.event_loop.as_ref() as *const _;
         let host = &self.host as *const Host;
         let world = self.world.as_ref() as *const World;
-        let _agent_guard = enter_current_agent_context(runtime, event_loop, host, world);
+        let _agent_guard = enter_current_agent_context(
+            runtime,
+            event_loop,
+            host,
+            world,
+            self.host.is_process_main_context(),
+        );
 
         // enter a native call context for the binding
         let call_context = BindingCallContext::new(
@@ -131,7 +139,13 @@ impl TestRuntime {
         let event_loop = self.agent.event_loop.as_ref() as *const _;
         let host = &self.host as *const Host;
         let world = self.world.as_ref() as *const World;
-        let _agent_guard = enter_current_agent_context(runtime, event_loop, host, world);
+        let _agent_guard = enter_current_agent_context(
+            runtime,
+            event_loop,
+            host,
+            world,
+            self.host.is_process_main_context(),
+        );
 
         // run the VM call with a fresh runtime call context
         let mut isolate = self.vm_isolate.borrow_mut();

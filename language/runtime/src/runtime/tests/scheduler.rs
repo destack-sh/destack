@@ -825,7 +825,7 @@ fn test_virtual_sleep_binding_fails_loudly() {
     };
     let world = World::from_options(&options).expect("world");
     let agent = Agent::new_in_world(Vec::new(), &options, &world).expect("agent should build");
-    let host = Host::from_runtime_options(&options);
+    let host = Host::from_runtime_options(&options, agent.runtime_id);
     let binding = BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world);
     let wall_before = binding.wall_nanos();
 

@@ -15,6 +15,7 @@ use crate::runtime::policy::{
     Effect, Fault, FaultTarget, FaultType, Hook, Policy, Rule, RuleId, Trigger,
 };
 use crate::runtime::time::WorldInstant;
+use crate::runtime::world::RuntimeId;
 use crate::runtime::{
     Agent, BindingCallContext, BranchId, CheckpointId, World, WorldCommand, WorldEdge,
     WorldEdgeKindDefinition, WorldEntity, WorldEntityKindDefinition,
@@ -129,7 +130,7 @@ fn test_agent_world_control_update_refreshes_policy() {
     let world = Arc::new(World::default());
     let agent =
         Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
-    let host = Host::from_runtime_options(&options);
+    let host = Host::from_runtime_options(&options, agent.runtime_id);
     let descriptor = BindingDescriptor::pure("destack.test.live.policy", "()");
 
     // baseline policy should allow the call
@@ -171,7 +172,7 @@ fn test_agent_world_control_update_refreshes_hooks() {
     let world = Arc::new(World::default());
     let agent =
         Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
-    let host = Host::from_runtime_options(&options);
+    let host = Host::from_runtime_options(&options, agent.runtime_id);
     let descriptor = BindingDescriptor::pure("destack.test.live.hooks", "()");
 
     // install one hook-bearing fault rule in the shared world
@@ -225,8 +226,8 @@ fn test_agent_world_control_agent_selector() {
         .expect("agent should construct in world");
     let mut agent_b = Agent::new_in_world(Vec::new(), &options_b, &world)
         .expect("agent should construct in world");
-    let host_a = Host::from_runtime_options(&options_a);
-    let host_b = Host::from_runtime_options(&options_b);
+    let host_a = Host::from_runtime_options(&options_a, RuntimeId(1));
+    let host_b = Host::from_runtime_options(&options_b, RuntimeId(2));
 
     // install one scheduler hook rule scoped to agent_a
     world
@@ -291,7 +292,7 @@ fn test_world_apply_policy_command_updates_rules() {
     let world = Arc::new(World::default());
     let agent =
         Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
-    let host = Host::from_runtime_options(&options);
+    let host = Host::from_runtime_options(&options, agent.runtime_id);
     let descriptor = BindingDescriptor::pure("destack.test.program.policy", "()");
 
     // install one deny rule through one world command
@@ -481,7 +482,7 @@ fn test_world_remove_agent_cleans_topology() {
     let agent =
         Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
     let agent_id = agent.id;
-    let host = Host::from_runtime_options(&options);
+    let host = Host::from_runtime_options(&options, agent.runtime_id);
     let descriptor = BindingDescriptor::pure("destack.test.removed.agent", "()");
 
     // binding checks should work before removal

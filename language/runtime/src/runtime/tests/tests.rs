@@ -587,7 +587,7 @@ fn agent_for_options_with_host_clock_source(
     agent.bindings.apply_runtime_defaults(options);
 
     // build the host for this test agent
-    let host = Host::from_runtime_options(options);
+    let host = Host::from_runtime_options(options, agent.runtime_id);
 
     // drain initial host bootstrap events for deterministic scheduler tests
     host.poll_events(Some(0))

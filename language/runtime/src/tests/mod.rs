@@ -1,9 +1,10 @@
+#[cfg(target_os = "macos")]
+pub mod affinity;
+#[cfg(not(target_os = "macos"))]
 pub(crate) mod affinity;
 #[cfg(test)]
 mod bindings;
-// FUGU #Cleanup: remove this once the affinity helper no longer needs non-test access to shared helpers
-#[cfg_attr(not(test), allow(dead_code))]
+#[cfg(any(test, target_os = "macos"))]
 pub(crate) mod platform;
-// FUGU #Cleanup: remove this once the affinity helper no longer needs non-test access to shared helpers
-#[cfg_attr(not(test), allow(dead_code))]
+#[cfg(any(test, target_os = "macos"))]
 pub(crate) mod runtime;

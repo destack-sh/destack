@@ -1,4 +1,4 @@
-use destack_runtime::run_display_affinity_case;
+use destack_runtime::tests::affinity::run_display_main_thread_case;
 
 /// Run one named affinity-sensitive display test case on the process main thread.
 fn main() {
@@ -14,7 +14,10 @@ fn main() {
         }
     }
 
-    let case_name = case_name.expect("missing --case argument");
+    // allow cargo test to execute this harness-free target without helper arguments
+    let Some(case_name) = case_name else {
+        return;
+    };
 
-    run_display_affinity_case(case_name.as_str());
+    run_display_main_thread_case(case_name.as_str());
 }
