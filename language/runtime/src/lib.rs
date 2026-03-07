@@ -15,9 +15,9 @@ pub mod runtime;
 #[cfg(not(feature = "generate_bindings"))]
 pub mod simulation;
 
-#[cfg(all(not(feature = "generate_bindings"), target_os = "macos"))]
+#[cfg(all(not(feature = "generate_bindings"), feature = "affinity"))]
 #[doc(hidden)]
 pub mod tests;
 
-#[cfg(all(not(feature = "generate_bindings"), test, not(target_os = "macos")))]
+#[cfg(all(not(feature = "generate_bindings"), test, not(feature = "affinity")))]
 mod tests;

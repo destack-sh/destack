@@ -22,7 +22,7 @@ _run-rust-test *args:
     # provide the AppKit affinity helper explicitly on macOS
     if [ "$(uname -s)" = "Darwin" ]; then
         export DESTACK_RUNTIME_AFFINITY_HELPER="$({
-            CARGO_INCREMENTAL=0 cargo test -p destack_runtime --test runtime_affinity --no-run --message-format=json             | python3 -c 'import json, sys; messages = (json.loads(line) for line in sys.stdin if line.lstrip().startswith("{")); executables = (message.get("executable") for message in messages if message.get("reason") == "compiler-artifact" and message.get("target", {}).get("name") == "runtime_affinity" and message.get("executable")); executable = next(executables, None); print(executable) if executable else (_ for _ in ()).throw(SystemExit("failed to resolve runtime_affinity helper executable"))'
+            CARGO_INCREMENTAL=0 cargo test -p destack_runtime --features affinity --test runtime_affinity --no-run --message-format=json             | python3 -c 'import json, sys; messages = (json.loads(line) for line in sys.stdin if line.lstrip().startswith("{")); executables = (message.get("executable") for message in messages if message.get("reason") == "compiler-artifact" and message.get("target", {}).get("name") == "runtime_affinity" and message.get("executable")); executable = next(executables, None); print(executable) if executable else (_ for _ in ()).throw(SystemExit("failed to resolve runtime_affinity helper executable"))'
         })"
     fi
 

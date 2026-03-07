@@ -1,18 +1,24 @@
-use std::path::PathBuf;
-use std::process::Command;
 #[cfg(target_os = "macos")]
+use std::path::PathBuf;
+#[cfg(target_os = "macos")]
+use std::process::Command;
+#[cfg(feature = "affinity")]
 use std::{panic, thread};
 
-#[cfg(target_os = "macos")]
+#[cfg(feature = "affinity")]
 use crate::host::apple::message as apple_host_message;
-use crate::platform::display::tests::affinity as display_affinity_tests;
+#[cfg(feature = "affinity")]
+use crate::tests::{platform as platform_tests, runtime as runtime_tests};
 
 /// Environment marker for subprocess affinity execution.
+#[cfg(target_os = "macos")]
 const AFFINITY_CHILD_ENV: &str = "DESTACK_RUNTIME_AFFINITY_CHILD";
 /// Environment key for one explicit affinity helper executable path.
+#[cfg(target_os = "macos")]
 const AFFINITY_HELPER_ENV: &str = "DESTACK_RUNTIME_AFFINITY_HELPER";
 
 /// Run one main-thread-sensitive test case through one child helper process when needed.
+#[cfg(target_os = "macos")]
 pub(crate) fn run_main_thread_case_or_return(case_name: &str) -> bool {
     // the child process already owns the correct thread
     if std::env::var_os(AFFINITY_CHILD_ENV).is_some() {
@@ -39,23 +45,20 @@ pub(crate) fn run_main_thread_case_or_return(case_name: &str) -> bool {
     true
 }
 
-/// Run one affinity-sensitive display case on the correct process thread.
-pub fn run_display_main_thread_case(case_name: &str) {
-    #[cfg(target_os = "macos")]
-    {
-        let case_name = case_name.to_string();
-        run_with_apple_main_thread_service(move || {
-            display_affinity_tests::run_case(case_name.as_str());
-        });
-    }
+/// Run one registered affinity-sensitive test case on the correct process thread.
+#[cfg(feature = "affinity")]
+pub fn run_affinity_case(case_name: &str) {
+    let case_name = case_name.to_string();
+    run_with_apple_main_thread_service(move || {
+        let handled = platform_tests::run_affinity_case(case_name.as_str())
+            || runtime_tests::run_affinity_case(case_name.as_str());
 
-    #[cfg(not(target_os = "macos"))]
-    {
-        display_affinity_tests::run_case(case_name);
-    }
+        assert!(handled, "unknown affinity case: {case_name}");
+    });
 }
 
 /// Resolve the runtime affinity helper from one explicit runner-provided path.
+#[cfg(target_os = "macos")]
 fn affinity_helper_executable() -> PathBuf {
     // prefer the exact helper path provided by the outer test runner
     if let Some(path) = std::env::var_os(AFFINITY_HELPER_ENV) {
@@ -89,7 +92,7 @@ fn affinity_helper_executable() -> PathBuf {
 }
 
 /// Run one Apple-affine case while the main thread continuously services the run loop.
-#[cfg(target_os = "macos")]
+#[cfg(feature = "affinity")]
 pub(crate) fn run_with_apple_main_thread_service(run: impl FnOnce() + Send + 'static) {
     let worker = thread::spawn(run);
 

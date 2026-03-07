@@ -1,4 +1,5 @@
 /// Return one named display affinity case entry.
+#[cfg(feature = "affinity")]
 macro_rules! display_affinity_case {
     ($module:ident, $case:ident) => {
         DisplayAffinityCase {
@@ -14,6 +15,7 @@ macro_rules! display_affinity_case {
 }
 
 /// Return the complete affinity-sensitive display case slice.
+#[cfg(feature = "affinity")]
 macro_rules! display_affinity_cases {
     () => {
         &[
@@ -40,6 +42,7 @@ macro_rules! display_affinity_cases {
                 backend,
                 test_display_window_remaining_surface_calls_follow_backend_contract
             ),
+            #[cfg(any(target_os = "linux", target_os = "macos"))]
             display_affinity_case!(
                 backend,
                 test_display_backend_identity_tracks_strict_backend_selection

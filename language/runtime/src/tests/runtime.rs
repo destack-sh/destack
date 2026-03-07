@@ -287,3 +287,9 @@ impl TestRuntime {
         }
     }
 }
+
+/// Run one registered runtime affinity case.
+#[cfg(feature = "affinity")]
+pub(crate) fn run_affinity_case(_case_name: &str) -> bool {
+    false
+}

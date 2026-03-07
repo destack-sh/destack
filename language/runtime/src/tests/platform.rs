@@ -3,6 +3,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
+#[cfg(feature = "affinity")]
+use crate::platform::display::tests::affinity as display_affinity_tests;
 
 /// Extract one platform error code from one failed runtime result.
 pub(crate) fn error_code_from_result<T>(
@@ -195,4 +197,14 @@ fn is_permission_denied_code(code: PlatformErrorCode) -> bool {
             | PlatformErrorCode::ProcessPermissionDenied
             | PlatformErrorCode::SecurityDenied
     )
+}
+
+/// Run one registered platform affinity case.
+#[cfg(feature = "affinity")]
+pub(crate) fn run_affinity_case(case_name: &str) -> bool {
+    if display_affinity_tests::run_affinity_case(case_name) {
+        return true;
+    }
+
+    false
 }
