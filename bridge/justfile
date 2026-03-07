@@ -45,7 +45,7 @@ check:
     bun x tsc --noEmit -p napi/tsconfig.json
     bun x tsc --noEmit -p wasm/tsconfig.json
     bun x tsc -p typescript/tsconfig.json
-    bun run biome lint napi wasm typescript
+    bun x biome lint napi wasm typescript
 
 # build all bridge packages
 build:
@@ -81,12 +81,12 @@ wasm-size:
 # format code
 format:
     cargo fmt {{ format-packages }}
-    bun run biome format --write napi wasm typescript
+    bun x biome format --write napi wasm typescript
 
 # check formatting
 format-check:
     cargo fmt --check {{ format-packages }}
-    bun run biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false napi wasm typescript
+    bun x biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false napi wasm typescript
 
 # alias for format
 alias fmt := format

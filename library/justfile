@@ -7,7 +7,7 @@ _default:
 
 # run library static checks
 check:
-    bun run biome lint .
+    bun x biome lint .
 
 # run the library test aggregate
 test:
@@ -25,11 +25,11 @@ full:
 
 # format code
 format:
-    bun run biome format --write .
+    bun x biome format --write .
 
 # check formatting
 format-check:
-    bun run biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false .
+    bun x biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false .
 
 # alias for format
 alias fmt := format

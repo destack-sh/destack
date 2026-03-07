@@ -61,15 +61,12 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust and just
-        uses: ./.github/actions/setup-rust-just
+      - name: Install Rust Bun Node and just
+        uses: ./.github/actions/setup-rust-bun-just
 
-      - name: Install Package Managers
+      - name: Check Package Managers
         shell: bash
         run: |
-          node --version
-          npm --version
-          corepack enable
           corepack pnpm --version
           corepack yarn --version
 
