@@ -1,5 +1,4 @@
 use super::annotation::PendingDecorators;
-use crate::parse::parser::ParserOptions;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
@@ -10,14 +9,6 @@ use destack_ast::{
 use destack_source::Span;
 
 impl Parser {
-    /// Return parser contexts for enum members.
-    #[inline]
-    fn enum_member_contexts(&self) -> (ParserOptions, ParserOptions) {
-        let ambient_context = self.options.nested().with_variant(true);
-        let expression_context = self.options.nested();
-        (ambient_context, expression_context)
-    }
-
     /// Eat an enum declaration.
     ///
     /// Examples:
@@ -126,8 +117,8 @@ impl Parser {
         let mut pending_decorators = PendingDecorators::new();
 
         while self.has_more_tokens() {
-            self.eat_newlines_maybe()?;
-            let token_type = self.peek_token_type();
+            let cursor = self.advance_to_scanner_cursor();
+            let token_type = cursor.token_type;
 
             // stop on closing brace
             if token_type == TokenType::CloseBrace {
@@ -140,7 +131,7 @@ impl Parser {
                 break;
             }
             // consume any stop
-            else if Self::is_any_stop_token(token_type) {
+            else if self.is_any_stop() {
                 self.eat_any_stop_with_newlines()?;
             }
             // consume decorator prefixes
@@ -158,14 +149,10 @@ impl Parser {
             }
             // (static) members
             else {
-                let (member_ambient_context, member_expression_context) =
-                    self.enum_member_contexts();
-                let member_result = self.with_options(
-                    self.options
-                        .with_ambient_context(member_ambient_context)
-                        .with_expression_context(member_expression_context),
-                    |parser| parser.try_eat_member(TokenType::Newline),
-                )?;
+                let member_options = self.options.nested().in_variant();
+                let member_result = self.with_options(member_options, |parser| {
+                    parser.try_eat_member(TokenType::Newline)
+                })?;
                 let member_id = member_result;
                 if !pending_decorators.is_empty() {
                     self.attach_decorators(member_id.id, std::mem::take(&mut pending_decorators));
@@ -201,9 +188,8 @@ impl Parser {
         // optional `= <expr>` value
         let value = if self.peek_is(TokenType::Assign) {
             self.eat_token(TokenType::Assign)?;
-            let value = self.eat_expression_with_context_unchecked(
-                self.options.not_in_position().not_in_sequence_expression(),
-            )?;
+            let value =
+                self.eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
             Some(value)
         } else {
             None

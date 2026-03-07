@@ -53,10 +53,8 @@ impl Parser {
 
                 // no pattern or catch match
                 if self.is_block_start() || self.is_keyword(Keyword::Match) {
-                    let catch_expression = self
-                        .with_options(self.options.not_in_position(), |parser| {
-                            parser.eat_statement_expression()
-                        })?;
+                    let catch_expression =
+                        self.eat_statement_expression_with_options(self.options.not_in_position())?;
                     (None, None, Some(catch_expression))
                 }
                 // catch pattern with expression content
@@ -112,10 +110,8 @@ impl Parser {
                         (catch_pattern, catch_ty)
                     };
 
-                    let catch_expression = self
-                        .with_options(self.options.not_in_position(), |parser| {
-                            parser.eat_statement_expression()
-                        })?;
+                    let catch_expression =
+                        self.eat_statement_expression_with_options(self.options.not_in_position())?;
                     (Some(catch_pattern), catch_ty, Some(catch_expression))
                 }
             } else {
@@ -127,10 +123,8 @@ impl Parser {
             let finally_expression = if self.is_keyword(Keyword::Finally) {
                 self.bump(); // eat keyword
                 self.eat_newlines_maybe()?;
-                let finally_expression = self
-                    .with_options(self.options.not_in_position(), |parser| {
-                        parser.eat_statement_expression()
-                    })?;
+                let finally_expression =
+                    self.eat_statement_expression_with_options(self.options.not_in_position())?;
                 Some(finally_expression)
             } else {
                 None
