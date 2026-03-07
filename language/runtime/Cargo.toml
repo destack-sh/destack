@@ -14,6 +14,7 @@ doctest = false
 [features]
 default = ["replay", "audio-backends-default"]
 replay = []
+affinity = []
 audio-backends-default = [
     "audio-wasapi",
     "audio-asio",
@@ -49,6 +50,7 @@ required-features = ["generate_bindings"]
 name = "runtime_affinity"
 path = "src/tests/main.rs"
 harness = false
+required-features = ["affinity"]
 
 [dependencies]
 # language

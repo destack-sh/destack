@@ -31,18 +31,32 @@ if command -v rustup >/dev/null 2>&1; then
 fi
 
 run_ios_command() {
-	LC_ALL=C \
+	local sdk_flags
+
+	sdk_flags="-isysroot ${sdk_path} -miphoneos-version-min=${deployment_target}"
+
+	env \
+		LC_ALL=C \
 		LANG=C \
 		LC_CTYPE=C \
 		CARGO_INCREMENTAL=0 \
 		CARGO_TARGET_AARCH64_APPLE_IOS_LINKER="${clang_path}" \
 		CC_aarch64_apple_ios="${clang_path}" \
+		CXX_aarch64_apple_ios="${clang_path}" \
 		AR_aarch64_apple_ios="${archiver_path}" \
 		RANLIB_aarch64_apple_ios="${ranlib_path}" \
+		"CC_aarch64-apple-ios=${clang_path}" \
+		"CXX_aarch64-apple-ios=${clang_path}" \
+		"AR_aarch64-apple-ios=${archiver_path}" \
+		"RANLIB_aarch64-apple-ios=${ranlib_path}" \
 		CROSS_TOP="${cross_top}" \
 		CROSS_SDK="${cross_sdk}" \
-		CFLAGS="-isysroot ${sdk_path} -miphoneos-version-min=${deployment_target}" \
-		CXXFLAGS="-isysroot ${sdk_path} -miphoneos-version-min=${deployment_target}" \
+		CFLAGS="${sdk_flags}" \
+		CXXFLAGS="${sdk_flags}" \
+		CFLAGS_aarch64_apple_ios="${sdk_flags}" \
+		CXXFLAGS_aarch64_apple_ios="${sdk_flags}" \
+		"CFLAGS_aarch64-apple-ios=${sdk_flags}" \
+		"CXXFLAGS_aarch64-apple-ios=${sdk_flags}" \
 		SDKROOT="${sdk_path}" \
 		IPHONEOS_DEPLOYMENT_TARGET="${deployment_target}" \
 		"$@"
