@@ -1820,11 +1820,13 @@ impl Parser {
         let statement_id = self.tree.insert(Expression::Statement(expression_id), span);
 
         // semantic annotations on statement expressions must follow the statement owner
-        let _moved = self.tree.move_annotations_if(
-            expression_id.id,
-            statement_id.id,
-            |_annotation_id, _annotation, _annotation_span| true,
-        );
+        if self.tree.has_annotations(expression_id.id) {
+            let _moved = self.tree.move_annotations_if(
+                expression_id.id,
+                statement_id.id,
+                |_annotation_id, _annotation, _annotation_span| true,
+            );
+        }
 
         statement_id
     }
