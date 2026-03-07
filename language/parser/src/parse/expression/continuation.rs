@@ -1,4 +1,3 @@
-use crate::parse::parser::NonNewlineTokenCursor;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
@@ -149,34 +148,27 @@ impl Parser {
             }
             // eat all regular postfix operators
             loop {
-                // load the raw token first and only normalize across newlines when needed
-                let mut token_type = self.peek_token_type();
+                // load scanner state for this postfix step
+                let cursor = self.current_scanner_cursor();
+                let token_type = cursor.token_type;
                 if token_type == TokenType::End {
                     break;
                 }
 
-                let mut cursor_index = self.pos_index();
-                let mut has_pending_newline_tokens = false;
-                let mut has_line_break_before = self.line_terminator_before_index(cursor_index);
-                if token_type == TokenType::Newline {
-                    let cursor = self.scanner_cursor_from(cursor_index);
-                    token_type = cursor.token_type;
-                    if token_type == TokenType::End {
-                        break;
-                    }
+                let cursor_index = cursor.index;
+                let has_pending_newline_tokens = cursor_index != self.pos_index();
+                let has_line_break_before = cursor.has_line_break_before;
 
-                    cursor_index = cursor.index;
-                    has_pending_newline_tokens = true;
-                    has_line_break_before = cursor.has_line_break_before;
-
-                    if !matches!(
+                // most postfix operators are not allowed across newline tokens
+                if has_pending_newline_tokens
+                    && !matches!(
                         token_type,
                         TokenType::OpenParenthesis | TokenType::Dot | TokenType::Maybe
-                    ) && !(matches!(token_type, TokenType::LessThan | TokenType::ShiftLeft)
+                    )
+                    && !(matches!(token_type, TokenType::LessThan | TokenType::ShiftLeft)
                         && !is_in_type)
-                    {
-                        break;
-                    }
+                {
+                    break;
                 }
 
                 // stop before ternary or switch case boundary so postfix parsing does not consume ':'
@@ -256,15 +248,11 @@ impl Parser {
 
                     // dot driven continuations
                     TokenType::Dot => {
-                        if has_pending_newline_tokens {
-                            self.advance_to(cursor_index);
-                        }
-
-                        let dot_index = self.pos_index();
-                        let next_raw_index = dot_index.saturating_add(1);
-                        let next_token_type = self.token_type_at(next_raw_index);
-                        let next_cursor = self.scanner_cursor_from(next_raw_index);
-                        let next_token_type_after_newlines = next_cursor.token_type;
+                        let next_token_type = self.token_type_at(cursor_index.saturating_add(1));
+                        let next_index_after_newlines =
+                            self.first_non_newline_index_from(cursor_index.saturating_add(1));
+                        let next_token_type_after_newlines =
+                            self.token_type_at(next_index_after_newlines);
 
                         if next_token_type_after_newlines == TokenType::OpenParenthesis {
                             if is_in_type {
@@ -273,6 +261,9 @@ impl Parser {
 
                             let _call_timing =
                                 self.timing_scope(tags::PARSE_EXPRESSION_POSTFIX_CALL);
+                            if has_pending_newline_tokens {
+                                self.advance_to(cursor_index);
+                            }
                             self.bump(); // eat .
                             self.eat_newlines_maybe()?;
                             left_expression_id =
@@ -281,6 +272,9 @@ impl Parser {
                         }
 
                         if next_token_type_after_newlines == TokenType::OpenBracket {
+                            if has_pending_newline_tokens {
+                                self.advance_to(cursor_index);
+                            }
                             self.bump(); // eat .
                             self.eat_newlines_maybe()?;
                             left_expression_id =
@@ -291,6 +285,10 @@ impl Parser {
                         if next_token_type == TokenType::Maybe {
                             if is_in_type {
                                 break;
+                            }
+
+                            if has_pending_newline_tokens {
+                                self.advance_to(cursor_index);
                             }
 
                             self.bump(); // eat .
@@ -306,6 +304,10 @@ impl Parser {
                         }
 
                         if next_token_type == TokenType::Not {
+                            if has_pending_newline_tokens {
+                                self.advance_to(cursor_index);
+                            }
+
                             self.bump(); // eat .
                             self.bump(); // eat !
                             left_expression_id = self.tree.insert(
@@ -318,11 +320,9 @@ impl Parser {
                             continue;
                         }
 
-                        let Some((member_index, is_private_member)) = self.peek_dot_member_target(
-                            cursor_index,
-                            next_cursor,
-                            left_expression_id,
-                        ) else {
+                        let Some((member_index, is_private_member)) =
+                            self.peek_dot_member_target(cursor_index, left_expression_id)
+                        else {
                             break;
                         };
 
@@ -330,6 +330,10 @@ impl Parser {
                             .saturating_sub(self.pos_index())
                             .saturating_add(1);
                         let member_distance = u8::try_from(member_distance).unwrap_or(u8::MAX);
+
+                        if has_pending_newline_tokens {
+                            self.advance_to(cursor_index);
+                        }
 
                         self.bump(); // eat .
                         if self.pos_index() != member_index {
@@ -380,10 +384,6 @@ impl Parser {
                             break;
                         }
 
-                        if has_pending_newline_tokens {
-                            self.advance_to(cursor_index);
-                        }
-
                         left_expression_id =
                             self.eat_index(left_expression_id, PostfixPosition::Direct)?;
                     }
@@ -419,11 +419,6 @@ impl Parser {
 
                     // type unary postfix operators
                     TokenType::Identifier | TokenType::Maybe => {
-                        if has_pending_newline_tokens {
-                            self.advance_to(cursor_index);
-                            token_type = self.peek_token_type();
-                        }
-
                         if let Some(operator) = self.peek_type_unary_postfix_operator_maybe() {
                             let operator_start = self.mark_span();
                             self.bump(); // eat type unary operator
@@ -456,6 +451,9 @@ impl Parser {
                             None
                         };
                         let is_type_conditional = type_conditional_operands.is_some();
+                        if has_pending_newline_tokens {
+                            self.advance_to(cursor_index);
+                        }
                         let is_direct_current_maybe = self.peek_is(TokenType::Maybe);
                         let is_indirect_current_maybe = !is_direct_current_maybe
                             && self.peek_is(TokenType::Dot)
@@ -504,27 +502,22 @@ impl Parser {
                         let Some((left, right)) = type_conditional_operands else {
                             break;
                         };
-                        let then_ambient_context = self.options.with_type(true);
-                        let then_expression_context =
-                            self.options.not_in_position().in_ternary_condition();
-                        let then_expression_id = self.eat_expression(
-                            self.options
-                                .with_ambient_context(then_ambient_context)
-                                .with_expression_context(then_expression_context),
-                        )?;
+                        let then_options = self
+                            .options
+                            .not_in_position()
+                            .in_type()
+                            .in_ternary_condition();
+                        let then_expression_id =
+                            self.eat_expression_with_options_unchecked(then_options)?;
                         self.eat_newlines_maybe()?;
                         self.eat_colon()?;
                         self.eat_newlines_maybe()?;
-                        let mut else_expression_context = self.options.not_in_position();
+                        let mut else_options = self.options.not_in_position().in_type();
                         if self.options.is_in_type_conditional_right() {
-                            else_expression_context =
-                                else_expression_context.in_type_conditional_right();
+                            else_options = else_options.in_type_conditional_right();
                         }
-                        let else_expression_id = self.eat_expression(
-                            self.options
-                                .with_type(true)
-                                .with_expression_context(else_expression_context),
-                        )?;
+                        let else_expression_id =
+                            self.eat_expression_with_options_unchecked(else_options)?;
                         let expression = Expression::TypeConditional {
                             left,
                             right,
@@ -559,16 +552,16 @@ impl Parser {
                                 },
                                 self.get_span_from(start),
                             );
+                            let tuple_options = self.options.not_in_position();
                             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
                                 speculation_stats.with_options_calls += 1;
                             }
-                            let tuple_elements =
-                                self.with_options(self.options.not_in_position(), |parser| {
-                                    parser.eat_sequence_literal_body(
-                                        Some(first_element_id),
-                                        TokenType::CloseParenthesis,
-                                    )
-                                })?;
+                            let old_options = self.swap_options(tuple_options);
+                            let tuple_elements = self.eat_sequence_literal_body(
+                                Some(first_element_id),
+                                TokenType::CloseParenthesis,
+                            )?;
+                            self.restore_options(old_options);
                             left_expression_id = self.tree.insert(
                                 Expression::TupleExpression {
                                     elements: tuple_elements,
@@ -587,7 +580,7 @@ impl Parser {
                                 let expression_options =
                                     self.options.not_in_position().not_in_sequence_expression();
                                 let expr_id =
-                                    self.eat_expression_with_context_unchecked(expression_options)?;
+                                    self.eat_expression_with_options_unchecked(expression_options)?;
                                 expressions.push(expr_id);
                                 self.eat_newlines_maybe()?;
                             }
@@ -624,28 +617,17 @@ impl Parser {
             let _timing = self.timing_scope(tags::PARSE_EXPRESSION_INFIX);
             let left_precedence = self.options.left_precedence;
             loop {
-                // infix parsing only needs newline normalization when the raw token is newline
-                let mut token_type = self.peek_token_type();
+                let cursor = self.current_scanner_cursor();
+                let token_type = cursor.token_type;
                 if token_type == TokenType::End {
                     break;
                 }
 
-                let mut cursor_index = self.pos_index();
-                let mut newline_count = 0;
-                let mut has_line_break_before = self.line_terminator_before_index(cursor_index);
-                let mut has_pending_newline_tokens = false;
-                if token_type == TokenType::Newline {
-                    let cursor = self.scanner_cursor_from(cursor_index);
-                    token_type = cursor.token_type;
-                    if token_type == TokenType::End {
-                        break;
-                    }
-
-                    cursor_index = cursor.index;
-                    newline_count = cursor.skipped_newline_count;
-                    has_line_break_before = cursor.has_line_break_before;
-                    has_pending_newline_tokens = true;
-                }
+                // load cursor details once per infix iteration
+                let cursor_index = cursor.index;
+                let newline_count = cursor.skipped_newline_count;
+                let has_line_break_before = cursor.has_line_break_before;
+                let has_pending_newline_tokens = cursor_index != self.pos_index();
 
                 // new receivers stop before type argument delimiters at top-level receiver scope
                 if self.options.is_in_new_receiver()
@@ -735,11 +717,10 @@ impl Parser {
 
                 // eat right expression
                 let subject_id = left_expression_id;
-                let mut right_context = self
-                    .options
-                    .not_in_statement_position()
-                    .not_in_type_conditional_right()
-                    .in_left_precedence(right_operator.precedence());
+                let mut right_options = self.options;
+                right_options.set_in_statement_position(false);
+                right_options.set_in_type_conditional_right(false);
+                right_options.left_precedence = Some(right_operator.precedence());
                 let parses_value_type_operator_right = !self.options.is_in_type()
                     && matches!(
                         right_operator,
@@ -751,43 +732,34 @@ impl Parser {
                 // cast and satisfies in parenthesized value expressions need
                 // the parenthesis flag so the type right side can stop at `)`
                 if !parses_value_type_operator_right {
-                    right_context = right_context.not_in_parenthesis();
+                    right_options.set_in_parenthesis(false);
                 }
 
                 // type operators in value expressions parse a full type expression on the right
                 if !self.options.is_in_type()
                     && matches!(right_operator, InfixOperator::TypeBinary(_))
                 {
-                    right_context = right_context.not_in_left_precedence();
+                    right_options.left_precedence = None;
                 }
 
-                // conditional-type right sides must keep their boundary marker active
-                if parses_value_type_operator_right
-                    || self.options.is_in_type_conditional_right()
+                // type binary operators parse the right side as a type expression
+                if matches!(right_operator, InfixOperator::TypeBinary(_)) {
+                    right_options.set_in_type(true);
+                }
+                if parses_value_type_operator_right {
+                    right_options.set_in_type_conditional_right(true);
+                }
+                if self.options.is_in_type_conditional_right()
                     || matches!(
                         right_operator,
                         InfixOperator::TypeBinary(TypeBinaryOperator::Extends)
                     )
                 {
-                    right_context = right_context.in_type_conditional_right();
+                    right_options.set_in_type_conditional_right(true);
                 }
-
-                // type binary operators parse the right side as a type expression
-                let right_expression_result =
-                    if matches!(right_operator, InfixOperator::TypeBinary(_)) {
-                        let right_ambient_context = self.options.with_type(true);
-                        self.with_options(
-                            self.options
-                                .with_ambient_context(right_ambient_context)
-                                .with_expression_context(right_context),
-                            |parser| parser.eat_expression_in_scope(),
-                        )
-                    } else {
-                        self.with_options(
-                            self.options.with_expression_context(right_context),
-                            |parser| parser.eat_expression_in_scope(),
-                        )
-                    };
+                let old_options = self.swap_options(right_options);
+                let right_expression_result = self.eat_expression_in_scope();
+                self.restore_options(old_options);
                 let right_expression_id = right_expression_result?;
 
                 // combine into new left expression
@@ -815,20 +787,94 @@ impl Parser {
             }
         }
 
-        // tail expressions
-        let is_in_type = self.options.is_in_type();
-        let left_precedence = self.options.left_precedence;
-        let mut tail_cursor = self.scanner_cursor_from(self.pos_index());
+        // value ternary after infix to keep lowest precedence
+        // NOTE #Cleanup: having multiple ternary parse locations feels icky (but non-trivial to "fix")
+        let ternary_cursor = self.current_scanner_cursor();
+        if !self.options.is_in_type()
+            && self.options.left_precedence.is_none()
+            && ternary_cursor.token_type == TokenType::Maybe
+        {
+            // move to the ternary marker and parse then and else branches
+            if ternary_cursor.index != self.pos_index() {
+                self.advance_to(ternary_cursor.index);
+            }
+            self.bump(); // eat ?
 
-        // type conditional expression
-        if is_in_type {
-            if tail_cursor.token_type != TokenType::Maybe {
-                return Ok(left_expression_id);
+            // normalize scanner state before parsing the then branch
+            let then_cursor = self.current_scanner_cursor();
+            if then_cursor.index != self.pos_index() {
+                self.advance_to(then_cursor.index);
+            }
+            let then_options = self
+                .options
+                .not_in_position()
+                .in_ternary_condition()
+                .not_in_sequence_expression();
+            let then_expression_id = self.eat_expression_with_options_unchecked(then_options)?;
+
+            // consume the ternary separator after scanner normalization
+            let colon_cursor = self.current_scanner_cursor();
+            if colon_cursor.index != self.pos_index() {
+                self.advance_to(colon_cursor.index);
+            }
+            self.eat_colon()?;
+
+            // normalize scanner state before parsing the else branch
+            let else_cursor = self.current_scanner_cursor();
+            if else_cursor.index != self.pos_index() {
+                self.advance_to(else_cursor.index);
+            }
+            let else_options = self.options.not_in_position().not_in_sequence_expression();
+            let else_expression_id = self.eat_expression_with_options_unchecked(else_options)?;
+
+            let expression = Expression::If {
+                kind: IfKind::Ternary,
+                condition: IfCondition::Expression {
+                    condition: left_expression_id,
+                },
+                then_expression: then_expression_id,
+                else_expression: Some(else_expression_id),
+            };
+            left_expression_id = self.tree.insert(expression, self.get_span_from(start));
+        }
+
+        // sequence expression (comma operator) in JS/TS
+        let sequence_cursor = self.current_scanner_cursor();
+        if !self.options.is_in_type()
+            && self.options.left_precedence.is_none()
+            && self.options.allows_sequence_expression()
+            && (self.language.is_typescript() || self.language.is_javascript())
+            && sequence_cursor.token_type == TokenType::Comma
+        {
+            // gather comma-separated expressions into a sequence expression
+            let mut expressions = vec![left_expression_id];
+            loop {
+                let comma_cursor = self.current_scanner_cursor();
+                if comma_cursor.token_type != TokenType::Comma {
+                    break;
+                }
+                if comma_cursor.index != self.pos_index() {
+                    self.advance_to(comma_cursor.index);
+                }
+                self.bump(); // eat comma
+                self.eat_newlines_maybe()?;
+                let expression_options =
+                    self.options.not_in_position().not_in_sequence_expression();
+                let expression_id =
+                    self.eat_expression_with_options_unchecked(expression_options)?;
+                expressions.push(expression_id);
             }
 
+            let expression = Expression::SequenceExpression { expressions };
+            left_expression_id = self.tree.insert(expression, self.get_span_from(start));
+        }
+
+        // type conditional expression
+        let type_conditional_cursor = self.current_scanner_cursor();
+        if self.options.is_in_type() && type_conditional_cursor.token_type == TokenType::Maybe {
             // align cursor at conditional marker and split operands
-            if tail_cursor.index != self.pos_index() {
-                self.advance_to(tail_cursor.index);
+            if type_conditional_cursor.index != self.pos_index() {
+                self.advance_to(type_conditional_cursor.index);
             }
             // avoid consuming nested conditional tokens in the right side
             let conditional_operands = self.split_type_conditional_operands(left_expression_id);
@@ -854,26 +900,32 @@ impl Parser {
             self.eat_newlines_maybe()?;
             self.bump(); // eat ?
             self.eat_newlines_maybe()?;
-            let then_ambient_context = self.options.with_type(true);
-            let then_expression_context = self.options.not_in_position().in_ternary_condition();
-            let then_expression_id = self.eat_expression(
-                self.options
-                    .with_ambient_context(then_ambient_context)
-                    .with_expression_context(then_expression_context),
-            )?;
+            let then_cursor = self.current_scanner_cursor();
+            if then_cursor.index != self.pos_index() {
+                self.advance_to(then_cursor.index);
+            }
+            let then_options = self
+                .options
+                .not_in_position()
+                .in_type()
+                .in_ternary_condition();
+            let then_expression_id = self.eat_expression_with_options_unchecked(then_options)?;
 
-            self.eat_newlines_maybe()?;
+            let colon_cursor = self.current_scanner_cursor();
+            if colon_cursor.index != self.pos_index() {
+                self.advance_to(colon_cursor.index);
+            }
             self.eat_colon()?;
             self.eat_newlines_maybe()?;
-            let mut else_expression_context = self.options.not_in_position();
-            if self.options.is_in_type_conditional_right() {
-                else_expression_context = else_expression_context.in_type_conditional_right();
+            let else_cursor = self.current_scanner_cursor();
+            if else_cursor.index != self.pos_index() {
+                self.advance_to(else_cursor.index);
             }
-            let else_expression_id = self.eat_expression(
-                self.options
-                    .with_type(true)
-                    .with_expression_context(else_expression_context),
-            )?;
+            let mut else_options = self.options.not_in_position().in_type();
+            if self.options.is_in_type_conditional_right() {
+                else_options = else_options.in_type_conditional_right();
+            }
+            let else_expression_id = self.eat_expression_with_options_unchecked(else_options)?;
 
             let expression = Expression::TypeConditional {
                 left,
@@ -883,73 +935,6 @@ impl Parser {
             };
             left_expression_id = self.tree.insert(expression, self.get_span_from(start));
         }
-        // value ternary after infix to keep lowest precedence
-        // NOTE #Cleanup: having multiple ternary parse locations feels icky (but non-trivial to "fix")
-        else if left_precedence.is_none() {
-            if tail_cursor.token_type == TokenType::Maybe {
-                // move to the ternary marker and parse then and else branches
-                if tail_cursor.index != self.pos_index() {
-                    self.advance_to(tail_cursor.index);
-                }
-                self.bump(); // eat ?
-
-                // normalize scanner state before parsing the then branch
-                self.eat_newlines_maybe()?;
-                let then_options = self
-                    .options
-                    .not_in_position()
-                    .in_ternary_condition()
-                    .not_in_sequence_expression();
-                let then_expression_id =
-                    self.eat_expression_with_context_unchecked(then_options)?;
-
-                // consume the ternary separator after scanner normalization
-                self.eat_newlines_maybe()?;
-                self.eat_colon()?;
-
-                // normalize scanner state before parsing the else branch
-                self.eat_newlines_maybe()?;
-                let else_options = self.options.not_in_position().not_in_sequence_expression();
-                let else_expression_id =
-                    self.eat_expression_with_context_unchecked(else_options)?;
-
-                let expression = Expression::If {
-                    kind: IfKind::Ternary,
-                    condition: IfCondition::Expression {
-                        condition: left_expression_id,
-                    },
-                    then_expression: then_expression_id,
-                    else_expression: Some(else_expression_id),
-                };
-                left_expression_id = self.tree.insert(expression, self.get_span_from(start));
-                tail_cursor = self.scanner_cursor_from(self.pos_index());
-            }
-
-            // sequence expression (comma operator) in JS/TS
-            if self.options.allows_sequence_expression()
-                && (self.language.is_typescript() || self.language.is_javascript())
-                && tail_cursor.token_type == TokenType::Comma
-            {
-                // gather comma-separated expressions into a sequence expression
-                let mut expressions = vec![left_expression_id];
-                while tail_cursor.token_type == TokenType::Comma {
-                    if tail_cursor.index != self.pos_index() {
-                        self.advance_to(tail_cursor.index);
-                    }
-                    self.bump(); // eat comma
-                    self.eat_newlines_maybe()?;
-                    let expression_options =
-                        self.options.not_in_position().not_in_sequence_expression();
-                    let expression_id =
-                        self.eat_expression_with_context_unchecked(expression_options)?;
-                    expressions.push(expression_id);
-                    tail_cursor = self.scanner_cursor_from(self.pos_index());
-                }
-
-                let expression = Expression::SequenceExpression { expressions };
-                left_expression_id = self.tree.insert(expression, self.get_span_from(start));
-            }
-        }
 
         Ok(left_expression_id)
     }
@@ -958,11 +943,10 @@ impl Parser {
     fn peek_dot_member_target(
         &mut self,
         dot_index: usize,
-        next_cursor: NonNewlineTokenCursor,
         left_expression_id: LocalNodeId<Expression>,
     ) -> Option<(usize, bool)> {
-        let member_index = next_cursor.index;
-        let member_token_type = next_cursor.token_type;
+        let member_index = self.next_non_newline_index_from(dot_index.saturating_add(1));
+        let member_token_type = self.token_type_at(member_index);
 
         // private member: .#name
         if member_token_type == TokenType::Hash {
@@ -1032,8 +1016,7 @@ impl Parser {
         if matches!(self.tree.get(left_expression_id), Expression::New { .. }) {
             return false;
         }
-        let ambient = self.options;
-        if ambient.is_in_new_receiver() || ambient.is_in_tree_literal() {
+        if self.options.is_in_new_receiver() || self.options.is_in_tree_literal() {
             return false;
         }
         if self.language.is_javascript() {
@@ -1084,13 +1067,20 @@ impl Parser {
             return Ok(Some(expression_id));
         }
 
-        let expression_id = self.tree.insert(
-            Expression::Instantiation {
-                left: left_expression_id,
-                static_arguments,
-            },
-            self.get_span_from(start),
-        );
-        Ok(Some(expression_id))
+        // instantiation expression
+        if self.can_follow_type_arguments_in_expression() {
+            let expression_id = self.tree.insert(
+                Expression::Instantiation {
+                    left: left_expression_id,
+                    static_arguments,
+                },
+                self.get_span_from(start),
+            );
+            return Ok(Some(expression_id));
+        }
+
+        // rollback when follow token cannot continue an expression
+        self.restore(speculative_start, speculative_start_idx);
+        Ok(None)
     }
 }

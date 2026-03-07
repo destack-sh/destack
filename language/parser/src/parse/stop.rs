@@ -4,65 +4,40 @@ use crate::{EXPRESSION_START_TOKEN_TYPES, ParseError, ParseResult, Parser};
 use destack_ast::{Keyword, LiteralType, TokenSpan, TokenType, UnaryOperator};
 
 impl Parser {
-    /// Return true when a token type is a statement stop.
-    #[inline]
-    pub(crate) const fn is_statement_stop_token(token_type: TokenType) -> bool {
-        matches!(
-            token_type,
-            TokenType::Newline | TokenType::Semicolon | TokenType::End
-        )
-    }
-
-    /// Return true when a token type is an item stop.
-    #[inline]
-    pub(crate) const fn is_item_stop_token(token_type: TokenType) -> bool {
-        matches!(
-            token_type,
-            TokenType::Comma | TokenType::Newline | TokenType::End
-        )
-    }
-
-    /// Return true when a token type is any stop.
-    #[inline]
-    pub(crate) const fn is_any_stop_token(token_type: TokenType) -> bool {
-        matches!(
-            token_type,
-            TokenType::Comma | TokenType::Semicolon | TokenType::Newline | TokenType::End
-        )
-    }
-
-    /// Return true when expression scanning should treat tree literals as active syntax.
-    #[inline]
-    pub(crate) fn expression_tree_literals_allowed(&self) -> bool {
-        let ambient = self.options;
-
-        self.language.supports_jsx()
-            && !ambient.is_in_type()
-            && (self.allow_tree_literals() || ambient.is_in_tree_literal())
-    }
-
     /// Return true when the next token is a statement stop.
     #[inline]
     pub fn is_statement_stop(&mut self) -> bool {
-        Self::is_statement_stop_token(self.peek_token_type())
+        matches!(
+            self.peek_token_type(),
+            TokenType::Newline | TokenType::Semicolon | TokenType::End
+        )
     }
 
     /// Return true when the next token is an item stop.
     #[inline]
     pub fn is_item_stop(&mut self) -> bool {
-        Self::is_item_stop_token(self.peek_token_type())
+        matches!(
+            self.peek_token_type(),
+            TokenType::Comma | TokenType::Newline | TokenType::End
+        )
     }
 
     /// Return true when the next token is any stop.
     #[inline]
     pub fn is_any_stop(&mut self) -> bool {
-        Self::is_any_stop_token(self.peek_token_type())
+        matches!(
+            self.peek_token_type(),
+            TokenType::Comma | TokenType::Semicolon | TokenType::Newline | TokenType::End
+        )
     }
 
     /// Return true when the next token is any stop.
     #[inline]
     pub fn is_next_any_stop(&mut self) -> bool {
-        Self::is_any_stop_token(self.peek_next_token_type())
+        matches!(
+            self.peek_next_token_type(),
+            TokenType::Comma | TokenType::Semicolon | TokenType::Newline | TokenType::End
+        )
     }
 
     /// Peek an item stop (comma or newline).
@@ -70,8 +45,7 @@ impl Parser {
     pub fn peek_item_stop(&mut self) -> ParseResult<&TokenSpan> {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
-            && Self::is_item_stop_token(token.token.ty)
-            && token.token.ty != TokenType::End
+            && (token.token.ty == TokenType::Comma || token.token.ty == TokenType::Newline)
         {
             Ok(token)
         } else {
@@ -84,7 +58,7 @@ impl Parser {
     #[inline]
     pub fn eat_item_stop_with_newlines(&mut self) -> ParseResult<()> {
         if let Ok(token) = self.peek()
-            && token.token.ty == TokenType::Comma
+            && (token.token.ty == TokenType::Comma)
         {
             self.bump();
         } else {
@@ -99,7 +73,9 @@ impl Parser {
     pub fn peek_statement_stop(&mut self) -> ParseResult<&TokenSpan> {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
-            && Self::is_statement_stop_token(token.token.ty)
+            && (token.token.ty == TokenType::Newline
+                || token.token.ty == TokenType::Semicolon
+                || token.token.ty == TokenType::End)
         {
             Ok(token)
         } else {
@@ -111,7 +87,9 @@ impl Parser {
     #[inline]
     pub fn eat_statement_stop(&mut self) -> ParseResult<()> {
         if let Ok(token) = self.peek()
-            && Self::is_statement_stop_token(token.token.ty)
+            && (token.token.ty == TokenType::Newline
+                || token.token.ty == TokenType::Semicolon
+                || token.token.ty == TokenType::End)
         {
             self.bump(); // eat semicolon or newline
         } else {
@@ -125,7 +103,9 @@ impl Parser {
     #[inline]
     pub fn eat_statement_stop_with_newlines(&mut self) -> ParseResult<()> {
         if let Ok(token) = self.peek()
-            && Self::is_statement_stop_token(token.token.ty)
+            && (token.token.ty == TokenType::Newline
+                || token.token.ty == TokenType::Semicolon
+                || token.token.ty == TokenType::End)
         {
             self.bump(); // eat semicolon or newline
         } else {
@@ -140,7 +120,10 @@ impl Parser {
     pub fn peek_any_stop(&mut self) -> ParseResult<&TokenSpan> {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
-            && Self::is_any_stop_token(token.token.ty)
+            && (token.token.ty == TokenType::Newline
+                || token.token.ty == TokenType::Semicolon
+                || token.token.ty == TokenType::Comma
+                || token.token.ty == TokenType::End)
         {
             Ok(token)
         } else {
@@ -153,7 +136,10 @@ impl Parser {
     pub fn peek_next_any_stop(&mut self) -> ParseResult<&TokenSpan> {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek_next()
-            && Self::is_any_stop_token(token.token.ty)
+            && (token.token.ty == TokenType::Newline
+                || token.token.ty == TokenType::Semicolon
+                || token.token.ty == TokenType::Comma
+                || token.token.ty == TokenType::End)
         {
             Ok(token)
         } else {
@@ -166,7 +152,10 @@ impl Parser {
     #[inline]
     pub fn eat_any_stop_with_newlines(&mut self) -> ParseResult<()> {
         if let Ok(token) = self.peek()
-            && Self::is_any_stop_token(token.token.ty)
+            && (token.token.ty == TokenType::Newline
+                || token.token.ty == TokenType::Semicolon
+                || token.token.ty == TokenType::Comma
+                || token.token.ty == TokenType::End)
         {
             self.bump();
         } else {
@@ -360,7 +349,9 @@ impl Parser {
         let mut last_non_whitespace_index: Option<usize> = None;
         let mut last_semantic_index: Option<usize> = None;
         let mut prev_semantic_index: Option<usize> = None;
-        let tree_literals_allowed = self.expression_tree_literals_allowed();
+        let tree_literals_allowed = self.language.supports_jsx()
+            && !self.options.is_in_type()
+            && (self.allow_tree_literals() || self.options.is_in_tree_literal());
 
         // we should start at the expected open token
         #[cfg(debug_assertions)]
@@ -471,7 +462,9 @@ impl Parser {
         let mut last_non_whitespace_index: Option<usize> = None;
         let mut last_semantic_index: Option<usize> = None;
         let mut prev_semantic_index: Option<usize> = None;
-        let tree_literals_allowed = self.expression_tree_literals_allowed();
+        let tree_literals_allowed = self.language.supports_jsx()
+            && !self.options.is_in_type()
+            && (self.allow_tree_literals() || self.options.is_in_tree_literal());
 
         // scan the parenthesis contents
         while pos <= close_pos {
