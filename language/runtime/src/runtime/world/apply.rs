@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::fmt;
+use std::sync::atomic::Ordering;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::policy::{Policy, PolicyState, Rule, RuleId};
@@ -124,10 +125,12 @@ impl World {
         let command = self.replay.resolve_world_command(command)?;
         let command_for_replay = command.clone();
 
-        // gate one command under the world control lock
-        let mut control = self.control.write();
+        // serialize one world control mutation at a time
+        let _mutation_guard = self.mutation_lock.lock();
+
+        // enforce the expected revision before mutating any world state
         if let Some(expected_revision) = expected_revision {
-            let actual_revision = control.revision;
+            let actual_revision = self.revision.load(Ordering::SeqCst);
             if actual_revision != expected_revision {
                 return Err(RuntimeError::Internal {
                     message: format!(
@@ -154,9 +157,12 @@ impl World {
             self.replay.record_world_command(&command_for_replay)?;
         }
 
-        control.revision = control.revision.saturating_add(1);
+        let revision = self
+            .revision
+            .fetch_add(1, Ordering::SeqCst)
+            .saturating_add(1);
 
-        Ok(control.revision)
+        Ok(revision)
     }
 
     /// Apply one internal world control command directly to world state.

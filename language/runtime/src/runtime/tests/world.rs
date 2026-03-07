@@ -14,9 +14,46 @@ use crate::runtime::policy::{
 };
 use crate::runtime::time::WorldInstant;
 use crate::runtime::{
-    Agent, BindingCallContext, World, WorldCommand, WorldEdge, WorldEdgeKindDefinition,
-    WorldEntity, WorldEntityKindDefinition,
+    Agent, BindingCallContext, BranchId, CheckpointId, World, WorldCommand, WorldEdge,
+    WorldEdgeKindDefinition, WorldEntity, WorldEntityKindDefinition,
 };
+
+/// Ensures new worlds start on one real root branch.
+#[test]
+fn test_world_starts_on_root_branch() {
+    // create one new world
+    let world = Arc::new(World::default());
+
+    // the active branch should be the root branch
+    assert_eq!(world.branch_id(), BranchId::new(0));
+    assert_eq!(world.branch().name, "root");
+    assert!(world.branch().labels.is_empty());
+    assert_eq!(world.branch_ids(), vec![BranchId::new(0)]);
+}
+
+/// Ensures checkpoint verbs fail loudly until snapshot capture lands.
+#[test]
+fn test_world_checkpoint_shape_fails_loudly() {
+    // create one new world
+    let world = Arc::new(World::default());
+
+    // placeholder checkpoint and fork methods should reject use
+    let checkpoint_error = world
+        .checkpoint("steady")
+        .expect_err("checkpoint should fail loudly");
+    assert_eq!(
+        checkpoint_error.message(),
+        "internal error: world checkpointing is not implemented yet on branch 0: next checkpoint 1, next snapshot 1, capture path failed with internal error: world snapshot capture is not implemented yet"
+    );
+
+    let fork_error = world
+        .fork(CheckpointId::new(1), "child")
+        .expect_err("fork should fail loudly");
+    assert_eq!(
+        fork_error.message(),
+        "internal error: world fork is not implemented yet from branch 0: next branch 1"
+    );
+}
 
 /// Ensures worlds track unique runtime identities for explicitly spawned runtimes.
 #[test]

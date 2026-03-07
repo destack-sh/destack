@@ -8,7 +8,8 @@ use crate::host::{Host, HostEventKind, HostLifecycleState};
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
 use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineOutcome, EngineOutput, Entry, NativeContinuation,
+    Engine, EngineContinuation, EngineOutcome, EngineOutput, EngineSnapshot, Entry,
+    NativeContinuation,
 };
 use crate::runtime::poller::{
     PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
@@ -66,6 +67,24 @@ impl Engine for CompleteEngine {
                 raw_heap_cells: 0,
             },
         })
+    }
+
+    /// Capture one durable engine snapshot for scheduler tests.
+    fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot> {
+        Err(crate::diagnostic::RuntimeError::Internal {
+            message: "scheduler test engine snapshots are not implemented".to_string(),
+        }
+        .boxed())
+    }
+
+    /// Restore one durable engine snapshot for scheduler tests.
+    fn restore(&mut self, snapshot: &EngineSnapshot) -> RuntimeResult<()> {
+        let _ = snapshot;
+
+        Err(crate::diagnostic::RuntimeError::Internal {
+            message: "scheduler test engine snapshot restore is not implemented".to_string(),
+        }
+        .boxed())
     }
 }
 

@@ -2,7 +2,7 @@ use std::any::Any;
 
 use destack_heap as heap;
 
-use super::{EngineContinuation, EngineStats, Entry};
+use super::{EngineContinuation, EngineSnapshot, EngineStats, Entry};
 use crate::diagnostic::RuntimeResult;
 
 /// Engine output produced when execution completes.
@@ -41,4 +41,10 @@ pub trait Engine: Any {
         continuation: EngineContinuation,
         value: heap::Value,
     ) -> RuntimeResult<EngineOutcome>;
+
+    /// Capture one durable engine snapshot while the world is checkpoint-ready.
+    fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot>;
+
+    /// Restore one durable engine snapshot while the world is checkpoint-ready.
+    fn restore(&mut self, snapshot: &EngineSnapshot) -> RuntimeResult<()>;
 }

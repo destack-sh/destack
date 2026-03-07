@@ -3,7 +3,7 @@ use {destack_heap as heap, destack_vm as vm};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineOutcome, EngineOutput, EngineStats, Entry,
+    Engine, EngineContinuation, EngineOutcome, EngineOutput, EngineSnapshot, EngineStats, Entry,
 };
 
 /// VM engine implementation for one agent.
@@ -38,6 +38,24 @@ impl Engine for Isolate {
             .resume(continuation, value)
             .map_err(Box::<RuntimeError>::from)?;
         Ok(map_vm_outcome(outcome))
+    }
+
+    /// Capture one durable VM snapshot.
+    fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot> {
+        Err(RuntimeError::Internal {
+            message: "vm engine snapshots are not implemented yet".to_string(),
+        }
+        .boxed())
+    }
+
+    /// Restore one durable VM snapshot.
+    fn restore(&mut self, snapshot: &EngineSnapshot) -> RuntimeResult<()> {
+        let _ = snapshot;
+
+        Err(RuntimeError::Internal {
+            message: "vm engine snapshot restore is not implemented yet".to_string(),
+        }
+        .boxed())
     }
 }
 

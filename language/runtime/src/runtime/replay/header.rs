@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::runtime::bindings::BindingReplayPayload;
-use crate::runtime::replay::{BranchId, CheckpointId, LogSequence};
+use crate::runtime::replay::LogSequence;
+use crate::runtime::world::{BranchId, CheckpointId};
 use destack_workspace::ExecutionMode;
 
 /// Replay log header describing the execution environment.
@@ -19,6 +20,8 @@ pub struct ReplayHeader {
     pub profile_hash: u128,
     /// Execution mode used while running.
     pub execution_mode: ExecutionMode,
+    /// Branch identifier for this replay stream.
+    pub branch_id: BranchId,
     /// Replay payload selection for the log.
     pub replay_payload: BindingReplayPayload,
     /// Hash of the binding registry.
@@ -43,6 +46,7 @@ impl ReplayHeader {
             profile_key: None,
             profile_hash: 0,
             execution_mode: ExecutionMode::Fast,
+            branch_id: BranchId::new(0),
             replay_payload: BindingReplayPayload::Results,
             binding_registry_hash: 0,
             effect_registry_hash: 0,

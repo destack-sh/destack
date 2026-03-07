@@ -65,63 +65,65 @@ impl World {
 
     /// Execute one world tick across all stored runtimes in stable order.
     pub fn tick(&self) -> RuntimeResult<TickOutcome> {
-        let mut runtimes = self.runtimes.write();
+        self.with_checkpoint_blocked(|| {
+            let mut runtimes = self.runtimes.write();
 
-        // runnable work and ingress
-        for runtime in runtimes.values_mut() {
-            if runtime.tick(self)?.progressed() {
-                return Ok(TickOutcome::Progressed);
-            }
-        }
-
-        // host time cannot advance under world control
-        if self.time_mode != TimeMode::Virtual {
-            return Ok(TickOutcome::Idle);
-        }
-
-        // next global deadline
-        let next_deadline = runtimes
-            .values()
-            .filter_map(|runtime| runtime.next_deadline(self))
-            .min();
-        let Some(deadline) = next_deadline else {
-            return Ok(TickOutcome::Idle);
-        };
-
-        // record the resolved world time jump
-        let deadline = self.replay.resolve_tick(deadline)?;
-        let _ = self.advance_virtual_to(deadline)?;
-        self.replay.record_tick(deadline)?;
-
-        // collect due agent timers across runtimes
-        let mut agent_timers = Vec::new();
-        for runtime in runtimes.values_mut() {
-            agent_timers.extend(runtime.collect_due_timers(self)?);
-        }
-
-        // deliver due simulation events into the simulation ready queue
-        self.simulation.write().deliver_due(deadline);
-
-        // drain world timer wakes into per-runtime batches
-        let wakes = self.drain_due(agent_timers);
-        let mut wakes_by_runtime = BTreeMap::<RuntimeId, Vec<Wake>>::new();
-        for wake in wakes {
-            match wake {
-                Wake::AgentTimer { runtime_id, .. } => {
-                    wakes_by_runtime.entry(runtime_id).or_default().push(wake);
+            // runnable work and ingress
+            for runtime in runtimes.values_mut() {
+                if runtime.tick(self)?.progressed() {
+                    return Ok(TickOutcome::Progressed);
                 }
             }
-        }
 
-        // deliver due agent wakes
-        for (runtime_id, runtime) in runtimes.iter_mut() {
-            let wakes = wakes_by_runtime.remove(runtime_id).unwrap_or_default();
-            if !wakes.is_empty() {
-                runtime.deliver_wakes(self, wakes)?;
+            // host time cannot advance under world control
+            if self.time_mode != TimeMode::Virtual {
+                return Ok(TickOutcome::Idle);
             }
-        }
 
-        Ok(TickOutcome::AdvancedTime)
+            // next global deadline
+            let next_deadline = runtimes
+                .values()
+                .filter_map(|runtime| runtime.next_deadline(self))
+                .min();
+            let Some(deadline) = next_deadline else {
+                return Ok(TickOutcome::Idle);
+            };
+
+            // record the resolved world time jump
+            let deadline = self.replay.resolve_tick(deadline)?;
+            let _ = self.advance_virtual_to(deadline)?;
+            self.replay.record_tick(deadline)?;
+
+            // collect due agent timers across runtimes
+            let mut agent_timers = Vec::new();
+            for runtime in runtimes.values_mut() {
+                agent_timers.extend(runtime.collect_due_timers(self)?);
+            }
+
+            // deliver due simulation events into the simulation ready queue
+            self.simulation.write().deliver_due(deadline);
+
+            // drain world timer wakes into per-runtime batches
+            let wakes = self.drain_due(agent_timers);
+            let mut wakes_by_runtime = BTreeMap::<RuntimeId, Vec<Wake>>::new();
+            for wake in wakes {
+                match wake {
+                    Wake::AgentTimer { runtime_id, .. } => {
+                        wakes_by_runtime.entry(runtime_id).or_default().push(wake);
+                    }
+                }
+            }
+
+            // deliver due agent wakes
+            for (runtime_id, runtime) in runtimes.iter_mut() {
+                let wakes = wakes_by_runtime.remove(runtime_id).unwrap_or_default();
+                if !wakes.is_empty() {
+                    runtime.deliver_wakes(self, wakes)?;
+                }
+            }
+
+            Ok(TickOutcome::AdvancedTime)
+        })
     }
 
     /// Execute world ticks across all stored runtimes until idle.
@@ -136,41 +138,43 @@ impl World {
     /// Execute one world tick through one stored runtime.
     #[cfg(test)]
     pub(crate) fn tick_runtime(&self, runtime_id: RuntimeId) -> RuntimeResult<TickOutcome> {
-        let mut runtimes = self.runtimes.write();
-        let runtime = runtimes.get_mut(&runtime_id).ok_or_else(|| {
-            RuntimeError::Internal {
-                message: format!("runtime {} does not exist", runtime_id.0),
+        self.with_checkpoint_blocked(|| {
+            let mut runtimes = self.runtimes.write();
+            let runtime = runtimes.get_mut(&runtime_id).ok_or_else(|| {
+                RuntimeError::Internal {
+                    message: format!("runtime {} does not exist", runtime_id.0),
+                }
+                .boxed()
+            })?;
+
+            // local runtime progress wins before any virtual time advance
+            if runtime.tick(self)?.progressed() {
+                return Ok(TickOutcome::Progressed);
             }
-            .boxed()
-        })?;
 
-        // local runtime progress wins before any virtual time advance
-        if runtime.tick(self)?.progressed() {
-            return Ok(TickOutcome::Progressed);
-        }
+            // host time cannot advance under world control
+            if self.time_mode != TimeMode::Virtual {
+                return Ok(TickOutcome::Idle);
+            }
 
-        // host time cannot advance under world control
-        if self.time_mode != TimeMode::Virtual {
-            return Ok(TickOutcome::Idle);
-        }
+            // single-runtime next deadline
+            let Some(deadline) = runtime.next_deadline(self) else {
+                return Ok(TickOutcome::Idle);
+            };
 
-        // single-runtime next deadline
-        let Some(deadline) = runtime.next_deadline(self) else {
-            return Ok(TickOutcome::Idle);
-        };
+            // record the resolved world time jump
+            let deadline = self.replay.resolve_tick(deadline)?;
+            let _ = self.advance_virtual_to(deadline)?;
+            self.replay.record_tick(deadline)?;
 
-        // record the resolved world time jump
-        let deadline = self.replay.resolve_tick(deadline)?;
-        let _ = self.advance_virtual_to(deadline)?;
-        self.replay.record_tick(deadline)?;
+            // drain only the target runtime wakes
+            let agent_timers = runtime.collect_due_timers(self)?;
+            self.simulation.write().deliver_due(deadline);
+            let wakes = self.drain_due(agent_timers);
+            runtime.deliver_wakes(self, wakes)?;
 
-        // drain only the target runtime wakes
-        let agent_timers = runtime.collect_due_timers(self)?;
-        self.simulation.write().deliver_due(deadline);
-        let wakes = self.drain_due(agent_timers);
-        runtime.deliver_wakes(self, wakes)?;
-
-        Ok(TickOutcome::AdvancedTime)
+            Ok(TickOutcome::AdvancedTime)
+        })
     }
 }
 
