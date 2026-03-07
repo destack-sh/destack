@@ -159,7 +159,7 @@ impl Parser {
             dynamic_parameters,
             return_type,
         };
-        let function_id = self.tree.insert(
+        let function_id = self.insert_node(
             Declaration::Function {
                 descriptor: *descriptor,
                 signature,
@@ -175,14 +175,14 @@ impl Parser {
         function_id
     }
 
-    /// Classify a parenthesized lambda head for the plain path.
-    fn classify_plain_parenthesized_lambda_head(
+    /// Scan a simple parenthesized lambda head without forcing a full pair lookup.
+    fn scan_plain_parenthesized_lambda_head(
         &mut self,
         open_index: usize,
-        close_index: usize,
-    ) -> Option<ParenthesizedLambdaHeadShape> {
-        let tokens = self.tokens();
-        let head_tokens = tokens.get(open_index + 1..close_index)?;
+    ) -> Option<(usize, ParenthesizedLambdaHeadShape)> {
+        if self.token_type_at(open_index) != TokenType::OpenParenthesis {
+            return None;
+        }
 
         // track the plain head state
         let mut semantic_token_count = 0usize;
@@ -199,13 +199,33 @@ impl Parser {
         let mut bracket_depth = 0usize;
         let mut angle_depth = 0usize;
 
-        for token in head_tokens {
-            let token_type = token.token.ty;
+        let mut token_index = open_index + 1;
+        let close_index = loop {
+            let token_type = self.token_type_at(token_index);
+            if token_type == TokenType::End {
+                return None;
+            }
+
+            // top level close: finalize the head
+            if token_type == TokenType::CloseParenthesis
+                && parenthesis_depth == 0
+                && brace_depth == 0
+                && bracket_depth == 0
+                && angle_depth == 0
+            {
+                break token_index;
+            }
+
             if !is_semantic(token_type) || token_type == TokenType::Newline {
+                token_index += 1;
                 continue;
             }
 
             semantic_token_count += 1;
+            if semantic_token_count > PLAIN_PARENTHESIZED_LAMBDA_MAX_TOKENS {
+                return None;
+            }
+
             match semantic_token_count {
                 1 => first_token_type = Some(token_type),
                 2 => second_token_type = Some(token_type),
@@ -217,6 +237,7 @@ impl Parser {
             if !has_parameter {
                 if token_type == TokenType::Identifier {
                     has_parameter = true;
+                    token_index += 1;
                     continue;
                 }
 
@@ -227,6 +248,7 @@ impl Parser {
             if !has_type_annotation {
                 if token_type == TokenType::Colon {
                     has_type_annotation = true;
+                    token_index += 1;
                     continue;
                 }
 
@@ -276,18 +298,17 @@ impl Parser {
                 _ => {}
             }
             has_type_tokens = true;
-        }
+            token_index += 1;
+        };
 
         // common plain heads: (), (x), (x: T)
-        if semantic_token_count == 0 {
-            return Some(ParenthesizedLambdaHeadShape::Empty);
-        }
-        if semantic_token_count == 1 && first_token_type == Some(TokenType::Identifier) {
-            return Some(ParenthesizedLambdaHeadShape::Named {
+        let head_shape = if semantic_token_count == 0 {
+            ParenthesizedLambdaHeadShape::Empty
+        } else if semantic_token_count == 1 && first_token_type == Some(TokenType::Identifier) {
+            ParenthesizedLambdaHeadShape::Named {
                 has_type_annotation: false,
-            });
-        }
-        if semantic_token_count == 3
+            }
+        } else if semantic_token_count == 3
             && first_token_type == Some(TokenType::Identifier)
             && second_token_type == Some(TokenType::Colon)
             && matches!(
@@ -295,12 +316,10 @@ impl Parser {
                 Some(TokenType::Identifier | TokenType::Literal)
             )
         {
-            return Some(ParenthesizedLambdaHeadShape::Named {
+            ParenthesizedLambdaHeadShape::Named {
                 has_type_annotation: true,
-            });
-        }
-
-        if has_parameter {
+            }
+        } else if has_parameter {
             if has_type_annotation
                 && (!has_type_tokens
                     || parenthesis_depth != 0
@@ -311,12 +330,14 @@ impl Parser {
                 return None;
             }
 
-            return Some(ParenthesizedLambdaHeadShape::Named {
+            ParenthesizedLambdaHeadShape::Named {
                 has_type_annotation,
-            });
-        }
+            }
+        } else {
+            ParenthesizedLambdaHeadShape::Empty
+        };
 
-        Some(ParenthesizedLambdaHeadShape::Empty)
+        Some((close_index, head_shape))
     }
 
     /// Try to parse plain `() => body`, `(identifier) => body`, or `(identifier: Type) => body` lambdas.
@@ -329,24 +350,18 @@ impl Parser {
             speculation_stats.parenthesized_lambda_plain_calls += 1;
         }
 
-        // require a matching close
         let open_index = self.pos_index();
-        let Some(close_index) = self.matching_pair_or_lex(open_index) else {
+        let Some((close_index, head_shape)) = self.scan_plain_parenthesized_lambda_head(open_index)
+        else {
             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
                 speculation_stats.parenthesized_lambda_plain_misses += 1;
             }
             return Ok(None);
         };
+
         let follow_index = self.next_non_newline_index_from(close_index + 1);
         let follow_token_type = self.token_type_at(follow_index);
         if close_index <= open_index {
-            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.parenthesized_lambda_plain_misses += 1;
-            }
-            return Ok(None);
-        }
-        let token_count_inside = close_index.saturating_sub(open_index + 1);
-        if token_count_inside > PLAIN_PARENTHESIZED_LAMBDA_MAX_TOKENS {
             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
                 speculation_stats.parenthesized_lambda_plain_misses += 1;
             }
@@ -363,16 +378,6 @@ impl Parser {
             }
             return Ok(None);
         }
-
-        // classify the head shape
-        let Some(head_shape) =
-            self.classify_plain_parenthesized_lambda_head(open_index, close_index)
-        else {
-            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.parenthesized_lambda_plain_misses += 1;
-            }
-            return Ok(None);
-        };
 
         // parse the parenthesized head
         self.eat_token(TokenType::OpenParenthesis)?;
@@ -407,7 +412,7 @@ impl Parser {
             };
             self.eat_newlines_maybe()?;
 
-            let parameter_id = self.tree.insert(
+            let parameter_id = self.insert_node(
                 Parameter::Named {
                     modifiers: None,
                     name: parameter_name,
@@ -558,7 +563,7 @@ impl Parser {
 
         // parse the single named parameter
         let parameter_name = self.eat_identifier()?;
-        let parameter_id = self.tree.insert(
+        let parameter_id = self.insert_node(
             Parameter::Named {
                 modifiers: None,
                 name: parameter_name,
@@ -810,7 +815,7 @@ impl Parser {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
                 let parameter_name = self.eat_identifier()?;
-                let parameter_id = self.tree.insert(
+                let parameter_id = self.insert_node(
                     Parameter::Named {
                         modifiers: None,
                         name: parameter_name,
@@ -1005,7 +1010,7 @@ impl Parser {
             dynamic_parameters,
             return_type,
         };
-        let function_id = self.tree.insert(
+        let function_id = self.insert_node(
             Declaration::Function {
                 descriptor,
                 signature,

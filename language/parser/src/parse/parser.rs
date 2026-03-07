@@ -28,6 +28,7 @@ const ESTIMATED_STRING_COUNT_DENOMINATOR: usize = 16;
 const ESTIMATED_STRING_BYTES_DENOMINATOR: usize = 8;
 
 /// Cached string ids for type literal identifiers.
+#[allow(dead_code)]
 pub(crate) struct TypeLiteralIdentifiers {
     pub(crate) undefined: StringId,
     pub(crate) unknown: StringId,

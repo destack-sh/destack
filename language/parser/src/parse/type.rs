@@ -3,92 +3,56 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     Annotation, Argument, Declaration, DeclarationDescriptor, Expression, FloatType, IntType,
-    IntrinsicType, Keyword, LocalNodeId, Mutability, Name, StringId, TokenType, TypeBinaryOperator,
-    TypeKind, TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier,
-    TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    IntrinsicType, Keyword, LocalNodeId, Mutability, Name, TokenType, TypeBinaryOperator, TypeKind,
+    TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypePredicateSubject,
+    TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 use destack_source::NodeSpanType;
 
 impl Parser {
-    /// Map cached identifier ids to always-available type literals.
+    /// Map identifier text to always-available type literals.
     #[inline]
-    fn type_literal_always_available_id(&self, identifier_id: StringId) -> Option<TypeLiteral> {
-        let ids = &self.type_literal_identifiers;
-        if identifier_id == ids.undefined {
-            return Some(TypeLiteral::Undefined);
+    fn type_literal_always_available_str(&self, identifier: &str) -> Option<TypeLiteral> {
+        match identifier {
+            "undefined" => Some(TypeLiteral::Undefined),
+            "unknown" => Some(TypeLiteral::Unknown),
+            "object" => Some(TypeLiteral::Object),
+            "null" => Some(TypeLiteral::Null),
+            "any" => Some(TypeLiteral::Any),
+            "never" => Some(TypeLiteral::Never),
+            _ => None,
         }
-        if identifier_id == ids.unknown {
-            return Some(TypeLiteral::Unknown);
-        }
-        if identifier_id == ids.object {
-            return Some(TypeLiteral::Object);
-        }
-        if identifier_id == ids.null_ {
-            return Some(TypeLiteral::Null);
-        }
-        if identifier_id == ids.any {
-            return Some(TypeLiteral::Any);
-        }
-        if identifier_id == ids.never {
-            return Some(TypeLiteral::Never);
-        }
-        None
     }
 
-    /// Map cached identifier ids to type only literals.
+    /// Map identifier text to type-only literals.
     #[inline]
-    fn type_literal_type_context_id(
+    fn type_literal_type_context_str(
         &self,
-        identifier_id: StringId,
-        next_identifier_id: Option<StringId>,
+        identifier: &str,
+        next_identifier: Option<&str>,
     ) -> Option<TypeLiteral> {
-        let ids = &self.type_literal_identifiers;
-        if identifier_id == ids.boolean {
-            return Some(TypeLiteral::Boolean);
-        }
-        if identifier_id == ids.void {
-            return Some(TypeLiteral::Void);
-        }
-        if identifier_id == ids.character {
-            return Some(TypeLiteral::Character);
-        }
-        if identifier_id == ids.string {
-            return Some(TypeLiteral::String);
-        }
-        if identifier_id == ids.bigint {
-            return Some(TypeLiteral::Bigint);
-        }
-        if identifier_id == ids.number {
-            return Some(TypeLiteral::Number);
-        }
-        if identifier_id == ids.int {
-            return Some(TypeLiteral::Int(IntType::Arbitrary {
+        match identifier {
+            "boolean" => Some(TypeLiteral::Boolean),
+            "void" => Some(TypeLiteral::Void),
+            "character" => Some(TypeLiteral::Character),
+            "string" => Some(TypeLiteral::String),
+            "bigint" => Some(TypeLiteral::Bigint),
+            "number" => Some(TypeLiteral::Number),
+            "int" => Some(TypeLiteral::Int(IntType::Arbitrary {
                 width: None,
                 is_signed: true,
-            }));
-        }
-        if identifier_id == ids.isize {
-            return Some(TypeLiteral::Int(IntType::Pointer { is_signed: true }));
-        }
-        if identifier_id == ids.uint {
-            return Some(TypeLiteral::Int(IntType::Arbitrary {
+            })),
+            "isize" => Some(TypeLiteral::Int(IntType::Pointer { is_signed: true })),
+            "uint" => Some(TypeLiteral::Int(IntType::Arbitrary {
                 width: None,
                 is_signed: false,
-            }));
+            })),
+            "usize" => Some(TypeLiteral::Int(IntType::Pointer { is_signed: false })),
+            "float" => Some(TypeLiteral::Float(FloatType { width: None })),
+            "symbol" => Some(TypeLiteral::Symbol),
+            "unique" if next_identifier == Some("symbol") => Some(TypeLiteral::UniqueSymbol),
+            _ => None,
         }
-        if identifier_id == ids.usize {
-            return Some(TypeLiteral::Int(IntType::Pointer { is_signed: false }));
-        }
-        if identifier_id == ids.float {
-            return Some(TypeLiteral::Float(FloatType { width: None }));
-        }
-        if identifier_id == ids.symbol {
-            return Some(TypeLiteral::Symbol);
-        }
-        if identifier_id == ids.unique && next_identifier_id == Some(ids.symbol) {
-            return Some(TypeLiteral::UniqueSymbol);
-        }
-        None
     }
     /// Eat a variance bound maybe.
     #[inline]
@@ -144,15 +108,16 @@ impl Parser {
         let next = *self.peek()?;
         let next_type = next.token.ty;
         let has_split = self.has_active_split();
-        let identifier_id = if !has_split && next_type == TokenType::Identifier {
-            self.identifier_for_index(self.pos_index())
+        let identifier_span = if !has_split && next_type == TokenType::Identifier {
+            Some(next.span)
         } else {
             None
         };
 
         // always available type literals
-        if let Some(identifier_id) = identifier_id
-            && let Some(literal) = self.type_literal_always_available_id(identifier_id)
+        if let Some(identifier_span) = identifier_span
+            && let Some(literal) =
+                self.type_literal_always_available_str(self.get_span_str(identifier_span))
         {
             return Ok(literal);
         }
@@ -164,16 +129,16 @@ impl Parser {
 
         let next_next = self.peek_next().ok().copied();
         let next_next_type = next_next.map(|next| next.token.ty);
-        if let Some(identifier_id) = identifier_id {
-            let next_identifier_id = if !has_split && next_next_type == Some(TokenType::Identifier)
-            {
-                self.identifier_for_index(self.index_for_next())
-            } else {
-                None
-            };
-            if let Some(literal) =
-                self.type_literal_type_context_id(identifier_id, next_identifier_id)
-            {
+        if let Some(identifier_span) = identifier_span {
+            let next_identifier_span =
+                if !has_split && next_next_type == Some(TokenType::Identifier) {
+                    next_next.map(|next| next.span)
+                } else {
+                    None
+                };
+            let identifier = self.get_span_str(identifier_span);
+            let next_identifier = next_identifier_span.map(|span| self.get_span_str(span));
+            if let Some(literal) = self.type_literal_type_context_str(identifier, next_identifier) {
                 return Ok(literal);
             }
         }
@@ -373,7 +338,7 @@ impl Parser {
                     static_parameters,
                     value: value_id,
                 };
-                let declaration_id = self.tree.insert(declaration, self.get_span_from(start));
+                let declaration_id = self.insert_node(declaration, self.get_span_from(start));
 
                 // set main span to the name identifier
                 if let Some(span) = name_span {
@@ -381,7 +346,7 @@ impl Parser {
                 }
 
                 let expression = Expression::Declaration(declaration_id);
-                Ok(self.tree.insert(expression, self.get_span_from(start)))
+                Ok(self.insert_node(expression, self.get_span_from(start)))
             }
             // otherwise it's a type expression with static arguments
             else {
@@ -402,7 +367,7 @@ impl Parser {
                     TypeUnaryOperator::Type
                 };
                 let expression = Expression::TypeUnary { operator, right };
-                Ok(self.tree.insert(expression, self.get_span_from(start)))
+                Ok(self.insert_node(expression, self.get_span_from(start)))
             }
         }
         // type expression
@@ -422,7 +387,7 @@ impl Parser {
                 TypeUnaryOperator::Type
             };
             let expression = Expression::TypeUnary { operator, right };
-            Ok(self.tree.insert(expression, self.get_span_from(start)))
+            Ok(self.insert_node(expression, self.get_span_from(start)))
         }
     }
 
@@ -679,7 +644,7 @@ impl Parser {
             } else {
                 None
             };
-        let expr_id = self.tree.insert(
+        let expr_id = self.insert_node(
             Expression::TypeInfer { name, constraint },
             self.get_span_from(&start),
         );
@@ -737,7 +702,7 @@ impl Parser {
             (None, None)
         };
 
-        let expr_id = self.tree.insert(
+        let expr_id = self.insert_node(
             Expression::TypeImport {
                 target,
                 arguments,
@@ -778,7 +743,7 @@ impl Parser {
             None
         };
 
-        let expr_id = self.tree.insert(
+        let expr_id = self.insert_node(
             Expression::TypePredicate {
                 asserts: true,
                 subject,
@@ -980,7 +945,7 @@ impl Parser {
             constraint,
             key_remap,
         };
-        Ok(self.tree.insert(
+        Ok(self.insert_node(
             Expression::TypeMapped {
                 parameter,
                 modifiers,
@@ -1262,7 +1227,7 @@ impl Parser {
                 let ty = if requires_decorated_class_parenthesized_head
                     && (!is_parenthesized || starts_with_parenthesis)
                 {
-                    self.tree.insert(
+                    self.insert_node(
                         Expression::Parenthesized { expression: ty },
                         super_type_span,
                     )
