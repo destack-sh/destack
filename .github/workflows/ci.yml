@@ -169,6 +169,7 @@ jobs:
         uses: ./.github/actions/setup-rust-bun-just
         with:
           rust_components: rustfmt clippy
+          rust_targets: wasm32-wasip2
           install_js_dependencies: "true"
 
       - name: Check Bridge

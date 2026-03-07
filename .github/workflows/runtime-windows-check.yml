@@ -22,5 +22,18 @@ jobs:
         with:
           rust_components: clippy
 
+      - name: Install Windows Runtime Build Dependencies
+        shell: powershell
+        run: |
+          choco install strawberryperl nasm -y --no-progress
+          Add-Content -Path $env:GITHUB_PATH -Value 'C:\Strawberry\perl\bin'
+          Add-Content -Path $env:GITHUB_PATH -Value 'C:\Program Files\NASM'
+
+      - name: Check Windows Runtime Build Dependencies
+        shell: powershell
+        run: |
+          perl -v
+          nasm -v
+
       - name: Check Runtime (Windows)
         run: just language/check-runtime-windows-msvc
