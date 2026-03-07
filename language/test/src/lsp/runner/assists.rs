@@ -1,15 +1,15 @@
 use crate::lsp::runner::range_for_marker;
 use crate::lsp::{
-    LspFixture, LspScenario, LspTestState, NormalizedHover, NormalizedLocation,
+    LspFixture, LspTestState, NormalizedHover, NormalizedLocation,
     NormalizedResolvedCompletionItem, NormalizedSignatureHelp, NormalizedSignatureInformation,
-    SignatureHelpTrigger, normalize_code_lenses, normalize_completion_response,
-    normalize_folding_ranges, normalize_hover, normalize_inlay_hints, normalize_prepare_rename,
+    normalize_code_lenses, normalize_completion_response, normalize_folding_ranges,
+    normalize_hover, normalize_inlay_hints, normalize_prepare_rename,
     normalize_resolved_completion_item, normalize_signature_help, verify_code_lenses,
     verify_definition_locations, verify_folding_ranges, verify_hover, verify_inlay_hints,
     verify_resolved_completion_item, verify_signature_help,
 };
 
-/// Run the assist-like navigation scenarios declared by one fixture.
+/// Run the assist-like cases declared by one fixture.
 pub(crate) fn run_assist_cases(
     fixture: &LspFixture,
     test_state: &mut LspTestState,
@@ -60,76 +60,6 @@ pub(crate) fn run_assist_cases(
         test_state.verify().quick_info_is(
             signature,
             fixture.expectations.hover.documentation.as_deref(),
-        )?;
-    }
-
-    // quick info existence
-    if fixture.has_scenario(LspScenario::QuickInfoExists) {
-        test_state.go_to().marker("hover_exists")?;
-        test_state.verify().quick_info_exists()?;
-    }
-
-    // indentation
-    if fixture.has_scenario(LspScenario::IndentationCurrentLine) {
-        let indent_marker = fixture
-            .marker("indent")
-            .ok_or_else(|| "indentation fixture is missing /*indent*/ marker".to_string())?;
-
-        test_state.go_to().marker("indent")?;
-        test_state.verify().indentation_is(4)?;
-        test_state.verify().indentation_at_position_is(
-            &indent_marker.file_path,
-            indent_marker.offset,
-            4,
-        )?;
-    }
-
-    // quick infos
-    if fixture.has_scenario(LspScenario::QuickInfos) {
-        let signature = fixture
-            .expectations
-            .hover
-            .signature
-            .as_deref()
-            .ok_or_else(|| "quick infos fixture is missing @HoverSignature".to_string())?;
-
-        test_state.verify().quick_infos(&[
-            (
-                "first",
-                signature,
-                fixture.expectations.hover.documentation.as_deref(),
-            ),
-            (
-                "second",
-                signature,
-                fixture.expectations.hover.documentation.as_deref(),
-            ),
-        ])?;
-    }
-
-    // negative signature help
-    if fixture.has_scenario(LspScenario::NoSignatureHelp) {
-        test_state
-            .verify()
-            .not()
-            .no_signature_help(&["no_signature"])?;
-    }
-
-    // trigger-reason signature help
-    if fixture.has_scenario(LspScenario::SignatureHelpTriggerCharacter) {
-        test_state
-            .verify()
-            .signature_help_present_for_trigger_reason(
-                &SignatureHelpTrigger::trigger_character(","),
-                &["signature_trigger"],
-            )?;
-    }
-
-    // trigger-reason negative signature help
-    if fixture.has_scenario(LspScenario::NoSignatureHelpForTriggerReason) {
-        test_state.verify().no_signature_help_for_trigger_reason(
-            &SignatureHelpTrigger::invoked(),
-            &["no_signature_trigger"],
         )?;
     }
 

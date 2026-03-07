@@ -10,10 +10,14 @@ Editor replacement should roundtrip the selected span into the expected file con
 const message = "he/*select_start*/l/*after_edit*/lo/*select_end*/"/*edit*/;
 ```
 
-```lsp scenario edit-roundtrip
+```lsp select_markers select_start select_end [0]
 ```
 
-```lsp current_file
+```lsp replace_selection [0]
+y
+```
+
+```lsp current_file main.ds [0]
 const message = "hey";
 ```
 
@@ -25,10 +29,15 @@ Selecting the whole file should allow one exact full-document replacement.
 const first = 1;
 ```
 
-```lsp scenario edit-select-all-replace
+```lsp select_all main.ds [0]
 ```
 
-```lsp current_file
+```lsp replace_selection [0]
+const first = 1;
+
+```
+
+```lsp current_file main.ds [0]
 const first = 1;
 ```
 
@@ -40,10 +49,21 @@ The editor surface should support mixed replacement and line insertion in one fl
 const /*replace_name*/alpha = /*replace_number*/1;
 ```
 
-```lsp scenario edit-replace-and-insert-lines
+```lsp select_all main.ds [0]
 ```
 
-```lsp current_file
+```lsp replace_selection [0]
+const gamma = 3;
+const delta = 4;
+
+```
+
+```lsp paste [0]
+const epsilon = 5;
+
+```
+
+```lsp current_file main.ds [0]
 const gamma = 3;
 const delta = 4;
 const epsilon = 5;
@@ -54,13 +74,17 @@ const epsilon = 5;
 The editor surface should replace a marked range without disturbing the surrounding text.
 
 ```ds:main.ds
-export const [|beta|] = 2;
+export const /*beta_start*/[|beta|]/*beta_end*/ = 2;
 ```
 
-```lsp scenario edit-select-range-replace
+```lsp select_markers beta_start beta_end [0]
 ```
 
-```lsp current_file
+```lsp replace_selection [0]
+omega
+```
+
+```lsp current_file main.ds [0]
 export const omega = 2;
 ```
 
@@ -72,10 +96,38 @@ The editor surface should preserve the expected text across paste, delete, and c
 const body = "/*caret*/core";
 ```
 
-```lsp scenario edit-paste-delete-and-bof
+```lsp go_to_marker caret [0]
 ```
 
-```lsp current_file
+```lsp paste [0]
+more
+```
+
+```lsp delete_at_caret 4 [0]
+```
+
+```lsp go_to_bof [0]
+```
+
+```lsp paste [0]
+// header
+
+```
+
+```lsp current_file main.ds [0]
+// header
+const body = "more";
+```
+
+```lsp move_right 21 [0]
+```
+
+```lsp paste [0]
+const tail = 1;
+
+```
+
+```lsp current_file main.ds [0]
 // header
 const body = "more";
 const tail = 1;
@@ -93,10 +145,10 @@ const beta = 2;
 const gamma = 3;
 ```
 
-```lsp scenario edit-delete-line
+```lsp delete_line 1 [0]
 ```
 
-```lsp current_file
+```lsp current_file main.ds [0]
 const alpha = 1;
 const gamma = 3;
 ```
@@ -112,10 +164,10 @@ const gamma = 3;
 const delta = 4;
 ```
 
-```lsp scenario edit-delete-line-range
+```lsp delete_line_range 1 2 [0]
 ```
 
-```lsp current_file
+```lsp current_file main.ds [0]
 const alpha = 1;
 const delta = 4;
 ```
@@ -130,10 +182,11 @@ const beta = 2;
 const gamma = 3;
 ```
 
-```lsp scenario edit-replace-line
+```lsp replace_line 1 [0]
+const beta = 20;
 ```
 
-```lsp current_file
+```lsp current_file main.ds [0]
 const alpha = 1;
 const beta = 20;
 const gamma = 3;
@@ -155,7 +208,25 @@ const output: number = /*use*/value + 1;
 export { output };
 ```
 
-```lsp scenario multifile-edit-responsiveness
+```lsp definition use [0]
+def
+```
+
+```ds:lib.ds[1]
+export const /*def*/value: number = 2;
+```
+
+```ds:main.ds[1]
+import { value } from "./lib.ds";
+const output: number = /*use*/value + 2;
+export { output };
+```
+
+```lsp definition use [1]
+def
+```
+
+```lsp document_diagnostic main.ds [1]
 ```
 
 ## Caret State
@@ -170,5 +241,6 @@ function main() {
 }
 ```
 
-```lsp scenario indentation-current-line
+```lsp indentation indent [0]
+4
 ```

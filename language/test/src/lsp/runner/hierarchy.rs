@@ -4,7 +4,7 @@ use crate::lsp::{
     parse_expected_type_hierarchy_items, verify_call_hierarchy_calls, verify_type_hierarchy_items,
 };
 
-/// Run the hierarchy scenarios declared by one fixture.
+/// Run the hierarchy cases declared by one fixture.
 pub(crate) fn run_hierarchy_cases(
     fixture: &LspFixture,
     test_state: &mut LspTestState,

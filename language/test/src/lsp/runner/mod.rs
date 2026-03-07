@@ -1,9 +1,7 @@
 mod assists;
-mod cancellation;
 mod commands;
 mod core;
 mod diagnostics;
-mod edits;
 mod hierarchy;
 mod lifecycle;
 mod navigation;

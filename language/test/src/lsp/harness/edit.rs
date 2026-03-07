@@ -24,11 +24,7 @@ impl LspTestState {
     /// Open one fixture-relative file and track its overlay state.
     pub fn open_file(&mut self, file_path: &str) -> Result<(), String> {
         // load the workspace text before publishing the editor overlay
-        let text = if let Some(open_text) = self.fixture.open_text_overrides.get(file_path) {
-            open_text.clone()
-        } else {
-            self.driver.read_file_text(file_path)?
-        };
+        let text = self.driver.read_file_text(file_path)?;
         self.driver.open_file_with_text(file_path, &text, 1)?;
 
         self.editor.open_documents.insert(
@@ -109,6 +105,26 @@ impl LspTestState {
         }
 
         Ok(())
+    }
+
+    /// Create one closed workspace file and notify the server.
+    pub fn create_file_text(&mut self, file_path: &str, text: &str) -> Result<(), String> {
+        self.driver.create_file_text(file_path, text)
+    }
+
+    /// Update one closed workspace file and notify the server.
+    pub fn replace_closed_file_text(&mut self, file_path: &str, text: &str) -> Result<(), String> {
+        self.driver.change_closed_file_text(file_path, text)
+    }
+
+    /// Delete one closed workspace file and notify the server.
+    pub fn delete_file(&mut self, file_path: &str) -> Result<(), String> {
+        // require a closed file so deletion semantics stay explicit
+        if self.editor.open_documents.contains_key(file_path) {
+            return Err(format!("cannot delete open file {file_path}"));
+        }
+
+        self.driver.delete_file_text(file_path)
     }
 
     /// Insert text at the current caret.
@@ -482,6 +498,17 @@ impl LspTestState {
             .ok_or_else(|| format!("cannot read unopened file {file_path}"))?;
 
         Ok(&document.text)
+    }
+
+    /// Return the current overlay version for one open document.
+    pub fn current_document_version(&self, file_path: &str) -> Result<i32, String> {
+        let document = self
+            .editor
+            .open_documents
+            .get(file_path)
+            .ok_or_else(|| format!("cannot read unopened file {file_path}"))?;
+
+        Ok(document.version)
     }
 
     /// Return the current overlay text for the active document.

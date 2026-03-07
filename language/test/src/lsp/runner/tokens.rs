@@ -6,7 +6,7 @@ use crate::lsp::{
     parse_expected_semantic_tokens, verify_semantic_tokens,
 };
 
-/// Run the semantic-token scenarios declared by one fixture.
+/// Run the semantic-token cases declared by one fixture.
 pub(crate) fn run_token_cases(
     fixture: &LspFixture,
     test_state: &mut LspTestState,
@@ -98,7 +98,7 @@ pub(crate) fn run_token_cases(
 }
 
 /// Normalize one semantic token range response into exact comparable tokens.
-fn normalize_semantic_tokens_range(
+pub(super) fn normalize_semantic_tokens_range(
     text: &str,
     result: &lsp::SemanticTokensRangeResult,
 ) -> Result<Vec<NormalizedSemanticToken>, String> {
@@ -115,7 +115,9 @@ fn normalize_semantic_tokens_range(
 }
 
 /// Return the current semantic token result id when the response carries one.
-fn semantic_tokens_result_id(result: &lsp::SemanticTokensResult) -> Result<Option<String>, String> {
+pub(super) fn semantic_tokens_result_id(
+    result: &lsp::SemanticTokensResult,
+) -> Result<Option<String>, String> {
     match result {
         lsp::SemanticTokensResult::Tokens(tokens) => Ok(tokens.result_id.clone()),
         lsp::SemanticTokensResult::Partial(_) => {
@@ -125,7 +127,7 @@ fn semantic_tokens_result_id(result: &lsp::SemanticTokensResult) -> Result<Optio
 }
 
 /// Apply one semantic token delta result to a baseline token response.
-fn semantic_tokens_after_delta(
+pub(super) fn semantic_tokens_after_delta(
     baseline: &lsp::SemanticTokensResult,
     delta: &lsp::SemanticTokensFullDeltaResult,
 ) -> Result<lsp::SemanticTokensResult, String> {
