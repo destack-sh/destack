@@ -180,7 +180,7 @@ impl Parser {
 
                 let expression = self.tree.get(expression_id);
                 let is_terminal_statement = matches!(expression, Expression::Statement(_))
-                    || expression.is_top_level_statement();
+                    || expression.is_statement_boundary();
                 if is_terminal_statement {
                     return Ok(Some(expression_id));
                 }
@@ -622,7 +622,7 @@ impl Parser {
         // detect expression kinds that should stay statement-shaped
         let expression = self.tree.get(expression_id);
         let is_statement =
-            matches!(expression, Expression::Statement(_)) || expression.is_top_level_statement();
+            matches!(expression, Expression::Statement(_)) || expression.is_statement_boundary();
         let separator_cursor = self.scanner_cursor_from(self.pos_index());
         let has_separator = separator_cursor.starts_after_statement_boundary();
 

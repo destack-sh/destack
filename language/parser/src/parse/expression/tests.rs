@@ -4,10 +4,11 @@ use destack_ast::{
     EnumField, EnumKind, Expression, FunctionKind, IfCondition, IfKind, ImportAliasTarget,
     ImportSource, ImportTarget, IntType, Key, Member, Mutability, Name, Parameter, Pattern,
     PatternField, PostfixPosition, Property, ScalarLiteral, TemplateLiteral, TokenType,
+    LetKind,
     TypeBinaryOperator, TypeLiteral, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
     VarianceBound,
 };
-use destack_source::{DiagnosticSeverity, LanguageType};
+use destack_source::LanguageType;
 
 use crate::{
     TestParser, assert_comment_trivia, assert_expression_path, assert_name, assert_node,
@@ -633,16 +634,7 @@ fn assert_parse_without_errors_in_typescript(source: &str) {
     let mut parser = test.prepare();
     let _ = parser.parse();
 
-    let error_diagnostics: Vec<_> = parser
-        .diagnostics
-        .iter()
-        .into_iter()
-        .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
-        .collect();
-    assert!(
-        error_diagnostics.is_empty(),
-        "unexpected parser diagnostics: {error_diagnostics:#?}"
-    );
+    assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
 }
 
 /// Parse `abstract` on one line and class on the next as valid TypeScript.
@@ -1983,6 +1975,31 @@ fn test_parse_instantiation_expression_parenthesized() {
                     assert_path!(parser, *path, "f");
                     assert!(static_arguments.is_none());
                 });
+            });
+        });
+    });
+}
+
+/// Parse optional-chain static argument calls in TypeScript value positions.
+#[test]
+fn test_parse_optional_chain_static_argument_call_typescript() {
+    let mut test = TestParser::new_with_options("fn?.<number>();", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Statement(statement_id) => {
+        assert_node!(parser.tree, *statement_id, Expression::Call { left, static_arguments, dynamic_arguments, .. } => {
+            assert!(dynamic_arguments.is_empty());
+
+            let static_arguments = static_arguments.as_ref().expect("expected static arguments");
+            assert_eq!(static_arguments.len(), 1);
+            assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
+            });
+
+            assert_node!(parser.tree, *left, Expression::Maybe { left, position: PostfixPosition::Direct } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "fn");
             });
         });
     });
@@ -5256,16 +5273,7 @@ fn test_parse_async_generic_false_positive_in_typescript() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    let error_diagnostics: Vec<_> = parser
-        .diagnostics
-        .iter()
-        .into_iter()
-        .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
-        .collect();
-    assert!(
-        error_diagnostics.is_empty(),
-        "unexpected parser diagnostics: {error_diagnostics:#?}"
-    );
+    assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
     assert_eq!(expressions.len(), 2);
 
     assert_node!(parser.tree, expressions[0], Expression::Statement(statement_id) => {
@@ -5293,6 +5301,94 @@ fn test_parse_async_generic_false_positive_in_typescript() {
         });
     });
 }
+
+/// Parse async generic arrow ASI.
+#[test]
+fn test_parse_async_generic_arrow_asi_fixture_typescript() {
+    let mut test = TestParser::new_with_options(
+        "var a = {}\nasync<T,>() => {}\n\n(a as any).b = 1;\n",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert_eq!(expressions.len(), 3);
+
+    assert_node!(parser.tree, expressions[0], Expression::Let { kind, declarators, .. } => {
+        assert_eq!(*kind, LetKind::Var);
+        assert_eq!(declarators.len(), 1);
+    });
+
+    assert_node!(parser.tree, expressions[1], Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+            assert_eq!(signature.asynchrony, Asynchrony::Async);
+            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert!(signature.dynamic_parameters.is_empty());
+            assert!(signature.generics.is_some());
+            assert!(body.is_some());
+        });
+    });
+
+    assert_node!(parser.tree, expressions[2], Expression::Statement(statement_id) => {
+        assert_node!(parser.tree, *statement_id, Expression::Assign { left, operator, right } => {
+            assert_eq!(*operator, AssignOperator::Assign);
+            assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                assert_string!(parser, *name, "b");
+                assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+                    assert_node!(parser.tree, *expression, Expression::TypeBinary { operator, .. } => {
+                        assert_eq!(*operator, TypeBinaryOperator::Cast);
+                    });
+                });
+            });
+            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        });
+    });
+}
+
+/// Parse async arrow statements that continue into same line comma expressions.
+#[test]
+fn test_parse_async_arrow_statement_comma_continuation_typescript() {
+    let mut test = TestParser::new_with_options("async () => {}, x;", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Statement(statement_id) => {
+        assert_node!(parser.tree, *statement_id, Expression::SequenceExpression { expressions } => {
+            assert_eq!(expressions.len(), 2);
+            assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                    assert_eq!(signature.asynchrony, Asynchrony::Async);
+                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                });
+            });
+            assert_expression_path!(parser, parser.tree.get(expressions[1]), "x");
+        });
+    });
+}
+
+/// Parse plain arrow statements that continue into same line comma expressions.
+#[test]
+fn test_parse_arrow_statement_comma_continuation_javascript() {
+    let mut test = TestParser::new_with_options("() => 1, 2", LanguageType::JavaScript);
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Statement(statement_id) => {
+        assert_node!(parser.tree, *statement_id, Expression::SequenceExpression { expressions } => {
+            assert_eq!(expressions.len(), 2);
+            assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert_node!(parser.tree, body.expect("expected lambda body"), Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                });
+            });
+            assert_node!(parser.tree, expressions[1], Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+        });
+    });
+}
+
 /// Parse `type as string` as a cast expression.
 #[test]
 fn test_parse_type_keyword_as_cast_expression() {
