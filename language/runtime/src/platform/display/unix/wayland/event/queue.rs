@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::platform::display::RuntimeEventLog;
+use crate::runtime::RuntimeEventLog;
 
 use super::{DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream};
 use crate::platform::display::unix::wayland::core::WaylandRuntimeState;

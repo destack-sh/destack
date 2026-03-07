@@ -5,16 +5,16 @@ use std::sync::{Arc, Condvar, Mutex, OnceLock, Weak};
 use super::WaylandConnectionState;
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::{RuntimeIngressObserver, register_runtime_ingress_observer};
+use crate::platform::display::DisplayBackend;
 use crate::platform::display::unix::wayland::event::{
     self as wayland_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord,
     WindowEventStream,
 };
 use crate::platform::display::unix::wayland::model::{MonitorSnapshot, WaylandWindowHostState};
-use crate::platform::display::{
-    DisplayBackend, RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry,
-};
 use crate::platform::resource;
-use crate::runtime::BindingCallContext;
+use crate::runtime::{
+    BindingCallContext, RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry,
+};
 
 /// Cached gamma-ramp payload for one display.
 #[derive(Debug, Clone, Default)]

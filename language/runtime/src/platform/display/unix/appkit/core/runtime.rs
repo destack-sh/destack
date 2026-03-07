@@ -18,12 +18,12 @@ use crate::platform::display::unix::appkit::event::{
 };
 use crate::platform::display::unix::appkit::model::{AppKitWindowHostState, MonitorSnapshot};
 use crate::platform::display::unix::appkit::window;
-use crate::platform::display::{
-    RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry, WindowPosition, WindowTheme,
-};
+use crate::platform::display::{WindowPosition, WindowTheme};
 use crate::platform::{ResourceTable, core as core_platform, resource};
-use crate::runtime::BindingCallContext;
 use crate::runtime::world::World;
+use crate::runtime::{
+    BindingCallContext, RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry,
+};
 
 /// Transient drag and drop state for one native AppKit window.
 #[derive(Debug, Default)]

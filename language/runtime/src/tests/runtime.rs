@@ -2,8 +2,8 @@
 
 use destack_base::LocalStringPool;
 use destack_mir::NodeTree;
-use destack_vm as vm;
 use destack_workspace::{ExecutionMode, RandomMode, RandomOptions, RuntimeOptions};
+use {destack_heap as heap, destack_vm as vm};
 
 use crate::diagnostic::{DiagnosticId, RuntimeError, RuntimeResult, RuntimeStatus};
 use crate::host::Host;
@@ -13,9 +13,53 @@ use crate::platform::random::{
     RandomStream, destack_random_stream_next_u64, destack_random_stream_next_u64_from,
 };
 use crate::platform::resource::{ListenerHandle, ResourceKind};
+use crate::runtime::engine::{
+    Engine, EngineContinuation, EngineOutcome, EngineOutput, EngineSnapshot, Entry,
+};
 use crate::runtime::{
     Agent, BindingCallContext, World, enter_binding_call_context, enter_current_agent_context,
 };
+
+/// Minimal engine used by runtime helper tests.
+#[derive(Debug, Default)]
+struct TestRuntimeEngine;
+
+impl Engine for TestRuntimeEngine {
+    /// Complete immediately with one void output.
+    fn run(&mut self, _entry: &Entry, _args: &[heap::Value]) -> RuntimeResult<EngineOutcome> {
+        Ok(EngineOutcome::Completed {
+            output: EngineOutput::default(),
+        })
+    }
+
+    /// Reject resume because these helpers never yield.
+    fn resume(
+        &mut self,
+        _continuation: EngineContinuation,
+        _value: heap::Value,
+    ) -> RuntimeResult<EngineOutcome> {
+        Err(RuntimeError::Internal {
+            message: "runtime test engine resume is not implemented".to_string(),
+        }
+        .boxed())
+    }
+
+    /// Reject snapshot because these helpers never checkpoint engine state.
+    fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot> {
+        Err(RuntimeError::Internal {
+            message: "runtime test engine snapshot is not implemented".to_string(),
+        }
+        .boxed())
+    }
+
+    /// Reject restore because these helpers never checkpoint engine state.
+    fn restore(&mut self, _snapshot: &EngineSnapshot) -> RuntimeResult<()> {
+        Err(RuntimeError::Internal {
+            message: "runtime test engine restore is not implemented".to_string(),
+        }
+        .boxed())
+    }
+}
 
 /// Runtime harness for runtime tests.
 #[cfg_attr(windows, allow(dead_code))]
@@ -76,7 +120,7 @@ impl TestRuntime {
     fn from_runtime_options(options: RuntimeOptions) -> Self {
         // build runtime state from explicit options
         let world = World::from_options(&options).expect("runtime test world should build");
-        let agent = Agent::new_in_world(Vec::new(), &options, &world)
+        let agent = Agent::new_in_world(Vec::new(), &options, &world, Box::new(TestRuntimeEngine))
             .expect("runtime test agent should build");
         let host = Host::from_runtime_options(&options, agent.runtime_id);
 
