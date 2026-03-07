@@ -99,18 +99,20 @@ impl Serialize for NodeSourceMap {
         let mut main_spans = Vec::with_capacity(self.enclosing_spans.len());
         let mut type_spans = Vec::with_capacity(self.enclosing_spans.len());
         for index in 0..self.enclosing_spans.len() {
-            let main_span = if self.has_main_span[index] {
-                Some(self.main_spans[index])
-            } else {
-                None
-            };
+            let main_span = self
+                .has_main_span
+                .get(index)
+                .copied()
+                .unwrap_or(false)
+                .then(|| self.main_spans[index]);
             main_spans.push(main_span);
 
-            let type_span = if self.has_type_span[index] {
-                Some(self.type_spans[index])
-            } else {
-                None
-            };
+            let type_span = self
+                .has_type_span
+                .get(index)
+                .copied()
+                .unwrap_or(false)
+                .then(|| self.type_spans[index]);
             type_spans.push(type_span);
         }
 
@@ -195,10 +197,10 @@ impl NodeSourceMap {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             enclosing_spans: Vec::with_capacity(capacity),
-            main_spans: Vec::with_capacity(capacity),
-            has_main_span: Vec::with_capacity(capacity),
-            type_spans: Vec::with_capacity(capacity),
-            has_type_span: Vec::with_capacity(capacity),
+            main_spans: Vec::with_capacity(capacity / 4),
+            has_main_span: Vec::with_capacity(capacity / 4),
+            type_spans: Vec::with_capacity(capacity / 8),
+            has_type_span: Vec::with_capacity(capacity / 8),
             side_spans: FxHashMap::default(),
             interval_tree: RwLock::new(None),
             interval_tree_ready: AtomicBool::new(false),
@@ -254,10 +256,6 @@ impl NodeSourceMap {
     #[inline]
     pub fn append(&mut self, span: Span) {
         self.enclosing_spans.push(span);
-        self.main_spans.push(empty_span());
-        self.has_main_span.push(false);
-        self.type_spans.push(empty_span());
-        self.has_type_span.push(false);
         self.invalidate_position_index();
     }
 
