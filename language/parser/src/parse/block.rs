@@ -8,7 +8,8 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 /// The recursion interval for stack growth checks in statement parsing.
-const STATEMENT_STACK_GROW_CHECK_INTERVAL: u32 = if cfg!(debug_assertions) { 1 } else { 256 };
+#[cfg(not(debug_assertions))]
+const STATEMENT_STACK_GROW_CHECK_INTERVAL: u32 = 256;
 
 impl Parser {
     /// Return parser contexts for statement-position parsing.
@@ -260,10 +261,20 @@ impl Parser {
         &mut self,
         token_type: TokenType,
     ) -> ParseResult<LocalNodeId<Expression>> {
+        // stack depth
         let depth = self.statement_stack_depth;
         self.statement_stack_depth = depth + 1;
+
+        // guard interval
+        #[cfg(debug_assertions)]
+        let should_check_stack = depth != 0;
+
+        // guard interval
+        #[cfg(not(debug_assertions))]
         let should_check_stack =
-            depth != 0 && (depth & (STATEMENT_STACK_GROW_CHECK_INTERVAL - 1)) == 0;
+            depth != 0 && depth.is_multiple_of(STATEMENT_STACK_GROW_CHECK_INTERVAL);
+
+        // parse with stack guard
         let result = if should_check_stack {
             destack_base::ensure_sufficient_stack(|| {
                 self.eat_statement_expression_from_token_kind_inner(token_type)
@@ -271,7 +282,10 @@ impl Parser {
         } else {
             self.eat_statement_expression_from_token_kind_inner(token_type)
         };
+
+        // restore depth
         self.statement_stack_depth = depth;
+
         result
     }
 
