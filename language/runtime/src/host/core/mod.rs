@@ -2,6 +2,7 @@ mod adapter;
 mod capability;
 mod error;
 mod event;
+mod ingress;
 mod queue;
 mod registry;
 mod runtime;
@@ -17,6 +18,10 @@ pub use event::{
     HostEvent, HostEventKind, HostInterruptionEvent, HostLifecycleEvent, HostMemoryPressureEvent,
     HostPermissionEvent, HostPowerModeEvent, HostThermalEvent, HostWallClockEvent, HostWindowEvent,
     HostWindowFocusEvent,
+};
+pub(crate) use ingress::{
+    RuntimeIngressObserver, cleanup_runtime_ingress_observers, process_runtime_ingress_observer,
+    process_runtime_ingress_observers, register_runtime_ingress_observer,
 };
 pub(crate) use queue::HostEventQueue;
 #[allow(unused_imports)]

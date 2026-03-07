@@ -22,6 +22,19 @@ pub(crate) enum CatalogBindingBlocking {
     Sometimes,
 }
 
+/// Affinity classification for bindings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CatalogBindingAffinity {
+    /// Binding is callable from any execution context.
+    Any,
+    /// Binding requires the agent event-loop context.
+    EventLoop,
+    /// Binding requires the creating execution context.
+    Owner,
+    /// Binding requires the process main context.
+    ProcessMain,
+}
+
 /// Simulation capability classification for bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CatalogBindingSimulation {
@@ -118,6 +131,8 @@ pub(crate) struct BindingEntry {
     pub scope: CatalogBindingScope,
     /// Blocking behavior for this binding.
     pub blocking: CatalogBindingBlocking,
+    /// Affinity behavior for this binding.
+    pub affinity: CatalogBindingAffinity,
     /// Simulation capability for this binding.
     pub simulation: CatalogBindingSimulation,
 }

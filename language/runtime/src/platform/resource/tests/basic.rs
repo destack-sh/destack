@@ -4,8 +4,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use super::{assert_platform_error_code, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{
-    ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind, ResourceOwnership,
+    ResourceAffinity, ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind, ResourceOwnership,
 };
+use crate::runtime::{ExecutionContext, ExecutionContextId, ExecutionContextId};
 
 /// Finalizer that records how many times one resource is finalized.
 struct CountingFinalizer {
@@ -155,4 +156,37 @@ fn test_resource_transfer_returns_not_found_for_unknown_id() {
 
         Ok(())
     });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_resource_affinity_event_loop_rejects_distinct_execution_context() {
+    // build one canonical event-loop context and one distinct execution context
+    let event_loop_context_id = ExecutionContextId::from_hash(11);
+    let event_loop_context = ExecutionContext::new(ExecutionContextId(11), false);
+    let worker_context = ExecutionContext::new(ExecutionContextId(29), false);
+
+    // require the event-loop execution context for this resource
+    let affinity = ResourceAffinity::EventLoop;
+    assert!(affinity.satisfies(event_loop_context, event_loop_context_id));
+    assert!(!affinity.satisfies(worker_context, event_loop_context_id));
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_resource_affinity_owner_captures_execution_context() {
+    // build one owner context and one distinct execution context
+    let owner_context = ExecutionContext::new(ExecutionContextId(41), false);
+    let other_context = ExecutionContext::new(ExecutionContextId(53), false);
+
+    // capture owner affinity from the creating execution context
+    let affinity = ResourceAffinity::from_binding_affinity(
+        crate::runtime::bindings::BindingAffinity::Owner,
+        owner_context,
+    )
+    .expect("owner binding affinity should capture one owner token");
+
+    // only the creating execution context should satisfy the owner affinity
+    assert!(affinity.satisfies(owner_context, ExecutionContextId(41)));
+    assert!(!affinity.satisfies(other_context, ExecutionContextId(41)));
 }

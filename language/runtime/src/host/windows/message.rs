@@ -2,8 +2,8 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     DispatchMessageW, GetMessageW, MSG, PM_REMOVE, PeekMessageW, TranslateMessage, WM_QUIT,
 };
 
-/// Drain pending thread messages without blocking.
-pub(super) fn pump_pending_thread_messages(ignore_quit_message: bool) -> bool {
+/// Service immediately ready thread messages without blocking.
+pub(super) fn process_ingress_ready(ignore_quit_message: bool) -> bool {
     // drain pending messages from the current thread queue
     let mut dispatched_any = false;
     loop {
@@ -29,8 +29,8 @@ pub(super) fn pump_pending_thread_messages(ignore_quit_message: bool) -> bool {
     dispatched_any
 }
 
-/// Run the blocking thread message loop until quit or failure.
-pub(super) fn run_blocking_thread_message_loop() {
+/// Run the blocking ingress loop until quit or failure.
+pub(super) fn process_ingress_loop() {
     // block on get message and dispatch until quit or error
     let mut message = unsafe { std::mem::zeroed::<MSG>() };
     loop {

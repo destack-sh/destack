@@ -12,8 +12,8 @@ use crate::platform::{
     abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
-    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
@@ -299,7 +299,9 @@ pub const FFI_CALL_INVOKE: BindingDescriptor = BindingDescriptor::external_with_
     &["ffi.call"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ffi")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ffi.library.close.
@@ -312,7 +314,9 @@ pub const FFI_LIBRARY_CLOSE: BindingDescriptor =
         &["ffi.load"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("ffi")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -338,7 +342,9 @@ pub const FFI_LIBRARY_OPEN: BindingDescriptor =
         &["ffi.load"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("ffi")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -362,7 +368,9 @@ pub const FFI_POINTER_ADDRESS: BindingDescriptor =
         &["ffi.pointer"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("ffi")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -386,7 +394,9 @@ pub const FFI_POINTER_FROM_ADDRESS: BindingDescriptor =
         &["ffi.pointer"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("ffi")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -412,7 +422,9 @@ pub const FFI_SYMBOL_ADDRESS: BindingDescriptor =
         &["ffi.symbol"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("ffi")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -437,7 +449,9 @@ pub const FFI_SYMBOL_LOOKUP: BindingDescriptor = BindingDescriptor::external_wit
     &["ffi.symbol"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ffi")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptors for ffi.

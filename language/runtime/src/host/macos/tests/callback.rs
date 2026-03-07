@@ -6,6 +6,7 @@ use super::{
 };
 use crate::host::core::{HostState, register_host_state};
 use crate::host::{HostEvent, HostLifecycleState, HostPlatform, HostWindowEvent};
+use crate::runtime::world::RuntimeId;
 
 #[test]
 fn test_map_application_lifecycle_to_initializing() {
@@ -39,10 +40,10 @@ fn test_map_application_lifecycle_to_destroyed() {
 #[test]
 fn test_notify_window_available_enqueues_window_event_for_runtime_bridge() {
     let state = Arc::new(HostState::new());
-    let registration = register_host_state(HostPlatform::MacOS, &state, None);
+    let registration = register_host_state(HostPlatform::MacOS, RuntimeId(1), &state, None);
     let runtime_id = registration.runtime_id();
 
-    macos_notify_window_available(runtime_id, 13).unwrap();
+    macos_notify_window_available(runtime_id.0, 13).unwrap();
 
     let poll_result = state.poll_events(Some(0)).unwrap();
     let events = poll_result.events;

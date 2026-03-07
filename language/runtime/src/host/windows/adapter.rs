@@ -4,10 +4,11 @@ use destack_workspace::PlatformHostOptions;
 
 use super::message as windows_message;
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostAdapterState, HostState, default_host_capabilities};
+use crate::host::core::{HostAdapterState, default_host_capabilities};
 use crate::host::{HostAdapter, HostPlatform, HostPollOutcome};
 use crate::runtime::capability::PlatformCapabilitySet;
 use crate::runtime::poller::HostPollerWakeHandle;
+use crate::runtime::world::RuntimeId;
 
 /// Windows host implementation.
 #[derive(Debug)]
@@ -18,9 +19,9 @@ pub(crate) struct WindowsHost {
 
 impl WindowsHost {
     /// Create one Windows host.
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(runtime_id: RuntimeId) -> Self {
         Self {
-            state: HostAdapterState::new(HostPlatform::Windows, None),
+            state: HostAdapterState::new(HostPlatform::Windows, runtime_id, None),
         }
     }
 }
@@ -42,26 +43,17 @@ impl HostAdapter for WindowsHost {
         self.state.state().configure_host_options(host_options);
     }
 
-    fn callback_runtime_id(&self) -> Option<u64> {
-        Some(self.state.callback_runtime_id())
+    fn is_process_main_context(&self) -> bool {
+        false
     }
 
-    fn pump_pending_thread_messages(&self, ignore_quit_message: bool) -> RuntimeResult<bool> {
-        let dispatched = windows_message::pump_pending_thread_messages(ignore_quit_message);
-        Ok(dispatched)
-    }
-
-    fn run_blocking_thread_message_loop(&self) -> RuntimeResult<()> {
-        windows_message::run_blocking_thread_message_loop();
-        Ok(())
+    fn process_ingress(&self) -> RuntimeResult<bool> {
+        // service one ready slice of the Win32 message queue
+        Ok(windows_message::process_ingress_ready(true))
     }
 
     fn host_capabilities(&self) -> PlatformCapabilitySet {
         default_host_capabilities(self.platform())
-    }
-
-    fn state(&self) -> &Arc<HostState> {
-        self.state.state()
     }
 }
 

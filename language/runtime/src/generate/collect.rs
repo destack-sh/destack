@@ -11,10 +11,10 @@ use destack_source::ModuleId;
 use destack_workspace::{Platform, ProfileId, Program};
 
 use crate::model::{
-    BindingCatalog, BindingEntry, BindingReturn, BindingType, CatalogBindingBlocking,
-    CatalogBindingReplayKind, CatalogBindingScope, CatalogBindingSimulation, CatalogEffectClass,
-    CatalogEntropyKind, CatalogReplayPayload, CatalogReplayPolicy, ConstantCatalog, ConstantEntry,
-    ConstantValue,
+    BindingCatalog, BindingEntry, BindingReturn, BindingType, CatalogBindingAffinity,
+    CatalogBindingBlocking, CatalogBindingReplayKind, CatalogBindingScope,
+    CatalogBindingSimulation, CatalogEffectClass, CatalogEntropyKind, CatalogReplayPayload,
+    CatalogReplayPolicy, ConstantCatalog, ConstantEntry, ConstantValue,
 };
 use crate::types::{
     binding_type_from_type_id, binding_type_symbols, collect_binding_params,
@@ -50,6 +50,8 @@ struct BindingRecord {
     scope: CatalogBindingScope,
     /// Blocking behavior for this binding.
     blocking: CatalogBindingBlocking,
+    /// Affinity behavior for this binding.
+    affinity: CatalogBindingAffinity,
     /// Simulation capability for this binding.
     simulation: CatalogBindingSimulation,
 }
@@ -71,6 +73,8 @@ struct BindingDecorator {
     scope: CatalogBindingScope,
     /// Blocking behavior for this binding.
     blocking: CatalogBindingBlocking,
+    /// Affinity behavior for this binding.
+    affinity: CatalogBindingAffinity,
     /// Simulation capability for this binding.
     simulation: CatalogBindingSimulation,
 }
@@ -227,6 +231,7 @@ pub(crate) fn collect_platform_bindings(
                 binding.host_platforms,
                 binding.scope,
                 binding.blocking,
+                binding.affinity,
                 binding.simulation,
             ) {
                 insert_binding(&mut domains, entry);
@@ -555,6 +560,7 @@ fn binding_from_node(
     host_platforms: Vec<String>,
     scope: CatalogBindingScope,
     blocking: CatalogBindingBlocking,
+    affinity: CatalogBindingAffinity,
     simulation: CatalogBindingSimulation,
 ) -> Option<BindingRecord> {
     let implementation_name = implementation_name?;
@@ -577,6 +583,7 @@ fn binding_from_node(
         host_platforms,
         scope,
         blocking,
+        affinity,
         simulation,
     })
 }
@@ -602,6 +609,7 @@ fn insert_binding(domains: &mut BindingCatalog, record: BindingRecord) {
         host_platforms: record.host_platforms,
         scope: record.scope,
         blocking: record.blocking,
+        affinity: record.affinity,
         simulation: record.simulation,
     };
 
@@ -617,6 +625,7 @@ fn insert_binding(domains: &mut BindingCatalog, record: BindingRecord) {
             || existing.host_platforms != entry.host_platforms
             || existing.scope != entry.scope
             || existing.blocking != entry.blocking
+            || existing.affinity != entry.affinity
             || existing.simulation != entry.simulation)
     {
         panic!(
@@ -776,6 +785,7 @@ fn decorator_binding_argument(
         host_platforms: spec.host_platforms,
         scope: spec.scope,
         blocking: spec.blocking,
+        affinity: spec.affinity,
         simulation: spec.simulation,
     }
 }
@@ -794,6 +804,8 @@ struct BindingEffectSpec {
     scope: CatalogBindingScope,
     /// Blocking behavior for this binding.
     blocking: CatalogBindingBlocking,
+    /// Affinity behavior for this binding.
+    affinity: CatalogBindingAffinity,
     /// Simulation capability for this binding.
     simulation: CatalogBindingSimulation,
 }
@@ -819,6 +831,7 @@ fn parse_effect_spec(
     let mut host_platforms = Vec::new();
     let mut scope = None;
     let mut blocking = None;
+    let mut affinity = None;
     let mut simulation = None;
 
     // read each property value
@@ -876,6 +889,12 @@ fn parse_effect_spec(
                 };
                 blocking = Some(value);
             }
+            "affinity" => {
+                let Some(value) = scalar_string_literal(tree, *value_id, strings) else {
+                    panic!("@binding affinity must be a string literal");
+                };
+                affinity = Some(value);
+            }
             "simulation" => {
                 let Some(value) = scalar_string_literal(tree, *value_id, strings) else {
                     panic!("@binding simulation must be a string literal");
@@ -902,6 +921,7 @@ fn parse_effect_spec(
     let replay_payload = parse_replay_payload(payload.as_deref());
     let scope = parse_binding_scope(scope.as_deref());
     let blocking = parse_binding_blocking(blocking.as_deref());
+    let affinity = parse_binding_affinity(affinity.as_deref());
     let simulation = parse_binding_simulation(simulation.as_deref());
 
     if log.is_some() {
@@ -928,6 +948,7 @@ fn parse_effect_spec(
         host_platforms,
         scope,
         blocking,
+        affinity,
         simulation,
     }
 }
@@ -957,6 +978,22 @@ fn parse_binding_blocking(value: Option<&str>) -> CatalogBindingBlocking {
         }
         None => {
             panic!("@binding requires an explicit blocking classification");
+        }
+    }
+}
+
+/// Parse a binding affinity from a string.
+fn parse_binding_affinity(value: Option<&str>) -> CatalogBindingAffinity {
+    match value {
+        Some("any") => CatalogBindingAffinity::Any,
+        Some("eventLoop") => CatalogBindingAffinity::EventLoop,
+        Some("owner") => CatalogBindingAffinity::Owner,
+        Some("processMain") => CatalogBindingAffinity::ProcessMain,
+        Some(value) => {
+            panic!("unsupported @binding affinity value {value}");
+        }
+        None => {
+            panic!("@binding requires an explicit affinity classification");
         }
     }
 }

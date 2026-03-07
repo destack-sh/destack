@@ -96,8 +96,8 @@ use crate::platform::{
     VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
-    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
@@ -6016,7 +6016,9 @@ pub const DISPLAY_BACKEND_LIST: BindingDescriptor =
         &["display.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::EventLoop,
     )
+    .with_namespace("display")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6042,7 +6044,9 @@ pub const DISPLAY_MONITOR_CLOSE: BindingDescriptor =
         &["display.read"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::EventLoop,
     )
+    .with_namespace("display")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6067,7 +6071,9 @@ pub const DISPLAY_MONITOR_CLOSEST_MODE: BindingDescriptor = BindingDescriptor::e
     &["display.mode"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.colorState.
@@ -6079,7 +6085,9 @@ pub const DISPLAY_MONITOR_COLOR_STATE: BindingDescriptor = BindingDescriptor::ex
     &["display.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.currentMode.
@@ -6091,7 +6099,9 @@ pub const DISPLAY_MONITOR_CURRENT_MODE: BindingDescriptor = BindingDescriptor::e
     &["display.mode"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.descriptor.
@@ -6103,7 +6113,9 @@ pub const DISPLAY_MONITOR_DESCRIPTOR: BindingDescriptor = BindingDescriptor::ext
     &["display.read"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.desktopMode.
@@ -6115,7 +6127,9 @@ pub const DISPLAY_MONITOR_DESKTOP_MODE: BindingDescriptor = BindingDescriptor::e
     &["display.mode"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventClose.
@@ -6127,7 +6141,9 @@ pub const DISPLAY_MONITOR_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::ex
     &["display.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventOpen.
@@ -6139,7 +6155,9 @@ pub const DISPLAY_MONITOR_EVENT_OPEN: BindingDescriptor = BindingDescriptor::ext
     &["display.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventRead.
@@ -6151,7 +6169,9 @@ pub const DISPLAY_MONITOR_EVENT_READ: BindingDescriptor = BindingDescriptor::ext
     &["display.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventReadBatch.
@@ -6163,7 +6183,9 @@ pub const DISPLAY_MONITOR_EVENT_READ_BATCH: BindingDescriptor = BindingDescripto
     &["display.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventTryRead.
@@ -6175,7 +6197,9 @@ pub const DISPLAY_MONITOR_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor:
     &["display.read"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventTryReadBatch.
@@ -6187,7 +6211,9 @@ pub const DISPLAY_MONITOR_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescr
     &["display.read"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.gammaRamp.
@@ -6199,7 +6225,9 @@ pub const DISPLAY_MONITOR_GAMMA_RAMP: BindingDescriptor = BindingDescriptor::ext
     &["display.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.hdrMode.
@@ -6211,7 +6239,9 @@ pub const DISPLAY_MONITOR_HDR_MODE: BindingDescriptor = BindingDescriptor::exter
     &["display.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.list.
@@ -6223,7 +6253,9 @@ pub const DISPLAY_MONITOR_LIST: BindingDescriptor = BindingDescriptor::external_
     &["display.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.modes.
@@ -6235,7 +6267,9 @@ pub const DISPLAY_MONITOR_MODES: BindingDescriptor = BindingDescriptor::external
     &["display.mode"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.open.
@@ -6247,7 +6281,9 @@ pub const DISPLAY_MONITOR_OPEN: BindingDescriptor = BindingDescriptor::external_
     &["display.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.primary.
@@ -6259,7 +6295,9 @@ pub const DISPLAY_MONITOR_PRIMARY: BindingDescriptor = BindingDescriptor::extern
     &["display.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.setGammaRamp.
@@ -6271,7 +6309,9 @@ pub const DISPLAY_MONITOR_SET_GAMMA_RAMP: BindingDescriptor = BindingDescriptor:
     &["display.mode"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.setHdrMode.
@@ -6283,7 +6323,9 @@ pub const DISPLAY_MONITOR_SET_HDR_MODE: BindingDescriptor = BindingDescriptor::e
     &["display.mode"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.setMode.
@@ -6295,7 +6337,9 @@ pub const DISPLAY_MONITOR_SET_MODE: BindingDescriptor = BindingDescriptor::exter
     &["display.mode"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.beginMoveDrag.
@@ -6308,7 +6352,9 @@ pub const DISPLAY_WINDOW_BEGIN_MOVE_DRAG: BindingDescriptor =
         &["display.window"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::EventLoop,
     )
+    .with_namespace("display")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6333,7 +6379,9 @@ pub const DISPLAY_WINDOW_BEGIN_RESIZE_DRAG: BindingDescriptor = BindingDescripto
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.capabilities.
@@ -6345,7 +6393,9 @@ pub const DISPLAY_WINDOW_CAPABILITIES: BindingDescriptor = BindingDescriptor::ex
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.close.
@@ -6358,7 +6408,9 @@ pub const DISPLAY_WINDOW_CLOSE: BindingDescriptor =
         &["display.window"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::EventLoop,
     )
+    .with_namespace("display")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6383,7 +6435,9 @@ pub const DISPLAY_WINDOW_DESCRIPTOR: BindingDescriptor = BindingDescriptor::exte
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventClose.
@@ -6396,7 +6450,9 @@ pub const DISPLAY_WINDOW_EVENT_CLOSE: BindingDescriptor =
         &["display.window.events"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::EventLoop,
     )
+    .with_namespace("display")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6421,7 +6477,9 @@ pub const DISPLAY_WINDOW_EVENT_OPEN: BindingDescriptor = BindingDescriptor::exte
     &["display.window.events"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventRead.
@@ -6433,7 +6491,9 @@ pub const DISPLAY_WINDOW_EVENT_READ: BindingDescriptor = BindingDescriptor::exte
     &["display.window.events"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventReadBatch.
@@ -6445,7 +6505,9 @@ pub const DISPLAY_WINDOW_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor
     &["display.window.events"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventTryRead.
@@ -6457,7 +6519,9 @@ pub const DISPLAY_WINDOW_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::
     &["display.window.events"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventTryReadBatch.
@@ -6469,7 +6533,9 @@ pub const DISPLAY_WINDOW_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescri
     &["display.window.events"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.focus.
@@ -6482,7 +6548,9 @@ pub const DISPLAY_WINDOW_FOCUS: BindingDescriptor =
         &["display.window"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::EventLoop,
     )
+    .with_namespace("display")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6508,7 +6576,9 @@ pub const DISPLAY_WINDOW_MAXIMIZE: BindingDescriptor =
         &["display.window"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::EventLoop,
     )
+    .with_namespace("display")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6534,7 +6604,9 @@ pub const DISPLAY_WINDOW_MINIMIZE: BindingDescriptor =
         &["display.window"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::EventLoop,
     )
+    .with_namespace("display")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6560,7 +6632,9 @@ pub const DISPLAY_WINDOW_OPACITY: BindingDescriptor =
         &["display.window"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::EventLoop,
     )
+    .with_namespace("display")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6586,7 +6660,9 @@ pub const DISPLAY_WINDOW_OPEN: BindingDescriptor =
         &["display.window"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::EventLoop,
     )
+    .with_namespace("display")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6612,7 +6688,9 @@ pub const DISPLAY_WINDOW_RAISE: BindingDescriptor =
         &["display.window"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::EventLoop,
     )
+    .with_namespace("display")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6637,7 +6715,9 @@ pub const DISPLAY_WINDOW_REQUEST_ATTENTION: BindingDescriptor = BindingDescripto
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.requestRefresh.
@@ -6650,7 +6730,9 @@ pub const DISPLAY_WINDOW_REQUEST_REFRESH: BindingDescriptor =
         &["display.window"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::EventLoop,
     )
+    .with_namespace("display")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6676,7 +6758,9 @@ pub const DISPLAY_WINDOW_RESTORE: BindingDescriptor =
         &["display.window"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::EventLoop,
     )
+    .with_namespace("display")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6701,7 +6785,9 @@ pub const DISPLAY_WINDOW_SET_ALWAYS_ON_TOP: BindingDescriptor = BindingDescripto
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setAspectRatio.
@@ -6713,7 +6799,9 @@ pub const DISPLAY_WINDOW_SET_ASPECT_RATIO: BindingDescriptor = BindingDescriptor
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setChrome.
@@ -6725,7 +6813,9 @@ pub const DISPLAY_WINDOW_SET_CHROME: BindingDescriptor = BindingDescriptor::exte
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setCursorIcon.
@@ -6737,7 +6827,9 @@ pub const DISPLAY_WINDOW_SET_CURSOR_ICON: BindingDescriptor = BindingDescriptor:
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setCursorMode.
@@ -6749,7 +6841,9 @@ pub const DISPLAY_WINDOW_SET_CURSOR_MODE: BindingDescriptor = BindingDescriptor:
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setCursorPosition.
@@ -6761,7 +6855,9 @@ pub const DISPLAY_WINDOW_SET_CURSOR_POSITION: BindingDescriptor = BindingDescrip
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setCursorVisible.
@@ -6773,7 +6869,9 @@ pub const DISPLAY_WINDOW_SET_CURSOR_VISIBLE: BindingDescriptor = BindingDescript
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setDecorated.
@@ -6785,7 +6883,9 @@ pub const DISPLAY_WINDOW_SET_DECORATED: BindingDescriptor = BindingDescriptor::e
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setIcons.
@@ -6797,7 +6897,9 @@ pub const DISPLAY_WINDOW_SET_ICONS: BindingDescriptor = BindingDescriptor::exter
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setModal.
@@ -6809,7 +6911,9 @@ pub const DISPLAY_WINDOW_SET_MODAL: BindingDescriptor = BindingDescriptor::exter
     &["display.window.modal"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setMode.
@@ -6821,7 +6925,9 @@ pub const DISPLAY_WINDOW_SET_MODE: BindingDescriptor = BindingDescriptor::extern
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setMousePassthrough.
@@ -6833,7 +6939,9 @@ pub const DISPLAY_WINDOW_SET_MOUSE_PASSTHROUGH: BindingDescriptor = BindingDescr
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setOpacity.
@@ -6845,7 +6953,9 @@ pub const DISPLAY_WINDOW_SET_OPACITY: BindingDescriptor = BindingDescriptor::ext
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setParent.
@@ -6857,7 +6967,9 @@ pub const DISPLAY_WINDOW_SET_PARENT: BindingDescriptor = BindingDescriptor::exte
     &["display.window.parenting"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setPosition.
@@ -6869,7 +6981,9 @@ pub const DISPLAY_WINDOW_SET_POSITION: BindingDescriptor = BindingDescriptor::ex
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setResizable.
@@ -6881,7 +6995,9 @@ pub const DISPLAY_WINDOW_SET_RESIZABLE: BindingDescriptor = BindingDescriptor::e
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setSizeConstraints.
@@ -6893,7 +7009,9 @@ pub const DISPLAY_WINDOW_SET_SIZE_CONSTRAINTS: BindingDescriptor = BindingDescri
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setSizeLogical.
@@ -6905,7 +7023,9 @@ pub const DISPLAY_WINDOW_SET_SIZE_LOGICAL: BindingDescriptor = BindingDescriptor
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setSizePhysical.
@@ -6917,7 +7037,9 @@ pub const DISPLAY_WINDOW_SET_SIZE_PHYSICAL: BindingDescriptor = BindingDescripto
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setTaskbarVisible.
@@ -6929,7 +7051,9 @@ pub const DISPLAY_WINDOW_SET_TASKBAR_VISIBLE: BindingDescriptor = BindingDescrip
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setTitle.
@@ -6941,7 +7065,9 @@ pub const DISPLAY_WINDOW_SET_TITLE: BindingDescriptor = BindingDescriptor::exter
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setTransientFor.
@@ -6953,7 +7079,9 @@ pub const DISPLAY_WINDOW_SET_TRANSIENT_FOR: BindingDescriptor = BindingDescripto
     &["display.window.parenting"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setVisibility.
@@ -6965,7 +7093,9 @@ pub const DISPLAY_WINDOW_SET_VISIBILITY: BindingDescriptor = BindingDescriptor::
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
 )
+    .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.state.
@@ -6978,7 +7108,9 @@ pub const DISPLAY_WINDOW_STATE: BindingDescriptor =
         &["display.window"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::EventLoop,
     )
+    .with_namespace("display")
     .with_host_platforms(&[
         "android",
         "dragonfly",

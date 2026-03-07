@@ -4,10 +4,11 @@ use destack_workspace::PlatformHostOptions;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::apple::message as apple_message;
-use crate::host::core::{HostAdapterState, HostState, default_host_capabilities};
+use crate::host::core::{HostAdapterState, default_host_capabilities};
 use crate::host::{HostAdapter, HostPlatform, HostPollOutcome};
 use crate::runtime::capability::PlatformCapabilitySet;
 use crate::runtime::poller::HostPollerWakeHandle;
+use crate::runtime::world::RuntimeId;
 
 /// iOS host implementation.
 #[derive(Debug)]
@@ -18,9 +19,9 @@ pub(crate) struct IosHost {
 
 impl IosHost {
     /// Create one iOS host.
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(runtime_id: RuntimeId) -> Self {
         Self {
-            state: HostAdapterState::new(HostPlatform::IOS, Some(apple_message::cleanup_runtime)),
+            state: HostAdapterState::new(HostPlatform::IOS, runtime_id, None),
         }
     }
 }
@@ -42,30 +43,17 @@ impl HostAdapter for IosHost {
         self.state.state().configure_host_options(host_options);
     }
 
-    fn callback_runtime_id(&self) -> Option<u64> {
-        Some(self.state.callback_runtime_id())
+    fn is_process_main_context(&self) -> bool {
+        apple_message::is_process_main_context()
     }
 
-    fn pump_pending_thread_messages(&self, ignore_quit_message: bool) -> RuntimeResult<bool> {
-        let runtime_id = Some(self.state.callback_runtime_id());
-        let dispatched = apple_message::pump_pending_thread_messages_for_runtime(
-            runtime_id,
-            ignore_quit_message,
-        );
-        Ok(dispatched)
-    }
-
-    fn run_blocking_thread_message_loop(&self) -> RuntimeResult<()> {
-        apple_message::run_blocking_thread_message_loop();
-        Ok(())
+    fn process_ingress(&self) -> RuntimeResult<bool> {
+        // service one ready slice of the Apple run loop
+        Ok(apple_message::process_ingress_ready(true))
     }
 
     fn host_capabilities(&self) -> PlatformCapabilitySet {
         default_host_capabilities(self.platform())
-    }
-
-    fn state(&self) -> &Arc<HostState> {
-        self.state.state()
     }
 }
 

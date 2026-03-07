@@ -1,7 +1,9 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::resource::{ResourceId, ResourceKind, ResourceKindVm, ResourceOwnership};
+use crate::platform::resource::{
+    ResourceId, ResourceKind, ResourceKindVm, ResourceOwnership, ensure_resource_affinity,
+};
 use crate::platform::{PlatformError, PlatformErrorCode};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -46,6 +48,9 @@ pub(crate) fn destack_resource_close(
     _context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<()> {
+    // enforce any stored resource-affinity requirement before closing
+    ensure_resource_affinity(binding, id, "destack.resource.id.close")?;
+
     // remove the entry and run finalization
     let removed =
         binding
@@ -81,6 +86,9 @@ pub(crate) fn destack_resource_kind(
     context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<ResourceKindVm> {
+    // enforce any stored resource-affinity requirement before resolving metadata
+    ensure_resource_affinity(binding, id, "destack.resource.id.kind")?;
+
     // resolve the kind for the requested resource
     let kind = binding
         .agent()
@@ -115,6 +123,9 @@ pub(crate) fn destack_resource_remove(
     _context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<()> {
+    // enforce any stored resource-affinity requirement before removal
+    ensure_resource_affinity(binding, id, "destack.resource.id.remove")?;
+
     // remove the entry and run finalization
     let removed =
         binding
@@ -151,6 +162,9 @@ pub(crate) fn destack_resource_transfer(
     id: ResourceId,
     ownership: ResourceOwnership,
 ) -> RuntimeResult<()> {
+    // enforce any stored resource-affinity requirement before transfer
+    ensure_resource_affinity(binding, id, "destack.resource.id.transfer")?;
+
     // validate that the source resource exists
     let exists = binding.agent().resources.contains(id);
     if !exists {

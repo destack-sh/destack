@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::{HostPlatform, HostState, HostWindowEvent, host_state_for_runtime};
 use crate::host::{HostLifecycleState, HostMemoryPressureLevel, HostPowerMode, HostThermalState};
+use crate::runtime::world::RuntimeId;
 
 /// macOS application lifecycle transitions from native callbacks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -19,7 +20,7 @@ pub enum MacosApplicationLifecycle {
 
 /// Return the active macOS host state for this process.
 fn macos_host_bridge(runtime_id: u64) -> RuntimeResult<Arc<HostState>> {
-    host_state_for_runtime(runtime_id, HostPlatform::MacOS)
+    host_state_for_runtime(RuntimeId(runtime_id), HostPlatform::MacOS)
 }
 
 /// Submit one macOS application lifecycle callback.

@@ -29,6 +29,13 @@ pub enum RuntimeError {
         /// Required capability that was not granted.
         capability: String,
     } = 102,
+    /// Binding call rejected due to an execution-affinity mismatch.
+    AffinityViolation {
+        /// Fully qualified binding name.
+        name: String,
+        /// Required affinity for this binding.
+        affinity: String,
+    } = 114,
     /// Resource identifier was not found.
     ResourceNotFound {
         /// Resource id or handle.
@@ -81,6 +88,9 @@ impl RuntimeError {
             }
             RuntimeError::CapabilityViolation { name, capability } => {
                 format!("binding capability denied: {name} requires {capability}")
+            }
+            RuntimeError::AffinityViolation { name, affinity } => {
+                format!("binding affinity denied: {name} requires {affinity}")
             }
             RuntimeError::ResourceNotFound {
                 resource_id,
@@ -209,6 +219,11 @@ impl From<Box<RuntimeError>> for vm::Error {
             RuntimeError::CapabilityViolation { name, capability } => {
                 vm::Error::ExternalCallForbidden {
                     name: format!("{name} ({capability})"),
+                }
+            }
+            RuntimeError::AffinityViolation { name, affinity } => {
+                vm::Error::ExternalCallForbidden {
+                    name: format!("{name} ({affinity})"),
                 }
             }
             other => vm::Error::Panic {

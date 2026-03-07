@@ -1,10 +1,12 @@
 use std::sync::{Arc, Mutex, OnceLock};
 
+use crate::host::android::unregister_android_bindings;
 use crate::host::core::{HostState, HostStateRegistration, register_host_state};
 use crate::host::{
     AndroidHostBindings, AndroidHostCredentialsCallbacks, AndroidHostCryptoCallbacks, HostPlatform,
     destack_host_android_register_bindings,
 };
+use crate::runtime::world::RuntimeId;
 
 /// Return the shared test lock for Android bindings registration.
 pub(crate) fn callback_test_lock() -> &'static Mutex<()> {
@@ -18,10 +20,11 @@ pub(crate) fn register_android_runtime() -> (Arc<HostState>, HostStateRegistrati
     let state = Arc::new(HostState::new());
     let registration = register_host_state(
         HostPlatform::Android,
+        RuntimeId(1),
         &state,
-        Some(crate::host::android::unregister_android_bindings),
+        Some(unregister_android_bindings),
     );
-    let runtime_id = registration.runtime_id();
+    let runtime_id = registration.runtime_id().0;
 
     (state, registration, runtime_id)
 }

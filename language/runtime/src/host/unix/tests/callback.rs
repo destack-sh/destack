@@ -6,6 +6,7 @@ use super::{
 };
 use crate::host::core::{HostState, host_state_for_runtime, register_host_state};
 use crate::host::{HostEvent, HostLifecycleState, HostPlatform, HostWindowEvent};
+use crate::runtime::world::RuntimeId;
 
 #[test]
 fn test_map_unix_lifecycle_to_host_states() {
@@ -34,10 +35,10 @@ fn test_map_unix_lifecycle_to_host_states() {
 #[test]
 fn test_notify_window_available_enqueues_window_event_for_runtime_bridge() {
     let state = Arc::new(HostState::new());
-    let registration = register_host_state(HostPlatform::Linux, &state, None);
+    let registration = register_host_state(HostPlatform::Linux, RuntimeId(1), &state, None);
     let runtime_id = registration.runtime_id();
 
-    unix_notify_window_available(runtime_id, HostPlatform::Linux, 7).unwrap();
+    unix_notify_window_available(runtime_id.0, HostPlatform::Linux, 7).unwrap();
 
     let poll_result = state.poll_events(Some(0)).unwrap();
     let events = poll_result.events;
@@ -52,10 +53,10 @@ fn test_notify_window_available_enqueues_window_event_for_runtime_bridge() {
 #[test]
 fn test_notify_window_available_rejects_platform_mismatch_for_runtime_bridge() {
     let state = Arc::new(HostState::new());
-    let registration = register_host_state(HostPlatform::Linux, &state, None);
+    let registration = register_host_state(HostPlatform::Linux, RuntimeId(1), &state, None);
     let runtime_id = registration.runtime_id();
 
-    let result = unix_notify_window_available(runtime_id, HostPlatform::FreeBsd, 7);
+    let result = unix_notify_window_available(runtime_id.0, HostPlatform::FreeBsd, 7);
     assert!(result.is_err());
 
     let resolved_state = host_state_for_runtime(runtime_id, HostPlatform::Linux).unwrap();

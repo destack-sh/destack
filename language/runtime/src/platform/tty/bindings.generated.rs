@@ -15,8 +15,8 @@ use crate::platform::{
     NativeSlice, PlatformError, RuntimeStatus, VmAggregateCodec, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
-    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
@@ -923,7 +923,9 @@ pub const TTY_HANDLE_CLOSE: BindingDescriptor =
         &["tty.handle"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("tty")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -949,7 +951,9 @@ pub const TTY_HANDLE_IS_TERMINAL_FILE: BindingDescriptor =
         &["tty.handle"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("tty")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -975,7 +979,9 @@ pub const TTY_HANDLE_STDIO_STDERR: BindingDescriptor =
         &["tty.handle"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("tty")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1001,7 +1007,9 @@ pub const TTY_HANDLE_STDIO_STDIN: BindingDescriptor =
         &["tty.handle"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("tty")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1027,7 +1035,9 @@ pub const TTY_HANDLE_STDIO_STDOUT: BindingDescriptor =
         &["tty.handle"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("tty")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1052,7 +1062,9 @@ pub const TTY_IO_READ: BindingDescriptor = BindingDescriptor::external_with_requ
     &["tty.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+.with_namespace("tty")
 .with_host_platforms(&[
     "android",
     "dragonfly",
@@ -1077,7 +1089,9 @@ pub const TTY_IO_WRITE: BindingDescriptor = BindingDescriptor::external_with_req
     &["tty.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+.with_namespace("tty")
 .with_host_platforms(&[
     "android",
     "dragonfly",
@@ -1103,7 +1117,9 @@ pub const TTY_MODE_GET_MODE: BindingDescriptor =
         &["tty.mode"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("tty")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1129,7 +1145,9 @@ pub const TTY_MODE_SET_MODE: BindingDescriptor =
         &["tty.mode"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("tty")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1154,7 +1172,9 @@ pub const TTY_MODE_SET_RAW_MODE: BindingDescriptor = BindingDescriptor::external
     &["tty.mode"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("tty")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tty.pty.close.
@@ -1167,7 +1187,9 @@ pub const TTY_PTY_CLOSE: BindingDescriptor =
         &["tty.pty"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("tty")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1192,7 +1214,9 @@ pub const TTY_PTY_OPEN: BindingDescriptor = BindingDescriptor::external_with_req
     &["tty.pty"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("tty")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tty.size.getSize.
@@ -1205,7 +1229,9 @@ pub const TTY_SIZE_GET_SIZE: BindingDescriptor =
         &["tty.size"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("tty")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1231,7 +1257,9 @@ pub const TTY_SIZE_SET_SIZE: BindingDescriptor =
         &["tty.size"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("tty")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1257,7 +1285,9 @@ pub const TTY_TERMIOS_DRAIN: BindingDescriptor =
         &["tty.termios"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("tty")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1281,7 +1311,9 @@ pub const TTY_TERMIOS_FLOW: BindingDescriptor = BindingDescriptor::external_with
     &["tty.termios"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("tty")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.tty.termios.flush.
@@ -1293,7 +1325,9 @@ pub const TTY_TERMIOS_FLUSH: BindingDescriptor = BindingDescriptor::external_wit
     &["tty.termios"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("tty")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.tty.termios.getAttributes.
@@ -1305,7 +1339,9 @@ pub const TTY_TERMIOS_GET_ATTRIBUTES: BindingDescriptor = BindingDescriptor::ext
     &["tty.termios"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("tty")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.tty.termios.getProcessGroup.
@@ -1317,7 +1353,9 @@ pub const TTY_TERMIOS_GET_PROCESS_GROUP: BindingDescriptor = BindingDescriptor::
     &["tty.termios"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("tty")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.tty.termios.sendBreak.
@@ -1329,7 +1367,9 @@ pub const TTY_TERMIOS_SEND_BREAK: BindingDescriptor = BindingDescriptor::externa
     &["tty.termios"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("tty")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.tty.termios.setAttributes.
@@ -1341,7 +1381,9 @@ pub const TTY_TERMIOS_SET_ATTRIBUTES: BindingDescriptor = BindingDescriptor::ext
     &["tty.termios"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("tty")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.tty.termios.setProcessGroup.
@@ -1353,7 +1395,9 @@ pub const TTY_TERMIOS_SET_PROCESS_GROUP: BindingDescriptor = BindingDescriptor::
     &["tty.termios"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("tty")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptors for tty.

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::{HostPlatform, HostState, HostWindowEvent, host_state_for_runtime};
 use crate::host::{HostLifecycleState, HostMemoryPressureLevel, HostPowerMode, HostThermalState};
+use crate::runtime::world::RuntimeId;
 
 /// Windows application lifecycle transitions from native callbacks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -23,7 +24,7 @@ pub enum WindowsApplicationLifecycle {
 
 /// Return the active Windows host state for this process.
 fn windows_host_bridge(runtime_id: u64) -> RuntimeResult<Arc<HostState>> {
-    host_state_for_runtime(runtime_id, HostPlatform::Windows)
+    host_state_for_runtime(RuntimeId(runtime_id), HostPlatform::Windows)
 }
 
 /// Submit one Windows application lifecycle callback.

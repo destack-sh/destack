@@ -12,6 +12,7 @@ use super::{
 };
 use crate::diagnostic::RuntimeResult;
 use crate::runtime::poller::HostPollerWakeHandle;
+use crate::runtime::world::RuntimeId;
 
 /// Encoded lifecycle value for initializing.
 const LIFECYCLE_INITIALIZING: u8 = 0;
@@ -48,31 +49,30 @@ pub(crate) struct HostAdapterState {
     /// Shared host service state used for event ingestion and state updates.
     state: Arc<HostState>,
     /// Shared registration guard for callback routing.
-    registration: HostStateRegistration,
+    _registration: HostStateRegistration,
 }
 
 impl HostAdapterState {
     /// Create one shared host adapter state for one platform.
-    pub(crate) fn new(platform: HostPlatform, cleanup: Option<HostStateCleanup>) -> Self {
+    pub(crate) fn new(
+        platform: HostPlatform,
+        runtime_id: RuntimeId,
+        cleanup: Option<HostStateCleanup>,
+    ) -> Self {
         // create the shared host state and register callback routing
         let state = Arc::new(HostState::new());
         state.push_lifecycle(HostLifecycleState::Initializing);
-        let registration = register_host_state(platform, &state, cleanup);
+        let registration = register_host_state(platform, runtime_id, &state, cleanup);
 
         Self {
             state,
-            registration,
+            _registration: registration,
         }
     }
 
     /// Return one shared host state handle.
     pub(crate) fn state(&self) -> &Arc<HostState> {
         &self.state
-    }
-
-    /// Return the callback runtime id for native host callback routing.
-    pub(crate) fn callback_runtime_id(&self) -> u64 {
-        self.registration.runtime_id()
     }
 }
 

@@ -12,11 +12,12 @@ use parking_lot::RwLock;
 use tracing::error;
 
 use super::{
-    ResourceHandle, ResourceId, ResourceKind, ResourceSnapshotAdapter, ResourceSnapshotPolicy,
+    ResourceAffinity, ResourceHandle, ResourceId, ResourceKind, ResourceSnapshotAdapter,
+    ResourceSnapshotPolicy,
 };
-use crate::runtime::Hooks;
-use crate::runtime::bindings::BindingEngine;
+use crate::runtime::bindings::{BindingAffinity, BindingEngine};
 use crate::runtime::world::World;
+use crate::runtime::{ExecutionContext, Hooks};
 
 /// Finalizer callback for resource cleanup.
 pub trait ResourceFinalizer: Send + Sync {
@@ -30,6 +31,8 @@ pub struct ResourceEntry {
     pub kind: ResourceKind,
     /// Optional label for diagnostics.
     pub label: Option<String>,
+    /// Optional execution-affinity requirement for this resource.
+    pub affinity: Option<ResourceAffinity>,
     /// Optional raw handle payload.
     #[cfg(windows)]
     pub raw_handle: Option<RawHandle>,
@@ -48,6 +51,7 @@ impl fmt::Debug for ResourceEntry {
         f.debug_struct("ResourceEntry")
             .field("kind", &self.kind)
             .field("label", &self.label)
+            .field("affinity", &self.affinity)
             .field("has_raw_handle", &{
                 #[cfg(windows)]
                 {
@@ -85,6 +89,7 @@ impl ResourceEntry {
         Self {
             kind,
             label: None,
+            affinity: None,
             #[cfg(windows)]
             raw_handle: None,
             payload: None,
@@ -166,6 +171,22 @@ impl ResourceEntry {
     /// Attach a diagnostic label.
     pub fn with_label(mut self, label: impl Into<String>) -> Self {
         self.label = Some(label.into());
+        self
+    }
+
+    /// Attach one explicit resource-affinity requirement.
+    pub fn with_affinity(mut self, affinity: ResourceAffinity) -> Self {
+        self.affinity = Some(affinity);
+        self
+    }
+
+    /// Attach one resource-affinity requirement derived from binding metadata.
+    pub fn with_binding_affinity(
+        mut self,
+        affinity: BindingAffinity,
+        execution_context: ExecutionContext,
+    ) -> Self {
+        self.affinity = ResourceAffinity::from_binding_affinity(affinity, execution_context);
         self
     }
 

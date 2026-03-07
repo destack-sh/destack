@@ -3,10 +3,11 @@ use std::sync::Arc;
 use destack_workspace::PlatformHostOptions;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostAdapterState, HostState, default_host_capabilities, not_supported};
+use crate::host::core::{HostAdapterState, default_host_capabilities, not_supported};
 use crate::host::{HostAdapter, HostPlatform, HostPollOutcome};
 use crate::runtime::capability::PlatformCapabilitySet;
 use crate::runtime::poller::HostPollerWakeHandle;
+use crate::runtime::world::RuntimeId;
 
 /// Linux host implementation.
 #[derive(Debug)]
@@ -17,9 +18,9 @@ pub(crate) struct LinuxHost {
 
 impl LinuxHost {
     /// Create one Linux host.
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(runtime_id: RuntimeId) -> Self {
         Self {
-            state: HostAdapterState::new(HostPlatform::Linux, None),
+            state: HostAdapterState::new(HostPlatform::Linux, runtime_id, None),
         }
     }
 }
@@ -41,28 +42,16 @@ impl HostAdapter for LinuxHost {
         self.state.state().configure_host_options(host_options);
     }
 
-    fn callback_runtime_id(&self) -> Option<u64> {
-        Some(self.state.callback_runtime_id())
+    fn is_process_main_context(&self) -> bool {
+        false
     }
 
-    fn pump_pending_thread_messages(&self, ignore_quit_message: bool) -> RuntimeResult<bool> {
-        let _ = ignore_quit_message;
-        Err(not_supported(
-            "runtime.host.platform.pumpPendingThreadMessages",
-        ))
-    }
-
-    fn run_blocking_thread_message_loop(&self) -> RuntimeResult<()> {
-        Err(not_supported(
-            "runtime.host.platform.runBlockingThreadMessageLoop",
-        ))
+    fn process_ingress(&self) -> RuntimeResult<bool> {
+        // service no native ingress on this host implementation
+        Ok(false)
     }
 
     fn host_capabilities(&self) -> PlatformCapabilitySet {
         default_host_capabilities(self.platform())
-    }
-
-    fn state(&self) -> &Arc<HostState> {
-        self.state.state()
     }
 }

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::runtime::capability::{PlatformCapabilityId, PlatformCapabilitySet};
 use crate::runtime::replay::EntropyKind;
 use destack_base::fnv1a_128;
-pub use destack_workspace::{BindingBlocking, BindingEffect, BindingScope};
+pub use destack_workspace::{BindingAffinity, BindingBlocking, BindingEffect, BindingScope};
 
 /// Replay behavior for external bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -254,6 +254,8 @@ pub const CODEC_POSTCARD_V1: CodecId = CodecId::from_name("postcard-v1");
 pub struct BindingDescriptor {
     /// Stable external name for ABI resolution.
     pub name: &'static str,
+    /// Top-level binding namespace for runtime routing.
+    pub namespace: &'static str,
     /// Stable binding id derived from the name.
     pub id: BindingId,
     /// Hash of the canonical signature string.
@@ -276,6 +278,8 @@ pub struct BindingDescriptor {
     pub scope: BindingScope,
     /// Blocking behavior for this binding.
     pub blocking: BindingBlocking,
+    /// Execution-affinity behavior for this binding.
+    pub affinity: BindingAffinity,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -320,6 +324,7 @@ impl BindingDescriptor {
             requires,
             BindingScope::Host,
             BindingBlocking::Sometimes,
+            BindingAffinity::Any,
         )
     }
 
@@ -334,10 +339,12 @@ impl BindingDescriptor {
         requires: &'static [&'static str],
         scope: BindingScope,
         blocking: BindingBlocking,
+        affinity: BindingAffinity,
     ) -> Self {
         let effect_mask = effect_mask_for_class(effect_class);
         Self {
             name,
+            namespace: "",
             id: BindingId::from_name(name),
             signature: SignatureHash::from_signature(signature),
             codec,
@@ -349,7 +356,14 @@ impl BindingDescriptor {
             host_platforms: &[],
             scope,
             blocking,
+            affinity,
         }
+    }
+
+    /// Attach one top-level namespace to this binding descriptor.
+    pub const fn with_namespace(mut self, namespace: &'static str) -> Self {
+        self.namespace = namespace;
+        self
     }
 
     /// Create a binding descriptor with an explicit codec id.
@@ -417,6 +431,7 @@ impl BindingDescriptor {
             requires,
             BindingScope::Runtime,
             BindingBlocking::Sometimes,
+            BindingAffinity::Any,
         )
     }
 
@@ -427,6 +442,7 @@ impl BindingDescriptor {
         requires: &'static [&'static str],
         scope: BindingScope,
         blocking: BindingBlocking,
+        affinity: BindingAffinity,
     ) -> Self {
         Self::with_codec_and_replay_kind_with_requires_and_behavior(
             name,
@@ -438,6 +454,7 @@ impl BindingDescriptor {
             requires,
             scope,
             blocking,
+            affinity,
         )
     }
 
@@ -458,6 +475,7 @@ impl BindingDescriptor {
             requires,
             BindingScope::Runtime,
             BindingBlocking::Sometimes,
+            BindingAffinity::Any,
         )
     }
 
@@ -468,6 +486,7 @@ impl BindingDescriptor {
         requires: &'static [&'static str],
         scope: BindingScope,
         blocking: BindingBlocking,
+        affinity: BindingAffinity,
     ) -> Self {
         Self::with_codec_and_replay_kind_with_requires_and_behavior(
             name,
@@ -479,6 +498,7 @@ impl BindingDescriptor {
             requires,
             scope,
             blocking,
+            affinity,
         )
     }
 
@@ -508,6 +528,7 @@ impl BindingDescriptor {
             requires,
             BindingScope::Host,
             BindingBlocking::Sometimes,
+            BindingAffinity::Any,
         )
     }
 
@@ -520,6 +541,7 @@ impl BindingDescriptor {
         requires: &'static [&'static str],
         scope: BindingScope,
         blocking: BindingBlocking,
+        affinity: BindingAffinity,
     ) -> Self {
         Self::external_with_payload_with_requires(
             name,
@@ -530,6 +552,7 @@ impl BindingDescriptor {
             requires,
             scope,
             blocking,
+            affinity,
         )
     }
 
@@ -550,6 +573,7 @@ impl BindingDescriptor {
             &[],
             BindingScope::Host,
             BindingBlocking::Sometimes,
+            BindingAffinity::Any,
         )
     }
 
@@ -563,6 +587,7 @@ impl BindingDescriptor {
         requires: &'static [&'static str],
         scope: BindingScope,
         blocking: BindingBlocking,
+        affinity: BindingAffinity,
     ) -> Self {
         Self::with_codec_and_replay_kind_with_requires_and_behavior(
             name,
@@ -574,6 +599,7 @@ impl BindingDescriptor {
             requires,
             scope,
             blocking,
+            affinity,
         )
     }
 
@@ -641,5 +667,10 @@ impl BindingDescriptor {
     /// Return the blocking behavior classification for this binding.
     pub const fn blocking(self) -> BindingBlocking {
         self.blocking
+    }
+
+    /// Return the execution-affinity classification for this binding.
+    pub const fn affinity(self) -> BindingAffinity {
+        self.affinity
     }
 }

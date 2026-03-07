@@ -49,8 +49,8 @@ use crate::platform::{
     abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
-    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
@@ -3687,7 +3687,9 @@ pub const CRYPTO_AGREEMENT_DERIVE_KEY: BindingDescriptor = BindingDescriptor::ex
     &["crypto.key.agree", "crypto.kdf"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.agreement.deriveSharedSecret.
@@ -3699,7 +3701,9 @@ pub const CRYPTO_AGREEMENT_DERIVE_SHARED_SECRET: BindingDescriptor = BindingDesc
     &["crypto.key.agree"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.certificate.delete.
@@ -3711,7 +3715,9 @@ pub const CRYPTO_CERTIFICATE_DELETE: BindingDescriptor = BindingDescriptor::exte
     &["crypto.certificate.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.certificate.descriptor.
@@ -3723,7 +3729,9 @@ pub const CRYPTO_CERTIFICATE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::
     &["crypto.certificate.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.certificate.export.
@@ -3735,7 +3743,9 @@ pub const CRYPTO_CERTIFICATE_EXPORT: BindingDescriptor = BindingDescriptor::exte
     &["crypto.certificate.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.certificate.import.
@@ -3747,7 +3757,9 @@ pub const CRYPTO_CERTIFICATE_IMPORT: BindingDescriptor = BindingDescriptor::exte
     &["crypto.certificate.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.certificate.verify.
@@ -3759,7 +3771,9 @@ pub const CRYPTO_CERTIFICATE_VERIFY: BindingDescriptor = BindingDescriptor::exte
     &["crypto.certificate.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.close.
@@ -3772,7 +3786,9 @@ pub const CRYPTO_CIPHER_CLOSE: BindingDescriptor =
         &["crypto.cipher"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("crypto")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3797,7 +3813,9 @@ pub const CRYPTO_CIPHER_DECRYPT: BindingDescriptor = BindingDescriptor::external
     &["crypto.cipher"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.encrypt.
@@ -3809,7 +3827,9 @@ pub const CRYPTO_CIPHER_ENCRYPT: BindingDescriptor = BindingDescriptor::external
     &["crypto.cipher"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.finish.
@@ -3821,7 +3841,9 @@ pub const CRYPTO_CIPHER_FINISH: BindingDescriptor = BindingDescriptor::external_
     &["crypto.cipher"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.open.
@@ -3833,7 +3855,9 @@ pub const CRYPTO_CIPHER_OPEN: BindingDescriptor = BindingDescriptor::external_wi
     &["crypto.cipher"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.reset.
@@ -3845,7 +3869,9 @@ pub const CRYPTO_CIPHER_RESET: BindingDescriptor = BindingDescriptor::external_w
     &["crypto.cipher"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.update.
@@ -3857,7 +3883,9 @@ pub const CRYPTO_CIPHER_UPDATE: BindingDescriptor = BindingDescriptor::external_
     &["crypto.cipher"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.updateAdditionalData.
@@ -3869,7 +3897,9 @@ pub const CRYPTO_CIPHER_UPDATE_ADDITIONAL_DATA: BindingDescriptor = BindingDescr
     &["crypto.cipher"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.digest.close.
@@ -3882,7 +3912,9 @@ pub const CRYPTO_DIGEST_CLOSE: BindingDescriptor =
         &["crypto.digest"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("crypto")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3907,7 +3939,9 @@ pub const CRYPTO_DIGEST_COMPUTE: BindingDescriptor = BindingDescriptor::external
     &["crypto.digest"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.digest.finish.
@@ -3919,7 +3953,9 @@ pub const CRYPTO_DIGEST_FINISH: BindingDescriptor = BindingDescriptor::external_
     &["crypto.digest"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.digest.open.
@@ -3931,7 +3967,9 @@ pub const CRYPTO_DIGEST_OPEN: BindingDescriptor = BindingDescriptor::external_wi
     &["crypto.digest"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.digest.reset.
@@ -3944,7 +3982,9 @@ pub const CRYPTO_DIGEST_RESET: BindingDescriptor =
         &["crypto.digest"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("crypto")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3969,7 +4009,9 @@ pub const CRYPTO_DIGEST_UPDATE: BindingDescriptor = BindingDescriptor::external_
     &["crypto.digest"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.kdf.argon2id.
@@ -3981,7 +4023,9 @@ pub const CRYPTO_KDF_ARGON2ID: BindingDescriptor = BindingDescriptor::external_w
     &["crypto.kdf"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.kdf.hkdf.
@@ -3994,7 +4038,9 @@ pub const CRYPTO_KDF_HKDF: BindingDescriptor =
         &["crypto.kdf"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("crypto")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4019,7 +4065,9 @@ pub const CRYPTO_KDF_PBKDF2: BindingDescriptor = BindingDescriptor::external_wit
     &["crypto.kdf"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.kdf.scrypt.
@@ -4031,7 +4079,9 @@ pub const CRYPTO_KDF_SCRYPT: BindingDescriptor = BindingDescriptor::external_wit
     &["crypto.kdf"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.decrypt.
@@ -4043,7 +4093,9 @@ pub const CRYPTO_KEY_DECRYPT: BindingDescriptor = BindingDescriptor::external_wi
     &["crypto.key.decrypt"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.delete.
@@ -4056,7 +4108,9 @@ pub const CRYPTO_KEY_DELETE: BindingDescriptor =
         &["crypto.store.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("crypto")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4081,7 +4135,9 @@ pub const CRYPTO_KEY_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external
     &["crypto.store.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.encrypt.
@@ -4093,7 +4149,9 @@ pub const CRYPTO_KEY_ENCRYPT: BindingDescriptor = BindingDescriptor::external_wi
     &["crypto.key.encrypt"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.exportPrivate.
@@ -4105,7 +4163,9 @@ pub const CRYPTO_KEY_EXPORT_PRIVATE: BindingDescriptor = BindingDescriptor::exte
     &["crypto.store.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.exportPublic.
@@ -4117,7 +4177,9 @@ pub const CRYPTO_KEY_EXPORT_PUBLIC: BindingDescriptor = BindingDescriptor::exter
     &["crypto.store.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.exportSecret.
@@ -4129,7 +4191,9 @@ pub const CRYPTO_KEY_EXPORT_SECRET: BindingDescriptor = BindingDescriptor::exter
     &["crypto.store.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.generatePair.
@@ -4141,7 +4205,9 @@ pub const CRYPTO_KEY_GENERATE_PAIR: BindingDescriptor = BindingDescriptor::exter
     &["crypto.key.generate"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.generateSecret.
@@ -4153,7 +4219,9 @@ pub const CRYPTO_KEY_GENERATE_SECRET: BindingDescriptor = BindingDescriptor::ext
     &["crypto.key.generate"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.import.
@@ -4165,7 +4233,9 @@ pub const CRYPTO_KEY_IMPORT: BindingDescriptor = BindingDescriptor::external_wit
     &["crypto.store.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.sign.
@@ -4177,7 +4247,9 @@ pub const CRYPTO_KEY_SIGN: BindingDescriptor = BindingDescriptor::external_with_
     &["crypto.key.sign"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.unwrap.
@@ -4189,7 +4261,9 @@ pub const CRYPTO_KEY_UNWRAP: BindingDescriptor = BindingDescriptor::external_wit
     &["crypto.key.unwrap", "crypto.store.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.verify.
@@ -4201,7 +4275,9 @@ pub const CRYPTO_KEY_VERIFY: BindingDescriptor = BindingDescriptor::external_wit
     &["crypto.key.verify"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.wrap.
@@ -4213,7 +4289,9 @@ pub const CRYPTO_KEY_WRAP: BindingDescriptor = BindingDescriptor::external_with_
     &["crypto.key.wrap"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.mac.close.
@@ -4226,7 +4304,9 @@ pub const CRYPTO_MAC_CLOSE: BindingDescriptor =
         &["crypto.mac"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("crypto")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4251,7 +4331,9 @@ pub const CRYPTO_MAC_COMPUTE: BindingDescriptor = BindingDescriptor::external_wi
     &["crypto.mac"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.mac.finish.
@@ -4264,7 +4346,9 @@ pub const CRYPTO_MAC_FINISH: BindingDescriptor =
         &["crypto.mac"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("crypto")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4289,7 +4373,9 @@ pub const CRYPTO_MAC_OPEN: BindingDescriptor = BindingDescriptor::external_with_
     &["crypto.mac"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.mac.reset.
@@ -4302,7 +4388,9 @@ pub const CRYPTO_MAC_RESET: BindingDescriptor =
         &["crypto.mac"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("crypto")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4327,7 +4415,9 @@ pub const CRYPTO_MAC_UPDATE: BindingDescriptor = BindingDescriptor::external_wit
     &["crypto.mac"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.mac.verify.
@@ -4339,7 +4429,9 @@ pub const CRYPTO_MAC_VERIFY: BindingDescriptor = BindingDescriptor::external_wit
     &["crypto.mac"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.agreementAlgorithms.
@@ -4351,7 +4443,9 @@ pub const CRYPTO_PROBE_AGREEMENT_ALGORITHMS: BindingDescriptor = BindingDescript
     &["crypto.probe"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.cipherAlgorithms.
@@ -4363,7 +4457,9 @@ pub const CRYPTO_PROBE_CIPHER_ALGORITHMS: BindingDescriptor = BindingDescriptor:
     &["crypto.probe"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.digestAlgorithms.
@@ -4375,7 +4471,9 @@ pub const CRYPTO_PROBE_DIGEST_ALGORITHMS: BindingDescriptor = BindingDescriptor:
     &["crypto.probe"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.kdfAlgorithms.
@@ -4388,7 +4486,9 @@ pub const CRYPTO_PROBE_KDF_ALGORITHMS: BindingDescriptor =
         &["crypto.probe"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("crypto")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4414,7 +4514,9 @@ pub const CRYPTO_PROBE_KEY_ALGORITHMS: BindingDescriptor =
         &["crypto.probe"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("crypto")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4440,7 +4542,9 @@ pub const CRYPTO_PROBE_KEY_FORMATS: BindingDescriptor =
         &["crypto.probe"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("crypto")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4466,7 +4570,9 @@ pub const CRYPTO_PROBE_KEY_RESIDENCIES: BindingDescriptor =
         &["crypto.probe"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("crypto")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4491,7 +4597,9 @@ pub const CRYPTO_PROBE_KEY_WRAP_ALGORITHMS: BindingDescriptor = BindingDescripto
     &["crypto.probe"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.macAlgorithms.
@@ -4504,7 +4612,9 @@ pub const CRYPTO_PROBE_MAC_ALGORITHMS: BindingDescriptor =
         &["crypto.probe"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("crypto")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4530,7 +4640,9 @@ pub const CRYPTO_PROBE_NAMED_CURVES: BindingDescriptor =
         &["crypto.probe"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("crypto")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4555,7 +4667,9 @@ pub const CRYPTO_PROBE_SIGNATURE_ALGORITHMS: BindingDescriptor = BindingDescript
     &["crypto.probe"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.random.bytes.
@@ -4568,7 +4682,9 @@ pub const CRYPTO_RANDOM_BYTES: BindingDescriptor =
         &["crypto.random"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("crypto")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4594,7 +4710,9 @@ pub const CRYPTO_RANDOM_FILL: BindingDescriptor =
         &["crypto.random"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("crypto")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4620,7 +4738,9 @@ pub const CRYPTO_STORE_CLOSE: BindingDescriptor =
         &["crypto.store.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("crypto")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4645,7 +4765,9 @@ pub const CRYPTO_STORE_LIST_CERTIFICATES: BindingDescriptor = BindingDescriptor:
     &["crypto.store.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.store.listKeys.
@@ -4657,7 +4779,9 @@ pub const CRYPTO_STORE_LIST_KEYS: BindingDescriptor = BindingDescriptor::externa
     &["crypto.store.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.store.open.
@@ -4669,7 +4793,9 @@ pub const CRYPTO_STORE_OPEN: BindingDescriptor = BindingDescriptor::external_wit
     &["crypto.store.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.store.probeCapability.
@@ -4681,7 +4807,9 @@ pub const CRYPTO_STORE_PROBE_CAPABILITY: BindingDescriptor = BindingDescriptor::
     &["crypto.probe"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("crypto")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.store.probeKinds.
@@ -4694,7 +4822,9 @@ pub const CRYPTO_STORE_PROBE_KINDS: BindingDescriptor =
         &["crypto.probe"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("crypto")
     .with_host_platforms(&[
         "android",
         "dragonfly",

@@ -9,6 +9,7 @@ use super::abi::{
 use super::bindings::AndroidHostBindings;
 use crate::host::HostPlatform;
 use crate::host::core::host_state_for_runtime;
+use crate::runtime::world::RuntimeId;
 
 /// Shared Android bindings registry state.
 #[derive(Debug, Default)]
@@ -27,7 +28,7 @@ fn android_bindings_registry() -> &'static RwLock<AndroidBindingsRegistryState> 
 
 /// Return whether one runtime id currently resolves to one Android host state.
 fn has_android_host_bridge(runtime_id: u64) -> bool {
-    host_state_for_runtime(runtime_id, HostPlatform::Android).is_ok()
+    host_state_for_runtime(RuntimeId(runtime_id), HostPlatform::Android).is_ok()
 }
 
 /// Register one runtime-scoped Android bindings payload.

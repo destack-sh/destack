@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::sync::OnceLock;
 
 use destack_heap as heap;
 use destack_workspace::{SchedulerOptions, SchedulerPolicy};
@@ -15,7 +16,7 @@ use crate::runtime::poller::{
     PollerToken,
 };
 use crate::runtime::time::{Nanos, WorldInstant};
-use crate::runtime::{DropCounts, DropReason};
+use crate::runtime::{DropCounts, DropReason, ExecutionContext, ExecutionContextId};
 
 /// Default host semantic dispatch batch size before forcing one poller event.
 const DEFAULT_HOST_EVENT_BUDGET: u64 = 32;
@@ -68,6 +69,8 @@ pub struct EventLoop {
     drop_counts: DropCounts,
     /// Number of host semantic events dispatched since the last poller event.
     host_events_since_poller: u64,
+    /// Canonical execution context identifier for this event loop.
+    execution_context_id: OnceLock<ExecutionContextId>,
 }
 
 impl EventLoop {
@@ -83,6 +86,35 @@ impl EventLoop {
     /// Borrow the configured scheduler options.
     pub fn options(&self) -> &SchedulerOptions {
         &self.options
+    }
+
+    /// Return the canonical execution context identifier for this event loop.
+    pub fn execution_context_id(&self) -> ExecutionContextId {
+        let Some(execution_context_id) = self.execution_context_id.get().copied() else {
+            panic!("event loop execution context was not initialized");
+        };
+
+        execution_context_id
+    }
+
+    /// Initialize and return the canonical execution context identifier for this event loop.
+    pub fn initialize_execution_context(
+        &self,
+        execution_context_id: ExecutionContextId,
+    ) -> ExecutionContextId {
+        *self
+            .execution_context_id
+            .get_or_init(|| execution_context_id)
+    }
+
+    /// Return one execution context bound to this event loop.
+    pub fn execution_context(&self, is_process_main: bool) -> ExecutionContext {
+        let execution_context_id = self.execution_context_id();
+
+        ExecutionContext {
+            id: execution_context_id,
+            is_process_main,
+        }
     }
 
     /// Borrow the timer queue.

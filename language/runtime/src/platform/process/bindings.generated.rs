@@ -26,8 +26,8 @@ use crate::platform::{
     VmAggregateCodec, VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
-    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
@@ -2917,7 +2917,9 @@ pub const PROCESS_ARGS_LIST: BindingDescriptor =
         &["process.run"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -2943,7 +2945,9 @@ pub const PROCESS_CWD_CHDIR: BindingDescriptor =
         &["process.workdir.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -2969,7 +2973,9 @@ pub const PROCESS_CWD_GET: BindingDescriptor =
         &["process.workdir.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -2995,7 +3001,9 @@ pub const PROCESS_ENV_DELETE: BindingDescriptor =
         &["env.write"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3021,7 +3029,9 @@ pub const PROCESS_ENV_DELETE_BYTES: BindingDescriptor =
         &["env.write"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3047,7 +3057,9 @@ pub const PROCESS_ENV_GET: BindingDescriptor =
         &["env.read"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3073,7 +3085,9 @@ pub const PROCESS_ENV_GET_BYTES: BindingDescriptor =
         &["env.read"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3099,7 +3113,9 @@ pub const PROCESS_ENV_SET: BindingDescriptor =
         &["env.write"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3124,7 +3140,9 @@ pub const PROCESS_ENV_SET_BYTES: BindingDescriptor = BindingDescriptor::external
     &["env.write"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.exec.fexec.
@@ -3136,7 +3154,9 @@ pub const PROCESS_EXEC_FEXEC: BindingDescriptor = BindingDescriptor::external_wi
     &["process.exec"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.exec.path.
@@ -3148,7 +3168,9 @@ pub const PROCESS_EXEC_PATH: BindingDescriptor = BindingDescriptor::external_wit
     &["process.exec"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.exec.pathat.
@@ -3160,7 +3182,9 @@ pub const PROCESS_EXEC_PATHAT: BindingDescriptor = BindingDescriptor::external_w
     &["process.exec"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.exit.terminate.
@@ -3173,7 +3197,9 @@ pub const PROCESS_EXIT_TERMINATE: BindingDescriptor =
         &["process.run"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3199,7 +3225,9 @@ pub const PROCESS_FD_PROCESS_FD_CLOSE: BindingDescriptor =
         &["process.handle"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3224,7 +3252,9 @@ pub const PROCESS_FD_PROCESS_FD_OPEN: BindingDescriptor = BindingDescriptor::ext
     &["process.handle"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.processFdSendSignal.
@@ -3236,7 +3266,9 @@ pub const PROCESS_FD_PROCESS_FD_SEND_SIGNAL: BindingDescriptor = BindingDescript
     &["process.signal.send"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.processFdTryWait.
@@ -3248,7 +3280,9 @@ pub const PROCESS_FD_PROCESS_FD_TRY_WAIT: BindingDescriptor = BindingDescriptor:
     &["process.wait"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.processFdWait.
@@ -3260,7 +3294,9 @@ pub const PROCESS_FD_PROCESS_FD_WAIT: BindingDescriptor = BindingDescriptor::ext
     &["process.wait"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.signalFdClose.
@@ -3273,7 +3309,9 @@ pub const PROCESS_FD_SIGNAL_FD_CLOSE: BindingDescriptor =
         &["process.signal.receive"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3298,7 +3336,9 @@ pub const PROCESS_FD_SIGNAL_FD_OPEN: BindingDescriptor = BindingDescriptor::exte
     &["process.signal.receive"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.signalFdRead.
@@ -3311,7 +3351,9 @@ pub const PROCESS_FD_SIGNAL_FD_READ: BindingDescriptor =
         &["process.signal.receive"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3336,7 +3378,9 @@ pub const PROCESS_FD_SIGNAL_FD_SET_MASK: BindingDescriptor = BindingDescriptor::
     &["process.signal.receive"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.signalFdTryRead.
@@ -3348,7 +3392,9 @@ pub const PROCESS_FD_SIGNAL_FD_TRY_READ: BindingDescriptor = BindingDescriptor::
     &["process.signal.receive"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.stdioStderr.
@@ -3361,7 +3407,9 @@ pub const PROCESS_FD_STDIO_STDERR: BindingDescriptor =
         &["process.stdio"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3387,7 +3435,9 @@ pub const PROCESS_FD_STDIO_STDIN: BindingDescriptor =
         &["process.stdio"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3413,7 +3463,9 @@ pub const PROCESS_FD_STDIO_STDOUT: BindingDescriptor =
         &["process.stdio"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3438,7 +3490,9 @@ pub const PROCESS_GROUP_CGROUP_GET_LIMIT: BindingDescriptor = BindingDescriptor:
     &["process.cgroup"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.group.cgroupJoin.
@@ -3451,7 +3505,9 @@ pub const PROCESS_GROUP_CGROUP_JOIN: BindingDescriptor =
         &["process.cgroup"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.group.cgroupSetLimit.
@@ -3463,7 +3519,9 @@ pub const PROCESS_GROUP_CGROUP_SET_LIMIT: BindingDescriptor = BindingDescriptor:
     &["process.cgroup"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.group.jobAssign.
@@ -3475,7 +3533,9 @@ pub const PROCESS_GROUP_JOB_ASSIGN: BindingDescriptor = BindingDescriptor::exter
     &["process.cgroup"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["windows"]);
 
 /// Binding descriptor for destack.process.group.jobSetLimit.
@@ -3487,7 +3547,9 @@ pub const PROCESS_GROUP_JOB_SET_LIMIT: BindingDescriptor = BindingDescriptor::ex
     &["process.cgroup"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["windows"]);
 
 /// Binding descriptor for destack.process.ids.egid.
@@ -3500,7 +3562,9 @@ pub const PROCESS_IDS_EGID: BindingDescriptor =
         &["process.identity.read"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3526,7 +3590,9 @@ pub const PROCESS_IDS_EUID: BindingDescriptor =
         &["process.identity.read"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3552,7 +3618,9 @@ pub const PROCESS_IDS_GID: BindingDescriptor =
         &["process.identity.read"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3578,7 +3646,9 @@ pub const PROCESS_IDS_GROUP_IDS: BindingDescriptor =
         &["process.identity.read"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3604,7 +3674,9 @@ pub const PROCESS_IDS_GROUPS: BindingDescriptor =
         &["process.identity.read"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3630,7 +3702,9 @@ pub const PROCESS_IDS_PID: BindingDescriptor =
         &["process.identity.read"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3656,7 +3730,9 @@ pub const PROCESS_IDS_PPID: BindingDescriptor =
         &["process.identity.read"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3682,7 +3758,9 @@ pub const PROCESS_IDS_SET_EGID: BindingDescriptor =
         &["process.identity.write"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3708,7 +3786,9 @@ pub const PROCESS_IDS_SET_EUID: BindingDescriptor =
         &["process.identity.write"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3734,7 +3814,9 @@ pub const PROCESS_IDS_SET_GID: BindingDescriptor =
         &["process.identity.write"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3760,7 +3842,9 @@ pub const PROCESS_IDS_SET_GROUP_IDS: BindingDescriptor =
         &["process.identity.write"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3786,7 +3870,9 @@ pub const PROCESS_IDS_SET_GROUPS: BindingDescriptor =
         &["process.identity.write"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3812,7 +3898,9 @@ pub const PROCESS_IDS_SET_UID: BindingDescriptor =
         &["process.identity.write"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3838,7 +3926,9 @@ pub const PROCESS_IDS_SET_USER_IDS: BindingDescriptor =
         &["process.identity.write"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3864,7 +3954,9 @@ pub const PROCESS_IDS_UID: BindingDescriptor =
         &["process.identity.read"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3890,7 +3982,9 @@ pub const PROCESS_IDS_USER_IDS: BindingDescriptor =
         &["process.identity.read"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3916,7 +4010,9 @@ pub const PROCESS_ISOLATION_CHROOT: BindingDescriptor =
         &["security.restrict"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3940,7 +4036,9 @@ pub const PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER: BindingDescriptor = BindingD
     &["security.filter"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.isolation.setHostName.
@@ -3953,7 +4051,9 @@ pub const PROCESS_ISOLATION_SET_HOST_NAME: BindingDescriptor =
         &["process.namespace"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -3979,7 +4079,9 @@ pub const PROCESS_ISOLATION_SET_NETWORK_NAMESPACE: BindingDescriptor =
         &["process.namespace"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.isolation.setns.
@@ -3991,7 +4093,9 @@ pub const PROCESS_ISOLATION_SETNS: BindingDescriptor = BindingDescriptor::extern
     &["process.namespace"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.isolation.unshare.
@@ -4004,7 +4108,9 @@ pub const PROCESS_ISOLATION_UNSHARE: BindingDescriptor =
         &["process.namespace"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.limits.getLimit.
@@ -4016,7 +4122,9 @@ pub const PROCESS_LIMITS_GET_LIMIT: BindingDescriptor = BindingDescriptor::exter
     &["process.run"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.limits.setLimit.
@@ -4028,7 +4136,9 @@ pub const PROCESS_LIMITS_SET_LIMIT: BindingDescriptor = BindingDescriptor::exter
     &["process.run"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.sched.getAffinity.
@@ -4041,7 +4151,9 @@ pub const PROCESS_SCHED_GET_AFFINITY: BindingDescriptor =
         &["process.affinity"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4067,7 +4179,9 @@ pub const PROCESS_SCHED_GET_PRIORITY: BindingDescriptor =
         &["process.priority"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4092,7 +4206,9 @@ pub const PROCESS_SCHED_GET_SCHEDULER: BindingDescriptor = BindingDescriptor::ex
     &["process.scheduler"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.sched.setAffinity.
@@ -4104,7 +4220,9 @@ pub const PROCESS_SCHED_SET_AFFINITY: BindingDescriptor = BindingDescriptor::ext
     &["process.affinity"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.sched.setPriority.
@@ -4117,7 +4235,9 @@ pub const PROCESS_SCHED_SET_PRIORITY: BindingDescriptor =
         &["process.priority"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4142,7 +4262,9 @@ pub const PROCESS_SCHED_SET_SCHEDULER: BindingDescriptor = BindingDescriptor::ex
     &["process.scheduler"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.sched.yieldNow.
@@ -4155,7 +4277,9 @@ pub const PROCESS_SCHED_YIELD_NOW: BindingDescriptor =
         &["process.scheduler"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4181,7 +4305,9 @@ pub const PROCESS_SESSION_GETPGID: BindingDescriptor =
         &["process.session"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4207,7 +4333,9 @@ pub const PROCESS_SESSION_SETPGID: BindingDescriptor =
         &["process.session"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4233,7 +4361,9 @@ pub const PROCESS_SESSION_SETSID: BindingDescriptor =
         &["process.session"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4259,7 +4389,9 @@ pub const PROCESS_SIGNALS_KILL: BindingDescriptor =
         &["process.signal.send"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4285,7 +4417,9 @@ pub const PROCESS_SIGNALS_SIGNAL_MASK_READ: BindingDescriptor =
         &["process.signal.receive"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4310,7 +4444,9 @@ pub const PROCESS_SIGNALS_SIGNAL_MASK_UPDATE: BindingDescriptor = BindingDescrip
     &["process.signal.receive"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.signals.signalReceive.
@@ -4323,7 +4459,9 @@ pub const PROCESS_SIGNALS_SIGNAL_RECEIVE: BindingDescriptor =
         &["process.signal.receive"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4349,7 +4487,9 @@ pub const PROCESS_SIGNALS_SIGNAL_SUBSCRIBE: BindingDescriptor =
         &["process.signal.receive"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4374,7 +4514,9 @@ pub const PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE: BindingDescriptor = BindingDescrip
     &["process.signal.receive"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.signals.signalTryWait.
@@ -4387,7 +4529,9 @@ pub const PROCESS_SIGNALS_SIGNAL_TRY_WAIT: BindingDescriptor =
         &["process.signal.receive"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4413,7 +4557,9 @@ pub const PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE: BindingDescriptor =
         &["process.signal.receive"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4439,7 +4585,9 @@ pub const PROCESS_SIGNALS_SIGNAL_WAIT: BindingDescriptor =
         &["process.signal.receive"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4464,7 +4612,9 @@ pub const PROCESS_SPAWN_START: BindingDescriptor = BindingDescriptor::external_w
     &["process.spawn"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.spawn.withActions.
@@ -4476,7 +4626,9 @@ pub const PROCESS_SPAWN_WITH_ACTIONS: BindingDescriptor = BindingDescriptor::ext
     &["process.spawn", "process.spawn.actions"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.umask.set.
@@ -4489,7 +4641,9 @@ pub const PROCESS_UMASK_SET: BindingDescriptor =
         &["process.identity.write"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4514,7 +4668,9 @@ pub const PROCESS_WAIT_HANDLE: BindingDescriptor = BindingDescriptor::external_w
     &["process.wait"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.wait.pid.
@@ -4526,7 +4682,9 @@ pub const PROCESS_WAIT_PID: BindingDescriptor = BindingDescriptor::external_with
     &["process.wait"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("process")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.wait.tryWait.
@@ -4539,7 +4697,9 @@ pub const PROCESS_WAIT_TRY_WAIT: BindingDescriptor =
         &["process.wait"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("process")
     .with_host_platforms(&[
         "android",
         "dragonfly",
