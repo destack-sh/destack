@@ -16,9 +16,9 @@ use crate::format::expression::{
     is_complex_argument, is_expression_breakable, is_simple_static_argument, is_trivial_argument,
     line_postfix_boundary, list_like, parenthesized_boundary_comments,
     parenthesized_has_explicit_delimiters, parenthesized_has_leading_inner_comments,
-    parenthesized_has_leading_inner_trivia, sequence_expression_needs_parens,
-    should_drop_parenthesized, should_force_multiline_mapped_type,
-    should_hoist_parenthesized_inner_cast_prefix_comments,
+    parenthesized_has_leading_inner_newline, parenthesized_has_leading_inner_trivia,
+    sequence_expression_needs_parens, should_drop_parenthesized,
+    should_force_multiline_mapped_type, should_hoist_parenthesized_inner_cast_prefix_comments,
     single_argument_separator_line_comment_source, soft_block_indent, soft_line_break,
     soft_line_break_or_space, space, token, transparent_inner_expression,
     tree_literal_should_break, write_argument_without_separator_line_comment,
@@ -944,6 +944,8 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
             parenthesized_has_leading_inner_trivia(f.context(), node_id, expression_id);
         let has_parenthesized_leading_inner_comments =
             parenthesized_has_leading_inner_comments(f.context(), node_id, expression_id);
+        let has_parenthesized_leading_inner_newline =
+            parenthesized_has_leading_inner_newline(f.context(), node_id, expression_id);
         let parenthesized_starts_with_type_operator =
             parenthesized_inner_starts_with_type_operator(f.context(), node_id, expression_id);
         let inner_expression_has_comments =
@@ -956,6 +958,11 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
             expression_parent_is_postfix_continuation(f.context(), node_id);
         let is_in_assignment_value_context =
             expression_is_in_assignment_value_context(f.context(), node_id);
+        let prefers_inline_scalar_comment_wrapper =
+            matches!(inner_expression, Expression::ScalarLiteral(_))
+                && has_parenthesized_leading_inner_comments
+                && !has_parenthesized_leading_inner_newline
+                && !f.context().node_has_newline(expression_id);
         let should_expand_assignment_target = match inner_expression {
             // prefer expanded destructuring targets once they become moderately wide
             Expression::ObjectExpression { properties, .. } => {
@@ -1063,6 +1070,7 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
         } else if has_parenthesized_leading_inner_trivia
             && (expression_has_effective_prefix_annotation(f.context(), expression_id)
                 || (parent_is_postfix_continuation && expression_is_await_like(inner_expression)))
+            && !prefers_inline_scalar_comment_wrapper
         {
             write!(
                 f,
