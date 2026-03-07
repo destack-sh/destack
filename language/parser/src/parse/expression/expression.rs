@@ -12,7 +12,8 @@ use destack_ast::{
 use super::super::annotation::PendingDecorators;
 
 /// The recursion interval for stack growth checks in expression parsing.
-const STACK_GROW_CHECK_INTERVAL: u32 = if cfg!(debug_assertions) { 1 } else { 256 };
+#[cfg(not(debug_assertions))]
+const STACK_GROW_CHECK_INTERVAL: u32 = 256;
 
 impl Parser {
     /// Try to parse a plain identifier expression once the caller proved the current token shape.
@@ -144,15 +145,29 @@ impl Parser {
     #[inline(always)]
     fn eat_expression_inner_with_stack_guard(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_EXPRESSION);
+
+        // stack depth
         let depth = self.expression_stack_depth;
         self.expression_stack_depth = depth + 1;
-        let should_check_stack = depth != 0 && (depth & (STACK_GROW_CHECK_INTERVAL - 1)) == 0;
+
+        // guard interval
+        #[cfg(debug_assertions)]
+        let should_check_stack = depth != 0;
+
+        // guard interval
+        #[cfg(not(debug_assertions))]
+        let should_check_stack = depth != 0 && depth.is_multiple_of(STACK_GROW_CHECK_INTERVAL);
+
+        // parse with stack guard
         let result = if should_check_stack {
             destack_base::ensure_sufficient_stack(|| self.eat_expression_inner())
         } else {
             self.eat_expression_inner()
         };
+
+        // restore depth
         self.expression_stack_depth = depth;
+
         result
     }
 

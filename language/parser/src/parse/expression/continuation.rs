@@ -172,8 +172,8 @@ impl Parser {
                     if !matches!(
                         token_type,
                         TokenType::OpenParenthesis | TokenType::Dot | TokenType::Maybe
-                    ) && !(matches!(token_type, TokenType::LessThan | TokenType::ShiftLeft)
-                        && !is_in_type)
+                    ) && (!is_in_type
+                        || !matches!(token_type, TokenType::LessThan | TokenType::ShiftLeft))
                     {
                         break;
                     }
