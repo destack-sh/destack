@@ -9,9 +9,9 @@ use objc2_foundation::{NSNotification, NSObject, NSObjectProtocol};
 
 use crate::platform::resource;
 
-use super::super::model::AppKitWindowBinding;
-use super::super::{event, window};
 use super::runtime::AppKitRuntimeState;
+use crate::platform::display::unix::appkit::model::AppKitWindowHostState;
+use crate::platform::display::unix::appkit::{event, window};
 
 /// Stored ivars for one AppKit window delegate instance.
 #[derive(Debug)]
@@ -20,8 +20,8 @@ pub(crate) struct AppKitWindowDelegateState {
     pub(crate) runtime_state: Arc<AppKitRuntimeState>,
     /// The runtime window handle associated with this delegate.
     pub(crate) window: resource::WindowHandle,
-    /// The runtime binding state for this window.
-    pub(crate) binding: Arc<Mutex<AppKitWindowBinding>>,
+    /// The runtime host state for this window.
+    pub(crate) host_state: Arc<Mutex<AppKitWindowHostState>>,
 }
 
 define_class!(
@@ -60,7 +60,7 @@ define_class!(
             window::apply_host_position_change(
                 &state.runtime_state,
                 state.window,
-                &state.binding,
+                &state.host_state,
                 &window,
             );
         }
@@ -76,7 +76,7 @@ define_class!(
             window::apply_host_size_change(
                 &state.runtime_state,
                 state.window,
-                &state.binding,
+                &state.host_state,
                 &window,
             );
         }
@@ -92,7 +92,7 @@ define_class!(
             window::apply_host_size_change(
                 &state.runtime_state,
                 state.window,
-                &state.binding,
+                &state.host_state,
                 &window,
             );
         }
@@ -108,7 +108,7 @@ define_class!(
             window::apply_host_size_change(
                 &state.runtime_state,
                 state.window,
-                &state.binding,
+                &state.host_state,
                 &window,
             );
         }
@@ -120,7 +120,7 @@ define_class!(
             window::apply_host_focus_change(
                 &state.runtime_state,
                 state.window,
-                &state.binding,
+                &state.host_state,
                 true,
             );
         }
@@ -132,7 +132,7 @@ define_class!(
             window::apply_host_focus_change(
                 &state.runtime_state,
                 state.window,
-                &state.binding,
+                &state.host_state,
                 false,
             );
         }
@@ -148,7 +148,7 @@ define_class!(
             window::apply_host_occlusion_change(
                 &state.runtime_state,
                 state.window,
-                &state.binding,
+                &state.host_state,
                 &window,
             );
         }
@@ -201,12 +201,12 @@ impl AppKitWindowDelegate {
         mtm: objc2::MainThreadMarker,
         runtime_state: Arc<AppKitRuntimeState>,
         window: resource::WindowHandle,
-        binding: Arc<Mutex<AppKitWindowBinding>>,
+        binding: Arc<Mutex<AppKitWindowHostState>>,
     ) -> objc2::rc::Retained<Self> {
         let value = Self::alloc(mtm).set_ivars(AppKitWindowDelegateState {
             runtime_state,
             window,
-            binding,
+            host_state: binding,
         });
 
         unsafe { objc2::msg_send![super(value), init] }

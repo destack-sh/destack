@@ -5,11 +5,11 @@ use objc2_core_graphics::{
     CGDisplayScreenSize, CGError, CGGetActiveDisplayList, CGMainDisplayID,
 };
 
-use super::super::core;
-use super::super::model::{DisplayDescriptorSnapshot, MonitorSnapshot};
 use super::core as monitor_core;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
+use crate::platform::display::unix::appkit::core;
+use crate::platform::display::unix::appkit::model::{DisplayDescriptorSnapshot, MonitorSnapshot};
 use crate::platform::display::{DisplayDescriptor, DisplaySupportStatus};
 use crate::runtime::BindingCallContext;
 
@@ -22,10 +22,7 @@ fn active_displays(operation: &'static str) -> RuntimeResult<Vec<CGDirectDisplay
     if status != CGError(0) {
         return Err(core::io_error(
             operation,
-            format!(
-                "CGGetActiveDisplayList probe failed with status {:?}",
-                status
-            ),
+            format!("CGGetActiveDisplayList probe failed with status {status:?}"),
         ));
     }
 
@@ -44,10 +41,7 @@ fn active_displays(operation: &'static str) -> RuntimeResult<Vec<CGDirectDisplay
     if status != CGError(0) {
         return Err(core::io_error(
             operation,
-            format!(
-                "CGGetActiveDisplayList read failed with status {:?}",
-                status
-            ),
+            format!("CGGetActiveDisplayList read failed with status {status:?}"),
         ));
     }
 

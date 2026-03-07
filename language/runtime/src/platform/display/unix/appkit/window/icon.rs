@@ -180,7 +180,7 @@ pub(crate) fn window_icon_image(
         return Ok(None);
     };
 
-    let best_index = best_icon_index(&decoded_images);
+    let best_index = best_icon_index(decoded_images);
     let best_image = &decoded_images[best_index];
     let window_image = NSImage::initWithSize(
         NSImage::alloc(),

@@ -3,8 +3,8 @@ use std::sync::Mutex;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
-use crate::platform::display::host::unix::appkit::core as appkit_core;
-use crate::platform::display::host::unix::appkit::model::DisplayDescriptorSnapshot;
+use crate::platform::display::unix::appkit::core as appkit_core;
+use crate::platform::display::unix::appkit::model::DisplayDescriptorSnapshot;
 use crate::platform::display::{
     DisplayEventOverflowPolicy, DisplayMode, DisplayMonitorEventFilter,
     DisplayMonitorEventOpenOptions,
@@ -177,9 +177,11 @@ pub(crate) struct MonitorEventState {
     pub(crate) seeded: VecDeque<DisplayEventRecord>,
 }
 
-/// Shared monitor-event stream binding.
+/// Shared monitor-event stream payload.
 #[derive(Debug)]
-pub(crate) struct MonitorEventBinding {
+pub(crate) struct MonitorEventStream {
+    /// Stable runtime stream identifier.
+    pub(crate) stream_id: u64,
     /// Mutable stream state.
     pub(crate) state: Mutex<MonitorEventState>,
     /// Stream filter configuration.
@@ -198,7 +200,7 @@ pub(crate) fn display_event_record(kind: DisplayEventRecordKind) -> DisplayEvent
 
 #[cfg(test)]
 mod tests {
-    use crate::platform::display::host::unix::appkit::model::MonitorSnapshot;
+    use crate::platform::display::unix::appkit::model::MonitorSnapshot;
     use crate::platform::display::{DisplayMode, DisplayOrientation, DisplaySupportStatus};
 
     use super::super::codec::monitor_topology_records;

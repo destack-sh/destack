@@ -1,10 +1,8 @@
 use std::collections::HashMap;
 
 use crate::platform::core as core_platform;
-use crate::platform::display::host::unix::appkit::model::{
-    DisplayDescriptorSnapshot, MonitorSnapshot,
-};
-use crate::platform::display::host::unix::appkit::{constants, core as appkit_core, monitor};
+use crate::platform::display::unix::appkit::model::{DisplayDescriptorSnapshot, MonitorSnapshot};
+use crate::platform::display::unix::appkit::{constants, core as appkit_core, monitor};
 use crate::platform::display::{
     DisplayAddedEvent, DisplayAddedPayload, DisplayDescriptorChangedEvent,
     DisplayDescriptorChangedPayload, DisplayMetricChangedMask, DisplayModeChangedEvent,
@@ -13,7 +11,7 @@ use crate::platform::display::{
 };
 use crate::runtime::BindingCallContext;
 
-use super::super::{DisplayEventRecord, DisplayEventRecordKind};
+use crate::platform::display::unix::appkit::event::{DisplayEventRecord, DisplayEventRecordKind};
 
 /// Return the primary display identifier from one monitor snapshot list.
 fn primary_display_id(snapshots: &[MonitorSnapshot]) -> Option<String> {

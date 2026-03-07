@@ -11,8 +11,7 @@ use crate::platform::display::{
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
-use super::super::{core as appkit_core, resource as display_resource};
-use super::runtime;
+use crate::platform::display::unix::appkit::{core as appkit_core, resource as display_resource};
 
 /// Resolve one AppKit cursor instance for one runtime cursor icon.
 #[allow(deprecated)]
@@ -58,28 +57,28 @@ fn desired_cursor_policy(
         let mut focused_icon = None;
         let mut fallback_icon = None;
 
-        // inspect each live window binding once
+        // inspect each live window host state once
         for host in state.windows.values() {
-            let binding = host
-                .binding
+            let host_state = host
+                .host_state
                 .lock()
                 .unwrap_or_else(|error| error.into_inner());
 
             // ignore fully hidden and minimized windows for cursor ownership
-            if !matches!(binding.visibility, WindowVisibility::Visible) {
+            if !matches!(host_state.visibility, WindowVisibility::Visible) {
                 continue;
             }
 
             // escalate to hidden when any visible window requests hidden policy
-            if !binding.cursor_visible || binding.cursor_mode == WindowCursorMode::Hidden {
+            if !host_state.cursor_visible || host_state.cursor_mode == WindowCursorMode::Hidden {
                 is_hidden = true;
             }
 
             // prefer the focused window icon and fall back to the first visible window icon
-            if binding.focused {
-                focused_icon = Some(binding.cursor_icon);
+            if host_state.focused {
+                focused_icon = Some(host_state.cursor_icon);
             } else if fallback_icon.is_none() {
-                fallback_icon = Some(binding.cursor_icon);
+                fallback_icon = Some(host_state.cursor_icon);
             }
         }
 
@@ -127,15 +126,14 @@ pub(crate) unsafe fn window_set_cursor_icon(
     icon: WindowCursorIcon,
 ) -> RuntimeResult<()> {
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setCursorIcon",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setCursorIcon")?;
-    binding.cursor_icon = icon;
-    drop(binding);
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    host_state.cursor_icon = icon;
+    drop(host_state);
 
     apply_cursor_policy(&runtime_state);
     Ok(())
@@ -148,13 +146,12 @@ pub(crate) unsafe fn window_set_cursor_mode(
     mode: WindowCursorMode,
 ) -> RuntimeResult<()> {
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setCursorMode",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setCursorMode")?;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
     // reject modes that AppKit does not expose as truthful low-level guarantees
     if matches!(mode, WindowCursorMode::Locked | WindowCursorMode::Confined) {
@@ -163,8 +160,8 @@ pub(crate) unsafe fn window_set_cursor_mode(
         ));
     }
 
-    binding.cursor_mode = mode;
-    drop(binding);
+    host_state.cursor_mode = mode;
+    drop(host_state);
 
     apply_cursor_policy(&runtime_state);
     Ok(())
@@ -194,7 +191,7 @@ pub(crate) unsafe fn window_set_cursor_position(
             if status != CGError(0) {
                 return Err(appkit_core::io_error(
                     "destack.display.window.setCursorPosition",
-                    format!("CGWarpMouseCursorPosition failed with status {:?}", status),
+                    format!("CGWarpMouseCursorPosition failed with status {status:?}"),
                 ));
             }
 
@@ -212,15 +209,14 @@ pub(crate) unsafe fn window_set_cursor_visible(
     visible: bool,
 ) -> RuntimeResult<()> {
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setCursorVisible",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setCursorVisible")?;
-    binding.cursor_visible = visible;
-    drop(binding);
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    host_state.cursor_visible = visible;
+    drop(host_state);
 
     apply_cursor_policy(&runtime_state);
     Ok(())

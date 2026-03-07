@@ -2,7 +2,7 @@ use objc2_core_graphics::{CGDirectDisplayID, CGDisplayMode, CGDisplayRotation};
 
 use crate::platform::display::{DisplayMode, DisplayOrientation};
 
-use super::super::core;
+use crate::platform::display::unix::appkit::core;
 
 /// Return one stable display id for one CoreGraphics display lane.
 pub(crate) fn display_id(display: CGDirectDisplayID) -> String {

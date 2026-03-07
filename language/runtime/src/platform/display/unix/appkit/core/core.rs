@@ -6,9 +6,8 @@ use crate::platform::display::{
 };
 use crate::platform::resource::{DisplayHandle, WindowHandle};
 use crate::platform::{PlatformError, core as core_platform};
-use crate::runtime::BindingCallContext;
 
-pub(crate) use super::super::constants::*;
+pub(crate) use crate::platform::display::unix::appkit::constants::*;
 
 /// Return the backend for the AppKit backend implementation.
 pub(crate) fn selected_backend() -> DisplayBackend {
@@ -55,28 +54,6 @@ pub(crate) fn window_not_found(operation: &'static str, handle: WindowHandle) ->
         operation,
         format!("window handle {} was not found", handle.0.0),
     )
-}
-
-/// Return the configured default display event queue capacity.
-pub(crate) fn default_event_queue_capacity(binding: &BindingCallContext) -> usize {
-    let _binding = binding;
-    DEFAULT_EVENT_QUEUE_CAPACITY
-}
-
-/// Resolve queue capacity for one event stream open request.
-pub(crate) fn resolved_queue_capacity(binding: &BindingCallContext, value: u32) -> usize {
-    // fall back to the runtime default when the caller leaves capacity unset
-    if value == 0 {
-        return default_event_queue_capacity(binding);
-    }
-
-    core_platform::u32_to_usize(value)
-}
-
-/// Return the configured window-event wait slice duration in nanoseconds.
-pub(crate) fn window_event_wait_slice_ns(binding: &BindingCallContext) -> u64 {
-    let _binding = binding;
-    DEFAULT_EVENT_WAIT_SLICE_NS
 }
 
 /// Record one AppKit callback warning for one swallowed backend error.
@@ -144,23 +121,9 @@ pub(crate) fn overflow_error(operation: &'static str) -> Box<RuntimeError> {
     )
 }
 
-/// Drain stale weak entries and skip one identity from one weak registry.
-pub(crate) fn retain_live_without_identity<T>(
-    registry: &mut Vec<std::sync::Weak<T>>,
-    identity: usize,
-) {
-    registry.retain(|weak| {
-        let Some(strong) = weak.upgrade() else {
-            return false;
-        };
-
-        std::sync::Arc::as_ptr(&strong) as usize != identity
-    });
-}
-
 /// Return backend descriptor availability and capability flags for AppKit.
 pub(crate) fn backend_descriptor_state(
-    _binding: &BindingCallContext,
+    _binding: &crate::runtime::BindingCallContext,
 ) -> (bool, DisplayBackendCapabilityFlags) {
     let capability_flags = display_platform::DISPLAY_BACKEND_CAP_WINDOW.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_STATE.0

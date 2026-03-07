@@ -6,8 +6,8 @@ use crate::platform::display::{
 };
 use crate::runtime::BindingCallContext;
 
-use super::super::{WindowEventRecord, WindowEventRecordKind};
 use super::core::{os_path_from_utf8, window_event_metadata};
+use crate::platform::display::unix::appkit::event::{WindowEventRecord, WindowEventRecordKind};
 
 /// Convert one drop-lane window-event record into one ABI event payload.
 pub(crate) fn window_drop_event_from_record(
@@ -135,6 +135,8 @@ pub(crate) fn window_drop_event_from_record(
         | WindowEventRecordKind::DisplayChanged { .. }
         | WindowEventRecordKind::ThemeChanged { .. }
         | WindowEventRecordKind::ChromeChanged { .. }
+        | WindowEventRecordKind::TaskbarVisibilityChanged { .. }
+        | WindowEventRecordKind::SafeAreaChanged { .. }
         | WindowEventRecordKind::OpacityChanged { .. }
         | WindowEventRecordKind::ParentChanged { .. }
         | WindowEventRecordKind::TransientChanged { .. }

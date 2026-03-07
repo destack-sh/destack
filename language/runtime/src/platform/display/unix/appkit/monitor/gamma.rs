@@ -8,8 +8,8 @@ use crate::platform::display::DisplayGammaRamp;
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
-use super::super::{core, resource as display_resource};
 use super::core as monitor_core;
+use crate::platform::display::unix::appkit::{core, resource as display_resource};
 
 /// Convert one normalized gamma sample into one ABI gamma value.
 fn gamma_sample_to_u16(sample: CGGammaValue) -> u16 {
@@ -53,10 +53,7 @@ pub(crate) fn read_display_gamma_ramp(
     if status != CGError(0) {
         return Err(core::io_error(
             operation,
-            format!(
-                "CGGetDisplayTransferByTable failed with status {:?}",
-                status
-            ),
+            format!("CGGetDisplayTransferByTable failed with status {status:?}"),
         ));
     }
 
@@ -112,10 +109,7 @@ pub(crate) fn write_display_gamma_ramp(
 
     Err(core::io_error(
         operation,
-        format!(
-            "CGSetDisplayTransferByTable failed with status {:?}",
-            status
-        ),
+        format!("CGSetDisplayTransferByTable failed with status {status:?}"),
     ))
 }
 

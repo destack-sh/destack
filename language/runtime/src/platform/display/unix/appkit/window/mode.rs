@@ -7,9 +7,11 @@ use crate::platform::display::WindowModeOptions;
 use crate::platform::resource::{DisplayHandle, WindowHandle};
 use crate::runtime::BindingCallContext;
 
-use super::super::event::publish_state_deltas;
-use super::super::{core as appkit_core, monitor, resource as display_resource};
-use super::{reconcile, runtime};
+use super::reconcile;
+use crate::platform::display::unix::appkit::event::publish_state_deltas;
+use crate::platform::display::unix::appkit::{
+    core as appkit_core, monitor, resource as display_resource,
+};
 
 /// Return whether one AppKit window is currently in native fullscreen mode.
 fn is_fullscreen_window(window: &NSWindow) -> bool {
@@ -89,16 +91,15 @@ pub(crate) unsafe fn window_set_mode(
     mode: WindowModeOptions,
 ) -> RuntimeResult<()> {
     let runtime_state = appkit_core::runtime_state(binding);
-    let resolved_binding = display_resource::resolve_window_binding(
+    let resolved_host_state = display_resource::resolve_window_host_state(
         binding,
         window,
         "destack.display.window.setMode",
     )?;
-    let mut resolved_binding = resolved_binding
+    let mut resolved_host_state = resolved_host_state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&resolved_binding, "destack.display.window.setMode")?;
-    let previous = resolved_binding.clone();
+    let previous = resolved_host_state.clone();
 
     // accept exact no-op transitions without mutating host state
     if same_window_mode(previous.mode, mode) {
@@ -108,7 +109,7 @@ pub(crate) unsafe fn window_set_mode(
     let target_frame = target_frame_for_mode(
         binding,
         mode,
-        resolved_binding.display,
+        resolved_host_state.display,
         "destack.display.window.setMode",
     )?;
 
@@ -153,9 +154,9 @@ pub(crate) unsafe fn window_set_mode(
         },
     )?;
 
-    resolved_binding.mode = mode;
-    resolved_binding.display = mode_display(mode).or(resolved_binding.display);
-    drop(resolved_binding);
+    resolved_host_state.mode = mode;
+    resolved_host_state.display = mode_display(mode).or(resolved_host_state.display);
+    drop(resolved_host_state);
 
     let (_, next) = reconcile::refresh_host_window_binding(&runtime_state, window)?;
 

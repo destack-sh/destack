@@ -1,11 +1,11 @@
 use crate::platform::abi::NativeAbi;
-use crate::platform::display::host::unix::appkit::core as appkit_core;
+use crate::platform::display::unix::appkit::core as appkit_core;
 use crate::platform::display::{WindowEvent, WindowEventMetadata};
 use crate::platform::fs::{self as platform_fs, PathBytesAbi, core as core_fs};
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 
-use super::super::{WindowEventRecord, WindowEventRecordKind};
+use crate::platform::display::unix::appkit::event::{WindowEventRecord, WindowEventRecordKind};
 
 /// Build one window-event metadata payload.
 pub(crate) fn window_event_metadata(

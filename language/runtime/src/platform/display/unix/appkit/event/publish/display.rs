@@ -3,16 +3,18 @@ use std::sync::Arc;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
 use crate::platform::display::DisplayMode;
-use crate::platform::display::host::unix::appkit::core::AppKitRuntimeState;
-use crate::platform::display::host::unix::appkit::model::{
-    DisplayDescriptorSnapshot, MonitorSnapshot,
-};
-use crate::platform::display::host::unix::appkit::monitor;
+use crate::platform::display::unix::appkit::core::AppKitRuntimeState;
+use crate::platform::display::unix::appkit::model::{DisplayDescriptorSnapshot, MonitorSnapshot};
+use crate::platform::display::unix::appkit::monitor;
 
-use super::super::codec::{descriptor_changed_mask, monitor_topology_records};
-use super::super::queue::{publish_monitor_event, push_seeded_monitor_record};
-use super::super::{
-    DisplayEventRecord, DisplayEventRecordKind, MonitorEventBinding, display_event_record,
+use crate::platform::display::unix::appkit::event::codec::{
+    descriptor_changed_mask, monitor_topology_records,
+};
+use crate::platform::display::unix::appkit::event::queue::{
+    publish_monitor_event, push_seeded_monitor_record,
+};
+use crate::platform::display::unix::appkit::event::{
+    DisplayEventRecord, DisplayEventRecordKind, MonitorEventStream, display_event_record,
 };
 /// Publish one monitor mode-changed event for one display.
 pub(crate) fn publish_monitor_mode_changed(
@@ -67,11 +69,7 @@ pub(crate) fn refresh_monitor_topology_cache(
 ) -> RuntimeResult<()> {
     // enumerate snapshots and replace cached topology atomically
     let snapshots = monitor::enumerate_monitor_snapshots()?;
-    let mut topology_snapshot = runtime_state
-        .monitor_topology_snapshot
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    *topology_snapshot = Some(snapshots);
+    runtime_state.reset_monitor_topology_snapshot(snapshots);
 
     Ok(())
 }
@@ -84,24 +82,15 @@ pub(crate) fn publish_monitor_topology_deltas(
     let next_snapshots = monitor::enumerate_monitor_snapshots()?;
 
     // compute delta records and replace cached snapshot
-    let records = {
-        let mut topology_snapshot = runtime_state
-            .monitor_topology_snapshot
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
-        let Some(previous_snapshots) = topology_snapshot.as_ref() else {
-            *topology_snapshot = Some(next_snapshots);
-            return Ok(());
-        };
-
-        let records = monitor_topology_records(previous_snapshots, &next_snapshots);
-        *topology_snapshot = Some(next_snapshots);
-        records
+    let Some(records) =
+        runtime_state.replace_monitor_topology_snapshot(next_snapshots, monitor_topology_records)
+    else {
+        return Ok(());
     };
 
     // publish topology records into all monitor streams
     for record in records {
-        publish_monitor_event(&runtime_state, record);
+        publish_monitor_event(runtime_state, record);
     }
 
     Ok(())
@@ -109,7 +98,7 @@ pub(crate) fn publish_monitor_topology_deltas(
 
 /// Seed one monitor-event stream with current monitor snapshot events.
 pub(crate) fn seed_monitor_event_stream(
-    binding: &Arc<MonitorEventBinding>,
+    stream: &Arc<MonitorEventStream>,
 ) -> RuntimeResult<Vec<MonitorSnapshot>> {
     let snapshots = monitor::enumerate_monitor_snapshots()?;
     let mut primary_id = None;
@@ -124,21 +113,21 @@ pub(crate) fn seed_monitor_event_stream(
         let added = display_event_record(DisplayEventRecordKind::Added {
             descriptor: snapshot.descriptor.clone(),
         });
-        push_seeded_monitor_record(binding, added);
+        push_seeded_monitor_record(stream, added);
 
         let mode_changed = display_event_record(DisplayEventRecordKind::ModeChanged {
             id: snapshot.descriptor.id.clone(),
             previous: None,
             current: snapshot.current_mode,
         });
-        push_seeded_monitor_record(binding, mode_changed);
+        push_seeded_monitor_record(stream, mode_changed);
     }
 
     let primary_changed = display_event_record(DisplayEventRecordKind::PrimaryChanged {
         previous_id: None,
         current_id: primary_id,
     });
-    push_seeded_monitor_record(binding, primary_changed);
+    push_seeded_monitor_record(stream, primary_changed);
 
     Ok(snapshots)
 }

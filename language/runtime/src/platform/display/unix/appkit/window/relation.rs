@@ -9,17 +9,16 @@ use crate::platform::display::WindowRole;
 use crate::platform::resource::WindowHandle;
 use crate::runtime::BindingCallContext;
 
-use super::super::event::publish_state_deltas;
-use super::super::model::AppKitWindowBinding;
-use super::super::{core as appkit_core, resource as display_resource};
-use super::runtime;
+use crate::platform::display::unix::appkit::event::publish_state_deltas;
+use crate::platform::display::unix::appkit::model::AppKitWindowHostState;
+use crate::platform::display::unix::appkit::{core as appkit_core, resource as display_resource};
 
 /// Return one effective owner relationship with transient priority.
-fn owner_relationship(binding: &AppKitWindowBinding) -> Option<WindowHandle> {
-    binding.transient_for.or(binding.parent)
+fn owner_relationship(host_state: &AppKitWindowHostState) -> Option<WindowHandle> {
+    host_state.transient_for.or(host_state.parent)
 }
 
-/// Resolve one owner handle and enforce same-thread ownership.
+/// Resolve one owner handle.
 fn resolve_owner_handle(
     context: &BindingCallContext,
     child_window: WindowHandle,
@@ -31,7 +30,7 @@ fn resolve_owner_handle(
         return Ok(None);
     };
 
-    // reject self-reference relationships at the binding boundary
+    // reject self-reference relationships at the host_state boundary
     if owner_window == child_window {
         return Err(core_platform::invalid_argument(
             field,
@@ -39,11 +38,13 @@ fn resolve_owner_handle(
         ));
     }
 
-    let owner_binding = display_resource::resolve_window_binding(context, owner_window, operation)?;
-    let owner_binding = owner_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&owner_binding, operation)?;
+    let owner_host_state =
+        display_resource::resolve_window_host_state(context, owner_window, operation)?;
+    drop(
+        owner_host_state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner()),
+    );
 
     Ok(Some(owner_window))
 }
@@ -166,34 +167,33 @@ pub(crate) unsafe fn window_set_parent(
     )?;
 
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setParent",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setParent")?;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
-    // snapshot the transition before mutating the binding
-    let previous = binding.clone();
-    let previous_owner = owner_relationship(&binding);
-    let previous_modal = binding.modal;
+    // snapshot the transition before mutating the host_state
+    let previous = host_state.clone();
+    let previous_owner = owner_relationship(&host_state);
+    let previous_modal = host_state.modal;
 
-    // apply the requested relation in the cached binding
-    binding.parent = parent;
-    binding.transient_for = None;
+    // apply the requested relation in the cached host_state
+    host_state.parent = parent;
+    host_state.transient_for = None;
 
     // clear modal state when removing the final owner lane
-    if owner_relationship(&binding).is_none() {
-        binding.modal = false;
+    if owner_relationship(&host_state).is_none() {
+        host_state.modal = false;
     }
 
-    let next_owner = owner_relationship(&binding);
-    let next_modal = binding.modal;
-    let next = binding.clone();
-    drop(binding);
+    let next_owner = owner_relationship(&host_state);
+    let next_modal = host_state.modal;
+    let next = host_state.clone();
+    drop(host_state);
 
-    // apply the host transition and rollback the cached binding on failure
+    // apply the host transition and rollback the cached host_state on failure
     if let Err(error) = apply_host_relationship_state(
         &runtime_state,
         window_handle,
@@ -203,13 +203,13 @@ pub(crate) unsafe fn window_set_parent(
         next_modal,
         "destack.display.window.setParent",
     ) {
-        let binding = display_resource::resolve_window_binding(
+        let host_state = display_resource::resolve_window_host_state(
             context,
             window_handle,
             "destack.display.window.setParent.rollback",
         )?;
-        let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-        *binding = previous.clone();
+        let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+        *host_state = previous.clone();
         return Err(error);
     }
 
@@ -233,34 +233,33 @@ pub(crate) unsafe fn window_set_transient_for(
     )?;
 
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setTransientFor",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setTransientFor")?;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
-    // snapshot the transition before mutating the binding
-    let previous = binding.clone();
-    let previous_owner = owner_relationship(&binding);
-    let previous_modal = binding.modal;
+    // snapshot the transition before mutating the host_state
+    let previous = host_state.clone();
+    let previous_owner = owner_relationship(&host_state);
+    let previous_modal = host_state.modal;
 
-    // apply the requested relation in the cached binding
-    binding.parent = None;
-    binding.transient_for = transient_for;
+    // apply the requested relation in the cached host_state
+    host_state.parent = None;
+    host_state.transient_for = transient_for;
 
     // clear modal state when removing the final owner lane
-    if owner_relationship(&binding).is_none() {
-        binding.modal = false;
+    if owner_relationship(&host_state).is_none() {
+        host_state.modal = false;
     }
 
-    let next_owner = owner_relationship(&binding);
-    let next_modal = binding.modal;
-    let next = binding.clone();
-    drop(binding);
+    let next_owner = owner_relationship(&host_state);
+    let next_modal = host_state.modal;
+    let next = host_state.clone();
+    drop(host_state);
 
-    // apply the host transition and rollback the cached binding on failure
+    // apply the host transition and rollback the cached host_state on failure
     if let Err(error) = apply_host_relationship_state(
         &runtime_state,
         window_handle,
@@ -270,13 +269,13 @@ pub(crate) unsafe fn window_set_transient_for(
         next_modal,
         "destack.display.window.setTransientFor",
     ) {
-        let binding = display_resource::resolve_window_binding(
+        let host_state = display_resource::resolve_window_host_state(
             context,
             window_handle,
             "destack.display.window.setTransientFor.rollback",
         )?;
-        let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-        *binding = previous.clone();
+        let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+        *host_state = previous.clone();
         return Err(error);
     }
 
@@ -292,16 +291,15 @@ pub(crate) unsafe fn window_set_modal(
     modal: bool,
 ) -> RuntimeResult<()> {
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setModal",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setModal")?;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
     // reject modal transitions for non-toplevel roles
-    if binding.role != WindowRole::Toplevel {
+    if host_state.role != WindowRole::Toplevel {
         return Err(core_platform::invalid_argument(
             "modal",
             "modal windows require the toplevel role on AppKit",
@@ -309,7 +307,7 @@ pub(crate) unsafe fn window_set_modal(
     }
 
     // reject modal requests without any owner lane
-    if modal && owner_relationship(&binding).is_none() {
+    if modal && owner_relationship(&host_state).is_none() {
         return Err(core_platform::invalid_argument(
             "modal",
             "modal windows require parent or transientFor relationship",
@@ -317,19 +315,19 @@ pub(crate) unsafe fn window_set_modal(
     }
 
     // skip exact no-op transitions
-    if binding.modal == modal {
+    if host_state.modal == modal {
         return Ok(());
     }
 
-    let previous = binding.clone();
-    let previous_owner = owner_relationship(&binding);
-    let previous_modal = binding.modal;
-    binding.modal = modal;
-    let next_owner = owner_relationship(&binding);
-    let next = binding.clone();
-    drop(binding);
+    let previous = host_state.clone();
+    let previous_owner = owner_relationship(&host_state);
+    let previous_modal = host_state.modal;
+    host_state.modal = modal;
+    let next_owner = owner_relationship(&host_state);
+    let next = host_state.clone();
+    drop(host_state);
 
-    // apply the host transition and rollback the cached binding on failure
+    // apply the host transition and rollback the cached host_state on failure
     if let Err(error) = apply_host_relationship_state(
         &runtime_state,
         window_handle,
@@ -339,13 +337,13 @@ pub(crate) unsafe fn window_set_modal(
         modal,
         "destack.display.window.setModal",
     ) {
-        let binding = display_resource::resolve_window_binding(
+        let host_state = display_resource::resolve_window_host_state(
             context,
             window_handle,
             "destack.display.window.setModal.rollback",
         )?;
-        let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-        *binding = previous.clone();
+        let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+        *host_state = previous.clone();
         return Err(error);
     }
 
@@ -361,17 +359,16 @@ pub(crate) unsafe fn window_set_mouse_passthrough(
     passthrough: bool,
 ) -> RuntimeResult<()> {
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setMousePassthrough",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setMousePassthrough")?;
-    let previous = binding.clone();
-    binding.mouse_passthrough = passthrough;
-    let next = binding.clone();
-    drop(binding);
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
+    host_state.mouse_passthrough = passthrough;
+    let next = host_state.clone();
+    drop(host_state);
 
     appkit_core::with_window_host(
         &runtime_state,

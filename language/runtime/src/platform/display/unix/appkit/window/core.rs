@@ -7,6 +7,7 @@ use objc2_app_kit::{
     NSAppearanceNameVibrantDark, NSApplication, NSScreen, NSWindow, NSWindowOcclusionState,
     NSWindowStyleMask,
 };
+use objc2_core_graphics::{CGDisplayBounds, CGMainDisplayID};
 use objc2_foundation::{NSNumber, ns_string};
 
 use crate::platform::display::{
@@ -15,8 +16,8 @@ use crate::platform::display::{
 };
 use crate::runtime::BindingCallContext;
 
-use super::super::model::AppKitWindowBinding;
-use super::super::{core as appkit_core, monitor};
+use crate::platform::display::unix::appkit::model::AppKitWindowHostState;
+use crate::platform::display::unix::appkit::{core as appkit_core, monitor};
 
 /// Resolve one occlusion value from one native AppKit window.
 pub(crate) fn occlusion_from_window(window: &NSWindow) -> WindowOcclusionState {
@@ -30,62 +31,62 @@ pub(crate) fn occlusion_from_window(window: &NSWindow) -> WindowOcclusionState {
     WindowOcclusionState::Occluded
 }
 
-/// Build one descriptor payload from one binding snapshot.
-pub(crate) fn descriptor_from_binding(
+/// Build one descriptor payload from one host-state snapshot.
+pub(crate) fn descriptor_from_host_state(
     context: &BindingCallContext,
-    binding: &AppKitWindowBinding,
+    host_state: &AppKitWindowHostState,
 ) -> WindowDescriptor {
     WindowDescriptor {
         backend: appkit_core::selected_backend(),
-        id: context.store_string(&binding.id),
-        title: context.store_string(&binding.title),
-        role: binding.role,
-        mode: binding.mode,
-        display: binding.display,
-        resizable: binding.resizable,
-        decorated: binding.decorated,
-        chrome: binding.chrome,
-        taskbar_visible: binding.taskbar_visible,
-        transparent: binding.transparent,
-        opacity: binding.opacity,
-        always_on_top: binding.always_on_top,
-        parent: binding.parent,
-        transient_for: binding.transient_for,
-        modal: binding.modal,
-        mouse_passthrough: binding.mouse_passthrough,
-        aspect_ratio: binding.aspect_ratio,
+        id: context.store_string(&host_state.id),
+        title: context.store_string(&host_state.title),
+        role: host_state.role,
+        mode: host_state.mode,
+        display: host_state.display,
+        resizable: host_state.resizable,
+        decorated: host_state.decorated,
+        chrome: host_state.chrome,
+        taskbar_visible: host_state.taskbar_visible,
+        transparent: host_state.transparent,
+        opacity: host_state.opacity,
+        always_on_top: host_state.always_on_top,
+        parent: host_state.parent,
+        transient_for: host_state.transient_for,
+        modal: host_state.modal,
+        mouse_passthrough: host_state.mouse_passthrough,
+        aspect_ratio: host_state.aspect_ratio,
     }
 }
 
-/// Build one window state payload from one binding snapshot.
-pub(crate) fn state_from_binding(binding: &AppKitWindowBinding) -> WindowState {
+/// Build one window state payload from one host-state snapshot.
+pub(crate) fn state_from_host_state(host_state: &AppKitWindowHostState) -> WindowState {
     WindowState {
         backend: appkit_core::selected_backend(),
-        position: binding.position,
-        size_logical: binding.size_logical,
-        size_physical: binding.size_physical,
-        scale_factor_milli: binding.scale_factor_milli,
-        visibility: binding.visibility,
-        role: binding.role,
-        display: binding.display,
-        focused: binding.focused,
-        occlusion: binding.occlusion,
-        safe_area_insets: binding.safe_area_insets,
-        theme: binding.theme,
-        chrome: binding.chrome,
-        taskbar_visible: binding.taskbar_visible,
-        opacity: binding.opacity,
-        always_on_top: binding.always_on_top,
-        parent: binding.parent,
-        transient_for: binding.transient_for,
-        modal: binding.modal,
-        mouse_passthrough: binding.mouse_passthrough,
-        aspect_ratio: binding.aspect_ratio,
+        position: host_state.position,
+        size_logical: host_state.size_logical,
+        size_physical: host_state.size_physical,
+        scale_factor_milli: host_state.scale_factor_milli,
+        visibility: host_state.visibility,
+        role: host_state.role,
+        display: host_state.display,
+        focused: host_state.focused,
+        occlusion: host_state.occlusion,
+        safe_area_insets: host_state.safe_area_insets,
+        theme: host_state.theme,
+        chrome: host_state.chrome,
+        taskbar_visible: host_state.taskbar_visible,
+        opacity: host_state.opacity,
+        always_on_top: host_state.always_on_top,
+        parent: host_state.parent,
+        transient_for: host_state.transient_for,
+        modal: host_state.modal,
+        mouse_passthrough: host_state.mouse_passthrough,
+        aspect_ratio: host_state.aspect_ratio,
     }
 }
 
 /// Resolve one theme value from the current AppKit appearance.
-fn theme_from_application() -> WindowTheme {
+pub(crate) fn current_window_theme() -> WindowTheme {
     let Some(mtm) = MainThreadMarker::new() else {
         return WindowTheme::Unknown;
     };
@@ -146,26 +147,53 @@ pub(crate) fn display_id_from_screen(screen: &NSScreen) -> Option<String> {
     Some(monitor::display_id(display_number))
 }
 
-/// Refresh one binding geometry snapshot from one native AppKit window.
-pub(crate) fn refresh_binding_geometry(binding: &mut AppKitWindowBinding, window: &NSWindow) {
+/// Return the main-display desktop height used by AppKit screen coordinates.
+fn main_display_height() -> f64 {
+    CGDisplayBounds(CGMainDisplayID()).size.height
+}
+
+/// Convert one runtime desktop position into one AppKit frame origin.
+pub(crate) fn frame_origin_from_desktop_position(
+    position: WindowPosition,
+    frame_height: f64,
+) -> objc2_foundation::NSPoint {
+    let main_display_height = main_display_height();
+    let origin_y = main_display_height - frame_height - (position.y as f64);
+
+    objc2_foundation::NSPoint::new(position.x as f64, origin_y)
+}
+
+/// Convert one AppKit frame rect into one runtime desktop position.
+pub(crate) fn desktop_position_from_frame(frame: objc2_foundation::NSRect) -> WindowPosition {
+    let main_display_height = main_display_height();
+    let position_y = main_display_height - frame.size.height - frame.origin.y;
+
+    WindowPosition {
+        x: frame.origin.x.round() as i32,
+        y: position_y.round() as i32,
+    }
+}
+
+/// Refresh one host-state geometry snapshot from one native AppKit window.
+pub(crate) fn refresh_host_state_geometry(
+    host_state: &mut AppKitWindowHostState,
+    window: &NSWindow,
+) {
     let frame = window.frame();
     let content_rect = window.contentRectForFrameRect(frame);
     let scale_factor_milli = (window.backingScaleFactor() * 1000.0).round() as u32;
     let width = content_rect.size.width.max(1.0);
     let height = content_rect.size.height.max(1.0);
 
-    binding.position = WindowPosition {
-        x: frame.origin.x.round() as i32,
-        y: frame.origin.y.round() as i32,
-    };
-    binding.size_logical = WindowLogicalSize { width, height };
-    binding.size_physical = WindowPhysicalSize {
+    host_state.position = desktop_position_from_frame(frame);
+    host_state.size_logical = WindowLogicalSize { width, height };
+    host_state.size_physical = WindowPhysicalSize {
         width: (width * window.backingScaleFactor()).round().max(1.0) as u32,
         height: (height * window.backingScaleFactor()).round().max(1.0) as u32,
     };
-    binding.scale_factor_milli = scale_factor_milli.max(1);
-    binding.focused = window.isKeyWindow();
-    binding.visibility = if window.isMiniaturized() {
+    host_state.scale_factor_milli = scale_factor_milli.max(1);
+    host_state.focused = window.isKeyWindow();
+    host_state.visibility = if window.isMiniaturized() {
         WindowVisibility::Minimized
     } else if !window.isVisible() {
         WindowVisibility::Hidden
@@ -174,7 +202,7 @@ pub(crate) fn refresh_binding_geometry(binding: &mut AppKitWindowBinding, window
     } else {
         WindowVisibility::Visible
     };
-    binding.occlusion = occlusion_from_window(window);
-    binding.safe_area_insets = safe_area_insets_from_window(window);
-    binding.theme = theme_from_application();
+    host_state.occlusion = occlusion_from_window(window);
+    host_state.safe_area_insets = safe_area_insets_from_window(window);
+    host_state.theme = current_window_theme();
 }

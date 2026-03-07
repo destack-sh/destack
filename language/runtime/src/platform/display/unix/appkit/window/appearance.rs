@@ -8,9 +8,9 @@ use crate::platform::display::{WindowChromeKind, WindowIconSet, WindowVisibility
 use crate::platform::resource::WindowHandle;
 use crate::runtime::{BindingCallContext, NativeStringRef};
 
-use super::super::event::publish_state_deltas;
-use super::super::{core as appkit_core, resource as display_resource};
-use super::{icon, reconcile, runtime};
+use super::{icon, reconcile};
+use crate::platform::display::unix::appkit::event::publish_state_deltas;
+use crate::platform::display::unix::appkit::{core as appkit_core, resource as display_resource};
 
 /// Apply one requested visibility state to one native AppKit window.
 fn apply_window_visibility(window: &objc2_app_kit::NSWindow, visibility: WindowVisibility) {
@@ -53,15 +53,14 @@ pub(crate) unsafe fn window_set_always_on_top(
     always_on_top: bool,
 ) -> RuntimeResult<()> {
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setAlwaysOnTop",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setAlwaysOnTop")?;
-    binding.always_on_top = always_on_top;
-    drop(binding);
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    host_state.always_on_top = always_on_top;
+    drop(host_state);
 
     appkit_core::with_window_host(
         &runtime_state,
@@ -88,15 +87,14 @@ pub(crate) unsafe fn window_set_decorated(
     decorated: bool,
 ) -> RuntimeResult<()> {
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setDecorated",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setDecorated")?;
-    binding.decorated = decorated;
-    drop(binding);
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    host_state.decorated = decorated;
+    drop(host_state);
 
     appkit_core::with_window_host(
         &runtime_state,
@@ -132,15 +130,14 @@ pub(crate) unsafe fn window_set_resizable(
     resizable: bool,
 ) -> RuntimeResult<()> {
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setResizable",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setResizable")?;
-    binding.resizable = resizable;
-    drop(binding);
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    host_state.resizable = resizable;
+    drop(host_state);
 
     appkit_core::with_window_host(
         &runtime_state,
@@ -168,17 +165,16 @@ pub(crate) unsafe fn window_set_chrome(
     chrome: WindowChromeKind,
 ) -> RuntimeResult<()> {
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setChrome",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setChrome")?;
-    let previous = binding.clone();
-    binding.chrome = chrome;
-    let next = binding.clone();
-    drop(binding);
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
+    host_state.chrome = chrome;
+    let next = host_state.clone();
+    drop(host_state);
 
     appkit_core::with_window_host(
         &runtime_state,
@@ -206,14 +202,13 @@ pub(crate) unsafe fn window_set_icons(
     icons: Option<WindowIconSet>,
 ) -> RuntimeResult<()> {
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setIcons",
     )?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setIcons")?;
-    drop(binding);
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    drop(host_state);
 
     let decoded_icons = icon::decode_window_icon_images(icons)?;
     appkit_core::with_window_host(
@@ -246,17 +241,16 @@ pub(crate) unsafe fn window_set_opacity(
     }
 
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setOpacity",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setOpacity")?;
-    let previous = binding.clone();
-    binding.opacity = opacity;
-    let next = binding.clone();
-    drop(binding);
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
+    host_state.opacity = opacity;
+    let next = host_state.clone();
+    drop(host_state);
 
     appkit_core::with_window_host(
         &runtime_state,
@@ -281,16 +275,15 @@ pub(crate) unsafe fn window_opacity(
     window_handle: WindowHandle,
 ) -> RuntimeResult<()> {
     core_platform::ensure_out(out, "out")?;
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.opacity",
     )?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.opacity")?;
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
     unsafe {
-        *out = binding.opacity;
+        *out = host_state.opacity;
     }
 
     Ok(())
@@ -304,15 +297,14 @@ pub(crate) unsafe fn window_set_title(
 ) -> RuntimeResult<()> {
     let title = unsafe { title.as_str()? }.to_string();
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setTitle",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setTitle")?;
-    binding.title = title.clone();
-    drop(binding);
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    host_state.title = title.clone();
+    drop(host_state);
 
     appkit_core::with_window_host(
         &runtime_state,
@@ -335,14 +327,13 @@ pub(crate) unsafe fn window_set_visibility(
     visibility: WindowVisibility,
 ) -> RuntimeResult<()> {
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setVisibility",
     )?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setVisibility")?;
-    drop(binding);
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    drop(host_state);
 
     appkit_core::with_window_host(
         &runtime_state,
@@ -369,13 +360,12 @@ pub(crate) unsafe fn window_set_taskbar_visible(
     window_handle: WindowHandle,
     visible: bool,
 ) -> RuntimeResult<()> {
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setTaskbarVisible",
     )?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setTaskbarVisible")?;
+    drop(host_state);
 
     unsafe {
         unsupported::destack_display_window_set_taskbar_visible(context, window_handle, visible)
