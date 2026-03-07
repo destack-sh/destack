@@ -3,7 +3,7 @@ use destack_mir::NodeTree;
 use destack_vm as vm;
 use destack_workspace::{ExecutionMode, RandomMode, RandomOptions, RuntimeOptions};
 
-use crate::diagnostic::{RuntimeError, RuntimeErrorId, RuntimeResult, RuntimeStatus};
+use crate::diagnostic::{DiagnosticId, RuntimeError, RuntimeResult, RuntimeStatus};
 use crate::host::Host;
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -186,10 +186,10 @@ impl TestRuntime {
         }
 
         // take the stored runtime error
-        let error_id = RuntimeErrorId::from_raw(status.error_id);
+        let error_id = DiagnosticId::from_raw(status.error_id);
         let error = self
             .agent
-            .diagnostic
+            .diagnostics
             .take_error(error_id)
             .unwrap_or_else(|| {
                 RuntimeError::from(PlatformError::io(format!(

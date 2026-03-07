@@ -1,4 +1,4 @@
-use crate::diagnostic::{RuntimeErrorId, RuntimeResult};
+use crate::diagnostic::{DiagnosticId, RuntimeResult};
 use crate::platform::error::PlatformError;
 use crate::platform::error::core::{NativeStringStore, platform_error_native, take_platform_error};
 use crate::runtime::BindingCallContext;
@@ -26,8 +26,8 @@ pub unsafe fn destack_error_take_platform_error(
     error_id: u64,
 ) -> RuntimeResult<()> {
     let error = take_platform_error(
-        binding.agent().diagnostic.as_ref(),
-        RuntimeErrorId::from_raw(error_id),
+        binding.agent().diagnostics.as_ref(),
+        DiagnosticId::from_raw(error_id),
     );
     let store = NativeStringStore::new(binding);
     let platform_error = platform_error_native(&store, &error);
