@@ -253,6 +253,9 @@ impl Resolver {
                     let normalized = parent_canonical
                         .normalize_with(path.strip_prefix(parent).unwrap_or(Path::new("")));
 
+                    #[cfg(target_os = "windows")]
+                    let normalized = Self::normalize_windows_path(&normalized)?;
+
                     // follow symlink targets explicitly to match oxc semantics on windows
                     if self
                         .symlink_metadata(path)
@@ -275,14 +278,16 @@ impl Resolver {
                         // absolute symlink target
                         if link.is_absolute() {
                             let link = link.normalize();
-
+                            #[cfg(target_os = "windows")]
+                            let link = Self::normalize_windows_path(&link)?;
                             return self.canonicalize_recursive(&link, visited);
                         }
 
                         // relative symlink target
                         if let Some(directory) = normalized.parent() {
                             let link = directory.normalize_with(&link);
-
+                            #[cfg(target_os = "windows")]
+                            let link = Self::normalize_windows_path(&link)?;
                             return self.canonicalize_recursive(&link, visited);
                         }
                     }
