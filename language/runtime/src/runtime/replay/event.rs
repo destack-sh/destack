@@ -81,6 +81,13 @@ pub enum ReplayError {
         /// Missing required capability.
         capability: String,
     },
+    /// Affinity-violation runtime error payload.
+    AffinityViolation {
+        /// Fully qualified binding name.
+        name: String,
+        /// Required affinity classification.
+        affinity: String,
+    },
     /// Resource-not-found runtime error payload.
     ResourceNotFound {
         /// Resource id or handle.
@@ -138,6 +145,10 @@ impl From<&RuntimeError> for ReplayError {
                 name: name.clone(),
                 capability: capability.clone(),
             },
+            RuntimeError::AffinityViolation { name, affinity } => Self::AffinityViolation {
+                name: name.clone(),
+                affinity: affinity.clone(),
+            },
             RuntimeError::ResourceNotFound {
                 resource_id,
                 resource_kind,
@@ -176,6 +187,9 @@ impl From<ReplayError> for RuntimeError {
             ReplayError::PolicyViolation { name } => Self::PolicyViolation { name },
             ReplayError::CapabilityViolation { name, capability } => {
                 Self::CapabilityViolation { name, capability }
+            }
+            ReplayError::AffinityViolation { name, affinity } => {
+                Self::AffinityViolation { name, affinity }
             }
             ReplayError::ResourceNotFound {
                 resource_id,

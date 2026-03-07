@@ -33,6 +33,19 @@ pub enum BindingBlocking {
     Sometimes,
 }
 
+/// Affinity selector for runtime rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum BindingAffinity {
+    /// Match bindings callable from any execution context.
+    Any,
+    /// Match bindings that require the agent event-loop context.
+    EventLoop,
+    /// Match bindings that require the creating execution context.
+    Owner,
+    /// Match bindings that require the process main context.
+    ProcessMain,
+}
+
 /// Binding effect class selector for runtime rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BindingEffect {
@@ -220,6 +233,8 @@ pub struct RuntimeSelector {
     pub scope: Option<BindingScope>,
     /// Binding blocking selector.
     pub blocking: Option<BindingBlocking>,
+    /// Binding affinity selector.
+    pub affinity: Option<BindingAffinity>,
     /// Binding effect selector.
     pub effect: Option<BindingEffect>,
     /// Runtime identity selector.
@@ -309,6 +324,12 @@ impl RuntimeSelector {
         self
     }
 
+    /// Set the binding-affinity selector.
+    pub fn affinity(mut self, affinity: BindingAffinity) -> Self {
+        self.affinity = Some(affinity);
+        self
+    }
+
     /// Set the binding-effect selector.
     pub fn effect(mut self, effect: BindingEffect) -> Self {
         self.effect = Some(effect);
@@ -383,6 +404,7 @@ impl RuntimeSelector {
             && self.platforms.is_none()
             && self.scope.is_none()
             && self.blocking.is_none()
+            && self.affinity.is_none()
             && self.effect.is_none()
             && self.runtime.is_none()
             && self.agent.is_none()
@@ -511,6 +533,8 @@ pub struct RuntimeSelectorJson {
     pub scope: Option<BindingScopeJson>,
     /// Binding blocking selector.
     pub blocking: Option<BindingBlockingJson>,
+    /// Binding affinity selector.
+    pub affinity: Option<BindingAffinityJson>,
     /// Binding effect selector.
     pub effect: Option<BindingEffectJson>,
     /// Runtime identity selector.
@@ -535,6 +559,7 @@ impl From<&RuntimeSelectorJson> for RuntimeSelector {
             platforms: value.platforms.clone(),
             scope: value.scope.map(BindingScope::from),
             blocking: value.blocking.map(BindingBlocking::from),
+            affinity: value.affinity.map(BindingAffinity::from),
             effect: value.effect.map(BindingEffect::from),
             runtime: value.runtime.as_ref().map(RuntimeIdentitySelector::from),
             agent: value.agent.as_ref().map(RuntimeIdentitySelector::from),
@@ -622,6 +647,32 @@ impl From<BindingBlockingJson> for BindingBlocking {
             BindingBlockingJson::Always => BindingBlocking::Always,
             BindingBlockingJson::Never => BindingBlocking::Never,
             BindingBlockingJson::Sometimes => BindingBlocking::Sometimes,
+        }
+    }
+}
+
+/// Runtime rule affinity selector for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum BindingAffinityJson {
+    /// Match bindings callable from any execution context.
+    Any,
+    /// Match bindings that require the agent event-loop context.
+    EventLoop,
+    /// Match bindings that require the creating execution context.
+    Owner,
+    /// Match bindings that require the process main context.
+    ProcessMain,
+}
+
+impl From<BindingAffinityJson> for BindingAffinity {
+    fn from(value: BindingAffinityJson) -> Self {
+        match value {
+            BindingAffinityJson::Any => BindingAffinity::Any,
+            BindingAffinityJson::EventLoop => BindingAffinity::EventLoop,
+            BindingAffinityJson::Owner => BindingAffinity::Owner,
+            BindingAffinityJson::ProcessMain => BindingAffinity::ProcessMain,
         }
     }
 }

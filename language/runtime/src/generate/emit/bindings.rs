@@ -4,9 +4,9 @@ use destack_dir::{EnumBackingType, IntType};
 
 use crate::model::{
     BindingCatalog, BindingEntry, BindingEnumValue, BindingEnumVariant, BindingField,
-    BindingParameter, BindingType, CatalogBindingBlocking, CatalogBindingReplayKind,
-    CatalogBindingScope, CatalogBindingSimulation, CatalogEffectClass, CatalogEntropyKind,
-    CatalogReplayPayload, CatalogReplayPolicy,
+    BindingParameter, BindingType, CatalogBindingAffinity, CatalogBindingBlocking,
+    CatalogBindingReplayKind, CatalogBindingScope, CatalogBindingSimulation, CatalogEffectClass,
+    CatalogEntropyKind, CatalogReplayPayload, CatalogReplayPolicy,
 };
 
 /// Catalog entry grouping bindings by extern name.
@@ -556,6 +556,7 @@ impl<'a> DomainWriter<'a> {
         }
         self.output.push_str("use destack_vm::Isolate;\n");
         let mut binding_imports = vec![
+            "BindingAffinity",
             "BindingDescriptor",
             "BindingBlocking",
             "BindingRegistry",
@@ -1037,6 +1038,7 @@ impl<'a> DomainWriter<'a> {
                 &binding.entry.requires,
                 binding.entry.scope,
                 binding.entry.blocking,
+                binding.entry.affinity,
             );
             let host_platforms = render_binding_host_platforms(&binding.entry.host_platforms);
             output.push_str(&format!(
@@ -1053,6 +1055,7 @@ impl<'a> DomainWriter<'a> {
                 output.push_str(&format!("    {arg},\n"));
             }
             output.push_str(")");
+            output.push_str(&format!("\n    .with_namespace(\"{}\")", self.spec.domain));
             if let Some(host_platforms) = host_platforms {
                 output.push_str(&format!("\n    .with_host_platforms({host_platforms})"));
             }
@@ -1068,18 +1071,20 @@ impl<'a> DomainWriter<'a> {
         requires: &[String],
         scope: CatalogBindingScope,
         blocking: CatalogBindingBlocking,
+        affinity: CatalogBindingAffinity,
     ) -> (&'static str, Vec<String>) {
         let requires_arg = render_binding_requires(requires);
         let scope_arg = render_binding_scope(scope);
         let blocking_arg = render_binding_blocking(blocking);
+        let affinity_arg = render_binding_affinity(affinity);
         match effect_class {
             CatalogEffectClass::Pure => (
                 "pure_with_requires_and_behavior",
-                vec![requires_arg, scope_arg, blocking_arg],
+                vec![requires_arg, scope_arg, blocking_arg, affinity_arg],
             ),
             CatalogEffectClass::Deterministic => (
                 "deterministic_with_requires_and_behavior",
-                vec![requires_arg, scope_arg, blocking_arg],
+                vec![requires_arg, scope_arg, blocking_arg, affinity_arg],
             ),
             CatalogEffectClass::External { replay } => {
                 let replay = match replay {
@@ -1103,6 +1108,7 @@ impl<'a> DomainWriter<'a> {
                             requires_arg,
                             scope_arg,
                             blocking_arg,
+                            affinity_arg,
                         ],
                     )
                 } else {
@@ -1114,6 +1120,7 @@ impl<'a> DomainWriter<'a> {
                             requires_arg,
                             scope_arg,
                             blocking_arg,
+                            affinity_arg,
                         ],
                     )
                 }
@@ -1751,6 +1758,16 @@ fn render_binding_blocking(blocking: CatalogBindingBlocking) -> String {
         CatalogBindingBlocking::Always => "BindingBlocking::Always".to_string(),
         CatalogBindingBlocking::Never => "BindingBlocking::Never".to_string(),
         CatalogBindingBlocking::Sometimes => "BindingBlocking::Sometimes".to_string(),
+    }
+}
+
+/// Render a binding affinity constant.
+fn render_binding_affinity(affinity: CatalogBindingAffinity) -> String {
+    match affinity {
+        CatalogBindingAffinity::Any => "BindingAffinity::Any".to_string(),
+        CatalogBindingAffinity::EventLoop => "BindingAffinity::EventLoop".to_string(),
+        CatalogBindingAffinity::Owner => "BindingAffinity::Owner".to_string(),
+        CatalogBindingAffinity::ProcessMain => "BindingAffinity::ProcessMain".to_string(),
     }
 }
 

@@ -4,16 +4,20 @@ use destack_workspace::{PlatformHostOptions, RuntimeOptions};
 
 use super::adapter::{HostAdapter, HostPlatform, HostPollOutcome};
 use super::event::HostEvent;
+use super::process_runtime_ingress_observer;
 use super::select::{compile_target_host_platform, default_host};
 use crate::diagnostic::RuntimeResult;
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilityId, PlatformCapabilitySet};
 use crate::runtime::poller::HostPollerWakeHandle;
+use crate::runtime::world::RuntimeId;
 
 /// Runtime host integration container.
 #[derive(Clone)]
 pub struct Host {
     /// Active host implementation for this runtime instance.
     adapter: Arc<dyn HostAdapter>,
+    /// Runtime id used for host callback routing and ingress observers.
+    runtime_id: RuntimeId,
     /// Host capability set reported by the host implementation.
     host_capabilities: PlatformCapabilitySet,
     /// Resolved host integration options for this runtime target.
@@ -24,6 +28,7 @@ impl std::fmt::Debug for Host {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Host")
             .field("platform", &self.platform())
+            .field("runtime_id", &self.runtime_id)
             .field("host_capability_count", &self.host_capabilities.len())
             .field(
                 "enable_lifecycle_events",
@@ -45,20 +50,20 @@ impl std::fmt::Debug for Host {
                 "event_queue_capacity",
                 &self.host_options.event_queue_capacity,
             )
-            .field("callback_runtime_id", &self.callback_runtime_id())
             .finish()
     }
 }
 
 impl Host {
     /// Create one host runtime from one explicit host.
-    pub fn new(adapter: Arc<dyn HostAdapter>) -> Self {
-        Self::new_with_options(adapter, PlatformHostOptions::default())
+    pub fn new(adapter: Arc<dyn HostAdapter>, runtime_id: RuntimeId) -> Self {
+        Self::new_with_options(adapter, runtime_id, PlatformHostOptions::default())
     }
 
     /// Create one host runtime from one explicit host and host options.
     pub fn new_with_options(
         adapter: Arc<dyn HostAdapter>,
+        runtime_id: RuntimeId,
         host_options: PlatformHostOptions,
     ) -> Self {
         adapter.configure_host_options(&host_options);
@@ -66,18 +71,19 @@ impl Host {
 
         Self {
             adapter,
+            runtime_id,
             host_capabilities,
             host_options,
         }
     }
 
-    /// Create one host runtime from runtime options.
-    pub fn from_runtime_options(options: &RuntimeOptions) -> Self {
+    /// Create one host runtime from runtime options and one explicit runtime id.
+    pub fn from_runtime_options(options: &RuntimeOptions, runtime_id: RuntimeId) -> Self {
         // select the host for this compile target
-        let host = default_host();
+        let host = default_host(runtime_id);
         let host_options = host_options_for_target(options);
 
-        Self::new_with_options(host, host_options)
+        Self::new_with_options(host, runtime_id, host_options)
     }
 
     /// Return the active host platform.
@@ -133,26 +139,28 @@ impl Host {
         self.adapter.wake_handle()
     }
 
-    /// Return the callback runtime id for native host callback routing.
-    pub fn callback_runtime_id(&self) -> Option<u64> {
-        self.adapter.callback_runtime_id()
+    /// Return the runtime id used for host callback routing.
+    pub const fn runtime_id(&self) -> RuntimeId {
+        self.runtime_id
     }
 
-    /// Drain pending platform thread messages without blocking.
-    pub fn pump_pending_thread_messages(&self, ignore_quit_message: bool) -> RuntimeResult<bool> {
-        self.adapter
-            .pump_pending_thread_messages(ignore_quit_message)
+    /// Return whether the current execution context is the process main context.
+    pub fn is_process_main_context(&self) -> bool {
+        self.adapter.is_process_main_context()
     }
 
-    /// Run one blocking platform thread message loop.
-    pub fn run_blocking_thread_message_loop(&self) -> RuntimeResult<()> {
-        self.adapter.run_blocking_thread_message_loop()
+    /// Service immediately ready native host ingress without blocking.
+    pub fn process_ingress(&self) -> RuntimeResult<bool> {
+        self.adapter.process_ingress()
     }
-}
 
-impl Default for Host {
-    fn default() -> Self {
-        Self::new(default_host())
+    /// Service host-owned ingress for the active runtime.
+    pub fn process_runtime_ingress(&self) -> RuntimeResult<()> {
+        // service immediately ready native ingress for this host
+        self.process_ingress()?;
+
+        // service registered runtime observers for this runtime
+        process_runtime_ingress_observer(self.runtime_id.0)
     }
 }
 

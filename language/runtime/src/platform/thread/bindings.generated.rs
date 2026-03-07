@@ -11,8 +11,8 @@ use crate::platform::{
     NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec, abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
-    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
@@ -831,7 +831,9 @@ pub const THREAD_LOCAL_CREATE: BindingDescriptor =
         &["thread.local"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("thread")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -857,7 +859,9 @@ pub const THREAD_LOCAL_DELETE: BindingDescriptor =
         &["thread.local"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("thread")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -883,7 +887,9 @@ pub const THREAD_LOCAL_GET: BindingDescriptor =
         &["thread.local"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("thread")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -909,7 +915,9 @@ pub const THREAD_LOCAL_SET: BindingDescriptor =
         &["thread.local"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("thread")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -935,7 +943,9 @@ pub const THREAD_PRIORITY_GET_AFFINITY: BindingDescriptor =
         &["thread.priority"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("thread")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -961,7 +971,9 @@ pub const THREAD_PRIORITY_GET_PRIORITY: BindingDescriptor =
         &["thread.priority"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("thread")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -986,7 +998,9 @@ pub const THREAD_PRIORITY_SET_AFFINITY: BindingDescriptor = BindingDescriptor::e
     &["thread.priority"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("thread")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.priority.setPriority.
@@ -998,7 +1012,9 @@ pub const THREAD_PRIORITY_SET_PRIORITY: BindingDescriptor = BindingDescriptor::e
     &["thread.priority"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("thread")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.spawn.detach.
@@ -1011,7 +1027,9 @@ pub const THREAD_SPAWN_DETACH: BindingDescriptor =
         &["thread.spawn"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("thread")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1037,7 +1055,9 @@ pub const THREAD_SPAWN_JOIN: BindingDescriptor =
         &["thread.spawn"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("thread")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1062,7 +1082,9 @@ pub const THREAD_SPAWN_START: BindingDescriptor = BindingDescriptor::external_wi
     &["thread.spawn"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("thread")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.addressWait.
@@ -1074,7 +1096,9 @@ pub const THREAD_SYNC_ADDRESS_WAIT: BindingDescriptor = BindingDescriptor::exter
     &["thread.wait"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("thread")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.addressWakeAll.
@@ -1087,7 +1111,9 @@ pub const THREAD_SYNC_ADDRESS_WAKE_ALL: BindingDescriptor =
         &["thread.wait"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("thread")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1113,7 +1139,9 @@ pub const THREAD_SYNC_ADDRESS_WAKE_ONE: BindingDescriptor =
         &["thread.wait"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("thread")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1138,7 +1166,9 @@ pub const THREAD_SYNC_BARRIER_CREATE: BindingDescriptor = BindingDescriptor::ext
     &["thread.sync"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("thread")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.barrierWait.
@@ -1150,7 +1180,9 @@ pub const THREAD_SYNC_BARRIER_WAIT: BindingDescriptor = BindingDescriptor::exter
     &["thread.sync"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("thread")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.condVarCreate.
@@ -1163,7 +1195,9 @@ pub const THREAD_SYNC_COND_VAR_CREATE: BindingDescriptor =
         &["thread.sync"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("thread")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1189,7 +1223,9 @@ pub const THREAD_SYNC_COND_VAR_NOTIFY_ALL: BindingDescriptor =
         &["thread.sync"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("thread")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1215,7 +1251,9 @@ pub const THREAD_SYNC_COND_VAR_NOTIFY_ONE: BindingDescriptor =
         &["thread.sync"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("thread")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1240,7 +1278,9 @@ pub const THREAD_SYNC_COND_VAR_WAIT: BindingDescriptor = BindingDescriptor::exte
     &["thread.sync"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("thread")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.mutexCreate.
@@ -1253,7 +1293,9 @@ pub const THREAD_SYNC_MUTEX_CREATE: BindingDescriptor =
         &["thread.sync"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("thread")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1278,7 +1320,9 @@ pub const THREAD_SYNC_MUTEX_LOCK: BindingDescriptor = BindingDescriptor::externa
     &["thread.sync"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("thread")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.mutexUnlock.
@@ -1291,7 +1335,9 @@ pub const THREAD_SYNC_MUTEX_UNLOCK: BindingDescriptor =
         &["thread.sync"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("thread")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1317,7 +1363,9 @@ pub const THREAD_SYNC_RWLOCK_CREATE: BindingDescriptor =
         &["thread.sync"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("thread")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1342,7 +1390,9 @@ pub const THREAD_SYNC_RWLOCK_READ_LOCK: BindingDescriptor = BindingDescriptor::e
     &["thread.sync"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("thread")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.rwlockUnlock.
@@ -1355,7 +1405,9 @@ pub const THREAD_SYNC_RWLOCK_UNLOCK: BindingDescriptor =
         &["thread.sync"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("thread")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1380,7 +1432,9 @@ pub const THREAD_SYNC_RWLOCK_WRITE_LOCK: BindingDescriptor = BindingDescriptor::
     &["thread.sync"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("thread")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.semaphoreCreate.
@@ -1392,7 +1446,9 @@ pub const THREAD_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::e
     &["thread.sync"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("thread")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.semaphorePost.
@@ -1404,7 +1460,9 @@ pub const THREAD_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::ext
     &["thread.sync"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("thread")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.semaphoreWait.
@@ -1416,7 +1474,9 @@ pub const THREAD_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::ext
     &["thread.sync"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("thread")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptors for thread.

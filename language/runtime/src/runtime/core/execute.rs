@@ -42,8 +42,13 @@ impl Agent {
         let event_loop = self.event_loop.as_ref() as *const _;
         let host_ptr = host as *const Host;
         let world_ptr = world as *const World;
-        let _context_guard =
-            enter_current_agent_context(agent_ptr, event_loop, host_ptr, world_ptr);
+        let _context_guard = enter_current_agent_context(
+            agent_ptr,
+            event_loop,
+            host_ptr,
+            world_ptr,
+            host.is_process_main_context(),
+        );
 
         // execute the entrypoint with yielding enabled
         let _guard = enter_event_loop_scope(EventLoopScope::empty());
@@ -224,12 +229,20 @@ impl Agent {
         let event_loop = self.event_loop.as_ref() as *const _;
         let host_ptr = host as *const Host;
         let world_ptr = world as *const World;
-        let _context_guard =
-            enter_current_agent_context(agent_ptr, event_loop, host_ptr, world_ptr);
+        let _context_guard = enter_current_agent_context(
+            agent_ptr,
+            event_loop,
+            host_ptr,
+            world_ptr,
+            host.is_process_main_context(),
+        );
 
         // track whether this tick processed any event loop work
         let mut progressed = false;
         let tick_start_mono_nanos = world.mono_nanos();
+
+        // service host owned ingress before consuming runtime work
+        host.process_runtime_ingress()?;
 
         if self.is_tick_budget_exhausted(world, tick_start_mono_nanos) {
             return Ok((progressed, None));
@@ -526,6 +539,7 @@ impl Agent {
         let timeout_nanos = self.event_loop.timeout_until_next_timer(wall_now, mono_now);
 
         // poll host events before blocking or sleeping
+        host.process_runtime_ingress()?;
         let host_event_count = self.poll_host_events(host, Some(0))?;
         if host_event_count > 0 {
             for _ in 0..host_event_count {

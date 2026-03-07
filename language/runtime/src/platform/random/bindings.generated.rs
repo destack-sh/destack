@@ -16,8 +16,8 @@ use crate::platform::{
     abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
-    BindingScope, NativeBinding, NativeBindingSet, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, native_call,
 };
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::replay::EntropyKind;
@@ -494,7 +494,9 @@ pub const RANDOM_SECURE_BYTES: BindingDescriptor =
         &["random.secure"],
         BindingScope::Runtime,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("random")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -520,7 +522,9 @@ pub const RANDOM_SECURE_BYTES_TRY: BindingDescriptor =
         &["random.secure"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("random")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -546,7 +550,9 @@ pub const RANDOM_SECURE_METADATA: BindingDescriptor =
         &["random.secure"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("random")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -572,7 +578,9 @@ pub const RANDOM_STREAM_CREATE: BindingDescriptor =
         &["random.deterministic"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("random")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -597,7 +605,9 @@ pub const RANDOM_STREAM_EXPORT: BindingDescriptor = BindingDescriptor::external_
     &["random.deterministic"],
     BindingScope::Runtime,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("random")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.random.stream.fillBytes.
@@ -610,7 +620,9 @@ pub const RANDOM_STREAM_FILL_BYTES: BindingDescriptor =
         &["random.deterministic"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("random")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -635,7 +647,9 @@ pub const RANDOM_STREAM_FILL_BYTES_FROM: BindingDescriptor = BindingDescriptor::
     &["random.deterministic"],
     BindingScope::Runtime,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("random")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.random.stream.import.
@@ -647,7 +661,9 @@ pub const RANDOM_STREAM_IMPORT: BindingDescriptor = BindingDescriptor::external_
     &["random.deterministic"],
     BindingScope::Runtime,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("random")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.random.stream.in.
@@ -660,7 +676,9 @@ pub const RANDOM_STREAM_IN: BindingDescriptor =
         &["random.deterministic"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("random")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -685,7 +703,9 @@ pub const RANDOM_STREAM_JUMP: BindingDescriptor = BindingDescriptor::external_wi
     &["random.deterministic"],
     BindingScope::Runtime,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("random")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.random.stream.nextU64.
@@ -698,7 +718,9 @@ pub const RANDOM_STREAM_NEXT_U64: BindingDescriptor =
         &["random.deterministic"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("random")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -724,7 +746,9 @@ pub const RANDOM_STREAM_NEXT_U64_FROM: BindingDescriptor =
         &["random.deterministic"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("random")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -750,7 +774,9 @@ pub const RANDOM_STREAM_SPLIT: BindingDescriptor =
         &["random.deterministic"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("random")
     .with_host_platforms(&[
         "android",
         "dragonfly",

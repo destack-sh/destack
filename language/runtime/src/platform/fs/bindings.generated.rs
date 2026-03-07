@@ -29,8 +29,8 @@ use crate::platform::{
     VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
-    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
@@ -4481,7 +4481,9 @@ pub const FS_ATTRS_ACCESS: BindingDescriptor =
         &["fs.metadata"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4506,7 +4508,9 @@ pub const FS_ATTRS_ACCESSAT: BindingDescriptor = BindingDescriptor::external_wit
     &["fs.metadata"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.chmod.
@@ -4519,7 +4523,9 @@ pub const FS_ATTRS_CHMOD: BindingDescriptor =
         &["fs.chmod"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4544,7 +4550,9 @@ pub const FS_ATTRS_CHOWN: BindingDescriptor = BindingDescriptor::external_with_r
     &["fs.chown"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.fchmod.
@@ -4557,7 +4565,9 @@ pub const FS_ATTRS_FCHMOD: BindingDescriptor =
         &["fs.chmod"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4582,7 +4592,9 @@ pub const FS_ATTRS_FCHMODAT: BindingDescriptor = BindingDescriptor::external_wit
     &["fs.chmod"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.fchown.
@@ -4594,7 +4606,9 @@ pub const FS_ATTRS_FCHOWN: BindingDescriptor = BindingDescriptor::external_with_
     &["fs.chown"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.fchownat.
@@ -4606,7 +4620,9 @@ pub const FS_ATTRS_FCHOWNAT: BindingDescriptor = BindingDescriptor::external_wit
     &["fs.chown"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.futimes.
@@ -4618,7 +4634,9 @@ pub const FS_ATTRS_FUTIMES: BindingDescriptor = BindingDescriptor::external_with
     &["fs.metadata"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.lutimes.
@@ -4630,7 +4648,9 @@ pub const FS_ATTRS_LUTIMES: BindingDescriptor = BindingDescriptor::external_with
     &["fs.metadata"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.utimensat.
@@ -4642,7 +4662,9 @@ pub const FS_ATTRS_UTIMENSAT: BindingDescriptor = BindingDescriptor::external_wi
     &["fs.metadata"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.utimes.
@@ -4654,7 +4676,9 @@ pub const FS_ATTRS_UTIMES: BindingDescriptor = BindingDescriptor::external_with_
     &["fs.metadata"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.closedir.
@@ -4667,7 +4691,9 @@ pub const FS_DIR_CLOSEDIR: BindingDescriptor =
         &["fs.handle"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4692,7 +4718,9 @@ pub const FS_DIR_DIRFD: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.handle"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+.with_namespace("fs")
 .with_host_platforms(&[
     "android",
     "dragonfly",
@@ -4717,7 +4745,9 @@ pub const FS_DIR_MKDIR: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+.with_namespace("fs")
 .with_host_platforms(&[
     "android",
     "dragonfly",
@@ -4742,7 +4772,9 @@ pub const FS_DIR_MKDIRAT: BindingDescriptor = BindingDescriptor::external_with_r
     &["fs.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.mkdtemp.
@@ -4755,7 +4787,9 @@ pub const FS_DIR_MKDTEMP: BindingDescriptor =
         &["fs.temp"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4781,7 +4815,9 @@ pub const FS_DIR_OPENDIR: BindingDescriptor =
         &["fs.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4807,7 +4843,9 @@ pub const FS_DIR_READDIR: BindingDescriptor =
         &["fs.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4833,7 +4871,9 @@ pub const FS_DIR_READDIR_NEXT: BindingDescriptor =
         &["fs.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4859,7 +4899,9 @@ pub const FS_DIR_REWINDDIR: BindingDescriptor =
         &["fs.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4884,7 +4926,9 @@ pub const FS_DIR_RMDIR: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+.with_namespace("fs")
 .with_host_platforms(&[
     "android",
     "dragonfly",
@@ -4910,7 +4954,9 @@ pub const FS_FILE_CLOSE: BindingDescriptor =
         &["fs.handle"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4935,7 +4981,9 @@ pub const FS_FILE_COPY_FILE_RANGE: BindingDescriptor = BindingDescriptor::extern
     &["fs.read", "fs.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.dup.
@@ -4947,7 +4995,9 @@ pub const FS_FILE_DUP: BindingDescriptor = BindingDescriptor::external_with_requ
     &["fs.handle"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+.with_namespace("fs")
 .with_host_platforms(&[
     "android",
     "dragonfly",
@@ -4972,7 +5022,9 @@ pub const FS_FILE_DUP2: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.handle"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.dup3.
@@ -4984,7 +5036,9 @@ pub const FS_FILE_DUP3: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.handle"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.fadvise.
@@ -4996,7 +5050,9 @@ pub const FS_FILE_FADVISE: BindingDescriptor = BindingDescriptor::external_with_
     &["fs.metadata"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.fallocate.
@@ -5008,7 +5064,9 @@ pub const FS_FILE_FALLOCATE: BindingDescriptor = BindingDescriptor::external_wit
     &["fs.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.fdatasync.
@@ -5021,7 +5079,9 @@ pub const FS_FILE_FDATASYNC: BindingDescriptor =
         &["fs.sync"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5047,7 +5107,9 @@ pub const FS_FILE_FSYNC: BindingDescriptor =
         &["fs.sync"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5072,7 +5134,9 @@ pub const FS_FILE_FTRUNCATE: BindingDescriptor = BindingDescriptor::external_wit
     &["fs.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.getFdFlags.
@@ -5085,7 +5149,9 @@ pub const FS_FILE_GET_FD_FLAGS: BindingDescriptor =
         &["fs.handle"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5111,7 +5177,9 @@ pub const FS_FILE_GET_STATUS_FLAGS: BindingDescriptor =
         &["fs.handle"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5136,7 +5204,9 @@ pub const FS_FILE_LOCK: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.lock"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+.with_namespace("fs")
 .with_host_platforms(&[
     "android",
     "dragonfly",
@@ -5161,7 +5231,9 @@ pub const FS_FILE_OPEN: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.read", "fs.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.openat.
@@ -5173,7 +5245,9 @@ pub const FS_FILE_OPENAT: BindingDescriptor = BindingDescriptor::external_with_r
     &["fs.read", "fs.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.openat2.
@@ -5185,7 +5259,9 @@ pub const FS_FILE_OPENAT2: BindingDescriptor = BindingDescriptor::external_with_
     &["fs.read", "fs.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pread.
@@ -5197,7 +5273,9 @@ pub const FS_FILE_PREAD: BindingDescriptor = BindingDescriptor::external_with_re
     &["fs.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.preadv.
@@ -5209,7 +5287,9 @@ pub const FS_FILE_PREADV: BindingDescriptor = BindingDescriptor::external_with_r
     &["fs.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.preadv2.
@@ -5221,7 +5301,9 @@ pub const FS_FILE_PREADV2: BindingDescriptor = BindingDescriptor::external_with_
     &["fs.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pwrite.
@@ -5233,7 +5315,9 @@ pub const FS_FILE_PWRITE: BindingDescriptor = BindingDescriptor::external_with_r
     &["fs.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pwritev.
@@ -5245,7 +5329,9 @@ pub const FS_FILE_PWRITEV: BindingDescriptor = BindingDescriptor::external_with_
     &["fs.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pwritev2.
@@ -5257,7 +5343,9 @@ pub const FS_FILE_PWRITEV2: BindingDescriptor = BindingDescriptor::external_with
     &["fs.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.read.
@@ -5269,7 +5357,9 @@ pub const FS_FILE_READ: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+.with_namespace("fs")
 .with_host_platforms(&[
     "android",
     "dragonfly",
@@ -5294,7 +5384,9 @@ pub const FS_FILE_READV: BindingDescriptor = BindingDescriptor::external_with_re
     &["fs.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.seek.
@@ -5306,7 +5398,9 @@ pub const FS_FILE_SEEK: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.handle"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.sendfile.
@@ -5318,7 +5412,9 @@ pub const FS_FILE_SENDFILE: BindingDescriptor = BindingDescriptor::external_with
     &["fs.read", "fs.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.setFdFlags.
@@ -5330,7 +5426,9 @@ pub const FS_FILE_SET_FD_FLAGS: BindingDescriptor = BindingDescriptor::external_
     &["fs.handle"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.setStatusFlags.
@@ -5342,7 +5440,9 @@ pub const FS_FILE_SET_STATUS_FLAGS: BindingDescriptor = BindingDescriptor::exter
     &["fs.handle"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.splice.
@@ -5354,7 +5454,9 @@ pub const FS_FILE_SPLICE: BindingDescriptor = BindingDescriptor::external_with_r
     &["io.zero.copy"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.syncFileRange.
@@ -5366,7 +5468,9 @@ pub const FS_FILE_SYNC_FILE_RANGE: BindingDescriptor = BindingDescriptor::extern
     &["fs.sync"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.syncfs.
@@ -5379,7 +5483,9 @@ pub const FS_FILE_SYNCFS: BindingDescriptor =
         &["fs.sync"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5404,7 +5510,9 @@ pub const FS_FILE_TEE: BindingDescriptor = BindingDescriptor::external_with_requ
     &["io.zero.copy"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.truncate.
@@ -5417,7 +5525,9 @@ pub const FS_FILE_TRUNCATE: BindingDescriptor =
         &["fs.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5442,7 +5552,9 @@ pub const FS_FILE_VMSPLICE: BindingDescriptor = BindingDescriptor::external_with
     &["io.zero.copy"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.write.
@@ -5454,7 +5566,9 @@ pub const FS_FILE_WRITE: BindingDescriptor = BindingDescriptor::external_with_re
     &["fs.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.writev.
@@ -5466,7 +5580,9 @@ pub const FS_FILE_WRITEV: BindingDescriptor = BindingDescriptor::external_with_r
     &["fs.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.madvise.
@@ -5478,7 +5594,9 @@ pub const FS_MMAP_MADVISE: BindingDescriptor = BindingDescriptor::external_with_
     &["fs.mmap"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.mmapAnonymous.
@@ -5490,7 +5608,9 @@ pub const FS_MMAP_MMAP_ANONYMOUS: BindingDescriptor = BindingDescriptor::externa
     &["fs.mmap"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.mmapFile.
@@ -5502,7 +5622,9 @@ pub const FS_MMAP_MMAP_FILE: BindingDescriptor = BindingDescriptor::external_wit
     &["fs.mmap"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.mprotect.
@@ -5514,7 +5636,9 @@ pub const FS_MMAP_MPROTECT: BindingDescriptor = BindingDescriptor::external_with
     &["fs.mmap"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.msync.
@@ -5526,7 +5650,9 @@ pub const FS_MMAP_MSYNC: BindingDescriptor = BindingDescriptor::external_with_re
     &["fs.mmap"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.munmap.
@@ -5539,7 +5665,9 @@ pub const FS_MMAP_MUNMAP: BindingDescriptor =
         &["fs.mmap"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5564,7 +5692,9 @@ pub const FS_PATH_COPYFILE: BindingDescriptor = BindingDescriptor::external_with
     &["fs.read", "fs.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.link.
@@ -5576,7 +5706,9 @@ pub const FS_PATH_LINK: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.link"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+.with_namespace("fs")
 .with_host_platforms(&[
     "android",
     "dragonfly",
@@ -5601,7 +5733,9 @@ pub const FS_PATH_LINKAT: BindingDescriptor = BindingDescriptor::external_with_r
     &["fs.link"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.mkfifo.
@@ -5614,7 +5748,9 @@ pub const FS_PATH_MKFIFO: BindingDescriptor =
         &["fs.special"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5638,7 +5774,9 @@ pub const FS_PATH_MKFIFOAT: BindingDescriptor = BindingDescriptor::external_with
     &["fs.special"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.fs.path.mknod.
@@ -5650,7 +5788,9 @@ pub const FS_PATH_MKNOD: BindingDescriptor = BindingDescriptor::external_with_re
     &["fs.special"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.fs.path.mknodat.
@@ -5662,7 +5802,9 @@ pub const FS_PATH_MKNODAT: BindingDescriptor = BindingDescriptor::external_with_
     &["fs.special"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.fs.path.readlink.
@@ -5675,7 +5817,9 @@ pub const FS_PATH_READLINK: BindingDescriptor =
         &["fs.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5700,7 +5844,9 @@ pub const FS_PATH_READLINKAT: BindingDescriptor = BindingDescriptor::external_wi
     &["fs.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.realpath.
@@ -5713,7 +5859,9 @@ pub const FS_PATH_REALPATH: BindingDescriptor =
         &["fs.metadata"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5739,7 +5887,9 @@ pub const FS_PATH_RENAME: BindingDescriptor =
         &["fs.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5764,7 +5914,9 @@ pub const FS_PATH_RENAMEAT: BindingDescriptor = BindingDescriptor::external_with
     &["fs.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.renameat2.
@@ -5776,7 +5928,9 @@ pub const FS_PATH_RENAMEAT2: BindingDescriptor = BindingDescriptor::external_wit
     &["fs.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.symlink.
@@ -5788,7 +5942,9 @@ pub const FS_PATH_SYMLINK: BindingDescriptor = BindingDescriptor::external_with_
     &["fs.link"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.symlinkat.
@@ -5800,7 +5956,9 @@ pub const FS_PATH_SYMLINKAT: BindingDescriptor = BindingDescriptor::external_wit
     &["fs.link"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.unlink.
@@ -5813,7 +5971,9 @@ pub const FS_PATH_UNLINK: BindingDescriptor =
         &["fs.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5838,7 +5998,9 @@ pub const FS_PATH_UNLINKAT: BindingDescriptor = BindingDescriptor::external_with
     &["fs.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.stat.fstat.
@@ -5851,7 +6013,9 @@ pub const FS_STAT_FSTAT: BindingDescriptor =
         &["fs.metadata"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5877,7 +6041,9 @@ pub const FS_STAT_FSTATFS: BindingDescriptor =
         &["fs.metadata"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5903,7 +6069,9 @@ pub const FS_STAT_LSTAT: BindingDescriptor =
         &["fs.metadata"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5928,7 +6096,9 @@ pub const FS_STAT_PATH: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.metadata"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+.with_namespace("fs")
 .with_host_platforms(&[
     "android",
     "dragonfly",
@@ -5953,7 +6123,9 @@ pub const FS_STAT_PATHAT: BindingDescriptor = BindingDescriptor::external_with_r
     &["fs.metadata"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.stat.pathfs.
@@ -5966,7 +6138,9 @@ pub const FS_STAT_PATHFS: BindingDescriptor =
         &["fs.metadata"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5991,7 +6165,9 @@ pub const FS_STAT_PATHX: BindingDescriptor = BindingDescriptor::external_with_re
     &["fs.metadata"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.watch.open.
@@ -6003,7 +6179,9 @@ pub const FS_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_re
     &["fs.watch"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.watch.openClose.
@@ -6016,7 +6194,9 @@ pub const FS_WATCH_OPEN_CLOSE: BindingDescriptor =
         &["fs.watch"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6042,7 +6222,9 @@ pub const FS_WATCH_OPEN_READ: BindingDescriptor =
         &["fs.watch"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6067,7 +6249,9 @@ pub const FS_WATCH_OPENAT: BindingDescriptor = BindingDescriptor::external_with_
     &["fs.watch"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fgetxattr.
@@ -6079,7 +6263,9 @@ pub const FS_XATTR_FGETXATTR: BindingDescriptor = BindingDescriptor::external_wi
     &["fs.xattr"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fgetxattrBytes.
@@ -6091,7 +6277,9 @@ pub const FS_XATTR_FGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::exter
     &["fs.xattr"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.flistxattr.
@@ -6104,7 +6292,9 @@ pub const FS_XATTR_FLISTXATTR: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6130,7 +6320,9 @@ pub const FS_XATTR_FLISTXATTR_BYTES: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6155,7 +6347,9 @@ pub const FS_XATTR_FREMOVEXATTR: BindingDescriptor = BindingDescriptor::external
     &["fs.xattr"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fremovexattrBytes.
@@ -6167,7 +6361,9 @@ pub const FS_XATTR_FREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::ex
     &["fs.xattr"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fsetxattr.
@@ -6179,7 +6375,9 @@ pub const FS_XATTR_FSETXATTR: BindingDescriptor = BindingDescriptor::external_wi
     &["fs.xattr"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fsetxattrBytes.
@@ -6191,7 +6389,9 @@ pub const FS_XATTR_FSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::exter
     &["fs.xattr"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.getxattr.
@@ -6204,7 +6404,9 @@ pub const FS_XATTR_GETXATTR: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6229,7 +6431,9 @@ pub const FS_XATTR_GETXATTR_BYTES: BindingDescriptor = BindingDescriptor::extern
     &["fs.xattr"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lgetxattr.
@@ -6242,7 +6446,9 @@ pub const FS_XATTR_LGETXATTR: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6267,7 +6473,9 @@ pub const FS_XATTR_LGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::exter
     &["fs.xattr"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.listxattr.
@@ -6280,7 +6488,9 @@ pub const FS_XATTR_LISTXATTR: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6306,7 +6516,9 @@ pub const FS_XATTR_LISTXATTR_BYTES: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6332,7 +6544,9 @@ pub const FS_XATTR_LLISTXATTR: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6358,7 +6572,9 @@ pub const FS_XATTR_LLISTXATTR_BYTES: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6384,7 +6600,9 @@ pub const FS_XATTR_LREMOVEXATTR: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6409,7 +6627,9 @@ pub const FS_XATTR_LREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::ex
     &["fs.xattr"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lsetxattr.
@@ -6421,7 +6641,9 @@ pub const FS_XATTR_LSETXATTR: BindingDescriptor = BindingDescriptor::external_wi
     &["fs.xattr"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lsetxattrBytes.
@@ -6433,7 +6655,9 @@ pub const FS_XATTR_LSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::exter
     &["fs.xattr"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.removexattr.
@@ -6446,7 +6670,9 @@ pub const FS_XATTR_REMOVEXATTR: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("fs")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6471,7 +6697,9 @@ pub const FS_XATTR_REMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::ext
     &["fs.xattr"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.setxattr.
@@ -6483,7 +6711,9 @@ pub const FS_XATTR_SETXATTR: BindingDescriptor = BindingDescriptor::external_wit
     &["fs.xattr"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.setxattrBytes.
@@ -6495,7 +6725,9 @@ pub const FS_XATTR_SETXATTR_BYTES: BindingDescriptor = BindingDescriptor::extern
     &["fs.xattr"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptors for fs.

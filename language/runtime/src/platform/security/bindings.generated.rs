@@ -14,8 +14,8 @@ use crate::platform::{
     abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
-    BindingScope, NativeBinding, NativeBindingSet, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
@@ -377,7 +377,9 @@ pub const SECURITY_CAPABILITY_HAS: BindingDescriptor = BindingDescriptor::determ
     &["security.policy.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("security")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.security.capability.list.
@@ -388,7 +390,9 @@ pub const SECURITY_CAPABILITY_LIST: BindingDescriptor =
         &["security.policy.read"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("security")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -412,7 +416,9 @@ pub const SECURITY_ENFORCE_SANDBOX_SEAL: BindingDescriptor =
         &["security.restrict"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("security")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -435,7 +441,9 @@ pub const SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES: BindingDescriptor = Binding
     &["security.restrict"],
     BindingScope::Runtime,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("security")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.security.enforce.setWriteXorExecute.
@@ -446,7 +454,9 @@ pub const SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE: BindingDescriptor =
         &["security.restrict"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("security")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -469,7 +479,9 @@ pub const SECURITY_POLICY_GET: BindingDescriptor = BindingDescriptor::determinis
     &["security.policy.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("security")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.security.policy.getRules.
@@ -479,7 +491,9 @@ pub const SECURITY_POLICY_GET_RULES: BindingDescriptor = BindingDescriptor::dete
     &["security.policy.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("security")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.security.policy.set.
@@ -489,7 +503,9 @@ pub const SECURITY_POLICY_SET: BindingDescriptor = BindingDescriptor::determinis
     &["security.policy.write"],
     BindingScope::Runtime,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("security")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.security.policy.setRules.
@@ -499,7 +515,9 @@ pub const SECURITY_POLICY_SET_RULES: BindingDescriptor = BindingDescriptor::dete
     &["security.policy.write"],
     BindingScope::Runtime,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("security")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.security.sandbox.enter.
@@ -512,7 +530,9 @@ pub const SECURITY_SANDBOX_ENTER: BindingDescriptor =
         &["security.sandbox"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("security")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -538,7 +558,9 @@ pub const SECURITY_SANDBOX_EXIT: BindingDescriptor =
         &["security.sandbox"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("security")
     .with_host_platforms(&[
         "android",
         "dragonfly",

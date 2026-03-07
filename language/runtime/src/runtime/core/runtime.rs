@@ -94,11 +94,6 @@ impl Runtime {
         &self.host
     }
 
-    /// Return the callback runtime id for native host callback routing.
-    pub fn host_callback_runtime_id(&self) -> Option<u64> {
-        self.host.callback_runtime_id()
-    }
-
     /// Return the current primary agent id.
     pub fn primary_agent_id(&self) -> AgentId {
         self.primary_agent_id
@@ -278,10 +273,10 @@ impl Runtime {
         engine: Box<dyn Engine>,
     ) -> RuntimeResult<Self> {
         // seed runtime identity from runtime options
-        let host = Host::from_runtime_options(options);
         let primary_agent = Box::new(primary_agent);
         let primary_agent_id = primary_agent.id;
         let runtime_id = primary_agent.runtime_id;
+        let host = Host::from_runtime_options(options, runtime_id);
         let runtime_name = options
             .name
             .clone()

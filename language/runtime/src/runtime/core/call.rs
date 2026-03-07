@@ -3,12 +3,14 @@
 use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::ptr;
+use std::time::Duration;
 
 use crate::diagnostic::{DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::Host;
-use crate::platform::{NativeArray, PlatformError};
+use crate::platform::{NativeArray, PlatformError, core as core_platform};
 use crate::runtime::bindings::{
-    BindingDescriptor, BindingEngine, BindingPolicy, BindingReplayPayload, RuntimeWorld,
+    BindingAffinity, BindingDescriptor, BindingEngine, BindingPolicy, BindingReplayPayload,
+    RuntimeWorld,
 };
 use crate::runtime::policy::BindingDispatchDecision;
 use crate::runtime::random::RandomStreamId;
@@ -19,7 +21,7 @@ use crate::runtime::scheduler::{
 use crate::runtime::world::World;
 use crate::simulation::Simulation;
 
-use super::Agent;
+use super::{Agent, ExecutionContext, ExecutionContextId, binding_affinity_name};
 use crate::runtime::{Hooks, NativeSlice, NativeStringRef, NativeStringSlice, PolicyCallId};
 use destack_workspace::{RuntimeAccess, RuntimeDiagnosticLevel, TimeMode};
 
@@ -43,6 +45,10 @@ struct CurrentAgentContext {
     host: *const Host,
     /// World pointer for replay, time, random, and policy.
     world: *const World,
+    /// Execution context identifier for callback dispatch.
+    execution_context_id: ExecutionContextId,
+    /// Whether this execution scope runs on the process main context.
+    is_process_main: bool,
 }
 
 impl CurrentAgentContext {
@@ -53,6 +59,8 @@ impl CurrentAgentContext {
             event_loop: ptr::null(),
             host: ptr::null(),
             world: ptr::null(),
+            execution_context_id: ExecutionContextId(0),
+            is_process_main: false,
         }
     }
 
@@ -85,12 +93,17 @@ pub(crate) fn enter_current_agent_context(
     event_loop: *const EventLoop,
     host: *const Host,
     world: *const World,
+    is_process_main: bool,
 ) -> CurrentAgentContextGuard {
+    let event_loop = unsafe { &*event_loop };
+    let execution_context_id = event_loop.execution_context_id();
     let next = CurrentAgentContext {
         agent,
-        event_loop,
+        event_loop: event_loop as *const EventLoop,
         host,
         world,
+        execution_context_id,
+        is_process_main,
     };
     let previous = CURRENT_AGENT_CONTEXT.with(|slot| {
         let previous = slot.get();
@@ -128,6 +141,8 @@ pub struct BindingCallContext {
     engine: BindingEngine,
     /// Event loop scope metadata for the current call.
     scope: EventLoopScope,
+    /// Execution-affinity context for the current call.
+    execution_context: ExecutionContext,
 }
 
 /// Scope guard that runs after-binding hooks when one binding call completes.
@@ -151,6 +166,8 @@ impl Drop for BindingHookGuard<'_> {
 impl BindingCallContext {
     /// Create a binding call context for TLS.
     pub fn new(agent: &Agent, event_loop: &EventLoop, host: &Host, world: &World) -> Self {
+        let execution_context = event_loop.execution_context(host.is_process_main_context());
+
         Self {
             agent,
             event_loop,
@@ -158,6 +175,7 @@ impl BindingCallContext {
             world,
             engine: BindingEngine::Native,
             scope: current_event_loop_scope(),
+            execution_context,
         }
     }
 
@@ -169,13 +187,18 @@ impl BindingCallContext {
         world: *const World,
         engine: BindingEngine,
     ) -> Self {
+        let event_loop = unsafe { &*event_loop };
+        let host = unsafe { &*host };
+        let execution_context = event_loop.execution_context(host.is_process_main_context());
+
         Self {
             agent,
-            event_loop,
-            host,
+            event_loop: event_loop as *const EventLoop,
+            host: host as *const Host,
             world,
             engine,
             scope: current_event_loop_scope(),
+            execution_context,
         }
     }
 
@@ -189,7 +212,17 @@ impl BindingCallContext {
             context.host,
             context.world,
             BindingEngine::Vm,
-        ))
+        )
+        .with_execution_context(ExecutionContext::new(
+            context.execution_context_id,
+            context.is_process_main,
+        )))
+    }
+
+    /// Override the execution context for one raw binding call context.
+    fn with_execution_context(mut self, execution_context: ExecutionContext) -> Self {
+        self.execution_context = execution_context;
+        self
     }
 
     /// Borrow the agent state.
@@ -301,6 +334,58 @@ impl BindingCallContext {
     /// Return the current event loop scope.
     pub const fn scope(&self) -> EventLoopScope {
         self.scope
+    }
+
+    /// Return the execution-affinity context for this call.
+    pub const fn execution_context(&self) -> ExecutionContext {
+        self.execution_context
+    }
+
+    /// Return the current execution context identifier for this call.
+    pub const fn execution_context_id(&self) -> ExecutionContextId {
+        self.execution_context.id
+    }
+
+    /// Service runtime-owned host ingress for the active runtime.
+    pub(crate) fn process_runtime_ingress(&self) -> RuntimeResult<()> {
+        self.host().process_runtime_ingress()
+    }
+
+    /// Wait for one binding result while runtime-owned host ingress makes progress.
+    pub fn wait_for_binding_result<T>(
+        &self,
+        operation: &'static str,
+        timeout_message: &'static str,
+        deadline_ns: u64,
+        wait_slice_ns: u64,
+        mut try_take: impl FnMut() -> RuntimeResult<Option<T>>,
+        mut wait_once: impl FnMut(Duration),
+    ) -> RuntimeResult<T> {
+        // keep polling already-published state before servicing host ingress
+        loop {
+            if let Some(result) = try_take()? {
+                return Ok(result);
+            }
+
+            // let the runtime and host own progress while the binding waits
+            self.process_runtime_ingress()?;
+
+            if let Some(result) = try_take()? {
+                return Ok(result);
+            }
+
+            let now = core_platform::monotonic_now_ns();
+
+            // stop once the timeout budget is exhausted
+            if now >= deadline_ns {
+                return Err(core_platform::io_would_block(operation, timeout_message));
+            }
+
+            // wait for the next backend publication within the remaining budget
+            let remaining = deadline_ns.saturating_sub(now);
+            let duration = Duration::from_nanos(remaining.min(wait_slice_ns));
+            wait_once(duration);
+        }
     }
 
     /// Return the current task identifier.
@@ -435,6 +520,28 @@ impl BindingCallContext {
         }
     }
 
+    /// Return one affinity-violation error for one binding descriptor.
+    fn affinity_violation_error(&self, spec: BindingDescriptor) -> RuntimeError {
+        RuntimeError::AffinityViolation {
+            name: spec.name.to_string(),
+            affinity: binding_affinity_name(spec.affinity()).to_string(),
+        }
+    }
+
+    /// Ensure the current execution context satisfies one binding affinity.
+    fn ensure_binding_affinity_allowed(&self, spec: BindingDescriptor) -> RuntimeResult<()> {
+        if execution_context_satisfies(
+            self.execution_context(),
+            self.event_loop().execution_context_id(),
+            spec.affinity(),
+            None,
+        ) {
+            return Ok(());
+        }
+
+        Err(self.affinity_violation_error(spec).boxed())
+    }
+
     /// Ensure world access routing allows this binding call.
     fn ensure_binding_access_allowed(
         &self,
@@ -454,6 +561,9 @@ impl BindingCallContext {
         &self,
         spec: BindingDescriptor,
     ) -> RuntimeResult<BindingDispatchDecision> {
+        // reject execution-affinity mismatches before policy and hooks
+        self.ensure_binding_affinity_allowed(spec)?;
+
         // run policy checks before evaluating hooks
         let policy = self.policy();
         policy.ensure_allowed_for_engine(spec, Some(self.engine))?;
@@ -468,6 +578,11 @@ impl BindingCallContext {
             policy.default_replay_payload(),
         )?;
         self.ensure_binding_access_allowed(spec, &decision)?;
+
+        // service runtime-owned host ingress before host bindings execute
+        if decision.world == RuntimeWorld::Host {
+            self.process_runtime_ingress()?;
+        }
 
         Ok(decision)
     }
@@ -564,6 +679,26 @@ impl BindingCallContext {
     }
 }
 
+/// Return whether one execution context satisfies one binding affinity requirement.
+pub(crate) const fn execution_context_satisfies(
+    execution_context: ExecutionContext,
+    event_loop_context_id: ExecutionContextId,
+    affinity: BindingAffinity,
+    owner_execution_context_id: Option<ExecutionContextId>,
+) -> bool {
+    match affinity {
+        BindingAffinity::Any => true,
+        BindingAffinity::EventLoop => execution_context.id.0 == event_loop_context_id.0,
+        BindingAffinity::Owner => match owner_execution_context_id {
+            Some(owner_execution_context_id) => {
+                execution_context.id.0 == owner_execution_context_id.0
+            }
+            None => false,
+        },
+        BindingAffinity::ProcessMain => execution_context.is_process_main,
+    }
+}
+
 /// Guard that restores the previous TLS binding call context.
 #[derive(Debug)]
 pub struct BindingCallGuard {
@@ -612,7 +747,7 @@ pub fn with_binding_call_context<T>(
 
 /// Per-call storage for native ABI references returned by bindings.
 ///
-/// Stored pointers are valid until the next runtime call on the same thread.
+/// Stored pointers are valid until the next runtime call on the same native thread.
 #[derive(Debug, Default)]
 pub struct BindingCallArena {
     /// Owned strings backing native string references.

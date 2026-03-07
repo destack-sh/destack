@@ -9,8 +9,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::resource::{ResourceId, ResourceKind, ResourceKindVm, ResourceOwnership};
 use crate::platform::{PlatformError, RuntimeStatus, VmAggregateCodec, abi as platform_abi};
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
-    BindingScope, NativeBinding, NativeBindingSet, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
@@ -193,7 +193,9 @@ pub const RESOURCE_ID_CLOSE: BindingDescriptor =
         &["resource.close"],
         BindingScope::Runtime,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("resource")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -218,7 +220,9 @@ pub const RESOURCE_ID_KIND: BindingDescriptor =
         &["resource.read"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("resource")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -243,7 +247,9 @@ pub const RESOURCE_ID_REMOVE: BindingDescriptor =
         &["resource.manage"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("resource")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -267,7 +273,9 @@ pub const RESOURCE_ID_TRANSFER: BindingDescriptor = BindingDescriptor::determini
     &["resource.transfer"],
     BindingScope::Runtime,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("resource")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptors for resource.

@@ -21,8 +21,8 @@ use crate::platform::{
     PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingScope, NativeBinding,
-    NativeBindingSet, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingScope,
+    NativeBinding, NativeBindingSet, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
@@ -426,7 +426,9 @@ pub const ERROR_ERROR_TAKE_PLATFORM_ERROR: BindingDescriptor =
         &["diagnostic.read"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("error")
     .with_host_platforms(&[
         "android",
         "dragonfly",

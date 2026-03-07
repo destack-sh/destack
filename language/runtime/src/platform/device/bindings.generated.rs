@@ -52,8 +52,8 @@ use crate::platform::{
     abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
-    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
@@ -3843,7 +3843,9 @@ pub const DEVICE_BLUETOOTH_ADAPTER_LIST: BindingDescriptor = BindingDescriptor::
     &["device.bluetooth.scan"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.characteristicList.
@@ -3855,7 +3857,9 @@ pub const DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST: BindingDescriptor = Binding
     &["device.bluetooth.gatt"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.descriptorList.
@@ -3867,7 +3871,9 @@ pub const DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST: BindingDescriptor = BindingDesc
     &["device.bluetooth.gatt"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.mtu.
@@ -3879,7 +3885,9 @@ pub const DEVICE_BLUETOOTH_GATT_MTU: BindingDescriptor = BindingDescriptor::exte
     &["device.bluetooth.gatt"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.read.
@@ -3891,7 +3899,9 @@ pub const DEVICE_BLUETOOTH_GATT_READ: BindingDescriptor = BindingDescriptor::ext
     &["device.bluetooth.gatt"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.readDescriptor.
@@ -3903,7 +3913,9 @@ pub const DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR: BindingDescriptor = BindingDesc
     &["device.bluetooth.gatt"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.readEvent.
@@ -3915,7 +3927,9 @@ pub const DEVICE_BLUETOOTH_GATT_READ_EVENT: BindingDescriptor = BindingDescripto
     &["device.bluetooth.gatt"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.requestMtu.
@@ -3927,7 +3941,9 @@ pub const DEVICE_BLUETOOTH_GATT_REQUEST_MTU: BindingDescriptor = BindingDescript
     &["device.bluetooth.gatt"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.serviceList.
@@ -3939,7 +3955,9 @@ pub const DEVICE_BLUETOOTH_GATT_SERVICE_LIST: BindingDescriptor = BindingDescrip
     &["device.bluetooth.gatt"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.subscribe.
@@ -3951,7 +3969,9 @@ pub const DEVICE_BLUETOOTH_GATT_SUBSCRIBE: BindingDescriptor = BindingDescriptor
     &["device.bluetooth.gatt"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.tryReadEvent.
@@ -3963,7 +3983,9 @@ pub const DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT: BindingDescriptor = BindingDescr
     &["device.bluetooth.gatt"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.unsubscribe.
@@ -3975,7 +3997,9 @@ pub const DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE: BindingDescriptor = BindingDescript
     &["device.bluetooth.gatt"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.write.
@@ -3987,7 +4011,9 @@ pub const DEVICE_BLUETOOTH_GATT_WRITE: BindingDescriptor = BindingDescriptor::ex
     &["device.bluetooth.gatt"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.writeDescriptor.
@@ -3999,7 +4025,9 @@ pub const DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR: BindingDescriptor = BindingDes
     &["device.bluetooth.gatt"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.scan.close.
@@ -4011,7 +4039,9 @@ pub const DEVICE_BLUETOOTH_SCAN_CLOSE: BindingDescriptor = BindingDescriptor::ex
     &["device.bluetooth.scan"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.scan.open.
@@ -4023,7 +4053,9 @@ pub const DEVICE_BLUETOOTH_SCAN_OPEN: BindingDescriptor = BindingDescriptor::ext
     &["device.bluetooth.scan"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.scan.read.
@@ -4035,7 +4067,9 @@ pub const DEVICE_BLUETOOTH_SCAN_READ: BindingDescriptor = BindingDescriptor::ext
     &["device.bluetooth.scan"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.scan.tryRead.
@@ -4047,7 +4081,9 @@ pub const DEVICE_BLUETOOTH_SCAN_TRY_READ: BindingDescriptor = BindingDescriptor:
     &["device.bluetooth.scan"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.close.
@@ -4059,7 +4095,9 @@ pub const DEVICE_BLUETOOTH_SESSION_CLOSE: BindingDescriptor = BindingDescriptor:
     &["device.bluetooth.connect"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.open.
@@ -4071,7 +4109,9 @@ pub const DEVICE_BLUETOOTH_SESSION_OPEN: BindingDescriptor = BindingDescriptor::
     &["device.bluetooth.connect"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.pair.
@@ -4083,7 +4123,9 @@ pub const DEVICE_BLUETOOTH_SESSION_PAIR: BindingDescriptor = BindingDescriptor::
     &["device.bluetooth.connect"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.rssi.
@@ -4095,7 +4137,9 @@ pub const DEVICE_BLUETOOTH_SESSION_RSSI: BindingDescriptor = BindingDescriptor::
     &["device.bluetooth.connect"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.unpair.
@@ -4107,7 +4151,9 @@ pub const DEVICE_BLUETOOTH_SESSION_UNPAIR: BindingDescriptor = BindingDescriptor
     &["device.bluetooth.connect"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.close.
@@ -4119,7 +4165,9 @@ pub const DEVICE_CAMERA_DEVICE_CLOSE: BindingDescriptor = BindingDescriptor::ext
     &["device.camera.device"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.list.
@@ -4132,7 +4180,9 @@ pub const DEVICE_CAMERA_DEVICE_LIST: BindingDescriptor =
         &["device.camera.device"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("device")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4158,7 +4208,9 @@ pub const DEVICE_CAMERA_DEVICE_OPEN: BindingDescriptor =
         &["device.camera.device"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("device")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4183,7 +4235,9 @@ pub const DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST: BindingDescriptor = Bindi
     &["device.camera.device"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.streamConfigList.
@@ -4195,7 +4249,9 @@ pub const DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST: BindingDescriptor = BindingDe
     &["device.camera.device"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.close.
@@ -4207,7 +4263,9 @@ pub const DEVICE_CAMERA_STREAM_CLOSE: BindingDescriptor = BindingDescriptor::ext
     &["device.camera.capture"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.controlRange.
@@ -4219,7 +4277,9 @@ pub const DEVICE_CAMERA_STREAM_CONTROL_RANGE: BindingDescriptor = BindingDescrip
     &["device.camera.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.exposureMode.
@@ -4231,7 +4291,9 @@ pub const DEVICE_CAMERA_STREAM_EXPOSURE_MODE: BindingDescriptor = BindingDescrip
     &["device.camera.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.getControl.
@@ -4243,7 +4305,9 @@ pub const DEVICE_CAMERA_STREAM_GET_CONTROL: BindingDescriptor = BindingDescripto
     &["device.camera.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.open.
@@ -4255,7 +4319,9 @@ pub const DEVICE_CAMERA_STREAM_OPEN: BindingDescriptor = BindingDescriptor::exte
     &["device.camera.capture"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.read.
@@ -4267,7 +4333,9 @@ pub const DEVICE_CAMERA_STREAM_READ: BindingDescriptor = BindingDescriptor::exte
     &["device.camera.capture"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.setControl.
@@ -4279,7 +4347,9 @@ pub const DEVICE_CAMERA_STREAM_SET_CONTROL: BindingDescriptor = BindingDescripto
     &["device.camera.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.setExposureMode.
@@ -4291,7 +4361,9 @@ pub const DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE: BindingDescriptor = BindingDes
     &["device.camera.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.setStabilizationMode.
@@ -4303,7 +4375,9 @@ pub const DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE: BindingDescriptor = Bindi
     &["device.camera.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.setTorchMode.
@@ -4315,7 +4389,9 @@ pub const DEVICE_CAMERA_STREAM_SET_TORCH_MODE: BindingDescriptor = BindingDescri
     &["device.camera.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.stabilizationMode.
@@ -4327,7 +4403,9 @@ pub const DEVICE_CAMERA_STREAM_STABILIZATION_MODE: BindingDescriptor = BindingDe
     &["device.camera.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.start.
@@ -4339,7 +4417,9 @@ pub const DEVICE_CAMERA_STREAM_START: BindingDescriptor = BindingDescriptor::ext
     &["device.camera.capture"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.stop.
@@ -4352,7 +4432,9 @@ pub const DEVICE_CAMERA_STREAM_STOP: BindingDescriptor =
         &["device.camera.capture"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("device")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4377,7 +4459,9 @@ pub const DEVICE_CAMERA_STREAM_TORCH_MODE: BindingDescriptor = BindingDescriptor
     &["device.camera.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.tryRead.
@@ -4389,7 +4473,9 @@ pub const DEVICE_CAMERA_STREAM_TRY_READ: BindingDescriptor = BindingDescriptor::
     &["device.camera.capture"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.close.
@@ -4402,7 +4488,9 @@ pub const DEVICE_SERIAL_CLOSE: BindingDescriptor =
         &["device.serial.control"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("device")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4427,7 +4515,9 @@ pub const DEVICE_SERIAL_CONFIGURE: BindingDescriptor = BindingDescriptor::extern
     &["device.serial.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.discardInput.
@@ -4440,7 +4530,9 @@ pub const DEVICE_SERIAL_DISCARD_INPUT: BindingDescriptor =
         &["device.serial.control"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("device")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4465,7 +4557,9 @@ pub const DEVICE_SERIAL_DISCARD_OUTPUT: BindingDescriptor = BindingDescriptor::e
     &["device.serial.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.flush.
@@ -4478,7 +4572,9 @@ pub const DEVICE_SERIAL_FLUSH: BindingDescriptor =
         &["device.serial.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("device")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4504,7 +4600,9 @@ pub const DEVICE_SERIAL_LIST: BindingDescriptor =
         &["device.serial.control"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("device")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4529,7 +4627,9 @@ pub const DEVICE_SERIAL_OPEN: BindingDescriptor = BindingDescriptor::external_wi
     &["device.serial.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.read.
@@ -4541,7 +4641,9 @@ pub const DEVICE_SERIAL_READ: BindingDescriptor = BindingDescriptor::external_wi
     &["device.serial.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.readEvent.
@@ -4553,7 +4655,9 @@ pub const DEVICE_SERIAL_READ_EVENT: BindingDescriptor = BindingDescriptor::exter
     &["device.serial.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.setBreak.
@@ -4565,7 +4669,9 @@ pub const DEVICE_SERIAL_SET_BREAK: BindingDescriptor = BindingDescriptor::extern
     &["device.serial.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.setControlLines.
@@ -4577,7 +4683,9 @@ pub const DEVICE_SERIAL_SET_CONTROL_LINES: BindingDescriptor = BindingDescriptor
     &["device.serial.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.signalBits.
@@ -4590,7 +4698,9 @@ pub const DEVICE_SERIAL_SIGNAL_BITS: BindingDescriptor =
         &["device.serial.control"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("device")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4615,7 +4725,9 @@ pub const DEVICE_SERIAL_TRY_EVENT: BindingDescriptor = BindingDescriptor::extern
     &["device.serial.control"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.tryRead.
@@ -4627,7 +4739,9 @@ pub const DEVICE_SERIAL_TRY_READ: BindingDescriptor = BindingDescriptor::externa
     &["device.serial.read"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.write.
@@ -4639,7 +4753,9 @@ pub const DEVICE_SERIAL_WRITE: BindingDescriptor = BindingDescriptor::external_w
     &["device.serial.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.bulkRead.
@@ -4651,7 +4767,9 @@ pub const DEVICE_USB_BULK_READ: BindingDescriptor = BindingDescriptor::external_
     &["device.usb.transfer"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.bulkWrite.
@@ -4663,7 +4781,9 @@ pub const DEVICE_USB_BULK_WRITE: BindingDescriptor = BindingDescriptor::external
     &["device.usb.transfer"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.claimInterface.
@@ -4675,7 +4795,9 @@ pub const DEVICE_USB_CLAIM_INTERFACE: BindingDescriptor = BindingDescriptor::ext
     &["device.usb.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.clearHalt.
@@ -4687,7 +4809,9 @@ pub const DEVICE_USB_CLEAR_HALT: BindingDescriptor = BindingDescriptor::external
     &["device.usb.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.close.
@@ -4700,7 +4824,9 @@ pub const DEVICE_USB_CLOSE: BindingDescriptor =
         &["device.usb.control"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("device")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4725,7 +4851,9 @@ pub const DEVICE_USB_CONFIGURATION_GET: BindingDescriptor = BindingDescriptor::e
     &["device.usb.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.configurationList.
@@ -4737,7 +4865,9 @@ pub const DEVICE_USB_CONFIGURATION_LIST: BindingDescriptor = BindingDescriptor::
     &["device.usb.enumerate"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.configurationSet.
@@ -4749,7 +4879,9 @@ pub const DEVICE_USB_CONFIGURATION_SET: BindingDescriptor = BindingDescriptor::e
     &["device.usb.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.controlRead.
@@ -4761,7 +4893,9 @@ pub const DEVICE_USB_CONTROL_READ: BindingDescriptor = BindingDescriptor::extern
     &["device.usb.transfer"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.controlWrite.
@@ -4773,7 +4907,9 @@ pub const DEVICE_USB_CONTROL_WRITE: BindingDescriptor = BindingDescriptor::exter
     &["device.usb.transfer"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.descriptor.
@@ -4785,7 +4921,9 @@ pub const DEVICE_USB_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external
     &["device.usb.enumerate"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.interruptRead.
@@ -4797,7 +4935,9 @@ pub const DEVICE_USB_INTERRUPT_READ: BindingDescriptor = BindingDescriptor::exte
     &["device.usb.transfer"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.interruptWrite.
@@ -4809,7 +4949,9 @@ pub const DEVICE_USB_INTERRUPT_WRITE: BindingDescriptor = BindingDescriptor::ext
     &["device.usb.transfer"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.isochronousRead.
@@ -4821,7 +4963,9 @@ pub const DEVICE_USB_ISOCHRONOUS_READ: BindingDescriptor = BindingDescriptor::ex
     &["device.usb.transfer"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.isochronousWrite.
@@ -4833,7 +4977,9 @@ pub const DEVICE_USB_ISOCHRONOUS_WRITE: BindingDescriptor = BindingDescriptor::e
     &["device.usb.transfer"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.kernelDriverActive.
@@ -4845,7 +4991,9 @@ pub const DEVICE_USB_KERNEL_DRIVER_ACTIVE: BindingDescriptor = BindingDescriptor
     &["device.usb.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.kernelDriverAttach.
@@ -4857,7 +5005,9 @@ pub const DEVICE_USB_KERNEL_DRIVER_ATTACH: BindingDescriptor = BindingDescriptor
     &["device.usb.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.kernelDriverDetach.
@@ -4869,7 +5019,9 @@ pub const DEVICE_USB_KERNEL_DRIVER_DETACH: BindingDescriptor = BindingDescriptor
     &["device.usb.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.list.
@@ -4882,7 +5034,9 @@ pub const DEVICE_USB_LIST: BindingDescriptor =
         &["device.usb.enumerate"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("device")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4908,7 +5062,9 @@ pub const DEVICE_USB_OPEN: BindingDescriptor =
         &["device.usb.control"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("device")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4933,7 +5089,9 @@ pub const DEVICE_USB_RELEASE_INTERFACE: BindingDescriptor = BindingDescriptor::e
     &["device.usb.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.reset.
@@ -4946,7 +5104,9 @@ pub const DEVICE_USB_RESET: BindingDescriptor =
         &["device.usb.control"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("device")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4971,7 +5131,9 @@ pub const DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING: BindingDescriptor = Bindin
     &["device.usb.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.stringDescriptor.
@@ -4983,7 +5145,9 @@ pub const DEVICE_USB_STRING_DESCRIPTOR: BindingDescriptor = BindingDescriptor::e
     &["device.usb.enumerate"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.stringLanguageList.
@@ -4995,7 +5159,9 @@ pub const DEVICE_USB_STRING_LANGUAGE_LIST: BindingDescriptor = BindingDescriptor
     &["device.usb.enumerate"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.transferCancel.
@@ -5007,7 +5173,9 @@ pub const DEVICE_USB_TRANSFER_CANCEL: BindingDescriptor = BindingDescriptor::ext
     &["device.usb.transfer"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.transferCancelAll.
@@ -5019,7 +5187,9 @@ pub const DEVICE_USB_TRANSFER_CANCEL_ALL: BindingDescriptor = BindingDescriptor:
     &["device.usb.transfer"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.watchClose.
@@ -5032,7 +5202,9 @@ pub const DEVICE_USB_WATCH_CLOSE: BindingDescriptor =
         &["device.usb.enumerate"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("device")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5058,7 +5230,9 @@ pub const DEVICE_USB_WATCH_OPEN: BindingDescriptor =
         &["device.usb.enumerate"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("device")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5083,7 +5257,9 @@ pub const DEVICE_USB_WATCH_READ: BindingDescriptor = BindingDescriptor::external
     &["device.usb.enumerate"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.watchTryRead.
@@ -5095,7 +5271,9 @@ pub const DEVICE_USB_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::exte
     &["device.usb.enumerate"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptors for device.

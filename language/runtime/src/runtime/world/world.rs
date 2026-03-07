@@ -69,6 +69,7 @@ pub struct World {
     pub(super) resources: RwLock<BTreeMap<WorldResourceId, WorldResource>>,
 }
 
+#[allow(clippy::arc_with_non_send_sync)]
 impl World {
     /// Create one world from runtime options.
     pub fn from_options(options: &RuntimeOptions) -> RuntimeResult<Arc<Self>> {

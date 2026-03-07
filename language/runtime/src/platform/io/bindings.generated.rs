@@ -19,8 +19,8 @@ use crate::platform::{
     abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
-    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
@@ -1539,7 +1539,9 @@ pub const IO_COMPLETION_CANCEL: BindingDescriptor = BindingDescriptor::external_
     &["io.completion"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.completion.close.
@@ -1552,7 +1554,9 @@ pub const IO_COMPLETION_CLOSE: BindingDescriptor =
         &["io.completion"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("io")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1577,7 +1581,9 @@ pub const IO_COMPLETION_ENTER: BindingDescriptor = BindingDescriptor::external_w
     &["io.submit"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.completion.open.
@@ -1590,7 +1596,9 @@ pub const IO_COMPLETION_OPEN: BindingDescriptor =
         &["io.completion"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("io")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1615,7 +1623,9 @@ pub const IO_COMPLETION_SUBMIT: BindingDescriptor = BindingDescriptor::external_
     &["io.submit"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.completion.submitBatch.
@@ -1627,7 +1637,9 @@ pub const IO_COMPLETION_SUBMIT_BATCH: BindingDescriptor = BindingDescriptor::ext
     &["io.submit"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.completion.wait.
@@ -1639,7 +1651,9 @@ pub const IO_COMPLETION_WAIT: BindingDescriptor = BindingDescriptor::external_wi
     &["io.completion"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.control.fcntl.
@@ -1651,7 +1665,9 @@ pub const IO_CONTROL_FCNTL: BindingDescriptor = BindingDescriptor::external_with
     &["io.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.control.ioctl.
@@ -1663,7 +1679,9 @@ pub const IO_CONTROL_IOCTL: BindingDescriptor = BindingDescriptor::external_with
     &["io.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.device.close.
@@ -1676,7 +1694,9 @@ pub const IO_DEVICE_CLOSE: BindingDescriptor =
         &["io.device.read", "io.device.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("io")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1701,7 +1721,9 @@ pub const IO_DEVICE_CONTROL: BindingDescriptor = BindingDescriptor::external_wit
     &["io.device.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.device.open.
@@ -1713,7 +1735,9 @@ pub const IO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_r
     &["io.device.read", "io.device.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.device.read.
@@ -1725,7 +1749,9 @@ pub const IO_DEVICE_READ: BindingDescriptor = BindingDescriptor::external_with_r
     &["io.device.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.device.write.
@@ -1737,7 +1763,9 @@ pub const IO_DEVICE_WRITE: BindingDescriptor = BindingDescriptor::external_with_
     &["io.device.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.event.attach.
@@ -1749,7 +1777,9 @@ pub const IO_EVENT_ATTACH: BindingDescriptor = BindingDescriptor::external_with_
     &["io.event"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.event.close.
@@ -1762,7 +1792,9 @@ pub const IO_EVENT_CLOSE: BindingDescriptor =
         &["io.event"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("io")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1788,7 +1820,9 @@ pub const IO_EVENT_OPEN: BindingDescriptor =
         &["io.event"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("io")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1813,7 +1847,9 @@ pub const IO_EVENT_SIGNAL: BindingDescriptor = BindingDescriptor::external_with_
     &["io.event"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.poll.close.
@@ -1826,7 +1862,9 @@ pub const IO_POLL_CLOSE: BindingDescriptor =
         &["io.poll"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("io")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1851,7 +1889,9 @@ pub const IO_POLL_DEREGISTER: BindingDescriptor = BindingDescriptor::external_wi
     &["io.poll"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.poll.open.
@@ -1863,7 +1903,9 @@ pub const IO_POLL_OPEN: BindingDescriptor = BindingDescriptor::external_with_req
     &["io.poll"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+.with_namespace("io")
 .with_host_platforms(&[
     "android",
     "dragonfly",
@@ -1888,7 +1930,9 @@ pub const IO_POLL_REGISTER: BindingDescriptor = BindingDescriptor::external_with
     &["io.poll"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.poll.update.
@@ -1900,7 +1944,9 @@ pub const IO_POLL_UPDATE: BindingDescriptor = BindingDescriptor::external_with_r
     &["io.poll"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.poll.wait.
@@ -1912,7 +1958,9 @@ pub const IO_POLL_WAIT: BindingDescriptor = BindingDescriptor::external_with_req
     &["io.poll"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.timerfd.close.
@@ -1925,7 +1973,9 @@ pub const IO_TIMERFD_CLOSE: BindingDescriptor =
         &["io.timerfd"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("io")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1951,7 +2001,9 @@ pub const IO_TIMERFD_GET: BindingDescriptor =
         &["io.timerfd"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("io")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1976,7 +2028,9 @@ pub const IO_TIMERFD_OPEN: BindingDescriptor = BindingDescriptor::external_with_
     &["io.timerfd"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.timerfd.read.
@@ -1989,7 +2043,9 @@ pub const IO_TIMERFD_READ: BindingDescriptor =
         &["io.timerfd"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("io")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -2014,7 +2070,9 @@ pub const IO_TIMERFD_SET: BindingDescriptor = BindingDescriptor::external_with_r
     &["io.timerfd"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.uring.close.
@@ -2027,7 +2085,9 @@ pub const IO_URING_CLOSE: BindingDescriptor =
         &["io.uring"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("io")
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.features.
@@ -2040,7 +2100,9 @@ pub const IO_URING_FEATURES: BindingDescriptor =
         &["io.uring"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("io")
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.open.
@@ -2052,7 +2114,9 @@ pub const IO_URING_OPEN: BindingDescriptor = BindingDescriptor::external_with_re
     &["io.uring"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.registerBuffers.
@@ -2064,7 +2128,9 @@ pub const IO_URING_REGISTER_BUFFERS: BindingDescriptor = BindingDescriptor::exte
     &["io.register"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.registerFiles.
@@ -2076,7 +2142,9 @@ pub const IO_URING_REGISTER_FILES: BindingDescriptor = BindingDescriptor::extern
     &["io.register"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("io")
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.unregisterBuffers.
@@ -2089,7 +2157,9 @@ pub const IO_URING_UNREGISTER_BUFFERS: BindingDescriptor =
         &["io.register"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("io")
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.unregisterFiles.
@@ -2102,7 +2172,9 @@ pub const IO_URING_UNREGISTER_FILES: BindingDescriptor =
         &["io.register"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("io")
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptors for io.

@@ -59,6 +59,9 @@ pub use core::{
     HostPlatform, HostPollOutcome, HostPowerMode, HostPowerModeEvent, HostState, HostThermalEvent,
     HostThermalState, HostWallClockEvent, HostWindowEvent, HostWindowFocusEvent, default_host,
 };
+pub(crate) use core::{
+    RuntimeIngressObserver, process_runtime_ingress_observers, register_runtime_ingress_observer,
+};
 
 #[cfg(any(test, target_os = "android"))]
 pub use android::{

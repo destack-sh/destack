@@ -21,8 +21,8 @@ unsafe extern "C" {
     ) -> i32;
 }
 
-/// Drain pending platform thread messages without blocking.
-pub(super) fn pump_pending_thread_messages(ignore_quit_message: bool) -> bool {
+/// Service immediately ready platform ingress without blocking.
+pub(super) fn process_ingress_ready(ignore_quit_message: bool) -> bool {
     // ignore quit-message policy for android looper polling
     let _ = ignore_quit_message;
     let mut dispatched_any = false;
@@ -48,12 +48,4 @@ pub(super) fn pump_pending_thread_messages(ignore_quit_message: bool) -> bool {
     }
 
     dispatched_any
-}
-
-/// Run one blocking platform thread message loop.
-pub(super) fn run_blocking_thread_message_loop() {
-    // block until one callback or one looper event is dispatched
-    let status =
-        unsafe { ALooper_pollOnce(-1, null_mut(), null_mut(), null_mut::<*mut libc::c_void>()) };
-    let _ = status;
 }

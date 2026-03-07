@@ -43,8 +43,8 @@ use crate::platform::{
     VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
-    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
@@ -7696,7 +7696,9 @@ pub const GPU_ADAPTER_CLOSE: BindingDescriptor =
         &["gpu.adapter"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("gpu")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -7721,7 +7723,9 @@ pub const GPU_ADAPTER_FEATURES: BindingDescriptor = BindingDescriptor::external_
     &["gpu.adapter"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.adapter.formatCapabilities.
@@ -7733,7 +7737,9 @@ pub const GPU_ADAPTER_FORMAT_CAPABILITIES: BindingDescriptor = BindingDescriptor
     &["gpu.adapter"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.adapter.hasFeature.
@@ -7745,7 +7751,9 @@ pub const GPU_ADAPTER_HAS_FEATURE: BindingDescriptor = BindingDescriptor::extern
     &["gpu.adapter"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.adapter.info.
@@ -7757,7 +7765,9 @@ pub const GPU_ADAPTER_INFO: BindingDescriptor = BindingDescriptor::external_with
     &["gpu.adapter"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.adapter.limits.
@@ -7769,7 +7779,9 @@ pub const GPU_ADAPTER_LIMITS: BindingDescriptor = BindingDescriptor::external_wi
     &["gpu.adapter"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.adapter.list.
@@ -7781,7 +7793,9 @@ pub const GPU_ADAPTER_LIST: BindingDescriptor = BindingDescriptor::external_with
     &["gpu.adapter"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.adapter.open.
@@ -7794,7 +7808,9 @@ pub const GPU_ADAPTER_OPEN: BindingDescriptor =
         &["gpu.adapter"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("gpu")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -7819,7 +7835,9 @@ pub const GPU_BIND_GROUP_CREATE: BindingDescriptor = BindingDescriptor::external
     &["gpu.bind"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.bind.groupDestroy.
@@ -7832,7 +7850,9 @@ pub const GPU_BIND_GROUP_DESTROY: BindingDescriptor =
         &["gpu.bind"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("gpu")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -7857,7 +7877,9 @@ pub const GPU_BIND_GROUP_LAYOUT_CREATE: BindingDescriptor = BindingDescriptor::e
     &["gpu.bind"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.bind.groupLayoutDestroy.
@@ -7869,7 +7891,9 @@ pub const GPU_BIND_GROUP_LAYOUT_DESTROY: BindingDescriptor = BindingDescriptor::
     &["gpu.bind"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.bind.pipelineLayoutCreate.
@@ -7881,7 +7905,9 @@ pub const GPU_BIND_PIPELINE_LAYOUT_CREATE: BindingDescriptor = BindingDescriptor
     &["gpu.bind"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.bind.pipelineLayoutDestroy.
@@ -7893,7 +7919,9 @@ pub const GPU_BIND_PIPELINE_LAYOUT_DESTROY: BindingDescriptor = BindingDescripto
     &["gpu.bind"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.bindComputePipeline.
@@ -7905,7 +7933,9 @@ pub const GPU_COMMAND_BIND_COMPUTE_PIPELINE: BindingDescriptor = BindingDescript
     &["gpu.compute"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.bindRenderPipeline.
@@ -7917,7 +7947,9 @@ pub const GPU_COMMAND_BIND_RENDER_PIPELINE: BindingDescriptor = BindingDescripto
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.clearBuffer.
@@ -7929,7 +7961,9 @@ pub const GPU_COMMAND_CLEAR_BUFFER: BindingDescriptor = BindingDescriptor::exter
     &["gpu.memory"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.computePassBegin.
@@ -7941,7 +7975,9 @@ pub const GPU_COMMAND_COMPUTE_PASS_BEGIN: BindingDescriptor = BindingDescriptor:
     &["gpu.compute"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.computePassEnd.
@@ -7953,7 +7989,9 @@ pub const GPU_COMMAND_COMPUTE_PASS_END: BindingDescriptor = BindingDescriptor::e
     &["gpu.compute"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.computePassInsertDebugMarker.
@@ -7965,7 +8003,9 @@ pub const GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER: BindingDescriptor = Bind
     &["gpu.debug"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.computePassPopDebugGroup.
@@ -7977,7 +8017,9 @@ pub const GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP: BindingDescriptor = BindingD
     &["gpu.debug"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.computePassPushDebugGroup.
@@ -7989,7 +8031,9 @@ pub const GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP: BindingDescriptor = Binding
     &["gpu.debug"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.copyBuffer.
@@ -8001,7 +8045,9 @@ pub const GPU_COMMAND_COPY_BUFFER: BindingDescriptor = BindingDescriptor::extern
     &["gpu.memory"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.copyBufferToTexture.
@@ -8013,7 +8059,9 @@ pub const GPU_COMMAND_COPY_BUFFER_TO_TEXTURE: BindingDescriptor = BindingDescrip
     &["gpu.memory"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.copyTextureToBuffer.
@@ -8025,7 +8073,9 @@ pub const GPU_COMMAND_COPY_TEXTURE_TO_BUFFER: BindingDescriptor = BindingDescrip
     &["gpu.memory"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.copyTextureToTexture.
@@ -8037,7 +8087,9 @@ pub const GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE: BindingDescriptor = BindingDescri
     &["gpu.memory"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.dispatch.
@@ -8049,7 +8101,9 @@ pub const GPU_COMMAND_DISPATCH: BindingDescriptor = BindingDescriptor::external_
     &["gpu.compute"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.dispatchIndirect.
@@ -8061,7 +8115,9 @@ pub const GPU_COMMAND_DISPATCH_INDIRECT: BindingDescriptor = BindingDescriptor::
     &["gpu.compute"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.draw.
@@ -8073,7 +8129,9 @@ pub const GPU_COMMAND_DRAW: BindingDescriptor = BindingDescriptor::external_with
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.drawIndexed.
@@ -8085,7 +8143,9 @@ pub const GPU_COMMAND_DRAW_INDEXED: BindingDescriptor = BindingDescriptor::exter
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.drawIndexedIndirect.
@@ -8097,7 +8157,9 @@ pub const GPU_COMMAND_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescript
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.drawIndirect.
@@ -8109,7 +8171,9 @@ pub const GPU_COMMAND_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::exte
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.encoderClose.
@@ -8121,7 +8185,9 @@ pub const GPU_COMMAND_ENCODER_CLOSE: BindingDescriptor = BindingDescriptor::exte
     &["gpu.queue"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.encoderFinish.
@@ -8133,7 +8199,9 @@ pub const GPU_COMMAND_ENCODER_FINISH: BindingDescriptor = BindingDescriptor::ext
     &["gpu.queue"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.encoderOpen.
@@ -8145,7 +8213,9 @@ pub const GPU_COMMAND_ENCODER_OPEN: BindingDescriptor = BindingDescriptor::exter
     &["gpu.queue"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.executeBundles.
@@ -8157,7 +8227,9 @@ pub const GPU_COMMAND_EXECUTE_BUNDLES: BindingDescriptor = BindingDescriptor::ex
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.insertDebugMarker.
@@ -8169,7 +8241,9 @@ pub const GPU_COMMAND_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor
     &["gpu.debug"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.multiDrawIndexedIndirect.
@@ -8181,7 +8255,9 @@ pub const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDe
     &["gpu.render.multi.draw"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.multiDrawIndexedIndirectCount.
@@ -8193,7 +8269,9 @@ pub const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT: BindingDescriptor = Bin
     &["gpu.render.multi.draw.count"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.multiDrawIndirect.
@@ -8205,7 +8283,9 @@ pub const GPU_COMMAND_MULTI_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor
     &["gpu.render.multi.draw"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.multiDrawIndirectCount.
@@ -8217,7 +8297,9 @@ pub const GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT: BindingDescriptor = BindingDesc
     &["gpu.render.multi.draw.count"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.popDebugGroup.
@@ -8229,7 +8311,9 @@ pub const GPU_COMMAND_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::ex
     &["gpu.debug"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.pushDebugGroup.
@@ -8241,7 +8325,9 @@ pub const GPU_COMMAND_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::e
     &["gpu.debug"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.queueSubmit.
@@ -8253,7 +8339,9 @@ pub const GPU_COMMAND_QUEUE_SUBMIT: BindingDescriptor = BindingDescriptor::exter
     &["gpu.queue"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.queueWaitIdle.
@@ -8265,7 +8353,9 @@ pub const GPU_COMMAND_QUEUE_WAIT_IDLE: BindingDescriptor = BindingDescriptor::ex
     &["gpu.queue"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.queueWriteBuffer.
@@ -8277,7 +8367,9 @@ pub const GPU_COMMAND_QUEUE_WRITE_BUFFER: BindingDescriptor = BindingDescriptor:
     &["gpu.queue", "gpu.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.queueWriteTexture.
@@ -8289,7 +8381,9 @@ pub const GPU_COMMAND_QUEUE_WRITE_TEXTURE: BindingDescriptor = BindingDescriptor
     &["gpu.queue", "gpu.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleDestroy.
@@ -8301,7 +8395,9 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DESTROY: BindingDescriptor = BindingDescript
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleDraw.
@@ -8313,7 +8409,9 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DRAW: BindingDescriptor = BindingDescriptor:
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleDrawIndexed.
@@ -8325,7 +8423,9 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED: BindingDescriptor = BindingDes
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleDrawIndexedIndirect.
@@ -8337,7 +8437,9 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT: BindingDescriptor = B
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleDrawIndirect.
@@ -8349,7 +8451,9 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT: BindingDescriptor = BindingDe
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleEncoderClose.
@@ -8361,7 +8465,9 @@ pub const GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE: BindingDescriptor = BindingDe
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleEncoderFinish.
@@ -8373,7 +8479,9 @@ pub const GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH: BindingDescriptor = BindingD
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleEncoderOpen.
@@ -8385,7 +8493,9 @@ pub const GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN: BindingDescriptor = BindingDes
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleInsertDebugMarker.
@@ -8397,7 +8507,9 @@ pub const GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER: BindingDescriptor = Bin
     &["gpu.debug"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundlePopDebugGroup.
@@ -8409,7 +8521,9 @@ pub const GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP: BindingDescriptor = Binding
     &["gpu.debug"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundlePushDebugGroup.
@@ -8421,7 +8535,9 @@ pub const GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP: BindingDescriptor = Bindin
     &["gpu.debug"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleSetBindGroup.
@@ -8433,7 +8549,9 @@ pub const GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP: BindingDescriptor = BindingD
     &["gpu.bind"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleSetIndexBuffer.
@@ -8445,7 +8563,9 @@ pub const GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER: BindingDescriptor = Bindin
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleSetPipeline.
@@ -8457,7 +8577,9 @@ pub const GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE: BindingDescriptor = BindingDes
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleSetVertexBuffer.
@@ -8469,7 +8591,9 @@ pub const GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER: BindingDescriptor = Bindi
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderPassBegin.
@@ -8481,7 +8605,9 @@ pub const GPU_COMMAND_RENDER_PASS_BEGIN: BindingDescriptor = BindingDescriptor::
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderPassEnd.
@@ -8493,7 +8619,9 @@ pub const GPU_COMMAND_RENDER_PASS_END: BindingDescriptor = BindingDescriptor::ex
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderPassInsertDebugMarker.
@@ -8505,7 +8633,9 @@ pub const GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER: BindingDescriptor = Bindi
     &["gpu.debug"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderPassPopDebugGroup.
@@ -8517,7 +8647,9 @@ pub const GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP: BindingDescriptor = BindingDe
     &["gpu.debug"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderPassPushDebugGroup.
@@ -8529,7 +8661,9 @@ pub const GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP: BindingDescriptor = BindingD
     &["gpu.debug"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setBlendConstant.
@@ -8541,7 +8675,9 @@ pub const GPU_COMMAND_SET_BLEND_CONSTANT: BindingDescriptor = BindingDescriptor:
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setComputeBindGroup.
@@ -8553,7 +8689,9 @@ pub const GPU_COMMAND_SET_COMPUTE_BIND_GROUP: BindingDescriptor = BindingDescrip
     &["gpu.bind"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setIndexBuffer.
@@ -8565,7 +8703,9 @@ pub const GPU_COMMAND_SET_INDEX_BUFFER: BindingDescriptor = BindingDescriptor::e
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setRenderBindGroup.
@@ -8577,7 +8717,9 @@ pub const GPU_COMMAND_SET_RENDER_BIND_GROUP: BindingDescriptor = BindingDescript
     &["gpu.bind"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setScissor.
@@ -8589,7 +8731,9 @@ pub const GPU_COMMAND_SET_SCISSOR: BindingDescriptor = BindingDescriptor::extern
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setStencilReference.
@@ -8601,7 +8745,9 @@ pub const GPU_COMMAND_SET_STENCIL_REFERENCE: BindingDescriptor = BindingDescript
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setVertexBuffer.
@@ -8613,7 +8759,9 @@ pub const GPU_COMMAND_SET_VERTEX_BUFFER: BindingDescriptor = BindingDescriptor::
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setViewport.
@@ -8625,7 +8773,9 @@ pub const GPU_COMMAND_SET_VIEWPORT: BindingDescriptor = BindingDescriptor::exter
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.debug.setLabel.
@@ -8638,7 +8788,9 @@ pub const GPU_DEBUG_SET_LABEL: BindingDescriptor =
         &["gpu.debug"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("gpu")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -8664,7 +8816,9 @@ pub const GPU_DEVICE_CLOSE: BindingDescriptor =
         &["gpu.device"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("gpu")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -8689,7 +8843,9 @@ pub const GPU_DEVICE_FEATURES: BindingDescriptor = BindingDescriptor::external_w
     &["gpu.device"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.hasFeature.
@@ -8701,7 +8857,9 @@ pub const GPU_DEVICE_HAS_FEATURE: BindingDescriptor = BindingDescriptor::externa
     &["gpu.device"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.info.
@@ -8714,7 +8872,9 @@ pub const GPU_DEVICE_INFO: BindingDescriptor =
         &["gpu.device"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("gpu")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -8739,7 +8899,9 @@ pub const GPU_DEVICE_LIMITS: BindingDescriptor = BindingDescriptor::external_wit
     &["gpu.device"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.open.
@@ -8751,7 +8913,9 @@ pub const GPU_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_
     &["gpu.device"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.poll.
@@ -8763,7 +8927,9 @@ pub const GPU_DEVICE_POLL: BindingDescriptor = BindingDescriptor::external_with_
     &["gpu.queue"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.popErrorScope.
@@ -8775,7 +8941,9 @@ pub const GPU_DEVICE_POP_ERROR_SCOPE: BindingDescriptor = BindingDescriptor::ext
     &["gpu.device"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.pushErrorScope.
@@ -8787,7 +8955,9 @@ pub const GPU_DEVICE_PUSH_ERROR_SCOPE: BindingDescriptor = BindingDescriptor::ex
     &["gpu.device"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.queue.
@@ -8799,7 +8969,9 @@ pub const GPU_DEVICE_QUEUE: BindingDescriptor = BindingDescriptor::external_with
     &["gpu.queue"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.status.
@@ -8811,7 +8983,9 @@ pub const GPU_DEVICE_STATUS: BindingDescriptor = BindingDescriptor::external_wit
     &["gpu.device"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.pipeline.bindGroupLayout.
@@ -8823,7 +8997,9 @@ pub const GPU_PIPELINE_BIND_GROUP_LAYOUT: BindingDescriptor = BindingDescriptor:
     &["gpu.bind"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.pipeline.computeCreate.
@@ -8835,7 +9011,9 @@ pub const GPU_PIPELINE_COMPUTE_CREATE: BindingDescriptor = BindingDescriptor::ex
     &["gpu.compute"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.pipeline.destroy.
@@ -8848,7 +9026,9 @@ pub const GPU_PIPELINE_DESTROY: BindingDescriptor =
         &["gpu.compute", "gpu.render"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("gpu")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -8873,7 +9053,9 @@ pub const GPU_PIPELINE_RENDER_CREATE: BindingDescriptor = BindingDescriptor::ext
     &["gpu.render"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.pipeline.shaderCompilationInfo.
@@ -8885,7 +9067,9 @@ pub const GPU_PIPELINE_SHADER_COMPILATION_INFO: BindingDescriptor = BindingDescr
     &["gpu.shader"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.pipeline.shaderCreate.
@@ -8897,7 +9081,9 @@ pub const GPU_PIPELINE_SHADER_CREATE: BindingDescriptor = BindingDescriptor::ext
     &["gpu.shader"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.pipeline.shaderDestroy.
@@ -8910,7 +9096,9 @@ pub const GPU_PIPELINE_SHADER_DESTROY: BindingDescriptor =
         &["gpu.shader"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("gpu")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -8935,7 +9123,9 @@ pub const GPU_PRESENT_SURFACE_ACQUIRE: BindingDescriptor = BindingDescriptor::ex
     &["gpu.present"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfaceCapabilities.
@@ -8947,7 +9137,9 @@ pub const GPU_PRESENT_SURFACE_CAPABILITIES: BindingDescriptor = BindingDescripto
     &["gpu.present"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfaceClose.
@@ -8960,7 +9152,9 @@ pub const GPU_PRESENT_SURFACE_CLOSE: BindingDescriptor =
         &["gpu.present"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("gpu")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -8985,7 +9179,9 @@ pub const GPU_PRESENT_SURFACE_CONFIGURE: BindingDescriptor = BindingDescriptor::
     &["gpu.present"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfaceOpen.
@@ -8997,7 +9193,9 @@ pub const GPU_PRESENT_SURFACE_OPEN: BindingDescriptor = BindingDescriptor::exter
     &["gpu.present"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfacePresent.
@@ -9009,7 +9207,9 @@ pub const GPU_PRESENT_SURFACE_PRESENT: BindingDescriptor = BindingDescriptor::ex
     &["gpu.present"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfaceUnconfigure.
@@ -9021,7 +9221,9 @@ pub const GPU_PRESENT_SURFACE_UNCONFIGURE: BindingDescriptor = BindingDescriptor
     &["gpu.present"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.bufferCreate.
@@ -9033,7 +9235,9 @@ pub const GPU_RESOURCE_BUFFER_CREATE: BindingDescriptor = BindingDescriptor::ext
     &["gpu.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.bufferDestroy.
@@ -9046,7 +9250,9 @@ pub const GPU_RESOURCE_BUFFER_DESTROY: BindingDescriptor =
         &["gpu.memory"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("gpu")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -9072,7 +9278,9 @@ pub const GPU_RESOURCE_BUFFER_INFO: BindingDescriptor =
         &["gpu.memory"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("gpu")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -9097,7 +9305,9 @@ pub const GPU_RESOURCE_BUFFER_MAP: BindingDescriptor = BindingDescriptor::extern
     &["gpu.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.bufferRead.
@@ -9109,7 +9319,9 @@ pub const GPU_RESOURCE_BUFFER_READ: BindingDescriptor = BindingDescriptor::exter
     &["gpu.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.bufferUnmap.
@@ -9122,7 +9334,9 @@ pub const GPU_RESOURCE_BUFFER_UNMAP: BindingDescriptor =
         &["gpu.memory"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("gpu")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -9147,7 +9361,9 @@ pub const GPU_RESOURCE_BUFFER_WRITE: BindingDescriptor = BindingDescriptor::exte
     &["gpu.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.samplerCreate.
@@ -9159,7 +9375,9 @@ pub const GPU_RESOURCE_SAMPLER_CREATE: BindingDescriptor = BindingDescriptor::ex
     &["gpu.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.samplerDestroy.
@@ -9172,7 +9390,9 @@ pub const GPU_RESOURCE_SAMPLER_DESTROY: BindingDescriptor =
         &["gpu.memory"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("gpu")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -9197,7 +9417,9 @@ pub const GPU_RESOURCE_TEXTURE_CREATE: BindingDescriptor = BindingDescriptor::ex
     &["gpu.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.textureDestroy.
@@ -9210,7 +9432,9 @@ pub const GPU_RESOURCE_TEXTURE_DESTROY: BindingDescriptor =
         &["gpu.memory"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("gpu")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -9235,7 +9459,9 @@ pub const GPU_RESOURCE_TEXTURE_INFO: BindingDescriptor = BindingDescriptor::exte
     &["gpu.memory"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.textureViewCreate.
@@ -9247,7 +9473,9 @@ pub const GPU_RESOURCE_TEXTURE_VIEW_CREATE: BindingDescriptor = BindingDescripto
     &["gpu.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.textureViewDestroy.
@@ -9259,7 +9487,9 @@ pub const GPU_RESOURCE_TEXTURE_VIEW_DESTROY: BindingDescriptor = BindingDescript
     &["gpu.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandBeginComputePipelineStatisticsQuery.
@@ -9271,7 +9501,9 @@ pub const GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescr
     &["gpu.sync.pipeline.statistics"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandBeginOcclusionQuery.
@@ -9283,7 +9515,9 @@ pub const GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY: BindingDescriptor = BindingDes
     &["gpu.sync"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery.
@@ -9295,7 +9529,9 @@ pub const GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescri
     &["gpu.sync.pipeline.statistics"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandEndComputePipelineStatisticsQuery.
@@ -9307,7 +9543,9 @@ pub const GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescrip
     &["gpu.sync.pipeline.statistics"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandEndOcclusionQuery.
@@ -9319,7 +9557,9 @@ pub const GPU_SYNC_COMMAND_END_OCCLUSION_QUERY: BindingDescriptor = BindingDescr
     &["gpu.sync"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandEndRenderPipelineStatisticsQuery.
@@ -9331,7 +9571,9 @@ pub const GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescript
     &["gpu.sync.pipeline.statistics"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandResolveQueries.
@@ -9343,7 +9585,9 @@ pub const GPU_SYNC_COMMAND_RESOLVE_QUERIES: BindingDescriptor = BindingDescripto
     &["gpu.sync"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandWriteTimestamp.
@@ -9355,7 +9599,9 @@ pub const GPU_SYNC_COMMAND_WRITE_TIMESTAMP: BindingDescriptor = BindingDescripto
     &["gpu.sync"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.fenceCreate.
@@ -9367,7 +9613,9 @@ pub const GPU_SYNC_FENCE_CREATE: BindingDescriptor = BindingDescriptor::external
     &["gpu.sync"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.fenceDestroy.
@@ -9380,7 +9628,9 @@ pub const GPU_SYNC_FENCE_DESTROY: BindingDescriptor =
         &["gpu.sync"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("gpu")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -9405,7 +9655,9 @@ pub const GPU_SYNC_QUERY_SET_CREATE: BindingDescriptor = BindingDescriptor::exte
     &["gpu.sync"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.querySetDestroy.
@@ -9418,7 +9670,9 @@ pub const GPU_SYNC_QUERY_SET_DESTROY: BindingDescriptor =
         &["gpu.sync"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("gpu")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -9443,7 +9697,9 @@ pub const GPU_SYNC_QUERY_SET_INFO: BindingDescriptor = BindingDescriptor::extern
     &["gpu.sync"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.queueSignal.
@@ -9455,7 +9711,9 @@ pub const GPU_SYNC_QUEUE_SIGNAL: BindingDescriptor = BindingDescriptor::external
     &["gpu.sync"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.queueTimestampPeriod.
@@ -9467,7 +9725,9 @@ pub const GPU_SYNC_QUEUE_TIMESTAMP_PERIOD: BindingDescriptor = BindingDescriptor
     &["gpu.sync"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.queueWait.
@@ -9479,7 +9739,9 @@ pub const GPU_SYNC_QUEUE_WAIT: BindingDescriptor = BindingDescriptor::external_w
     &["gpu.sync"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.queueWorkDone.
@@ -9491,7 +9753,9 @@ pub const GPU_SYNC_QUEUE_WORK_DONE: BindingDescriptor = BindingDescriptor::exter
     &["gpu.sync"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptors for gpu.

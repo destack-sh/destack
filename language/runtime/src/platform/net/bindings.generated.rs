@@ -31,8 +31,8 @@ use crate::platform::{
     VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
-    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
@@ -4525,7 +4525,9 @@ pub const NET_ADDRESS_LOCAL_ADDRESS: BindingDescriptor =
         &["net.control"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4551,7 +4553,9 @@ pub const NET_ADDRESS_PEER_ADDRESS: BindingDescriptor =
         &["net.control"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4577,7 +4581,9 @@ pub const NET_INTERFACE_INTERFACE_INDEX: BindingDescriptor =
         &["net.interface"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4603,7 +4609,9 @@ pub const NET_INTERFACE_INTERFACE_NAME: BindingDescriptor =
         &["net.interface"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4629,7 +4637,9 @@ pub const NET_INTERFACE_LIST_INTERFACES: BindingDescriptor =
         &["net.interface"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4654,7 +4664,9 @@ pub const NET_LISTENER_ACCEPT: BindingDescriptor = BindingDescriptor::external_w
     &["net.accept"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.listener.bind.
@@ -4666,7 +4678,9 @@ pub const NET_LISTENER_BIND: BindingDescriptor = BindingDescriptor::external_wit
     &["net.listen"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.listener.closeListener.
@@ -4679,7 +4693,9 @@ pub const NET_LISTENER_CLOSE_LISTENER: BindingDescriptor =
         &["net.close"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4704,7 +4720,9 @@ pub const NET_LISTENER_LISTEN: BindingDescriptor = BindingDescriptor::external_w
     &["net.listen"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.getBroadcast.
@@ -4717,7 +4735,9 @@ pub const NET_OPTIONS_GET_BROADCAST: BindingDescriptor =
         &["net.control"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4743,7 +4763,9 @@ pub const NET_OPTIONS_GET_LINGER: BindingDescriptor =
         &["net.control"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4769,7 +4791,9 @@ pub const NET_OPTIONS_GET_ONLY_V6: BindingDescriptor =
         &["net.control"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4795,7 +4819,9 @@ pub const NET_OPTIONS_GET_PACKET_MARK: BindingDescriptor =
         &["net.control"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4820,7 +4846,9 @@ pub const NET_OPTIONS_GET_READ_TIMEOUT: BindingDescriptor =
         &["net.control"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4846,7 +4874,9 @@ pub const NET_OPTIONS_GET_RECV_BUFFER: BindingDescriptor =
         &["net.control"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4872,7 +4902,9 @@ pub const NET_OPTIONS_GET_SEND_BUFFER: BindingDescriptor =
         &["net.control"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4897,7 +4929,9 @@ pub const NET_OPTIONS_GET_SOCK_OPT_RAW: BindingDescriptor = BindingDescriptor::e
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.getTimestamping.
@@ -4909,7 +4943,9 @@ pub const NET_OPTIONS_GET_TIMESTAMPING: BindingDescriptor = BindingDescriptor::e
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.getTos.
@@ -4922,7 +4958,9 @@ pub const NET_OPTIONS_GET_TOS: BindingDescriptor =
         &["net.control"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4948,7 +4986,9 @@ pub const NET_OPTIONS_GET_TTL: BindingDescriptor =
         &["net.control"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4974,7 +5014,9 @@ pub const NET_OPTIONS_GET_WRITE_TIMEOUT: BindingDescriptor =
         &["net.control"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4999,7 +5041,9 @@ pub const NET_OPTIONS_SET_BROADCAST: BindingDescriptor = BindingDescriptor::exte
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setLinger.
@@ -5011,7 +5055,9 @@ pub const NET_OPTIONS_SET_LINGER: BindingDescriptor = BindingDescriptor::externa
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setOnlyV6.
@@ -5023,7 +5069,9 @@ pub const NET_OPTIONS_SET_ONLY_V6: BindingDescriptor = BindingDescriptor::extern
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setPacketMark.
@@ -5035,7 +5083,9 @@ pub const NET_OPTIONS_SET_PACKET_MARK: BindingDescriptor = BindingDescriptor::ex
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.net.options.setReadTimeout.
@@ -5047,7 +5097,9 @@ pub const NET_OPTIONS_SET_READ_TIMEOUT: BindingDescriptor = BindingDescriptor::e
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setRecvBuffer.
@@ -5059,7 +5111,9 @@ pub const NET_OPTIONS_SET_RECV_BUFFER: BindingDescriptor = BindingDescriptor::ex
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setSendBuffer.
@@ -5071,7 +5125,9 @@ pub const NET_OPTIONS_SET_SEND_BUFFER: BindingDescriptor = BindingDescriptor::ex
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setSockOptRaw.
@@ -5083,7 +5139,9 @@ pub const NET_OPTIONS_SET_SOCK_OPT_RAW: BindingDescriptor = BindingDescriptor::e
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setTimestamping.
@@ -5095,7 +5153,9 @@ pub const NET_OPTIONS_SET_TIMESTAMPING: BindingDescriptor = BindingDescriptor::e
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setTos.
@@ -5108,7 +5168,9 @@ pub const NET_OPTIONS_SET_TOS: BindingDescriptor =
         &["net.control"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5134,7 +5196,9 @@ pub const NET_OPTIONS_SET_TTL: BindingDescriptor =
         &["net.control"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5159,7 +5223,9 @@ pub const NET_OPTIONS_SET_WRITE_TIMEOUT: BindingDescriptor = BindingDescriptor::
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetBackendList.
@@ -5171,7 +5237,9 @@ pub const NET_RAW_PACKET_BACKEND_LIST: BindingDescriptor = BindingDescriptor::ex
     &["net.raw"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetClearFanout.
@@ -5184,7 +5252,9 @@ pub const NET_RAW_PACKET_CLEAR_FANOUT: BindingDescriptor =
         &["net.raw"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5210,7 +5280,9 @@ pub const NET_RAW_PACKET_CLEAR_FILTER: BindingDescriptor =
         &["net.raw"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5236,7 +5308,9 @@ pub const NET_RAW_PACKET_CLEAR_RING: BindingDescriptor =
         &["net.raw"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5261,7 +5335,9 @@ pub const NET_RAW_PACKET_OPEN: BindingDescriptor = BindingDescriptor::external_w
     &["net.raw"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetReceive.
@@ -5273,7 +5349,9 @@ pub const NET_RAW_PACKET_RECEIVE: BindingDescriptor = BindingDescriptor::externa
     &["net.raw"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSend.
@@ -5285,7 +5363,9 @@ pub const NET_RAW_PACKET_SEND: BindingDescriptor = BindingDescriptor::external_w
     &["net.raw"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetFanout.
@@ -5297,7 +5377,9 @@ pub const NET_RAW_PACKET_SET_FANOUT: BindingDescriptor = BindingDescriptor::exte
     &["net.raw"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetFilter.
@@ -5309,7 +5391,9 @@ pub const NET_RAW_PACKET_SET_FILTER: BindingDescriptor = BindingDescriptor::exte
     &["net.raw"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetRxRing.
@@ -5321,7 +5405,9 @@ pub const NET_RAW_PACKET_SET_RX_RING: BindingDescriptor = BindingDescriptor::ext
     &["net.raw"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetTimestampMode.
@@ -5333,7 +5419,9 @@ pub const NET_RAW_PACKET_SET_TIMESTAMP_MODE: BindingDescriptor = BindingDescript
     &["net.raw"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetTxRing.
@@ -5345,7 +5433,9 @@ pub const NET_RAW_PACKET_SET_TX_RING: BindingDescriptor = BindingDescriptor::ext
     &["net.raw"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetStats.
@@ -5357,7 +5447,9 @@ pub const NET_RAW_PACKET_STATS: BindingDescriptor = BindingDescriptor::external_
     &["net.raw"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.setHeaderIncluded.
@@ -5369,7 +5461,9 @@ pub const NET_RAW_SET_HEADER_INCLUDED: BindingDescriptor = BindingDescriptor::ex
     &["net.raw"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.socket.
@@ -5381,7 +5475,9 @@ pub const NET_RAW_SOCKET: BindingDescriptor = BindingDescriptor::external_with_r
     &["net.raw"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.resolve.lookup.
@@ -5394,7 +5490,9 @@ pub const NET_RESOLVE_LOOKUP: BindingDescriptor =
         &["net.dns"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5419,7 +5517,9 @@ pub const NET_RESOLVE_REVERSE_LOOKUP: BindingDescriptor = BindingDescriptor::ext
     &["net.dns"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.reuse.getReuseAddr.
@@ -5432,7 +5532,9 @@ pub const NET_REUSE_GET_REUSE_ADDR: BindingDescriptor =
         &["net.control"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5458,7 +5560,9 @@ pub const NET_REUSE_GET_REUSE_PORT: BindingDescriptor =
         &["net.control"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5482,7 +5586,9 @@ pub const NET_REUSE_SET_REUSE_ADDR: BindingDescriptor = BindingDescriptor::exter
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.reuse.setReusePort.
@@ -5494,7 +5600,9 @@ pub const NET_REUSE_SET_REUSE_PORT: BindingDescriptor = BindingDescriptor::exter
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.net.route.routeAdd.
@@ -5507,7 +5615,9 @@ pub const NET_ROUTE_ROUTE_ADD: BindingDescriptor =
         &["net.route.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5533,7 +5643,9 @@ pub const NET_ROUTE_ROUTE_DELETE: BindingDescriptor =
         &["net.route.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5559,7 +5671,9 @@ pub const NET_ROUTE_ROUTE_LIST: BindingDescriptor =
         &["net.route.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5585,7 +5699,9 @@ pub const NET_SOCKET_CLOSE: BindingDescriptor =
         &["net.close"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5610,7 +5726,9 @@ pub const NET_SOCKET_CONNECT: BindingDescriptor = BindingDescriptor::external_wi
     &["net.connect"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.open.
@@ -5622,7 +5740,9 @@ pub const NET_SOCKET_OPEN: BindingDescriptor = BindingDescriptor::external_with_
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.openPair.
@@ -5634,7 +5754,9 @@ pub const NET_SOCKET_OPEN_PAIR: BindingDescriptor = BindingDescriptor::external_
     &["net.connect"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.read.
@@ -5646,7 +5768,9 @@ pub const NET_SOCKET_READ: BindingDescriptor = BindingDescriptor::external_with_
     &["net.connect"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.readv.
@@ -5658,7 +5782,9 @@ pub const NET_SOCKET_READV: BindingDescriptor = BindingDescriptor::external_with
     &["net.connect"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.recvFrom.
@@ -5670,7 +5796,9 @@ pub const NET_SOCKET_RECV_FROM: BindingDescriptor = BindingDescriptor::external_
     &["net.udp"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.recvMmsg.
@@ -5682,7 +5810,9 @@ pub const NET_SOCKET_RECV_MMSG: BindingDescriptor = BindingDescriptor::external_
     &["net.udp"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.recvMsg.
@@ -5694,7 +5824,9 @@ pub const NET_SOCKET_RECV_MSG: BindingDescriptor = BindingDescriptor::external_w
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.sendMmsg.
@@ -5706,7 +5838,9 @@ pub const NET_SOCKET_SEND_MMSG: BindingDescriptor = BindingDescriptor::external_
     &["net.udp"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.sendMsg.
@@ -5718,7 +5852,9 @@ pub const NET_SOCKET_SEND_MSG: BindingDescriptor = BindingDescriptor::external_w
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.sendTo.
@@ -5730,7 +5866,9 @@ pub const NET_SOCKET_SEND_TO: BindingDescriptor = BindingDescriptor::external_wi
     &["net.udp"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.setNonblocking.
@@ -5742,7 +5880,9 @@ pub const NET_SOCKET_SET_NONBLOCKING: BindingDescriptor = BindingDescriptor::ext
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.shutdown.
@@ -5754,7 +5894,9 @@ pub const NET_SOCKET_SHUTDOWN: BindingDescriptor = BindingDescriptor::external_w
     &["net.close"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.write.
@@ -5766,7 +5908,9 @@ pub const NET_SOCKET_WRITE: BindingDescriptor = BindingDescriptor::external_with
     &["net.connect"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.writev.
@@ -5778,7 +5922,9 @@ pub const NET_SOCKET_WRITEV: BindingDescriptor = BindingDescriptor::external_wit
     &["net.connect"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.tcp.getKeepAlive.
@@ -5790,7 +5936,9 @@ pub const NET_TCP_GET_KEEP_ALIVE: BindingDescriptor = BindingDescriptor::externa
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.tcp.getNoDelay.
@@ -5803,7 +5951,9 @@ pub const NET_TCP_GET_NO_DELAY: BindingDescriptor =
         &["net.control"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5828,7 +5978,9 @@ pub const NET_TCP_SET_KEEP_ALIVE: BindingDescriptor = BindingDescriptor::externa
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.tcp.setNoDelay.
@@ -5840,7 +5992,9 @@ pub const NET_TCP_SET_NO_DELAY: BindingDescriptor = BindingDescriptor::external_
     &["net.control"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.bind.
@@ -5852,7 +6006,9 @@ pub const NET_UDP_BIND: BindingDescriptor = BindingDescriptor::external_with_req
     &["net.udp"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.connect.
@@ -5864,7 +6020,9 @@ pub const NET_UDP_CONNECT: BindingDescriptor = BindingDescriptor::external_with_
     &["net.udp"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.getMulticastInterfaceV4.
@@ -5876,7 +6034,9 @@ pub const NET_UDP_GET_MULTICAST_INTERFACE_V4: BindingDescriptor = BindingDescrip
     &["net.multicast"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.getMulticastInterfaceV6.
@@ -5888,7 +6048,9 @@ pub const NET_UDP_GET_MULTICAST_INTERFACE_V6: BindingDescriptor = BindingDescrip
     &["net.multicast"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.getMulticastLoop.
@@ -5901,7 +6063,9 @@ pub const NET_UDP_GET_MULTICAST_LOOP: BindingDescriptor =
         &["net.multicast"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5927,7 +6091,9 @@ pub const NET_UDP_GET_MULTICAST_TTL: BindingDescriptor =
         &["net.multicast"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5952,7 +6118,9 @@ pub const NET_UDP_JOIN_MULTICAST_SOURCE_V4: BindingDescriptor = BindingDescripto
     &["net.multicast"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.joinMulticastSourceV6.
@@ -5964,7 +6132,9 @@ pub const NET_UDP_JOIN_MULTICAST_SOURCE_V6: BindingDescriptor = BindingDescripto
     &["net.multicast"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.joinMulticastV4.
@@ -5976,7 +6146,9 @@ pub const NET_UDP_JOIN_MULTICAST_V4: BindingDescriptor = BindingDescriptor::exte
     &["net.multicast"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.joinMulticastV6.
@@ -5988,7 +6160,9 @@ pub const NET_UDP_JOIN_MULTICAST_V6: BindingDescriptor = BindingDescriptor::exte
     &["net.multicast"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.leaveMulticastSourceV4.
@@ -6000,7 +6174,9 @@ pub const NET_UDP_LEAVE_MULTICAST_SOURCE_V4: BindingDescriptor = BindingDescript
     &["net.multicast"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.leaveMulticastSourceV6.
@@ -6012,7 +6188,9 @@ pub const NET_UDP_LEAVE_MULTICAST_SOURCE_V6: BindingDescriptor = BindingDescript
     &["net.multicast"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.leaveMulticastV4.
@@ -6024,7 +6202,9 @@ pub const NET_UDP_LEAVE_MULTICAST_V4: BindingDescriptor = BindingDescriptor::ext
     &["net.multicast"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.leaveMulticastV6.
@@ -6036,7 +6216,9 @@ pub const NET_UDP_LEAVE_MULTICAST_V6: BindingDescriptor = BindingDescriptor::ext
     &["net.multicast"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.recvFrom.
@@ -6048,7 +6230,9 @@ pub const NET_UDP_RECV_FROM: BindingDescriptor = BindingDescriptor::external_wit
     &["net.udp"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.sendTo.
@@ -6060,7 +6244,9 @@ pub const NET_UDP_SEND_TO: BindingDescriptor = BindingDescriptor::external_with_
     &["net.udp"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.setMulticastInterfaceV4.
@@ -6072,7 +6258,9 @@ pub const NET_UDP_SET_MULTICAST_INTERFACE_V4: BindingDescriptor = BindingDescrip
     &["net.multicast"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.setMulticastInterfaceV6.
@@ -6084,7 +6272,9 @@ pub const NET_UDP_SET_MULTICAST_INTERFACE_V6: BindingDescriptor = BindingDescrip
     &["net.multicast"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.setMulticastLoop.
@@ -6096,7 +6286,9 @@ pub const NET_UDP_SET_MULTICAST_LOOP: BindingDescriptor = BindingDescriptor::ext
     &["net.multicast"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.setMulticastTtl.
@@ -6108,7 +6300,9 @@ pub const NET_UDP_SET_MULTICAST_TTL: BindingDescriptor = BindingDescriptor::exte
     &["net.multicast"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.socket.
@@ -6121,7 +6315,9 @@ pub const NET_UDP_SOCKET: BindingDescriptor =
         &["net.udp"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6147,7 +6343,9 @@ pub const NET_UDS_UDS_ACCEPT: BindingDescriptor =
         &["net.accept"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6173,7 +6371,9 @@ pub const NET_UDS_UDS_CLOSE_LISTENER: BindingDescriptor =
         &["net.close"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6199,7 +6399,9 @@ pub const NET_UDS_UDS_CONNECT: BindingDescriptor =
         &["net.connect"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6224,7 +6426,9 @@ pub const NET_UDS_UDS_LISTEN: BindingDescriptor = BindingDescriptor::external_wi
     &["net.listen"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("net")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.uds.udsSocketPair.
@@ -6237,7 +6441,9 @@ pub const NET_UDS_UDS_SOCKET_PAIR: BindingDescriptor =
         &["net.connect"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("net")
     .with_host_platforms(&[
         "android",
         "dragonfly",

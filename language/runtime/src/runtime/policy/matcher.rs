@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingEffect, BindingEffectClass, BindingEngine,
-    BindingScope,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingEffect, BindingEffectClass,
+    BindingEngine, BindingScope,
 };
 use destack_source::matches as glob_matches;
 use destack_workspace as workspace;
@@ -118,6 +118,12 @@ pub(crate) fn selector_matches(
             return false;
         }
 
+        if let Some(affinity) = selector.affinity
+            && !matches_affinity(affinity, descriptor.affinity())
+        {
+            return false;
+        }
+
         if let Some(effect) = selector.effect
             && !matches_effect(effect, descriptor.effect_class)
         {
@@ -137,6 +143,7 @@ fn selector_has_binding_clauses(selector: &RuntimeSelector) -> bool {
         || selector.module.is_some()
         || selector.scope.is_some()
         || selector.blocking.is_some()
+        || selector.affinity.is_some()
         || selector.effect.is_some()
 }
 
@@ -220,6 +227,11 @@ fn matches_scope(rule_scope: BindingScope, scope: BindingScope) -> bool {
 /// Return true when one blocking selector matches the binding class.
 fn matches_blocking(rule_blocking: BindingBlocking, blocking: BindingBlocking) -> bool {
     rule_blocking == blocking
+}
+
+/// Return true when one affinity selector matches the binding class.
+fn matches_affinity(rule_affinity: BindingAffinity, affinity: BindingAffinity) -> bool {
+    rule_affinity == affinity
 }
 
 /// Return true when one effect selector matches the binding effect class.

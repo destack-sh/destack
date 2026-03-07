@@ -6,6 +6,7 @@ use super::{
 };
 use crate::host::core::{HostState, register_host_state};
 use crate::host::{HostEvent, HostLifecycleState, HostPlatform, HostWindowEvent};
+use crate::runtime::world::RuntimeId;
 
 #[test]
 fn test_map_windows_lifecycle_to_initializing() {
@@ -46,10 +47,10 @@ fn test_map_windows_lifecycle_to_destroyed() {
 #[test]
 fn test_notify_window_available_enqueues_window_event_for_runtime_bridge() {
     let state = Arc::new(HostState::new());
-    let registration = register_host_state(HostPlatform::Windows, &state, None);
+    let registration = register_host_state(HostPlatform::Windows, RuntimeId(1), &state, None);
     let runtime_id = registration.runtime_id();
 
-    windows_notify_window_available(runtime_id, 9).unwrap();
+    windows_notify_window_available(runtime_id.0, 9).unwrap();
 
     let poll_result = state.poll_events(Some(0)).unwrap();
     let events = poll_result.events;
@@ -64,10 +65,10 @@ fn test_notify_window_available_enqueues_window_event_for_runtime_bridge() {
 #[test]
 fn test_notify_window_available_rejects_platform_mismatch_for_runtime_bridge() {
     let state = Arc::new(HostState::new());
-    let registration = register_host_state(HostPlatform::MacOS, &state, None);
+    let registration = register_host_state(HostPlatform::MacOS, RuntimeId(1), &state, None);
     let runtime_id = registration.runtime_id();
 
-    let result = windows_notify_window_available(runtime_id, 9);
+    let result = windows_notify_window_available(runtime_id.0, 9);
     assert!(result.is_err());
 }
 

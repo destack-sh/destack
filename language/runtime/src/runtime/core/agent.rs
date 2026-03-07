@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use destack_base::fnv1a_64;
 use destack_heap as heap;
 use serde::{Deserialize, Serialize};
 
@@ -14,7 +15,7 @@ use crate::runtime::memory::Heap;
 use crate::runtime::poller::PollerToken;
 use crate::runtime::scheduler::{EventLoop, EventLoopWatch};
 use crate::runtime::world::{RuntimeId, World, WorldCommand};
-use crate::runtime::{DropCounts, DropReason, Hooks, RuntimeFinalizers};
+use crate::runtime::{DropCounts, DropReason, ExecutionContextId, Hooks, RuntimeFinalizers};
 use destack_workspace::RuntimeOptions;
 
 /// Stable identifier for one world-managed agent.
@@ -75,6 +76,18 @@ impl std::fmt::Debug for Agent {
 }
 
 impl Agent {
+    /// Return the canonical event-loop execution context identifier for one agent.
+    fn event_loop_execution_context_id(
+        runtime_id: RuntimeId,
+        agent_id: AgentId,
+    ) -> ExecutionContextId {
+        let mut bytes = [0u8; 16];
+        bytes[..8].copy_from_slice(&runtime_id.0.to_le_bytes());
+        bytes[8..].copy_from_slice(&agent_id.0.to_le_bytes());
+
+        ExecutionContextId(fnv1a_64(&bytes))
+    }
+
     /// Create one agent with explicit runtime options in one shared world.
     pub fn new_in_world(
         platform_args: impl Into<Arc<[String]>>,
@@ -141,6 +154,9 @@ impl Agent {
 
         let mut event_loop = Box::new(EventLoop::default());
         event_loop.configure(options.scheduler.clone())?;
+
+        let execution_context_id = Self::event_loop_execution_context_id(runtime_id, agent_id);
+        let _ = event_loop.initialize_execution_context(execution_context_id);
 
         // agent state
         Ok(Self {

@@ -7,6 +7,7 @@ use crate::host::core::{HostState, HostStateRegistration, not_supported, registe
 use crate::host::{HostAdapter, HostLifecycleState, HostPlatform, HostPollOutcome};
 use crate::runtime::capability::PlatformCapabilitySet;
 use crate::runtime::poller::HostPollerWakeHandle;
+use crate::runtime::world::RuntimeId;
 
 /// Unsupported host implementation.
 #[derive(Debug)]
@@ -19,10 +20,10 @@ pub(crate) struct UnsupportedHost {
 
 impl UnsupportedHost {
     /// Create one unsupported host.
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(runtime_id: RuntimeId) -> Self {
         let state = Arc::new(HostState::new());
         state.push_lifecycle(HostLifecycleState::Initializing);
-        let registration = register_host_state(HostPlatform::Universal, &state, None);
+        let registration = register_host_state(HostPlatform::Universal, runtime_id, &state, None);
 
         Self {
             state,
@@ -48,28 +49,16 @@ impl HostAdapter for UnsupportedHost {
         self.state.configure_host_options(host_options);
     }
 
-    fn callback_runtime_id(&self) -> Option<u64> {
-        Some(self.registration.runtime_id())
+    fn is_process_main_context(&self) -> bool {
+        false
     }
 
-    fn pump_pending_thread_messages(&self, ignore_quit_message: bool) -> RuntimeResult<bool> {
-        let _ = ignore_quit_message;
-        Err(not_supported(
-            "runtime.host.platform.pumpPendingThreadMessages",
-        ))
-    }
-
-    fn run_blocking_thread_message_loop(&self) -> RuntimeResult<()> {
-        Err(not_supported(
-            "runtime.host.platform.runBlockingThreadMessageLoop",
-        ))
+    fn process_ingress(&self) -> RuntimeResult<bool> {
+        // service no native ingress on this host implementation
+        Ok(false)
     }
 
     fn host_capabilities(&self) -> PlatformCapabilitySet {
         PlatformCapabilitySet::new()
-    }
-
-    fn state(&self) -> &Arc<HostState> {
-        &self.state
     }
 }

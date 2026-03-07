@@ -209,7 +209,12 @@ pub struct PlatformDebugOptions {}
 
 /// Display runtime options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformDisplayOptions {}
+pub struct PlatformDisplayOptions {
+    /// Optional display event queue capacity override.
+    pub event_queue_capacity: Option<u64>,
+    /// Optional display stream wait slice in nanoseconds.
+    pub stream_wait_slice_ns: Option<u64>,
+}
 
 /// Error runtime options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -1026,11 +1031,26 @@ impl PlatformDebugOptionsJson {
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct PlatformDisplayOptionsJson {}
+pub struct PlatformDisplayOptionsJson {
+    /// Optional display event queue capacity override.
+    pub event_queue_capacity: Option<u64>,
+    /// Optional display stream wait slice in nanoseconds.
+    pub stream_wait_slice_ns: Option<u64>,
+}
 
 impl PlatformDisplayOptionsJson {
     /// Apply display overrides to a base set of options.
-    pub fn apply_to(&self, _options: &mut PlatformDisplayOptions) {}
+    pub fn apply_to(&self, options: &mut PlatformDisplayOptions) {
+        // apply queue-capacity overrides
+        if let Some(event_queue_capacity) = self.event_queue_capacity {
+            options.event_queue_capacity = Some(event_queue_capacity);
+        }
+
+        // apply wait-slice overrides
+        if let Some(stream_wait_slice_ns) = self.stream_wait_slice_ns {
+            options.stream_wait_slice_ns = Some(stream_wait_slice_ns);
+        }
+    }
 }
 
 /// Error runtime options.

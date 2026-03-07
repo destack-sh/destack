@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::{HostPlatform, HostState, HostWindowEvent, host_state_for_runtime};
 use crate::host::{HostLifecycleState, HostMemoryPressureLevel, HostPowerMode, HostThermalState};
+use crate::runtime::world::RuntimeId;
 
 /// Android activity lifecycle transitions from native callbacks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -23,7 +24,7 @@ pub enum AndroidActivityLifecycle {
 
 /// Return the active Android host state for this process.
 fn android_host_bridge(runtime_id: u64) -> RuntimeResult<Arc<HostState>> {
-    host_state_for_runtime(runtime_id, HostPlatform::Android)
+    host_state_for_runtime(RuntimeId(runtime_id), HostPlatform::Android)
 }
 
 /// Submit one Android activity lifecycle callback.

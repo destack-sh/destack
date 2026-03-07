@@ -14,8 +14,8 @@ use crate::platform::{
     abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
-    BindingScope, NativeBinding, NativeBindingSet, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
@@ -463,7 +463,9 @@ pub const DEBUG_CORE_BREAK_NOW: BindingDescriptor =
         &["debug.inspect"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("debug")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -490,7 +492,9 @@ pub const DEBUG_CORE_MARK: BindingDescriptor =
         &["debug.trace"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("debug")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -516,7 +520,9 @@ pub const DEBUG_INSPECTOR_ENDPOINT: BindingDescriptor = BindingDescriptor::exter
     &["debug.inspect"],
     BindingScope::Runtime,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("debug")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.inspector.start.
@@ -528,7 +534,9 @@ pub const DEBUG_INSPECTOR_START: BindingDescriptor = BindingDescriptor::external
     &["debug.inspect"],
     BindingScope::Runtime,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("debug")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.inspector.stop.
@@ -541,7 +549,9 @@ pub const DEBUG_INSPECTOR_STOP: BindingDescriptor =
         &["debug.inspect"],
         BindingScope::Runtime,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("debug")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -568,7 +578,9 @@ pub const DEBUG_PROFILE_SNAPSHOT: BindingDescriptor =
         &["debug.profile"],
         BindingScope::Runtime,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("debug")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -595,7 +607,9 @@ pub const DEBUG_PROFILE_START: BindingDescriptor =
         &["debug.profile"],
         BindingScope::Runtime,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("debug")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -622,7 +636,9 @@ pub const DEBUG_PROFILE_STOP: BindingDescriptor =
         &["debug.profile"],
         BindingScope::Runtime,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("debug")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -648,7 +664,9 @@ pub const DEBUG_TRACE_EMIT: BindingDescriptor = BindingDescriptor::external_with
     &["debug.trace"],
     BindingScope::Runtime,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("debug")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.trace.start.
@@ -660,7 +678,9 @@ pub const DEBUG_TRACE_START: BindingDescriptor = BindingDescriptor::external_wit
     &["debug.trace"],
     BindingScope::Runtime,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("debug")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.trace.stop.
@@ -673,7 +693,9 @@ pub const DEBUG_TRACE_STOP: BindingDescriptor =
         &["debug.trace"],
         BindingScope::Runtime,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("debug")
     .with_host_platforms(&[
         "android",
         "dragonfly",

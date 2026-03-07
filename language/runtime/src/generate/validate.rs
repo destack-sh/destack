@@ -133,8 +133,8 @@ mod tests {
     use crate::error::GeneratorValidationIssue;
     use crate::model::{
         BindingCatalog, BindingEntry, BindingTaggedUnionVariant, BindingType,
-        CatalogBindingBlocking, CatalogBindingReplayKind, CatalogBindingScope,
-        CatalogBindingSimulation, CatalogEffectClass, CatalogReplayPayload,
+        CatalogBindingAffinity, CatalogBindingBlocking, CatalogBindingReplayKind,
+        CatalogBindingScope, CatalogBindingSimulation, CatalogEffectClass, CatalogReplayPayload,
     };
 
     use super::collect_validation_issues;
@@ -229,6 +229,7 @@ mod tests {
             host_platforms: vec!["linux".to_string()],
             scope,
             blocking: CatalogBindingBlocking::Never,
+            affinity: CatalogBindingAffinity::Any,
             simulation: CatalogBindingSimulation::Unsupported,
         }
     }

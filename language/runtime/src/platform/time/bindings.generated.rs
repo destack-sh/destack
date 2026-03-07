@@ -12,8 +12,8 @@ use crate::platform::time::{
 };
 use crate::platform::{PlatformError, RuntimeStatus, VmAggregateCodec, abi as platform_abi};
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
-    BindingScope, NativeBinding, NativeBindingSet, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, native_call,
 };
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::replay::EntropyKind;
@@ -792,7 +792,9 @@ pub const TIME_CLOCK_METADATA: BindingDescriptor =
         &["time.monotonic.read"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("time")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -818,7 +820,9 @@ pub const TIME_CLOCK_MONO_NS: BindingDescriptor =
         &["time.monotonic.read"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("time")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -844,7 +848,9 @@ pub const TIME_CLOCK_NOW_NS: BindingDescriptor =
         &["time.monotonic.read"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("time")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -870,7 +876,9 @@ pub const TIME_CLOCK_PROCESS_CPU_NS: BindingDescriptor =
         &["time.monotonic.read"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("time")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -896,7 +904,9 @@ pub const TIME_CLOCK_THREAD_CPU_NS: BindingDescriptor =
         &["time.monotonic.read"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("time")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -922,7 +932,9 @@ pub const TIME_CLOCK_WALL_NS: BindingDescriptor =
         &["time.wall.read"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("time")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -948,7 +960,9 @@ pub const TIME_SLEEP_NS: BindingDescriptor =
         &["time.wall.sleep"],
         BindingScope::Runtime,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("time")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -973,7 +987,9 @@ pub const TIME_SLEEP_ON_NS: BindingDescriptor = BindingDescriptor::external_with
     &["time.wall.sleep"],
     BindingScope::Runtime,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("time")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.time.sleep.untilNs.
@@ -986,7 +1002,9 @@ pub const TIME_SLEEP_UNTIL_NS: BindingDescriptor =
         &["time.wall.sleep"],
         BindingScope::Runtime,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("time")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1011,7 +1029,9 @@ pub const TIME_SLEEP_UNTIL_ON_NS: BindingDescriptor = BindingDescriptor::externa
     &["time.wall.sleep"],
     BindingScope::Runtime,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("time")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.time.timer.at.
@@ -1023,7 +1043,9 @@ pub const TIME_TIMER_AT: BindingDescriptor = BindingDescriptor::external_with_re
     &["time.timer"],
     BindingScope::Runtime,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("time")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.time.timer.cancel.
@@ -1036,7 +1058,9 @@ pub const TIME_TIMER_CANCEL: BindingDescriptor =
         &["time.timer"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("time")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1062,7 +1086,9 @@ pub const TIME_TIMER_INTERVAL: BindingDescriptor = BindingDescriptor::external_w
     &["time.timer"],
     BindingScope::Runtime,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("time")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.time.timer.isActive.
@@ -1075,7 +1101,9 @@ pub const TIME_TIMER_IS_ACTIVE: BindingDescriptor =
         &["time.timer"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("time")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1101,7 +1129,9 @@ pub const TIME_TIMER_ONCE: BindingDescriptor = BindingDescriptor::external_with_
     &["time.timer"],
     BindingScope::Runtime,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("time")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.time.timer.pause.
@@ -1114,7 +1144,9 @@ pub const TIME_TIMER_PAUSE: BindingDescriptor =
         &["time.timer"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("time")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1141,7 +1173,9 @@ pub const TIME_TIMER_REMAINING_NS: BindingDescriptor =
         &["time.timer"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("time")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1167,7 +1201,9 @@ pub const TIME_TIMER_RESET: BindingDescriptor = BindingDescriptor::external_with
     &["time.timer"],
     BindingScope::Runtime,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("time")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.time.timer.resume.
@@ -1180,7 +1216,9 @@ pub const TIME_TIMER_RESUME: BindingDescriptor =
         &["time.timer"],
         BindingScope::Runtime,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("time")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -1206,7 +1244,9 @@ pub const TIME_TIMER_UPDATE_INTERVAL: BindingDescriptor = BindingDescriptor::ext
     &["time.timer"],
     BindingScope::Runtime,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("time")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptors for time.

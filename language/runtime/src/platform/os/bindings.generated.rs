@@ -75,8 +75,8 @@ use crate::platform::{
     VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
-    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
@@ -4899,7 +4899,9 @@ pub const OS_BACKGROUND_COMPLETE: BindingDescriptor = BindingDescriptor::externa
     &["os.background.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.background.event.close.
@@ -4911,7 +4913,9 @@ pub const OS_BACKGROUND_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::exte
     &["os.background.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.background.event.open.
@@ -4923,7 +4927,9 @@ pub const OS_BACKGROUND_EVENT_OPEN: BindingDescriptor = BindingDescriptor::exter
     &["os.background.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.background.event.read.
@@ -4935,7 +4941,9 @@ pub const OS_BACKGROUND_EVENT_READ: BindingDescriptor = BindingDescriptor::exter
     &["os.background.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.background.event.tryRead.
@@ -4947,7 +4955,9 @@ pub const OS_BACKGROUND_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::e
     &["os.background.read"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.background.list.
@@ -4960,7 +4970,9 @@ pub const OS_BACKGROUND_LIST: BindingDescriptor =
         &["os.background.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -4985,7 +4997,9 @@ pub const OS_BACKGROUND_REGISTER: BindingDescriptor = BindingDescriptor::externa
     &["os.background.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.background.status.
@@ -4998,7 +5012,9 @@ pub const OS_BACKGROUND_STATUS: BindingDescriptor =
         &["os.background.read"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5024,7 +5040,9 @@ pub const OS_BACKGROUND_TRIGGER_TEST: BindingDescriptor =
         &["os.background.control"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5050,7 +5068,9 @@ pub const OS_BACKGROUND_UNREGISTER: BindingDescriptor =
         &["os.background.control"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5075,7 +5095,9 @@ pub const OS_CALENDAR_EVENT_CREATE: BindingDescriptor = BindingDescriptor::exter
     &["os.calendar.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.calendar.eventDelete.
@@ -5088,7 +5110,9 @@ pub const OS_CALENDAR_EVENT_DELETE: BindingDescriptor =
         &["os.calendar.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5113,7 +5137,9 @@ pub const OS_CALENDAR_EVENT_LIST: BindingDescriptor = BindingDescriptor::externa
     &["os.calendar.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.calendar.eventRead.
@@ -5126,7 +5152,9 @@ pub const OS_CALENDAR_EVENT_READ: BindingDescriptor =
         &["os.calendar.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5151,7 +5179,9 @@ pub const OS_CALENDAR_EVENT_UPDATE: BindingDescriptor = BindingDescriptor::exter
     &["os.calendar.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.calendar.list.
@@ -5164,7 +5194,9 @@ pub const OS_CALENDAR_LIST: BindingDescriptor =
         &["os.calendar.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5190,7 +5222,9 @@ pub const OS_CLIPBOARD_CLEAR: BindingDescriptor =
         &["os.clipboard.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5216,7 +5250,9 @@ pub const OS_CLIPBOARD_HAS_TEXT: BindingDescriptor =
         &["os.clipboard.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5241,7 +5277,9 @@ pub const OS_CLIPBOARD_READ_BYTES: BindingDescriptor = BindingDescriptor::extern
     &["os.clipboard.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.clipboard.readText.
@@ -5254,7 +5292,9 @@ pub const OS_CLIPBOARD_READ_TEXT: BindingDescriptor =
         &["os.clipboard.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5280,7 +5320,9 @@ pub const OS_CLIPBOARD_SEQUENCE: BindingDescriptor =
         &["os.clipboard.read"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5305,7 +5347,9 @@ pub const OS_CLIPBOARD_WRITE_BYTES: BindingDescriptor = BindingDescriptor::exter
     &["os.clipboard.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.clipboard.writeText.
@@ -5318,7 +5362,9 @@ pub const OS_CLIPBOARD_WRITE_TEXT: BindingDescriptor =
         &["os.clipboard.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5344,7 +5390,9 @@ pub const OS_CONTACT_CREATE: BindingDescriptor =
         &["os.contact.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5370,7 +5418,9 @@ pub const OS_CONTACT_DELETE: BindingDescriptor =
         &["os.contact.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5396,7 +5446,9 @@ pub const OS_CONTACT_LIST: BindingDescriptor =
         &["os.contact.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5422,7 +5474,9 @@ pub const OS_CONTACT_READ: BindingDescriptor =
         &["os.contact.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5447,7 +5501,9 @@ pub const OS_CONTACT_SEARCH: BindingDescriptor = BindingDescriptor::external_wit
     &["os.contact.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.contact.update.
@@ -5459,7 +5515,9 @@ pub const OS_CONTACT_UPDATE: BindingDescriptor = BindingDescriptor::external_wit
     &["os.contact.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.authenticate.
@@ -5471,7 +5529,9 @@ pub const OS_CREDENTIALS_AUTHENTICATE: BindingDescriptor = BindingDescriptor::ex
     &["os.credentials.auth"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.contains.
@@ -5483,7 +5543,9 @@ pub const OS_CREDENTIALS_CONTAINS: BindingDescriptor = BindingDescriptor::extern
     &["os.credentials.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.delete.
@@ -5495,7 +5557,9 @@ pub const OS_CREDENTIALS_DELETE: BindingDescriptor = BindingDescriptor::external
     &["os.credentials.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.read.
@@ -5507,7 +5571,9 @@ pub const OS_CREDENTIALS_READ: BindingDescriptor = BindingDescriptor::external_w
     &["os.credentials.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.write.
@@ -5519,7 +5585,9 @@ pub const OS_CREDENTIALS_WRITE: BindingDescriptor = BindingDescriptor::external_
     &["os.credentials.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.document.close.
@@ -5532,7 +5600,9 @@ pub const OS_DOCUMENT_CLOSE: BindingDescriptor =
         &["os.document.control"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5558,7 +5628,9 @@ pub const OS_DOCUMENT_FLUSH: BindingDescriptor =
         &["os.document.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5583,7 +5655,9 @@ pub const OS_DOCUMENT_OPEN: BindingDescriptor = BindingDescriptor::external_with
     &["os.document.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.document.pick.
@@ -5595,7 +5669,9 @@ pub const OS_DOCUMENT_PICK: BindingDescriptor = BindingDescriptor::external_with
     &["os.document.pick"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.document.read.
@@ -5607,7 +5683,9 @@ pub const OS_DOCUMENT_READ: BindingDescriptor = BindingDescriptor::external_with
     &["os.document.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.document.tryRead.
@@ -5619,7 +5697,9 @@ pub const OS_DOCUMENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_
     &["os.document.read"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.document.write.
@@ -5631,7 +5711,9 @@ pub const OS_DOCUMENT_WRITE: BindingDescriptor = BindingDescriptor::external_wit
     &["os.document.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.host.identity.
@@ -5644,7 +5726,9 @@ pub const OS_HOST_IDENTITY: BindingDescriptor =
         &["os.hostname", "os.sysinfo"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5670,7 +5754,9 @@ pub const OS_INFO_BOOT_TIME_UNIX_NS: BindingDescriptor =
         &["os.sysinfo"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5696,7 +5782,9 @@ pub const OS_INFO_LOAD_AVERAGE: BindingDescriptor =
         &["os.sysinfo"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5721,7 +5809,9 @@ pub const OS_INFO_SYSTEM_SNAPSHOT: BindingDescriptor =
         &["os.sysinfo"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5747,7 +5837,9 @@ pub const OS_INFO_UPTIME_NS: BindingDescriptor =
         &["os.sysinfo"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5773,7 +5865,9 @@ pub const OS_INTENT_CAN_OPEN_URL: BindingDescriptor =
         &["os.intent.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5799,7 +5893,9 @@ pub const OS_INTENT_CLOSE: BindingDescriptor =
         &["os.intent.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5824,7 +5920,9 @@ pub const OS_INTENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_r
     &["os.intent.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.intent.openPath.
@@ -5837,7 +5935,9 @@ pub const OS_INTENT_OPEN_PATH: BindingDescriptor =
         &["os.intent.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5863,7 +5963,9 @@ pub const OS_INTENT_OPEN_URL: BindingDescriptor =
         &["os.intent.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5888,7 +5990,9 @@ pub const OS_INTENT_READ: BindingDescriptor = BindingDescriptor::external_with_r
     &["os.intent.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.intent.sharePaths.
@@ -5900,7 +6004,9 @@ pub const OS_INTENT_SHARE_PATHS: BindingDescriptor = BindingDescriptor::external
     &["os.intent.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.intent.shareText.
@@ -5912,7 +6018,9 @@ pub const OS_INTENT_SHARE_TEXT: BindingDescriptor = BindingDescriptor::external_
     &["os.intent.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.intent.tryRead.
@@ -5925,7 +6033,9 @@ pub const OS_INTENT_TRY_READ: BindingDescriptor =
         &["os.intent.read"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5951,7 +6061,9 @@ pub const OS_LIFECYCLE_CLOSE: BindingDescriptor =
         &["os.lifecycle.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -5977,7 +6089,9 @@ pub const OS_LIFECYCLE_OPEN: BindingDescriptor =
         &["os.lifecycle.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6002,7 +6116,9 @@ pub const OS_LIFECYCLE_READ: BindingDescriptor = BindingDescriptor::external_wit
     &["os.lifecycle.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.lifecycle.state.
@@ -6015,7 +6131,9 @@ pub const OS_LIFECYCLE_STATE: BindingDescriptor =
         &["os.lifecycle.read"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6040,7 +6158,9 @@ pub const OS_LIFECYCLE_TRY_READ: BindingDescriptor = BindingDescriptor::external
     &["os.lifecycle.read"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.location.lastKnown.
@@ -6053,7 +6173,9 @@ pub const OS_LOCATION_LAST_KNOWN: BindingDescriptor =
         &["os.location.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6079,7 +6201,9 @@ pub const OS_LOCATION_SERVICES_ENABLED: BindingDescriptor =
         &["os.location.read"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6104,7 +6228,9 @@ pub const OS_LOCATION_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::extern
     &["os.location.watch"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.location.watchOpen.
@@ -6116,7 +6242,9 @@ pub const OS_LOCATION_WATCH_OPEN: BindingDescriptor = BindingDescriptor::externa
     &["os.location.watch"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.location.watchRead.
@@ -6128,7 +6256,9 @@ pub const OS_LOCATION_WATCH_READ: BindingDescriptor = BindingDescriptor::externa
     &["os.location.watch"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.location.watchTryRead.
@@ -6140,7 +6270,9 @@ pub const OS_LOCATION_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::ext
     &["os.location.watch"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.media.delete.
@@ -6153,7 +6285,9 @@ pub const OS_MEDIA_DELETE: BindingDescriptor =
         &["os.media.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6178,7 +6312,9 @@ pub const OS_MEDIA_IMPORT_PATH: BindingDescriptor = BindingDescriptor::external_
     &["os.media.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.media.list.
@@ -6191,7 +6327,9 @@ pub const OS_MEDIA_LIST: BindingDescriptor =
         &["os.media.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6217,7 +6355,9 @@ pub const OS_MEDIA_READ: BindingDescriptor =
         &["os.media.read"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6242,7 +6382,9 @@ pub const OS_MOUNT_ADD: BindingDescriptor = BindingDescriptor::external_with_req
     &["os.mount"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.mount.list.
@@ -6255,7 +6397,9 @@ pub const OS_MOUNT_LIST: BindingDescriptor =
         &["os.mount"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6281,7 +6425,9 @@ pub const OS_MOUNT_REMOVE: BindingDescriptor =
         &["os.mount"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6307,7 +6453,9 @@ pub const OS_NETWORK_STATE: BindingDescriptor =
         &["os.network.read"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6332,7 +6480,9 @@ pub const OS_NETWORK_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::externa
     &["os.network.watch"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.network.watchOpen.
@@ -6345,7 +6495,9 @@ pub const OS_NETWORK_WATCH_OPEN: BindingDescriptor =
         &["os.network.watch"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6370,7 +6522,9 @@ pub const OS_NETWORK_WATCH_READ: BindingDescriptor = BindingDescriptor::external
     &["os.network.watch"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.network.watchTryRead.
@@ -6382,7 +6536,9 @@ pub const OS_NETWORK_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::exte
     &["os.network.watch"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.cancel.
@@ -6395,7 +6551,9 @@ pub const OS_NOTIFICATION_CANCEL: BindingDescriptor =
         &["os.notification.post"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6421,7 +6579,9 @@ pub const OS_NOTIFICATION_CANCEL_ALL: BindingDescriptor =
         &["os.notification.post"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6447,7 +6607,9 @@ pub const OS_NOTIFICATION_CATEGORY_LIST: BindingDescriptor =
         &["os.notification.post"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6472,7 +6634,9 @@ pub const OS_NOTIFICATION_CATEGORY_SET: BindingDescriptor = BindingDescriptor::e
     &["os.notification.post"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.event.close.
@@ -6484,7 +6648,9 @@ pub const OS_NOTIFICATION_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::ex
     &["os.notification.permission"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.event.open.
@@ -6496,7 +6662,9 @@ pub const OS_NOTIFICATION_EVENT_OPEN: BindingDescriptor = BindingDescriptor::ext
     &["os.notification.permission"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.event.read.
@@ -6508,7 +6676,9 @@ pub const OS_NOTIFICATION_EVENT_READ: BindingDescriptor = BindingDescriptor::ext
     &["os.notification.permission"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.event.tryRead.
@@ -6520,7 +6690,9 @@ pub const OS_NOTIFICATION_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor:
     &["os.notification.permission"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.pendingCancel.
@@ -6533,7 +6705,9 @@ pub const OS_NOTIFICATION_PENDING_CANCEL: BindingDescriptor =
         &["os.notification.post"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6559,7 +6733,9 @@ pub const OS_NOTIFICATION_PENDING_CANCEL_ALL: BindingDescriptor =
         &["os.notification.post"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6584,7 +6760,9 @@ pub const OS_NOTIFICATION_PENDING_LIST: BindingDescriptor = BindingDescriptor::e
     &["os.notification.post"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.permissionState.
@@ -6596,7 +6774,9 @@ pub const OS_NOTIFICATION_PERMISSION_STATE: BindingDescriptor = BindingDescripto
     &["os.notification.permission"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.post.
@@ -6608,7 +6788,9 @@ pub const OS_NOTIFICATION_POST: BindingDescriptor = BindingDescriptor::external_
     &["os.notification.post"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.requestPermission.
@@ -6620,7 +6802,9 @@ pub const OS_NOTIFICATION_REQUEST_PERMISSION: BindingDescriptor = BindingDescrip
     &["os.notification.permission"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.schedule.
@@ -6632,7 +6816,9 @@ pub const OS_NOTIFICATION_SCHEDULE: BindingDescriptor = BindingDescriptor::exter
     &["os.notification.post"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.permission.openSettings.
@@ -6645,7 +6831,9 @@ pub const OS_PERMISSION_OPEN_SETTINGS: BindingDescriptor =
         &["os.permission.request"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6670,7 +6858,9 @@ pub const OS_PERMISSION_REQUEST: BindingDescriptor = BindingDescriptor::external
     &["os.permission.request"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.permission.requestMany.
@@ -6682,7 +6872,9 @@ pub const OS_PERMISSION_REQUEST_MANY: BindingDescriptor = BindingDescriptor::ext
     &["os.permission.request"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.permission.state.
@@ -6694,7 +6886,9 @@ pub const OS_PERMISSION_STATE: BindingDescriptor = BindingDescriptor::external_w
     &["os.permission.read"],
     BindingScope::Host,
     BindingBlocking::Never,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.permission.stateMany.
@@ -6706,7 +6900,9 @@ pub const OS_PERMISSION_STATE_MANY: BindingDescriptor = BindingDescriptor::exter
     &["os.permission.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.power.state.
@@ -6719,7 +6915,9 @@ pub const OS_POWER_STATE: BindingDescriptor =
         &["os.power"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -6745,7 +6943,9 @@ pub const OS_POWER_SUSPEND: BindingDescriptor =
         &["os.power"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("os")
     .with_host_platforms(&[
         "android",
         "dragonfly",

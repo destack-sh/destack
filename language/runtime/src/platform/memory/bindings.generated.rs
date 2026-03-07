@@ -12,8 +12,8 @@ use crate::platform::memory::{
 };
 use crate::platform::{PlatformError, RuntimeStatus, VmAggregateCodec, abi as platform_abi};
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
-    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
@@ -599,7 +599,9 @@ pub const MEMORY_ADVISE_ADVISE_RANGE: BindingDescriptor = BindingDescriptor::ext
     &["memory.advise"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("memory")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.advise.discard.
@@ -612,7 +614,9 @@ pub const MEMORY_ADVISE_DISCARD: BindingDescriptor =
         &["memory.advise"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("memory")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -637,7 +641,9 @@ pub const MEMORY_ADVISE_HUGE_PAGE: BindingDescriptor = BindingDescriptor::extern
     &["memory.huge.page"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("memory")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.lock.lockRange.
@@ -650,7 +656,9 @@ pub const MEMORY_LOCK_LOCK_RANGE: BindingDescriptor =
         &["memory.lock"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("memory")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -676,7 +684,9 @@ pub const MEMORY_LOCK_UNLOCK: BindingDescriptor =
         &["memory.lock"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("memory")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -701,7 +711,9 @@ pub const MEMORY_MAP_COMMIT: BindingDescriptor = BindingDescriptor::external_wit
     &["memory.map"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("memory")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.map.decommit.
@@ -714,7 +726,9 @@ pub const MEMORY_MAP_DECOMMIT: BindingDescriptor =
         &["memory.map"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("memory")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -739,7 +753,9 @@ pub const MEMORY_MAP_NUMA_BIND: BindingDescriptor = BindingDescriptor::external_
     &["memory.numa"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("memory")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.map.release.
@@ -752,7 +768,9 @@ pub const MEMORY_MAP_RELEASE: BindingDescriptor =
         &["memory.map"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("memory")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -777,7 +795,9 @@ pub const MEMORY_MAP_RESERVE: BindingDescriptor = BindingDescriptor::external_wi
     &["memory.map"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("memory")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.protect.flushInstructionCache.
@@ -789,7 +809,9 @@ pub const MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE: BindingDescriptor = BindingDes
     &["memory.execute"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("memory")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.protect.protectRange.
@@ -801,7 +823,9 @@ pub const MEMORY_PROTECT_PROTECT_RANGE: BindingDescriptor = BindingDescriptor::e
     &["memory.protect"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("memory")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.protect.remap.
@@ -813,7 +837,9 @@ pub const MEMORY_PROTECT_REMAP: BindingDescriptor = BindingDescriptor::external_
     &["memory.protect"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("memory")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.query.allocationGranularity.
@@ -826,7 +852,9 @@ pub const MEMORY_QUERY_ALLOCATION_GRANULARITY: BindingDescriptor =
         &["memory.query"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("memory")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -852,7 +880,9 @@ pub const MEMORY_QUERY_HUGE_PAGE_SIZE: BindingDescriptor =
         &["memory.query"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("memory")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -878,7 +908,9 @@ pub const MEMORY_QUERY_PAGE_SIZE: BindingDescriptor =
         &["memory.query"],
         BindingScope::Host,
         BindingBlocking::Never,
+        BindingAffinity::Any,
     )
+    .with_namespace("memory")
     .with_host_platforms(&[
         "android",
         "dragonfly",

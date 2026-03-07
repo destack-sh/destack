@@ -6,6 +6,7 @@ use crate::host::core::{
     HostMemoryPressureLevel, HostPlatform, HostPowerMode, HostState, HostThermalState,
     HostWindowEvent, host_state_for_runtime,
 };
+use crate::runtime::world::RuntimeId;
 
 /// Unix application lifecycle transitions from native callbacks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -24,7 +25,7 @@ pub enum UnixApplicationLifecycle {
 
 /// Return the active Unix host state for this process and platform.
 fn unix_host_bridge(runtime_id: u64, platform: HostPlatform) -> RuntimeResult<Arc<HostState>> {
-    host_state_for_runtime(runtime_id, platform)
+    host_state_for_runtime(RuntimeId(runtime_id), platform)
 }
 
 /// Submit one Unix application lifecycle callback.

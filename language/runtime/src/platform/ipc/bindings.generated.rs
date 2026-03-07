@@ -16,8 +16,8 @@ use crate::platform::{
     abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
-    BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::vm_binding_set;
 use destack_vm as vm;
@@ -841,7 +841,9 @@ pub const IPC_MESSAGE_QUEUE_CLOSE: BindingDescriptor = BindingDescriptor::extern
     &["ipc.message"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ipc")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.message.queueOpen.
@@ -853,7 +855,9 @@ pub const IPC_MESSAGE_QUEUE_OPEN: BindingDescriptor = BindingDescriptor::externa
     &["ipc.message"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ipc")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.message.queueReceive.
@@ -865,7 +869,9 @@ pub const IPC_MESSAGE_QUEUE_RECEIVE: BindingDescriptor = BindingDescriptor::exte
     &["ipc.message"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ipc")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.message.queueSend.
@@ -877,7 +883,9 @@ pub const IPC_MESSAGE_QUEUE_SEND: BindingDescriptor = BindingDescriptor::externa
     &["ipc.message"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ipc")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.message.queueUnlink.
@@ -890,7 +898,9 @@ pub const IPC_MESSAGE_QUEUE_UNLINK: BindingDescriptor =
         &["ipc.message"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("ipc")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -916,7 +926,9 @@ pub const IPC_PIPE_CLOSE: BindingDescriptor =
         &["ipc.pipe"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("ipc")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -942,7 +954,9 @@ pub const IPC_PIPE_OPEN: BindingDescriptor =
         &["ipc.pipe"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::Any,
     )
+    .with_namespace("ipc")
     .with_host_platforms(&[
         "android",
         "dragonfly",
@@ -967,7 +981,9 @@ pub const IPC_PIPE_READ: BindingDescriptor = BindingDescriptor::external_with_re
     &["ipc.pipe"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ipc")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.pipe.write.
@@ -979,7 +995,9 @@ pub const IPC_PIPE_WRITE: BindingDescriptor = BindingDescriptor::external_with_r
     &["ipc.pipe"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ipc")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.close.
@@ -991,7 +1009,9 @@ pub const IPC_SHARED_MEMORY_CLOSE: BindingDescriptor = BindingDescriptor::extern
     &["ipc.shared.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ipc")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.create.
@@ -1003,7 +1023,9 @@ pub const IPC_SHARED_MEMORY_CREATE: BindingDescriptor = BindingDescriptor::exter
     &["ipc.shared.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ipc")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.map.
@@ -1015,7 +1037,9 @@ pub const IPC_SHARED_MEMORY_MAP: BindingDescriptor = BindingDescriptor::external
     &["ipc.shared.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ipc")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.open.
@@ -1027,7 +1051,9 @@ pub const IPC_SHARED_MEMORY_OPEN: BindingDescriptor = BindingDescriptor::externa
     &["ipc.shared.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ipc")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.unmap.
@@ -1039,7 +1065,9 @@ pub const IPC_SHARED_MEMORY_UNMAP: BindingDescriptor = BindingDescriptor::extern
     &["ipc.shared.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ipc")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.futexWait.
@@ -1051,7 +1079,9 @@ pub const IPC_SYNC_FUTEX_WAIT: BindingDescriptor = BindingDescriptor::external_w
     &["ipc.futex"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ipc")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.futexWake.
@@ -1063,7 +1093,9 @@ pub const IPC_SYNC_FUTEX_WAKE: BindingDescriptor = BindingDescriptor::external_w
     &["ipc.futex"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ipc")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.semaphoreCreate.
@@ -1075,7 +1107,9 @@ pub const IPC_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::exte
     &["ipc.semaphore"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ipc")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.semaphorePost.
@@ -1087,7 +1121,9 @@ pub const IPC_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::extern
     &["ipc.semaphore"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ipc")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.semaphoreWait.
@@ -1099,7 +1135,9 @@ pub const IPC_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::extern
     &["ipc.semaphore"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ipc")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.unix.receive.
@@ -1111,7 +1149,9 @@ pub const IPC_UNIX_RECEIVE: BindingDescriptor = BindingDescriptor::external_with
     &["ipc.unix", "ipc.fd.pass"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ipc")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.ipc.unix.send.
@@ -1123,7 +1163,9 @@ pub const IPC_UNIX_SEND: BindingDescriptor = BindingDescriptor::external_with_re
     &["ipc.unix", "ipc.fd.pass"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+    BindingAffinity::Any,
 )
+    .with_namespace("ipc")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptors for ipc.

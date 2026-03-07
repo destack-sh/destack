@@ -1,4 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::resource::ensure_resource_affinity;
 use crate::platform::{PlatformError, PlatformErrorCode, resource};
 use crate::runtime::BindingCallContext;
 
@@ -46,6 +47,9 @@ pub(crate) unsafe fn destack_resource_close(
     binding: &BindingCallContext,
     id: resource::ResourceId,
 ) -> RuntimeResult<()> {
+    // enforce any stored resource-affinity requirement before closing
+    ensure_resource_affinity(binding, id, "destack.resource.id.close")?;
+
     // remove the entry and run finalization
     let removed =
         binding
@@ -84,6 +88,9 @@ pub(crate) unsafe fn destack_resource_kind(
     // validate pointer before writing
     unsafe { check_out_pointer(out, "out")? };
 
+    // enforce any stored resource-affinity requirement before resolving metadata
+    ensure_resource_affinity(binding, id, "destack.resource.id.kind")?;
+
     // load the kind for the requested resource
     let kind = binding
         .agent()
@@ -120,6 +127,9 @@ pub(crate) unsafe fn destack_resource_remove(
     binding: &BindingCallContext,
     id: resource::ResourceId,
 ) -> RuntimeResult<()> {
+    // enforce any stored resource-affinity requirement before removal
+    ensure_resource_affinity(binding, id, "destack.resource.id.remove")?;
+
     // remove the entry and run finalization
     let removed =
         binding
@@ -155,6 +165,9 @@ pub(crate) unsafe fn destack_resource_transfer(
     id: resource::ResourceId,
     ownership: resource::ResourceOwnership,
 ) -> RuntimeResult<()> {
+    // enforce any stored resource-affinity requirement before transfer
+    ensure_resource_affinity(binding, id, "destack.resource.id.transfer")?;
+
     // validate that the source resource exists
     let exists = binding.agent().resources.contains(id);
     if !exists {

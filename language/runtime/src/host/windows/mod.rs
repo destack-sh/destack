@@ -31,3 +31,5 @@ pub use ffi::{
     destack_host_windows_notify_window_focus_changed, destack_host_windows_notify_window_resized,
     destack_host_windows_notify_window_terminated,
 };
+#[cfg(windows)]
+pub(crate) use message::process_ingress_loop;

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_workspace::{Platform, PlatformHostOptions};
 
-use super::{HostEvent, HostState};
+use super::HostEvent;
 use crate::diagnostic::RuntimeResult;
 use crate::runtime::capability::PlatformCapabilitySet;
 use crate::runtime::poller::HostPollerWakeHandle;
@@ -33,18 +33,12 @@ pub trait HostAdapter: std::fmt::Debug + Send + Sync {
     /// Configure host integration options on this host.
     fn configure_host_options(&self, host_options: &PlatformHostOptions);
 
-    /// Return the callback runtime id used by native host callback routing.
-    fn callback_runtime_id(&self) -> Option<u64>;
+    /// Return whether the current execution context is the process main context.
+    fn is_process_main_context(&self) -> bool;
 
-    /// Drain pending platform thread messages without blocking.
-    fn pump_pending_thread_messages(&self, ignore_quit_message: bool) -> RuntimeResult<bool>;
-
-    /// Run one blocking platform thread message loop.
-    fn run_blocking_thread_message_loop(&self) -> RuntimeResult<()>;
+    /// Service immediately ready native host ingress without blocking.
+    fn process_ingress(&self) -> RuntimeResult<bool>;
 
     /// Return host platform capabilities for this host target.
     fn host_capabilities(&self) -> PlatformCapabilitySet;
-
-    /// Return the shared host state for this host.
-    fn state(&self) -> &Arc<HostState>;
 }
