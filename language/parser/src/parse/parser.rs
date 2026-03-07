@@ -21,6 +21,10 @@ use crate::parse::timing::ParserTimingScope;
 use crate::parse::timing::ParserTimings;
 use crate::{ParseError, ParseResult};
 
+const ESTIMATED_TOKEN_BYTES: usize = 6;
+const ESTIMATED_STRING_COUNT_DENOMINATOR: usize = 16;
+const ESTIMATED_STRING_BYTES_DENOMINATOR: usize = 8;
+
 /// Cached string ids for type literal identifiers.
 pub(crate) struct TypeLiteralIdentifiers {
     pub(crate) undefined: StringId,
@@ -1051,12 +1055,15 @@ impl Parser {
         // initialize token stream for lazy lexing
         let token_stream = TokenStream::new(file.clone(), language);
 
-        // make parser with estimated capacity
-        // roughly 1 AST node per 3 tokens on average
-        let estimated_tokens = file.text().len() / 6;
-        let estimated_nodes = estimated_tokens / 3;
+        // size the hot buffers from source bytes up front
+        let source_len = file.text().len();
+        let estimated_tokens = source_len / ESTIMATED_TOKEN_BYTES;
+        let estimated_nodes = estimated_tokens;
+        let estimated_string_count = estimated_tokens / ESTIMATED_STRING_COUNT_DENOMINATOR;
+        let estimated_string_bytes = source_len / ESTIMATED_STRING_BYTES_DENOMINATOR;
         let file_id = file.id;
-        let mut strings = LocalStringPool::new();
+        let mut strings =
+            LocalStringPool::with_capacity(estimated_string_count, estimated_string_bytes);
         let type_literal_identifiers = TypeLiteralIdentifiers::new(&mut strings);
         let mut parser = Self {
             file,
