@@ -1,4 +1,6 @@
+set unstable
 set shell := ["bash", "-cu"]
+set script-interpreter := ["bash", "-euo", "pipefail"]
 
 # all language crates
 packages := "-p destack_base -p destack_ast -p destack_builtin -p destack_test_mirbench -p destack_codegen_native -p destack_codegen_lib -p destack_codegen_js -p destack_compiler -p destack_compiler_macros -p destack_dir -p destack_fir -p destack_formatter -p destack_heap -p destack_json -p destack_linter -p destack_linter_macros -p destack_vm -p destack_vm_abi -p destack_mir -p destack_parser -p destack_resolver -p destack_runtime -p destack_source -p destack_test -p destack_unicode -p destack_workspace -p destack_service"
@@ -8,18 +10,14 @@ _default:
     @just --list --unsorted
 
 # keep rust test concurrency on one repo wide knob when configured
+[script]
 _run-rust-test *args:
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    # use native rust executables on windows
     cargo_bin="cargo"
     if [ "${OS:-}" = "Windows_NT" ] && command -v cargo.exe >/dev/null 2>&1; then
         cargo_bin="cargo.exe"
     fi
 
     test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"
-
     if [ -n "${test_threads}" ]; then
         export RUST_TEST_THREADS="${test_threads}"
     fi
@@ -27,11 +25,8 @@ _run-rust-test *args:
     "${cargo_bin}" test {{args}}
 
 # keep custom harness worker pools on one repo wide knob when configured
+[script]
 _run-destack-test test_binary *args:
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    # use native rust executables on windows
     cargo_bin="cargo"
     if [ "${OS:-}" = "Windows_NT" ] && command -v cargo.exe >/dev/null 2>&1; then
         cargo_bin="cargo.exe"
@@ -39,31 +34,21 @@ _run-destack-test test_binary *args:
 
     test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"
     test_jobs="${DESTACK_TEST_JOBS:-${DESTACK_TEST_THREADS:-}}"
-
     if [ -n "${test_threads}" ]; then
         export RUST_TEST_THREADS="${test_threads}"
     fi
 
-    command=(
-        "${cargo_bin}"
-        test
-        --release
-        -p
-        destack_test
-        --test
-        "{{test_binary}}"
-    )
-
+    command=( "${cargo_bin}" test --release -p destack_test --test "{{test_binary}}" )
     if [ -n "${test_jobs}" ]; then
-        command+=(-- -j "${test_jobs}")
+        command+=( -- -j "${test_jobs}" )
         set -- {{args}}
         if [ "$#" -gt 0 ]; then
-            command+=("$@")
+            command+=( "$@" )
         fi
     else
         set -- {{args}}
         if [ "$#" -gt 0 ]; then
-            command+=(-- "$@")
+            command+=( -- "$@" )
         fi
     fi
 
@@ -73,32 +58,30 @@ _run-destack-test test_binary *args:
 
 # install language test fixtures
 install:
-    ./test/fixtures/parser/conformance/test262-fetch.sh
-    ./test/fixtures/parser/conformance/babel-fetch.sh
-    ./test/fixtures/parser/conformance/swc-fetch.sh
-    ./test/fixtures/parser/conformance/biome-fetch.sh
+    bash ./test/fixtures/parser/conformance/test262-fetch.sh
+    bash ./test/fixtures/parser/conformance/babel-fetch.sh
+    bash ./test/fixtures/parser/conformance/swc-fetch.sh
+    bash ./test/fixtures/parser/conformance/biome-fetch.sh
     just install-formatter-conformance
     just fetch-ecosystem
     just install-resolver
 
 # install conformance suites
 install-parser-conformance:
-    ./test/fixtures/parser/conformance/test262-fetch.sh
-    ./test/fixtures/parser/conformance/babel-fetch.sh
-    ./test/fixtures/parser/conformance/swc-fetch.sh
-    ./test/fixtures/parser/conformance/biome-fetch.sh
+    bash ./test/fixtures/parser/conformance/test262-fetch.sh
+    bash ./test/fixtures/parser/conformance/babel-fetch.sh
+    bash ./test/fixtures/parser/conformance/swc-fetch.sh
+    bash ./test/fixtures/parser/conformance/biome-fetch.sh
 
 # install formatter conformance sources
 install-formatter-conformance:
-    ./test/fixtures/formatter/conformance/prettier-fetch.sh
-    ./test/fixtures/formatter/conformance/oxfmt-fetch.sh
+    bash ./test/fixtures/formatter/conformance/prettier-fetch.sh
+    bash ./test/fixtures/formatter/conformance/oxfmt-fetch.sh
 
 # install resolver fixture dependencies
+[script]
 install-resolver:
-    #!/usr/bin/env bash
-    set -euo pipefail
     FIXTURES_DIR="test/fixtures/resolver"
-    # require vendored fixture sources
     required_fixture_sources=(
         "$FIXTURES_DIR/enhanced_resolve/test/fixtures/node_modules/m1/a.js"
         "$FIXTURES_DIR/enhanced_resolve/test/fixtures/multiple_modules/node_modules/m1/a.js"
@@ -114,7 +97,6 @@ install-resolver:
         fi
     done
 
-    # install pnpm fixture dependencies
     if [ -f "$FIXTURES_DIR/pnpm/package.json" ]; then
         (cd "$FIXTURES_DIR/pnpm" && CI=1 pnpm install --ignore-workspace)
     fi
@@ -122,7 +104,6 @@ install-resolver:
         (cd "$FIXTURES_DIR/pnpm-workspace" && CI=1 pnpm install)
     fi
 
-    # install yarn fixture dependencies
     for dir in "$FIXTURES_DIR/yarn" "$FIXTURES_DIR/global-pnp" "$FIXTURES_DIR/pnp"; do
         if [ -f "$dir/package.json" ]; then
             (cd "$dir" && CI=1 corepack yarn install)
@@ -131,7 +112,7 @@ install-resolver:
 
 # fetch ecosystem packages
 fetch-ecosystem:
-    ./test/fixtures/ecosystem/ecosystem-fetch.sh
+    bash ./test/fixtures/ecosystem/ecosystem-fetch.sh
 
 # --- build ---
 
@@ -140,48 +121,48 @@ check:
     cargo clippy --release {{ packages }}
 
 # run privileged runtime platform tests for process, fs, and net
+[script]
 test-runtime-privileged:
-    #!/usr/bin/env bash
-    set -euo pipefail
     if [ "$(id -u)" != "0" ]; then
         echo "test-runtime-privileged requires elevated privileges (run as root/admin)"
         exit 1
     fi
+
     LC_ALL=C LANG=C LC_CTYPE=C DESTACK_TEST_PRIVILEGED=1 just _run-rust-test -p destack_runtime platform::process::tests:: -- --nocapture
     LC_ALL=C LANG=C LC_CTYPE=C DESTACK_TEST_PRIVILEGED=1 just _run-rust-test -p destack_runtime platform::fs::tests:: -- --nocapture
     LC_ALL=C LANG=C LC_CTYPE=C DESTACK_TEST_PRIVILEGED=1 just _run-rust-test -p destack_runtime platform::net::tests:: -- --nocapture
 
 # install runtime target toolchains and host prerequisites where possible
 install-toolchain:
-    ../scripts/toolchain/runtime-toolchain.sh install
+    bash ../scripts/toolchain/runtime-toolchain.sh install
 
 # inspect runtime target toolchain readiness on this host
 doctor-toolchain:
-    ../scripts/toolchain/runtime-toolchain.sh doctor
+    bash ../scripts/toolchain/runtime-toolchain.sh doctor
 
 # ensure runtime target toolchains are present, optionally auto install with DESTACK_AUTO_INSTALL_TOOLCHAINS=1
 ensure-toolchain:
-    ../scripts/toolchain/runtime-toolchain.sh ensure
+    bash ../scripts/toolchain/runtime-toolchain.sh ensure
 
 # lint runtime toolchain shell scripts
 lint-toolchain:
-    ../scripts/toolchain/runtime-toolchain.sh lint
+    bash ../scripts/toolchain/runtime-toolchain.sh lint
 
 # check runtime for android target using one configured ndk toolchain
 check-runtime-android:
-    ../scripts/toolchain/check-runtime-android.sh
+    bash ../scripts/toolchain/check-runtime-android.sh
 
 # ensure android host dependencies needed by sdkmanager setup
 install-runtime-android-host-deps:
-    ../scripts/toolchain/install-runtime-android-host-deps.sh
+    bash ../scripts/toolchain/install-runtime-android-host-deps.sh
 
 # install android sdk commandline tools and ndk into the active sdk root
 install-runtime-android-ndk:
-    ../.github/scripts/install-runtime-android-ndk.sh
+    bash ../.github/scripts/install-runtime-android-ndk.sh
 
 # check runtime for ios target using active xcode sdk
 check-runtime-ios:
-    ../scripts/toolchain/check-runtime-ios.sh
+    bash ../scripts/toolchain/check-runtime-ios.sh
 
 # check runtime on linux host
 check-runtime-linux:
@@ -191,7 +172,7 @@ check-runtime-linux:
 
 # check runtime wayland backend against one real compositor on linux host
 check-runtime-linux-wayland:
-    ../scripts/toolchain/check-runtime-linux-wayland.sh
+    bash ../scripts/toolchain/check-runtime-linux-wayland.sh
 
 # check runtime on macos host
 check-runtime-macos:
@@ -201,7 +182,7 @@ check-runtime-macos:
 
 # check runtime on windows host
 check-runtime-windows-msvc:
-    ../scripts/toolchain/check-runtime-windows-msvc.sh
+    bash ../scripts/toolchain/check-runtime-windows-msvc.sh
 
 # build language packages
 build:
@@ -251,10 +232,8 @@ generate-schema:
     @echo "generated workspace/generated/dsconfig.schema.json"
 
 # generate runtime binding catalog
+[script]
 generate-bindings *args:
-    #!/usr/bin/env bash
-    set -euo pipefail
-
     runtime_args=()
     refresh_stubs="true"
 
@@ -307,6 +286,7 @@ generate-bindings *args:
     else
         cargo run -p destack_runtime --features generate_bindings --bin generate-bindings --release
     fi
+
     cargo fmt -p destack_runtime
     echo "generated runtime binding catalog"
 
@@ -403,11 +383,11 @@ test-formatter-conformance-update:
 
 # snapshot formatter output for a corpus
 snapshot-formatter-corpus root="test/fixtures/formatter/conformance/staging/oxfmt" out="/tmp/destack-snapshot-formatter-corpus":
-    ./formatter/scripts/corpus_snapshot.sh "{{root}}" "{{out}}"
+    bash ./formatter/scripts/corpus_snapshot.sh "{{root}}" "{{out}}"
 
 # bench formatter parse and print throughput on a corpus
 bench-formatter-corpus root="test/fixtures/ecosystem" runs="5":
-    ./formatter/scripts/corpus_bench.sh "{{root}}" "{{runs}}"
+    bash ./formatter/scripts/corpus_bench.sh "{{root}}" "{{runs}}"
 
 # run formatter bench stats
 bench-formatter-stats args="--help":
@@ -415,7 +395,7 @@ bench-formatter-stats args="--help":
 
 # diff two formatter corpus snapshots
 compare-formatter-corpus baseline candidate:
-    ./formatter/scripts/corpus_diff.sh "{{baseline}}" "{{candidate}}"
+    bash ./formatter/scripts/corpus_diff.sh "{{baseline}}" "{{candidate}}"
 
 # run ecosystem tests
 test-ecosystem:
@@ -439,11 +419,11 @@ test-grammar-corpus-routing:
 
 # run TypeScript and TSX tree sitter corpus tests
 test-grammar-typescript-tsx:
-    grammar/scripts/test-tree-sitter-destack.sh typescript-tsx
+    bash grammar/scripts/test-tree-sitter-destack.sh typescript-tsx
 
 # run Destack tree sitter corpus tests
 test-grammar-destack:
-    grammar/scripts/test-tree-sitter-destack.sh destack
+    bash grammar/scripts/test-tree-sitter-destack.sh destack
 
 # run MIR tree sitter corpus tests
 test-grammar-mir:
@@ -491,19 +471,19 @@ test-stress:
 
 # generate all stress test fixtures
 generate-stress:
-    ./test/fixtures/stress/generate.sh all
+    bash ./test/fixtures/stress/generate.sh all
 
 # generate parser stress fixtures
 generate-stress-parser:
-    ./test/fixtures/stress/generate.sh parser
+    bash ./test/fixtures/stress/generate.sh parser
 
 # generate resolver stress fixtures
 generate-stress-resolver:
-    ./test/fixtures/stress/generate.sh resolver
+    bash ./test/fixtures/stress/generate.sh resolver
 
 # generate checker stress fixtures
 generate-stress-checker:
-    ./test/fixtures/stress/generate.sh checker
+    bash ./test/fixtures/stress/generate.sh checker
 
 # --- bench ---
 
