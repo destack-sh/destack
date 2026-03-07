@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use destack_vm as vm;
 
-use crate::diagnostic::{RuntimeError, RuntimeErrorId, RuntimeResult, RuntimeStatus};
+use crate::diagnostic::{RuntimeError, RuntimeResult, RuntimeStatus};
 use crate::platform::abi::NativeAbi;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{

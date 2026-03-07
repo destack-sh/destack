@@ -4,7 +4,7 @@ use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::ptr;
 
-use crate::diagnostic::{AgentDiagnosticStore, RuntimeError, RuntimeResult};
+use crate::diagnostic::{DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::Host;
 use crate::platform::{NativeArray, PlatformError};
 use crate::runtime::bindings::{
@@ -201,8 +201,8 @@ impl BindingCallContext {
 
     /// Borrow the runtime diagnostics store.
     #[inline]
-    pub fn diagnostics(&self) -> &AgentDiagnosticStore {
-        self.agent().diagnostic.as_ref()
+    pub fn diagnostics(&self) -> &DiagnosticStore {
+        self.agent().diagnostics.as_ref()
     }
 
     /// Record one runtime diagnostic event.

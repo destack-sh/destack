@@ -1,6 +1,6 @@
 use super::*;
 #[cfg(windows)]
-use crate::diagnostic::{RuntimeErrorId, RuntimeStatus};
+use crate::diagnostic::{DiagnosticId, RuntimeStatus};
 #[cfg(windows)]
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{NetInterface, NetInterfaceVm};
@@ -225,8 +225,8 @@ impl<'call> NetHarnessContext<'call> {
         let error = self
             .runtime
             .agent
-            .diagnostic
-            .take_error(RuntimeErrorId::from_raw(status.error_id))
+            .diagnostics
+            .take_error(DiagnosticId::from_raw(status.error_id))
             .unwrap_or_else(|| {
                 RuntimeError::from(PlatformError::io(format!(
                     "{label} failed with missing runtime error",

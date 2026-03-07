@@ -3,7 +3,7 @@ use std::sync::Arc;
 use destack_heap as heap;
 use serde::{Deserialize, Serialize};
 
-use crate::diagnostic::{AgentDiagnosticStore, RuntimeError, RuntimeResult};
+use crate::diagnostic::{DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::HostEventKind;
 use crate::platform::state::PlatformState;
 use crate::platform::{ResourceId, ResourceTable};
@@ -13,7 +13,6 @@ use crate::runtime::engine::EngineContinuation;
 use crate::runtime::memory::Heap;
 use crate::runtime::poller::PollerToken;
 use crate::runtime::scheduler::{EventLoop, EventLoopWatch};
-use crate::runtime::snapshot::SnapshotStore;
 use crate::runtime::world::{RuntimeId, World, WorldCommand};
 use crate::runtime::{DropCounts, DropReason, Hooks, RuntimeFinalizers};
 use destack_workspace::RuntimeOptions;
@@ -26,10 +25,10 @@ pub struct AgentId(pub u64);
 pub struct Agent {
     /// Monotonic world-local agent identity.
     pub(crate) id: AgentId,
-    /// Runtime owner identifier in world topology.
-    pub(crate) runtime_id: RuntimeId,
     /// Agent name used for identity selection and diagnostics.
     pub(crate) name: String,
+    /// Runtime owner identifier in world topology.
+    pub(crate) runtime_id: RuntimeId,
     /// Immutable process arguments for platform bindings.
     pub(crate) platform_args: Arc<[String]>,
     /// Immutable runtime options.
@@ -43,8 +42,8 @@ pub struct Agent {
     pub(crate) finalizers: RuntimeFinalizers,
     /// Agent-owned platform state store.
     pub(crate) platform_state: PlatformState,
-    /// Agent diagnostics storage for runtime errors and warning events.
-    pub(crate) diagnostic: Arc<AgentDiagnosticStore>,
+    /// Diagnostics storage for runtime errors and warning events.
+    pub(crate) diagnostics: Arc<DiagnosticStore>,
     /// Coordinator-owned drop accounting for standalone agent flows.
     pub(crate) drop_counts: DropCounts,
     /// External binding registry and policy enforcement.
@@ -59,15 +58,15 @@ impl std::fmt::Debug for Agent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Agent")
             .field("agent_id", &self.id)
-            .field("runtime_id", &self.runtime_id)
             .field("name", &self.name)
+            .field("runtime_id", &self.runtime_id)
             .field("platform_args", &self.platform_args)
             .field("options", &self.options)
             .field("resources", &self.resources)
             .field("hooks", &self.hooks)
             .field("finalizers", &self.finalizers)
             .field("platform_state", &self.platform_state)
-            .field("diagnostic", &self.diagnostic)
+            .field("diagnostics", &self.diagnostics)
             .field("bindings", &self.bindings)
             .field("heap", &self.heap)
             .field("event_loop", &self.event_loop)
@@ -154,7 +153,7 @@ impl Agent {
             hooks,
             finalizers: RuntimeFinalizers::default(),
             platform_state: PlatformState::default(),
-            diagnostic: Arc::new(AgentDiagnosticStore::from_options(&options.diagnostic)),
+            diagnostics: Arc::new(DiagnosticStore::from_options(&options.diagnostic)),
             drop_counts: DropCounts::default(),
             bindings,
             heap,
@@ -353,27 +352,5 @@ impl Agent {
     /// Record one coordinator-owned drop in standalone agent flows.
     pub(crate) fn record_drop(&mut self, reason: DropReason, count: u64) {
         self.drop_counts.record(reason, count);
-    }
-
-    /// Capture a runtime snapshot and record a checkpoint in the replay log.
-    pub fn snapshot(&mut self, world: &World, store: &SnapshotStore) -> RuntimeResult<()> {
-        // allocate a new checkpoint id
-        let checkpoint_id = store.allocate_checkpoint_id();
-
-        // capture replay metadata
-        let branch_id = world.replay().log().branch_id();
-        let sequence = world.replay().log().next_sequence();
-
-        // NOTE #Incomplete: snapshot payload capture is not implemented yet
-        let payload = Vec::new();
-
-        // write snapshot payload and register in the replay log
-        let metadata = store.write_snapshot(checkpoint_id, branch_id, sequence, &payload)?;
-        world
-            .replay()
-            .log()
-            .record_checkpoint(metadata.into_checkpoint_index())?;
-
-        Ok(())
     }
 }

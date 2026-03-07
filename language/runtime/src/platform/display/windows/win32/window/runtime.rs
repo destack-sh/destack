@@ -8,7 +8,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     GWLP_USERDATA, GetWindowLongPtrW, IsWindow, SetWindowLongPtrW,
 };
 
-use crate::diagnostic::{AgentDiagnosticStore, RuntimeResult};
+use crate::diagnostic::{DiagnosticStore, RuntimeResult};
 use crate::platform::display::WindowCursorMode;
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
@@ -28,19 +28,19 @@ pub(crate) struct WindowRuntimeState {
     /// Monotonic counter used for stable runtime window identifiers.
     next_window_identifier: AtomicU64,
     /// Runtime diagnostics store for callback and best-effort lanes.
-    pub(super) diagnostics: Arc<AgentDiagnosticStore>,
+    pub(super) diagnostics: Arc<DiagnosticStore>,
 }
 
 impl Default for WindowRuntimeState {
     /// Create one default window runtime state.
     fn default() -> Self {
-        Self::new(Arc::new(AgentDiagnosticStore::default()))
+        Self::new(Arc::new(DiagnosticStore::default()))
     }
 }
 
 impl WindowRuntimeState {
     /// Create one window runtime state with explicit diagnostics storage.
-    fn new(diagnostics: Arc<AgentDiagnosticStore>) -> Self {
+    fn new(diagnostics: Arc<DiagnosticStore>) -> Self {
         Self {
             cursor_visible_state: Mutex::new(None),
             cursor_policy_by_window: Mutex::new(HashMap::new()),
@@ -79,7 +79,7 @@ pub(super) struct WindowRuntimeEntry {
 
 /// Return runtime-owned win32 window state.
 pub(super) fn window_runtime_state(context: &BindingCallContext) -> Arc<WindowRuntimeState> {
-    let diagnostics = Arc::clone(&context.runtime().diagnostic);
+    let diagnostics = Arc::clone(&context.runtime().diagnostics);
     context
         .runtime()
         .platform_state
