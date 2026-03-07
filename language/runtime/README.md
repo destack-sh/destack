@@ -66,6 +66,4 @@ just language/lint-toolchain
 just language/check-runtime-macos # or linux/windows-msvc on matching hosts
 just language/check-runtime-ios
 just language/check-runtime-android
-just language/check-runtime-windows-gnu
-just language/check-runtime-wasip1
 ```

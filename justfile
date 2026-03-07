@@ -67,7 +67,7 @@ format-check:
 # alias for format
 alias fmt := format
 
-# check everything
+# run repository static checks
 check:
     just check-hygiene
     just language/check
@@ -76,7 +76,7 @@ check:
     just app/check
     just bridge/check
 
-# run all scoped tests
+# run area test aggregates
 test:
     just language/test
     just library/test
@@ -84,7 +84,7 @@ test:
     just app/test
     just bridge/test
 
-# run the fast repository gate
+# run the repository quick gate
 quick:
     just check-hygiene
     just language/quick
@@ -93,7 +93,7 @@ quick:
     just app/quick
     just bridge/quick
 
-# run the full repository gate
+# run the repository full gate
 full:
     just check-hygiene
     just language/full
