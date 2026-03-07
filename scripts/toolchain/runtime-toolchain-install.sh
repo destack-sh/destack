@@ -9,9 +9,6 @@ source "${script_directory}/versions.sh"
 
 # shellcheck source=./scripts/toolchain/lib/runtime-common.sh
 source "${script_directory}/lib/runtime-common.sh"
-# shellcheck source=./scripts/toolchain/lib/runtime-windows-gnu.sh
-source "${script_directory}/lib/runtime-windows-gnu.sh"
-
 host_kernel="$(runtime_host_kernel)"
 
 runtime_require_command rustup "missing required command: rustup" >&2 || exit 1
@@ -40,17 +37,10 @@ if ! rustup component list --installed | grep -E '^clippy(-|$)' >/dev/null 2>&1;
 fi
 
 # runtime target matrix
-runtime_ensure_rust_target wasm32-wasip1
-runtime_ensure_rust_target x86_64-pc-windows-gnu
 runtime_ensure_rust_target aarch64-linux-android
 
 if [ "${host_kernel}" = "Darwin" ]; then
 	runtime_ensure_rust_target aarch64-apple-ios
-fi
-
-if [ "${host_kernel}" = "Linux" ]; then
-	runtime_ensure_rust_target x86_64-unknown-linux-gnu
-	runtime_ensure_rust_target aarch64-unknown-linux-gnu
 fi
 
 # android sdk and ndk
@@ -91,30 +81,6 @@ else
 	echo "installing android sdk cmdline tools and ndk"
 	ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-${default_android_sdk_root}}" \
 		"${repository_root}/.github/scripts/install-runtime-android-ndk.sh"
-fi
-
-# host package manager guidance for optional system tools
-if ! command -v zig >/dev/null 2>&1; then
-	echo "zig is missing: install zig to run linux-hosted windows gnu and cross runtime lanes"
-fi
-if [ -z "$(runtime_command_path python3)" ]; then
-	echo "python3 is missing: install python3 for runtime windows gnu test artifact parsing"
-fi
-if runtime_windows_gnu_is_execution_host && [ -z "$(runtime_command_path wine)" ]; then
-	if [ "${host_kernel}" = "Linux" ]; then
-		echo "installing wine for windows gnu executable runtime tests"
-		runtime_linux_install_package wine64
-	else
-		echo "wine is missing: install wine to run windows gnu executable runtime tests"
-	fi
-fi
-if [ "${host_kernel}" = "Darwin" ] && [ -z "$(runtime_command_path x86_64-w64-mingw32-gcc)" ]; then
-	echo "mingw-w64 compiler is missing: install mingw-w64 for macos windows gnu runtime lanes"
-fi
-if [ "${host_kernel}" = "Linux" ] &&
-	command -v pkg-config >/dev/null 2>&1 &&
-	! pkg-config --exists dbus-1 >/dev/null 2>&1; then
-	echo "dbus pkg-config is missing: install libdbus-1-dev and pkg-config for linux gnu cross lane"
 fi
 
 # weston is required for the linux wayland display lane

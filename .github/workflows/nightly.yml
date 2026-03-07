@@ -16,8 +16,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  nightly-core:
-    name: Nightly Hygiene
+  hygiene-check:
+    name: Hygiene Check
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -26,144 +26,160 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Rust and just
+      - name: Install Rust and just
         uses: ./.github/actions/setup-rust-bun-just
         with:
           rust_components: rustfmt clippy
 
-      - name: Run hygiene checks
+      - name: Check Hygiene
         run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just check-hygiene
 
-  nightly-integration:
-    name: Nightly Integration
+  language-check:
+    name: Language Check
     runs-on: ubuntu-latest
     timeout-minutes: 240
-    needs:
-      - nightly-core
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
-      - name: Setup Rust Bun and just
-        uses: ./.github/actions/setup-rust-bun-just
+      - name: Install Language Check Toolchain
+        uses: ./.github/actions/setup-language-check
         with:
-          rust_components: clippy
+          rust_components: rustfmt clippy
           install_js_dependencies: "true"
 
-      - name: Cache conformance fixtures
-        id: language-conformance-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
-        with:
-          path: |
-            language/test/fixtures/parser/conformance/test262
-            language/test/fixtures/parser/conformance/babel
-            language/test/fixtures/parser/conformance/swc
-            language/test/fixtures/parser/conformance/biome
-          key: ${{ runner.os }}-language-conformance-${{ hashFiles('language/test/fixtures/parser/conformance/*-fetch.sh') }}
-
-      - name: Cache formatter conformance fixtures
-        id: language-formatter-conformance-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
-        with:
-          path: |
-            language/test/fixtures/formatter/conformance/staging/prettier
-            language/test/fixtures/formatter/conformance/staging/oxfmt
-          key: ${{ runner.os }}-language-formatter-conformance-${{ hashFiles('language/test/fixtures/formatter/conformance/*-fetch.sh') }}
-
-      - name: Run language full gate
+      - name: Check Language
         run: just language/full
 
-      - name: Run library full gate
-        run: just library/full
-
-      - name: Run service full gate
-        run: just service/full
-
-      - name: Run app full gate
-        run: just app/full
-
-      - name: Run bridge full gate
-        run: just bridge/full
-
-  nightly-fuzz:
-    name: Nightly Fuzz
+  library-check:
+    name: Library Check
     runs-on: ubuntu-latest
-    timeout-minutes: 180
-    needs:
-      - nightly-core
+    timeout-minutes: 120
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
-      - name: Setup Rust and just
+      - name: Install Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
+        with:
+          rust_components: rustfmt clippy
+          install_js_dependencies: "true"
+
+      - name: Check Library
+        run: just library/full
+
+  service-check:
+    name: Service Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Install Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
+        with:
+          rust_components: rustfmt clippy
+          install_js_dependencies: "true"
+
+      - name: Check Service
+        run: just service/full
+
+  app-check:
+    name: App Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Install Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
+        with:
+          rust_components: rustfmt clippy
+          install_js_dependencies: "true"
+
+      - name: Check App
+        run: just app/full
+
+  bridge-check:
+    name: Bridge Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Install Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
+        with:
+          rust_components: rustfmt clippy
+          install_js_dependencies: "true"
+
+      - name: Check Bridge
+        run: just bridge/full --pin-destack-revision "${GITHUB_SHA}"
+
+  language-fuzz:
+    name: Language Fuzz
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Install Rust and just
         uses: ./.github/actions/setup-rust-just
 
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz --locked
 
-      - name: Run language fuzz suite
+      - name: Fuzz Language
         run: just language/fuzz 120
 
-  nightly-benchmark:
-    name: Nightly Benchmark
+  language-bench:
+    name: Language Bench
     runs-on: ubuntu-latest
     timeout-minutes: 180
-    needs:
-      - nightly-core
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
-      - name: Setup Rust and just
+      - name: Install Rust and just
         uses: ./.github/actions/setup-rust-just
 
-      - name: Run language benchmark suite
-        run: just language/benchmark
+      - name: Bench Language
+        run: just language/bench
 
-  runtime-android:
-    name: Runtime Android
-    needs:
-      - nightly-core
-    uses: ./.github/workflows/runtime-android.yml
+  runtime-android-check:
+    name: Runtime Check (Android)
+    uses: ./.github/workflows/runtime-android-check.yml
 
-  runtime-ios:
-    name: Runtime iOS
-    needs:
-      - nightly-core
-    uses: ./.github/workflows/runtime-ios.yml
+  runtime-ios-check:
+    name: Runtime Check (iOS)
+    uses: ./.github/workflows/runtime-ios-check.yml
 
-  runtime-linux:
-    name: Runtime Linux
-    needs:
-      - nightly-core
-    uses: ./.github/workflows/runtime-linux.yml
+  runtime-linux-check:
+    name: Runtime Check (Linux)
+    uses: ./.github/workflows/runtime-linux-check.yml
 
-  runtime-macos:
-    name: Runtime macOS
-    needs:
-      - nightly-core
-    uses: ./.github/workflows/runtime-macos.yml
+  runtime-macos-check:
+    name: Runtime Check (macOS)
+    uses: ./.github/workflows/runtime-macos-check.yml
 
-  runtime-windows:
-    name: Runtime Windows
-    needs:
-      - nightly-core
-    uses: ./.github/workflows/runtime-windows.yml
-
-  runtime-windows-gnu:
-    name: Runtime Windows GNU
-    needs:
-      - nightly-core
-    uses: ./.github/workflows/runtime-windows-gnu.yml
-
-  runtime-wasip1:
-    name: Runtime WASIp1
-    needs:
-      - nightly-core
-    uses: ./.github/workflows/runtime-wasip1.yml
+  runtime-windows-check:
+    name: Runtime Check (Windows)
+    uses: ./.github/workflows/runtime-windows-check.yml

@@ -16,8 +16,24 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  verify:
-    name: Release Verify
+  release-metadata-check:
+    name: Release Metadata Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Install just
+        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
+
+      - name: Check Release Metadata
+        run: just validate-release "${GITHUB_REF_NAME}"
+
+  language-check:
+    name: Language Check
     runs-on: ubuntu-latest
     timeout-minutes: 240
     steps:
@@ -26,146 +42,143 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Rust Bun and just
-        uses: ./.github/actions/setup-rust-bun-just
+      - name: Install Language Check Toolchain
+        uses: ./.github/actions/setup-language-check
         with:
           rust_components: rustfmt clippy
           install_js_dependencies: "true"
 
-      - name: Validate release metadata
-        run: just validate-release "${GITHUB_REF_NAME}"
-
-      - name: Validate zed grammar pins
-        run: just bridge/validate-zed-grammars-strict --pin-destack-revision "${GITHUB_SHA}"
-
-      - name: Cache conformance fixtures
-        id: language-conformance-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
-        with:
-          path: |
-            language/test/fixtures/parser/conformance/test262
-            language/test/fixtures/parser/conformance/babel
-            language/test/fixtures/parser/conformance/swc
-            language/test/fixtures/parser/conformance/biome
-          key: ${{ runner.os }}-language-conformance-${{ hashFiles('language/test/fixtures/parser/conformance/*-fetch.sh') }}
-
-      - name: Cache formatter conformance fixtures
-        id: language-formatter-conformance-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
-        with:
-          path: |
-            language/test/fixtures/formatter/conformance/staging/prettier
-            language/test/fixtures/formatter/conformance/staging/oxfmt
-          key: ${{ runner.os }}-language-formatter-conformance-${{ hashFiles('language/test/fixtures/formatter/conformance/*-fetch.sh') }}
-
-      - name: Run language full gate
+      - name: Check Language
         run: just language/full
 
-      - name: Run library full gate
-        run: just library/full
-
-      - name: Run service full gate
-        run: just service/full
-
-      - name: Run app full gate
-        run: just app/full
-
-      - name: Run bridge full gate
-        run: just bridge/full
-
-  runtime-android:
-    name: Runtime Android
-    needs:
-      - verify
-    uses: ./.github/workflows/runtime-android.yml
-
-  runtime-ios:
-    name: Runtime iOS
-    needs:
-      - verify
-    uses: ./.github/workflows/runtime-ios.yml
-
-  runtime-linux:
-    name: Runtime Linux
-    needs:
-      - verify
-    uses: ./.github/workflows/runtime-linux.yml
-
-  runtime-macos:
-    name: Runtime macOS
-    needs:
-      - verify
-    uses: ./.github/workflows/runtime-macos.yml
-
-  runtime-windows:
-    name: Runtime Windows
-    needs:
-      - verify
-    uses: ./.github/workflows/runtime-windows.yml
-
-  runtime-windows-gnu:
-    name: Runtime Windows GNU
-    needs:
-      - verify
-    uses: ./.github/workflows/runtime-windows-gnu.yml
-
-  runtime-wasip1:
-    name: Runtime WASIp1
-    needs:
-      - verify
-    uses: ./.github/workflows/runtime-wasip1.yml
-
-  smoke-runtime-release-unix:
-    needs:
-      - verify
-      - runtime-linux
-      - runtime-macos
-    uses: ./.github/workflows/release-runtime-smoke-unix.yml
-
-  smoke-runtime-release-windows:
-    needs:
-      - verify
-      - runtime-windows
-    uses: ./.github/workflows/release-runtime-smoke-windows.yml
-
-  smoke-runtime-release-windows-gnu:
-    needs:
-      - verify
-      - runtime-windows-gnu
-    uses: ./.github/workflows/release-runtime-smoke-windows-gnu.yml
-
-  build-artifacts:
-    name: Build Release Artifacts
+  library-check:
+    name: Library Check
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    needs:
-      - verify
-      - runtime-android
-      - runtime-ios
-      - runtime-linux
-      - runtime-macos
-      - runtime-windows
-      - runtime-windows-gnu
-      - runtime-wasip1
-      - smoke-runtime-release-unix
-      - smoke-runtime-release-windows
-      - smoke-runtime-release-windows-gnu
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
-      - name: Setup Rust and just
+      - name: Install Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
+        with:
+          rust_components: rustfmt clippy
+          install_js_dependencies: "true"
+
+      - name: Check Library
+        run: just library/full
+
+  service-check:
+    name: Service Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Install Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
+        with:
+          rust_components: rustfmt clippy
+          install_js_dependencies: "true"
+
+      - name: Check Service
+        run: just service/full
+
+  app-check:
+    name: App Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Install Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
+        with:
+          rust_components: rustfmt clippy
+          install_js_dependencies: "true"
+
+      - name: Check App
+        run: just app/full
+
+  bridge-check:
+    name: Bridge Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Install Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
+        with:
+          rust_components: rustfmt clippy
+          install_js_dependencies: "true"
+
+      - name: Check Bridge
+        run: just bridge/full --pin-destack-revision "${GITHUB_SHA}"
+
+  runtime-android-check:
+    name: Runtime Check (Android)
+    uses: ./.github/workflows/runtime-android-check.yml
+
+  runtime-ios-check:
+    name: Runtime Check (iOS)
+    uses: ./.github/workflows/runtime-ios-check.yml
+
+  runtime-linux-check:
+    name: Runtime Check (Linux)
+    uses: ./.github/workflows/runtime-linux-check.yml
+
+  runtime-macos-check:
+    name: Runtime Check (macOS)
+    uses: ./.github/workflows/runtime-macos-check.yml
+
+  runtime-windows-check:
+    name: Runtime Check (Windows)
+    uses: ./.github/workflows/runtime-windows-check.yml
+
+  release-build:
+    name: Release Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    needs:
+      - release-metadata-check
+      - language-check
+      - library-check
+      - service-check
+      - app-check
+      - bridge-check
+      - runtime-android-check
+      - runtime-ios-check
+      - runtime-linux-check
+      - runtime-macos-check
+      - runtime-windows-check
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Install Rust and just
         uses: ./.github/actions/setup-rust-just
 
-      - name: Build language artifacts
+      - name: Build Language
         run: just language/build
 
-      - name: Generate CLI schema
+      - name: Build CLI Schema
         run: just app/generate-schema
 
-      - name: Upload release schemas
+      - name: Upload Release Schemas
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: release-schemas-${{ github.sha }}
@@ -174,22 +187,22 @@ jobs:
             app/cli/generated/cli-report.schema.json
           if-no-files-found: error
 
-  build-cli-binaries:
-    name: Build CLI Binary (${{ matrix.target }})
+  cli-build:
+    name: CLI Build (${{ matrix.target }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
     needs:
-      - verify
-      - runtime-android
-      - runtime-ios
-      - runtime-linux
-      - runtime-macos
-      - runtime-windows
-      - runtime-windows-gnu
-      - runtime-wasip1
-      - smoke-runtime-release-unix
-      - smoke-runtime-release-windows
-      - smoke-runtime-release-windows-gnu
+      - release-metadata-check
+      - language-check
+      - library-check
+      - service-check
+      - app-check
+      - bridge-check
+      - runtime-android-check
+      - runtime-ios-check
+      - runtime-linux-check
+      - runtime-macos-check
+      - runtime-windows-check
     strategy:
       fail-fast: false
       matrix:
@@ -215,23 +228,23 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Rust and just
+      - name: Install Rust and just
         uses: ./.github/actions/setup-rust-just
         with:
           rust_targets: ${{ matrix.target }}
 
-      - name: Install Linux cross compiler
+      - name: Install Linux Cross Compiler
         if: runner.os == 'Linux' && matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
 
-      - name: Build CLI binaries
+      - name: Build CLI
         run: cargo build --release -p destack_cli --target "${{ matrix.target }}"
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
 
-      - name: Stage unix release binaries
+      - name: Stage Unix CLI Binaries
         if: runner.os != 'Windows'
         run: |
           mkdir -p "release-binaries/${{ matrix.target }}"
@@ -240,7 +253,7 @@ jobs:
           cp "target/${{ matrix.target }}/release/dsc" "release-binaries/${{ matrix.target }}/dsc"
           cp "target/${{ matrix.target }}/release/dsx" "release-binaries/${{ matrix.target }}/dsx"
 
-      - name: Stage windows release binaries
+      - name: Stage Windows CLI Binaries
         if: runner.os == 'Windows'
         shell: powershell
         run: |
@@ -250,56 +263,56 @@ jobs:
           Copy-Item "target/${{ matrix.target }}/release/dsc.exe" "release-binaries/${{ matrix.target }}/dsc.exe" -Force
           Copy-Item "target/${{ matrix.target }}/release/dsx.exe" "release-binaries/${{ matrix.target }}/dsx.exe" -Force
 
-      - name: Upload cli binaries
+      - name: Upload CLI Binaries
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: cli-binaries-${{ matrix.target }}-${{ github.sha }}
           path: release-binaries/${{ matrix.target }}
           if-no-files-found: error
 
-  package-cli-artifacts:
-    name: Package CLI Release Assets
+  cli-package:
+    name: CLI Package
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs:
-      - build-cli-binaries
+      - cli-build
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
-      - name: Download linux x64 cli binaries
+      - name: Download Linux x64 CLI Binaries
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: cli-binaries-x86_64-unknown-linux-gnu-${{ github.sha }}
           path: release-binaries/x86_64-unknown-linux-gnu
 
-      - name: Download linux arm64 cli binaries
+      - name: Download Linux arm64 CLI Binaries
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: cli-binaries-aarch64-unknown-linux-gnu-${{ github.sha }}
           path: release-binaries/aarch64-unknown-linux-gnu
 
-      - name: Download macos x64 cli binaries
+      - name: Download macOS x64 CLI Binaries
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: cli-binaries-x86_64-apple-darwin-${{ github.sha }}
           path: release-binaries/x86_64-apple-darwin
 
-      - name: Download macos arm64 cli binaries
+      - name: Download macOS arm64 CLI Binaries
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: cli-binaries-aarch64-apple-darwin-${{ github.sha }}
           path: release-binaries/aarch64-apple-darwin
 
-      - name: Download windows x64 cli binaries
+      - name: Download Windows x64 CLI Binaries
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: cli-binaries-x86_64-pc-windows-msvc-${{ github.sha }}
           path: release-binaries/x86_64-pc-windows-msvc
 
-      - name: Stage binaries for packaging scripts
+      - name: Stage CLI Binaries
         run: |
           mkdir -p target/x86_64-unknown-linux-gnu/release
           mkdir -p target/aarch64-unknown-linux-gnu/release
@@ -313,41 +326,41 @@ jobs:
           cp release-binaries/aarch64-apple-darwin/* target/aarch64-apple-darwin/release/
           cp release-binaries/x86_64-pc-windows-msvc/* target/x86_64-pc-windows-msvc/release/
 
-      - name: Package cli release archives
+      - name: Package CLI Release Assets
         run: bash app/cli/install/package-release-artifacts.sh "$(cat VERSION.txt)" release-cli-assets
 
-      - name: Validate cli release archives
+      - name: Check CLI Release Assets
         run: bash app/cli/install/validate-release-artifacts.sh "$(cat VERSION.txt)" release-cli-assets
 
-      - name: Run installer smoke test
+      - name: Check CLI Installer
         run: bash app/cli/install/test-install.sh "$(cat VERSION.txt)" release-cli-assets
 
-      - name: Upload cli release assets
+      - name: Upload CLI Release Assets
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: release-cli-assets-${{ github.sha }}
           path: release-cli-assets/*
           if-no-files-found: error
 
-  smoke-install-windows:
-    name: Smoke Test Windows Installer
+  windows-installer-smoke-check:
+    name: Windows Installer Smoke Check
     runs-on: windows-latest
     timeout-minutes: 30
     needs:
-      - package-cli-artifacts
+      - cli-package
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
-      - name: Download cli release assets
+      - name: Download CLI Release Assets
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: release-cli-assets-${{ github.sha }}
           path: release-cli-assets
 
-      - name: Run windows installer smoke test
+      - name: Check Windows Installer
         shell: powershell
         run: |
           $version = (Get-Content "VERSION.txt").Trim()
@@ -411,13 +424,13 @@ jobs:
             }
           }
 
-  create-release:
-    name: Create GitHub Release
+  github-release-create:
+    name: GitHub Release Create
     runs-on: ubuntu-latest
     needs:
-      - build-artifacts
-      - package-cli-artifacts
-      - smoke-install-windows
+      - release-build
+      - cli-package
+      - windows-installer-smoke-check
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     environment: release
     permissions:
@@ -428,19 +441,19 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Download release schemas
+      - name: Download Release Schemas
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: release-schemas-${{ github.sha }}
           path: release-schemas
 
-      - name: Download cli release assets
+      - name: Download CLI Release Assets
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: release-cli-assets-${{ github.sha }}
           path: release-cli-assets
 
-      - name: Validate release signing configuration
+      - name: Check Release Signing Configuration
         run: |
           if [ -z "${RELEASE_GPG_PRIVATE_KEY}" ]; then
             echo "missing RELEASE_GPG_PRIVATE_KEY secret"
@@ -459,7 +472,7 @@ jobs:
           RELEASE_GPG_PASSPHRASE: ${{ secrets.RELEASE_GPG_PASSPHRASE }}
           RELEASE_GPG_KEY_ID: ${{ vars.RELEASE_GPG_KEY_ID }}
 
-      - name: Import release signing key
+      - name: Install Release Signing Key
         run: |
           printf '%s\n' "${RELEASE_GPG_PRIVATE_KEY}" > release-signing.key.asc
           gpg --batch --import release-signing.key.asc
@@ -467,7 +480,7 @@ jobs:
         env:
           RELEASE_GPG_PRIVATE_KEY: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
 
-      - name: Sign release integrity files
+      - name: Sign Release Integrity Files
         run: |
           if [ ! -f "release-cli-assets/SHA256SUMS" ]; then
             echo "missing release-cli-assets/SHA256SUMS"
@@ -494,7 +507,7 @@ jobs:
           RELEASE_GPG_PASSPHRASE: ${{ secrets.RELEASE_GPG_PASSPHRASE }}
           RELEASE_GPG_KEY_ID: ${{ vars.RELEASE_GPG_KEY_ID }}
 
-      - name: Create GitHub release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b
         with:
           generate_release_notes: true
@@ -505,15 +518,15 @@ jobs:
             app/cli/install/install.ps1
             app/cli/install/release-signing-public.asc
 
-  publish-packages:
-    name: Publish Packages
+  package-publish:
+    name: Package Publish
     runs-on: ubuntu-latest
     timeout-minutes: 120
     needs:
-      - build-artifacts
-      - package-cli-artifacts
-      - smoke-install-windows
-      - create-release
+      - release-build
+      - cli-package
+      - windows-installer-smoke-check
+      - github-release-create
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     environment: release
     permissions:
@@ -525,37 +538,37 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Validate release tag matches VERSION.txt
+      - name: Check Release Tag Version
         run: bash scripts/ci/validate-release-tag-version.sh "${GITHUB_REF_NAME}"
 
-      - name: Setup Rust Bun and just
+      - name: Install Rust Bun and just
         uses: ./.github/actions/setup-rust-bun-just
 
-      - name: Setup Node
+      - name: Install Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "24"
 
-      - name: Setup Python
+      - name: Install Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: "3.12"
 
-      - name: Setup Ruby
+      - name: Install Ruby
         uses: ruby/setup-ruby@e5517072e87f198d9533967ae13d97c11b604005
         with:
           ruby-version: "3.4"
 
-      - name: Setup Dart for pub.dev OIDC
+      - name: Install Dart
         uses: dart-lang/setup-dart@e51d8e571e22473a2ddebf0ef8a2123f0ab2c02c
 
-      - name: Download cli release assets
+      - name: Download CLI Release Assets
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: release-cli-assets-${{ github.sha }}
           path: release-cli-assets
 
-      - name: Download detached release signatures
+      - name: Download Release Signatures
         run: |
           release_download_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
           curl --fail --location --silent --show-error "${release_download_base}/SHA256SUMS.asc" --output "release-cli-assets/SHA256SUMS.asc"
@@ -563,7 +576,7 @@ jobs:
           curl --fail --location --silent --show-error "${release_download_base}/install.sh.asc" --output "release-cli-assets/install.sh.asc"
           curl --fail --location --silent --show-error "${release_download_base}/install.ps1.asc" --output "release-cli-assets/install.ps1.asc"
 
-      - name: Verify detached release signatures
+      - name: Check Release Signatures
         run: |
           export GNUPGHOME
           GNUPGHOME="$(mktemp -d)"
@@ -576,16 +589,16 @@ jobs:
           gpg --batch --verify release-cli-assets/install.sh.asc app/cli/install/install.sh
           gpg --batch --verify release-cli-assets/install.ps1.asc app/cli/install/install.ps1
 
-      - name: Install JS dependencies
+      - name: Install JS Dependencies
         run: bun install --frozen-lockfile
 
-      - name: Ensure bridge publish toolchains
+      - name: Install Bridge Publish Toolchains
         run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just bridge/ensure-toolchain
 
-      - name: Stage cli npm binaries from release artifacts
+      - name: Stage CLI npm Binaries
         run: just app/stage-cli-binaries-from-artifacts "$(cat VERSION.txt)" "release-cli-assets"
 
-      - name: Validate publish configuration
+      - name: Check Publish Configuration
         run: |
           if [ -z "${CARGO_TOKEN}" ]; then
             echo "missing CARGO_TOKEN secret"
@@ -655,13 +668,13 @@ jobs:
           ZED_GITHUB_TOKEN: ${{ secrets.ZED_GITHUB_TOKEN }}
           ZED_REGISTRY_PUSH_TO: ${{ vars.ZED_REGISTRY_PUSH_TO }}
 
-      - name: Login to NuGet with OIDC
+      - name: Install NuGet Credentials
         id: nuget-login
         uses: NuGet/login@d22cc5f58ff5b88bf9bd452535b4335137e24544
         with:
           user: ${{ vars.NUGET_PUBLISH_USERNAME }}
 
-      - name: Configure RubyGems credentials with OIDC
+      - name: Install RubyGems Credentials
         uses: rubygems/configure-rubygems-credentials@bc6dd217f8a4f919d6835fcfefd470ef821f5c44
         with:
           role-to-assume: ${{ vars.RUBYGEMS_OIDC_ROLE }}

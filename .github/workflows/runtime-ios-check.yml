@@ -1,4 +1,4 @@
-name: Runtime iOS
+name: Runtime Check (iOS)
 
 on:
   workflow_call:
@@ -13,8 +13,8 @@ permissions:
   contents: read
 
 jobs:
-  runtime-ios:
-    name: Runtime iOS
+  runtime-ios-check:
+    name: Runtime Check (iOS)
     runs-on: macos-14
     timeout-minutes: 90
     env:
@@ -25,13 +25,13 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Rust and just
+      - name: Install Rust and just
         uses: ./.github/actions/setup-rust-just
         with:
           rust_components: clippy
           rust_targets: aarch64-apple-ios
 
-      - name: Check runtime on iOS
+      - name: Check Runtime (iOS)
         run: just language/check-runtime-ios
         env:
           IOS_DEPLOYMENT_TARGET: ${{ env.IOS_DEPLOYMENT_TARGET }}

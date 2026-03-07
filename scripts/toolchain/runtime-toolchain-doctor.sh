@@ -8,9 +8,6 @@ source "${script_directory}/versions.sh"
 
 # shellcheck source=./scripts/toolchain/lib/runtime-common.sh
 source "${script_directory}/lib/runtime-common.sh"
-# shellcheck source=./scripts/toolchain/lib/runtime-windows-gnu.sh
-source "${script_directory}/lib/runtime-windows-gnu.sh"
-
 has_error="0"
 host_kernel="$(runtime_host_kernel)"
 host_arch="$(uname -m)"
@@ -82,34 +79,12 @@ if [ -n "$(runtime_command_path rustup)" ]; then
 	fi
 fi
 
-# zig is required by runtime cross lanes:
-# linux gnu targets use zig linker wrappers on all supported hosts
-check_command zig required "zig"
-
-# wine is required when windows gnu tests execute through wine
-if runtime_windows_gnu_is_execution_host; then
-	check_command wine required "wine"
-	check_command python3 required "python3"
-else
-	check_command wine optional "wine"
-	check_command python3 optional "python3"
-fi
-
-# mingw-w64 compiler is required on macos for windows gnu linker wiring
-if [ "${host_kernel}" = "Darwin" ]; then
-	check_command x86_64-w64-mingw32-gcc required "mingw-w64 compiler"
-else
-	check_command x86_64-w64-mingw32-gcc optional "mingw-w64 compiler"
-fi
-
 # host sdk checks
 if [ "${host_kernel}" = "Darwin" ]; then
 	check_command xcrun required "xcode sdk tools"
 fi
 
 # rust targets used by runtime lanes
-check_rust_target wasm32-wasip1 required
-check_rust_target x86_64-pc-windows-gnu required
 check_rust_target aarch64-linux-android required
 
 # ios checks only apply on macos hosts
@@ -119,15 +94,9 @@ else
 	check_rust_target aarch64-apple-ios optional
 fi
 
-# linux gnu cross checks are first class on linux hosts
+# linux host checks apply on linux hosts
 if [ "${host_kernel}" = "Linux" ]; then
-	check_rust_target x86_64-unknown-linux-gnu required
-	check_rust_target aarch64-unknown-linux-gnu required
 	check_command weston required "weston wayland compositor"
-else
-	check_rust_target x86_64-unknown-linux-gnu optional
-	check_rust_target aarch64-unknown-linux-gnu optional
-	check_command weston optional "weston wayland compositor"
 fi
 
 # android ndk resolution
@@ -137,9 +106,9 @@ else
 	print_error "android ndk root: not found, run just language/install-toolchain"
 fi
 
-# dbus host pkg-config is not required:
-# keyring linux secret-service path is built vendored for cross determinism
-print_ok "dbus host pkg-config is not required for runtime cross lanes"
+if [ "${host_kernel}" != "Linux" ]; then
+	check_command weston optional "weston wayland compositor"
+fi
 
 if [ "${has_error}" = "1" ]; then
 	printf 'runtime toolchain doctor: failed\n'
