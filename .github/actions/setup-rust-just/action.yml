@@ -51,5 +51,7 @@ runs:
         cargo --version
 
     - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
+      with:
+        add-job-id-key: false
 
     - uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
