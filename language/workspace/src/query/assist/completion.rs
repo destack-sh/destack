@@ -1740,7 +1740,8 @@ fn complete_values(
 
         // for functions, generate snippet with parameter placeholders
         if symbol_type == SymbolType::Function {
-            if let Some(param_names) = get_function_param_names(session, symbol_id) {
+            let param_names = get_function_param_names(session, symbol_id);
+            if let Some(param_names) = param_names {
                 let (snippet, is_snippet) = generate_call_snippet(&name, &param_names);
                 completion = completion.with_insert_text(snippet);
                 if is_snippet {
