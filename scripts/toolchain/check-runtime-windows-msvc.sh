@@ -6,6 +6,19 @@ if [ "${OS:-}" != "Windows_NT" ]; then
 	exit 1
 fi
 
+# prefer native windows toolchains inside git bash
+windows_perl_directory="/c/Strawberry/perl/bin"
+windows_nasm_directory="/c/Program Files/NASM"
+
+if [ -d "${windows_perl_directory}" ]; then
+	export PATH="${windows_perl_directory}:${PATH}"
+	export PERL="${windows_perl_directory}/perl.exe"
+fi
+
+if [ -d "${windows_nasm_directory}" ]; then
+	export PATH="${windows_nasm_directory}:${PATH}"
+fi
+
 # use native rust executables on windows
 cargo_bin="cargo"
 if command -v cargo.exe >/dev/null 2>&1; then
@@ -21,6 +34,10 @@ fi
 if command -v "${rustup_bin}" >/dev/null 2>&1; then
 	"${rustup_bin}" target add x86_64-pc-windows-msvc >/dev/null
 fi
+
+# confirm native perl and nasm resolve before openssl builds
+command -v perl >/dev/null
+command -v nasm >/dev/null
 
 # check and lint runtime on windows host
 LC_ALL=C LANG=C CARGO_INCREMENTAL=0 "${cargo_bin}" check -p destack_runtime
