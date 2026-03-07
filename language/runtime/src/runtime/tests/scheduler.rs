@@ -765,7 +765,10 @@ fn test_world_tick_drives_runtime() {
             let engine = runtime
                 .agent(primary_agent_id)
                 .expect("primary agent")
-                .engine::<CompleteEngine>()
+                .engine
+                .as_ref() as &dyn std::any::Any;
+            let engine = engine
+                .downcast_ref::<CompleteEngine>()
                 .expect("runtime engine should exist");
             assert_eq!(engine.resume_calls, 1);
             Ok(())

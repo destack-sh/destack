@@ -11,9 +11,10 @@ use crate::platform::display::unix::x11::event::{
     self as x11_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
 };
 use crate::platform::display::unix::x11::model::{MonitorSnapshot, X11WindowHostState};
-use crate::platform::display::{RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry};
 use crate::platform::resource;
-use crate::runtime::BindingCallContext;
+use crate::runtime::{
+    BindingCallContext, RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry,
+};
 
 /// Runtime-owned X11 display backend state.
 pub(crate) struct X11RuntimeState {

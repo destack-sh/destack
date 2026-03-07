@@ -663,7 +663,7 @@ fn test_runtime_spawn_agent_aligns_world_scoped_options() {
     world
         .with_runtime_mut(runtime_id, |runtime| {
             let spawned_agent_id = runtime
-                .spawn_agent_with_options(&world, &spawn_options)
+                .spawn_agent_with_options(&world, &spawn_options, Box::new(TestEngine::default()))
                 .expect("spawn should succeed");
             let spawned_agent = runtime
                 .agent(spawned_agent_id)

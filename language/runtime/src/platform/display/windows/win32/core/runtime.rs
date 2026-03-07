@@ -9,16 +9,16 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
 use crate::host::core::{RuntimeIngressObserver, register_runtime_ingress_observer};
+use crate::platform::display::WindowCursorMode;
 use crate::platform::display::windows::win32::event::{
     DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
 };
 use crate::platform::display::windows::win32::model::{MonitorSnapshot, Win32WindowHostState};
 use crate::platform::display::windows::win32::{core, publish_monitor_topology_deltas};
-use crate::platform::display::{
-    RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry, WindowCursorMode,
-};
 use crate::platform::resource;
-use crate::runtime::BindingCallContext;
+use crate::runtime::{
+    BindingCallContext, RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry,
+};
 
 /// Runtime-owned mutable state for the Win32 display backend.
 #[derive(Debug)]

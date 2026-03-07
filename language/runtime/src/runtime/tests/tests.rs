@@ -232,6 +232,7 @@ impl TestRuntime {
     }
 
     /// Create one test agent with explicit runtime options.
+    #[allow(dead_code)]
     pub(super) fn with_options(options: &RuntimeOptions) -> Self {
         let (world, agent, host) = agent_for_options_with_engine(options, TestEngine::default());
 
@@ -249,6 +250,7 @@ impl TestRuntime {
     }
 
     /// Create one test agent with explicit options and one host clock source.
+    #[allow(dead_code)]
     pub(super) fn with_options_and_host_clock_source(
         options: &RuntimeOptions,
         host_clock_source: Arc<dyn HostClockSource>,
@@ -570,6 +572,11 @@ impl TestMultiAgentRuntime {
         self.world.clone()
     }
 
+    /// Run one closure with one stored primary-agent engine by explicit type.
+    pub(super) fn with_engine<T: Engine, R>(&self, callback: impl FnOnce(&T) -> R) -> R {
+        self.with_primary_engine(callback)
+    }
+
     /// Return current world monotonic time in nanoseconds.
     pub(super) fn mono_nanos(&self) -> u64 {
         self.world.mono_nanos()
@@ -614,11 +621,13 @@ impl TestMultiAgentRuntime {
 }
 
 /// Build one agent configured for runtime tests.
+#[allow(dead_code)]
 fn agent_for_options(options: &RuntimeOptions) -> (Arc<World>, Agent, Host) {
     agent_for_options_with_engine(options, TestEngine::default())
 }
 
 /// Build one agent configured for runtime tests and one optional host clock source.
+#[allow(dead_code)]
 fn agent_for_options_with_host_clock_source(
     options: &RuntimeOptions,
     host_clock_source: Option<Arc<dyn HostClockSource>>,
