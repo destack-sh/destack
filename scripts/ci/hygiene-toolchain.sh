@@ -50,6 +50,7 @@ doctor_toolchains() {
 	printf 'host: %s\n' "${host_kernel}"
 
 	check_command actionlint "actionlint"
+	check_command rg "ripgrep"
 	check_command shellcheck "shellcheck"
 	check_command shfmt "shfmt"
 
@@ -105,27 +106,28 @@ install_toolchains() {
 	if [[ "${host_kernel}" == "Linux" ]]; then
 		if ! command -v apt-get >/dev/null 2>&1; then
 			echo "apt-get is required on linux hosts"
-			echo "install actionlint, shellcheck, and shfmt manually"
+			echo "install actionlint, ripgrep, shellcheck, and shfmt manually"
 			exit 1
 		fi
 
 		sudo apt-get update
-		sudo apt-get install -y shellcheck shfmt curl tar gzip
+		sudo apt-get install -y ripgrep shellcheck shfmt curl tar gzip
 		install_actionlint_binary
 	elif [[ "${host_kernel}" == "Darwin" ]]; then
 		if ! command -v brew >/dev/null 2>&1; then
 			echo "homebrew is required on darwin hosts"
-			echo "install actionlint, shellcheck, and shfmt manually"
+			echo "install actionlint, ripgrep, shellcheck, and shfmt manually"
 			exit 1
 		fi
 
-		brew install actionlint shellcheck shfmt
+		brew install actionlint ripgrep shellcheck shfmt
 	else
 		echo "unsupported host kernel for ci hygiene toolchain install: ${host_kernel}"
 		exit 1
 	fi
 
 	actionlint -version
+	rg --version
 	shellcheck --version
 	shfmt --version
 }
