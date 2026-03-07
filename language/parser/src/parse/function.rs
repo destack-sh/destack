@@ -340,6 +340,16 @@ impl Parser {
         Some((close_index, head_shape))
     }
 
+    /// Return the close index for a plain parenthesized lambda head.
+    pub(crate) fn plain_parenthesized_lambda_close_index(
+        &mut self,
+        open_index: usize,
+    ) -> Option<usize> {
+        let (close_index, _) = self.scan_plain_parenthesized_lambda_head(open_index)?;
+
+        Some(close_index)
+    }
+
     /// Try to parse plain `() => body`, `(identifier) => body`, or `(identifier: Type) => body` lambdas.
     fn try_eat_plain_parenthesized_lambda(
         &mut self,
@@ -483,7 +493,7 @@ impl Parser {
     ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
         // require an arrow or return type marker after the parenthesized head
         let open_index = self.pos_index();
-        let Some(close_index) = self.matching_pair_or_lex(open_index) else {
+        let Some(close_index) = self.plain_parenthesized_lambda_close_index(open_index) else {
             return Ok(None);
         };
         if close_index <= open_index {
