@@ -4,10 +4,11 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::resource::{ResourceEntry, ResourceKind, resolve_payload};
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
+use crate::runtime::bindings::BindingAffinity;
 
 use super::core;
-use super::event::{MonitorEventBinding, WindowEventBinding};
-use super::model::{WaylandDisplayBinding, WaylandWindowBinding};
+use super::event::{MonitorEventStream, WindowEventStream};
+use super::model::{WaylandDisplayHostState, WaylandWindowHostState};
 
 /// Insert one monitor resource for one monitor identifier.
 pub(crate) fn open_display_handle(
@@ -16,11 +17,13 @@ pub(crate) fn open_display_handle(
 ) -> resource::DisplayHandle {
     let entry = ResourceEntry::new(ResourceKind::Display)
         .with_label(core::DISPLAY_RESOURCE_LABEL)
-        .with_payload(WaylandDisplayBinding { id });
-    let resource_id = context
-        .runtime()
-        .resources
-        .insert(entry, Some(context.engine()));
+        .with_binding_affinity(BindingAffinity::EventLoop, context.execution_context())
+        .with_payload(WaylandDisplayHostState { id });
+    let resource_id =
+        context
+            .agent()
+            .resources
+            .insert(context.world(), entry, Some(context.engine()));
 
     resource::DisplayHandle(resource_id)
 }
@@ -31,12 +34,13 @@ pub(crate) fn resolve_display_id(
     handle: resource::DisplayHandle,
     operation: &'static str,
 ) -> RuntimeResult<String> {
-    let binding = resolve_payload::<WaylandDisplayBinding>(
+    let host_state = resolve_payload::<WaylandDisplayHostState>(
         context,
         handle.0,
         ResourceKind::Display,
         Some(core::DISPLAY_RESOURCE_LABEL),
-    )
+        operation,
+    )?
     .ok_or_else(|| {
         core_platform::io_not_found(
             operation,
@@ -44,11 +48,11 @@ pub(crate) fn resolve_display_id(
         )
     })?;
 
-    Ok(binding.id)
+    Ok(host_state.id)
 }
 
-/// Validate that one display handle resolves to one wayland display binding.
-pub(crate) fn ensure_display_binding_exists(
+/// Validate that one display handle resolves to one wayland display host state.
+pub(crate) fn ensure_display_handle_exists(
     context: &BindingCallContext,
     handle: resource::DisplayHandle,
     operation: &'static str,
@@ -58,40 +62,46 @@ pub(crate) fn ensure_display_binding_exists(
     Ok(())
 }
 
-/// Build one resource entry for one opened wayland window binding.
-pub(crate) fn window_resource_entry(binding: Arc<Mutex<WaylandWindowBinding>>) -> ResourceEntry {
+/// Build one resource entry for one opened wayland window host state.
+pub(crate) fn window_resource_entry(
+    context: &BindingCallContext,
+    binding: Arc<Mutex<WaylandWindowHostState>>,
+) -> ResourceEntry {
     ResourceEntry::new(ResourceKind::Window)
         .with_label(core::WINDOW_RESOURCE_LABEL)
+        .with_binding_affinity(BindingAffinity::EventLoop, context.execution_context())
         .with_payload(binding)
 }
 
-/// Resolve one window binding payload from one opened window handle.
-pub(crate) fn resolve_window_binding(
+/// Resolve one window host-state payload from one opened window handle.
+pub(crate) fn resolve_window_host_state(
     context: &BindingCallContext,
     window: resource::WindowHandle,
     operation: &'static str,
-) -> RuntimeResult<Arc<Mutex<WaylandWindowBinding>>> {
-    resolve_payload::<Arc<Mutex<WaylandWindowBinding>>>(
+) -> RuntimeResult<Arc<Mutex<WaylandWindowHostState>>> {
+    resolve_payload::<Arc<Mutex<WaylandWindowHostState>>>(
         context,
         window.0,
         ResourceKind::Window,
         Some(core::WINDOW_RESOURCE_LABEL),
-    )
+        operation,
+    )?
     .ok_or_else(|| core::window_not_found(operation, window))
 }
 
-/// Resolve one monitor-event binding payload from one opened monitor-event handle.
-pub(crate) fn resolve_monitor_event_binding(
+/// Resolve one monitor-event stream payload from one opened monitor-event handle.
+pub(crate) fn resolve_monitor_event_stream(
     context: &BindingCallContext,
     handle: resource::DisplayEventHandle,
     operation: &'static str,
-) -> RuntimeResult<Arc<MonitorEventBinding>> {
-    resolve_payload::<Arc<MonitorEventBinding>>(
+) -> RuntimeResult<Arc<MonitorEventStream>> {
+    resolve_payload::<Arc<MonitorEventStream>>(
         context,
         handle.0,
         ResourceKind::Display,
         Some(core::DISPLAY_EVENT_RESOURCE_LABEL),
-    )
+        operation,
+    )?
     .ok_or_else(|| {
         core_platform::io_not_found(
             operation,
@@ -100,40 +110,41 @@ pub(crate) fn resolve_monitor_event_binding(
     })
 }
 
-/// Validate that one monitor-event handle resolves to one wayland event binding.
-pub(crate) fn ensure_monitor_event_binding_exists(
+/// Validate that one monitor-event handle resolves to one wayland event stream.
+pub(crate) fn ensure_monitor_event_handle_exists(
     context: &BindingCallContext,
     handle: resource::DisplayEventHandle,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    resolve_monitor_event_binding(context, handle, operation)?;
+    resolve_monitor_event_stream(context, handle, operation)?;
 
     Ok(())
 }
 
-/// Validate that one window handle resolves to one wayland window binding.
-pub(crate) fn ensure_window_binding_exists(
+/// Validate that one window handle resolves to one wayland window host state.
+pub(crate) fn ensure_window_handle_exists(
     context: &BindingCallContext,
     window: resource::WindowHandle,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    resolve_window_binding(context, window, operation)?;
+    resolve_window_host_state(context, window, operation)?;
 
     Ok(())
 }
 
-/// Resolve one window-event binding payload from one opened window-event handle.
-pub(crate) fn resolve_window_event_binding(
+/// Resolve one window-event stream payload from one opened window-event handle.
+pub(crate) fn resolve_window_event_stream(
     context: &BindingCallContext,
     handle: resource::WindowEventHandle,
     operation: &'static str,
-) -> RuntimeResult<Arc<WindowEventBinding>> {
-    resolve_payload::<Arc<WindowEventBinding>>(
+) -> RuntimeResult<Arc<WindowEventStream>> {
+    resolve_payload::<Arc<WindowEventStream>>(
         context,
         handle.0,
         ResourceKind::Window,
         Some(core::WINDOW_EVENT_RESOURCE_LABEL),
-    )
+        operation,
+    )?
     .ok_or_else(|| {
         core_platform::io_not_found(
             operation,
@@ -142,13 +153,13 @@ pub(crate) fn resolve_window_event_binding(
     })
 }
 
-/// Validate that one window-event handle resolves to one wayland event binding.
-pub(crate) fn ensure_window_event_binding_exists(
+/// Validate that one window-event handle resolves to one wayland event stream.
+pub(crate) fn ensure_window_event_handle_exists(
     context: &BindingCallContext,
     handle: resource::WindowEventHandle,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    resolve_window_event_binding(context, handle, operation)?;
+    resolve_window_event_stream(context, handle, operation)?;
 
     Ok(())
 }

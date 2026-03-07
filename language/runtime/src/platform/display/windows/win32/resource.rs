@@ -2,10 +2,7 @@ use std::ffi::c_void;
 use std::sync::{Arc, Mutex};
 
 use windows_sys::Win32::Foundation::HWND;
-use windows_sys::Win32::System::Threading::GetCurrentThreadId;
-use windows_sys::Win32::UI::WindowsAndMessaging::{
-    DestroyWindow, GetWindowThreadProcessId, IsWindow, PostMessageW, WM_CLOSE,
-};
+use windows_sys::Win32::UI::WindowsAndMessaging::{IsWindow, PostMessageW, WM_CLOSE};
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::resource::{
@@ -13,11 +10,12 @@ use crate::platform::resource::{
 };
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
+use crate::runtime::bindings::BindingAffinity;
 
 use super::constants::*;
 use super::core;
-use super::event::{MonitorEventBinding, WindowEventBinding};
-use super::model::{Win32DisplayBinding, Win32WindowBinding};
+use super::event::{MonitorEventStream, WindowEventStream};
+use super::model::{Win32DisplayHostState, Win32WindowHostState};
 
 /// Finalizer payload that destroys one Win32 window handle.
 #[derive(Debug)]
@@ -31,19 +29,9 @@ impl ResourceFinalizer for Win32WindowFinalizer {
     fn finalize(self: Box<Self>, _resource_id: ResourceId) {
         // destroy the native window when it is still alive
         if unsafe { IsWindow(self.hwnd) } != 0 {
-            let owner_thread_id =
-                unsafe { GetWindowThreadProcessId(self.hwnd, std::ptr::null_mut()) };
-            let current_thread_id = unsafe { GetCurrentThreadId() };
-
-            // destroy directly on owner thread, otherwise request close asynchronously
-            if owner_thread_id == current_thread_id {
-                unsafe {
-                    DestroyWindow(self.hwnd);
-                }
-            } else {
-                unsafe {
-                    let _ = PostMessageW(self.hwnd, WM_CLOSE, core::WINDOW_CLOSE_FORCE_WPARAM, 0);
-                }
+            // route forced teardown onto the window event-loop context
+            unsafe {
+                let _ = PostMessageW(self.hwnd, WM_CLOSE, core::WINDOW_CLOSE_FORCE_WPARAM, 0);
             }
         }
     }
@@ -56,7 +44,8 @@ pub(crate) fn open_display_handle(
 ) -> resource::DisplayHandle {
     let entry = ResourceEntry::new(ResourceKind::Display)
         .with_label(DISPLAY_RESOURCE_LABEL)
-        .with_payload(Win32DisplayBinding { id });
+        .with_binding_affinity(BindingAffinity::EventLoop, binding.execution_context())
+        .with_payload(Win32DisplayHostState { id });
     let resource_id =
         binding
             .agent()
@@ -71,12 +60,13 @@ pub(crate) fn resolve_display_id(
     handle: resource::DisplayHandle,
     operation: &'static str,
 ) -> RuntimeResult<String> {
-    let resolved_binding = resolve_payload::<Win32DisplayBinding>(
+    let resolved_display_state = resolve_payload::<Win32DisplayHostState>(
         binding,
         handle.0,
         ResourceKind::Display,
         Some(DISPLAY_RESOURCE_LABEL),
-    )
+        operation,
+    )?
     .ok_or_else(|| {
         core_platform::io_not_found(
             operation,
@@ -84,21 +74,22 @@ pub(crate) fn resolve_display_id(
         )
     })?;
 
-    Ok(resolved_binding.id)
+    Ok(resolved_display_state.id)
 }
 
-/// Resolve one window binding payload from one opened window handle.
-pub(crate) fn resolve_window_binding(
+/// Resolve one window host-state payload from one opened window handle.
+pub(crate) fn resolve_window_host_state(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     operation: &'static str,
-) -> RuntimeResult<Arc<Mutex<Win32WindowBinding>>> {
-    resolve_payload::<Arc<Mutex<Win32WindowBinding>>>(
+) -> RuntimeResult<Arc<Mutex<Win32WindowHostState>>> {
+    resolve_payload::<Arc<Mutex<Win32WindowHostState>>>(
         binding,
         window.0,
         ResourceKind::Window,
         Some(WINDOW_RESOURCE_LABEL),
-    )
+        operation,
+    )?
     .ok_or_else(|| {
         core_platform::io_not_found(
             operation,
@@ -107,29 +98,30 @@ pub(crate) fn resolve_window_binding(
     })
 }
 
-/// Validate that one window handle resolves to one win32 window binding.
-pub(crate) fn ensure_window_binding_exists(
+/// Validate that one window handle resolves to one win32 window host state.
+pub(crate) fn ensure_window_handle_exists(
     context: &BindingCallContext,
     window: resource::WindowHandle,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    resolve_window_binding(context, window, operation)?;
+    resolve_window_host_state(context, window, operation)?;
 
     Ok(())
 }
 
-/// Resolve one monitor-event binding payload from one opened monitor-event handle.
-pub(crate) fn resolve_monitor_event_binding(
+/// Resolve one monitor-event stream payload from one opened monitor-event handle.
+pub(crate) fn resolve_monitor_event_stream(
     binding: &BindingCallContext,
     handle: resource::DisplayEventHandle,
     operation: &'static str,
-) -> RuntimeResult<Arc<MonitorEventBinding>> {
-    resolve_payload::<Arc<MonitorEventBinding>>(
+) -> RuntimeResult<Arc<MonitorEventStream>> {
+    resolve_payload::<Arc<MonitorEventStream>>(
         binding,
         handle.0,
         ResourceKind::Display,
         Some(DISPLAY_EVENT_RESOURCE_LABEL),
-    )
+        operation,
+    )?
     .ok_or_else(|| {
         core_platform::io_not_found(
             operation,
@@ -138,18 +130,19 @@ pub(crate) fn resolve_monitor_event_binding(
     })
 }
 
-/// Resolve one window-event binding payload from one opened window-event handle.
-pub(crate) fn resolve_window_event_binding(
+/// Resolve one window-event stream payload from one opened window-event handle.
+pub(crate) fn resolve_window_event_stream(
     binding: &BindingCallContext,
     handle: resource::WindowEventHandle,
     operation: &'static str,
-) -> RuntimeResult<Arc<WindowEventBinding>> {
-    resolve_payload::<Arc<WindowEventBinding>>(
+) -> RuntimeResult<Arc<WindowEventStream>> {
+    resolve_payload::<Arc<WindowEventStream>>(
         binding,
         handle.0,
         ResourceKind::Window,
         Some(WINDOW_EVENT_RESOURCE_LABEL),
-    )
+        operation,
+    )?
     .ok_or_else(|| {
         core_platform::io_not_found(
             operation,
@@ -158,13 +151,15 @@ pub(crate) fn resolve_window_event_binding(
     })
 }
 
-/// Build one resource entry for one opened window binding.
+/// Build one resource entry for one opened window host state.
 pub(crate) fn window_resource_entry(
+    context: &BindingCallContext,
     hwnd: HWND,
-    binding: Arc<Mutex<Win32WindowBinding>>,
+    binding: Arc<Mutex<Win32WindowHostState>>,
 ) -> ResourceEntry {
     ResourceEntry::new(ResourceKind::Window)
         .with_label(WINDOW_RESOURCE_LABEL)
+        .with_binding_affinity(BindingAffinity::EventLoop, context.execution_context())
         .with_handle(hwnd as *mut c_void)
         .with_payload(binding)
         .with_finalizer(Win32WindowFinalizer { hwnd })

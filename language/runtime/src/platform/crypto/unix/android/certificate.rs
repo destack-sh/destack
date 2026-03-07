@@ -11,8 +11,8 @@ use crate::platform::crypto::host::unix::core as unix_core;
 use crate::runtime::{BindingCallContext, NativeSlice};
 
 use super::core::{
-    callback_runtime_id, configured_system_certificate_directories,
-    configured_system_certificate_files, host_status_result, host_store_kind, invalid_data,
+    configured_system_certificate_directories, configured_system_certificate_files,
+    host_runtime_id, host_status_result, host_store_kind, invalid_data,
 };
 
 /// Return whether one host store lane supports certificate write operations.
@@ -29,9 +29,7 @@ pub(crate) fn host_store_supports_certificate_write(
     }
 
     // require one callback runtime id and both certificate callbacks
-    let Some(runtime_id) = binding.host().callback_runtime_id() else {
-        return false;
-    };
+    let runtime_id = binding.agent().runtime_id.0;
     let Ok(encoded_kind) = host_store_kind(kind, "destack.crypto.store.probeCapability") else {
         return false;
     };
@@ -49,7 +47,7 @@ pub(crate) fn host_store_import_certificate(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // resolve runtime id
-    let runtime_id = callback_runtime_id(binding, operation)?;
+    let runtime_id = host_runtime_id(binding, operation)?;
 
     // encode host arguments
     let encoded_kind = host_store_kind(kind, operation)?;
@@ -76,7 +74,7 @@ pub(crate) fn host_store_delete_certificate(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // resolve runtime id
-    let runtime_id = callback_runtime_id(binding, operation)?;
+    let runtime_id = host_runtime_id(binding, operation)?;
 
     // encode host arguments
     let encoded_kind = host_store_kind(kind, operation)?;

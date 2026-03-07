@@ -9,10 +9,11 @@ use crate::platform::resource::{
 };
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
+use crate::runtime::bindings::BindingAffinity;
 
 use super::core;
-use super::event::{MonitorEventBinding, WindowEventBinding};
-use super::model::{X11DisplayBinding, X11WindowBinding};
+use super::event::{MonitorEventStream, WindowEventStream};
+use super::model::{X11DisplayHostState, X11WindowHostState};
 
 /// Finalizer payload that destroys one x11 window id.
 #[derive(Debug)]
@@ -39,7 +40,8 @@ pub(crate) fn open_display_handle(
 ) -> resource::DisplayHandle {
     let entry = ResourceEntry::new(ResourceKind::Display)
         .with_label(core::DISPLAY_RESOURCE_LABEL)
-        .with_payload(X11DisplayBinding { id });
+        .with_binding_affinity(BindingAffinity::EventLoop, binding.execution_context())
+        .with_payload(X11DisplayHostState { id });
     let resource_id =
         binding
             .agent()
@@ -55,19 +57,20 @@ pub(crate) fn resolve_display_id(
     handle: resource::DisplayHandle,
     operation: &'static str,
 ) -> RuntimeResult<String> {
-    let resolved_binding = resolve_payload::<X11DisplayBinding>(
+    let resolved_display_state = resolve_payload::<X11DisplayHostState>(
         binding,
         handle.0,
         ResourceKind::Display,
         Some(core::DISPLAY_RESOURCE_LABEL),
-    )
+        operation,
+    )?
     .ok_or_else(|| core::display_not_found(operation, handle))?;
 
-    Ok(resolved_binding.id)
+    Ok(resolved_display_state.id)
 }
 
-/// Validate that one display handle resolves to one x11 display binding.
-pub(crate) fn ensure_display_binding_exists(
+/// Validate that one display handle resolves to one x11 display host state.
+pub(crate) fn ensure_display_handle_exists(
     context: &BindingCallContext,
     handle: resource::DisplayHandle,
     operation: &'static str,
@@ -77,44 +80,46 @@ pub(crate) fn ensure_display_binding_exists(
     Ok(())
 }
 
-/// Resolve one window binding payload from one opened window handle.
-pub(crate) fn resolve_window_binding(
+/// Resolve one window host-state payload from one opened window handle.
+pub(crate) fn resolve_window_host_state(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
     operation: &'static str,
-) -> RuntimeResult<Arc<Mutex<X11WindowBinding>>> {
-    resolve_payload::<Arc<Mutex<X11WindowBinding>>>(
+) -> RuntimeResult<Arc<Mutex<X11WindowHostState>>> {
+    resolve_payload::<Arc<Mutex<X11WindowHostState>>>(
         binding,
         window.0,
         ResourceKind::Window,
         Some(core::WINDOW_RESOURCE_LABEL),
-    )
+        operation,
+    )?
     .ok_or_else(|| core::window_not_found(operation, window))
 }
 
-/// Validate that one window handle resolves to one x11 window binding.
-pub(crate) fn ensure_window_binding_exists(
+/// Validate that one window handle resolves to one x11 window host state.
+pub(crate) fn ensure_window_handle_exists(
     context: &BindingCallContext,
     window: resource::WindowHandle,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    resolve_window_binding(context, window, operation)?;
+    resolve_window_host_state(context, window, operation)?;
 
     Ok(())
 }
 
-/// Resolve one monitor-event binding payload from one opened monitor-event handle.
-pub(crate) fn resolve_monitor_event_binding(
+/// Resolve one monitor-event stream payload from one opened monitor-event handle.
+pub(crate) fn resolve_monitor_event_stream(
     binding: &BindingCallContext,
     handle: resource::DisplayEventHandle,
     operation: &'static str,
-) -> RuntimeResult<Arc<MonitorEventBinding>> {
-    resolve_payload::<Arc<MonitorEventBinding>>(
+) -> RuntimeResult<Arc<MonitorEventStream>> {
+    resolve_payload::<Arc<MonitorEventStream>>(
         binding,
         handle.0,
         ResourceKind::Display,
         Some(core::DISPLAY_EVENT_RESOURCE_LABEL),
-    )
+        operation,
+    )?
     .ok_or_else(|| {
         core_platform::io_not_found(
             operation,
@@ -123,29 +128,30 @@ pub(crate) fn resolve_monitor_event_binding(
     })
 }
 
-/// Validate that one monitor-event handle resolves to one x11 event binding.
-pub(crate) fn ensure_monitor_event_binding_exists(
+/// Validate that one monitor-event handle resolves to one x11 event stream.
+pub(crate) fn ensure_monitor_event_handle_exists(
     context: &BindingCallContext,
     handle: resource::DisplayEventHandle,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    resolve_monitor_event_binding(context, handle, operation)?;
+    resolve_monitor_event_stream(context, handle, operation)?;
 
     Ok(())
 }
 
-/// Resolve one window-event binding payload from one opened window-event handle.
-pub(crate) fn resolve_window_event_binding(
+/// Resolve one window-event stream payload from one opened window-event handle.
+pub(crate) fn resolve_window_event_stream(
     binding: &BindingCallContext,
     handle: resource::WindowEventHandle,
     operation: &'static str,
-) -> RuntimeResult<Arc<WindowEventBinding>> {
-    resolve_payload::<Arc<WindowEventBinding>>(
+) -> RuntimeResult<Arc<WindowEventStream>> {
+    resolve_payload::<Arc<WindowEventStream>>(
         binding,
         handle.0,
         ResourceKind::Window,
         Some(core::WINDOW_EVENT_RESOURCE_LABEL),
-    )
+        operation,
+    )?
     .ok_or_else(|| {
         core_platform::io_not_found(
             operation,
@@ -154,32 +160,34 @@ pub(crate) fn resolve_window_event_binding(
     })
 }
 
-/// Validate that one window-event handle resolves to one x11 event binding.
-pub(crate) fn ensure_window_event_binding_exists(
+/// Validate that one window-event handle resolves to one x11 event stream.
+pub(crate) fn ensure_window_event_handle_exists(
     context: &BindingCallContext,
     handle: resource::WindowEventHandle,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    resolve_window_event_binding(context, handle, operation)?;
+    resolve_window_event_stream(context, handle, operation)?;
 
     Ok(())
 }
 
-/// Build one resource entry for one opened x11 window binding.
+/// Build one resource entry for one opened x11 window host state.
 pub(crate) fn window_resource_entry(
+    context: &BindingCallContext,
     connection: Arc<core::X11ConnectionState>,
-    window_binding: Arc<Mutex<X11WindowBinding>>,
+    window_host_state: Arc<Mutex<X11WindowHostState>>,
 ) -> ResourceEntry {
     let window_id = {
-        let window_binding_guard = window_binding
+        let window_host_state_guard = window_host_state
             .lock()
             .unwrap_or_else(|error| error.into_inner());
-        window_binding_guard.window
+        window_host_state_guard.window
     };
 
     ResourceEntry::new(ResourceKind::Window)
         .with_label(core::WINDOW_RESOURCE_LABEL)
-        .with_payload(window_binding)
+        .with_binding_affinity(BindingAffinity::EventLoop, context.execution_context())
+        .with_payload(window_host_state)
         .with_finalizer(X11WindowFinalizer {
             connection,
             window: window_id,

@@ -1,8 +1,8 @@
 use super::{core, win32};
 use crate::diagnostic::RuntimeResult;
 use crate::platform::display::{
-    DisplayBackend, DisplayBackendCapabilityFlags, DisplayColorState, DisplayDescriptor,
-    DisplayGammaRamp, DisplayHdrMode, DisplayMode, DisplayMonitorEvent,
+    DisplayBackend, DisplayBackendCapabilityFlags, DisplayBackendDescriptor, DisplayColorState,
+    DisplayDescriptor, DisplayGammaRamp, DisplayHdrMode, DisplayMode, DisplayMonitorEvent,
     DisplayMonitorEventOpenOptions, DisplayMonitorListRequest, DisplayMonitorOpenOptions,
     WindowAspectRatio, WindowAttentionLevel, WindowChromeKind, WindowCursorIcon, WindowCursorMode,
     WindowDescriptor, WindowEvent, WindowEventOpenOptions, WindowIconSet, WindowLogicalSize,
@@ -12,12 +12,19 @@ use crate::platform::display::{
 use crate::platform::{NativeArray, core as core_platform, resource};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
+/// List windows display backend descriptors for the active host.
+pub(crate) fn display_backend_descriptors(
+    binding: &BindingCallContext,
+) -> Vec<DisplayBackendDescriptor> {
+    core::backend_descriptors(binding)
+}
+
 /// Close one display endpoint.
 pub(crate) unsafe fn destack_display_monitor_close(
     binding: &BindingCallContext,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.monitor.close")?;
+    core::resolve_default_backend("destack.display.monitor.close")?;
     unsafe { win32::monitor_close(binding, handle) }
 }
 
@@ -28,7 +35,7 @@ pub(crate) unsafe fn destack_display_monitor_closest_mode(
     handle: resource::DisplayHandle,
     requested: DisplayMode,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.monitor.closestMode")?;
+    core::resolve_default_backend("destack.display.monitor.closestMode")?;
     unsafe { win32::monitor_closest_mode(binding, out, handle, requested) }
 }
 
@@ -38,7 +45,7 @@ pub(crate) unsafe fn destack_display_monitor_current_mode(
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.monitor.currentMode")?;
+    core::resolve_default_backend("destack.display.monitor.currentMode")?;
     unsafe { win32::monitor_current_mode(binding, out, handle) }
 }
 
@@ -48,7 +55,7 @@ pub(crate) unsafe fn destack_display_monitor_descriptor(
     out: *mut DisplayDescriptor,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.monitor.descriptor")?;
+    core::resolve_default_backend("destack.display.monitor.descriptor")?;
     unsafe { win32::monitor_descriptor(binding, out, handle) }
 }
 
@@ -58,7 +65,7 @@ pub(crate) unsafe fn destack_display_monitor_desktop_mode(
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.monitor.desktopMode")?;
+    core::resolve_default_backend("destack.display.monitor.desktopMode")?;
     unsafe { win32::monitor_desktop_mode(binding, out, handle) }
 }
 
@@ -68,7 +75,7 @@ pub(crate) unsafe fn destack_display_monitor_list(
     out: *mut NativeSlice<DisplayDescriptor>,
     request: DisplayMonitorListRequest,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_backend(
+    core::resolve_backend(
         request.backend,
         request.backend_policy,
         "destack.display.monitor.list",
@@ -82,7 +89,7 @@ pub(crate) unsafe fn destack_display_monitor_modes(
     out: *mut NativeSlice<DisplayMode>,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.monitor.modes")?;
+    core::resolve_default_backend("destack.display.monitor.modes")?;
     unsafe { win32::monitor_modes(binding, out, handle) }
 }
 
@@ -93,7 +100,7 @@ pub(crate) unsafe fn destack_display_monitor_open(
     id: NativeStringRef,
     options: DisplayMonitorOpenOptions,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_backend(
+    core::resolve_backend(
         options.backend,
         options.backend_policy,
         "destack.display.monitor.open",
@@ -107,7 +114,7 @@ pub(crate) unsafe fn destack_display_monitor_primary(
     out: *mut Option<resource::DisplayHandle>,
     request: DisplayMonitorListRequest,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_backend(
+    core::resolve_backend(
         request.backend,
         request.backend_policy,
         "destack.display.monitor.primary",
@@ -121,7 +128,7 @@ pub(crate) unsafe fn destack_display_monitor_set_mode(
     handle: resource::DisplayHandle,
     mode: DisplayMode,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.monitor.setMode")?;
+    core::resolve_default_backend("destack.display.monitor.setMode")?;
     unsafe { win32::monitor_set_mode(binding, handle, mode) }
 }
 
@@ -131,7 +138,7 @@ pub(crate) unsafe fn destack_display_monitor_color_state(
     out: *mut DisplayColorState,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.monitor.colorState")?;
+    core::resolve_default_backend("destack.display.monitor.colorState")?;
     unsafe { win32::monitor_color_state(binding, out, handle) }
 }
 
@@ -141,7 +148,7 @@ pub(crate) unsafe fn destack_display_monitor_hdr_mode(
     out: *mut DisplayHdrMode,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.monitor.hdrMode")?;
+    core::resolve_default_backend("destack.display.monitor.hdrMode")?;
     unsafe { win32::monitor_hdr_mode(binding, out, handle) }
 }
 
@@ -151,7 +158,7 @@ pub(crate) unsafe fn destack_display_monitor_set_hdr_mode(
     handle: resource::DisplayHandle,
     mode: DisplayHdrMode,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.monitor.setHdrMode")?;
+    core::resolve_default_backend("destack.display.monitor.setHdrMode")?;
     unsafe { win32::monitor_set_hdr_mode(binding, handle, mode) }
 }
 
@@ -161,7 +168,7 @@ pub(crate) unsafe fn destack_display_monitor_gamma_ramp(
     out: *mut DisplayGammaRamp,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.monitor.gammaRamp")?;
+    core::resolve_default_backend("destack.display.monitor.gammaRamp")?;
     unsafe { win32::monitor_gamma_ramp(binding, out, handle) }
 }
 
@@ -171,7 +178,7 @@ pub(crate) unsafe fn destack_display_monitor_set_gamma_ramp(
     handle: resource::DisplayHandle,
     ramp: DisplayGammaRamp,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.monitor.setGammaRamp")?;
+    core::resolve_default_backend("destack.display.monitor.setGammaRamp")?;
     unsafe { win32::monitor_set_gamma_ramp(binding, handle, ramp) }
 }
 
@@ -180,7 +187,7 @@ pub(crate) unsafe fn destack_display_monitor_event_close(
     binding: &BindingCallContext,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.monitor.eventClose")?;
+    core::resolve_default_backend("destack.display.monitor.eventClose")?;
     unsafe { win32::monitor_event_close(binding, handle) }
 }
 
@@ -190,7 +197,7 @@ pub(crate) unsafe fn destack_display_monitor_event_open(
     out: *mut resource::DisplayEventHandle,
     options: DisplayMonitorEventOpenOptions,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_backend(
+    core::resolve_backend(
         options.backend,
         options.backend_policy,
         "destack.display.monitor.eventOpen",
@@ -205,7 +212,7 @@ pub(crate) unsafe fn destack_display_monitor_event_read(
     handle: resource::DisplayEventHandle,
     timeout_ns: u64,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.monitor.eventRead")?;
+    core::resolve_default_backend("destack.display.monitor.eventRead")?;
     unsafe { win32::monitor_event_read(binding, out, handle, timeout_ns) }
 }
 
@@ -217,7 +224,7 @@ pub(crate) unsafe fn destack_display_monitor_event_read_batch(
     max_events: u32,
     timeout_ns: u64,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.monitor.eventReadBatch")?;
+    core::resolve_default_backend("destack.display.monitor.eventReadBatch")?;
     unsafe { win32::monitor_event_read_batch(binding, out, handle, max_events, timeout_ns) }
 }
 
@@ -227,7 +234,7 @@ pub(crate) unsafe fn destack_display_monitor_event_try_read(
     out: *mut DisplayMonitorEvent,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.monitor.eventTryRead")?;
+    core::resolve_default_backend("destack.display.monitor.eventTryRead")?;
     unsafe { win32::monitor_event_try_read(binding, out, handle) }
 }
 
@@ -238,7 +245,7 @@ pub(crate) unsafe fn destack_display_monitor_event_try_read_batch(
     handle: resource::DisplayEventHandle,
     max_events: u32,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.monitor.eventTryReadBatch")?;
+    core::resolve_default_backend("destack.display.monitor.eventTryReadBatch")?;
     unsafe { win32::monitor_event_try_read_batch(binding, out, handle, max_events) }
 }
 
@@ -247,7 +254,7 @@ pub(crate) unsafe fn destack_display_window_close(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.close")?;
+    core::resolve_default_backend("destack.display.window.close")?;
     unsafe { win32::window_close(binding, window) }
 }
 
@@ -257,7 +264,7 @@ pub(crate) unsafe fn destack_display_window_descriptor(
     out: *mut WindowDescriptor,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.descriptor")?;
+    core::resolve_default_backend("destack.display.window.descriptor")?;
     unsafe { win32::window_descriptor(binding, out, window) }
 }
 
@@ -267,7 +274,7 @@ pub(crate) unsafe fn destack_display_window_open(
     out: *mut resource::WindowHandle,
     options: WindowOptions,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_backend(
+    core::resolve_backend(
         options.backend,
         options.backend_policy,
         "destack.display.window.open",
@@ -281,7 +288,7 @@ pub(crate) unsafe fn destack_display_window_request_attention(
     window: resource::WindowHandle,
     level: WindowAttentionLevel,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.requestAttention")?;
+    core::resolve_default_backend("destack.display.window.requestAttention")?;
     unsafe { win32::window_request_attention(binding, window, level) }
 }
 
@@ -290,7 +297,7 @@ pub(crate) unsafe fn destack_display_window_request_refresh(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.requestRefresh")?;
+    core::resolve_default_backend("destack.display.window.requestRefresh")?;
     unsafe { win32::window_request_refresh(binding, window) }
 }
 
@@ -300,7 +307,7 @@ pub(crate) unsafe fn destack_display_window_set_always_on_top(
     window: resource::WindowHandle,
     alwaysontop: bool,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setAlwaysOnTop")?;
+    core::resolve_default_backend("destack.display.window.setAlwaysOnTop")?;
     unsafe { win32::window_set_always_on_top(binding, window, alwaysontop) }
 }
 
@@ -310,7 +317,7 @@ pub(crate) unsafe fn destack_display_window_set_cursor_icon(
     window: resource::WindowHandle,
     icon: WindowCursorIcon,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setCursorIcon")?;
+    core::resolve_default_backend("destack.display.window.setCursorIcon")?;
     unsafe { win32::window_set_cursor_icon(binding, window, icon) }
 }
 
@@ -320,7 +327,7 @@ pub(crate) unsafe fn destack_display_window_set_cursor_mode(
     window: resource::WindowHandle,
     mode: WindowCursorMode,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setCursorMode")?;
+    core::resolve_default_backend("destack.display.window.setCursorMode")?;
     unsafe { win32::window_set_cursor_mode(binding, window, mode) }
 }
 
@@ -330,7 +337,7 @@ pub(crate) unsafe fn destack_display_window_set_cursor_position(
     window: resource::WindowHandle,
     position: WindowPosition,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setCursorPosition")?;
+    core::resolve_default_backend("destack.display.window.setCursorPosition")?;
     unsafe { win32::window_set_cursor_position(binding, window, position) }
 }
 
@@ -340,7 +347,7 @@ pub(crate) unsafe fn destack_display_window_set_cursor_visible(
     window: resource::WindowHandle,
     visible: bool,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setCursorVisible")?;
+    core::resolve_default_backend("destack.display.window.setCursorVisible")?;
     unsafe { win32::window_set_cursor_visible(binding, window, visible) }
 }
 
@@ -350,7 +357,7 @@ pub(crate) unsafe fn destack_display_window_set_decorated(
     window: resource::WindowHandle,
     decorated: bool,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setDecorated")?;
+    core::resolve_default_backend("destack.display.window.setDecorated")?;
     unsafe { win32::window_set_decorated(binding, window, decorated) }
 }
 
@@ -360,7 +367,7 @@ pub(crate) unsafe fn destack_display_window_set_mode(
     window: resource::WindowHandle,
     mode: WindowModeOptions,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setMode")?;
+    core::resolve_default_backend("destack.display.window.setMode")?;
     unsafe { win32::window_set_mode(binding, window, mode) }
 }
 
@@ -370,7 +377,7 @@ pub(crate) unsafe fn destack_display_window_set_aspect_ratio(
     window: resource::WindowHandle,
     aspectratio: Option<WindowAspectRatio>,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setAspectRatio")?;
+    core::resolve_default_backend("destack.display.window.setAspectRatio")?;
     unsafe { win32::window_set_aspect_ratio(binding, window, aspectratio) }
 }
 
@@ -380,7 +387,7 @@ pub(crate) unsafe fn destack_display_window_set_chrome(
     window: resource::WindowHandle,
     chrome: WindowChromeKind,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setChrome")?;
+    core::resolve_default_backend("destack.display.window.setChrome")?;
     unsafe { win32::window_set_chrome(binding, window, chrome) }
 }
 
@@ -390,7 +397,7 @@ pub(crate) unsafe fn destack_display_window_set_position(
     window: resource::WindowHandle,
     position: WindowPosition,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setPosition")?;
+    core::resolve_default_backend("destack.display.window.setPosition")?;
     unsafe { win32::window_set_position(binding, window, position) }
 }
 
@@ -400,7 +407,7 @@ pub(crate) unsafe fn destack_display_window_set_resizable(
     window: resource::WindowHandle,
     resizable: bool,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setResizable")?;
+    core::resolve_default_backend("destack.display.window.setResizable")?;
     unsafe { win32::window_set_resizable(binding, window, resizable) }
 }
 
@@ -410,7 +417,7 @@ pub(crate) unsafe fn destack_display_window_set_size_constraints(
     window: resource::WindowHandle,
     constraints: Option<WindowSizeConstraints>,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setSizeConstraints")?;
+    core::resolve_default_backend("destack.display.window.setSizeConstraints")?;
     unsafe { win32::window_set_size_constraints(binding, window, constraints) }
 }
 
@@ -420,7 +427,7 @@ pub(crate) unsafe fn destack_display_window_set_size_logical(
     window: resource::WindowHandle,
     size: WindowLogicalSize,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setSizeLogical")?;
+    core::resolve_default_backend("destack.display.window.setSizeLogical")?;
     unsafe { win32::window_set_size_logical(binding, window, size) }
 }
 
@@ -430,7 +437,7 @@ pub(crate) unsafe fn destack_display_window_set_size_physical(
     window: resource::WindowHandle,
     size: WindowPhysicalSize,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setSizePhysical")?;
+    core::resolve_default_backend("destack.display.window.setSizePhysical")?;
     unsafe { win32::window_set_size_physical(binding, window, size) }
 }
 
@@ -440,7 +447,7 @@ pub(crate) unsafe fn destack_display_window_set_title(
     window: resource::WindowHandle,
     title: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setTitle")?;
+    core::resolve_default_backend("destack.display.window.setTitle")?;
     unsafe { win32::window_set_title(binding, window, title) }
 }
 
@@ -450,7 +457,7 @@ pub(crate) unsafe fn destack_display_window_set_icons(
     window: resource::WindowHandle,
     icons: Option<WindowIconSet>,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setIcons")?;
+    core::resolve_default_backend("destack.display.window.setIcons")?;
     unsafe { win32::window_set_icons(binding, window, icons) }
 }
 
@@ -460,7 +467,7 @@ pub(crate) unsafe fn destack_display_window_set_modal(
     window: resource::WindowHandle,
     modal: bool,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setModal")?;
+    core::resolve_default_backend("destack.display.window.setModal")?;
     unsafe { win32::window_set_modal(binding, window, modal) }
 }
 
@@ -470,7 +477,7 @@ pub(crate) unsafe fn destack_display_window_set_mouse_passthrough(
     window: resource::WindowHandle,
     passthrough: bool,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setMousePassthrough")?;
+    core::resolve_default_backend("destack.display.window.setMousePassthrough")?;
     unsafe { win32::window_set_mouse_passthrough(binding, window, passthrough) }
 }
 
@@ -480,7 +487,7 @@ pub(crate) unsafe fn destack_display_window_set_opacity(
     window: resource::WindowHandle,
     opacity: f64,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setOpacity")?;
+    core::resolve_default_backend("destack.display.window.setOpacity")?;
     unsafe { win32::window_set_opacity(binding, window, opacity) }
 }
 
@@ -490,7 +497,7 @@ pub(crate) unsafe fn destack_display_window_opacity(
     out: *mut f64,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.opacity")?;
+    core::resolve_default_backend("destack.display.window.opacity")?;
     unsafe { win32::window_opacity(binding, out, window) }
 }
 
@@ -499,7 +506,7 @@ pub(crate) unsafe fn destack_display_window_focus(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.focus")?;
+    core::resolve_default_backend("destack.display.window.focus")?;
     unsafe { win32::window_focus(binding, window) }
 }
 
@@ -508,7 +515,7 @@ pub(crate) unsafe fn destack_display_window_raise(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.raise")?;
+    core::resolve_default_backend("destack.display.window.raise")?;
     unsafe { win32::window_raise(binding, window) }
 }
 
@@ -517,7 +524,7 @@ pub(crate) unsafe fn destack_display_window_minimize(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.minimize")?;
+    core::resolve_default_backend("destack.display.window.minimize")?;
     unsafe { win32::window_minimize(binding, window) }
 }
 
@@ -526,7 +533,7 @@ pub(crate) unsafe fn destack_display_window_maximize(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.maximize")?;
+    core::resolve_default_backend("destack.display.window.maximize")?;
     unsafe { win32::window_maximize(binding, window) }
 }
 
@@ -535,7 +542,7 @@ pub(crate) unsafe fn destack_display_window_restore(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.restore")?;
+    core::resolve_default_backend("destack.display.window.restore")?;
     unsafe { win32::window_restore(binding, window) }
 }
 
@@ -545,7 +552,7 @@ pub(crate) unsafe fn destack_display_window_set_parent(
     window: resource::WindowHandle,
     parent: Option<resource::WindowHandle>,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setParent")?;
+    core::resolve_default_backend("destack.display.window.setParent")?;
     unsafe { win32::window_set_parent(binding, window, parent) }
 }
 
@@ -555,7 +562,7 @@ pub(crate) unsafe fn destack_display_window_set_transient_for(
     window: resource::WindowHandle,
     transientfor: Option<resource::WindowHandle>,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setTransientFor")?;
+    core::resolve_default_backend("destack.display.window.setTransientFor")?;
     unsafe { win32::window_set_transient_for(binding, window, transientfor) }
 }
 
@@ -565,7 +572,7 @@ pub(crate) unsafe fn destack_display_window_set_taskbar_visible(
     window: resource::WindowHandle,
     visible: bool,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setTaskbarVisible")?;
+    core::resolve_default_backend("destack.display.window.setTaskbarVisible")?;
     unsafe { win32::window_set_taskbar_visible(binding, window, visible) }
 }
 
@@ -574,7 +581,7 @@ pub(crate) unsafe fn destack_display_window_begin_move_drag(
     binding: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.beginMoveDrag")?;
+    core::resolve_default_backend("destack.display.window.beginMoveDrag")?;
     unsafe { win32::window_begin_move_drag(binding, window) }
 }
 
@@ -584,7 +591,7 @@ pub(crate) unsafe fn destack_display_window_begin_resize_drag(
     window: resource::WindowHandle,
     edge: WindowResizeEdge,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.beginResizeDrag")?;
+    core::resolve_default_backend("destack.display.window.beginResizeDrag")?;
     unsafe { win32::window_begin_resize_drag(binding, window, edge) }
 }
 
@@ -594,7 +601,7 @@ pub(crate) unsafe fn destack_display_window_set_visibility(
     window: resource::WindowHandle,
     visibility: WindowVisibility,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.setVisibility")?;
+    core::resolve_default_backend("destack.display.window.setVisibility")?;
     unsafe { win32::window_set_visibility(binding, window, visibility) }
 }
 
@@ -607,10 +614,10 @@ pub(crate) unsafe fn destack_display_window_capabilities(
     core_platform::ensure_out(out, "out")?;
     let operation = "destack.display.window.capabilities";
 
-    // validate that this runtime window handle resolves to one win32 window binding
-    win32::ensure_window_binding_exists(context, window, operation)?;
+    // validate that this runtime window handle resolves to one win32 window host state
+    win32::ensure_window_handle_exists(context, window, operation)?;
 
-    let _backend = core::resolve_default_backend(operation)?;
+    core::resolve_default_backend(operation)?;
     unsafe {
         *out = core::backend_capabilities(DisplayBackend::Win32);
     }
@@ -624,7 +631,7 @@ pub(crate) unsafe fn destack_display_window_state(
     out: *mut WindowState,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.state")?;
+    core::resolve_default_backend("destack.display.window.state")?;
     unsafe { win32::window_state(binding, out, window) }
 }
 
@@ -633,7 +640,7 @@ pub(crate) unsafe fn destack_display_window_event_close(
     binding: &BindingCallContext,
     handle: resource::WindowEventHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.eventClose")?;
+    core::resolve_default_backend("destack.display.window.eventClose")?;
     unsafe { win32::window_event_close(binding, handle) }
 }
 
@@ -643,7 +650,7 @@ pub(crate) unsafe fn destack_display_window_event_open(
     out: *mut resource::WindowEventHandle,
     options: WindowEventOpenOptions,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_backend(
+    core::resolve_backend(
         options.backend,
         options.backend_policy,
         "destack.display.window.eventOpen",
@@ -658,7 +665,7 @@ pub(crate) unsafe fn destack_display_window_event_read(
     handle: resource::WindowEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.eventRead")?;
+    core::resolve_default_backend("destack.display.window.eventRead")?;
     unsafe { win32::window_event_read(binding, out, handle, timeoutns) }
 }
 
@@ -670,7 +677,7 @@ pub(crate) unsafe fn destack_display_window_event_read_batch(
     maxevents: u32,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.eventReadBatch")?;
+    core::resolve_default_backend("destack.display.window.eventReadBatch")?;
     unsafe { win32::window_event_read_batch(binding, out, handle, maxevents, timeoutns) }
 }
 
@@ -680,7 +687,7 @@ pub(crate) unsafe fn destack_display_window_event_try_read(
     out: *mut WindowEvent,
     handle: resource::WindowEventHandle,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.eventTryRead")?;
+    core::resolve_default_backend("destack.display.window.eventTryRead")?;
     unsafe { win32::window_event_try_read(binding, out, handle) }
 }
 
@@ -691,6 +698,6 @@ pub(crate) unsafe fn destack_display_window_event_try_read_batch(
     handle: resource::WindowEventHandle,
     maxevents: u32,
 ) -> RuntimeResult<()> {
-    let _backend = core::resolve_default_backend("destack.display.window.eventTryReadBatch")?;
+    core::resolve_default_backend("destack.display.window.eventTryReadBatch")?;
     unsafe { win32::window_event_try_read_batch(binding, out, handle, maxevents) }
 }

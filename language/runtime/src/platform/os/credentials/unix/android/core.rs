@@ -16,16 +16,12 @@ const AUTHENTICATION_MECHANISM_BIOMETRIC_CODE: u32 = 2;
 /// Mechanism code for one device-credential host authentication method.
 const AUTHENTICATION_MECHANISM_DEVICE_CREDENTIAL_CODE: u32 = 3;
 
-/// Return one callback runtime identifier for Android host callback routing.
-pub(super) fn callback_runtime_id(
+/// Return one runtime identifier for Android host callback routing.
+pub(super) fn host_runtime_id(
     binding: &BindingCallContext,
-    operation: &'static str,
+    _operation: &'static str,
 ) -> Result<u64, Box<RuntimeError>> {
-    let Some(runtime_id) = binding.host().callback_runtime_id() else {
-        return Err(core_platform::not_supported(operation));
-    };
-
-    Ok(runtime_id)
+    Ok(binding.agent().runtime_id.0)
 }
 
 /// Decode one Android host authentication mechanism code.

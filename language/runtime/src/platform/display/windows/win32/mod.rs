@@ -6,7 +6,8 @@ mod monitor;
 mod resource;
 mod window;
 
-pub(crate) use event::{DisplayEventRuntimeState, *};
+pub(crate) use core::*;
+pub(crate) use event::*;
 pub(crate) use monitor::*;
-pub(crate) use resource::ensure_window_binding_exists;
-pub(crate) use window::{WindowRuntimeState, *};
+pub(crate) use resource::ensure_window_handle_exists;
+pub(crate) use window::*;

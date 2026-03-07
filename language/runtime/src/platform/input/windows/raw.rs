@@ -48,6 +48,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 use super::core as windows_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::Host;
+use crate::host::windows::process_ingress_loop as run_windows_ingress_loop;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
     InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
@@ -2289,8 +2290,11 @@ fn raw_input_thread_main(
     let thread_id = unsafe { GetCurrentThreadId() };
     let _ = ready_tx.send(Ok(thread_id));
 
-    // pump the Windows message queue until shutdown
-    let loop_result = host.run_blocking_thread_message_loop();
+    // run the host-owned blocking ingress loop until shutdown
+    let loop_result = {
+        run_windows_ingress_loop();
+        Ok(())
+    };
 
     // release the worker window on exit
     unsafe {

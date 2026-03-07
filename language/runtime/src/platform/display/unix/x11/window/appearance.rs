@@ -8,13 +8,12 @@ use crate::platform::display::{WindowChromeKind, WindowIconSet, WindowVisibility
 use crate::platform::resource::WindowHandle;
 use crate::runtime::{BindingCallContext, NativeStringRef};
 
-use super::super::super::{core, event, resource as display_resource};
 use super::icon::net_wm_icon_payload;
 use super::{
     apply_window_chrome, apply_window_decorated, apply_window_mouse_passthrough,
-    apply_window_size_hints, ensure_window_thread, request_window_minimize, set_net_wm_state,
-    set_window_title,
+    apply_window_size_hints, request_window_minimize, set_net_wm_state, set_window_title,
 };
+use crate::platform::display::unix::x11::{core, event, resource as display_resource};
 
 /// Set always-on-top state.
 pub(crate) unsafe fn window_set_always_on_top(
@@ -22,21 +21,20 @@ pub(crate) unsafe fn window_set_always_on_top(
     window_handle: WindowHandle,
     always_on_top: bool,
 ) -> RuntimeResult<()> {
-    // resolve runtime and mutate binding state
+    // resolve runtime and mutate the host state
     let runtime_state = core::runtime_state(context);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setAlwaysOnTop")?;
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setAlwaysOnTop",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&binding, "destack.display.window.setAlwaysOnTop")?;
-    binding.always_on_top = always_on_top;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    host_state.always_on_top = always_on_top;
     set_net_wm_state(
         connection_state.as_ref(),
-        binding.window,
+        host_state.window,
         connection_state.atoms.net_wm_state_above,
         always_on_top,
     )?;
@@ -50,26 +48,25 @@ pub(crate) unsafe fn window_set_decorated(
     window_handle: WindowHandle,
     decorated: bool,
 ) -> RuntimeResult<()> {
-    // resolve runtime and mutate binding state
+    // resolve runtime and mutate the host state
     let runtime_state = core::runtime_state(context);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setDecorated")?;
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setDecorated",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&binding, "destack.display.window.setDecorated")?;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
     // apply one host decoration mutation before updating the snapshot
     apply_window_decorated(
         connection_state.as_ref(),
-        binding.window,
+        host_state.window,
         decorated,
         "destack.display.window.setDecorated",
     )?;
-    binding.decorated = decorated;
+    host_state.decorated = decorated;
 
     Ok(())
 }
@@ -80,29 +77,28 @@ pub(crate) unsafe fn window_set_resizable(
     window_handle: WindowHandle,
     resizable: bool,
 ) -> RuntimeResult<()> {
-    // resolve runtime and mutate binding state
+    // resolve runtime and mutate the host state
     let runtime_state = core::runtime_state(context);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setResizable")?;
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setResizable",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&binding, "destack.display.window.setResizable")?;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
     // apply one host size-hints mutation before updating the snapshot
     apply_window_size_hints(
         connection_state.as_ref(),
-        binding.window,
+        host_state.window,
         resizable,
-        binding.constraints,
-        binding.aspect_ratio,
-        binding.size_physical,
+        host_state.constraints,
+        host_state.aspect_ratio,
+        host_state.size_physical,
         "destack.display.window.setResizable",
     )?;
-    binding.resizable = resizable;
+    host_state.resizable = resizable;
 
     Ok(())
 }
@@ -113,26 +109,31 @@ pub(crate) unsafe fn window_set_chrome(
     window_handle: WindowHandle,
     chrome: WindowChromeKind,
 ) -> RuntimeResult<()> {
-    // resolve runtime and mutate binding state
+    // resolve runtime and mutate the host state
     let runtime_state = core::runtime_state(context);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setChrome")?;
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setChrome",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&binding, "destack.display.window.setChrome")?;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
 
     // apply one host window-type mutation before updating the snapshot
     apply_window_chrome(
         connection_state.as_ref(),
-        binding.window,
+        host_state.window,
         chrome,
         "destack.display.window.setChrome",
     )?;
-    binding.chrome = chrome;
+    host_state.chrome = chrome;
+    let current = host_state.clone();
+    drop(host_state);
+
+    // publish all affected state deltas
+    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
 
     Ok(())
 }
@@ -143,17 +144,16 @@ pub(crate) unsafe fn window_set_icons(
     window_handle: WindowHandle,
     icons: Option<WindowIconSet>,
 ) -> RuntimeResult<()> {
-    // resolve runtime and window binding lanes
+    // resolve runtime and window host state lanes
     let runtime_state = core::runtime_state(context);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setIcons")?;
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setIcons",
     )?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&binding, "destack.display.window.setIcons")?;
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
     // apply icon property update or clear it when no icons are configured
     if let Some(icons) = icons {
@@ -162,7 +162,7 @@ pub(crate) unsafe fn window_set_icons(
             .connection
             .change_property32(
                 PropMode::REPLACE,
-                binding.window,
+                host_state.window,
                 connection_state.atoms.net_wm_icon,
                 AtomEnum::CARDINAL,
                 &payload,
@@ -176,7 +176,7 @@ pub(crate) unsafe fn window_set_icons(
     } else {
         connection_state
             .connection
-            .delete_property(binding.window, connection_state.atoms.net_wm_icon)
+            .delete_property(host_state.window, connection_state.atoms.net_wm_icon)
             .map_err(|error| {
                 core::io_error(
                     "destack.display.window.setIcons",
@@ -200,26 +200,31 @@ pub(crate) unsafe fn window_set_mouse_passthrough(
     window_handle: WindowHandle,
     passthrough: bool,
 ) -> RuntimeResult<()> {
-    // resolve runtime and mutate binding state
+    // resolve runtime and mutate the host state
     let runtime_state = core::runtime_state(context);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setMousePassthrough")?;
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setMousePassthrough",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&binding, "destack.display.window.setMousePassthrough")?;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
 
     // apply one host input-shape mutation before updating the snapshot
     apply_window_mouse_passthrough(
         connection_state.as_ref(),
-        binding.window,
+        host_state.window,
         passthrough,
         "destack.display.window.setMousePassthrough",
     )?;
-    binding.mouse_passthrough = passthrough;
+    host_state.mouse_passthrough = passthrough;
+    let current = host_state.clone();
+    drop(host_state);
+
+    // publish all affected state deltas
+    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
 
     Ok(())
 }
@@ -238,18 +243,18 @@ pub(crate) unsafe fn window_set_opacity(
         ));
     }
 
-    // resolve runtime and mutate binding state
+    // resolve runtime and mutate the host state
     let runtime_state = core::runtime_state(context);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setOpacity")?;
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setOpacity",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&binding, "destack.display.window.setOpacity")?;
-    binding.opacity = opacity;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
+    host_state.opacity = opacity;
 
     // apply EWMH opacity property on the window
     let encoded = (opacity.clamp(0.0, 1.0) * (u32::MAX as f64)).round() as u32;
@@ -257,7 +262,7 @@ pub(crate) unsafe fn window_set_opacity(
         .connection
         .change_property32(
             PropMode::REPLACE,
-            binding.window,
+            host_state.window,
             connection_state.atoms.net_wm_window_opacity,
             AtomEnum::CARDINAL,
             &[encoded],
@@ -274,6 +279,11 @@ pub(crate) unsafe fn window_set_opacity(
             format!("flush failed: {error}"),
         )
     })?;
+    let current = host_state.clone();
+    drop(host_state);
+
+    // publish all affected state deltas
+    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
 
     Ok(())
 }
@@ -284,17 +294,16 @@ pub(crate) unsafe fn window_opacity(
     out: *mut f64,
     window_handle: WindowHandle,
 ) -> RuntimeResult<()> {
-    // validate out pointer and read binding state
+    // validate the out pointer and read the host state
     core_platform::ensure_out(out, "out")?;
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.opacity",
     )?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&binding, "destack.display.window.opacity")?;
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
     unsafe {
-        *out = binding.opacity;
+        *out = host_state.opacity;
     }
 
     Ok(())
@@ -306,24 +315,29 @@ pub(crate) unsafe fn window_set_taskbar_visible(
     window_handle: WindowHandle,
     visible: bool,
 ) -> RuntimeResult<()> {
-    // resolve runtime and mutate binding state
+    // resolve runtime and mutate the host state
     let runtime_state = core::runtime_state(context);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setTaskbarVisible")?;
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setTaskbarVisible",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&binding, "destack.display.window.setTaskbarVisible")?;
-    binding.taskbar_visible = visible;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
+    host_state.taskbar_visible = visible;
     set_net_wm_state(
         connection_state.as_ref(),
-        binding.window,
+        host_state.window,
         connection_state.atoms.net_wm_state_skip_taskbar,
         !visible,
     )?;
+    let current = host_state.clone();
+    drop(host_state);
+
+    // publish all affected state deltas
+    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
 
     Ok(())
 }
@@ -334,28 +348,27 @@ pub(crate) unsafe fn window_set_title(
     window_handle: WindowHandle,
     title: NativeStringRef,
 ) -> RuntimeResult<()> {
-    // parse title payload and resolve runtime and binding state
+    // parse the title payload and resolve the host state
     let title = unsafe { title.as_str()? };
     let runtime_state = core::runtime_state(context);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setTitle")?;
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setTitle",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&binding, "destack.display.window.setTitle")?;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
-    // apply host title updates and mutate binding snapshot
-    set_window_title(connection_state.as_ref(), binding.window, title)?;
+    // apply host title updates and mutate host_state snapshot
+    set_window_title(connection_state.as_ref(), host_state.window, title)?;
     connection_state.connection.flush().map_err(|error| {
         core::io_error(
             "destack.display.window.setTitle",
             format!("flush failed: {error}"),
         )
     })?;
-    binding.title = title.to_string();
+    host_state.title = title.to_string();
 
     Ok(())
 }
@@ -366,26 +379,24 @@ pub(crate) unsafe fn window_set_visibility(
     window_handle: WindowHandle,
     visibility: WindowVisibility,
 ) -> RuntimeResult<()> {
-    // resolve runtime and binding lanes
+    // resolve runtime and host_state lanes
     let runtime_state = core::runtime_state(context);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setVisibility")?;
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setVisibility",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&binding, "destack.display.window.setVisibility")?;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
     // apply host visibility transitions
-    let previous_visibility = binding.visibility;
-    // resolve this variant
+    let previous_visibility = host_state.visibility;
     match visibility {
         WindowVisibility::Hidden => {
             connection_state
                 .connection
-                .unmap_window(binding.window)
+                .unmap_window(host_state.window)
                 .map_err(|error| {
                     core::io_error(
                         "destack.display.window.setVisibility",
@@ -396,7 +407,7 @@ pub(crate) unsafe fn window_set_visibility(
         WindowVisibility::Visible | WindowVisibility::Maximized => {
             connection_state
                 .connection
-                .map_window(binding.window)
+                .map_window(host_state.window)
                 .map_err(|error| {
                     core::io_error(
                         "destack.display.window.setVisibility",
@@ -407,7 +418,7 @@ pub(crate) unsafe fn window_set_visibility(
         WindowVisibility::Minimized => {
             request_window_minimize(
                 connection_state.as_ref(),
-                binding.window,
+                host_state.window,
                 "destack.display.window.setVisibility",
             )?;
         }
@@ -418,8 +429,8 @@ pub(crate) unsafe fn window_set_visibility(
             format!("flush failed: {error}"),
         )
     })?;
-    binding.visibility = visibility;
-    drop(binding);
+    host_state.visibility = visibility;
+    drop(host_state);
 
     event::publish_window_visibility_changed(
         &runtime_state,

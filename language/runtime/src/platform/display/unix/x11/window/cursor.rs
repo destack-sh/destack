@@ -11,9 +11,8 @@ use crate::platform::display::{WindowCursorIcon, WindowCursorMode, WindowPositio
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
-use super::super::super::model::X11WindowBinding;
-use super::super::super::{core, resource as display_resource};
-use super::ensure_window_thread;
+use crate::platform::display::unix::x11::model::X11WindowHostState;
+use crate::platform::display::unix::x11::{core, resource as display_resource};
 
 /// Core xcursor font name used by x11 cursor glyph lookup.
 const X11_CURSOR_FONT_NAME: &[u8] = b"cursor";
@@ -24,34 +23,33 @@ pub(crate) unsafe fn window_set_cursor_icon(
     window_handle: resource::WindowHandle,
     icon: WindowCursorIcon,
 ) -> RuntimeResult<()> {
-    // resolve runtime and mutate resolved_binding state
+    // resolve runtime and mutate the target window host state
     let runtime_state = core::runtime_state(binding);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setCursorIcon")?;
-    let resolved_binding = display_resource::resolve_window_binding(
+    let resolved_host_state = display_resource::resolve_window_host_state(
         binding,
         window_handle,
         "destack.display.window.setCursorIcon",
     )?;
-    let mut resolved_binding = resolved_binding
+    let mut resolved_host_state = resolved_host_state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.setCursorIcon")?;
 
     // release one previously cached native cursor before switching icon kind
-    if let Some(cursor_handle) = resolved_binding.cursor_handle.take() {
+    if let Some(cursor_handle) = resolved_host_state.cursor_handle.take() {
         free_cursor(
             connection_state.as_ref(),
             cursor_handle,
             "destack.display.window.setCursorIcon",
         )?;
     }
-    resolved_binding.cursor_icon = icon;
+    resolved_host_state.cursor_icon = icon;
 
     // re-apply cursor mode and visibility lanes after icon mutation
     apply_cursor_state(
         connection_state.as_ref(),
-        &mut resolved_binding,
+        &mut resolved_host_state,
         "destack.display.window.setCursorIcon",
     )
 }
@@ -62,25 +60,24 @@ pub(crate) unsafe fn window_set_cursor_mode(
     window_handle: resource::WindowHandle,
     mode: WindowCursorMode,
 ) -> RuntimeResult<()> {
-    // resolve runtime and mutate resolved_binding state
+    // resolve runtime and mutate the target window host state
     let runtime_state = core::runtime_state(binding);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setCursorMode")?;
-    let resolved_binding = display_resource::resolve_window_binding(
+    let resolved_host_state = display_resource::resolve_window_host_state(
         binding,
         window_handle,
         "destack.display.window.setCursorMode",
     )?;
-    let mut resolved_binding = resolved_binding
+    let mut resolved_host_state = resolved_host_state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.setCursorMode")?;
-    resolved_binding.cursor_mode = mode;
+    resolved_host_state.cursor_mode = mode;
 
     // apply host cursor behavior for the requested mode
     apply_cursor_state(
         connection_state.as_ref(),
-        &mut resolved_binding,
+        &mut resolved_host_state,
         "destack.display.window.setCursorMode",
     )
 }
@@ -91,29 +88,25 @@ pub(crate) unsafe fn window_set_cursor_position(
     window_handle: resource::WindowHandle,
     position: WindowPosition,
 ) -> RuntimeResult<()> {
-    // resolve runtime and window resolved_binding lanes
+    // resolve runtime and target window host state
     let runtime_state = core::runtime_state(binding);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setCursorPosition")?;
-    let resolved_binding = display_resource::resolve_window_binding(
+    let resolved_host_state = display_resource::resolve_window_host_state(
         binding,
         window_handle,
         "destack.display.window.setCursorPosition",
     )?;
-    let resolved_binding = resolved_binding
+    let resolved_host_state = resolved_host_state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(
-        &resolved_binding,
-        "destack.display.window.setCursorPosition",
-    )?;
 
     // warp pointer into the target window coordinate space
     connection_state
         .connection
         .warp_pointer(
             0u32,
-            resolved_binding.window,
+            resolved_host_state.window,
             0,
             0,
             0,
@@ -143,85 +136,83 @@ pub(crate) unsafe fn window_set_cursor_visible(
     window_handle: resource::WindowHandle,
     visible: bool,
 ) -> RuntimeResult<()> {
-    // resolve runtime and mutate resolved_binding state
+    // resolve runtime and mutate the target window host state
     let runtime_state = core::runtime_state(binding);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setCursorVisible")?;
-    let resolved_binding = display_resource::resolve_window_binding(
+    let resolved_host_state = display_resource::resolve_window_host_state(
         binding,
         window_handle,
         "destack.display.window.setCursorVisible",
     )?;
-    let mut resolved_binding = resolved_binding
+    let mut resolved_host_state = resolved_host_state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.setCursorVisible")?;
-    resolved_binding.cursor_visible = visible;
+    resolved_host_state.cursor_visible = visible;
 
     // apply host cursor visibility and mode lanes
     apply_cursor_state(
         connection_state.as_ref(),
-        &mut resolved_binding,
+        &mut resolved_host_state,
         "destack.display.window.setCursorVisible",
     )
 }
 
-/// Release one cached native cursor handle from one window binding.
+/// Release one cached native cursor handle from one window host state.
 pub(crate) fn release_window_cursor(
     connection_state: &core::X11ConnectionState,
-    binding: &mut X11WindowBinding,
+    host_state: &mut X11WindowHostState,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let Some(cursor_handle) = binding.cursor_handle.take() else {
+    let Some(cursor_handle) = host_state.cursor_handle.take() else {
         return Ok(());
     };
 
     free_cursor(connection_state, cursor_handle, operation)
 }
 
-/// Apply host cursor mode and visibility state for one window binding.
+/// Apply host cursor mode and visibility state for one window host state.
 fn apply_cursor_state(
     connection_state: &core::X11ConnectionState,
-    binding: &mut X11WindowBinding,
+    host_state: &mut X11WindowHostState,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // resolve pointer-grab policy from the requested cursor mode
     let should_grab_pointer = matches!(
-        binding.cursor_mode,
+        host_state.cursor_mode,
         WindowCursorMode::Locked | WindowCursorMode::Confined
     );
-    // evaluate this condition
     if should_grab_pointer {
-        grab_pointer(connection_state, binding.window, operation)?;
+        grab_pointer(connection_state, host_state.window, operation)?;
     } else {
         ungrab_pointer(connection_state, operation)?;
     }
 
     // resolve pointer-visibility policy from mode and explicit visibility state
-    let should_hide_pointer = !binding.cursor_visible
+    let should_hide_pointer = !host_state.cursor_visible
         || matches!(
-            binding.cursor_mode,
+            host_state.cursor_mode,
             WindowCursorMode::Hidden | WindowCursorMode::Locked
         );
     set_pointer_hidden(
         connection_state,
-        binding.window,
+        host_state.window,
         should_hide_pointer,
         operation,
     )?;
 
     // apply one icon cursor while pointer visibility is enabled
     if !should_hide_pointer {
-        apply_icon_cursor(connection_state, binding, operation)?;
+        apply_icon_cursor(connection_state, host_state, operation)?;
     }
 
     // center the pointer while entering locked mode
-    if binding.cursor_mode == WindowCursorMode::Locked {
-        let center_x = (binding.size_physical.width / 2).min(i16::MAX as u32) as i16;
-        let center_y = (binding.size_physical.height / 2).min(i16::MAX as u32) as i16;
+    if host_state.cursor_mode == WindowCursorMode::Locked {
+        let center_x = (host_state.size_physical.width / 2).min(i16::MAX as u32) as i16;
+        let center_y = (host_state.size_physical.height / 2).min(i16::MAX as u32) as i16;
         connection_state
             .connection
-            .warp_pointer(0u32, binding.window, 0, 0, 0, 0, center_x, center_y)
+            .warp_pointer(0u32, host_state.window, 0, 0, 0, 0, center_x, center_y)
             .map_err(|error| core::io_error(operation, format!("warp_pointer failed: {error}")))?;
     }
 
@@ -234,25 +225,27 @@ fn apply_cursor_state(
     Ok(())
 }
 
-/// Apply one icon cursor to one x11 window binding.
+/// Apply one icon cursor to one x11 window host state.
 fn apply_icon_cursor(
     connection_state: &core::X11ConnectionState,
-    binding: &mut X11WindowBinding,
+    host_state: &mut X11WindowHostState,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // apply default host cursor and release cached custom cursor state
-    if binding.cursor_icon == WindowCursorIcon::Default {
+    if host_state.cursor_icon == WindowCursorIcon::Default {
         connection_state
             .connection
-            .change_window_attributes(binding.window, &ChangeWindowAttributesAux::new().cursor(0))
+            .change_window_attributes(
+                host_state.window,
+                &ChangeWindowAttributesAux::new().cursor(0),
+            )
             .map_err(|error| {
                 core::io_error(
                     operation,
                     format!("change_window_attributes failed: {error}"),
                 )
             })?;
-        // evaluate this condition
-        if let Some(cursor_handle) = binding.cursor_handle.take() {
+        if let Some(cursor_handle) = host_state.cursor_handle.take() {
             free_cursor(connection_state, cursor_handle, operation)?;
         }
 
@@ -260,17 +253,17 @@ fn apply_icon_cursor(
     }
 
     // lazily allocate one native cursor for the requested icon lane
-    if binding.cursor_handle.is_none() {
-        let cursor_handle = create_cursor(connection_state, binding.cursor_icon, operation)?;
-        binding.cursor_handle = Some(cursor_handle);
+    if host_state.cursor_handle.is_none() {
+        let cursor_handle = create_cursor(connection_state, host_state.cursor_icon, operation)?;
+        host_state.cursor_handle = Some(cursor_handle);
     }
-    let cursor_handle = binding.cursor_handle.unwrap_or(0);
+    let cursor_handle = host_state.cursor_handle.unwrap_or(0);
 
     // apply one custom cursor handle through window attributes
     connection_state
         .connection
         .change_window_attributes(
-            binding.window,
+            host_state.window,
             &ChangeWindowAttributesAux::new().cursor(cursor_handle),
         )
         .map_err(|error| {
@@ -445,7 +438,6 @@ fn grab_pointer(
         .map_err(|error| {
             core::io_error(operation, format!("grab_pointer reply failed: {error}"))
         })?;
-    // evaluate this condition
     if reply.status != GrabStatus::SUCCESS {
         return Err(core_platform::io_busy(
             operation,
@@ -471,7 +463,6 @@ fn ungrab_pointer(
 
 /// Return one cursor-font glyph code for one icon selector.
 fn cursor_icon_glyph(icon: WindowCursorIcon) -> u16 {
-    // resolve this variant
     match icon {
         WindowCursorIcon::Default => 68,
         WindowCursorIcon::Text => 152,

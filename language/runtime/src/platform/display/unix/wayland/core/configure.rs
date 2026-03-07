@@ -2,11 +2,11 @@ use crate::platform::display::{
     WindowLogicalSize, WindowPhysicalSize, WindowPosition, WindowVisibility,
 };
 
-use super::super::event;
 use super::{
     WaylandConnectionDispatchState, WaylandWindowDispatchToken, XDG_TOPLEVEL_STATE_ACTIVATED,
-    XDG_TOPLEVEL_STATE_FULLSCREEN, XDG_TOPLEVEL_STATE_MAXIMIZED, window_handle_from_id,
+    XDG_TOPLEVEL_STATE_FULLSCREEN, XDG_TOPLEVEL_STATE_MAXIMIZED,
 };
+use crate::platform::display::unix::wayland::event;
 
 /// Decode xdg_toplevel state flags from one raw state-array payload.
 fn decode_toplevel_states(states: &[u8]) -> (bool, bool, bool) {
@@ -43,23 +43,20 @@ pub(crate) fn apply_toplevel_configure(
     let Some(runtime_state) = dispatch_state.runtime_state.upgrade() else {
         return;
     };
-    let Some(binding) = token.binding.upgrade() else {
+    let Some(host_state) = token.host_state.upgrade() else {
         return;
     };
-    let Some(window_handle) = window_handle_from_id(&runtime_state, &token.window_id) else {
+    let Some(window_handle) = runtime_state.window_handle_from_id(&token.window_id) else {
         return;
     };
 
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
 
-    // ignore configure events for already-destroyed bindings
-    if binding.destroyed_emitted {
+    // ignore configure events for already-destroyed host states
+    if host_state.destroyed_emitted {
         return;
     }
-
-    let mut size_change = None;
-    let mut visibility_change = None;
-    let mut focus_change = None;
 
     // update visibility from maximize and fullscreen state lanes
     let (is_maximized, is_fullscreen, is_activated) = decode_toplevel_states(states);
@@ -71,20 +68,16 @@ pub(crate) fn apply_toplevel_configure(
         WindowVisibility::Visible
     };
 
-    if binding.visibility != next_visibility
-        && binding.visibility != WindowVisibility::Hidden
-        && binding.visibility != WindowVisibility::Minimized
+    if host_state.visibility != next_visibility
+        && host_state.visibility != WindowVisibility::Hidden
+        && host_state.visibility != WindowVisibility::Minimized
     {
-        let previous_visibility = binding.visibility;
-        binding.visibility = next_visibility;
-        visibility_change = Some((previous_visibility, next_visibility));
+        host_state.visibility = next_visibility;
     }
 
     // update focus state from activated lane
-    if binding.focused != is_activated {
-        let previous_focused = binding.focused;
-        binding.focused = is_activated;
-        focus_change = Some((previous_focused, is_activated));
+    if host_state.focused != is_activated {
+        host_state.focused = is_activated;
     }
 
     // update logical and physical sizes when compositor reports explicit dimensions
@@ -94,67 +87,28 @@ pub(crate) fn apply_toplevel_configure(
             height: height as u32,
         };
 
-        if binding.size_physical != current_size_physical {
-            let previous_size_logical = binding.size_logical;
-            let previous_size_physical = binding.size_physical;
+        if host_state.size_physical != current_size_physical {
+            let previous_size_logical = host_state.size_logical;
+            let previous_size_physical = host_state.size_physical;
 
-            let scale = if binding.scale_factor_milli == 0 {
+            let scale = if host_state.scale_factor_milli == 0 {
                 1.0
             } else {
-                binding.scale_factor_milli as f64 / 1000.0
+                host_state.scale_factor_milli as f64 / 1000.0
             };
             let current_size_logical = WindowLogicalSize {
                 width: (current_size_physical.width as f64 / scale).max(1.0),
                 height: (current_size_physical.height as f64 / scale).max(1.0),
             };
 
-            binding.size_logical = current_size_logical;
-            binding.size_physical = current_size_physical;
-            size_change = Some((
-                previous_size_logical,
-                previous_size_physical,
-                current_size_logical,
-                current_size_physical,
-            ));
+            host_state.size_logical = current_size_logical;
+            host_state.size_physical = current_size_physical;
         }
     }
 
-    drop(binding);
-
-    if let Some((previous_visibility, current_visibility)) = visibility_change {
-        event::publish_window_visibility_changed(
-            &runtime_state,
-            window_handle,
-            previous_visibility,
-            current_visibility,
-        );
-    }
-
-    if let Some((previous_focused, current_focused)) = focus_change {
-        event::publish_window_focus_changed(
-            &runtime_state,
-            window_handle,
-            previous_focused,
-            current_focused,
-        );
-    }
-
-    if let Some((
-        previous_size_logical,
-        previous_size_physical,
-        current_size_logical,
-        current_size_physical,
-    )) = size_change
-    {
-        event::publish_window_size_changed(
-            &runtime_state,
-            window_handle,
-            previous_size_logical,
-            previous_size_physical,
-            current_size_logical,
-            current_size_physical,
-        );
-    }
+    let current = host_state.clone();
+    drop(host_state);
+    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
 }
 
 /// Apply one compositor close request to runtime window event publication.
@@ -165,22 +119,22 @@ pub(crate) fn apply_toplevel_close(
     let Some(runtime_state) = dispatch_state.runtime_state.upgrade() else {
         return;
     };
-    let Some(binding) = token.binding.upgrade() else {
+    let Some(host_state) = token.host_state.upgrade() else {
         return;
     };
-    let Some(window_handle) = window_handle_from_id(&runtime_state, &token.window_id) else {
+    let Some(window_handle) = runtime_state.window_handle_from_id(&token.window_id) else {
         return;
     };
 
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
     // emit close-requested only once per window lifetime
-    if binding.close_requested_emitted {
+    if host_state.close_requested_emitted {
         return;
     }
 
-    binding.close_requested_emitted = true;
-    drop(binding);
+    host_state.close_requested_emitted = true;
+    drop(host_state);
 
     event::publish_window_close_requested(&runtime_state, window_handle);
 }
@@ -197,23 +151,24 @@ pub(crate) fn apply_popup_configure(
     let Some(runtime_state) = dispatch_state.runtime_state.upgrade() else {
         return;
     };
-    let Some(binding) = token.binding.upgrade() else {
+    let Some(host_state) = token.host_state.upgrade() else {
         return;
     };
-    let Some(window_handle) = window_handle_from_id(&runtime_state, &token.window_id) else {
+    let Some(window_handle) = runtime_state.window_handle_from_id(&token.window_id) else {
         return;
     };
 
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
 
-    // ignore configure events for already-destroyed bindings
-    if binding.destroyed_emitted {
+    // ignore configure events for already-destroyed host states
+    if host_state.destroyed_emitted {
         return;
     }
 
-    let previous_position = binding.position;
+    let previous_position = host_state.position;
     let current_position = WindowPosition { x, y };
-    binding.position = current_position;
+    host_state.position = current_position;
 
     let mut size_change = None;
 
@@ -221,23 +176,23 @@ pub(crate) fn apply_popup_configure(
     if width > 0 && height > 0 {
         let next_width = width as u32;
         let next_height = height as u32;
-        let previous_size_physical = binding.size_physical;
+        let previous_size_physical = host_state.size_physical;
         let next_size_physical = WindowPhysicalSize {
             width: next_width,
             height: next_height,
         };
 
         if previous_size_physical != next_size_physical {
-            let scale_factor_milli = binding.scale_factor_milli.max(1);
+            let scale_factor_milli = host_state.scale_factor_milli.max(1);
             let scale_factor = scale_factor_milli as f64 / 1000.0;
-            let previous_size_logical = binding.size_logical;
+            let previous_size_logical = host_state.size_logical;
             let next_size_logical = WindowLogicalSize {
                 width: next_width as f64 / scale_factor,
                 height: next_height as f64 / scale_factor,
             };
 
-            binding.size_physical = next_size_physical;
-            binding.size_logical = next_size_logical;
+            host_state.size_physical = next_size_physical;
+            host_state.size_logical = next_size_logical;
 
             size_change = Some((
                 previous_size_logical,
@@ -248,24 +203,9 @@ pub(crate) fn apply_popup_configure(
         }
     }
 
-    drop(binding);
-
-    if let Some((
-        previous_size_logical,
-        previous_size_physical,
-        current_size_logical,
-        current_size_physical,
-    )) = size_change
-    {
-        event::publish_window_size_changed(
-            &runtime_state,
-            window_handle,
-            previous_size_logical,
-            previous_size_physical,
-            current_size_logical,
-            current_size_physical,
-        );
-    }
+    let current = host_state.clone();
+    drop(host_state);
+    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
 
     if previous_position != current_position {
         event::publish_window_refresh_requested(&runtime_state, window_handle);
@@ -282,17 +222,18 @@ pub(crate) fn apply_layer_surface_configure(
     let Some(runtime_state) = dispatch_state.runtime_state.upgrade() else {
         return;
     };
-    let Some(binding) = token.binding.upgrade() else {
+    let Some(host_state) = token.host_state.upgrade() else {
         return;
     };
-    let Some(window_handle) = window_handle_from_id(&runtime_state, &token.window_id) else {
+    let Some(window_handle) = runtime_state.window_handle_from_id(&token.window_id) else {
         return;
     };
 
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
 
-    // ignore configure events for already-destroyed bindings
-    if binding.destroyed_emitted {
+    // ignore configure events for already-destroyed host states
+    if host_state.destroyed_emitted {
         return;
     }
 
@@ -301,30 +242,23 @@ pub(crate) fn apply_layer_surface_configure(
         return;
     }
 
-    let previous_size_physical = binding.size_physical;
+    let previous_size_physical = host_state.size_physical;
     let next_size_physical = WindowPhysicalSize { width, height };
     if previous_size_physical == next_size_physical {
         return;
     }
 
-    let scale_factor_milli = binding.scale_factor_milli.max(1);
+    let scale_factor_milli = host_state.scale_factor_milli.max(1);
     let scale_factor = scale_factor_milli as f64 / 1000.0;
-    let previous_size_logical = binding.size_logical;
+    let previous_size_logical = host_state.size_logical;
     let next_size_logical = WindowLogicalSize {
         width: width as f64 / scale_factor,
         height: height as f64 / scale_factor,
     };
 
-    binding.size_physical = next_size_physical;
-    binding.size_logical = next_size_logical;
-    drop(binding);
-
-    event::publish_window_size_changed(
-        &runtime_state,
-        window_handle,
-        previous_size_logical,
-        previous_size_physical,
-        next_size_logical,
-        next_size_physical,
-    );
+    host_state.size_physical = next_size_physical;
+    host_state.size_logical = next_size_logical;
+    let current = host_state.clone();
+    drop(host_state);
+    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
 }

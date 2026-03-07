@@ -6,11 +6,13 @@ use crate::platform::display::{
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
-use super::super::{core as backend_core, event, monitor, resource as display_resource};
 use super::{
     mode_display, mode_display_mode, normalize_logical_size, normalize_physical_size,
-    require_xdg_toplevel_id, resolve_window_binding, same_window_mode, validate_size_constraints,
-    with_window_binding_mut,
+    require_xdg_toplevel_id, resolve_window_host_state, same_window_mode,
+    validate_size_constraints,
+};
+use crate::platform::display::unix::wayland::{
+    core as wayland_core, event, monitor, resource as display_resource,
 };
 
 /// Validate one optional aspect-ratio payload.
@@ -68,7 +70,7 @@ fn validate_mode_request(
 
 /// Resolve one optional wayland output object from one display identifier.
 fn resolve_mode_target_output(
-    dispatch_state: &backend_core::WaylandConnectionDispatchState,
+    dispatch_state: &wayland_core::WaylandConnectionDispatchState,
     display_id: Option<&str>,
     operation: &'static str,
 ) -> RuntimeResult<Option<wayland_client::protocol::wl_output::WlOutput>> {
@@ -78,7 +80,7 @@ fn resolve_mode_target_output(
     };
 
     // decode one output global name from display id
-    let output_global_name = backend_core::output_global_name_from_display_id(display_id)
+    let output_global_name = wayland_core::output_global_name_from_display_id(display_id)
         .ok_or_else(|| {
             core_platform::invalid_argument(
                 "mode.display",
@@ -88,6 +90,7 @@ fn resolve_mode_target_output(
 
     // resolve one live output object for this global name
     let output = dispatch_state
+        .output
         .outputs_by_global
         .get(&output_global_name)
         .cloned()
@@ -120,12 +123,12 @@ fn apply_mode_request(
         None
     };
 
-    backend_core::with_connection_dispatch(
+    wayland_core::with_connection_dispatch(
         context,
         operation,
         |connection, event_queue, dispatch_state| {
             let toplevel =
-                backend_core::resolve_xdg_toplevel(connection, toplevel_id.clone(), operation)?;
+                wayland_core::resolve_xdg_toplevel(connection, toplevel_id.clone(), operation)?;
 
             // map mode requests to xdg-shell fullscreen and maximize requests
             match mode {
@@ -151,7 +154,7 @@ fn apply_mode_request(
                 }
             }
 
-            backend_core::flush_queue(event_queue, operation)?;
+            wayland_core::flush_queue(event_queue, operation)?;
 
             Ok(())
         },
@@ -167,11 +170,11 @@ fn apply_size_policy(
     current_size: WindowPhysicalSize,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    backend_core::with_connection_dispatch(
+    wayland_core::with_connection_dispatch(
         context,
         operation,
         |connection, event_queue, _dispatch_state| {
-            let toplevel = backend_core::resolve_xdg_toplevel(connection, toplevel_id, operation)?;
+            let toplevel = wayland_core::resolve_xdg_toplevel(connection, toplevel_id, operation)?;
 
             if !resizable {
                 let width = current_size.width.min(i32::MAX as u32) as i32;
@@ -201,7 +204,7 @@ fn apply_size_policy(
                 }
             }
 
-            backend_core::flush_queue(event_queue, operation)?;
+            wayland_core::flush_queue(event_queue, operation)?;
 
             Ok(())
         },
@@ -217,18 +220,20 @@ pub(crate) unsafe fn window_set_mode(
     // validate mode payload against display topology
     let display = validate_mode_request(context, mode, "destack.display.window.setMode")?;
 
-    // resolve target window binding and enforce owner-thread affinity
-    let binding = resolve_window_binding(context, window_handle, "destack.display.window.setMode")?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    // resolve target window host state and mutate host state
+    let host_state =
+        resolve_window_host_state(context, window_handle, "destack.display.window.setMode")?;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
 
     // skip no-op mode transitions
-    let previous_mode = binding.mode;
+    let previous_mode = host_state.mode;
     if same_window_mode(previous_mode, mode) {
         return Ok(());
     }
 
     // apply compositor mode request and update runtime snapshot
-    let toplevel_id = require_xdg_toplevel_id(&binding, "destack.display.window.setMode")?;
+    let toplevel_id = require_xdg_toplevel_id(&host_state, "destack.display.window.setMode")?;
     apply_mode_request(
         context,
         toplevel_id,
@@ -237,12 +242,13 @@ pub(crate) unsafe fn window_set_mode(
         "destack.display.window.setMode",
     )?;
 
-    binding.mode = mode;
-    binding.display = display;
-    drop(binding);
+    host_state.mode = mode;
+    host_state.display = display;
+    let current = host_state.clone();
+    drop(host_state);
 
-    let runtime_state = backend_core::runtime_state(context);
-    event::publish_window_mode_changed(&runtime_state, window_handle, previous_mode, mode);
+    let runtime_state = wayland_core::runtime_state(context);
+    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
 
     Ok(())
 }
@@ -253,24 +259,32 @@ pub(crate) unsafe fn window_set_aspect_ratio(
     window_handle: resource::WindowHandle,
     aspect_ratio: Option<WindowAspectRatio>,
 ) -> RuntimeResult<()> {
-    // validate aspect-ratio payload and resolve window binding
+    // validate aspect-ratio payload and resolve window host state
     validate_aspect_ratio(aspect_ratio, "aspectRatio")?;
-    with_window_binding_mut(
+    let host_state = resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setAspectRatio",
-        |binding| {
-            // wayland xdg-shell has no standard aspect-ratio request lane
-            if aspect_ratio.is_some() {
-                return Err(core_platform::not_supported(
-                    "destack.display.window.setAspectRatio",
-                ));
-            }
+    )?;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
 
-            binding.aspect_ratio = None;
-            Ok(())
-        },
-    )
+    // wayland xdg-shell has no standard aspect-ratio request lane
+    if aspect_ratio.is_some() {
+        return Err(core_platform::not_supported(
+            "destack.display.window.setAspectRatio",
+        ));
+    }
+
+    host_state.aspect_ratio = None;
+    let current = host_state.clone();
+    drop(host_state);
+
+    // publish all affected state deltas
+    let runtime_state = wayland_core::runtime_state(context);
+    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
+
+    Ok(())
 }
 
 /// Set one window position.
@@ -279,8 +293,8 @@ pub(crate) unsafe fn window_set_position(
     window_handle: resource::WindowHandle,
     _position: WindowPosition,
 ) -> RuntimeResult<()> {
-    // resolve target window binding and enforce owner-thread affinity
-    resolve_window_binding(context, window_handle, "destack.display.window.setPosition")?;
+    // resolve target window host state and mutate host state
+    resolve_window_host_state(context, window_handle, "destack.display.window.setPosition")?;
 
     // wayland compositor controls toplevel placement
     Err(core_platform::not_supported(
@@ -294,28 +308,28 @@ pub(crate) unsafe fn window_set_size_constraints(
     window_handle: resource::WindowHandle,
     constraints: Option<WindowSizeConstraints>,
 ) -> RuntimeResult<()> {
-    // validate constraints payload and resolve target window binding
+    // validate constraints payload and resolve target window host state
     validate_size_constraints(constraints, "constraints")?;
-    let binding = resolve_window_binding(
+    let host_state = resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setSizeConstraints",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
     // apply size policy and update local snapshot
     let toplevel_id =
-        require_xdg_toplevel_id(&binding, "destack.display.window.setSizeConstraints")?;
+        require_xdg_toplevel_id(&host_state, "destack.display.window.setSizeConstraints")?;
     apply_size_policy(
         context,
         toplevel_id,
-        binding.resizable,
+        host_state.resizable,
         constraints,
-        binding.size_physical,
+        host_state.size_physical,
         "destack.display.window.setSizeConstraints",
     )?;
 
-    binding.constraints = constraints;
+    host_state.constraints = constraints;
 
     Ok(())
 }
@@ -326,9 +340,9 @@ pub(crate) unsafe fn window_set_size_logical(
     window_handle: resource::WindowHandle,
     size: WindowLogicalSize,
 ) -> RuntimeResult<()> {
-    // normalize size payload and resolve target window binding
+    // normalize size payload and resolve target window host state
     normalize_logical_size(size, "size")?;
-    resolve_window_binding(
+    resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setSizeLogical",
@@ -346,9 +360,9 @@ pub(crate) unsafe fn window_set_size_physical(
     window_handle: resource::WindowHandle,
     size: WindowPhysicalSize,
 ) -> RuntimeResult<()> {
-    // normalize size payload and resolve target window binding
+    // normalize size payload and resolve target window host state
     normalize_physical_size(size, "size")?;
-    resolve_window_binding(
+    resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setSizePhysical",

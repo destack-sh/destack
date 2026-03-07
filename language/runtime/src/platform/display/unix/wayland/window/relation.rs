@@ -6,8 +6,8 @@ use crate::platform::core as core_platform;
 use crate::platform::resource::WindowHandle;
 use crate::runtime::BindingCallContext;
 
-use super::super::core as backend_core;
-use super::{require_xdg_toplevel_id, resolve_window_binding};
+use super::{require_xdg_toplevel_id, resolve_window_host_state};
+use crate::platform::display::unix::wayland::{core as wayland_core, event};
 
 /// Resolve one optional owner handle and reject self-relationships.
 fn resolve_owner_handle(
@@ -28,8 +28,8 @@ fn resolve_owner_handle(
         ));
     }
 
-    // ensure owner handle resolves to one live window on the same owner thread
-    resolve_window_binding(context, owner_handle, operation)?;
+    // ensure owner handle resolves to one live window
+    resolve_window_host_state(context, owner_handle, operation)?;
 
     Ok(Some(owner_handle))
 }
@@ -45,12 +45,12 @@ fn resolve_owner_toplevel_id(
         return Ok(None);
     };
 
-    // resolve owner binding and require one toplevel role lane
-    let owner_binding = resolve_window_binding(context, owner_handle, operation)?;
-    let owner_binding = owner_binding
+    // resolve owner host_state and require one toplevel role lane
+    let owner_host_state = resolve_window_host_state(context, owner_handle, operation)?;
+    let owner_host_state = owner_host_state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    let owner_toplevel = owner_binding.host.xdg_toplevel.clone().ok_or_else(|| {
+    let owner_toplevel = owner_host_state.host.xdg_toplevel.clone().ok_or_else(|| {
         core_platform::invalid_argument(
             field,
             format!("{operation}: owner window does not expose xdg_toplevel role"),
@@ -73,22 +73,22 @@ fn apply_parent_relationship(
     owner_toplevel: Option<wayland_client::backend::ObjectId>,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    backend_core::with_connection_dispatch(
+    wayland_core::with_connection_dispatch(
         context,
         operation,
         |connection, event_queue, _dispatch_state| {
             let toplevel =
-                backend_core::resolve_xdg_toplevel(connection, window_toplevel.clone(), operation)?;
+                wayland_core::resolve_xdg_toplevel(connection, window_toplevel.clone(), operation)?;
 
             let owner_toplevel = match owner_toplevel {
                 Some(owner_toplevel) if !owner_toplevel.is_null() => Some(
-                    backend_core::resolve_xdg_toplevel(connection, owner_toplevel, operation)?,
+                    wayland_core::resolve_xdg_toplevel(connection, owner_toplevel, operation)?,
                 ),
                 _ => None,
             };
 
             toplevel.set_parent(owner_toplevel.as_ref());
-            backend_core::flush_queue(event_queue, operation)?;
+            wayland_core::flush_queue(event_queue, operation)?;
 
             Ok(())
         },
@@ -103,7 +103,7 @@ fn apply_modal_request(
     modal: bool,
     operation: &'static str,
 ) -> RuntimeResult<Option<wayland_client::backend::ObjectId>> {
-    backend_core::with_connection_dispatch(
+    wayland_core::with_connection_dispatch(
         context,
         operation,
         |connection, event_queue, dispatch_state| {
@@ -111,12 +111,13 @@ fn apply_modal_request(
             let mut dialog_id = dialog_id;
             if modal && dialog_id.is_none() {
                 let manager = dispatch_state
+                    .globals
                     .dialog_manager
                     .as_ref()
                     .cloned()
                     .ok_or_else(|| core_platform::not_supported(operation))?;
                 let toplevel =
-                    backend_core::resolve_xdg_toplevel(connection, toplevel_id, operation)?;
+                    wayland_core::resolve_xdg_toplevel(connection, toplevel_id, operation)?;
                 let dialog = manager.get_xdg_dialog(&toplevel, &event_queue.handle(), ());
                 dialog_id = Some(dialog.id());
             }
@@ -125,7 +126,7 @@ fn apply_modal_request(
             if let Some(dialog_id_value) = dialog_id.as_ref().cloned() {
                 let dialog = xdg_dialog_v1::XdgDialogV1::from_id(connection, dialog_id_value)
                     .map_err(|error| {
-                        backend_core::io_error(operation, format!("invalid xdg_dialog id: {error}"))
+                        wayland_core::io_error(operation, format!("invalid xdg_dialog id: {error}"))
                     })?;
 
                 if modal {
@@ -138,7 +139,7 @@ fn apply_modal_request(
             }
 
             // flush protocol requests for this modal update
-            backend_core::flush_queue(event_queue, operation)?;
+            wayland_core::flush_queue(event_queue, operation)?;
 
             Ok(dialog_id)
         },
@@ -151,13 +152,14 @@ pub(crate) unsafe fn window_set_modal(
     window_handle: WindowHandle,
     modal: bool,
 ) -> RuntimeResult<()> {
-    // resolve target window binding and enforce owner-thread affinity
-    let binding =
-        resolve_window_binding(context, window_handle, "destack.display.window.setModal")?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    // resolve target window host state and mutate host state
+    let host_state =
+        resolve_window_host_state(context, window_handle, "destack.display.window.setModal")?;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
 
     // reject modal requests when no owner relationship exists
-    if modal && binding.parent.is_none() && binding.transient_for.is_none() {
+    if modal && host_state.parent.is_none() && host_state.transient_for.is_none() {
         return Err(core_platform::invalid_argument(
             "modal",
             "modal windows require parent or transientFor relationship",
@@ -165,21 +167,27 @@ pub(crate) unsafe fn window_set_modal(
     }
 
     // skip no-op modal transitions
-    if binding.modal == modal {
+    if host_state.modal == modal {
         return Ok(());
     }
 
     // apply modal state through optional xdg-dialog support
-    let toplevel_id = require_xdg_toplevel_id(&binding, "destack.display.window.setModal")?;
+    let toplevel_id = require_xdg_toplevel_id(&host_state, "destack.display.window.setModal")?;
     let next_dialog_id = apply_modal_request(
         context,
         toplevel_id,
-        binding.host.xdg_dialog.clone(),
+        host_state.host.xdg_dialog.clone(),
         modal,
         "destack.display.window.setModal",
     )?;
-    binding.host.xdg_dialog = next_dialog_id;
-    binding.modal = modal;
+    host_state.host.xdg_dialog = next_dialog_id;
+    host_state.modal = modal;
+    let current = host_state.clone();
+    drop(host_state);
+
+    // publish all affected state deltas
+    let runtime_state = wayland_core::runtime_state(context);
+    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
 
     Ok(())
 }
@@ -198,13 +206,15 @@ pub(crate) unsafe fn window_set_parent(
         "destack.display.window.setParent",
     )?;
 
-    // resolve target window binding and enforce owner-thread affinity
-    let binding =
-        resolve_window_binding(context, window_handle, "destack.display.window.setParent")?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    // resolve target window host state and mutate host state
+    let host_state =
+        resolve_window_host_state(context, window_handle, "destack.display.window.setParent")?;
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
 
     // apply parent relation through xdg_toplevel
-    let window_toplevel_id = require_xdg_toplevel_id(&binding, "destack.display.window.setParent")?;
+    let window_toplevel_id =
+        require_xdg_toplevel_id(&host_state, "destack.display.window.setParent")?;
     let parent_toplevel = resolve_owner_toplevel_id(
         context,
         parent,
@@ -219,21 +229,27 @@ pub(crate) unsafe fn window_set_parent(
     )?;
 
     // clear modal state when both owner lanes are absent
-    if parent.is_none() && binding.transient_for.is_none() {
-        let toplevel_id = require_xdg_toplevel_id(&binding, "destack.display.window.setParent")?;
+    if parent.is_none() && host_state.transient_for.is_none() {
+        let toplevel_id = require_xdg_toplevel_id(&host_state, "destack.display.window.setParent")?;
         let next_dialog_id = apply_modal_request(
             context,
             toplevel_id,
-            binding.host.xdg_dialog.clone(),
+            host_state.host.xdg_dialog.clone(),
             false,
             "destack.display.window.setParent",
         )?;
-        binding.host.xdg_dialog = next_dialog_id;
-        binding.modal = false;
+        host_state.host.xdg_dialog = next_dialog_id;
+        host_state.modal = false;
     }
 
     // update parent relationship snapshot
-    binding.parent = parent;
+    host_state.parent = parent;
+    let current = host_state.clone();
+    drop(host_state);
+
+    // publish all affected state deltas
+    let runtime_state = wayland_core::runtime_state(context);
+    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
 
     Ok(())
 }
@@ -252,17 +268,18 @@ pub(crate) unsafe fn window_set_transient_for(
         "destack.display.window.setTransientFor",
     )?;
 
-    // resolve target window binding and enforce owner-thread affinity
-    let binding = resolve_window_binding(
+    // resolve target window host state and mutate host state
+    let host_state = resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setTransientFor",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
 
     // apply transient-owner relation through xdg_toplevel parent lane
     let window_toplevel_id =
-        require_xdg_toplevel_id(&binding, "destack.display.window.setTransientFor")?;
+        require_xdg_toplevel_id(&host_state, "destack.display.window.setTransientFor")?;
     let owner_toplevel = resolve_owner_toplevel_id(
         context,
         transient_for,
@@ -277,22 +294,28 @@ pub(crate) unsafe fn window_set_transient_for(
     )?;
 
     // clear modal state when both owner lanes are absent
-    if transient_for.is_none() && binding.parent.is_none() {
+    if transient_for.is_none() && host_state.parent.is_none() {
         let toplevel_id =
-            require_xdg_toplevel_id(&binding, "destack.display.window.setTransientFor")?;
+            require_xdg_toplevel_id(&host_state, "destack.display.window.setTransientFor")?;
         let next_dialog_id = apply_modal_request(
             context,
             toplevel_id,
-            binding.host.xdg_dialog.clone(),
+            host_state.host.xdg_dialog.clone(),
             false,
             "destack.display.window.setTransientFor",
         )?;
-        binding.host.xdg_dialog = next_dialog_id;
-        binding.modal = false;
+        host_state.host.xdg_dialog = next_dialog_id;
+        host_state.modal = false;
     }
 
     // update transient relationship snapshot
-    binding.transient_for = transient_for;
+    host_state.transient_for = transient_for;
+    let current = host_state.clone();
+    drop(host_state);
+
+    // publish all affected state deltas
+    let runtime_state = wayland_core::runtime_state(context);
+    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
 
     Ok(())
 }
@@ -303,29 +326,31 @@ pub(crate) unsafe fn window_set_mouse_passthrough(
     window_handle: WindowHandle,
     passthrough: bool,
 ) -> RuntimeResult<()> {
-    // resolve target window binding and enforce owner-thread affinity
-    let binding = resolve_window_binding(
+    // resolve target window host state and mutate host state
+    let host_state = resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setMousePassthrough",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
 
     // apply mouse input region policy through wl_surface
-    let surface_id = binding.host.surface.clone();
-    let runtime_state = backend_core::runtime_state(context);
-    let window_token = backend_core::window_token_from_surface(&runtime_state, &surface_id)
+    let surface_id = host_state.host.surface.clone();
+    let runtime_state = wayland_core::runtime_state(context);
+    let window_token = runtime_state
+        .window_token_from_surface(&surface_id)
         .ok_or_else(|| {
-            backend_core::io_error(
+            wayland_core::io_error(
                 "destack.display.window.setMousePassthrough",
                 "missing wayland window dispatch token",
             )
         })?;
-    backend_core::with_connection_dispatch(
+    wayland_core::with_connection_dispatch(
         context,
         "destack.display.window.setMousePassthrough",
         |connection, event_queue, dispatch_state| {
-            let surface = backend_core::resolve_wl_surface(
+            let surface = wayland_core::resolve_wl_surface(
                 connection,
                 surface_id,
                 "destack.display.window.setMousePassthrough",
@@ -333,9 +358,14 @@ pub(crate) unsafe fn window_set_mouse_passthrough(
 
             // apply empty input region for passthrough windows
             if passthrough {
-                let compositor = dispatch_state.compositor.as_ref().cloned().ok_or_else(|| {
-                    core_platform::not_supported("destack.display.window.setMousePassthrough")
-                })?;
+                let compositor = dispatch_state
+                    .globals
+                    .compositor
+                    .as_ref()
+                    .cloned()
+                    .ok_or_else(|| {
+                        core_platform::not_supported("destack.display.window.setMousePassthrough")
+                    })?;
                 let queue_handle = event_queue.handle();
                 let region = compositor.create_region(&queue_handle, ());
                 surface.set_input_region(Some(&region));
@@ -346,21 +376,26 @@ pub(crate) unsafe fn window_set_mouse_passthrough(
                 surface.set_input_region(None);
             }
 
-            backend_core::request_surface_presentation_feedback(
+            wayland_core::request_surface_presentation_feedback(
                 dispatch_state,
                 event_queue,
                 &surface,
                 window_token.clone(),
             );
             surface.commit();
-            backend_core::flush_queue(event_queue, "destack.display.window.setMousePassthrough")?;
+            wayland_core::flush_queue(event_queue, "destack.display.window.setMousePassthrough")?;
 
             Ok(())
         },
     )?;
 
     // update passthrough snapshot
-    binding.mouse_passthrough = passthrough;
+    host_state.mouse_passthrough = passthrough;
+    let current = host_state.clone();
+    drop(host_state);
+
+    // publish all affected state deltas
+    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
 
     Ok(())
 }

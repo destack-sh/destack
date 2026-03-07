@@ -11,8 +11,8 @@ use super::wayland;
 use super::x11;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::display::{
-    DisplayBackend, DisplayBackendCapabilityFlags, DisplayColorState, DisplayDescriptor,
-    DisplayGammaRamp, DisplayHdrMode, DisplayMode, DisplayMonitorEvent,
+    DisplayBackend, DisplayBackendCapabilityFlags, DisplayBackendDescriptor, DisplayColorState,
+    DisplayDescriptor, DisplayGammaRamp, DisplayHdrMode, DisplayMode, DisplayMonitorEvent,
     DisplayMonitorEventOpenOptions, DisplayMonitorListRequest, DisplayMonitorOpenOptions,
     WindowAspectRatio, WindowAttentionLevel, WindowChromeKind, WindowCursorIcon, WindowCursorMode,
     WindowDescriptor, WindowEvent, WindowEventOpenOptions, WindowIconSet, WindowLogicalSize,
@@ -40,6 +40,13 @@ macro_rules! dispatch_backend {
     }};
 }
 
+/// List unix display backend descriptors for the active host.
+pub(crate) fn display_backend_descriptors(
+    binding: &BindingCallContext,
+) -> Vec<DisplayBackendDescriptor> {
+    core::backend_descriptors(binding)
+}
+
 /// Resolve one owning backend for one opened display handle.
 fn resolve_display_backend_by_handle(
     binding: &BindingCallContext,
@@ -49,12 +56,12 @@ fn resolve_display_backend_by_handle(
     #[cfg(target_os = "linux")]
     {
         // resolve wayland-owned display handles first
-        if wayland::ensure_display_binding_exists(binding, handle, operation).is_ok() {
+        if wayland::ensure_display_handle_exists(binding, handle, operation).is_ok() {
             return Ok(DisplayBackend::Wayland);
         }
 
         // resolve x11-owned display handles next
-        if x11::ensure_display_binding_exists(binding, handle, operation).is_ok() {
+        if x11::ensure_display_handle_exists(binding, handle, operation).is_ok() {
             return Ok(DisplayBackend::X11);
         }
 
@@ -81,12 +88,12 @@ fn resolve_window_backend_by_handle(
     #[cfg(target_os = "linux")]
     {
         // resolve wayland-owned window handles first
-        if wayland::ensure_window_binding_exists(binding, window, operation).is_ok() {
+        if wayland::ensure_window_handle_exists(binding, window, operation).is_ok() {
             return Ok(DisplayBackend::Wayland);
         }
 
         // resolve x11-owned window handles next
-        if x11::ensure_window_binding_exists(binding, window, operation).is_ok() {
+        if x11::ensure_window_handle_exists(binding, window, operation).is_ok() {
             return Ok(DisplayBackend::X11);
         }
 
@@ -113,12 +120,12 @@ fn resolve_monitor_event_backend_by_handle(
     #[cfg(target_os = "linux")]
     {
         // resolve wayland-owned monitor-event streams first
-        if wayland::ensure_monitor_event_binding_exists(binding, handle, operation).is_ok() {
+        if wayland::ensure_monitor_event_handle_exists(binding, handle, operation).is_ok() {
             return Ok(DisplayBackend::Wayland);
         }
 
         // resolve x11-owned monitor-event streams next
-        if x11::ensure_monitor_event_binding_exists(binding, handle, operation).is_ok() {
+        if x11::ensure_monitor_event_handle_exists(binding, handle, operation).is_ok() {
             return Ok(DisplayBackend::X11);
         }
 
@@ -145,12 +152,12 @@ fn resolve_window_event_backend_by_handle(
     #[cfg(target_os = "linux")]
     {
         // resolve wayland-owned window-event streams first
-        if wayland::ensure_window_event_binding_exists(binding, handle, operation).is_ok() {
+        if wayland::ensure_window_event_handle_exists(binding, handle, operation).is_ok() {
             return Ok(DisplayBackend::Wayland);
         }
 
         // resolve x11-owned window-event streams next
-        if x11::ensure_window_event_binding_exists(binding, handle, operation).is_ok() {
+        if x11::ensure_window_event_handle_exists(binding, handle, operation).is_ok() {
             return Ok(DisplayBackend::X11);
         }
 
@@ -179,7 +186,7 @@ fn resolve_window_capabilities(
     {
         // wayland window capabilities depend on live protocol negotiation
         if backend == DisplayBackend::Wayland {
-            return unsafe { wayland::effective_window_capabilities(binding, window, _operation) };
+            return wayland::effective_window_capabilities(binding, window, _operation);
         }
 
         return Ok(core::backend_capabilities(binding, backend));

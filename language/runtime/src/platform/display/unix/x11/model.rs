@@ -1,5 +1,3 @@
-use std::thread::ThreadId;
-
 use x11rb::protocol::xproto::Window;
 
 use crate::platform::display::{
@@ -53,7 +51,7 @@ pub(crate) struct DisplayDescriptorSnapshot {
     pub(crate) hdr_support: DisplaySupportStatus,
 }
 
-/// Snapshot payload for one x11 monitor endpoint.
+/// Snapshot payload for one X11 monitor endpoint.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct MonitorSnapshot {
     /// Descriptor payload for this monitor.
@@ -68,7 +66,7 @@ pub(crate) struct MonitorSnapshot {
 
 /// Resource payload for one opened display handle.
 #[derive(Debug, Clone)]
-pub(crate) struct X11DisplayBinding {
+pub(crate) struct X11DisplayHostState {
     /// Stable monitor identifier.
     pub(crate) id: String,
 }
@@ -82,17 +80,15 @@ pub(crate) struct ExclusiveModeRestore {
     pub(crate) previous_mode: DisplayMode,
 }
 
-/// Resource payload for one opened x11 window handle.
+/// Resource payload for one opened X11 window handle.
 #[derive(Debug, Clone)]
-pub(crate) struct X11WindowBinding {
+pub(crate) struct X11WindowHostState {
     /// Stable runtime identifier.
     pub(crate) id: String,
     /// Native x11 window id.
     pub(crate) window: Window,
     /// Optional native x11 cursor id currently applied to this window.
     pub(crate) cursor_handle: Option<u32>,
-    /// Owner thread identifier that created this window.
-    pub(crate) owner_thread_id: ThreadId,
     /// Current host-visible title.
     pub(crate) title: String,
     /// Current window role.

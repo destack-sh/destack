@@ -10,9 +10,9 @@ use crate::platform::display::{WindowCursorIcon, WindowCursorMode};
 use crate::runtime::BindingCallContext;
 
 use super::{
-    WaylandConnectionDispatchState, WaylandWindowBinding, flush_queue, resolve_wl_surface,
-    with_connection_dispatch,
+    WaylandConnectionDispatchState, flush_queue, resolve_wl_surface, with_connection_dispatch,
 };
+use crate::platform::display::unix::wayland::model::WaylandWindowHostState;
 
 /// Clear pointer-focus state when one focused surface is being destroyed.
 pub(crate) fn clear_pointer_focus_for_surface(
@@ -20,6 +20,7 @@ pub(crate) fn clear_pointer_focus_for_surface(
     surface_id: &wayland_client::backend::ObjectId,
 ) {
     let is_focused_surface = dispatch_state
+        .input
         .pointer_focus_surface
         .as_ref()
         .is_some_and(|value| value == surface_id);
@@ -27,9 +28,9 @@ pub(crate) fn clear_pointer_focus_for_surface(
         return;
     }
 
-    dispatch_state.pointer_focus_surface = None;
-    dispatch_state.last_pointer_enter_serial = None;
-    dispatch_state.last_pointer_button_serial = None;
+    dispatch_state.input.pointer_focus_surface = None;
+    dispatch_state.input.last_pointer_enter_serial = None;
+    dispatch_state.input.last_pointer_button_serial = None;
 }
 
 /// Return one cursor-shape protocol code for one runtime cursor icon.
@@ -82,10 +83,10 @@ pub(crate) fn apply_pointer_cursor_state(
     cursor_mode: WindowCursorMode,
     cursor_icon: WindowCursorIcon,
 ) {
-    let Some(pointer) = dispatch_state.pointer.as_ref() else {
+    let Some(pointer) = dispatch_state.input.pointer.as_ref() else {
         return;
     };
-    let Some(serial) = dispatch_state.last_pointer_enter_serial else {
+    let Some(serial) = dispatch_state.input.last_pointer_enter_serial else {
         return;
     };
 
@@ -96,7 +97,7 @@ pub(crate) fn apply_pointer_cursor_state(
     }
 
     // otherwise apply one compositor-managed cursor shape
-    let Some(shape_device) = dispatch_state.cursor_shape_device.as_ref() else {
+    let Some(shape_device) = dispatch_state.input.cursor_shape_device.as_ref() else {
         return;
     };
     shape_device.set_shape(serial, cursor_shape_code(cursor_icon));
@@ -140,18 +141,18 @@ fn destroy_confined_pointer(
     }
 }
 
-/// Apply cursor visibility, icon, and mode policy for one window binding.
+/// Apply cursor visibility, icon, and mode policy for one window host state.
 pub(crate) fn apply_window_cursor_policy(
     context: &BindingCallContext,
-    binding: &mut WaylandWindowBinding,
+    host_state: &mut WaylandWindowHostState,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let surface_id = binding.host.surface.clone();
-    let cursor_visible = binding.cursor_visible;
-    let cursor_mode = binding.cursor_mode;
-    let cursor_icon = binding.cursor_icon;
-    let locked_pointer_id = binding.host.locked_pointer.clone();
-    let confined_pointer_id = binding.host.confined_pointer.clone();
+    let surface_id = host_state.host.surface.clone();
+    let cursor_visible = host_state.cursor_visible;
+    let cursor_mode = host_state.cursor_mode;
+    let cursor_icon = host_state.cursor_icon;
+    let locked_pointer_id = host_state.host.locked_pointer.clone();
+    let confined_pointer_id = host_state.host.confined_pointer.clone();
 
     let (next_locked_pointer_id, next_confined_pointer_id) = with_connection_dispatch(
         context,
@@ -179,11 +180,13 @@ pub(crate) fn apply_window_cursor_policy(
             // apply cursor lock through pointer-constraints
             if cursor_mode == WindowCursorMode::Locked {
                 let pointer_constraints_manager = dispatch_state
+                    .input
                     .pointer_constraints_manager
                     .as_ref()
                     .cloned()
                     .ok_or_else(|| core_platform::not_supported(operation))?;
                 let pointer = dispatch_state
+                    .input
                     .pointer
                     .as_ref()
                     .cloned()
@@ -207,11 +210,13 @@ pub(crate) fn apply_window_cursor_policy(
             // apply cursor confine through pointer-constraints
             if cursor_mode == WindowCursorMode::Confined {
                 let pointer_constraints_manager = dispatch_state
+                    .input
                     .pointer_constraints_manager
                     .as_ref()
                     .cloned()
                     .ok_or_else(|| core_platform::not_supported(operation))?;
                 let pointer = dispatch_state
+                    .input
                     .pointer
                     .as_ref()
                     .cloned()
@@ -233,6 +238,7 @@ pub(crate) fn apply_window_cursor_policy(
             }
 
             let is_focused_surface = dispatch_state
+                .input
                 .pointer_focus_surface
                 .as_ref()
                 .is_some_and(|value| value == &surface_id);
@@ -253,8 +259,8 @@ pub(crate) fn apply_window_cursor_policy(
         },
     )?;
 
-    binding.host.locked_pointer = next_locked_pointer_id;
-    binding.host.confined_pointer = next_confined_pointer_id;
+    host_state.host.locked_pointer = next_locked_pointer_id;
+    host_state.host.confined_pointer = next_confined_pointer_id;
 
     Ok(())
 }

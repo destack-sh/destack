@@ -52,16 +52,12 @@ pub(super) use unix_core::invalid_data;
 /// Return one ioPermissionDenied runtime error.
 pub(super) use unix_core::permission_denied;
 
-/// Resolve one callback runtime identifier for Android host callback routing.
-pub(super) fn callback_runtime_id(
+/// Resolve one runtime identifier for Android host callback routing.
+pub(super) fn host_runtime_id(
     binding: &BindingCallContext,
-    operation: &'static str,
+    _operation: &'static str,
 ) -> Result<u64, Box<RuntimeError>> {
-    let Some(runtime_id) = binding.host().callback_runtime_id() else {
-        return Err(core_platform::not_supported(operation));
-    };
-
-    Ok(runtime_id)
+    Ok(binding.agent().runtime_id.0)
 }
 
 /// Encode one store kind for Android host callback ABI values.

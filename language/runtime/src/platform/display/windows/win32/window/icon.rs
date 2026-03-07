@@ -7,7 +7,8 @@ use crate::platform::core as core_platform;
 use crate::platform::display::{WindowIconPixelFormat, WindowIconSet};
 
 use super::constants::{WINDOW_ICON_BITS_PER_PIXEL, WINDOW_ICON_COLOR_PLANES};
-use super::{core, dimension_to_i32};
+use super::geometry::dimension_to_i32;
+use crate::platform::display::windows::win32::core as win32_core;
 
 /// Decoded icon-image payload normalized to BGRA8 bytes.
 #[derive(Debug, Clone)]
@@ -23,7 +24,6 @@ pub(crate) struct DecodedWindowIconImage {
 /// Resolve one icon-system metric with one stable fallback.
 fn icon_metric(metric: i32, fallback: u32) -> u32 {
     let value = unsafe { GetSystemMetrics(metric) };
-    // evaluate this condition
     if value <= 0 {
         return fallback;
     }
@@ -45,7 +45,6 @@ pub(crate) fn decode_window_icons(
     icons: WindowIconSet,
 ) -> RuntimeResult<Vec<DecodedWindowIconImage>> {
     let images = unsafe { icons.images.as_slice()? };
-    // evaluate this condition
     if images.is_empty() {
         return Err(core_platform::invalid_argument(
             "icons",
@@ -54,9 +53,7 @@ pub(crate) fn decode_window_icons(
     }
 
     let mut decoded = Vec::with_capacity(images.len());
-    // iterate this sequence
     for image in images {
-        // evaluate this condition
         if image.width == 0 || image.height == 0 {
             return Err(core_platform::invalid_argument(
                 "icons",
@@ -74,7 +71,6 @@ pub(crate) fn decode_window_icons(
         })?;
 
         let pixels = unsafe { image.pixels.as_slice()? };
-        // evaluate this condition
         if pixels.len() != expected_length {
             return Err(core_platform::invalid_argument(
                 "icons",
@@ -88,7 +84,6 @@ pub(crate) fn decode_window_icons(
         let row_bytes = (image.width as usize) * 4;
         let height = image.height as usize;
         let mut pixels_bgra = vec![0u8; expected_length];
-        // iterate this sequence
         for row in 0..height {
             let source_row = (height - 1 - row) * row_bytes;
             let target_row = row * row_bytes;
@@ -96,11 +91,9 @@ pub(crate) fn decode_window_icons(
             let source = &pixels[source_row..source_row + row_bytes];
             let target = &mut pixels_bgra[target_row..target_row + row_bytes];
 
-            // resolve this variant
             match image.pixel_format {
                 WindowIconPixelFormat::Bgra8 => target.copy_from_slice(source),
                 WindowIconPixelFormat::Rgba8 => {
-                    // iterate this sequence
                     for (source_pixel, target_pixel) in
                         source.chunks_exact(4).zip(target.chunks_exact_mut(4))
                     {
@@ -132,10 +125,8 @@ pub(crate) fn best_icon_index(
     let mut best_index = 0usize;
     let mut best_score = u32::MAX;
 
-    // iterate this sequence
     for (index, image) in images.iter().enumerate() {
         let score = image.width.abs_diff(target_width) + image.height.abs_diff(target_height);
-        // evaluate this condition
         if score < best_score {
             best_score = score;
             best_index = index;
@@ -172,9 +163,8 @@ pub(crate) fn create_hicon(
             image.pixels_bgra.as_ptr(),
         )
     };
-    // evaluate this condition
     if icon == 0 {
-        return Err(core::io_error(
+        return Err(win32_core::io_error(
             operation,
             "CreateIcon",
             "failed to create window icon",
@@ -186,7 +176,6 @@ pub(crate) fn create_hicon(
 
 /// Destroy one owned icon handle when present.
 fn destroy_owned_icon(icon: isize) {
-    // evaluate this condition
     if icon == 0 {
         return;
     }
@@ -198,12 +187,10 @@ fn destroy_owned_icon(icon: isize) {
 
 /// Destroy one pair of icon handles without double free.
 pub(crate) fn destroy_owned_icons(small_icon: isize, big_icon: isize) {
-    // evaluate this condition
     if small_icon != 0 {
         destroy_owned_icon(small_icon);
     }
 
-    // evaluate this condition
     if big_icon != 0 && big_icon != small_icon {
         destroy_owned_icon(big_icon);
     }

@@ -8,15 +8,14 @@ use x11rb::protocol::xproto::{
 use x11rb::wrapper::ConnectionExt as X11WrapperConnectionExt;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::display::{
-    DisplayMode, WindowAspectRatio, WindowChromeKind, WindowLogicalSize, WindowModeOptions,
-    WindowOcclusionState, WindowPhysicalSize, WindowSizeConstraints, WindowVisibility,
+    WindowAspectRatio, WindowChromeKind, WindowOcclusionState, WindowPhysicalSize,
+    WindowSizeConstraints, WindowVisibility,
 };
-use crate::platform::{core as core_platform, resource};
 
-use super::super::core;
-use super::super::model::X11WindowBinding;
 use super::constants::*;
+use crate::platform::display::unix::x11::core;
 
 /// Resolve one occlusion value from one x11 visibility state.
 pub(crate) fn occlusion_from_visibility(visibility: WindowVisibility) -> WindowOcclusionState {
@@ -40,7 +39,6 @@ pub(crate) fn apply_window_decorated(
     let motif_hints = [
         MOTIF_HINTS_DECORATIONS_FLAG,
         0,
-        // evaluate this condition
         if decorated { 1 } else { 0 },
         0,
         0,
@@ -120,14 +118,12 @@ pub(crate) fn apply_window_size_hints(
     }
     // otherwise apply explicit min and max constraints when present
     else if let Some(constraints) = constraints {
-        // evaluate this condition
         if let Some(minimum) = constraints.min {
             let min_width = normalized_constraint_component(minimum.width);
             let min_height = normalized_constraint_component(minimum.height);
             hints.min_size = Some((min_width, min_height));
         }
 
-        // evaluate this condition
         if let Some(maximum) = constraints.max {
             let max_width = normalized_constraint_component(maximum.width);
             let max_height = normalized_constraint_component(maximum.height);
@@ -304,21 +300,4 @@ pub(crate) fn set_window_title(
         })?;
 
     Ok(())
-}
-
-/// Enforce owner-thread affinity for one window binding.
-pub(crate) fn ensure_window_thread(
-    binding: &X11WindowBinding,
-    operation: &'static str,
-) -> RuntimeResult<()> {
-    let current_thread_id = std::thread::current().id();
-    // evaluate this condition
-    if binding.owner_thread_id == current_thread_id {
-        return Ok(());
-    }
-
-    Err(core_platform::invalid_argument(
-        "window",
-        format!("{operation} must run on the owner thread for this window"),
-    ))
 }

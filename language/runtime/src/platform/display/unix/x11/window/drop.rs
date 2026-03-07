@@ -1,27 +1,29 @@
+use std::sync::Arc;
+
 use super::constants::XDND_ACCEPTED;
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
     Atom, AtomEnum, CLIENT_MESSAGE_EVENT, ClientMessageData, ClientMessageEvent,
-    ConnectionExt as XprotoConnectionExt, EventMask, PropertyNotifyEvent, SelectionNotifyEvent,
+    ConnectionExt as XprotoConnectionExt, EventMask, SelectionNotifyEvent,
 };
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::display::{WindowDragAction, WindowPosition};
+use crate::platform::display::WindowPosition;
 use crate::platform::resource;
 
-use super::super::model::{X11WindowBinding, XdndPayload};
-use super::super::{core, event};
+use crate::platform::display::unix::x11::model::{X11WindowHostState, XdndPayload};
+use crate::platform::display::unix::x11::{core, event};
 
 /// Clear one window-local xdnd session state.
-pub(crate) fn clear_xdnd_state(binding: &mut X11WindowBinding) {
-    binding.xdnd_source_window = None;
-    binding.xdnd_version = None;
-    binding.xdnd_types.clear();
-    binding.xdnd_target_type = None;
-    binding.xdnd_position = None;
-    binding.xdnd_payload = None;
-    binding.xdnd_dragging = false;
-    binding.xdnd_last_hovered_path = None;
+pub(crate) fn clear_xdnd_state(host_state: &mut X11WindowHostState) {
+    host_state.xdnd_source_window = None;
+    host_state.xdnd_version = None;
+    host_state.xdnd_types.clear();
+    host_state.xdnd_target_type = None;
+    host_state.xdnd_position = None;
+    host_state.xdnd_payload = None;
+    host_state.xdnd_dragging = false;
+    host_state.xdnd_last_hovered_path = None;
 }
 
 /// Decode one percent-encoded URI segment into one UTF-8 string.
@@ -30,17 +32,15 @@ fn decode_percent_encoded(value: &str) -> Option<String> {
     let mut decoded = Vec::with_capacity(bytes.len());
     let mut index = 0usize;
 
-    // iterate while this condition holds
+    // scan the payload and decode percent-escaped bytes inline
     while index < bytes.len() {
         let byte = bytes[index];
-        // evaluate this condition
         if byte != b'%' {
             decoded.push(byte);
             index += 1;
             continue;
         }
 
-        // evaluate this condition
         if index + 2 >= bytes.len() {
             return None;
         }
@@ -83,7 +83,6 @@ fn parse_uri_list_payload(payload: &[u8]) -> Option<Vec<String>> {
     // parse newline-delimited file URIs, ignoring comment lines
     for line in text.lines() {
         let uri = line.trim();
-        // evaluate this condition
         if uri.is_empty() || uri.starts_with('#') {
             continue;
         }
@@ -92,7 +91,6 @@ fn parse_uri_list_payload(payload: &[u8]) -> Option<Vec<String>> {
         paths.push(path);
     }
 
-    // evaluate this condition
     if paths.is_empty() {
         return None;
     }
@@ -102,17 +100,14 @@ fn parse_uri_list_payload(payload: &[u8]) -> Option<Vec<String>> {
 
 /// Return one preferred xdnd target type for one offered type set.
 fn preferred_xdnd_type(offers: &[Atom], atoms: &core::X11Atoms) -> Option<Atom> {
-    // evaluate this condition
     if offers.contains(&atoms.text_uri_list) {
         return Some(atoms.text_uri_list);
     }
 
-    // evaluate this condition
     if offers.contains(&atoms.utf8_string) {
         return Some(atoms.utf8_string);
     }
 
-    // evaluate this condition
     if offers.contains(&atoms.text) {
         return Some(atoms.text);
     }
@@ -159,9 +154,7 @@ fn xdnd_enter_types(
     // parse inline type lanes when no external type list is present
     if !has_more_types {
         let mut types = Vec::new();
-        // iterate this sequence
         for atom in [data[2], data[3], data[4]] {
-            // evaluate this condition
             if atom != 0 {
                 types.push(atom);
             }
@@ -309,7 +302,6 @@ fn read_xdnd_selection_payload(
         let Some(text) = text else {
             return Ok(None);
         };
-        // evaluate this condition
         if text.is_empty() {
             return Ok(None);
         }
@@ -322,7 +314,7 @@ fn read_xdnd_selection_payload(
 /// Handle one `XdndEnter` client message.
 pub(crate) fn handle_xdnd_enter(
     connection_state: &core::X11ConnectionState,
-    binding: &mut X11WindowBinding,
+    host_state: &mut X11WindowHostState,
     value: &ClientMessageEvent,
 ) -> RuntimeResult<()> {
     let data = value.data.as_data32();
@@ -332,11 +324,11 @@ pub(crate) fn handle_xdnd_enter(
         xdnd_enter_types(connection_state, value, "destack.display.window.eventRead")?;
     let target_type = preferred_xdnd_type(&offered_types, &connection_state.atoms);
 
-    clear_xdnd_state(binding);
-    binding.xdnd_source_window = Some(source_window);
-    binding.xdnd_version = Some(version);
-    binding.xdnd_types = offered_types;
-    binding.xdnd_target_type = target_type;
+    clear_xdnd_state(host_state);
+    host_state.xdnd_source_window = Some(source_window);
+    host_state.xdnd_version = Some(version);
+    host_state.xdnd_types = offered_types;
+    host_state.xdnd_target_type = target_type;
 
     Ok(())
 }
@@ -344,7 +336,7 @@ pub(crate) fn handle_xdnd_enter(
 /// Handle one `XdndPosition` client message.
 pub(crate) fn handle_xdnd_position(
     connection_state: &core::X11ConnectionState,
-    binding: &mut X11WindowBinding,
+    host_state: &mut X11WindowHostState,
     value: &ClientMessageEvent,
 ) -> RuntimeResult<()> {
     let data = value.data.as_data32();
@@ -354,28 +346,27 @@ pub(crate) fn handle_xdnd_position(
     let packed = data[2];
     let x = ((packed >> 16) & 0xffff) as u16 as i16;
     let y = (packed & 0xffff) as u16 as i16;
-    binding.xdnd_position = Some(WindowPosition {
+    host_state.xdnd_position = Some(WindowPosition {
         x: i32::from(x),
         y: i32::from(y),
     });
 
     // reject when source window or supported payload type is missing
-    let source_matches = binding.xdnd_source_window == Some(source_window);
-    let Some(target_type) = binding.xdnd_target_type else {
+    let source_matches = host_state.xdnd_source_window == Some(source_window);
+    let Some(target_type) = host_state.xdnd_target_type else {
         send_xdnd_status(
             connection_state,
-            binding.window,
+            host_state.window,
             source_window,
             false,
             "destack.display.window.eventRead",
         )?;
         return Ok(());
     };
-    // evaluate this condition
     if !source_matches {
         send_xdnd_status(
             connection_state,
-            binding.window,
+            host_state.window,
             source_window,
             false,
             "destack.display.window.eventRead",
@@ -384,7 +375,7 @@ pub(crate) fn handle_xdnd_position(
     }
 
     // request selection transfer for the latest drag position
-    let version = binding.xdnd_version.unwrap_or(5);
+    let version = host_state.xdnd_version.unwrap_or(5);
     let timestamp = if version == 0 {
         x11rb::CURRENT_TIME
     } else {
@@ -392,14 +383,14 @@ pub(crate) fn handle_xdnd_position(
     };
     request_xdnd_selection(
         connection_state,
-        binding.window,
+        host_state.window,
         target_type,
         timestamp,
         "destack.display.window.eventRead",
     )?;
     send_xdnd_status(
         connection_state,
-        binding.window,
+        host_state.window,
         source_window,
         true,
         "destack.display.window.eventRead",
@@ -413,30 +404,26 @@ pub(crate) fn handle_xdnd_drop(
     runtime_state: &Arc<core::X11RuntimeState>,
     window_handle: resource::WindowHandle,
     connection_state: &core::X11ConnectionState,
-    binding: &mut X11WindowBinding,
+    host_state: &mut X11WindowHostState,
     value: &ClientMessageEvent,
 ) -> RuntimeResult<()> {
     let source_window = value.data.as_data32()[0];
-    let source_matches = binding.xdnd_source_window == Some(source_window);
-    let payload = binding.xdnd_payload.clone();
-    let position = binding.xdnd_position;
-    let previous_hover = binding.xdnd_last_hovered_path.clone();
-    let was_dragging = binding.xdnd_dragging;
+    let source_matches = host_state.xdnd_source_window == Some(source_window);
+    let payload = host_state.xdnd_payload.clone();
+    let position = host_state.xdnd_position;
+    let previous_hover = host_state.xdnd_last_hovered_path.clone();
+    let was_dragging = host_state.xdnd_dragging;
 
     let mut accepted = false;
-    // evaluate this condition
     if source_matches && was_dragging && payload.is_some() {
         accepted = true;
     }
 
     // publish final drop payload events
     if accepted {
-        // evaluate this condition
         if let Some(payload) = payload {
-            // resolve this variant
             match payload {
                 XdndPayload::Files(paths) => {
-                    // iterate this sequence
                     for path in paths {
                         event::publish_window_file_dropped(
                             runtime_state,
@@ -460,7 +447,6 @@ pub(crate) fn handle_xdnd_drop(
     }
     // otherwise publish one cancelled drop sequence when a drag session was active
     else if was_dragging {
-        // evaluate this condition
         if previous_hover.is_some() {
             event::publish_window_file_hover_left(
                 runtime_state,
@@ -474,12 +460,12 @@ pub(crate) fn handle_xdnd_drop(
 
     send_xdnd_finished(
         connection_state,
-        binding.window,
+        host_state.window,
         source_window,
         accepted,
         "destack.display.window.eventRead",
     )?;
-    clear_xdnd_state(binding);
+    clear_xdnd_state(host_state);
 
     Ok(())
 }
@@ -488,23 +474,22 @@ pub(crate) fn handle_xdnd_drop(
 pub(crate) fn handle_xdnd_leave(
     runtime_state: &Arc<core::X11RuntimeState>,
     window_handle: resource::WindowHandle,
-    binding: &mut X11WindowBinding,
+    host_state: &mut X11WindowHostState,
 ) {
     // publish a cancelled drag sequence when one drag session is active
-    if binding.xdnd_dragging {
-        // evaluate this condition
-        if binding.xdnd_last_hovered_path.is_some() {
+    if host_state.xdnd_dragging {
+        if host_state.xdnd_last_hovered_path.is_some() {
             event::publish_window_file_hover_left(
                 runtime_state,
                 window_handle,
-                binding.xdnd_last_hovered_path.clone(),
-                binding.xdnd_position,
+                host_state.xdnd_last_hovered_path.clone(),
+                host_state.xdnd_position,
             );
         }
         event::publish_window_drop_cancelled(runtime_state, window_handle);
     }
 
-    clear_xdnd_state(binding);
+    clear_xdnd_state(host_state);
 }
 
 /// Handle one `SelectionNotify` event for xdnd data transfers.
@@ -512,7 +497,7 @@ pub(crate) fn handle_xdnd_selection_notify(
     runtime_state: &Arc<core::X11RuntimeState>,
     window_handle: resource::WindowHandle,
     connection_state: &core::X11ConnectionState,
-    binding: &mut X11WindowBinding,
+    host_state: &mut X11WindowHostState,
     value: &SelectionNotifyEvent,
 ) -> RuntimeResult<()> {
     // ignore selection events outside the xdnd property lane
@@ -521,17 +506,17 @@ pub(crate) fn handle_xdnd_selection_notify(
     }
 
     // ignore selection events when no drag source or target type is active
-    if binding.xdnd_source_window.is_none() {
+    if host_state.xdnd_source_window.is_none() {
         return Ok(());
     }
-    let Some(target_type) = binding.xdnd_target_type else {
+    let Some(target_type) = host_state.xdnd_target_type else {
         return Ok(());
     };
 
     // parse one transferred payload snapshot from the selection property
     let Some(payload) = read_xdnd_selection_payload(
         connection_state,
-        binding.window,
+        host_state.window,
         target_type,
         "destack.display.window.eventRead",
     )?
@@ -541,34 +526,34 @@ pub(crate) fn handle_xdnd_selection_notify(
     };
 
     // publish drop-started once for the first accepted payload
-    if !binding.xdnd_dragging {
-        binding.xdnd_dragging = true;
+    if !host_state.xdnd_dragging {
+        host_state.xdnd_dragging = true;
         event::publish_window_drop_started(runtime_state, window_handle);
     }
 
     // publish hover payload updates for file drops
     if let XdndPayload::Files(paths) = &payload {
         let path = paths.first().cloned();
-        // evaluate this condition
-        if binding.xdnd_last_hovered_path != path && binding.xdnd_last_hovered_path.is_some() {
+        if host_state.xdnd_last_hovered_path != path && host_state.xdnd_last_hovered_path.is_some()
+        {
             event::publish_window_file_hover_left(
                 runtime_state,
                 window_handle,
-                binding.xdnd_last_hovered_path.clone(),
-                binding.xdnd_position,
+                host_state.xdnd_last_hovered_path.clone(),
+                host_state.xdnd_position,
             );
         }
 
-        binding.xdnd_last_hovered_path = path.clone();
+        host_state.xdnd_last_hovered_path = path.clone();
         event::publish_window_file_hovered(
             runtime_state,
             window_handle,
             path,
-            binding.xdnd_position,
+            host_state.xdnd_position,
         );
     }
 
-    binding.xdnd_payload = Some(payload);
+    host_state.xdnd_payload = Some(payload);
 
     Ok(())
 }

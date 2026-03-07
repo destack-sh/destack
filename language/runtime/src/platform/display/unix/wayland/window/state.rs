@@ -3,8 +3,8 @@ use crate::platform::display::{WindowDescriptor, WindowState};
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
-use super::super::core as backend_core;
-use super::{occlusion_from_visibility, pump_window_messages, resolve_window_binding};
+use super::{occlusion_from_visibility, resolve_window_host_state};
+use crate::platform::display::unix::wayland::core as wayland_core;
 
 /// Read descriptor metadata for one window.
 pub(crate) unsafe fn window_descriptor(
@@ -12,35 +12,32 @@ pub(crate) unsafe fn window_descriptor(
     out: *mut WindowDescriptor,
     window_handle: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    // validate out pointer and refresh backend window state
+    // validate out pointer before encoding one descriptor snapshot
     core_platform::ensure_out(out, "out")?;
-    pump_window_messages(context)?;
 
-    // resolve one binding snapshot and encode descriptor payload
-    let binding =
-        resolve_window_binding(context, window_handle, "destack.display.window.descriptor")?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    let _host_id = binding.host.id;
-
+    // resolve one host_state snapshot and encode descriptor payload
+    let host_state =
+        resolve_window_host_state(context, window_handle, "destack.display.window.descriptor")?;
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
     let descriptor = WindowDescriptor {
-        backend: backend_core::selected_backend(),
-        id: context.store_string(&binding.id),
-        title: context.store_string(&binding.title),
-        role: binding.role,
-        mode: binding.mode,
-        display: binding.display,
-        resizable: binding.resizable,
-        decorated: binding.decorated,
-        chrome: binding.chrome,
-        taskbar_visible: binding.taskbar_visible,
-        transparent: binding.transparent,
-        opacity: binding.opacity,
-        always_on_top: binding.always_on_top,
-        parent: binding.parent,
-        transient_for: binding.transient_for,
-        modal: binding.modal,
-        mouse_passthrough: binding.mouse_passthrough,
-        aspect_ratio: binding.aspect_ratio,
+        backend: wayland_core::selected_backend(),
+        id: context.store_string(&host_state.id),
+        title: context.store_string(&host_state.title),
+        role: host_state.role,
+        mode: host_state.mode,
+        display: host_state.display,
+        resizable: host_state.resizable,
+        decorated: host_state.decorated,
+        chrome: host_state.chrome,
+        taskbar_visible: host_state.taskbar_visible,
+        transparent: host_state.transparent,
+        opacity: host_state.opacity,
+        always_on_top: host_state.always_on_top,
+        parent: host_state.parent,
+        transient_for: host_state.transient_for,
+        modal: host_state.modal,
+        mouse_passthrough: host_state.mouse_passthrough,
+        aspect_ratio: host_state.aspect_ratio,
     };
 
     unsafe {
@@ -56,36 +53,36 @@ pub(crate) unsafe fn window_state(
     out: *mut WindowState,
     window_handle: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    // validate out pointer and refresh backend window state
+    // validate out pointer before encoding one state snapshot
     core_platform::ensure_out(out, "out")?;
-    pump_window_messages(context)?;
 
-    // resolve one binding snapshot and encode state payload
-    let binding = resolve_window_binding(context, window_handle, "destack.display.window.state")?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    // resolve one host_state snapshot and encode state payload
+    let host_state =
+        resolve_window_host_state(context, window_handle, "destack.display.window.state")?;
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
     let state = WindowState {
-        backend: backend_core::selected_backend(),
-        position: binding.position,
-        size_logical: binding.size_logical,
-        size_physical: binding.size_physical,
-        scale_factor_milli: binding.scale_factor_milli,
-        visibility: binding.visibility,
-        role: binding.role,
-        display: binding.display,
-        focused: binding.focused,
-        occlusion: occlusion_from_visibility(binding.visibility),
-        safe_area_insets: binding.safe_area_insets,
-        theme: binding.theme,
-        chrome: binding.chrome,
-        taskbar_visible: binding.taskbar_visible,
-        opacity: binding.opacity,
-        always_on_top: binding.always_on_top,
-        parent: binding.parent,
-        transient_for: binding.transient_for,
-        modal: binding.modal,
-        mouse_passthrough: binding.mouse_passthrough,
-        aspect_ratio: binding.aspect_ratio,
+        backend: wayland_core::selected_backend(),
+        position: host_state.position,
+        size_logical: host_state.size_logical,
+        size_physical: host_state.size_physical,
+        scale_factor_milli: host_state.scale_factor_milli,
+        visibility: host_state.visibility,
+        role: host_state.role,
+        display: host_state.display,
+        focused: host_state.focused,
+        occlusion: occlusion_from_visibility(host_state.visibility),
+        safe_area_insets: host_state.safe_area_insets,
+        theme: host_state.theme,
+        chrome: host_state.chrome,
+        taskbar_visible: host_state.taskbar_visible,
+        opacity: host_state.opacity,
+        always_on_top: host_state.always_on_top,
+        parent: host_state.parent,
+        transient_for: host_state.transient_for,
+        modal: host_state.modal,
+        mouse_passthrough: host_state.mouse_passthrough,
+        aspect_ratio: host_state.aspect_ratio,
     };
 
     unsafe {

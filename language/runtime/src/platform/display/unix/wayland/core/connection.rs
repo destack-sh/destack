@@ -1,20 +1,20 @@
 use std::io::ErrorKind;
 use std::sync::Arc;
 
+use wayland_client::backend::WaylandError;
 use wayland_client::protocol::{wl_seat, wl_surface};
-use wayland_client::{Connection, Dispatch, EventQueue, Proxy, WaylandError};
-use wayland_protocols::xdg::activation::v1::client::xdg_activation_token_v1;
+use wayland_client::{Connection, EventQueue, Proxy};
 use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel};
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
 use crate::runtime::BindingCallContext;
 
-use super::super::window;
 use super::{
     WaylandActivationTokenState, WaylandConnectionDispatchState, WaylandConnectionState,
-    WaylandRuntimeState, WaylandWindowDispatchToken, io_error, resolve_wl_surface, runtime_state,
+    WaylandRuntimeState, WaylandWindowDispatchToken, io_error, runtime_state,
 };
+use crate::platform::display::unix::wayland::window;
 
 /// Resolve one initialized wayland connection state for one operation.
 pub(crate) fn connection_state(
@@ -22,7 +22,14 @@ pub(crate) fn connection_state(
     operation: &'static str,
 ) -> RuntimeResult<Arc<WaylandConnectionState>> {
     let runtime_state = runtime_state(context);
+    connection_state_for_runtime(&runtime_state, operation)
+}
 
+/// Resolve one initialized wayland connection state for one runtime-owned state.
+pub(crate) fn connection_state_for_runtime(
+    runtime_state: &Arc<WaylandRuntimeState>,
+    operation: &'static str,
+) -> RuntimeResult<Arc<WaylandConnectionState>> {
     // return one cached connection lane when already initialized
     {
         let cached = runtime_state
@@ -36,7 +43,7 @@ pub(crate) fn connection_state(
 
     // create and cache one connection lane on first use
     let initialized = Arc::new(WaylandConnectionState::from_runtime_state(
-        &runtime_state,
+        runtime_state,
         operation,
     )?);
     let mut cached = runtime_state
@@ -62,7 +69,21 @@ pub(crate) fn with_connection_dispatch<R>(
         &mut WaylandConnectionDispatchState,
     ) -> RuntimeResult<R>,
 ) -> RuntimeResult<R> {
-    let connection_state = connection_state(context, operation)?;
+    let runtime_state = runtime_state(context);
+    with_connection_dispatch_for_runtime(&runtime_state, operation, callback)
+}
+
+/// Execute one callback with mutable queue and dispatch-state access for one runtime.
+pub(crate) fn with_connection_dispatch_for_runtime<R>(
+    runtime_state: &Arc<WaylandRuntimeState>,
+    operation: &'static str,
+    callback: impl FnOnce(
+        &Connection,
+        &mut EventQueue<WaylandConnectionDispatchState>,
+        &mut WaylandConnectionDispatchState,
+    ) -> RuntimeResult<R>,
+) -> RuntimeResult<R> {
+    let connection_state = connection_state_for_runtime(runtime_state, operation)?;
 
     // lock queue and dispatch payload with one stable lock order
     let mut event_queue = connection_state
@@ -85,9 +106,18 @@ pub(crate) fn with_connection_dispatch<R>(
 pub(crate) fn dispatch_pending(
     context: &BindingCallContext,
     operation: &'static str,
-) -> RuntimeResult<()> {
-    with_connection_dispatch(
-        context,
+) -> RuntimeResult<bool> {
+    let runtime_state = runtime_state(context);
+    dispatch_pending_for_runtime(&runtime_state, operation)
+}
+
+/// Pump pending wayland events for one runtime-owned state.
+pub(crate) fn dispatch_pending_for_runtime(
+    runtime_state: &Arc<WaylandRuntimeState>,
+    operation: &'static str,
+) -> RuntimeResult<bool> {
+    with_connection_dispatch_for_runtime(
+        runtime_state,
         operation,
         |connection, event_queue, dispatch_state| {
             // flush outbound protocol requests before reading
@@ -127,7 +157,9 @@ pub(crate) fn dispatch_pending(
                 operation,
             )?;
 
-            Ok(())
+            let is_monitor_topology_dirty = dispatch_state.output.take_monitor_topology_dirty();
+
+            Ok(is_monitor_topology_dirty)
         },
     )
 }
@@ -149,16 +181,20 @@ pub(crate) fn with_interaction_serial<R>(
         operation,
         |connection, event_queue, dispatch_state| {
             let seat = dispatch_state
+                .input
                 .seat
                 .as_ref()
                 .cloned()
                 .ok_or_else(|| core_platform::not_supported(operation))?;
-            let serial = dispatch_state.last_pointer_button_serial.ok_or_else(|| {
-                core_platform::io_would_block(
-                    operation,
-                    "interactive operation requires a recent pointer button serial",
-                )
-            })?;
+            let serial = dispatch_state
+                .input
+                .last_pointer_button_serial
+                .ok_or_else(|| {
+                    core_platform::io_would_block(
+                        operation,
+                        "interactive operation requires a recent pointer button serial",
+                    )
+                })?;
 
             callback(connection, event_queue, dispatch_state, seat, serial)
         },
@@ -175,7 +211,8 @@ pub(crate) fn clear_drop_session_for_surface(
         context,
         operation,
         |_connection, _event_queue, dispatch_state| {
-            let Some(active_surface_id) = dispatch_state.drop_session_state.surface.as_ref() else {
+            let Some(active_surface_id) = dispatch_state.input.drop_session_state.surface.as_ref()
+            else {
                 return Ok(());
             };
 
@@ -241,6 +278,7 @@ pub(crate) fn request_surface_activation(
         |connection, event_queue, dispatch_state| {
             // require one negotiated activation manager global
             let activation = dispatch_state
+                .globals
                 .activation_manager
                 .as_ref()
                 .cloned()
@@ -290,7 +328,7 @@ pub(crate) fn request_surface_presentation_feedback(
     token: WaylandWindowDispatchToken,
 ) {
     // skip when presentation-time protocol is not available
-    let Some(presentation) = dispatch_state.presentation.as_ref().cloned() else {
+    let Some(presentation) = dispatch_state.globals.presentation.as_ref().cloned() else {
         return;
     };
 
