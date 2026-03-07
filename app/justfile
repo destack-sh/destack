@@ -1,4 +1,6 @@
+set unstable
 set shell := ["bash", "-cu"]
+set script-interpreter := ["bash", "-euo", "pipefail"]
 set dotenv-load := true
 set dotenv-filename := "../.env.local"
 
@@ -11,17 +13,19 @@ _default:
     @just --list --unsorted
 
 # keep rust test concurrency on one repo wide knob when configured
+[script]
 _run-rust-test *args:
-    #!/usr/bin/env bash
-    set -euo pipefail
+    cargo_bin="cargo"
+    if [ "${OS:-}" = "Windows_NT" ] && command -v cargo.exe >/dev/null 2>&1; then
+        cargo_bin="cargo.exe"
+    fi
 
     test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"
-
     if [ -n "${test_threads}" ]; then
         export RUST_TEST_THREADS="${test_threads}"
     fi
 
-    cargo test {{args}}
+    "${cargo_bin}" test {{args}}
 
 # --- build ---
 
@@ -73,15 +77,20 @@ generate-schema:
 # --- release ---
 
 # build cli binaries for npm target packages
+[script]
 build-cli-binaries:
-    #!/usr/bin/env bash
-    set -euo pipefail
+    cargo_bin="cargo"
+    rustup_bin="rustup"
+    if [ "${OS:-}" = "Windows_NT" ] && command -v cargo.exe >/dev/null 2>&1; then
+        cargo_bin="cargo.exe"
+    fi
+    if [ "${OS:-}" = "Windows_NT" ] && command -v rustup.exe >/dev/null 2>&1; then
+        rustup_bin="rustup.exe"
+    fi
 
-    # resolve active targets from DESTACK_RELEASE_TARGETS or use all by default
     targets_input="${DESTACK_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
     selected_targets=()
 
-    # map aliases and validate supported targets
     for token in ${targets_input}; do
         case "${token}" in
             darwin-arm64|aarch64-apple-darwin) selected_targets+=("aarch64-apple-darwin") ;;
@@ -93,7 +102,6 @@ build-cli-binaries:
         esac
     done
 
-    # build each unique selected target
     built_targets=""
     for target_triple in "${selected_targets[@]}"; do
         if [[ " ${built_targets} " == *" ${target_triple} "* ]]; then
@@ -101,8 +109,8 @@ build-cli-binaries:
         fi
         built_targets="${built_targets} ${target_triple}"
 
-        rustup target add "${target_triple}"
-        cargo build --release -p destack_cli --target "${target_triple}"
+        "${rustup_bin}" target add "${target_triple}"
+        "${cargo_bin}" build --release -p destack_cli --target "${target_triple}"
     done
 
 # package cli release archives and checksums
@@ -136,11 +144,8 @@ validate-cli-publish:
     cd cli && npm publish --dry-run --access public
 
 # publish selected cli target packages
+[script]
 publish-cli-targets dry="--dry-run":
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    # map a target token to a target package directory
     resolve_package_directory() {
         local token="$1"
         case "${token}" in
@@ -153,7 +158,6 @@ publish-cli-targets dry="--dry-run":
         esac
     }
 
-    # add a package directory only once
     append_unique_package_directory() {
         local package_directory="$1"
         if [[ " ${selected_package_directories} " == *" ${package_directory} "* ]]; then
@@ -162,7 +166,6 @@ publish-cli-targets dry="--dry-run":
         selected_package_directories="${selected_package_directories} ${package_directory}"
     }
 
-    # resolve package directories from DESTACK_RELEASE_TARGETS when provided
     selected_package_directories=""
     if [ -n "${DESTACK_RELEASE_TARGETS:-}" ]; then
         for target_token in ${DESTACK_RELEASE_TARGETS}; do
@@ -171,12 +174,10 @@ publish-cli-targets dry="--dry-run":
         done
     fi
 
-    # fall back to all package directories by default
     if [ -z "${selected_package_directories}" ]; then
         selected_package_directories="npm-darwin-arm64 npm-darwin-x64 npm-linux-arm64-gnu npm-linux-x64-gnu npm-win32-x64-msvc"
     fi
 
-    # publish each selected target package
     for package_directory in ${selected_package_directories}; do
         (cd "cli/${package_directory}" && npm publish {{dry}} --access public)
     done

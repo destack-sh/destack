@@ -1,4 +1,6 @@
+set unstable
 set shell := ["bash", "-cu"]
+set script-interpreter := ["bash", "-euo", "pipefail"]
 set dotenv-load := true
 set dotenv-filename := ".env.local"
 
@@ -112,7 +114,7 @@ check-hygiene:
 
 # validate ci workflow and target policy architecture
 check-workflow-policy:
-    ./scripts/ci/check-workflow-policy.sh
+    bash scripts/ci/check-workflow-policy.sh
 
 # install ci hygiene toolchains on this host
 install-hygiene-toolchain:
@@ -146,7 +148,7 @@ ensure-toolchain:
 
 # apply github branch protection for tier 1 runtime checks
 apply-branch-protection *args:
-    ./scripts/ci/apply-branch-protection.sh {{args}}
+    bash scripts/ci/apply-branch-protection.sh {{args}}
 
 # clean all build artifacts
 clean:
@@ -171,10 +173,8 @@ generate-release-changelog:
     bash scripts/ci/update-changelog.sh "$(cat VERSION.txt)"
 
 # validate release version, tracked file versions, and changelog entry
+[script]
 validate-release tag="":
-    #!/usr/bin/env bash
-    set -euo pipefail
-
     version="$(cat VERSION.txt)"
     release_tag="{{tag}}"
     if [ -z "${release_tag}" ]; then
@@ -203,11 +203,8 @@ publish-release:
     just template/publish-create-destack-live
 
 # publish all packages live with local cli binary staging
+[script]
 publish-release-local:
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    # prefer staged release artifacts when available
     cli_artifacts_directory="${DESTACK_CLI_ARTIFACTS:-release-cli-assets}"
 
     just build
@@ -215,7 +212,6 @@ publish-release-local:
     if [ -d "${cli_artifacts_directory}" ]; then
         just app/stage-cli-binaries-from-artifacts "$(cat VERSION.txt)" "${cli_artifacts_directory}"
     else
-        # default local target selection to host target when not explicitly set
         if [ -z "${DESTACK_RELEASE_TARGETS:-}" ]; then
             host_target="$(rustc -vV | awk '/^host: / { print $2 }')"
             case "${host_target}" in
@@ -241,22 +237,16 @@ publish-release-local:
     just template/publish-create-destack-live
 
 # create a new release (bump, validate, changelog, commit, tag)
+[script]
 release kind:
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    # bump version
     just bump {{ kind }}
     just generate-release-changelog
     VERSION=$(cat VERSION.txt)
     just validate-release "v${VERSION}"
 
-    # stage and commit
     release_commit_message="chore(all): bump version to ${VERSION}"
     git add -A
     git commit -m "${release_commit_message}"
-
-    # create tag
     git tag -a "v${VERSION}" -m "Release v${VERSION}"
 
     echo ""
@@ -267,10 +257,8 @@ release kind:
     echo "  just publish-release-local   # uses release-cli-assets when present, else host target"
 
 # push the current release commit and tag
+[script]
 push-release:
-    #!/usr/bin/env bash
-    set -euo pipefail
-
     version="$(cat VERSION.txt)"
     if ! git rev-parse --verify "v${version}" >/dev/null 2>&1; then
         echo "error: missing local release tag v${version}" >&2

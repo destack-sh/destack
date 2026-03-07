@@ -1,4 +1,6 @@
+set unstable
 set shell := ["bash", "-cu"]
+set script-interpreter := ["bash", "-euo", "pipefail"]
 set dotenv-load := true
 set dotenv-filename := "../.env.local"
 
@@ -11,17 +13,19 @@ _default:
     @just --list --unsorted
 
 # keep rust test concurrency on one repo wide knob when configured
+[script]
 _run-rust-test *args:
-    #!/usr/bin/env bash
-    set -euo pipefail
+    cargo_bin="cargo"
+    if [ "${OS:-}" = "Windows_NT" ] && command -v cargo.exe >/dev/null 2>&1; then
+        cargo_bin="cargo.exe"
+    fi
 
     test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"
-
     if [ -n "${test_threads}" ]; then
         export RUST_TEST_THREADS="${test_threads}"
     fi
 
-    cargo test {{args}}
+    "${cargo_bin}" test {{args}}
 
 # --- setup ---
 
@@ -221,11 +225,8 @@ publish-pypi dry="--dry-run":
     fi
 
 # publish nuget package dry by default
+[script]
 publish-nuget dry="--dry-run":
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    # resolve dotnet executable
     dotnet_bin="$(command -v dotnet 2>/dev/null || true)"
     if [ -z "${dotnet_bin}" ] && [ -x "${HOME}/.dotnet/dotnet" ]; then
         dotnet_bin="${HOME}/.dotnet/dotnet"
@@ -235,23 +236,19 @@ publish-nuget dry="--dry-run":
         exit 1
     fi
 
-    # build the nuget package payload
     (cd dotnet && "${dotnet_bin}" pack -c Release --nologo src/Destack/Destack.csproj)
 
-    # stop before upload in dry run mode
     if [ "{{dry}}" = "--dry-run" ]; then
         echo "Dry run: built and packed nuget package"
         exit 0
     fi
 
-    # prefer oidc issued api keys when available
     nuget_api_key="${NUGET_OIDC_API_KEY:-${NUGET_API_KEY:-}}"
     if [ -z "${nuget_api_key}" ]; then
         echo "missing nuget publish key, set NUGET_OIDC_API_KEY or NUGET_API_KEY"
         exit 1
     fi
 
-    # publish package and symbols package
     version="$(cat ../VERSION.txt)"
     nupkg_path="dotnet/src/Destack/bin/Release/Destack.${version}.nupkg"
     snupkg_path="dotnet/src/Destack/bin/Release/Destack.${version}.snupkg"
