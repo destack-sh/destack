@@ -5,6 +5,19 @@ use destack_ast::{
 };
 
 impl Parser {
+    /// Return parser contexts for `if` conditions.
+    #[inline]
+    fn if_condition_contexts(
+        &self,
+    ) -> (
+        crate::parse::parser::ParserOptions,
+        crate::parse::parser::ParserOptions,
+    ) {
+        let ambient_context = self.options.nested().with_before_block(true);
+        let expression_context = self.options.nested();
+        (ambient_context, expression_context)
+    }
+
     /// Eat something as a block (if it's not a block expression OR an if, wrap in a block expression).
     fn eat_expression_as_block(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark_span();
@@ -27,10 +40,11 @@ impl Parser {
         }
 
         // parse one statement expression in statement mode
-        let statement_options = self.options.in_before_block();
-        let expression_id = self.with_options(statement_options, |parser| {
-            parser.eat_statement_expression()
-        })?;
+        let ambient_context = self.options.with_before_block(true);
+        let expression_id = self.with_options(
+            self.options.with_ambient_context(ambient_context),
+            |parser| parser.eat_statement_expression(),
+        )?;
 
         // js/ts: reject declarations in single-statement contexts
         if !self.language.is_destack() && self.is_single_statement_declaration(expression_id) {
@@ -69,18 +83,14 @@ impl Parser {
 
         // js/ts: consume optional semicolon separators before else
         if !self.language.is_destack() {
-            loop {
-                let cursor = self.advance_to_scanner_cursor();
-                if cursor.token_type != TokenType::Semicolon {
-                    break;
-                }
-
+            self.eat_newlines_maybe()?;
+            while self.peek_is(TokenType::Semicolon) {
                 self.bump();
+                self.eat_newlines_maybe()?;
             }
+        } else {
+            self.eat_newlines_maybe()?;
         }
-
-        // align before checking the else keyword
-        self.advance_to_scanner_cursor();
 
         // no else: restore speculative state
         if !self.is_keyword(Keyword::Else) {
@@ -93,9 +103,13 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // else body
-        let else_options = self.options.in_statement_position();
-        let else_expression_id =
-            self.with_options(else_options, |parser| parser.eat_expression_as_block())?;
+        let (ambient_context, expression_context) = self.statement_position_contexts();
+        let else_expression_id = self.with_options(
+            self.options
+                .with_ambient_context(ambient_context)
+                .with_expression_context(expression_context),
+            |parser| parser.eat_expression_as_block(),
+        )?;
 
         Ok(Some(else_expression_id))
     }
@@ -137,33 +151,42 @@ impl Parser {
         self.eat_keyword(Keyword::If)?;
 
         // condition
-        let condition_options = self.options.nested().in_before_block();
-        let condition: IfCondition = self.with_options(condition_options, |parser| {
-            if matches!(parser.peek_any_keyword().ok(), Some(Keyword::Let))
-                || parser.peek_mutability_is()
-            {
-                parser.eat_let_kind().and_then(|(kind, mutability)| {
+        let (ambient_context, expression_context) = self.if_condition_contexts();
+        let condition: IfCondition = self.with_options(
+            self.options
+                .with_ambient_context(ambient_context)
+                .with_expression_context(expression_context),
+            |parser| {
+                if matches!(parser.peek_any_keyword().ok(), Some(Keyword::Let))
+                    || parser.peek_mutability_is()
+                {
+                    parser.eat_let_kind().and_then(|(kind, mutability)| {
+                        parser
+                            .eat_declarator(true, true)
+                            .map(|declarator| IfCondition::Let {
+                                kind,
+                                mutability,
+                                declarator,
+                            })
+                    })
+                } else {
                     parser
-                        .eat_declarator(true, true)
-                        .map(|declarator| IfCondition::Let {
-                            kind,
-                            mutability,
-                            declarator,
-                        })
-                })
-            } else {
-                parser
-                    .eat_expression_parenthesized_maybe()
-                    .map(|condition| IfCondition::Expression { condition })
-            }
-        })?;
+                        .eat_expression_parenthesized_maybe()
+                        .map(|condition| IfCondition::Expression { condition })
+                }
+            },
+        )?;
 
         self.eat_newlines_maybe()?;
 
         // then block
-        let then_options = self.options.in_statement_position();
-        let then_expression_id =
-            self.with_options(then_options, |parser| parser.eat_expression_as_block())?;
+        let (ambient_context, expression_context) = self.statement_position_contexts();
+        let then_expression_id = self.with_options(
+            self.options
+                .with_ambient_context(ambient_context)
+                .with_expression_context(expression_context),
+            |parser| parser.eat_expression_as_block(),
+        )?;
 
         // consume a trailing then-statement semicolon in JS/TS
         if !self.language.is_destack() && self.peek_is(TokenType::Semicolon) {

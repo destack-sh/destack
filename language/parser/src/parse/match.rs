@@ -1,3 +1,4 @@
+use crate::parse::parser::ParserOptions;
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
@@ -7,6 +8,30 @@ use destack_ast::{
 };
 
 impl Parser {
+    /// Return parser contexts for a match value expression.
+    #[inline]
+    fn match_value_contexts(&self) -> (ParserOptions, ParserOptions) {
+        let ambient_context = self.options.with_before_block(true);
+        let expression_context = self.options;
+        (ambient_context, expression_context)
+    }
+
+    /// Return parser contexts for a match-case pattern.
+    #[inline]
+    fn match_pattern_contexts(&self) -> (ParserOptions, ParserOptions) {
+        let ambient_context = self.options.with_match_case(true);
+        let expression_context = self.options;
+        (ambient_context, expression_context)
+    }
+
+    /// Return parser contexts for a match-case guard.
+    #[inline]
+    fn match_guard_contexts(&self) -> (ParserOptions, ParserOptions) {
+        let ambient_context = self.options.with_match_case(true).with_before_block(true);
+        let expression_context = ParserOptions::default();
+        (ambient_context, expression_context)
+    }
+
     /// Eat a match statement. Tolerates switch-kind syntax for #Compatibility.
     ///
     /// Examples:
@@ -41,10 +66,13 @@ impl Parser {
         let start = self.mark_span();
 
         // value
-        let value_options = self.options.in_before_block();
-        let value_id = self.with_options(value_options, |parser| {
-            parser.eat_expression_parenthesized_maybe()
-        })?;
+        let (value_ambient_context, value_expression_context) = self.match_value_contexts();
+        let value_id = self.with_options(
+            self.options
+                .with_ambient_context(value_ambient_context)
+                .with_expression_context(value_expression_context),
+            |parser| parser.eat_expression_parenthesized_maybe(),
+        )?;
 
         // cases
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
@@ -81,15 +109,15 @@ impl Parser {
         let mut has_default_case = false;
         while self.has_more_tokens() {
             // normalize cursor to the next non newline token
-            let cursor = self.advance_to_scanner_cursor();
-            let token_type = cursor.token_type;
+            self.eat_newlines_maybe()?;
+            let token_type = self.peek_token_type();
 
             // stop on closing brace
             if token_type == TokenType::CloseBrace {
                 break;
             }
             // allow statement separators between cases (newline/semicolon)
-            else if self.is_statement_stop() {
+            else if Self::is_statement_stop_token(token_type) {
                 self.eat_statement_stop_with_newlines()?;
             }
             // case
@@ -162,11 +190,12 @@ impl Parser {
                         self.tree
                             .insert(Pattern::Wildcard, self.get_span_from(&pattern_start))
                     } else {
+                        let (guard_ambient_context, guard_expression_context) =
+                            self.match_guard_contexts();
                         let value = self.eat_expression(
                             self.options
-                                .not_in_position()
-                                .in_match_case()
-                                .in_before_block(),
+                                .with_ambient_context(guard_ambient_context)
+                                .with_expression_context(guard_expression_context),
                         )?;
                         self.tree.insert(
                             Pattern::Expression { value },
@@ -176,11 +205,14 @@ impl Parser {
                     // guard
                     let guard = if self.is_keyword(Keyword::If) {
                         self.eat_keyword(Keyword::If)?;
-                        let guard_options =
-                            ParserOptions::default().in_match_case().in_before_block();
-                        let guard = self.with_options(guard_options, |parser| {
-                            parser.eat_expression_parenthesized_maybe()
-                        })?;
+                        let (guard_ambient_context, guard_expression_context) =
+                            self.match_guard_contexts();
+                        let guard = self.with_options(
+                            self.options
+                                .with_ambient_context(guard_ambient_context)
+                                .with_expression_context(guard_expression_context),
+                            |parser| parser.eat_expression_parenthesized_maybe(),
+                        )?;
                         Some(guard)
                     } else {
                         None
@@ -194,16 +226,26 @@ impl Parser {
             // match-kind
             MatchKind::Match => {
                 // pattern
-                let pattern_options = self.options.in_match_case();
-                let pattern = self.with_options(pattern_options, |parser| parser.eat_pattern())?;
+                let (pattern_ambient_context, pattern_expression_context) =
+                    self.match_pattern_contexts();
+                let pattern = self.with_options(
+                    self.options
+                        .with_ambient_context(pattern_ambient_context)
+                        .with_expression_context(pattern_expression_context),
+                    |parser| parser.eat_pattern(),
+                )?;
 
                 // guard
                 let guard = if self.is_keyword(Keyword::If) {
                     self.eat_keyword(Keyword::If)?;
-                    let guard_options = ParserOptions::default().in_match_case().in_before_block();
-                    let guard = self.with_options(guard_options, |parser| {
-                        parser.eat_expression_parenthesized_maybe()
-                    })?;
+                    let (guard_ambient_context, guard_expression_context) =
+                        self.match_guard_contexts();
+                    let guard = self.with_options(
+                        self.options
+                            .with_ambient_context(guard_ambient_context)
+                            .with_expression_context(guard_expression_context),
+                        |parser| parser.eat_expression_parenthesized_maybe(),
+                    )?;
                     Some(guard)
                 } else {
                     None
@@ -220,14 +262,22 @@ impl Parser {
         if kind == MatchKind::Switch {
             // eat expressions until we hit a break (inclusive) or case / default (exclusive)
             self.eat_newlines_maybe()?;
+
+            // look ahead once across a newline boundary
+            let keyword_after_newlines = if self.peek_is(TokenType::Newline) {
+                self.keyword_after_newlines()
+            } else {
+                None
+            };
+
             // empty case body before the next case, default, or closing brace
             let is_empty_case = self.is_keyword(Keyword::Case)
                 || self.is_keyword(Keyword::Default)
                 || self.peek_is(TokenType::CloseBrace)
+                || keyword_after_newlines
+                    .is_some_and(|keyword| matches!(keyword, Keyword::Case | Keyword::Default))
                 || self.peek_is(TokenType::Newline)
-                    && (self.is_keyword_after_newlines(Keyword::Case)
-                        || self.is_keyword_after_newlines(Keyword::Default)
-                        || self.is_token_after_newlines(self.pos(), TokenType::CloseBrace));
+                    && self.is_token_after_newlines(self.pos(), TokenType::CloseBrace);
             if is_empty_case {
                 self.eat_newlines_maybe()?;
                 let block_id = self.tree.insert(
