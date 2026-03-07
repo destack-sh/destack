@@ -12,18 +12,30 @@ _run-rust-test *args:
     #!/usr/bin/env bash
     set -euo pipefail
 
+    # use native rust executables on windows
+    cargo_bin="cargo"
+    if [ "${OS:-}" = "Windows_NT" ] && command -v cargo.exe >/dev/null 2>&1; then
+        cargo_bin="cargo.exe"
+    fi
+
     test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"
 
     if [ -n "${test_threads}" ]; then
         export RUST_TEST_THREADS="${test_threads}"
     fi
 
-    cargo test {{args}}
+    "${cargo_bin}" test {{args}}
 
 # keep custom harness worker pools on one repo wide knob when configured
 _run-destack-test test_binary *args:
     #!/usr/bin/env bash
     set -euo pipefail
+
+    # use native rust executables on windows
+    cargo_bin="cargo"
+    if [ "${OS:-}" = "Windows_NT" ] && command -v cargo.exe >/dev/null 2>&1; then
+        cargo_bin="cargo.exe"
+    fi
 
     test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"
     test_jobs="${DESTACK_TEST_JOBS:-${DESTACK_TEST_THREADS:-}}"
@@ -33,7 +45,7 @@ _run-destack-test test_binary *args:
     fi
 
     command=(
-        cargo
+        "${cargo_bin}"
         test
         --release
         -p
