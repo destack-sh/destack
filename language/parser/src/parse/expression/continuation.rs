@@ -98,22 +98,22 @@ impl Parser {
     ) -> ParseResult<LocalNodeId<Expression>> {
         // statement expressions do not accept postfix or infix operators
         if self.options.is_in_statement_position() {
+            let next_token_type = self.peek_token_type();
             let expression = self.tree.get(left_expression_id);
-            if expression.is_top_level_statement() {
-                let is_lambda_declaration = match expression {
-                    Expression::Declaration(declaration_id) => {
-                        let declaration = self.tree.get(*declaration_id);
-                        matches!(
-                            declaration,
-                            Declaration::Function { signature, .. }
-                                if signature.kind == FunctionKind::Lambda
-                        )
-                    }
-                    _ => false,
-                };
-                if !is_lambda_declaration {
-                    return Ok(left_expression_id);
-                }
+            let is_continuable_lambda_declaration = matches!(
+                expression,
+                Expression::Declaration(declaration_id)
+                    if matches!(
+                        self.tree.get(*declaration_id),
+                        Declaration::Function { signature, .. }
+                            if signature.kind == FunctionKind::Lambda
+                    )
+            ) && !matches!(
+                next_token_type,
+                TokenType::Newline | TokenType::Semicolon | TokenType::CloseBrace | TokenType::End
+            );
+            if expression.is_statement_boundary() && !is_continuable_lambda_declaration {
+                return Ok(left_expression_id);
             }
         }
 
@@ -178,6 +178,8 @@ impl Parser {
                         break;
                     }
                 }
+                let has_statement_boundary_newline =
+                    has_pending_newline_tokens || has_line_break_before;
 
                 // stop before ternary or switch case boundary so postfix parsing does not consume ':'
                 if is_in_ternary_or_match && token_type == TokenType::Colon {
@@ -233,7 +235,7 @@ impl Parser {
                             break;
                         }
 
-                        let should_terminate_newline_direct_call = has_line_break_before
+                        let should_terminate_newline_direct_call = has_statement_boundary_newline
                             && self.newline_direct_call_terminates_statement(
                                 left_expression_id,
                                 cursor_index,
@@ -242,6 +244,11 @@ impl Parser {
                             break;
                         }
 
+                        if self.is_unparenthesized_lambda_expression(left_expression_id)
+                            && has_statement_boundary_newline
+                        {
+                            break;
+                        }
                         if self.is_unparenthesized_lambda_expression(left_expression_id) {
                             return Err(ParseError::unexpected(self.peek()?.span));
                         }
@@ -277,6 +284,37 @@ impl Parser {
                             self.eat_newlines_maybe()?;
                             left_expression_id =
                                 self.eat_call(left_expression_id, None, PostfixPosition::Indirect)?;
+                            continue;
+                        }
+
+                        if matches!(
+                            next_token_type_after_newlines,
+                            TokenType::LessThan | TokenType::ShiftLeft
+                        ) {
+                            if !self.can_start_postfix_static_arguments(left_expression_id) {
+                                break;
+                            }
+
+                            let has_indirect_static = self.has_indirect_postfix_static_arguments();
+                            let is_optional_chain = matches!(
+                                self.tree.get(left_expression_id),
+                                Expression::Maybe { .. }
+                            );
+                            if has_indirect_static != is_optional_chain {
+                                break;
+                            }
+
+                            let next_expression_id = self
+                                .eat_postfix_static_call_or_instantiation(
+                                    start,
+                                    left_expression_id,
+                                    has_indirect_static,
+                                )?;
+                            let Some(next_expression_id) = next_expression_id else {
+                                break;
+                            };
+
+                            left_expression_id = next_expression_id;
                             continue;
                         }
 

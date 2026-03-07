@@ -919,6 +919,13 @@ impl Expression {
         }
     }
 
+    /// Return whether this expression behaves like a statement boundary.
+    #[inline]
+    pub fn is_statement_boundary(&self) -> bool {
+        matches!(self, Expression::Let { .. } | Expression::Using { .. })
+            || self.is_top_level_statement()
+    }
+
     /// Determine if this expression should terminate at a newline in statement position.
     #[inline]
     pub fn ends_statement_on_newline(&self) -> bool {

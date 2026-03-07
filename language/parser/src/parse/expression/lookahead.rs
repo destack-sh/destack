@@ -1,4 +1,4 @@
-use crate::{ParseResult, Parser};
+use crate::{ParseResult, Parser, is_semantic};
 
 use destack_ast::TokenType;
 
@@ -229,8 +229,8 @@ impl Parser {
             };
             let token_type = token.token.ty;
 
-            // detect non-empty content
-            if token_type != TokenType::Newline {
+            // detect non-empty semantic content
+            if is_semantic(token_type) && token_type != TokenType::Newline {
                 analysis.is_empty = false;
             }
 

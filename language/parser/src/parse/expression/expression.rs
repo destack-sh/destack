@@ -331,7 +331,7 @@ impl Parser {
             inner_options = inner_options.in_type();
         }
 
-        let expression_id = self.eat_expression_with_context_unchecked(inner_options)?;
+        let expression_id = self.eat_expression(inner_options)?;
         self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseParenthesis)?;
 

@@ -1110,4 +1110,43 @@ const registry: Map<
         // [
         assert_eq!(parser.get_span_str(error.leaf_span()), "[");
     }
+
+    #[test]
+    fn test_parse_let_lambda_initializer_before_next_line_expression() {
+        let mut test = TestParser::new_with_options(
+            "let f1 = (/* ... */) => {}\n(function (/* ... */) {})(/* ... */)\n",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert_eq!(expressions.len(), 2);
+
+        assert_node!(parser.tree, expressions[0], Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "f1");
+                });
+                assert_node!(parser.tree, value.expect("expected initializer"), Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                        assert_eq!(signature.kind, FunctionKind::Lambda);
+                    });
+                });
+            });
+        });
+
+        assert_node!(parser.tree, expressions[1], Expression::Statement(statement_id) => {
+            assert_node!(parser.tree, *statement_id, Expression::Call { left, dynamic_arguments, .. } => {
+                assert!(dynamic_arguments.is_empty());
+                assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+                    assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
+                        assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                            assert_eq!(signature.kind, FunctionKind::Function);
+                        });
+                    });
+                });
+            });
+        });
+    }
 }

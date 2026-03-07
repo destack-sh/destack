@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{ParseError, ParseResult, Parser, ParserMark};
+use crate::{ParseError, ParseResult, Parser, ParserMark, is_semantic};
 
 use destack_ast::{
     Asynchrony, BlockContext, Declaration, DeclarationAbstraction, DeclarationDescriptor,
@@ -33,15 +33,6 @@ enum ParenthesizedLambdaHeadShape {
         /// Whether the parameter has a type annotation.
         has_type_annotation: bool,
     },
-}
-
-/// Precomputed follow facts for a parenthesized lambda head.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct ParenthesizedLambdaHint {
-    /// The matching close parenthesis token index.
-    close_index: usize,
-    /// The token type that follows the close parenthesis.
-    follow_token_type: TokenType,
 }
 
 impl Parser {
@@ -193,29 +184,11 @@ impl Parser {
         let tokens = self.tokens();
         let head_tokens = tokens.get(open_index + 1..close_index)?;
 
-        // common plain heads: (), (x), (x: T)
-        if head_tokens.is_empty() {
-            return Some(ParenthesizedLambdaHeadShape::Empty);
-        }
-        if head_tokens.len() == 1 && head_tokens[0].token.ty == TokenType::Identifier {
-            return Some(ParenthesizedLambdaHeadShape::Named {
-                has_type_annotation: false,
-            });
-        }
-        if head_tokens.len() == 3
-            && head_tokens[0].token.ty == TokenType::Identifier
-            && head_tokens[1].token.ty == TokenType::Colon
-            && matches!(
-                head_tokens[2].token.ty,
-                TokenType::Identifier | TokenType::Literal
-            )
-        {
-            return Some(ParenthesizedLambdaHeadShape::Named {
-                has_type_annotation: true,
-            });
-        }
-
         // track the plain head state
+        let mut semantic_token_count = 0usize;
+        let mut first_token_type = None;
+        let mut second_token_type = None;
+        let mut third_token_type = None;
         let mut has_parameter = false;
         let mut has_type_annotation = false;
         let mut has_type_tokens = false;
@@ -228,8 +201,16 @@ impl Parser {
 
         for token in head_tokens {
             let token_type = token.token.ty;
-            if token_type == TokenType::Newline {
+            if !is_semantic(token_type) || token_type == TokenType::Newline {
                 continue;
+            }
+
+            semantic_token_count += 1;
+            match semantic_token_count {
+                1 => first_token_type = Some(token_type),
+                2 => second_token_type = Some(token_type),
+                3 => third_token_type = Some(token_type),
+                _ => {}
             }
 
             // require at most one named parameter
@@ -297,6 +278,28 @@ impl Parser {
             has_type_tokens = true;
         }
 
+        // common plain heads: (), (x), (x: T)
+        if semantic_token_count == 0 {
+            return Some(ParenthesizedLambdaHeadShape::Empty);
+        }
+        if semantic_token_count == 1 && first_token_type == Some(TokenType::Identifier) {
+            return Some(ParenthesizedLambdaHeadShape::Named {
+                has_type_annotation: false,
+            });
+        }
+        if semantic_token_count == 3
+            && first_token_type == Some(TokenType::Identifier)
+            && second_token_type == Some(TokenType::Colon)
+            && matches!(
+                third_token_type,
+                Some(TokenType::Identifier | TokenType::Literal)
+            )
+        {
+            return Some(ParenthesizedLambdaHeadShape::Named {
+                has_type_annotation: true,
+            });
+        }
+
         if has_parameter {
             if has_type_annotation
                 && (!has_type_tokens
@@ -321,27 +324,21 @@ impl Parser {
         &mut self,
         start: &ParserMark,
         descriptor: &DeclarationDescriptor,
-        hint: Option<ParenthesizedLambdaHint>,
     ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             speculation_stats.parenthesized_lambda_plain_calls += 1;
         }
 
-        // require a precomputed matching close
+        // require a matching close
         let open_index = self.pos_index();
-        let (close_index, follow_token_type) = if let Some(hint) = hint {
-            (hint.close_index, hint.follow_token_type)
-        } else {
-            let Some(close_index) = self.matching_pair_or_lex(open_index) else {
-                if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                    speculation_stats.parenthesized_lambda_plain_misses += 1;
-                }
-                return Ok(None);
-            };
-            let follow_index = self.next_non_newline_index_from(close_index + 1);
-            let follow_token_type = self.token_type_at(follow_index);
-            (close_index, follow_token_type)
+        let Some(close_index) = self.matching_pair_or_lex(open_index) else {
+            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+                speculation_stats.parenthesized_lambda_plain_misses += 1;
+            }
+            return Ok(None);
         };
+        let follow_index = self.next_non_newline_index_from(close_index + 1);
+        let follow_token_type = self.token_type_at(follow_index);
         if close_index <= open_index {
             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
                 speculation_stats.parenthesized_lambda_plain_misses += 1;
@@ -478,25 +475,17 @@ impl Parser {
         &mut self,
         start: &ParserMark,
         descriptor: &DeclarationDescriptor,
-        hint: Option<ParenthesizedLambdaHint>,
     ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
         // require an arrow or return type marker after the parenthesized head
         let open_index = self.pos_index();
-        let follow_token_type = if let Some(hint) = hint {
-            if hint.close_index <= open_index {
-                return Ok(None);
-            }
-            hint.follow_token_type
-        } else {
-            let Some(close_index) = self.matching_pair_or_lex(open_index) else {
-                return Ok(None);
-            };
-            if close_index <= open_index {
-                return Ok(None);
-            }
-            let follow_index = self.next_non_newline_index_from(close_index + 1);
-            self.token_type_at(follow_index)
+        let Some(close_index) = self.matching_pair_or_lex(open_index) else {
+            return Ok(None);
         };
+        if close_index <= open_index {
+            return Ok(None);
+        }
+        let follow_index = self.next_non_newline_index_from(close_index + 1);
+        let follow_token_type = self.token_type_at(follow_index);
         if !matches!(
             follow_token_type,
             TokenType::Arrow | TokenType::ArrowWide | TokenType::Colon
@@ -655,34 +644,16 @@ impl Parser {
         expect_maybe: bool,
         expect_body: bool,
     ) -> ParseResult<LocalNodeId<Declaration>> {
-        self.eat_function_inner(start, descriptor, expect_maybe, expect_body, None)
+        self.eat_function_inner(start, descriptor, expect_maybe, expect_body)
     }
 
-    /// Eat a function with a precomputed parenthesized head follow hint.
-    pub(crate) fn eat_function_with_parenthesized_head_hint(
-        &mut self,
-        start: &ParserMark,
-        descriptor: DeclarationDescriptor,
-        expect_maybe: bool,
-        expect_body: bool,
-        close_index: usize,
-        follow_token_type: TokenType,
-    ) -> ParseResult<LocalNodeId<Declaration>> {
-        let hint = Some(ParenthesizedLambdaHint {
-            close_index,
-            follow_token_type,
-        });
-        self.eat_function_inner(start, descriptor, expect_maybe, expect_body, hint)
-    }
-
-    /// Eat a function using optional parenthesized lambda head hints.
+    /// Eat a function.
     fn eat_function_inner(
         &mut self,
         start: &ParserMark,
         mut descriptor: DeclarationDescriptor,
         expect_maybe: bool,
         expect_body: bool,
-        plain_parenthesized_hint: Option<ParenthesizedLambdaHint>,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         let _timing = self.timing_scope(tags::PARSE_FUNCTION);
         let can_parse_plain_lambda =
@@ -690,19 +661,15 @@ impl Parser {
 
         // parse plain lambda heads only when the token shape matches
         if can_parse_plain_lambda && self.peek_is(TokenType::OpenParenthesis) {
-            if let Some(function_id) = self.try_eat_plain_parenthesized_lambda(
-                start,
-                &descriptor,
-                plain_parenthesized_hint,
-            )? {
+            if let Some(function_id) =
+                self.try_eat_plain_parenthesized_lambda(start, &descriptor)?
+            {
                 return Ok(function_id);
             }
 
-            if let Some(function_id) = self.try_eat_parenthesized_lambda_value(
-                start,
-                &descriptor,
-                plain_parenthesized_hint,
-            )? {
+            if let Some(function_id) =
+                self.try_eat_parenthesized_lambda_value(start, &descriptor)?
+            {
                 return Ok(function_id);
             }
         } else if can_parse_plain_lambda
@@ -2035,6 +2002,26 @@ function onResolve(
         });
         assert_eq!(parser.tree.comment_trivia().len(), 1);
         crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "lambda-body");
+    }
+
+    /// Parse empty parenthesized lambda heads that only contain comments.
+    #[test]
+    fn test_parse_empty_parenthesized_lambda_with_comment() {
+        let mut test =
+            TestParser::new_with_options("(/* empty */) => {}", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+        parser.attach_trivia();
+
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert!(signature.dynamic_parameters.is_empty());
+            });
+        });
+        assert_eq!(parser.tree.comment_trivia().len(), 1);
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Star, " empty");
     }
 
     /// Reject direct calls on unparenthesized arrow functions.
