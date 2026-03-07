@@ -1264,7 +1264,7 @@ impl Parser {
                     index: start,
                     token_type,
                     skipped_newline_count: 0,
-                    has_line_break_before: self.line_terminator_before_index(start),
+                    has_line_break_before: self.token_stream.line_terminator_before_cached(start),
                 };
             }
         }
@@ -1277,23 +1277,13 @@ impl Parser {
             let has_line_break_before = if skipped_newline_count > 0 {
                 true
             } else {
-                self.line_terminator_before_index(index)
+                self.token_stream.line_terminator_before_cached(index)
             };
             return NonNewlineTokenCursor {
                 index,
                 token_type,
                 skipped_newline_count,
                 has_line_break_before,
-            };
-        }
-
-        let token_type = self.token_type_at(start);
-        if token_type != TokenType::Newline {
-            return NonNewlineTokenCursor {
-                index: start,
-                token_type,
-                skipped_newline_count: 0,
-                has_line_break_before: self.line_terminator_before_index(start),
             };
         }
 
@@ -1445,20 +1435,13 @@ impl Parser {
     /// Look up a keyword at a token index.
     #[inline]
     pub(crate) fn keyword_for_index(&mut self, index: usize) -> Option<Keyword> {
-        if self.token_stream.is_lexed_to_end() && index < self.tokens().len() {
-            return self.token_stream.keyword_at_cached(index);
-        }
-
+        let _timing = self.timing_scope(crate::parse::timing::tags::PARSE_LEX_KEYWORD);
         self.token_stream.keyword_at(index)
     }
 
     /// Return whether an identifier token contains escape syntax.
     #[inline]
     pub(crate) fn identifier_has_escape_for_index(&mut self, index: usize) -> bool {
-        if self.token_stream.is_lexed_to_end() && index < self.tokens().len() {
-            return self.token_stream.identifier_has_escape_cached(index);
-        }
-
         self.token_stream.identifier_has_escape(index)
     }
 
@@ -1553,9 +1536,6 @@ impl Parser {
 
     /// Parse everything as an implicit namespace with optional trivia attachment.
     fn parse_root_expressions(&mut self, attach_trivia: bool) -> Vec<LocalNodeId<Expression>> {
-        // pre lex all tokens for non tree literal mode to keep parse hot paths token driven
-        self.prelex_all_tokens_maybe();
-
         // parse leading triple-slash reference path directives
         let (mut expressions, consumed_to_end) =
             self.parse_leading_triple_slash_reference_imports();
@@ -1593,16 +1573,6 @@ impl Parser {
     /// Parse everything as an implicit namespace without attaching trivia.
     pub fn parse_without_trivia(&mut self) -> Vec<LocalNodeId<Expression>> {
         self.parse_root_expressions(false)
-    }
-
-    /// Materialize the full semantic token stream for non jsx files.
-    #[inline]
-    fn prelex_all_tokens_maybe(&mut self) {
-        if self.allow_tree_literals() || !self.tokens().is_empty() {
-            return;
-        }
-
-        self.token_stream.lex_to_end();
     }
 
     /// Ensure one stable owner for comment and blank trivia in trivia only files.

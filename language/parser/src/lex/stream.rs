@@ -121,8 +121,8 @@ pub struct TokenStream {
     matching_pairs: Vec<u32>,
     /// Cached keyword values for identifier tokens.
     token_keywords: Vec<Option<Keyword>>,
-    /// Cached flag for identifier escape syntax.
-    token_identifier_has_escape: Vec<bool>,
+    /// Cached-state bits for keyword lookup entries.
+    token_keywords_cached: Vec<bool>,
     /// Cached line terminator presence before semantic token indexes.
     line_terminators_before: Vec<bool>,
     /// Cached comment trivia presence before semantic token indexes.
@@ -171,10 +171,14 @@ impl TokenStream {
         // estimate token counts from file length
         let source_len = file.text().len();
         let estimated_tokens = source_len / 6;
+        let semantic_token_capacity = estimated_tokens;
+        let side_token_capacity = estimated_tokens / 2;
 
         // allocate buffers using the same heuristic as the lexer
-        let tokens = Vec::with_capacity(estimated_tokens * 3 / 5);
-        let side_tokens = Vec::with_capacity(estimated_tokens * 2 / 5);
+        let tokens = Vec::with_capacity(semantic_token_capacity);
+        let side_tokens = Vec::with_capacity(side_token_capacity);
+        let mut non_whitespace_side_prefix = Vec::with_capacity(semantic_token_capacity + 1);
+        non_whitespace_side_prefix.push(0);
 
         // build the stream
         Self {
@@ -182,20 +186,20 @@ impl TokenStream {
             tokens,
             side_tokens,
             comment_side_token_indexes: Vec::with_capacity(estimated_tokens / 24),
-            next_non_newline: Vec::new(),
-            matching_pairs: Vec::new(),
-            token_keywords: Vec::new(),
-            token_identifier_has_escape: Vec::new(),
-            line_terminators_before: Vec::new(),
-            leading_comment_before: Vec::new(),
-            leading_side_start_by_token: Vec::new(),
-            leading_side_end_by_token: Vec::new(),
-            non_whitespace_side_prefix: vec![0],
+            next_non_newline: Vec::with_capacity(semantic_token_capacity),
+            matching_pairs: Vec::with_capacity(semantic_token_capacity),
+            token_keywords: Vec::with_capacity(semantic_token_capacity),
+            token_keywords_cached: Vec::with_capacity(semantic_token_capacity),
+            line_terminators_before: Vec::with_capacity(semantic_token_capacity),
+            leading_comment_before: Vec::with_capacity(semantic_token_capacity),
+            leading_side_start_by_token: Vec::with_capacity(semantic_token_capacity),
+            leading_side_end_by_token: Vec::with_capacity(semantic_token_capacity),
+            non_whitespace_side_prefix,
             pending_leading_side_start: 0,
             pending_non_newline_start: 0,
-            paren_stack: Vec::new(),
-            brace_stack: Vec::new(),
-            bracket_stack: Vec::new(),
+            paren_stack: Vec::with_capacity(semantic_token_capacity / 64),
+            brace_stack: Vec::with_capacity(semantic_token_capacity / 64),
+            bracket_stack: Vec::with_capacity(semantic_token_capacity / 64),
             pending_line_terminator_before_next: false,
             pending_comment_before_next: false,
             pending_non_whitespace_side_before_next: false,
@@ -442,7 +446,7 @@ impl TokenStream {
         self.tokens.truncate(tokens_len);
         self.lexer.tokens.truncate(tokens_len);
         self.token_keywords.truncate(tokens_len);
-        self.token_identifier_has_escape.truncate(tokens_len);
+        self.token_keywords_cached.truncate(tokens_len);
         self.line_terminators_before.truncate(tokens_len);
         self.leading_comment_before.truncate(tokens_len);
         self.leading_side_start_by_token.truncate(tokens_len);
@@ -566,7 +570,7 @@ impl TokenStream {
         self.next_non_newline.clear();
         self.matching_pairs.clear();
         self.token_keywords.clear();
-        self.token_identifier_has_escape.clear();
+        self.token_keywords_cached.clear();
         self.line_terminators_before.clear();
         self.leading_comment_before.clear();
         self.leading_side_start_by_token.clear();
@@ -608,6 +612,15 @@ impl TokenStream {
             .unwrap_or(false)
     }
 
+    /// Return the cached line terminator flag for a semantic token index.
+    #[inline]
+    pub fn line_terminator_before_cached(&self, index: usize) -> bool {
+        self.line_terminators_before
+            .get(index)
+            .copied()
+            .unwrap_or(false)
+    }
+
     /// Return whether trivia before a semantic token index had a comment token.
     #[inline]
     pub fn comment_before(&mut self, index: usize) -> bool {
@@ -630,39 +643,55 @@ impl TokenStream {
     /// Return the keyword for a semantic token index.
     #[inline]
     pub fn keyword_at(&mut self, index: usize) -> Option<Keyword> {
-        // hot fast path: full token stream is already materialized
-        if self.is_finished {
-            return self.keyword_at_cached(index);
-        }
-
         self.ensure_token(index);
-        self.keyword_at_cached(index)
+        self.keyword_at_materialized(index)
     }
 
-    /// Return the cached keyword for a semantic token index.
+    /// Return the keyword for a materialized semantic token index.
     #[inline]
-    pub fn keyword_at_cached(&self, index: usize) -> Option<Keyword> {
-        self.token_keywords.get(index).copied().unwrap_or(None)
+    fn keyword_at_materialized(&mut self, index: usize) -> Option<Keyword> {
+        if self
+            .token_keywords_cached
+            .get(index)
+            .copied()
+            .unwrap_or(false)
+        {
+            return self.token_keywords.get(index).copied().unwrap_or(None);
+        }
+
+        let keyword = self
+            .tokens
+            .get(index)
+            .filter(|token| token.token.ty == TokenType::Identifier)
+            .and_then(|token| keyword_from_identifier(self.lexer.get_span_str(token.span)));
+
+        if index >= self.token_keywords.len() {
+            self.token_keywords.resize(index + 1, None);
+        }
+        if index >= self.token_keywords_cached.len() {
+            self.token_keywords_cached.resize(index + 1, false);
+        }
+        self.token_keywords[index] = keyword;
+        self.token_keywords_cached[index] = true;
+        keyword
     }
 
     /// Return whether an identifier token contains escape syntax.
     #[inline]
     pub fn identifier_has_escape(&mut self, index: usize) -> bool {
-        if self.is_finished {
-            return self.identifier_has_escape_cached(index);
+        self.ensure_token(index);
+
+        let Some(token) = self.tokens.get(index) else {
+            return false;
+        };
+        if token.token.ty != TokenType::Identifier {
+            return false;
         }
 
-        self.ensure_token(index);
-        self.identifier_has_escape_cached(index)
-    }
-
-    /// Return the cached identifier escape flag.
-    #[inline]
-    pub fn identifier_has_escape_cached(&self, index: usize) -> bool {
-        self.token_identifier_has_escape
-            .get(index)
-            .copied()
-            .unwrap_or(false)
+        self.lexer
+            .get_span_str(token.span)
+            .as_bytes()
+            .contains(&b'\\')
     }
 
     /// Return true when lexing reached EOF.
@@ -1024,17 +1053,8 @@ impl TokenStream {
         self.tokens.push(token_span);
         self.next_non_newline.push(u32::MAX);
         self.matching_pairs.push(u32::MAX);
-        let (keyword, identifier_has_escape) = if token_span.token.ty == TokenType::Identifier {
-            let identifier_text = self.lexer.get_span_str(token_span.span);
-            (
-                keyword_from_identifier(identifier_text),
-                identifier_text.as_bytes().contains(&b'\\'),
-            )
-        } else {
-            (None, false)
-        };
-        self.token_keywords.push(keyword);
-        self.token_identifier_has_escape.push(identifier_has_escape);
+        self.token_keywords.push(None);
+        self.token_keywords_cached.push(false);
         self.line_terminators_before
             .push(has_line_terminator_before);
         self.leading_comment_before.push(has_comment_before);
