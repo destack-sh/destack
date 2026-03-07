@@ -96,10 +96,11 @@ fn test_tick_executes_one_task() {
     runtime.enqueue_task_native(7, 1, 0);
 
     // execute one tick and verify one resume
-    let mut engine = TestEngine::default();
-    let progressed = runtime.tick(&mut engine);
+    let progressed = runtime.tick();
     assert!(progressed, "tick should report progress");
-    assert_eq!(engine.resume_calls, 1, "one task should be resumed once");
+    runtime.with_engine::<TestEngine, _>(|engine| {
+        assert_eq!(engine.resume_calls, 1, "one task should be resumed once");
+    });
 }
 
 /// Drains queued tasks and re-yields until idle.
@@ -110,11 +111,12 @@ fn test_tick_until_idle_drains_yielded_tasks() {
     runtime.enqueue_task_native(11, 9, 0);
 
     // run ticks until the queue is drained
-    let mut engine = TestEngine::default();
-    runtime.tick_until_idle(&mut engine);
+    runtime.tick_until_idle();
 
     // verify the yielded continuation was resumed and then completed
-    assert_eq!(engine.resume_calls, 2, "yielded task should resume twice");
+    runtime.with_engine::<TestEngine, _>(|engine| {
+        assert_eq!(engine.resume_calls, 2, "yielded task should resume twice");
+    });
     assert!(
         !runtime.has_pending_work(),
         "event loop should be idle after draining tasks"
@@ -130,10 +132,11 @@ fn test_tick_dispatches_timer_watch_task() {
     runtime.schedule_timer(77, 0, None);
 
     // execute one tick and verify one watched resume
-    let mut engine = TestEngine::default();
-    let progressed = runtime.tick(&mut engine);
+    let progressed = runtime.tick();
     assert!(progressed, "tick should report progress");
-    assert_eq!(engine.resume_calls, 1, "one timer watch should run");
+    runtime.with_engine::<TestEngine, _>(|engine| {
+        assert_eq!(engine.resume_calls, 1, "one timer watch should run");
+    });
 
     // one-shot watch should be removed after the first dispatch
     assert!(
@@ -151,13 +154,14 @@ fn test_tick_dispatches_event_watch_task() {
     runtime.enqueue_io_event(5, 91, 9);
 
     // execute one tick and verify one watched resume
-    let mut engine = TestEngine::default();
-    let progressed = runtime.tick(&mut engine);
+    let progressed = runtime.tick();
     assert!(progressed, "tick should report progress");
-    assert_eq!(
-        engine.resume_calls, 1,
-        "one external event watch should run"
-    );
+    runtime.with_engine::<TestEngine, _>(|engine| {
+        assert_eq!(
+            engine.resume_calls, 1,
+            "one external event watch should run"
+        );
+    });
 }
 
 /// Dispatches registered host semantic events through the runtime tick path.
@@ -169,20 +173,22 @@ fn test_tick_dispatches_host_event_watch_task() {
     runtime.enqueue_lifecycle_host_event(HostLifecycleState::Running);
 
     // execute one tick and verify one watched resume
-    let mut engine = TestEngine::default();
-    let progressed = runtime.tick(&mut engine);
+    let progressed = runtime.tick();
     assert!(progressed, "tick should report progress");
-    assert_eq!(
-        engine.resume_calls, 1,
-        "one host semantic event watch should run"
-    );
+    runtime.with_engine::<TestEngine, _>(|engine| {
+        assert_eq!(
+            engine.resume_calls, 1,
+            "one host semantic event watch should run"
+        );
+    });
 }
 
 /// Routes event watches into the task queue and preserves priority ordering.
 #[test]
 fn test_tick_routes_event_watch_through_task_priority() {
     // create runtime state with one queued high-priority task
-    let mut runtime = TestRuntime::new();
+    let mut runtime =
+        TestRuntime::with_options_and_engine(&RuntimeOptions::default(), CompleteEngine::default());
     runtime.enqueue_task_native(301, 91, 200);
 
     // register one low-priority event watch and enqueue one event
@@ -190,32 +196,37 @@ fn test_tick_routes_event_watch_through_task_priority() {
     runtime.enqueue_io_event(7, 44, 1);
 
     // run one tick and verify high-priority task runs before watched event task
-    let mut engine = CompleteEngine::default();
-    let _ = runtime.tick(&mut engine);
-    assert_eq!(engine.resumed_native_ids, vec![91]);
+    let _ = runtime.tick();
+    runtime.with_engine::<CompleteEngine, _>(|engine| {
+        assert_eq!(engine.resumed_native_ids, vec![91]);
+    });
 
-    let _ = runtime.tick(&mut engine);
-    assert_eq!(engine.resumed_native_ids, vec![91, 92]);
+    let _ = runtime.tick();
+    runtime.with_engine::<CompleteEngine, _>(|engine| {
+        assert_eq!(engine.resumed_native_ids, vec![91, 92]);
+    });
 }
 
 /// Drops queued events that have no registered dispatch watch.
 #[test]
 fn test_tick_drops_event_without_watch() {
     // create runtime state with one unregistered event token
-    let mut runtime = TestRuntime::new();
+    let mut runtime =
+        TestRuntime::with_options_and_engine(&RuntimeOptions::default(), CompleteEngine::default());
     runtime.enqueue_io_event(8, 404, 2);
 
     // executing one tick should drop the stale event without crashing
-    let mut engine = CompleteEngine::default();
-    let progressed = runtime.tick(&mut engine);
+    let progressed = runtime.tick();
     assert!(
         progressed,
         "dropping one queued event should count as progress"
     );
-    assert_eq!(
-        engine.resume_calls, 0,
-        "dropped events must not resume any continuation"
-    );
+    runtime.with_engine::<CompleteEngine, _>(|engine| {
+        assert_eq!(
+            engine.resume_calls, 0,
+            "dropped events must not resume any continuation"
+        );
+    });
     assert_eq!(
         runtime.drop_counts().total(),
         1,
@@ -237,20 +248,22 @@ fn test_tick_drops_event_without_watch() {
 #[test]
 fn test_tick_drops_host_event_without_watch() {
     // create runtime state with one unregistered lifecycle host event
-    let mut runtime = TestRuntime::new();
+    let mut runtime =
+        TestRuntime::with_options_and_engine(&RuntimeOptions::default(), CompleteEngine::default());
     runtime.enqueue_lifecycle_host_event(HostLifecycleState::Running);
 
     // executing one tick should drop the stale event without crashing
-    let mut engine = CompleteEngine::default();
-    let progressed = runtime.tick(&mut engine);
+    let progressed = runtime.tick();
     assert!(
         progressed,
         "dropping one queued host event should count as progress"
     );
-    assert_eq!(
-        engine.resume_calls, 0,
-        "dropped host events must not resume any continuation"
-    );
+    runtime.with_engine::<CompleteEngine, _>(|engine| {
+        assert_eq!(
+            engine.resume_calls, 0,
+            "dropped host events must not resume any continuation"
+        );
+    });
     assert_eq!(
         runtime.drop_counts().total(),
         1,
@@ -311,7 +324,8 @@ fn test_runtime_tick_records_unmatched_poller_ingress() {
 #[test]
 fn test_tick_respects_microtask_budget() {
     // configure one microtask budget of one
-    let mut runtime = TestRuntime::new();
+    let mut runtime =
+        TestRuntime::with_options_and_engine(&RuntimeOptions::default(), CompleteEngine::default());
     runtime.configure_scheduler(SchedulerOptions {
         microtask_budget: Some(1),
         ..SchedulerOptions::default()
@@ -321,12 +335,13 @@ fn test_tick_respects_microtask_budget() {
     runtime.enqueue_microtask_native(1, 51);
     runtime.enqueue_microtask_native(2, 52);
 
-    let mut engine = CompleteEngine::default();
-    let _ = runtime.tick(&mut engine);
-    assert_eq!(
-        engine.resume_calls, 1,
-        "one microtask should run in one tick"
-    );
+    let _ = runtime.tick();
+    runtime.with_engine::<CompleteEngine, _>(|engine| {
+        assert_eq!(
+            engine.resume_calls, 1,
+            "one microtask should run in one tick"
+        );
+    });
 
     // one microtask should remain queued for the next tick
     assert!(
@@ -339,7 +354,8 @@ fn test_tick_respects_microtask_budget() {
 #[test]
 fn test_max_microtask_depth_allows_sequential_microtasks() {
     // configure one depth limit of one with budget for two microtasks
-    let mut runtime = TestRuntime::new();
+    let mut runtime =
+        TestRuntime::with_options_and_engine(&RuntimeOptions::default(), CompleteEngine::default());
     runtime.configure_scheduler(SchedulerOptions {
         microtask_budget: Some(2),
         max_microtask_depth: Some(1),
@@ -351,10 +367,11 @@ fn test_max_microtask_depth_allows_sequential_microtasks() {
     runtime.enqueue_microtask_native(4, 54);
 
     // both microtasks should run in one tick without depth failure
-    let mut engine = CompleteEngine::default();
-    let progressed = runtime.tick(&mut engine);
+    let progressed = runtime.tick();
     assert!(progressed, "tick should execute queued microtasks");
-    assert_eq!(engine.resume_calls, 2, "both microtasks should complete");
+    runtime.with_engine::<CompleteEngine, _>(|engine| {
+        assert_eq!(engine.resume_calls, 2, "both microtasks should complete");
+    });
 }
 
 /// Dequeues microtasks before macrotasks.
@@ -476,15 +493,14 @@ fn test_run_loop_until_task_complete_returns_idle_for_virtual_time_waits() {
         },
         ..RuntimeOptions::default()
     };
-    let mut runtime = TestRuntime::with_options(&options);
+    let mut runtime = TestRuntime::with_options_and_engine(&options, CompleteEngine::default());
 
     // enqueue one timer that is not yet ready
     runtime.schedule_timer(900, 1_000_000, None);
 
     // running for one nonexistent target task should return idle instead of spinning
-    let mut engine = CompleteEngine::default();
     let error = runtime
-        .run_loop_until_task_complete(&mut engine, 12345)
+        .run_loop_until_task_complete(12345)
         .expect_err("virtual mode should not block or spin to advance time");
     assert!(
         error
@@ -506,8 +522,11 @@ fn test_run_loop_until_task_complete_with_timeout_returns_none() {
         },
         ..RuntimeOptions::default()
     };
-    let mut runtime =
-        TestRuntime::with_options_and_host_clock_source(&options, host_clock_source.clone());
+    let mut runtime = TestRuntime::with_options_engine_and_host_clock_source(
+        &options,
+        CompleteEngine::default(),
+        host_clock_source.clone(),
+    );
 
     // schedule one timer later than the configured timeout
     let fire_at_nanos = runtime.wall_nanos().saturating_add(50_000_000);
@@ -515,9 +534,8 @@ fn test_run_loop_until_task_complete_with_timeout_returns_none() {
     runtime.schedule_timer(910, fire_at_nanos, None);
 
     // timeout should elapse before one watched task can complete
-    let mut engine = CompleteEngine::default();
     let output = runtime
-        .run_loop_until_task_complete_with_timeout(&mut engine, 0, Some(1_000_000))
+        .run_loop_until_task_complete_with_timeout(0, Some(1_000_000))
         .expect("bounded run loop should return timeout result");
     assert!(output.is_none(), "timeout should return no output");
     assert!(
@@ -538,8 +556,11 @@ fn test_run_loop_until_task_complete_waits_for_host_timer() {
         },
         ..RuntimeOptions::default()
     };
-    let mut runtime =
-        TestRuntime::with_options_and_host_clock_source(&options, host_clock_source.clone());
+    let mut runtime = TestRuntime::with_options_engine_and_host_clock_source(
+        &options,
+        CompleteEngine::default(),
+        host_clock_source.clone(),
+    );
 
     // schedule one near-future timer for the first watched task id
     let fire_at_nanos = runtime.wall_nanos().saturating_add(5_000_000);
@@ -547,15 +568,16 @@ fn test_run_loop_until_task_complete_waits_for_host_timer() {
     runtime.schedule_timer_on(TimerClock::Wall, 920, fire_at_nanos, None);
 
     // host-mode run loop should wait and complete the target task
-    let mut engine = CompleteEngine::default();
     let output = runtime
-        .run_loop_until_task_complete(&mut engine, 0)
+        .run_loop_until_task_complete(0)
         .expect("host mode should wait for the timer and complete the task");
     assert_eq!(output.value, heap::Value::VOID);
-    assert_eq!(
-        engine.resume_calls, 1,
-        "one watched timer task should resume once"
-    );
+    runtime.with_engine::<CompleteEngine, _>(|engine| {
+        assert_eq!(
+            engine.resume_calls, 1,
+            "one watched timer task should resume once"
+        );
+    });
     assert!(
         host_clock_source.wall_nanos() >= fire_at_nanos,
         "host wait should advance scripted wall time to the timer deadline"
@@ -574,8 +596,11 @@ fn test_wall_clock_jump_fires_wall_timer() {
         },
         ..RuntimeOptions::default()
     };
-    let mut runtime =
-        TestRuntime::with_options_and_host_clock_source(&options, host_clock_source.clone());
+    let mut runtime = TestRuntime::with_options_engine_and_host_clock_source(
+        &options,
+        CompleteEngine::default(),
+        host_clock_source.clone(),
+    );
 
     // schedule one wall timer and jump wall time beyond the deadline
     let fire_at_nanos = runtime.wall_nanos().saturating_add(1_000);
@@ -584,13 +609,14 @@ fn test_wall_clock_jump_fires_wall_timer() {
     host_clock_source.jump_wall_nanos(2_000);
 
     // one tick should dispatch the watched timer task
-    let mut engine = CompleteEngine::default();
-    let progressed = runtime.tick(&mut engine);
+    let progressed = runtime.tick();
     assert!(progressed, "wall jump should make wall timer ready");
-    assert_eq!(
-        engine.resume_calls, 1,
-        "wall timer should dispatch after wall jump"
-    );
+    runtime.with_engine::<CompleteEngine, _>(|engine| {
+        assert_eq!(
+            engine.resume_calls, 1,
+            "wall timer should dispatch after wall jump"
+        );
+    });
     assert_eq!(
         runtime.mono_nanos(),
         500,
@@ -610,8 +636,11 @@ fn test_wall_clock_jump_does_not_fire_monotonic_timer() {
         },
         ..RuntimeOptions::default()
     };
-    let mut runtime =
-        TestRuntime::with_options_and_host_clock_source(&options, host_clock_source.clone());
+    let mut runtime = TestRuntime::with_options_engine_and_host_clock_source(
+        &options,
+        CompleteEngine::default(),
+        host_clock_source.clone(),
+    );
 
     // schedule one monotonic timer and jump wall time only
     let fire_at_nanos = runtime.mono_nanos().saturating_add(1_000);
@@ -620,28 +649,31 @@ fn test_wall_clock_jump_does_not_fire_monotonic_timer() {
     host_clock_source.jump_wall_nanos(10_000);
 
     // wall jumps must not dispatch monotonic timers
-    let mut engine = CompleteEngine::default();
-    let progressed = runtime.tick(&mut engine);
+    let progressed = runtime.tick();
     assert!(
         !progressed,
         "monotonic timer should remain pending after a wall jump"
     );
-    assert_eq!(
-        engine.resume_calls, 0,
-        "monotonic timer should not dispatch before monotonic time advances"
-    );
+    runtime.with_engine::<CompleteEngine, _>(|engine| {
+        assert_eq!(
+            engine.resume_calls, 0,
+            "monotonic timer should not dispatch before monotonic time advances"
+        );
+    });
 
     // monotonic advancement should make the timer ready
     host_clock_source.advance_mono_nanos(1_000);
-    let progressed = runtime.tick(&mut engine);
+    let progressed = runtime.tick();
     assert!(
         progressed,
         "monotonic timer should dispatch once monotonic time advances"
     );
-    assert_eq!(
-        engine.resume_calls, 1,
-        "monotonic timer should dispatch exactly once"
-    );
+    runtime.with_engine::<CompleteEngine, _>(|engine| {
+        assert_eq!(
+            engine.resume_calls, 1,
+            "monotonic timer should dispatch exactly once"
+        );
+    });
 }
 
 /// Advances virtual time to the next deadline before dispatching the timer task.
@@ -704,6 +736,9 @@ fn test_world_tick_drives_runtime() {
     let runtime_id = world
         .spawn_runtime(Vec::new(), &options, CompleteEngine::default())
         .expect("runtime should spawn");
+    let primary_agent_id = world
+        .with_runtime(runtime_id, |runtime| Ok(runtime.primary_agent_id()))
+        .expect("runtime should exist");
 
     // enqueue one native task on the primary agent
     world
@@ -728,6 +763,8 @@ fn test_world_tick_drives_runtime() {
     world
         .with_runtime(runtime_id, |runtime| {
             let engine = runtime
+                .agent(primary_agent_id)
+                .expect("primary agent")
                 .engine::<CompleteEngine>()
                 .expect("runtime engine should exist");
             assert_eq!(engine.resume_calls, 1);
@@ -750,7 +787,7 @@ fn test_runtime_tick_orders_equal_deadline_timers_by_agent_id() {
     let mut runtime =
         TestMultiAgentRuntime::with_options_and_engine(&options, CompleteEngine::default());
     let primary_agent_id = runtime.primary_agent_id();
-    let secondary_agent_id = runtime.spawn_agent();
+    let secondary_agent_id = runtime.spawn_agent(CompleteEngine::default());
     let fire_at_nanos = runtime.wall_nanos().saturating_add(10_000);
 
     // register one watched timer on each agent
@@ -766,12 +803,15 @@ fn test_runtime_tick_orders_equal_deadline_timers_by_agent_id() {
     // the first tick advances time and later ticks dispatch in agent order
     assert_eq!(runtime.tick(), TickOutcome::AdvancedTime);
     assert_eq!(runtime.tick(), TickOutcome::Progressed);
-    runtime.with_engine::<CompleteEngine, _>(|engine| {
+    runtime.with_agent_engine::<CompleteEngine, _>(primary_agent_id, |engine| {
         assert_eq!(engine.resumed_native_ids, vec![201]);
     });
     assert_eq!(runtime.tick(), TickOutcome::Progressed);
-    runtime.with_engine::<CompleteEngine, _>(|engine| {
-        assert_eq!(engine.resumed_native_ids, vec![201, 202]);
+    runtime.with_agent_engine::<CompleteEngine, _>(primary_agent_id, |engine| {
+        assert_eq!(engine.resumed_native_ids, vec![201]);
+    });
+    runtime.with_agent_engine::<CompleteEngine, _>(secondary_agent_id, |engine| {
+        assert_eq!(engine.resumed_native_ids, vec![202]);
     });
     assert_eq!(runtime.tick(), TickOutcome::Idle);
 }
@@ -824,7 +864,13 @@ fn test_virtual_sleep_binding_fails_loudly() {
         ..RuntimeOptions::default()
     };
     let world = World::from_options(&options).expect("world");
-    let agent = Agent::new_in_world(Vec::new(), &options, &world).expect("agent should build");
+    let agent = Agent::new_in_world(
+        Vec::new(),
+        &options,
+        &world,
+        Box::new(TestEngine::default()),
+    )
+    .expect("agent should build");
     let host = Host::from_runtime_options(&options, agent.runtime_id);
     let binding = BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world);
     let wall_before = binding.wall_nanos();

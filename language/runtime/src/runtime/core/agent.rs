@@ -10,7 +10,7 @@ use crate::platform::state::PlatformState;
 use crate::platform::{ResourceId, ResourceTable};
 use crate::runtime::bindings::{BindingPolicy, BindingRegistry};
 use crate::runtime::capability::resolve_capability_profile;
-use crate::runtime::engine::EngineContinuation;
+use crate::runtime::engine::{Engine, EngineContinuation};
 use crate::runtime::memory::Heap;
 use crate::runtime::poller::PollerToken;
 use crate::runtime::scheduler::{EventLoop, EventLoopWatch};
@@ -51,6 +51,8 @@ pub struct Agent {
     pub(crate) bindings: BindingRegistry,
     /// Managed heap and GC coordination.
     pub(crate) heap: Heap,
+    /// Agent-owned execution engine.
+    pub(crate) engine: Box<dyn Engine>,
     /// Event loop for tasks, microtasks, and timers.
     pub(crate) event_loop: Box<EventLoop>,
 }
@@ -70,6 +72,7 @@ impl std::fmt::Debug for Agent {
             .field("diagnostics", &self.diagnostics)
             .field("bindings", &self.bindings)
             .field("heap", &self.heap)
+            .field("engine", &"<agent execution engine>")
             .field("event_loop", &self.event_loop)
             .finish()
     }
@@ -93,6 +96,7 @@ impl Agent {
         platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
         world: &World,
+        engine: Box<dyn Engine>,
     ) -> RuntimeResult<Self> {
         let platform_args = platform_args.into();
         let (runtime_id, agent_id, _runtime_name, agent_name) =
@@ -105,6 +109,7 @@ impl Agent {
             runtime_id,
             agent_id,
             agent_name,
+            engine,
         )
     }
 
@@ -114,6 +119,7 @@ impl Agent {
         options: &RuntimeOptions,
         world: &World,
         runtime_id: RuntimeId,
+        engine: Box<dyn Engine>,
     ) -> RuntimeResult<Self> {
         let platform_args = platform_args.into();
         let (agent_id, agent_name) = Self::register_agent(world, options, runtime_id)?;
@@ -125,6 +131,7 @@ impl Agent {
             runtime_id,
             agent_id,
             agent_name,
+            engine,
         )
     }
 
@@ -136,6 +143,7 @@ impl Agent {
         runtime_id: RuntimeId,
         agent_id: AgentId,
         agent_name: String,
+        engine: Box<dyn Engine>,
     ) -> RuntimeResult<Self> {
         // hooks and resources
         let hooks = Arc::new(Hooks::new(runtime_id, agent_id, world.replay().mode()));
@@ -173,6 +181,7 @@ impl Agent {
             drop_counts: DropCounts::default(),
             bindings,
             heap,
+            engine,
             event_loop,
         })
     }

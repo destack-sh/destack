@@ -28,7 +28,11 @@ impl World {
     }
 
     /// Spawn one additional agent in one stored runtime.
-    pub fn spawn_agent(&self, runtime_id: RuntimeId) -> RuntimeResult<AgentId> {
+    pub fn spawn_agent(
+        &self,
+        runtime_id: RuntimeId,
+        engine: impl Engine + 'static,
+    ) -> RuntimeResult<AgentId> {
         let mut runtimes = self.runtimes.write();
         let runtime = runtimes.get_mut(&runtime_id).ok_or_else(|| {
             RuntimeError::Internal {
@@ -37,7 +41,7 @@ impl World {
             .boxed()
         })?;
 
-        runtime.spawn_agent(self)
+        runtime.spawn_agent(self, Box::new(engine))
     }
 
     /// Run one entrypoint on one stored runtime.

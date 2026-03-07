@@ -50,8 +50,6 @@ pub struct SnapshotPayload {
     pub runtimes: BTreeMap<RuntimeId, RuntimeSnapshot>,
     /// Captured agent metadata keyed by agent id.
     pub agents: BTreeMap<AgentId, AgentSnapshot>,
-    /// Captured engine state keyed by agent id.
-    pub engines: BTreeMap<AgentId, EngineSnapshot>,
 }
 
 /// Durable world-owned state captured at one checkpoint.
@@ -133,6 +131,8 @@ pub struct AgentSnapshot {
     pub options: RuntimeOptions,
     /// Agent drop counts.
     pub drop_counts: DropCounts,
+    /// Captured agent-owned execution state.
+    pub engine: EngineSnapshot,
     /// Captured durable resource payloads for this agent.
     pub resources: Vec<ResourceSnapshot>,
 }

@@ -2,7 +2,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::Host;
 use crate::platform::resource;
 use crate::runtime::DropReason;
-use crate::runtime::engine::{Engine, EngineContinuation, EngineOutcome, EngineOutput, Entry};
+use crate::runtime::engine::{EngineContinuation, EngineOutcome, EngineOutput, Entry};
 use crate::runtime::poller::HostPoller;
 use crate::runtime::scheduler::{
     EventLoopScope, Microtask, Runnable, Task, TaskId, TaskStatus, current_event_loop_scope,
@@ -20,12 +20,11 @@ impl Agent {
         &mut self,
         world: &World,
         host: &Host,
-        engine: &mut dyn Engine,
         entry: &Entry,
         args: &[heap::Value],
     ) -> RuntimeResult<EngineOutput> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
-        self.run_entrypoint_with_host_and_poller(world, host, engine, entry, args, &mut poller)
+        self.run_entrypoint_with_host_and_poller(world, host, entry, args, &mut poller)
     }
 
     /// Run an entrypoint through the event loop with one external poller.
@@ -33,7 +32,6 @@ impl Agent {
         &mut self,
         world: &World,
         host: &Host,
-        engine: &mut dyn Engine,
         entry: &Entry,
         args: &[heap::Value],
         poller: &mut Option<Box<dyn HostPoller>>,
@@ -52,7 +50,7 @@ impl Agent {
 
         // execute the entrypoint with yielding enabled
         let _guard = enter_event_loop_scope(EventLoopScope::empty());
-        let outcome = engine.run(entry, args)?;
+        let outcome = self.engine.run(entry, args)?;
 
         // handle the entry outcome
         match outcome {
@@ -65,9 +63,13 @@ impl Agent {
                 let task_id = self.event_loop.next_task_id();
                 self.enqueue_task(world, task_id, continuation, value)?;
 
-                self.run_loop_until_task_complete_with_host_and_poller(
-                    world, host, engine, task_id, poller,
-                )
+                let output = self.run_until_task_complete(world, host, task_id, None, poller)?;
+                output.ok_or_else(|| {
+                    RuntimeError::EventLoopIdle {
+                        task_id: task_id.get(),
+                    }
+                    .boxed()
+                })
             }
         }
     }
@@ -77,14 +79,12 @@ impl Agent {
         &mut self,
         world: &World,
         host: &Host,
-        engine: &mut dyn Engine,
         target_task: TaskId,
     ) -> RuntimeResult<EngineOutput> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
         self.run_loop_until_task_complete_with_host_and_poller(
             world,
             host,
-            engine,
             target_task,
             &mut poller,
         )
@@ -95,18 +95,10 @@ impl Agent {
         &mut self,
         world: &World,
         host: &Host,
-        engine: &mut dyn Engine,
         target_task: TaskId,
         poller: &mut Option<Box<dyn HostPoller>>,
     ) -> RuntimeResult<EngineOutput> {
-        let output = self.run_loop_until_task_complete_with_timeout_and_host_and_poller(
-            world,
-            host,
-            engine,
-            target_task,
-            None,
-            poller,
-        )?;
+        let output = self.run_until_task_complete(world, host, target_task, None, poller)?;
         output.ok_or_else(|| {
             RuntimeError::EventLoopIdle {
                 task_id: target_task.get(),
@@ -120,27 +112,18 @@ impl Agent {
         &mut self,
         world: &World,
         host: &Host,
-        engine: &mut dyn Engine,
         target_task: TaskId,
         timeout_nanos: Option<u64>,
     ) -> RuntimeResult<Option<EngineOutput>> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
-        self.run_loop_until_task_complete_with_timeout_and_host_and_poller(
-            world,
-            host,
-            engine,
-            target_task,
-            timeout_nanos,
-            &mut poller,
-        )
+        self.run_until_task_complete(world, host, target_task, timeout_nanos, &mut poller)
     }
 
     /// Run the loop until one task completes or one timeout elapses with one external poller.
-    pub(crate) fn run_loop_until_task_complete_with_timeout_and_host_and_poller(
+    fn run_until_task_complete(
         &mut self,
         world: &World,
         host: &Host,
-        engine: &mut dyn Engine,
         target_task: TaskId,
         timeout_nanos: Option<u64>,
         poller: &mut Option<Box<dyn HostPoller>>,
@@ -159,7 +142,7 @@ impl Agent {
             }
 
             // run one loop tick for the engine
-            let (progressed, output) = self.tick_loop(world, host, engine, Some(target_task))?;
+            let (progressed, output) = self.tick_loop(world, host, Some(target_task))?;
             if let Some(output) = output {
                 return Ok(Some(output));
             }
@@ -182,15 +165,15 @@ impl Agent {
         }
     }
 
+    /// Execute one local agent tick.
+    pub fn tick(&mut self, world: &World, host: &Host) -> RuntimeResult<bool> {
+        self.tick_once(world, host)
+    }
+
     /// Run runtime ticks until no work remains.
-    pub fn tick_until_idle(
-        &mut self,
-        world: &World,
-        host: &Host,
-        engine: &mut dyn Engine,
-    ) -> RuntimeResult<()> {
+    pub fn tick_until_idle(&mut self, world: &World, host: &Host) -> RuntimeResult<()> {
         loop {
-            let progressed = self.tick(world, host, engine)?;
+            let progressed = self.tick_once(world, host)?;
             if !progressed {
                 break;
             }
@@ -200,14 +183,9 @@ impl Agent {
     }
 
     /// Execute one local agent tick.
-    pub fn tick(
-        &mut self,
-        world: &World,
-        host: &Host,
-        engine: &mut dyn Engine,
-    ) -> RuntimeResult<bool> {
+    fn tick_once(&mut self, world: &World, host: &Host) -> RuntimeResult<bool> {
         // run one event loop tick and capture progress
-        let (mut progressed, _) = self.tick_loop(world, host, engine, None)?;
+        let (mut progressed, _) = self.tick_loop(world, host, None)?;
 
         // run one gc cycle when pacing says a cycle is due
         if self.heap.should_collect() {
@@ -222,7 +200,6 @@ impl Agent {
         &mut self,
         world: &World,
         host: &Host,
-        engine: &mut dyn Engine,
         target_task: Option<TaskId>,
     ) -> RuntimeResult<(bool, Option<EngineOutput>)> {
         let agent_ptr = self as *const Agent;
@@ -250,7 +227,7 @@ impl Agent {
 
         // drain microtasks before selecting other work
         if self.event_loop.has_microtasks() {
-            let (drained, budget_exhausted) = self.drain_microtasks(world, engine)?;
+            let (drained, budget_exhausted) = self.drain_microtasks(world)?;
             if drained > 0 {
                 progressed = true;
             }
@@ -277,16 +254,14 @@ impl Agent {
             match item {
                 Runnable::Task(task) => {
                     ran_macrotask = true;
-                    if let Some(output) =
-                        self.execute_dequeued_task(world, engine, task, target_task)?
-                    {
+                    if let Some(output) = self.execute_dequeued_task(world, task, target_task)? {
                         return Ok((true, Some(output)));
                     }
                 }
                 Runnable::Microtask(microtask) => {
                     self.hooks.on_scheduler_dequeue(world);
                     // run the microtask to completion
-                    self.execute_microtask(world, engine, microtask, max_microtask_depth)?;
+                    self.execute_microtask(world, microtask, max_microtask_depth)?;
                 }
                 Runnable::Timer(timer) => {
                     self.hooks.on_scheduler_timer_fire(world);
@@ -320,7 +295,7 @@ impl Agent {
         // run one queued macrotask after routing timer and event watches
         if !ran_macrotask
             && let Some(task) = self.event_loop.pop_task()
-            && let Some(output) = self.execute_dequeued_task(world, engine, task, target_task)?
+            && let Some(output) = self.execute_dequeued_task(world, task, target_task)?
         {
             return Ok((true, Some(output)));
         }
@@ -383,27 +358,24 @@ impl Agent {
     fn execute_dequeued_task(
         &mut self,
         world: &World,
-        engine: &mut dyn Engine,
         task: Task,
         target_task: Option<TaskId>,
     ) -> RuntimeResult<Option<EngineOutput>> {
         self.hooks.on_scheduler_dequeue(world);
-
-        self.execute_task(world, engine, task, target_task)
+        self.execute_task(world, task, target_task)
     }
 
     /// Execute one task and return output when it completes the target task.
     fn execute_task(
         &mut self,
         world: &World,
-        engine: &mut dyn Engine,
         mut task: Task,
         target_task: Option<TaskId>,
     ) -> RuntimeResult<Option<EngineOutput>> {
         // run the task runnable
         task.status = TaskStatus::Waiting;
         let _guard = enter_event_loop_scope(EventLoopScope::for_task(task.id));
-        let outcome = self.execute_runnable(engine, task.runnable, task.resume_value)?;
+        let outcome = self.execute_runnable(task.runnable, task.resume_value)?;
 
         // handle the task outcome
         match outcome {
@@ -422,7 +394,7 @@ impl Agent {
             }
         }
 
-        let _ = self.drain_microtasks(world, engine)?;
+        let _ = self.drain_microtasks(world)?;
 
         Ok(None)
     }
@@ -440,7 +412,6 @@ impl Agent {
     fn execute_microtask(
         &mut self,
         _world: &World,
-        engine: &mut dyn Engine,
         microtask: Microtask,
         max_microtask_depth: usize,
     ) -> RuntimeResult<()> {
@@ -457,8 +428,7 @@ impl Agent {
         // run the microtask runnable
         let _guard =
             enter_event_loop_scope(EventLoopScope::for_microtask(microtask.id, next_depth));
-        let outcome =
-            self.execute_runnable(engine, microtask.continuation, microtask.resume_value)?;
+        let outcome = self.execute_runnable(microtask.continuation, microtask.resume_value)?;
 
         // ensure microtasks run to completion
         match outcome {
@@ -471,11 +441,7 @@ impl Agent {
     }
 
     /// Drain all pending microtasks. Returns (drained_microtasks, budget_exhausted)
-    fn drain_microtasks(
-        &mut self,
-        world: &World,
-        engine: &mut dyn Engine,
-    ) -> RuntimeResult<(usize, bool)> {
+    fn drain_microtasks(&mut self, world: &World) -> RuntimeResult<(usize, bool)> {
         // resolve the microtask safety limits for this drain cycle
         let microtask_budget = self
             .event_loop
@@ -504,7 +470,7 @@ impl Agent {
                 break;
             };
             self.hooks.on_scheduler_dequeue(world);
-            self.execute_microtask(world, engine, microtask, max_microtask_depth)?;
+            self.execute_microtask(world, microtask, max_microtask_depth)?;
             num_drained_microtasks = num_drained_microtasks.saturating_add(1);
         }
 
@@ -514,11 +480,10 @@ impl Agent {
     /// Resume one engine continuation with one runtime value.
     fn execute_runnable(
         &mut self,
-        engine: &mut dyn Engine,
         runnable: EngineContinuation,
         resume_value: heap::Value,
     ) -> RuntimeResult<EngineOutcome> {
-        engine.resume(runnable, resume_value)
+        self.engine.resume(runnable, resume_value)
     }
 
     /// Wait for one scheduler wakeup when the loop has pending but not-ready work.
@@ -591,9 +556,8 @@ impl Agent {
             self.record_drop(DropReason::QueuePressure, dropped_host_events);
         }
 
-        let host_event_count = host_events.len();
-
         // enqueue host semantic events for watch-based dispatch
+        let host_event_count = host_events.len();
         if !host_events.is_empty() {
             self.event_loop.enqueue_host_events(host_events);
         }
