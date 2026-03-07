@@ -1,4 +1,4 @@
-name: Runtime Linux
+name: Runtime Check (Linux)
 
 on:
   workflow_call:
@@ -7,8 +7,8 @@ permissions:
   contents: read
 
 jobs:
-  runtime-linux:
-    name: Runtime Linux (${{ matrix.arch }})
+  runtime-linux-check:
+    name: Runtime Check (Linux, ${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     strategy:
@@ -25,13 +25,13 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Rust and just
+      - name: Install Rust and just
         uses: ./.github/actions/setup-rust-just
         with:
           rust_components: clippy
 
-      - name: Check runtime on Linux
+      - name: Check Runtime (Linux)
         run: just language/check-runtime-linux
 
-      - name: Check runtime Wayland backend on Linux
+      - name: Check Runtime (Linux Wayland)
         run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just language/check-runtime-linux-wayland

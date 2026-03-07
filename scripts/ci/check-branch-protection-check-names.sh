@@ -6,10 +6,9 @@ repository_root="$(cd "${script_directory}/../.." && pwd)"
 
 required_checks_file="${script_directory}/required-checks.txt"
 ci_file="${repository_root}/.github/workflows/ci.yml"
-runtime_linux_file="${repository_root}/.github/workflows/runtime-linux.yml"
-runtime_macos_file="${repository_root}/.github/workflows/runtime-macos.yml"
-runtime_windows_file="${repository_root}/.github/workflows/runtime-windows.yml"
-runtime_windows_gnu_file="${repository_root}/.github/workflows/runtime-windows-gnu.yml"
+runtime_linux_file="${repository_root}/.github/workflows/runtime-linux-check.yml"
+runtime_macos_file="${repository_root}/.github/workflows/runtime-macos-check.yml"
+runtime_windows_file="${repository_root}/.github/workflows/runtime-windows-check.yml"
 targets_file="${repository_root}/TARGETS.md"
 
 read_required_checks() {
@@ -19,20 +18,18 @@ read_required_checks() {
 read_workflow_checks() {
 	local macos_check
 	local windows_check
-	local windows_gnu_check
 
 	# ci hygiene check name comes from the root ci workflow
-	if ! rg -n '^    name: CI Hygiene$' "${ci_file}" >/dev/null; then
-		echo "ci.yml is missing \"CI Hygiene\" job name" >&2
+	if ! rg -n '^    name: Hygiene Check$' "${ci_file}" >/dev/null; then
+		echo "ci.yml is missing \"Hygiene Check\" job name" >&2
 		exit 1
 	fi
 
 	# runtime host check names come from reusable runtime workflows
-	macos_check="$(rg -o '^    name: Runtime macOS$' "${runtime_macos_file}" | sed 's/^    name: //')"
-	windows_check="$(rg -o '^    name: Runtime Windows$' "${runtime_windows_file}" | sed 's/^    name: //')"
-	windows_gnu_check="$(rg -o '^    name: Runtime Windows GNU$' "${runtime_windows_gnu_file}" | sed 's/^    name: //')"
+	macos_check="$(rg -o '^    name: Runtime Check \(macOS\)$' "${runtime_macos_file}" | sed 's/^    name: //')"
+	windows_check="$(rg -o '^    name: Runtime Check \(Windows\)$' "${runtime_windows_file}" | sed 's/^    name: //')"
 
-	if [ -z "${macos_check}" ] || [ -z "${windows_check}" ] || [ -z "${windows_gnu_check}" ]; then
+	if [ -z "${macos_check}" ] || [ -z "${windows_check}" ]; then
 		echo "runtime workflow job names are missing required check labels" >&2
 		exit 1
 	fi
@@ -42,17 +39,16 @@ read_workflow_checks() {
 	rg -o 'arch: [a-z0-9_]+' "${runtime_linux_file}" | awk '{print $2}' | sort -u >"${linux_arches_file}"
 	if [ ! -s "${linux_arches_file}" ]; then
 		rm -f "${linux_arches_file}"
-		echo "runtime-linux.yml is missing architecture matrix values" >&2
+		echo "runtime-linux-check.yml is missing architecture matrix values" >&2
 		exit 1
 	fi
 
 	# emit derived workflow check contexts
-	echo "CI Hygiene"
+	echo "Hygiene Check"
 	echo "${macos_check}"
 	echo "${windows_check}"
-	echo "${windows_gnu_check}"
 	while IFS= read -r linux_arch; do
-		echo "Runtime Linux (${linux_arch})"
+		echo "Runtime Check (Linux, ${linux_arch})"
 	done <"${linux_arches_file}"
 
 	rm -f "${linux_arches_file}"

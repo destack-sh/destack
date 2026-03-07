@@ -111,36 +111,31 @@ if rg -n "CC_[A-Za-z0-9_]+.*zig cc -target" "${repository_root}/justfile" "${rep
 fi
 
 # tier 1 runtime workflow files should exist
-if [ ! -f "${repository_root}/.github/workflows/runtime-linux.yml" ] || [ ! -f "${repository_root}/.github/workflows/runtime-windows-gnu.yml" ]; then
+if [ ! -f "${repository_root}/.github/workflows/runtime-linux-check.yml" ] || [ ! -f "${repository_root}/.github/workflows/runtime-windows-check.yml" ]; then
 	echo "missing required tier 1 runtime workflows" >&2
 	exit 1
 fi
 
 # ci should call all tier 1 runtime lanes
-if ! rg -n "^  runtime-linux:" "${ci_file}" >/dev/null; then
-	echo "ci.yml missing runtime-linux tier 1 lane" >&2
+if ! rg -n "^  runtime-linux-check:" "${ci_file}" >/dev/null; then
+	echo "ci.yml missing runtime-linux-check tier 1 lane" >&2
 	exit 1
 fi
-if ! rg -n "^  runtime-macos:" "${ci_file}" >/dev/null; then
-	echo "ci.yml missing runtime-macos tier 1 lane" >&2
+if ! rg -n "^  runtime-macos-check:" "${ci_file}" >/dev/null; then
+	echo "ci.yml missing runtime-macos-check tier 1 lane" >&2
 	exit 1
 fi
-if ! rg -n "^  runtime-windows:" "${ci_file}" >/dev/null; then
-	echo "ci.yml missing runtime-windows tier 1 lane" >&2
+if ! rg -n "^  runtime-windows-check:" "${ci_file}" >/dev/null; then
+	echo "ci.yml missing runtime-windows-check tier 1 lane" >&2
 	exit 1
 fi
-if ! rg -n "^  runtime-windows-gnu:" "${ci_file}" >/dev/null; then
-	echo "ci.yml missing runtime-windows-gnu tier 1 lane" >&2
-	exit 1
-fi
-
 # runtime linux tier 1 lane should test both host architectures
-if ! rg -n "arch: x86_64" "${repository_root}/.github/workflows/runtime-linux.yml" >/dev/null; then
-	echo "runtime-linux.yml missing x86_64 host lane" >&2
+if ! rg -n "arch: x86_64" "${repository_root}/.github/workflows/runtime-linux-check.yml" >/dev/null; then
+	echo "runtime-linux-check.yml missing x86_64 host lane" >&2
 	exit 1
 fi
-if ! rg -n "arch: aarch64" "${repository_root}/.github/workflows/runtime-linux.yml" >/dev/null; then
-	echo "runtime-linux.yml missing aarch64 host lane" >&2
+if ! rg -n "arch: aarch64" "${repository_root}/.github/workflows/runtime-linux-check.yml" >/dev/null; then
+	echo "runtime-linux-check.yml missing aarch64 host lane" >&2
 	exit 1
 fi
 
@@ -153,11 +148,6 @@ if ! rg -n '^\| `aarch64-unknown-linux-gnu` \| Tier 1 \|' "${repository_root}/TA
 	echo "TARGETS.md must keep aarch64-unknown-linux-gnu in Tier 1" >&2
 	exit 1
 fi
-if ! rg -n '^\| `x86_64-pc-windows-gnu` \| Tier 1 \|' "${repository_root}/TARGETS.md" >/dev/null; then
-	echo "TARGETS.md must keep x86_64-pc-windows-gnu in Tier 1" >&2
-	exit 1
-fi
-
 "${script_directory}/check-target-policy-sync.sh"
 "${script_directory}/check-branch-protection-check-names.sh"
 "${script_directory}/check-release-tier1-dependencies.sh"

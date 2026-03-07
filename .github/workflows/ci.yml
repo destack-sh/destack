@@ -17,103 +17,10 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  repo-integrity:
-    name: Repo Integrity
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          persist-credentials: false
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
-
-      - name: Validate zed grammar pins
-        run: just bridge/validate-zed-grammars-strict --pin-destack-revision "${GITHUB_SHA}"
-
-  changes:
-    name: Changed Paths
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs:
-      - repo-integrity
-    outputs:
-      runtime_required: ${{ steps.paths.outputs.runtime_required }}
-      swift_bridge_required: ${{ steps.paths.outputs.swift_bridge_required }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-
-      - id: paths
-        name: Resolve changed paths
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          # resolve compare base for pull requests and pushes
-          compare_base=""
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-              compare_base="${{ github.event.pull_request.base.sha }}"
-          elif [ "${{ github.event_name }}" = "push" ]; then
-              compare_base="${{ github.event.before }}"
-          fi
-
-          # fall back to running all heavy lanes when compare base is unavailable
-          if [ -z "${compare_base}" ] || [ "${compare_base}" = "0000000000000000000000000000000000000000" ]; then
-              echo "runtime_required=true" >> "${GITHUB_OUTPUT}"
-              echo "swift_bridge_required=true" >> "${GITHUB_OUTPUT}"
-              exit 0
-          fi
-
-          # fetch the base commit when it is not present in shallow clones
-          if ! git cat-file -e "${compare_base}^{commit}" 2>/dev/null; then
-              git fetch --no-tags --depth=1 origin "${compare_base}" || true
-          fi
-
-          # fall back to running heavy lanes when we cannot resolve diff history
-          if ! git cat-file -e "${compare_base}^{commit}" 2>/dev/null; then
-              echo "runtime_required=true" >> "${GITHUB_OUTPUT}"
-              echo "swift_bridge_required=true" >> "${GITHUB_OUTPUT}"
-              exit 0
-          fi
-
-          changed_paths="$(git diff --name-only "${compare_base}" "${{ github.sha }}")"
-          runtime_required="false"
-          swift_bridge_required="false"
-
-          # evaluate coarse lane filters
-          while IFS= read -r changed_path; do
-              if [ -z "${changed_path}" ]; then
-                  continue
-              fi
-
-              case "${changed_path}" in
-                  .github/workflows/ci.yml|.github/workflows/runtime-*.yml|.github/actions/setup-rust-just/*|.github/actions/setup-zig/*|TARGETS.md|Cargo.toml|Cargo.lock|language/*|scripts/toolchain/*)
-                      runtime_required="true"
-                      ;;
-              esac
-
-              case "${changed_path}" in
-                  .github/workflows/ci.yml|bridge/swift/*|bridge/capi/*|bridge/core/*)
-                      swift_bridge_required="true"
-                      ;;
-              esac
-          done <<< "${changed_paths}"
-
-          echo "runtime_required=${runtime_required}" >> "${GITHUB_OUTPUT}"
-          echo "swift_bridge_required=${swift_bridge_required}" >> "${GITHUB_OUTPUT}"
-
-  ci-hygiene:
-    name: CI Hygiene
+  hygiene-check:
+    name: Hygiene Check
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs:
-      - repo-integrity
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -123,103 +30,41 @@ jobs:
       - name: Install just
         uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
-      - name: Run hygiene checks
+      - name: Check Hygiene
         run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just check-hygiene
-
-  language-format:
-    name: Language Format
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    needs:
-      - repo-integrity
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          persist-credentials: false
-
-      - name: Setup Rust and just
-        uses: ./.github/actions/setup-rust-just
-        with:
-          rust_components: rustfmt
-
-      - name: Run language format check
-        run: just language/format-check
 
   language-check:
     name: Language Check
     runs-on: ubuntu-latest
-    timeout-minutes: 90
-    needs:
-      - repo-integrity
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          persist-credentials: false
-
-      - name: Setup Rust and just
-        uses: ./.github/actions/setup-rust-just
-        with:
-          rust_components: clippy
-
-      - name: Run language check
-        run: just language/check
-
-  language-tests:
-    name: Language Tests
-    runs-on: ubuntu-latest
     timeout-minutes: 240
-    needs:
-      - repo-integrity
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
-      - name: Setup Rust Bun and just
-        uses: ./.github/actions/setup-rust-bun-just
-
-      - name: Cache conformance fixtures
-        id: language-conformance-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+      - name: Install Language Check Toolchain
+        uses: ./.github/actions/setup-language-check
         with:
-          path: |
-            language/test/fixtures/parser/conformance/test262
-            language/test/fixtures/parser/conformance/babel
-            language/test/fixtures/parser/conformance/swc
-            language/test/fixtures/parser/conformance/biome
-          key: ${{ runner.os }}-language-conformance-${{ hashFiles('language/test/fixtures/parser/conformance/*-fetch.sh') }}
+          rust_components: rustfmt clippy
 
-      - name: Cache formatter conformance fixtures
-        id: language-formatter-conformance-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
-        with:
-          path: |
-            language/test/fixtures/formatter/conformance/staging/prettier
-            language/test/fixtures/formatter/conformance/staging/oxfmt
-          key: ${{ runner.os }}-language-formatter-conformance-${{ hashFiles('language/test/fixtures/formatter/conformance/*-fetch.sh') }}
+      - name: Check Language
+        run: just language/quick
 
-      - name: Run language tests
-        run: just language/test
-
-  language-resolver-windows:
-    name: Language Resolver Windows
+  language-resolver-windows-check:
+    name: Language Resolver Check (Windows)
     runs-on: windows-latest
     timeout-minutes: 120
-    needs:
-      - repo-integrity
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
-      - name: Setup Rust and just
+      - name: Install Rust and just
         uses: ./.github/actions/setup-rust-just
 
-      - name: Prepare package managers
+      - name: Install Package Managers
         shell: bash
         run: |
           node --version
@@ -228,223 +73,119 @@ jobs:
           corepack pnpm --version
           corepack yarn --version
 
-      - name: Install resolver fixtures
+      - name: Install Resolver Fixtures
         shell: bash
         run: just language/install-resolver
 
-      - name: Run resolver tests
+      - name: Check Language Resolver (Windows)
         shell: bash
-        run: cargo test -p destack_resolver
+        run: just language/test-resolver
 
-  runtime-android:
-    name: Runtime Android
-    needs:
-      - repo-integrity
-      - changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.runtime_required == 'true'
-    uses: ./.github/workflows/runtime-android.yml
+  runtime-android-check:
+    name: Runtime Check (Android)
+    uses: ./.github/workflows/runtime-android-check.yml
 
-  runtime-ios:
-    name: Runtime iOS
-    needs:
-      - repo-integrity
-      - changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.runtime_required == 'true'
-    uses: ./.github/workflows/runtime-ios.yml
+  runtime-ios-check:
+    name: Runtime Check (iOS)
+    uses: ./.github/workflows/runtime-ios-check.yml
 
-  runtime-linux:
-    name: Runtime Linux
-    needs:
-      - repo-integrity
-      - changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.runtime_required == 'true'
-    uses: ./.github/workflows/runtime-linux.yml
+  runtime-linux-check:
+    name: Runtime Check (Linux)
+    uses: ./.github/workflows/runtime-linux-check.yml
 
-  runtime-macos:
-    name: Runtime macOS
-    needs:
-      - repo-integrity
-      - changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.runtime_required == 'true'
-    uses: ./.github/workflows/runtime-macos.yml
+  runtime-macos-check:
+    name: Runtime Check (macOS)
+    uses: ./.github/workflows/runtime-macos-check.yml
 
-  runtime-windows:
-    name: Runtime Windows
-    needs:
-      - repo-integrity
-      - changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.runtime_required == 'true'
-    uses: ./.github/workflows/runtime-windows.yml
-
-  runtime-windows-gnu:
-    name: Runtime Windows GNU
-    needs:
-      - repo-integrity
-      - changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.runtime_required == 'true'
-    uses: ./.github/workflows/runtime-windows-gnu.yml
-
-  runtime-wasip1:
-    name: Runtime WASIp1
-    needs:
-      - repo-integrity
-      - changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.runtime_required == 'true'
-    uses: ./.github/workflows/runtime-wasip1.yml
-
-  library-format:
-    name: Library Format
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    needs:
-      - repo-integrity
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          persist-credentials: false
-
-      - name: Setup Rust Bun and just
-        uses: ./.github/actions/setup-rust-bun-just
-        with:
-          rust_components: rustfmt
-          install_js_dependencies: "true"
-
-      - name: Run library format check
-        run: just library/format-check
+  runtime-windows-check:
+    name: Runtime Check (Windows)
+    uses: ./.github/workflows/runtime-windows-check.yml
 
   library-check:
     name: Library Check
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    needs:
-      - repo-integrity
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          persist-credentials: false
-
-      - name: Setup Rust Bun and just
-        uses: ./.github/actions/setup-rust-bun-just
-        with:
-          rust_components: clippy
-          install_js_dependencies: "true"
-
-      - name: Run library check
-        run: just library/check
-
-  library-tests:
-    name: Library Tests
-    runs-on: ubuntu-latest
     timeout-minutes: 90
-    needs:
-      - repo-integrity
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
-      - name: Setup Rust Bun and just
+      - name: Install Rust Bun and just
         uses: ./.github/actions/setup-rust-bun-just
         with:
+          rust_components: rustfmt clippy
           install_js_dependencies: "true"
 
-      - name: Run library tests
-        run: just library/test
+      - name: Check Library
+        run: just library/quick
 
-  service-app-bridge-format:
-    name: Service App Bridge Format
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    needs:
-      - repo-integrity
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          persist-credentials: false
-
-      - name: Setup Rust and just
-        uses: ./.github/actions/setup-rust-just
-        with:
-          rust_components: rustfmt
-
-      - name: Run service format check
-        run: just service/format-check
-
-      - name: Run app format check
-        run: just app/format-check
-
-      - name: Run bridge format check
-        run: just bridge/format-check
-
-  service-app-bridge-check:
-    name: Service App Bridge Check
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    needs:
-      - repo-integrity
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          persist-credentials: false
-
-      - name: Setup Rust and just
-        uses: ./.github/actions/setup-rust-just
-        with:
-          rust_components: clippy
-
-      - name: Run service check
-        run: just service/check
-
-      - name: Run app check
-        run: just app/check
-
-      - name: Run bridge check
-        run: just bridge/check
-
-  service-app-bridge-tests:
-    name: Service App Bridge Tests
+  service-check:
+    name: Service Check
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    needs:
-      - repo-integrity
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
-      - name: Setup Rust Bun and just
+      - name: Install Rust Bun and just
         uses: ./.github/actions/setup-rust-bun-just
         with:
+          rust_components: rustfmt clippy
           install_js_dependencies: "true"
 
-      - name: Run service tests
-        run: just service/test
+      - name: Check Service
+        run: just service/quick
 
-      - name: Run app tests
-        run: just app/test
+  app-check:
+    name: App Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
 
-      - name: Run bridge tests
-        run: just bridge/test
+      - name: Install Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
+        with:
+          rust_components: rustfmt clippy
+          install_js_dependencies: "true"
+
+      - name: Check App
+        run: just app/quick
+
+  bridge-check:
+    name: Bridge Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Install Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
+        with:
+          rust_components: rustfmt clippy
+          install_js_dependencies: "true"
+
+      - name: Check Bridge
+        run: just bridge/quick --pin-destack-revision "${GITHUB_SHA}"
 
   bridge-swift-build:
     name: Bridge Swift Build
     runs-on: macos-latest
     timeout-minutes: 30
-    needs:
-      - repo-integrity
-      - changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.swift_bridge_required == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
-      - name: Build Swift bridge package
+      - name: Build Bridge Swift
         run: cd bridge/swift && swift build

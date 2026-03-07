@@ -1,4 +1,4 @@
-name: Runtime macOS
+name: Runtime Check (Windows)
 
 on:
   workflow_call:
@@ -7,9 +7,9 @@ permissions:
   contents: read
 
 jobs:
-  runtime-macos:
-    name: Runtime macOS
-    runs-on: macos-14
+  runtime-windows-check:
+    name: Runtime Check (Windows)
+    runs-on: windows-latest
     timeout-minutes: 90
     steps:
       - name: Checkout
@@ -17,10 +17,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Rust and just
+      - name: Install Rust and just
         uses: ./.github/actions/setup-rust-just
         with:
           rust_components: clippy
 
-      - name: Check runtime on macOS
-        run: just language/check-runtime-macos
+      - name: Check Runtime (Windows)
+        run: just language/check-runtime-windows-msvc
