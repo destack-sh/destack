@@ -290,32 +290,32 @@ impl Parser {
             return false;
         }
 
-        let Some(identifier) = self.identifier_for_index(self.pos_index()) else {
+        let Ok(token) = self.peek().copied() else {
             return false;
         };
-        let type_identifiers = &self.type_literal_identifiers;
+        let identifier = self.file.span_str(token.span);
 
         matches!(
             identifier,
-            id if id == type_identifiers.undefined
-                || id == type_identifiers.unknown
-                || id == type_identifiers.object
-                || id == type_identifiers.null_
-                || id == type_identifiers.any
-                || id == type_identifiers.never
-                || id == type_identifiers.boolean
-                || id == type_identifiers.void
-                || id == type_identifiers.character
-                || id == type_identifiers.string
-                || id == type_identifiers.bigint
-                || id == type_identifiers.number
-                || id == type_identifiers.int
-                || id == type_identifiers.isize
-                || id == type_identifiers.uint
-                || id == type_identifiers.usize
-                || id == type_identifiers.float
-                || id == type_identifiers.symbol
-                || id == type_identifiers.unique
+            "undefined"
+                | "unknown"
+                | "object"
+                | "null"
+                | "any"
+                | "never"
+                | "boolean"
+                | "void"
+                | "character"
+                | "string"
+                | "bigint"
+                | "number"
+                | "int"
+                | "isize"
+                | "uint"
+                | "usize"
+                | "float"
+                | "symbol"
+                | "unique"
         )
     }
 
@@ -373,7 +373,7 @@ impl Parser {
                 self.tree.set_span(expression_id, self.get_span_from(start));
                 expression_id
             }
-            _ => self.tree.insert(
+            _ => self.insert_node(
                 Expression::Parenthesized {
                     expression: expression_id,
                 },
@@ -422,7 +422,7 @@ impl Parser {
                     _ => has_ternary_delimiter,
                 };
                 if should_accept {
-                    return Ok(Some(self.tree.insert(
+                    return Ok(Some(self.insert_node(
                         Expression::Declaration(lambda_id),
                         self.get_span_from(start),
                     )));
@@ -435,7 +435,7 @@ impl Parser {
 
         let lambda_id = self.eat_function(start, DeclarationDescriptor::default(), false, false)?;
 
-        Ok(Some(self.tree.insert(
+        Ok(Some(self.insert_node(
             Expression::Declaration(lambda_id),
             self.get_span_from(start),
         )))
@@ -481,14 +481,14 @@ impl Parser {
 
             // in Destack: empty tuple
             if self.language.is_destack() {
-                return Ok(self.tree.insert(
+                return Ok(self.insert_node(
                     Expression::TupleExpression { elements: vec![] },
                     self.get_span_from(start),
                 ));
             }
 
             // in JS/TS: empty sequence expression
-            return Ok(self.tree.insert(
+            return Ok(self.insert_node(
                 Expression::SequenceExpression {
                     expressions: vec![],
                 },
@@ -507,7 +507,7 @@ impl Parser {
                 .for_node_type(NodeType::Expression)?;
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseParenthesis)?;
-            return Ok(self.tree.insert(
+            return Ok(self.insert_node(
                 Expression::TupleExpression {
                     elements: tuple_elements,
                 },
@@ -592,7 +592,7 @@ impl Parser {
                 let body = if self.peek_is(TokenType::Semicolon) {
                     let body_start = self.mark_span();
                     self.bump(); // eat semicolon
-                    let block_id = self.tree.insert(
+                    let block_id = self.insert_node(
                         Block {
                             context: BlockContext::Statement,
                             format: BlockFormat::Implicit,
@@ -609,7 +609,7 @@ impl Parser {
                 if !self.language.is_destack() && self.is_single_statement_declaration(body) {
                     return Err(ParseError::unexpected(self.tree.get_span(body)));
                 }
-                let labelled_id = self.tree.insert(
+                let labelled_id = self.insert_node(
                     Expression::Labelled { label, body },
                     self.get_span_from(&start),
                 );
@@ -752,7 +752,7 @@ impl Parser {
                             || next_raw_token_type == TokenType::ArrowWide)
                     {
                         let lambda_id = self.eat_function(&start, descriptor, false, false)?;
-                        primary_expression_id = Some(self.tree.insert(
+                        primary_expression_id = Some(self.insert_node(
                             Expression::Declaration(lambda_id),
                             self.get_span_from(&start),
                         ));
@@ -809,7 +809,7 @@ impl Parser {
                             let _literal_timing =
                                 self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
                             let type_literal = self.eat_type_literal(Some(type_literal))?;
-                            primary_expression_id = Some(self.tree.insert(
+                            primary_expression_id = Some(self.insert_node(
                                 Expression::TypeLiteral(type_literal),
                                 self.get_span_from(&start),
                             ));
@@ -850,7 +850,7 @@ impl Parser {
 
                             let expression = Expression::Unary { operator, right };
                             let expression_id =
-                                self.tree.insert(expression, self.get_span_from(&start));
+                                self.insert_node(expression, self.get_span_from(&start));
                             self.tree.set_main_span(expression_id, operator_span);
                             primary_expression_id = Some(expression_id);
                         }
@@ -887,7 +887,7 @@ impl Parser {
                             )?;
                             let expression = Expression::TypeUnary { operator, right };
                             let expression_id =
-                                self.tree.insert(expression, self.get_span_from(&start));
+                                self.insert_node(expression, self.get_span_from(&start));
                             self.tree.set_main_span(expression_id, operator_span);
                             primary_expression_id = Some(expression_id);
                         }
@@ -898,7 +898,7 @@ impl Parser {
                                 primary_expression_id = Some(self.eat_while()?);
                             } else if next_token_type == TokenType::OpenBrace {
                                 let block_id = self.eat_block(BlockContext::Expression)?;
-                                primary_expression_id = Some(self.tree.insert(
+                                primary_expression_id = Some(self.insert_node(
                                     Expression::Block(block_id),
                                     self.get_span_from(&start),
                                 ));
@@ -912,7 +912,7 @@ impl Parser {
                         {
                             // parse contextual module declarations after other identifier paths
                             let namespace_id = self.eat_namespace(&start, descriptor)?;
-                            primary_expression_id = Some(self.tree.insert(
+                            primary_expression_id = Some(self.insert_node(
                                 Expression::Declaration(namespace_id),
                                 self.get_span_from(&start),
                             ));
@@ -947,7 +947,7 @@ impl Parser {
                                 let _literal_timing =
                                     self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
                                 let type_literal = self.eat_type_literal(Some(type_literal))?;
-                                primary_expression_id = Some(self.tree.insert(
+                                primary_expression_id = Some(self.insert_node(
                                     Expression::TypeLiteral(type_literal),
                                     self.get_span_from(&start),
                                 ));
@@ -1021,7 +1021,7 @@ impl Parser {
                             self.options.not_in_position(),
                         )?;
                         let expression = Expression::PointerOf { mutability, right };
-                        self.tree.insert(expression, self.get_span_from(&start))
+                        self.insert_node(expression, self.get_span_from(&start))
                     }
                     // unary prefix operations
                     else if let Some(operator) = self.peek_unary_prefix_operator_maybe() {
@@ -1039,7 +1039,7 @@ impl Parser {
                         let right = self.eat_expression_with_context_unchecked(right_options)?;
                         let expression = Expression::Unary { operator, right };
                         let expression_id =
-                            self.tree.insert(expression, self.get_span_from(&start));
+                            self.insert_node(expression, self.get_span_from(&start));
                         self.tree.set_main_span(expression_id, operator_span);
                         expression_id
                     }
@@ -1063,7 +1063,7 @@ impl Parser {
                         )?;
                         let expression = Expression::TypeUnary { operator, right };
                         let expression_id =
-                            self.tree.insert(expression, self.get_span_from(&start));
+                            self.insert_node(expression, self.get_span_from(&start));
                         self.tree.set_main_span(expression_id, operator_span);
                         expression_id
                     }
@@ -1081,7 +1081,7 @@ impl Parser {
                             variance,
                             right,
                         };
-                        self.tree.insert(expression, self.get_span_from(&start))
+                        self.insert_node(expression, self.get_span_from(&start))
                     }
                     // reference (`&` or `&var` or `&T`)
                     else if self.peek_is(TokenType::ElementwiseAnd) && self.language.is_destack()
@@ -1097,7 +1097,7 @@ impl Parser {
                             variance,
                             right,
                         };
-                        self.tree.insert(expression, self.get_span_from(&start))
+                        self.insert_node(expression, self.get_span_from(&start))
                     }
                     //
                     // ------------------------------------------------------------
@@ -1110,7 +1110,7 @@ impl Parser {
                             .with_options(self.options.not_in_position(), |parser| {
                                 parser.eat_array_literal()
                             })?;
-                        self.tree.insert(
+                        self.insert_node(
                             Expression::ArrayExpression { elements },
                             self.get_span_from(&start),
                         )
@@ -1127,7 +1127,7 @@ impl Parser {
                                 .with_options(self.options.not_in_position(), |parser| {
                                     parser.eat_object_literal()
                                 })?;
-                            self.tree.insert(
+                            self.insert_node(
                                 Expression::ObjectExpression {
                                     ty: None,
                                     properties,
@@ -1153,7 +1153,7 @@ impl Parser {
                             false,
                             false,
                         )?;
-                        self.tree.insert(
+                        self.insert_node(
                             Expression::Declaration(function_id),
                             self.get_span_from(&start),
                         )
@@ -1182,7 +1182,7 @@ impl Parser {
                             self.eat_type_template_literal_expression()?
                         } else {
                             let template_literal = self.eat_template_literal()?;
-                            self.tree.insert(
+                            self.insert_node(
                                 Expression::TemplateExpression {
                                     value: template_literal,
                                 },
@@ -1195,7 +1195,7 @@ impl Parser {
                         let _literal_timing =
                             self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
                         let scalar_literal = self.eat_scalar_literal()?;
-                        self.tree.insert(
+                        self.insert_node(
                             Expression::ScalarLiteral(scalar_literal),
                             self.get_span_from(&start),
                         )
@@ -1208,7 +1208,7 @@ impl Parser {
                         let _literal_timing =
                             self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
                         let type_literal = self.eat_type_literal(Some(type_literal))?;
-                        self.tree.insert(
+                        self.insert_node(
                             Expression::TypeLiteral(type_literal),
                             self.get_span_from(&start),
                         )
@@ -1224,7 +1224,7 @@ impl Parser {
 
                         self.bump(); // eat #
                         let (name, name_span) = self.eat_identifier_with_span()?;
-                        let expression_id = self.tree.insert(
+                        let expression_id = self.insert_node(
                             Expression::PrivateIdentifier { name },
                             self.get_span_from(&start),
                         );
