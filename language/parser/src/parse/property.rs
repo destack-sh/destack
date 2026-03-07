@@ -201,7 +201,7 @@ impl Parser {
                 modifiers: None,
                 value,
             };
-            return Ok(self.tree.insert(property, self.get_span_from(&start)));
+            return Ok(self.insert_node(property, self.get_span_from(&start)));
         }
 
         // modifiers prefix
@@ -530,7 +530,7 @@ impl Parser {
                 },
                 body,
             };
-            let property_id = self.tree.insert(property, self.get_span_from(&start));
+            let property_id = self.insert_node(property, self.get_span_from(&start));
 
             // set main span to the key identifier
             if let Some(span) = key_span {
@@ -590,7 +590,7 @@ impl Parser {
                 value,
                 default,
             };
-            let property_id = self.tree.insert(property, self.get_span_from(&start));
+            let property_id = self.insert_node(property, self.get_span_from(&start));
 
             // set main span to the key identifier
             if let Some(span) = key_span {
@@ -715,7 +715,7 @@ impl Parser {
                 modifiers: None,
                 value,
             };
-            return Ok(self.tree.insert(member, self.get_span_from(&start)));
+            return Ok(self.insert_node(member, self.get_span_from(&start)));
         }
 
         // modifiers prefix
@@ -760,13 +760,13 @@ impl Parser {
             self.eat_newlines_maybe()?;
             let body_start = self.mark_span();
             let body_block = self.eat_block(BlockContext::Statement)?;
-            let body = self.tree.insert(
+            let body = self.insert_node(
                 Expression::Block(body_block),
                 self.get_span_from(&body_start),
             );
             // preserve modifiers for validation (static blocks shouldn't have other modifiers)
             let member = Member::StaticBlock { modifiers, body };
-            return Ok(self.tree.insert(member, self.get_span_from(&start)));
+            return Ok(self.insert_node(member, self.get_span_from(&start)));
         }
 
         // type member: `type Name<U> = ...` or `type Name: Bound`
@@ -802,7 +802,7 @@ impl Parser {
                 ty,
                 value,
             };
-            return Ok(self.tree.insert(member, self.get_span_from(&start)));
+            return Ok(self.insert_node(member, self.get_span_from(&start)));
         }
 
         // comptime block: `comptime { ... }` (timing modifier already consumed)
@@ -814,12 +814,12 @@ impl Parser {
             self.eat_newlines_maybe()?;
             let body_start = self.mark_span();
             let body_block = self.eat_block(BlockContext::Statement)?;
-            let body = self.tree.insert(
+            let body = self.insert_node(
                 Expression::Block(body_block),
                 self.get_span_from(&body_start),
             );
             let member = Member::ComptimeBlock { modifiers, body };
-            return Ok(self.tree.insert(member, self.get_span_from(&start)));
+            return Ok(self.insert_node(member, self.get_span_from(&start)));
         }
 
         // allow newline between modifiers and the member key
@@ -1136,7 +1136,7 @@ impl Parser {
                 },
                 body,
             };
-            let member_id = self.tree.insert(member, self.get_span_from(&start));
+            let member_id = self.insert_node(member, self.get_span_from(&start));
 
             // set main span to the key identifier
             if let Some(span) = key_span {
@@ -1217,7 +1217,7 @@ impl Parser {
                     default,
                 }
             };
-            let member_id = self.tree.insert(member, self.get_span_from(&start));
+            let member_id = self.insert_node(member, self.get_span_from(&start));
 
             // set main span to the key identifier
             if let Some(span) = key_span {

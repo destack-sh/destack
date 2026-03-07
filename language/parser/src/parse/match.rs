@@ -81,7 +81,7 @@ impl Parser {
         self.eat_token(TokenType::CloseBrace)?;
 
         // match
-        let match_id = self.tree.insert(
+        let match_id = self.insert_node(
             Expression::Match {
                 kind,
                 value: value_id,
@@ -197,7 +197,7 @@ impl Parser {
                                 .with_ambient_context(guard_ambient_context)
                                 .with_expression_context(guard_expression_context),
                         )?;
-                        self.tree.insert(
+                        self.insert_node(
                             Pattern::Expression { value },
                             self.get_span_from(&pattern_start),
                         )
@@ -280,7 +280,7 @@ impl Parser {
                     && self.is_token_after_newlines(self.pos(), TokenType::CloseBrace);
             if is_empty_case {
                 self.eat_newlines_maybe()?;
-                let block_id = self.tree.insert(
+                let block_id = self.insert_node(
                     Block {
                         context: BlockContext::Statement,
                         format: BlockFormat::Implicit,
@@ -288,7 +288,7 @@ impl Parser {
                     },
                     self.get_span_from(&start),
                 );
-                let match_case_id = self.tree.insert(
+                let match_case_id = self.insert_node(
                     MatchCase::Block {
                         selector,
                         body: block_id,
@@ -357,7 +357,7 @@ impl Parser {
             }
             // single expression case
             let match_case_id = if expressions.len() == 1 {
-                self.tree.insert(
+                self.insert_node(
                     MatchCase::Expression {
                         selector,
                         body: expressions[0],
@@ -367,7 +367,7 @@ impl Parser {
             }
             // multiple expression block
             else {
-                let block_id = self.tree.insert(
+                let block_id = self.insert_node(
                     Block {
                         context: BlockContext::Statement,
                         format: BlockFormat::Implicit,
@@ -375,7 +375,7 @@ impl Parser {
                     },
                     self.get_span_from(&start),
                 );
-                self.tree.insert(
+                self.insert_node(
                     MatchCase::Block {
                         selector,
                         body: block_id,
@@ -394,7 +394,7 @@ impl Parser {
         // block body
         else if self.is_block_start() {
             let block_id = self.eat_block(BlockContext::Expression)?;
-            let match_case_id = self.tree.insert(
+            let match_case_id = self.insert_node(
                 MatchCase::Block {
                     selector,
                     body: block_id,
@@ -412,7 +412,7 @@ impl Parser {
         // single expression
         else {
             let expression_id = self.try_eat_expression(TokenType::Newline)?;
-            let match_case_id = self.tree.insert(
+            let match_case_id = self.insert_node(
                 MatchCase::Expression {
                     selector,
                     body: expression_id,

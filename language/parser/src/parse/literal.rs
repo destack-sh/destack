@@ -637,7 +637,7 @@ impl Parser {
         })?;
 
         let expression = Expression::TypeTemplateLiteral { strings, spans };
-        Ok(self.tree.insert(expression, self.get_span_from(&start)))
+        Ok(self.insert_node(expression, self.get_span_from(&start)))
     }
 
     /// Eat the parts of a template literal.
@@ -806,7 +806,7 @@ impl Parser {
                 .not_in_left_precedence(),
         )?;
 
-        let argument_id = self.tree.insert(
+        let argument_id = self.insert_node(
             Argument::Positional {
                 modifiers: None,
                 value,
@@ -869,7 +869,7 @@ impl Parser {
                     let stub = self
                         .tree
                         .insert(Expression::Stub, self.get_span_from(&start));
-                    let hole = self.tree.insert(
+                    let hole = self.insert_node(
                         Argument::Positional {
                             modifiers: None,
                             value: stub,
@@ -1395,7 +1395,7 @@ impl Parser {
 
         // tree literal
         let left = path.as_ref().map(|path| {
-            let expression_id = self.tree.insert(
+            let expression_id = self.insert_node(
                 Expression::Path {
                     path: path.clone(),
                     static_arguments: static_arguments.clone(),
@@ -1412,7 +1412,7 @@ impl Parser {
             arguments,
             elements,
         };
-        Ok(self.tree.insert(expression, self.get_span_from(&start)))
+        Ok(self.insert_node(expression, self.get_span_from(&start)))
     }
 
     /// Validate shorthand object literal keys in JS/TS.

@@ -363,7 +363,7 @@ impl Parser {
             let _emit_docs_timing = self
                 .timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACH_SIDE_EMIT_DOCS);
             for pending in pending_documentation {
-                let doc_id = self.tree.insert(
+                let doc_id = self.insert_node(
                     Doc {
                         string: pending.string,
                         style: pending.style,
@@ -381,7 +381,7 @@ impl Parser {
                 crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACH_SIDE_EMIT_COMMENTS,
             );
             for pending in pending_comment_trivia {
-                let comment_id = self.tree.insert(
+                let comment_id = self.insert_node(
                     Comment {
                         style: pending.style,
                     },
@@ -655,7 +655,7 @@ impl Parser {
 
         // emit blank trivia after lookup phase to keep source-map index stable
         for pending in pending_blank_trivia {
-            let blank_id = self.tree.insert(
+            let blank_id = self.insert_node(
                 Blank {
                     lines: pending.lines,
                 },

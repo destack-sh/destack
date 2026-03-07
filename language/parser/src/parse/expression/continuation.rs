@@ -139,7 +139,7 @@ impl Parser {
                 && is_destack_language
             {
                 let properties = self.eat_object_literal()?;
-                left_expression_id = self.tree.insert(
+                left_expression_id = self.insert_node(
                     Expression::ObjectExpression {
                         ty: Some(left_expression_id),
                         properties,
@@ -196,7 +196,7 @@ impl Parser {
                     let operator_start = self.mark_span();
                     self.bump(); // eat unary operator
                     let operator_span = self.get_span_from(&operator_start);
-                    left_expression_id = self.tree.insert(
+                    left_expression_id = self.insert_node(
                         Expression::Unary {
                             operator,
                             right: left_expression_id,
@@ -218,7 +218,7 @@ impl Parser {
                         }
 
                         let template_literal = self.eat_tagged_template_literal()?;
-                        left_expression_id = self.tree.insert(
+                        left_expression_id = self.insert_node(
                             Expression::TaggedTemplateExpression {
                                 tag: left_expression_id,
                                 value: template_literal,
@@ -333,7 +333,7 @@ impl Parser {
 
                             self.bump(); // eat .
                             self.bump(); // eat ?
-                            left_expression_id = self.tree.insert(
+                            left_expression_id = self.insert_node(
                                 Expression::Maybe {
                                     left: left_expression_id,
                                     position: PostfixPosition::Indirect,
@@ -346,7 +346,7 @@ impl Parser {
                         if next_token_type == TokenType::Not {
                             self.bump(); // eat .
                             self.bump(); // eat !
-                            left_expression_id = self.tree.insert(
+                            left_expression_id = self.insert_node(
                                 Expression::Must {
                                     position: PostfixPosition::Indirect,
                                     left: left_expression_id,
@@ -378,7 +378,7 @@ impl Parser {
                             self.bump(); // eat #
                             let (name, name_span) = self.eat_identifier_with_span()?;
                             let static_arguments = self.eat_static_arguments_in_expression(false);
-                            left_expression_id = self.tree.insert(
+                            left_expression_id = self.insert_node(
                                 Expression::PrivateMember {
                                     left: left_expression_id,
                                     name,
@@ -399,7 +399,7 @@ impl Parser {
 
                         let (name, name_span) = self.eat_member_name_with_span()?;
                         let static_arguments = self.eat_static_arguments_in_expression(false);
-                        left_expression_id = self.tree.insert(
+                        left_expression_id = self.insert_node(
                             Expression::Member {
                                 left: left_expression_id,
                                 name,
@@ -473,7 +473,7 @@ impl Parser {
                                 self.bump(); // eat second token
                             }
                             let operator_span = self.get_span_from(&operator_start);
-                            left_expression_id = self.tree.insert(
+                            left_expression_id = self.insert_node(
                                 Expression::TypeUnary {
                                     operator,
                                     right: left_expression_id,
@@ -510,7 +510,7 @@ impl Parser {
 
                         if is_postfix_maybe {
                             self.bump(); // eat ?
-                            left_expression_id = self.tree.insert(
+                            left_expression_id = self.insert_node(
                                 Expression::Maybe {
                                     left: left_expression_id,
                                     position: PostfixPosition::Direct,
@@ -523,7 +523,7 @@ impl Parser {
                         if !is_in_type && is_indirect_current_maybe {
                             self.bump(); // eat .
                             self.bump(); // eat ?
-                            left_expression_id = self.tree.insert(
+                            left_expression_id = self.insert_node(
                                 Expression::Maybe {
                                     left: left_expression_id,
                                     position: PostfixPosition::Indirect,
@@ -570,13 +570,13 @@ impl Parser {
                             else_type: else_expression_id,
                         };
                         left_expression_id =
-                            self.tree.insert(expression, self.get_span_from(start));
+                            self.insert_node(expression, self.get_span_from(start));
                     }
 
                     // direct must postfix
                     TokenType::Not => {
                         self.bump(); // eat !
-                        left_expression_id = self.tree.insert(
+                        left_expression_id = self.insert_node(
                             Expression::Must {
                                 position: PostfixPosition::Direct,
                                 left: left_expression_id,
@@ -590,7 +590,7 @@ impl Parser {
                         self.bump(); // eat comma
                         self.eat_newlines_maybe()?;
                         if self.language.is_destack() {
-                            let first_element_id = self.tree.insert(
+                            let first_element_id = self.insert_node(
                                 Argument::Positional {
                                     modifiers: None,
                                     value: left_expression_id,
@@ -607,7 +607,7 @@ impl Parser {
                                         TokenType::CloseParenthesis,
                                     )
                                 })?;
-                            left_expression_id = self.tree.insert(
+                            left_expression_id = self.insert_node(
                                 Expression::TupleExpression {
                                     elements: tuple_elements,
                                 },
@@ -629,7 +629,7 @@ impl Parser {
                                 expressions.push(expr_id);
                                 self.eat_newlines_maybe()?;
                             }
-                            left_expression_id = self.tree.insert(
+                            left_expression_id = self.insert_node(
                                 Expression::SequenceExpression { expressions },
                                 self.get_span_from(start),
                             );
@@ -834,7 +834,7 @@ impl Parser {
                     right_operator,
                     right_expression_id,
                 );
-                left_expression_id = self.tree.insert(left_expression, self.get_span_from(start));
+                left_expression_id = self.insert_node(left_expression, self.get_span_from(start));
 
                 // set main span to the operator
                 self.tree.set_main_span(left_expression_id, operator_span);
@@ -919,7 +919,7 @@ impl Parser {
                 then_type: then_expression_id,
                 else_type: else_expression_id,
             };
-            left_expression_id = self.tree.insert(expression, self.get_span_from(start));
+            left_expression_id = self.insert_node(expression, self.get_span_from(start));
         }
         // value ternary after infix to keep lowest precedence
         // NOTE #Cleanup: having multiple ternary parse locations feels icky (but non-trivial to "fix")
@@ -959,7 +959,7 @@ impl Parser {
                     then_expression: then_expression_id,
                     else_expression: Some(else_expression_id),
                 };
-                left_expression_id = self.tree.insert(expression, self.get_span_from(start));
+                left_expression_id = self.insert_node(expression, self.get_span_from(start));
                 tail_cursor = self.scanner_cursor_from(self.pos_index());
             }
 
@@ -985,7 +985,7 @@ impl Parser {
                 }
 
                 let expression = Expression::SequenceExpression { expressions };
-                left_expression_id = self.tree.insert(expression, self.get_span_from(start));
+                left_expression_id = self.insert_node(expression, self.get_span_from(start));
             }
         }
 
@@ -1122,7 +1122,7 @@ impl Parser {
             return Ok(Some(expression_id));
         }
 
-        let expression_id = self.tree.insert(
+        let expression_id = self.insert_node(
             Expression::Instantiation {
                 left: left_expression_id,
                 static_arguments,

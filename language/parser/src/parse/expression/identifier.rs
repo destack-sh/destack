@@ -45,7 +45,7 @@ impl Parser {
                 path,
                 static_arguments: None,
             };
-            let receiver_id = self.tree.insert(receiver, self.get_span_from(start));
+            let receiver_id = self.insert_node(receiver, self.get_span_from(start));
             self.tree.set_main_span(receiver_id, last_span);
             self.eat_call(receiver_id, static_arguments, PostfixPosition::Direct)
         } else {
@@ -53,7 +53,7 @@ impl Parser {
                 path,
                 static_arguments,
             };
-            let expression_id = self.tree.insert(expression, self.get_span_from(start));
+            let expression_id = self.insert_node(expression, self.get_span_from(start));
             self.tree.set_main_span(expression_id, last_span);
             Ok(expression_id)
         }

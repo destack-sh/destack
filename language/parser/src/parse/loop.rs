@@ -29,7 +29,7 @@ impl Parser {
         let body_id = self.eat_block(BlockContext::Statement)?;
 
         // loop
-        let loop_id = self.tree.insert(
+        let loop_id = self.insert_node(
             Expression::Loop { body: body_id },
             self.get_span_from(&start),
         );
@@ -129,7 +129,7 @@ impl Parser {
             let body_id = self.eat_block_or_statement()?;
 
             // for
-            let for_id = self.tree.insert(
+            let for_id = self.insert_node(
                 Expression::For {
                     initialization: initialization_id,
                     condition: condition_id,
@@ -185,7 +185,7 @@ impl Parser {
             let body_id = self.eat_block_or_statement()?;
 
             // for
-            let for_id = self.tree.insert(
+            let for_id = self.insert_node(
                 Expression::ForEach {
                     asynchrony,
                     kind,
@@ -232,7 +232,7 @@ impl Parser {
                         .in_before_block(),
                 )?;
 
-                let pattern = self.tree.insert(
+                let pattern = self.insert_node(
                     Pattern::Expression { value: expression },
                     self.get_span_from(&start),
                 );
@@ -348,7 +348,7 @@ impl Parser {
             })?;
 
             // while
-            let while_id = self.tree.insert(
+            let while_id = self.insert_node(
                 Expression::While {
                     kind: WhileKind::DoWhile,
                     condition: condition_id,
@@ -373,7 +373,7 @@ impl Parser {
             let body_id = self.eat_block_or_statement()?;
 
             // while
-            let while_id = self.tree.insert(
+            let while_id = self.insert_node(
                 Expression::While {
                     kind: WhileKind::While,
                     condition: condition_id,

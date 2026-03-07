@@ -120,7 +120,7 @@ impl Parser {
         let body = if self.peek_is(TokenType::Semicolon) {
             let body_start = self.mark_span();
             self.bump(); // eat semicolon
-            let block_id = self.tree.insert(
+            let block_id = self.insert_node(
                 Block {
                     context: BlockContext::Statement,
                     format: BlockFormat::Implicit,
@@ -140,7 +140,7 @@ impl Parser {
         }
 
         // build labelled expression
-        let labelled_id = self.tree.insert(
+        let labelled_id = self.insert_node(
             Expression::Labelled { label, body },
             self.get_span_from(start),
         );
@@ -344,7 +344,7 @@ impl Parser {
         // empty statement (just semicolon, e.g., `for (x of y);`)
         if self.peek_is(TokenType::Semicolon) {
             self.bump();
-            let block_id = self.tree.insert(
+            let block_id = self.insert_node(
                 Block {
                     context: BlockContext::Statement,
                     format: BlockFormat::Implicit,
@@ -375,7 +375,7 @@ impl Parser {
         }
 
         // wrap in a block
-        let block_id = self.tree.insert(
+        let block_id = self.insert_node(
             Block {
                 context: BlockContext::Statement,
                 format: BlockFormat::Implicit,
@@ -453,7 +453,7 @@ impl Parser {
         self.eat_token(TokenType::CloseBrace)?;
 
         // block
-        let block_id = self.tree.insert(
+        let block_id = self.insert_node(
             Block {
                 context: block_context,
                 format: BlockFormat::Explicit,
@@ -710,7 +710,7 @@ impl Parser {
         };
 
         // break
-        let break_id = self.tree.insert(
+        let break_id = self.insert_node(
             Expression::Break {
                 label,
                 value: value_id,
@@ -796,7 +796,7 @@ impl Parser {
                 expression: expression_id,
             }
         };
-        let await_id = self.tree.insert(expression, self.get_span_from(&start));
+        let await_id = self.insert_node(expression, self.get_span_from(&start));
         Ok(await_id)
     }
 
@@ -827,7 +827,7 @@ impl Parser {
         )?;
 
         // comptime
-        let comptime_id = self.tree.insert(
+        let comptime_id = self.insert_node(
             Expression::Comptime { body: body_id },
             self.get_span_from(&start),
         );
@@ -852,7 +852,7 @@ impl Parser {
         // stop when yield has no explicit operand in this position
         let mut operand_is_omitted = self.yield_operand_is_omitted();
         if operand_is_omitted {
-            let yield_id = self.tree.insert(
+            let yield_id = self.insert_node(
                 Expression::Yield {
                     cardinality: YieldCardinality::Scalar,
                     value: None,
@@ -889,7 +889,7 @@ impl Parser {
         }
 
         // yield
-        let yield_id = self.tree.insert(
+        let yield_id = self.insert_node(
             Expression::Yield {
                 cardinality,
                 value: value_id,
@@ -937,7 +937,7 @@ impl Parser {
         let value_id = self.eat_expression_not_in_position()?;
 
         // throw
-        let throw_id = self.tree.insert(
+        let throw_id = self.insert_node(
             Expression::Throw { value: value_id },
             self.get_span_from(&start),
         );
@@ -966,7 +966,7 @@ impl Parser {
             None
         };
         // return
-        let return_id = self.tree.insert(
+        let return_id = self.insert_node(
             Expression::Return { value: value_id },
             self.get_span_from(&start),
         );

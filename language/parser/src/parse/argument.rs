@@ -666,7 +666,7 @@ impl Parser {
         };
 
         // parameter
-        let parameter_id = self.tree.insert(parameter, self.get_span_from(&start));
+        let parameter_id = self.insert_node(parameter, self.get_span_from(&start));
 
         // set main span to the name identifier
         if let Some(span) = name_span {
@@ -944,7 +944,7 @@ impl Parser {
                 self.current_positional_argument_context(),
             )?;
             let value_span = self.tree.get_span(value);
-            let argument_id = self.tree.insert(
+            let argument_id = self.insert_node(
                 Argument::Positional {
                     modifiers: None,
                     value,
@@ -1018,7 +1018,7 @@ impl Parser {
             };
 
             // build spread argument
-            let argument_id = self.tree.insert(
+            let argument_id = self.insert_node(
                 Argument::Spread {
                     modifiers,
                     label,
@@ -1054,7 +1054,7 @@ impl Parser {
             )?;
 
             // build labeled argument
-            let argument_id = self.tree.insert(
+            let argument_id = self.insert_node(
                 Argument::Labeled {
                     modifiers,
                     label,
@@ -1099,7 +1099,7 @@ impl Parser {
         }
 
         // build positional argument
-        let argument_id = self.tree.insert(
+        let argument_id = self.insert_node(
             Argument::Positional { modifiers, value },
             self.get_span_from(&start),
         );
@@ -1132,7 +1132,7 @@ impl Parser {
             let value = self.eat_expression_with_context_unchecked(
                 self.current_positional_argument_context(),
             )?;
-            let argument_id = self.tree.insert(
+            let argument_id = self.insert_node(
                 Argument::Named {
                     modifiers: None,
                     name,
@@ -1149,7 +1149,7 @@ impl Parser {
             let value = self.eat_expression_with_context_unchecked(
                 self.current_positional_argument_context(),
             )?;
-            let argument_id = self.tree.insert(
+            let argument_id = self.insert_node(
                 Argument::Spread {
                     modifiers: None,
                     label: None,
@@ -1171,7 +1171,7 @@ impl Parser {
                     .insert(Expression::Stub, self.get_span_from(&start));
 
                 self.bump(); // eat }
-                let argument_id = self.tree.insert(
+                let argument_id = self.insert_node(
                     Argument::Positional {
                         modifiers: None,
                         value,
@@ -1198,7 +1198,7 @@ impl Parser {
 
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::CloseBrace)?;
-                let argument_id = self.tree.insert(
+                let argument_id = self.insert_node(
                     Argument::Spread {
                         modifiers: None,
                         label: None,
@@ -1223,7 +1223,7 @@ impl Parser {
 
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseBrace)?;
-            let argument_id = self.tree.insert(
+            let argument_id = self.insert_node(
                 Argument::Positional {
                     modifiers: None,
                     value,
@@ -1255,7 +1255,7 @@ impl Parser {
             let value_expression_context =
                 self.options.not_in_position().not_in_sequence_expression();
             let value = self.eat_expression_with_context_unchecked(value_expression_context)?;
-            let argument_id = self.tree.insert(
+            let argument_id = self.insert_node(
                 Argument::Positional {
                     modifiers: None,
                     value,
@@ -1283,7 +1283,7 @@ impl Parser {
             self.bump(); // eat spread
             let value_expression_context = self.options.with_statement_position(true);
             let value = self.eat_expression_with_context_unchecked(value_expression_context)?;
-            let argument_id = self.tree.insert(
+            let argument_id = self.insert_node(
                 Argument::Spread {
                     modifiers: None,
                     label: None,
@@ -1313,7 +1313,7 @@ impl Parser {
             )?;
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseBrace)?;
-            let argument_id = self.tree.insert(
+            let argument_id = self.insert_node(
                 Argument::Spread {
                     modifiers: None,
                     label: None,
@@ -1362,7 +1362,7 @@ impl Parser {
                 // string literal attribute
                 else if self.peek_string_literal_is() {
                     let (string, span) = self.eat_string_literal_with_span()?;
-                    self.tree.insert(
+                    self.insert_node(
                         Expression::ScalarLiteral(ScalarLiteral::String(string)),
                         span,
                     )
@@ -1378,7 +1378,7 @@ impl Parser {
                             .with_expression_context(value_expression_context),
                         |parser| parser.eat_array_literal(),
                     )?;
-                    self.tree.insert(
+                    self.insert_node(
                         Expression::ArrayExpression { elements },
                         self.get_span_from(&value_start),
                     )
@@ -1401,13 +1401,13 @@ impl Parser {
             }
             // implicit boolean true
             else {
-                self.tree.insert(
+                self.insert_node(
                     Expression::ScalarLiteral(ScalarLiteral::Boolean(true)),
                     self.get_span_from(&start),
                 )
             };
 
-            let argument_id = self.tree.insert(
+            let argument_id = self.insert_node(
                 Argument::Named {
                     modifiers: None,
                     name: Name::Identifier(name),

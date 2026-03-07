@@ -488,7 +488,7 @@ impl Parser {
                 global_descriptor.kind = DeclarationKind::Declaration;
             }
             let global_id = self.eat_global(start, global_descriptor)?;
-            let expression_id = self.tree.insert(
+            let expression_id = self.insert_node(
                 Expression::Declaration(global_id),
                 self.get_span_from(start),
             );

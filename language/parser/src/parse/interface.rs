@@ -113,7 +113,7 @@ impl Parser {
             // interface
             let generics = Generics::new(static_parameters, where_clauses);
             let heritage = Heritage::new(extends_types, None);
-            let interface_id = self.tree.insert(
+            let interface_id = self.insert_node(
                 Declaration::Interface {
                     descriptor,
                     kind,

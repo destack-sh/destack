@@ -306,7 +306,7 @@ impl Parser {
 
         // lower const assertions to the same unary node used by `as const`
         let expression_id = if is_const_assertion {
-            self.tree.insert(
+            self.insert_node(
                 Expression::TypeUnary {
                     operator: TypeUnaryOperator::AsConst,
                     right: asserted_value,
@@ -320,7 +320,7 @@ impl Parser {
                 return Err(ParseError::unexpected(operator_span));
             };
 
-            self.tree.insert(
+            self.insert_node(
                 Expression::TypeBinary {
                     left: asserted_value,
                     operator: TypeBinaryOperator::Cast,

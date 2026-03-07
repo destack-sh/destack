@@ -95,7 +95,7 @@ impl Parser {
 
         let generics = Generics::new(static_parameters, where_clauses);
         let heritage = Heritage::new(extends_types, implements_types);
-        let enum_id = self.tree.insert(
+        let enum_id = self.insert_node(
             Declaration::Enum {
                 descriptor,
                 kind,
