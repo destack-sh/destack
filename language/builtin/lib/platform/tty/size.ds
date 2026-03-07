@@ -32,18 +32,17 @@ declare namespace tty {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tty.size.getSize",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tty.size"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tty.size.getSize", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tty.size"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function getSize(handle: TtyHandle): Result<TtySize, PlatformError>;
 
     /// Apply terminal size.
@@ -63,17 +62,16 @@ declare namespace tty {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tty.size.setSize",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tty.size"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tty.size.setSize", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tty.size"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function setSize(handle: TtyHandle, size: TtySize): Result<void, PlatformError>;
 }

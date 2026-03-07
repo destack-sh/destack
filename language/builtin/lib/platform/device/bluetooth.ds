@@ -1,6 +1,10 @@
 import { Array, Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
-import { BluetoothDeviceHandle, BluetoothScanHandle, BluetoothSubscriptionHandle } from "../resource/index.ds";
+import {
+    BluetoothDeviceHandle,
+    BluetoothScanHandle,
+    BluetoothSubscriptionHandle,
+} from "../resource/index.ds";
 
 /// Bluetooth adapter descriptor.
 export struct BluetoothAdapterDescriptor {
@@ -194,6 +198,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bluetoothAdapterList(): Result<Slice<BluetoothAdapterDescriptor>, PlatformError>;
 
@@ -221,6 +226,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bluetoothScanOpen(
         adapterId: string,
@@ -251,6 +257,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bluetoothScanClose(handle: BluetoothScanHandle): Result<void, PlatformError>;
 
@@ -278,6 +285,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bluetoothScanRead(
         handle: BluetoothScanHandle,
@@ -308,6 +316,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function bluetoothScanTryRead(handle: BluetoothScanHandle): Result<BluetoothDeviceDescriptor, PlatformError>;
 
@@ -335,8 +344,12 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function bluetoothOpen(adapterId: string, deviceId: string): Result<BluetoothDeviceHandle, PlatformError>;
+    export function bluetoothOpen(
+        adapterId: string,
+        deviceId: string,
+    ): Result<BluetoothDeviceHandle, PlatformError>;
 
     /// Close Bluetooth device session.
     ///
@@ -362,6 +375,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bluetoothClose(handle: BluetoothDeviceHandle): Result<void, PlatformError>;
 
@@ -389,6 +403,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bluetoothPair(
         handle: BluetoothDeviceHandle,
@@ -419,8 +434,12 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function bluetoothUnpair(adapterId: string, deviceId: string): Result<void, PlatformError>;
+    export function bluetoothUnpair(
+        adapterId: string,
+        deviceId: string,
+    ): Result<void, PlatformError>;
 
     /// Read link RSSI for one Bluetooth device session.
     ///
@@ -446,6 +465,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bluetoothReadRssi(
         handle: BluetoothDeviceHandle,
@@ -476,6 +496,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bluetoothGattServiceList(handle: BluetoothDeviceHandle): Result<Slice<BluetoothGattServiceDescriptor>, PlatformError>;
 
@@ -503,6 +524,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bluetoothGattCharacteristicList(
         handle: BluetoothDeviceHandle,
@@ -533,6 +555,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bluetoothGattDescriptorList(
         handle: BluetoothDeviceHandle,
@@ -564,6 +587,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bluetoothGattReadDescriptor(
         handle: BluetoothDeviceHandle,
@@ -597,6 +621,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bluetoothGattWriteDescriptor(
         handle: BluetoothDeviceHandle,
@@ -631,6 +656,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bluetoothGattRequestMtu(
         handle: BluetoothDeviceHandle,
@@ -662,6 +688,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function bluetoothGattMtu(handle: BluetoothDeviceHandle): Result<uint16, PlatformError>;
 
@@ -689,6 +716,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bluetoothGattRead(
         handle: BluetoothDeviceHandle,
@@ -721,6 +749,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bluetoothGattWrite(
         handle: BluetoothDeviceHandle,
@@ -755,6 +784,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bluetoothGattSubscribe(
         handle: BluetoothDeviceHandle,
@@ -786,6 +816,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bluetoothGattUnsubscribe(handle: BluetoothSubscriptionHandle): Result<void, PlatformError>;
 
@@ -813,6 +844,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bluetoothGattReadEvent(
         handle: BluetoothSubscriptionHandle,
@@ -843,8 +875,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
-    export function bluetoothGattTryReadEvent(
-        handle: BluetoothSubscriptionHandle,
-    ): Result<BluetoothGattValueEvent, PlatformError>;
+    export function bluetoothGattTryReadEvent(handle: BluetoothSubscriptionHandle): Result<BluetoothGattValueEvent, PlatformError>;
 }

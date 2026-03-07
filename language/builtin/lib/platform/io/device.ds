@@ -23,19 +23,22 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.device.open",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.device.read", "io.device.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function deviceOpen(path: OsPath, flags: uint32, mode: uint32): Result<DeviceHandle, PlatformError>;
+    @binding("destack.io.device.open", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.device.read", "io.device.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function deviceOpen(
+        path: OsPath,
+        flags: uint32,
+        mode: uint32,
+    ): Result<DeviceHandle, PlatformError>;
 
     /// Close one raw device endpoint.
     ///
@@ -54,18 +57,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.device.close",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.device.read", "io.device.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.device.close", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.device.read", "io.device.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function deviceClose(handle: DeviceHandle): Result<void, PlatformError>;
 
     /// Read bytes from one raw device endpoint.
@@ -85,19 +87,21 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.device.read",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.device.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function deviceRead(handle: DeviceHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;
+    @binding("destack.io.device.read", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.device.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function deviceRead(
+        handle: DeviceHandle,
+        buffer: Slice<uint8>,
+    ): Result<uint64, PlatformError>;
 
     /// Write bytes to one raw device endpoint.
     ///
@@ -116,19 +120,21 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.device.write",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.device.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function deviceWrite(handle: DeviceHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;
+    @binding("destack.io.device.write", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.device.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function deviceWrite(
+        handle: DeviceHandle,
+        buffer: Slice<uint8>,
+    ): Result<uint64, PlatformError>;
 
     /// Run one device-specific control request.
     ///
@@ -147,18 +153,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.device.control",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.device.control"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.device.control", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.device.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function deviceControl(
         handle: DeviceHandle,
         request: DescriptorRequest,

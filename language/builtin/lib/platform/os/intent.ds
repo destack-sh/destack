@@ -108,7 +108,12 @@ export struct IntentCustomActionEvent {
 }
 
 /// Inbound intent event.
-export newtype IntentEvent = IntentOpenUrlEvent | IntentOpenFileEvent | IntentShareTextEvent | IntentShareFilesEvent | IntentCustomActionEvent;
+export newtype IntentEvent =
+    | IntentOpenUrlEvent
+    | IntentOpenFileEvent
+    | IntentShareTextEvent
+    | IntentShareFilesEvent
+    | IntentCustomActionEvent;
 
 /// Intent stream open options.
 export struct IntentOpenOptions {
@@ -148,6 +153,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function intentOpen(options: IntentOpenOptions): Result<IntentHandle, PlatformError>;
 
@@ -175,6 +181,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function intentClose(handle: IntentHandle): Result<void, PlatformError>;
 
@@ -202,8 +209,12 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function intentRead(handle: IntentHandle, timeoutNs: uint64): Result<IntentEvent, PlatformError>;
+    export function intentRead(
+        handle: IntentHandle,
+        timeoutNs: uint64,
+    ): Result<IntentEvent, PlatformError>;
 
     /// Poll one inbound intent event without blocking.
     ///
@@ -229,6 +240,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function intentTryRead(handle: IntentHandle): Result<IntentEvent, PlatformError>;
 
@@ -256,6 +268,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function intentCanOpenUrl(url: string): Result<boolean, PlatformError>;
 
@@ -283,6 +296,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function intentOpenUrl(url: string): Result<void, PlatformError>;
 
@@ -310,6 +324,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function intentOpenPath(path: OsPath): Result<void, PlatformError>;
 
@@ -337,6 +352,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function intentShareText(text: string, mimeType: string): Result<void, PlatformError>;
 
@@ -364,6 +380,10 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function intentSharePaths(paths: Array<OsPath>, mimeType: string): Result<void, PlatformError>;
+    export function intentSharePaths(
+        paths: Array<OsPath>,
+        mimeType: string,
+    ): Result<void, PlatformError>;
 }

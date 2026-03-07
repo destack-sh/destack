@@ -203,15 +203,15 @@ export struct CryptoKeyGenerationRequestHmac {
 
 /// Key-generation request.
 export newtype CryptoKeyGenerationRequest =
-    CryptoKeyGenerationRequestRsa |
-    CryptoKeyGenerationRequestEc |
-    CryptoKeyGenerationRequestEd25519 |
-    CryptoKeyGenerationRequestEd448 |
-    CryptoKeyGenerationRequestX25519 |
-    CryptoKeyGenerationRequestX448 |
-    CryptoKeyGenerationRequestAes |
-    CryptoKeyGenerationRequestChaCha20 |
-    CryptoKeyGenerationRequestHmac;
+    | CryptoKeyGenerationRequestRsa
+    | CryptoKeyGenerationRequestEc
+    | CryptoKeyGenerationRequestEd25519
+    | CryptoKeyGenerationRequestEd448
+    | CryptoKeyGenerationRequestX25519
+    | CryptoKeyGenerationRequestX448
+    | CryptoKeyGenerationRequestAes
+    | CryptoKeyGenerationRequestChaCha20
+    | CryptoKeyGenerationRequestHmac;
 
 /// RSA key import request.
 export struct CryptoKeyImportRequestRsa {
@@ -446,15 +446,15 @@ export struct CryptoKeyImportRequestHmac {
 
 /// Key import request.
 export newtype CryptoKeyImportRequest =
-    CryptoKeyImportRequestRsa |
-    CryptoKeyImportRequestEc |
-    CryptoKeyImportRequestEd25519 |
-    CryptoKeyImportRequestEd448 |
-    CryptoKeyImportRequestX25519 |
-    CryptoKeyImportRequestX448 |
-    CryptoKeyImportRequestAes |
-    CryptoKeyImportRequestChaCha20 |
-    CryptoKeyImportRequestHmac;
+    | CryptoKeyImportRequestRsa
+    | CryptoKeyImportRequestEc
+    | CryptoKeyImportRequestEd25519
+    | CryptoKeyImportRequestEd448
+    | CryptoKeyImportRequestX25519
+    | CryptoKeyImportRequestX448
+    | CryptoKeyImportRequestAes
+    | CryptoKeyImportRequestChaCha20
+    | CryptoKeyImportRequestHmac;
 
 /// Generated key pair.
 export struct CryptoKeyPair {
@@ -689,15 +689,15 @@ export struct CryptoKeyDescriptorHmac {
 
 /// Key descriptor.
 export newtype CryptoKeyDescriptor =
-    CryptoKeyDescriptorRsa |
-    CryptoKeyDescriptorEc |
-    CryptoKeyDescriptorEd25519 |
-    CryptoKeyDescriptorEd448 |
-    CryptoKeyDescriptorX25519 |
-    CryptoKeyDescriptorX448 |
-    CryptoKeyDescriptorAes |
-    CryptoKeyDescriptorChaCha20 |
-    CryptoKeyDescriptorHmac;
+    | CryptoKeyDescriptorRsa
+    | CryptoKeyDescriptorEc
+    | CryptoKeyDescriptorEd25519
+    | CryptoKeyDescriptorEd448
+    | CryptoKeyDescriptorX25519
+    | CryptoKeyDescriptorX448
+    | CryptoKeyDescriptorAes
+    | CryptoKeyDescriptorChaCha20
+    | CryptoKeyDescriptorHmac;
 
 /// Signature parameters.
 export struct CryptoSignatureParameters {
@@ -766,18 +766,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.key.generateSecret",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.key.generate"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.key.generateSecret", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.key.generate"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function keyGenerateSecret(
         store: CryptoStoreHandle,
         request: CryptoKeyGenerationRequest,
@@ -800,18 +799,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.key.generatePair",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.key.generate"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.key.generatePair", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.key.generate"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function keyGeneratePair(
         store: CryptoStoreHandle,
         request: CryptoKeyGenerationRequest,
@@ -835,18 +833,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.key.import",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.store.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.key.import", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.store.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function keyImport(
         store: CryptoStoreHandle,
         request: CryptoKeyImportRequest,
@@ -868,18 +865,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.key.exportPublic",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.store.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.key.exportPublic", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.store.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function keyExportPublic(
         handle: CryptoKeyHandle,
         format: CryptoKeyFormat,
@@ -904,18 +900,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.key.exportPrivate",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.store.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.key.exportPrivate", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.store.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function keyExportPrivate(
         handle: CryptoKeyHandle,
         request: CryptoPrivateKeyExportRequest,
@@ -938,18 +933,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.key.exportSecret",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.store.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.key.exportSecret", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.store.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function keyExportSecret(
         handle: CryptoKeyHandle,
         format: CryptoKeyFormat,
@@ -971,18 +965,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.key.descriptor",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.store.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.key.descriptor", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.store.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function keyDescriptor(handle: CryptoKeyHandle): Result<CryptoKeyDescriptor, PlatformError>;
 
     /// Sign one payload.
@@ -1002,18 +995,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.key.sign",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.key.sign"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.key.sign", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.key.sign"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function keySign(
         handle: CryptoKeyHandle,
         parameters: CryptoSignatureParameters,
@@ -1037,18 +1029,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.key.verify",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.key.verify"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.key.verify", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.key.verify"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function keyVerify(
         handle: CryptoKeyHandle,
         parameters: CryptoSignatureParameters,
@@ -1073,18 +1064,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.key.encrypt",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.key.encrypt"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.key.encrypt", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.key.encrypt"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function keyEncrypt(
         handle: CryptoKeyHandle,
         parameters: CryptoAsymmetricEncryptionParameters,
@@ -1108,18 +1098,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.key.decrypt",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.key.decrypt"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.key.decrypt", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.key.decrypt"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function keyDecrypt(
         handle: CryptoKeyHandle,
         parameters: CryptoAsymmetricEncryptionParameters,
@@ -1144,18 +1133,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.key.wrap",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.key.wrap"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.key.wrap", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.key.wrap"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function keyWrap(
         wrappingKey: CryptoKeyHandle,
         keyToWrap: CryptoKeyHandle,
@@ -1180,18 +1168,17 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.key.unwrap",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.key.unwrap", "crypto.store.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.key.unwrap", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.key.unwrap", "crypto.store.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function keyUnwrap(
         store: CryptoStoreHandle,
         wrappingKey: CryptoKeyHandle,
@@ -1217,17 +1204,16 @@ declare namespace crypto {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.crypto.key.delete",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["crypto.store.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.crypto.key.delete", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["crypto.store.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function keyDelete(handle: CryptoKeyHandle): Result<void, PlatformError>;
 }

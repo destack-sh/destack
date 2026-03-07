@@ -52,18 +52,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.sched.getPriority",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.priority"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.sched.getPriority", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.priority"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function getPriority(pid: ProcessId): Result<int32, PlatformError>;
 
     /// Set a process priority value.
@@ -83,22 +82,18 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.sched.setPriority",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.priority"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
-    export function setPriority(
-        pid: ProcessId,
-        priority: int32,
-    ): Result<void, PlatformError>;
+    @binding("destack.process.sched.setPriority", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.priority"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
+    export function setPriority(pid: ProcessId, priority: int32): Result<void, PlatformError>;
 
     /// Read process CPU affinity.
     ///
@@ -117,18 +112,16 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.sched.getAffinity",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.affinity"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.sched.getAffinity", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.affinity"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function getAffinity(pid: ProcessId): Result<ProcessCpuSet, PlatformError>;
 
     /// Set process CPU affinity.
@@ -148,22 +141,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.sched.setAffinity",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.affinity"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
-    export function setAffinity(
-        pid: ProcessId,
-        cpus: ProcessCpuSet,
-    ): Result<void, PlatformError>;
+    @binding("destack.process.sched.setAffinity", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.affinity"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
+    export function setAffinity(pid: ProcessId, cpus: ProcessCpuSet): Result<void, PlatformError>;
 
     /// Read scheduler policy and priority for a process.
     ///
@@ -182,21 +170,18 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.sched.getScheduler",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.scheduler"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
-    export function getScheduler(
-        pid: ProcessId,
-    ): Result<ProcessSchedulerConfig, PlatformError>;
+    @binding("destack.process.sched.getScheduler", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.scheduler"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
+    export function getScheduler(pid: ProcessId): Result<ProcessSchedulerConfig, PlatformError>;
 
     /// Set scheduler policy and priority for a process.
     ///
@@ -215,18 +200,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.sched.setScheduler",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.scheduler"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.sched.setScheduler", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.scheduler"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function setScheduler(
         pid: ProcessId,
         config: ProcessSchedulerConfig,
@@ -249,17 +233,16 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.sched.yieldNow",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.scheduler"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.sched.yieldNow", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.scheduler"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function yieldNow(): Result<void, PlatformError>;
 }

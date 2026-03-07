@@ -63,6 +63,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function midiPortList(direction: MidiPortDirection): Result<Slice<MidiPortDescriptor>, PlatformError>;
 
@@ -91,8 +92,12 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function midiPortOpen(id: string, direction: MidiPortDirection): Result<MidiPortHandle, PlatformError>;
+    export function midiPortOpen(
+        id: string,
+        direction: MidiPortDirection,
+    ): Result<MidiPortHandle, PlatformError>;
 
     /// Close one MIDI endpoint.
     ///
@@ -118,6 +123,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function midiPortClose(handle: MidiPortHandle): Result<void, PlatformError>;
 
@@ -145,6 +151,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function midiRead(
         handle: MidiPortHandle,
@@ -176,8 +183,12 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
-    export function midiTryRead(handle: MidiPortHandle, maxMessages: uint32): Result<Array<MidiMessage>, PlatformError>;
+    export function midiTryRead(
+        handle: MidiPortHandle,
+        maxMessages: uint32,
+    ): Result<Array<MidiMessage>, PlatformError>;
 
     /// Write MIDI messages.
     ///
@@ -203,8 +214,12 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function midiWrite(handle: MidiPortHandle, messages: Array<MidiMessage>): Result<uint32, PlatformError>;
+    export function midiWrite(
+        handle: MidiPortHandle,
+        messages: Array<MidiMessage>,
+    ): Result<uint32, PlatformError>;
 
     /// Flush queued MIDI output.
     ///
@@ -230,6 +245,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function midiFlush(handle: MidiPortHandle): Result<void, PlatformError>;
 }

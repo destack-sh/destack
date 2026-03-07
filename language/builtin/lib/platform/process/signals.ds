@@ -43,18 +43,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.signals.kill",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.signal.send"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.signals.kill", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.signal.send"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function kill(pid: ProcessId, signal: Signal): Result<void, PlatformError>;
 
     /// Subscribe to one signal value.
@@ -74,18 +73,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.signals.signalSubscribe",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.signal.receive"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.signals.signalSubscribe", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.signal.receive"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function signalSubscribe(signal: Signal): Result<SignalHandle, PlatformError>;
 
     /// Remove a signal subscription handle.
@@ -105,18 +103,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.signals.signalUnsubscribe",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.signal.receive"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.signals.signalUnsubscribe", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.signal.receive"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function signalUnsubscribe(handle: SignalHandle): Result<void, PlatformError>;
 
     /// Receive the next signal event from a subscription.
@@ -136,18 +133,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.signals.signalReceive",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.signal.receive"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.signals.signalReceive", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.signal.receive"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function signalReceive(handle: SignalHandle): Result<SignalEvent, PlatformError>;
 
     /// Poll one signal event without blocking.
@@ -167,18 +163,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.signals.signalTryReceive",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.signal.receive"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.signals.signalTryReceive", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.signal.receive"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function signalTryReceive(handle: SignalHandle): Result<SignalEvent, PlatformError>;
 
     /// Read the current thread signal mask.
@@ -198,18 +193,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.signals.signalMaskRead",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.signal.receive"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.signals.signalMaskRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.signal.receive"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function signalMaskRead(): Result<Signal[], PlatformError>;
 
     /// Update the current thread signal mask.
@@ -229,18 +223,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.signals.signalMaskUpdate",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.signal.receive"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.signals.signalMaskUpdate", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.signal.receive"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function signalMaskUpdate(
         how: SignalMaskHow,
         signals: Slice<Signal>,
@@ -263,18 +256,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.signals.signalWait",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.signal.receive"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.signals.signalWait", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.signal.receive"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function signalWait(signals: Slice<Signal>): Result<SignalEvent, PlatformError>;
 
     /// Poll one signal from a requested set without blocking.
@@ -294,17 +286,16 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.signals.signalTryWait",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.signal.receive"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.signals.signalTryWait", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.signal.receive"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function signalTryWait(signals: Slice<Signal>): Result<SignalEvent, PlatformError>;
 }

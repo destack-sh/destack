@@ -1,5 +1,7 @@
 import { Slice } from "native";
-import type { PlatformCapability as IntrinsicPlatformCapability } from "../../../core/intrinsic/binding.ds";
+import type {
+    PlatformCapability as IntrinsicPlatformCapability,
+} from "../../../core/intrinsic/binding.ds";
 import type { PlatformError } from "../error/index.ds";
 
 /// Platform capability selector.
@@ -27,18 +29,17 @@ declare namespace security {
     ///
     /// # Replay
     /// Deterministic.
-    @binding(
-        "destack.security.capability.list",
-        {
-            effect: "deterministic",
-            replay: "nonrecordable",
-            capabilities: ["security.policy.read"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.security.capability.list", {
+        effect: "deterministic",
+        replay: "nonrecordable",
+        capabilities: ["security.policy.read"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function capabilityList(): Result<Slice<PlatformCapability>, PlatformError>;
 
     /// Check one capability.
@@ -58,17 +59,16 @@ declare namespace security {
     ///
     /// # Replay
     /// Deterministic.
-    @binding(
-        "destack.security.capability.has",
-        {
-            effect: "deterministic",
-            replay: "nonrecordable",
-            capabilities: ["security.policy.read"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.security.capability.has", {
+        effect: "deterministic",
+        replay: "nonrecordable",
+        capabilities: ["security.policy.read"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function capabilityHas(capability: PlatformCapability): Result<boolean, PlatformError>;
 }

@@ -1,7 +1,7 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
-
 /// Deterministic random stream bindings for the native runtime.
+
 declare namespace random {
     /// Opaque identifier for a deterministic random stream.
     export newtype RandomStream = uint64;
@@ -39,18 +39,17 @@ declare namespace random {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.random.stream.create",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["random.deterministic"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.random.stream.create", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["random.deterministic"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function stream(): Result<RandomStream, PlatformError>;
 
     /// Allocate a deterministic random stream in one domain.
@@ -70,18 +69,17 @@ declare namespace random {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.random.stream.in",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["random.deterministic"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.random.stream.in", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["random.deterministic"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function streamIn(domain: RandomStreamDomain): Result<RandomStream, PlatformError>;
 
     /// Split a deterministic stream into one child stream.
@@ -101,18 +99,17 @@ declare namespace random {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.random.stream.split",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["random.deterministic"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.random.stream.split", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["random.deterministic"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function streamSplit(parent: RandomStream): Result<RandomStream, PlatformError>;
 
     /// Advance a deterministic stream by one jump count.
@@ -132,18 +129,17 @@ declare namespace random {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.random.stream.jump",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["random.deterministic"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.random.stream.jump", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["random.deterministic"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function streamJump(stream: RandomStream, jump: uint64): Result<void, PlatformError>;
 
     /// Export deterministic stream state.
@@ -163,18 +159,17 @@ declare namespace random {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.random.stream.export",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["random.deterministic"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.random.stream.export", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["random.deterministic"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function streamExport(stream: RandomStream): Result<RandomStreamState, PlatformError>;
 
     /// Import deterministic stream state.
@@ -194,18 +189,17 @@ declare namespace random {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.random.stream.import",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["random.deterministic"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.random.stream.import", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["random.deterministic"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function streamImport(
         stream: RandomStream,
         state: RandomStreamState,
@@ -228,18 +222,17 @@ declare namespace random {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.random.stream.nextU64",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["random.deterministic"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.random.stream.nextU64", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["random.deterministic"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function nextU64(): Result<uint64, PlatformError>;
 
     /// Return a deterministic random uint64 from a specific stream.
@@ -259,18 +252,17 @@ declare namespace random {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.random.stream.nextU64From",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["random.deterministic"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.random.stream.nextU64From", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["random.deterministic"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function nextU64From(stream: RandomStream): Result<uint64, PlatformError>;
 
     /// Fill a slice with deterministic random bytes from the default stream.
@@ -290,18 +282,17 @@ declare namespace random {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.random.stream.fillBytes",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["random.deterministic"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.random.stream.fillBytes", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["random.deterministic"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function fillBytes(buffer: Slice<uint8>): Result<void, PlatformError>;
 
     /// Fill a slice with deterministic random bytes from a specific stream.
@@ -321,18 +312,17 @@ declare namespace random {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.random.stream.fillBytesFrom",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["random.deterministic"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.random.stream.fillBytesFrom", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["random.deterministic"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function fillBytesFrom(
         stream: RandomStream,
         buffer: Slice<uint8>,

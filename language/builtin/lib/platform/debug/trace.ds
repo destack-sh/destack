@@ -32,19 +32,21 @@ declare namespace debug {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.debug.trace.start",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["debug.trace"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "sometimes",
-        },
-    )
-    export function traceStart(level: TraceLevel, destination: string): Result<TraceHandle, PlatformError>;
+    @binding("destack.debug.trace.start", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["debug.trace"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function traceStart(
+        level: TraceLevel,
+        destination: string,
+    ): Result<TraceHandle, PlatformError>;
 
     /// Stop a runtime trace stream.
     ///
@@ -63,18 +65,17 @@ declare namespace debug {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.debug.trace.stop",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["debug.trace"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.debug.trace.stop", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["debug.trace"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function traceStop(handle: TraceHandle): Result<void, PlatformError>;
 
     /// Emit one trace event.
@@ -94,17 +95,20 @@ declare namespace debug {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.debug.trace.emit",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["debug.trace"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "sometimes",
-        },
-    )
-    export function traceEmit(category: string, name: string, payloadJson: string): Result<void, PlatformError>;
+    @binding("destack.debug.trace.emit", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["debug.trace"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function traceEmit(
+        category: string,
+        name: string,
+        payloadJson: string,
+    ): Result<void, PlatformError>;
 }

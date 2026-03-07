@@ -438,6 +438,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function shaderCreate(
         device: GpuDeviceHandle,
@@ -470,6 +471,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function shaderDestroy(handle: GpuShaderHandle): Result<void, PlatformError>;
 
@@ -498,6 +500,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function shaderCompilationInfo(
         handle: GpuShaderHandle,
@@ -529,6 +532,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function computePipelineCreate(
         device: GpuDeviceHandle,
@@ -560,6 +564,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function renderPipelineCreate(
         device: GpuDeviceHandle,
@@ -591,6 +596,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function pipelineBindGroupLayout(
         pipeline: GpuPipelineHandle,
@@ -622,6 +628,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function pipelineDestroy(handle: GpuPipelineHandle): Result<void, PlatformError>;
 }

@@ -40,7 +40,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.interface.listInterfaces", { effect: "external", replay: "recordable", capabilities: ["net.interface"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.interface.listInterfaces", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.interface"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function listInterfaces(): Result<Array<NetInterface>, PlatformError>;
 
     /// Resolve an interface name to an index.
@@ -60,7 +69,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.interface.interfaceIndex", { effect: "external", replay: "recordable", capabilities: ["net.interface"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.interface.interfaceIndex", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.interface"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function interfaceIndex(name: string): Result<uint32, PlatformError>;
 
     /// Resolve an interface index to a name.
@@ -80,6 +98,15 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.interface.interfaceName", { effect: "external", replay: "recordable", capabilities: ["net.interface"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.interface.interfaceName", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.interface"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function interfaceName(index: uint32): Result<string, PlatformError>;
 }

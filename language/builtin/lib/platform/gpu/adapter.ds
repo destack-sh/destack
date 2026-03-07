@@ -206,6 +206,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function adapterList(request: GpuAdapterRequest): Result<Array<GpuAdapterInfo>, PlatformError>;
 
@@ -234,6 +235,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function adapterOpen(id: string): Result<GpuAdapterHandle, PlatformError>;
 
@@ -262,6 +264,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function adapterInfo(handle: GpuAdapterHandle): Result<GpuAdapterInfo, PlatformError>;
 
@@ -290,6 +293,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function adapterFeatures(handle: GpuAdapterHandle): Result<Slice<GpuFeatureId>, PlatformError>;
 
@@ -318,6 +322,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function adapterLimits(handle: GpuAdapterHandle): Result<GpuAdapterLimits, PlatformError>;
 
@@ -346,8 +351,12 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
-    export function adapterHasFeature(handle: GpuAdapterHandle, feature: GpuFeatureId): Result<boolean, PlatformError>;
+    export function adapterHasFeature(
+        handle: GpuAdapterHandle,
+        feature: GpuFeatureId,
+    ): Result<boolean, PlatformError>;
 
     /// Query one adapter texture-format capability snapshot.
     ///
@@ -374,6 +383,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function adapterFormatCapabilities(
         handle: GpuAdapterHandle,
@@ -405,6 +415,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function adapterClose(handle: GpuAdapterHandle): Result<void, PlatformError>;
 }

@@ -22,18 +22,17 @@ declare namespace ffi {
     ///
     /// # Replay
     /// Deterministic.
-    @binding(
-        "destack.ffi.pointer.fromAddress",
-        {
-            effect: "deterministic",
-            replay: "nonrecordable",
-            capabilities: ["ffi.pointer"],
-            platforms: ["windows", "unix"],
-            simulation: "stub",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.ffi.pointer.fromAddress", {
+        effect: "deterministic",
+        replay: "nonrecordable",
+        capabilities: ["ffi.pointer"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function fromAddress(address: uint64): Result<FfiPointer, PlatformError>;
 
     /// Return the raw address for an opaque pointer.
@@ -53,17 +52,16 @@ declare namespace ffi {
     ///
     /// # Replay
     /// Deterministic.
-    @binding(
-        "destack.ffi.pointer.address",
-        {
-            effect: "deterministic",
-            replay: "nonrecordable",
-            capabilities: ["ffi.pointer"],
-            platforms: ["windows", "unix"],
-            simulation: "stub",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.ffi.pointer.address", {
+        effect: "deterministic",
+        replay: "nonrecordable",
+        capabilities: ["ffi.pointer"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function address(pointer: FfiPointer): Result<uint64, PlatformError>;
 }

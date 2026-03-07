@@ -133,6 +133,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function surfaceOpen(window: WindowHandle): Result<GpuSurfaceHandle, PlatformError>;
 
@@ -161,6 +162,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function surfaceClose(surface: GpuSurfaceHandle): Result<void, PlatformError>;
 
@@ -189,6 +191,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function surfaceCapabilities(
         surface: GpuSurfaceHandle,
@@ -221,6 +224,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function surfaceConfigure(
         device: GpuDeviceHandle,
@@ -253,6 +257,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function surfaceUnconfigure(surface: GpuSurfaceHandle): Result<void, PlatformError>;
 
@@ -282,6 +287,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function surfaceAcquire(
         surface: GpuSurfaceHandle,
@@ -315,6 +321,10 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function surfacePresent(surface: GpuSurfaceHandle, options: GpuPresentOptions): Result<void, PlatformError>;
+    export function surfacePresent(
+        surface: GpuSurfaceHandle,
+        options: GpuPresentOptions,
+    ): Result<void, PlatformError>;
 }

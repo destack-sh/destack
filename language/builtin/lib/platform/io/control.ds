@@ -47,18 +47,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.control.fcntl",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.control"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.control.fcntl", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function controlFcntl(
         handle: ResourceId,
         command: DescriptorControlCommand,
@@ -83,18 +82,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.control.ioctl",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.control"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.control.ioctl", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function controlIoctl(
         handle: ResourceId,
         request: DescriptorRequest,

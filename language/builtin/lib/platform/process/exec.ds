@@ -25,18 +25,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.exec.path",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.exec"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.exec.path", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.exec"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function exec(
         command: OsPath,
         arguments: Slice<string>,
@@ -60,18 +59,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.exec.pathat",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.exec"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.exec.pathat", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.exec"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function execat(
         directory: DirectoryHandle,
         path: OsPath,
@@ -97,18 +95,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.exec.fexec",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.exec"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.exec.fexec", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.exec"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function fexec(
         executable: FileHandle,
         arguments: Slice<string>,

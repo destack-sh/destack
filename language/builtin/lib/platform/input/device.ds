@@ -208,6 +208,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function list(): Result<Slice<InputDeviceDescriptor>, PlatformError>;
 
@@ -239,6 +240,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function open(id: string): Result<InputDeviceHandle, PlatformError>;
 
@@ -267,6 +269,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function close(handle: InputDeviceHandle): Result<void, PlatformError>;
 
@@ -298,6 +301,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function capabilities(handle: InputDeviceHandle): Result<InputDeviceCapabilities, PlatformError>;
 }

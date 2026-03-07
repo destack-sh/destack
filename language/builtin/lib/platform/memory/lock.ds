@@ -19,18 +19,17 @@ declare namespace memory {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.memory.lock.lockRange",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["memory.lock"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.memory.lock.lockRange", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["memory.lock"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function lock(address: uint64, length: uint64): Result<void, PlatformError>;
 
     /// Unlock one memory range.
@@ -50,17 +49,16 @@ declare namespace memory {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.memory.lock.unlock",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["memory.lock"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.memory.lock.unlock", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["memory.lock"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function unlock(address: uint64, length: uint64): Result<void, PlatformError>;
 }

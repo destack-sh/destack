@@ -31,17 +31,16 @@ declare namespace os {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.os.host.identity",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["os.hostname", "os.sysinfo"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.os.host.identity", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.hostname", "os.sysinfo"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function hostIdentity(): Result<HostIdentity, PlatformError>;
 }

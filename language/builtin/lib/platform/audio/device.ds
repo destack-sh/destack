@@ -194,6 +194,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function deviceRescan(
         backend: AudioBackend,
@@ -225,6 +226,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function deviceList(request: AudioDeviceListRequest): Result<Slice<AudioDeviceDescriptor>, PlatformError>;
 
@@ -254,6 +256,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function deviceDefault(
         direction: AudioDeviceDirection,
@@ -286,6 +289,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function deviceOpen(
         id: string,
@@ -317,6 +321,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function deviceDescriptor(handle: AudioDeviceHandle): Result<AudioDeviceDescriptor, PlatformError>;
 
@@ -345,6 +350,7 @@ declare namespace audio {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function deviceClose(handle: AudioDeviceHandle): Result<void, PlatformError>;
 }

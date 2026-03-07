@@ -102,7 +102,15 @@ export struct LifecycleTerminateEvent {
 }
 
 /// Runtime lifecycle event payload.
-export newtype LifecycleEvent = LifecycleLaunchEvent | LifecycleResumeEvent | LifecyclePauseEvent | LifecycleBackgroundEvent | LifecycleForegroundEvent | LifecycleLowMemoryEvent | LifecycleLowPowerModeChangedEvent | LifecycleTerminateEvent;
+export newtype LifecycleEvent =
+    | LifecycleLaunchEvent
+    | LifecycleResumeEvent
+    | LifecyclePauseEvent
+    | LifecycleBackgroundEvent
+    | LifecycleForegroundEvent
+    | LifecycleLowMemoryEvent
+    | LifecycleLowPowerModeChangedEvent
+    | LifecycleTerminateEvent;
 
 /// Lifecycle bindings.
 declare namespace os {
@@ -130,6 +138,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function lifecycleState(): Result<LifecycleState, PlatformError>;
 
@@ -157,6 +166,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function lifecycleOpen(): Result<LifecycleEventHandle, PlatformError>;
 
@@ -184,6 +194,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function lifecycleClose(handle: LifecycleEventHandle): Result<void, PlatformError>;
 
@@ -211,6 +222,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function lifecycleRead(
         handle: LifecycleEventHandle,
@@ -241,6 +253,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function lifecycleTryRead(handle: LifecycleEventHandle): Result<LifecycleEvent, PlatformError>;
 }

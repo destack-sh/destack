@@ -33,18 +33,17 @@ export declare namespace resource {
     ///
     /// # Replay
     /// Deterministic.
-    @binding(
-        "destack.resource.id.remove",
-        {
-            effect: "deterministic",
-            replay: "nonrecordable",
-            capabilities: ["resource.manage"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.resource.id.remove", {
+        effect: "deterministic",
+        replay: "nonrecordable",
+        capabilities: ["resource.manage"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function remove(id: ResourceId): Result<void, PlatformError>;
 
     /// Describe a resource kind.
@@ -64,18 +63,17 @@ export declare namespace resource {
     ///
     /// # Replay
     /// Deterministic.
-    @binding(
-        "destack.resource.id.kind",
-        {
-            effect: "deterministic",
-            replay: "nonrecordable",
-            capabilities: ["resource.read"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.resource.id.kind", {
+        effect: "deterministic",
+        replay: "nonrecordable",
+        capabilities: ["resource.read"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function kind(id: ResourceId): Result<ResourceKind, PlatformError>;
 
     /// Transfer resource ownership.
@@ -95,19 +93,21 @@ export declare namespace resource {
     ///
     /// # Replay
     /// Deterministic.
-    @binding(
-        "destack.resource.id.transfer",
-        {
-            effect: "deterministic",
-            replay: "nonrecordable",
-            capabilities: ["resource.transfer"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
-    export function transfer(id: ResourceId, ownership: ResourceOwnership): Result<void, PlatformError>;
+    @binding("destack.resource.id.transfer", {
+        effect: "deterministic",
+        replay: "nonrecordable",
+        capabilities: ["resource.transfer"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
+    export function transfer(
+        id: ResourceId,
+        ownership: ResourceOwnership,
+    ): Result<void, PlatformError>;
 
     /// Close a resource by identifier.
     ///
@@ -126,17 +126,16 @@ export declare namespace resource {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.resource.id.close",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["resource.close"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.resource.id.close", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["resource.close"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function close(id: ResourceId): Result<void, PlatformError>;
 }

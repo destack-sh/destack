@@ -72,18 +72,17 @@ declare namespace tty {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tty.termios.getAttributes",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tty.termios"],
-            platforms: ["unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tty.termios.getAttributes", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tty.termios"],
+        platforms: ["unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function termiosGetAttributes(handle: TtyHandle): Result<TtyTermiosAttributes, PlatformError>;
 
     /// Apply full termios attributes to one terminal handle.
@@ -103,18 +102,17 @@ declare namespace tty {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tty.termios.setAttributes",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tty.termios"],
-            platforms: ["unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tty.termios.setAttributes", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tty.termios"],
+        platforms: ["unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function termiosSetAttributes(
         handle: TtyHandle,
         attributes: TtyTermiosAttributes,
@@ -138,18 +136,17 @@ declare namespace tty {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tty.termios.drain",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tty.termios"],
-            platforms: ["unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tty.termios.drain", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tty.termios"],
+        platforms: ["unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function termiosDrain(handle: TtyHandle): Result<void, PlatformError>;
 
     /// Flush one terminal queue.
@@ -169,18 +166,17 @@ declare namespace tty {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tty.termios.flush",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tty.termios"],
-            platforms: ["unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tty.termios.flush", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tty.termios"],
+        platforms: ["unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function termiosFlush(
         handle: TtyHandle,
         queue: TtyTermiosQueue,
@@ -203,18 +199,17 @@ declare namespace tty {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tty.termios.flow",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tty.termios"],
-            platforms: ["unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tty.termios.flow", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tty.termios"],
+        platforms: ["unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function termiosFlow(
         handle: TtyHandle,
         action: TtyTermiosFlowAction,
@@ -237,19 +232,21 @@ declare namespace tty {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tty.termios.sendBreak",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tty.termios"],
-            platforms: ["unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function termiosSendBreak(handle: TtyHandle, duration: uint32): Result<void, PlatformError>;
+    @binding("destack.tty.termios.sendBreak", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tty.termios"],
+        platforms: ["unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function termiosSendBreak(
+        handle: TtyHandle,
+        duration: uint32,
+    ): Result<void, PlatformError>;
 
     /// Read controlling-terminal process-group id.
     ///
@@ -268,18 +265,17 @@ declare namespace tty {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tty.termios.getProcessGroup",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tty.termios"],
-            platforms: ["unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tty.termios.getProcessGroup", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tty.termios"],
+        platforms: ["unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function termiosGetProcessGroup(handle: TtyHandle): Result<ProcessId, PlatformError>;
 
     /// Set controlling-terminal process-group id.
@@ -299,18 +295,17 @@ declare namespace tty {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tty.termios.setProcessGroup",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tty.termios"],
-            platforms: ["unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tty.termios.setProcessGroup", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tty.termios"],
+        platforms: ["unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function termiosSetProcessGroup(
         handle: TtyHandle,
         processGroupId: ProcessId,

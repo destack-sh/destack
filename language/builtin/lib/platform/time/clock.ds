@@ -1,6 +1,6 @@
 import type { PlatformError } from "../error/index.ds";
-
 /// Clock bindings for the native runtime.
+
 declare namespace time {
     /// Runtime clock selector.
     export enum ClockId {
@@ -59,18 +59,17 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.clock.wallNs",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.wall.read"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.time.clock.wallNs", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.wall.read"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function wallNs(): Result<uint64, PlatformError>;
 
     /// Return monotonic time in nanoseconds.
@@ -90,18 +89,17 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.clock.monoNs",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.monotonic.read"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.time.clock.monoNs", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.monotonic.read"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function monoNs(): Result<uint64, PlatformError>;
 
     /// Return process CPU time in nanoseconds.
@@ -121,18 +119,17 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.clock.processCpuNs",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.monotonic.read"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.time.clock.processCpuNs", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.monotonic.read"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function processCpuNs(): Result<uint64, PlatformError>;
 
     /// Return current thread CPU time in nanoseconds.
@@ -152,18 +149,17 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.clock.threadCpuNs",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.monotonic.read"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.time.clock.threadCpuNs", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.monotonic.read"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function threadCpuNs(): Result<uint64, PlatformError>;
 
     /// Read one selected clock in nanoseconds.
@@ -183,18 +179,17 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.clock.nowNs",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.monotonic.read"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.time.clock.nowNs", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.monotonic.read"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function nowNs(clock: ClockId): Result<uint64, PlatformError>;
 
     /// Query one selected clock metadata.
@@ -214,17 +209,16 @@ declare namespace time {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.time.clock.metadata",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["time.monotonic.read"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.time.clock.metadata", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["time.monotonic.read"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function clockMetadata(clock: ClockId): Result<ClockMetadata, PlatformError>;
 }

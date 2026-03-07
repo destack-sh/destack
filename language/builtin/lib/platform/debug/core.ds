@@ -19,18 +19,17 @@ declare namespace debug {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.debug.core.mark",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["debug.trace"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.debug.core.mark", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["debug.trace"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function mark(label: string): Result<void, PlatformError>;
 
     /// Request a runtime debug break.
@@ -50,17 +49,16 @@ declare namespace debug {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.debug.core.breakNow",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["debug.inspect"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.debug.core.breakNow", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["debug.inspect"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function breakNow(): Result<void, PlatformError>;
 }

@@ -20,19 +20,22 @@ declare namespace memory {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.memory.advise.adviseRange",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["memory.advise"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function advise(address: uint64, length: uint64, advice: MemoryAdvice): Result<void, PlatformError>;
+    @binding("destack.memory.advise.adviseRange", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["memory.advise"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function advise(
+        address: uint64,
+        length: uint64,
+        advice: MemoryAdvice,
+    ): Result<void, PlatformError>;
 
     /// Discard memory contents.
     ///
@@ -51,18 +54,17 @@ declare namespace memory {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.memory.advise.discard",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["memory.advise"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.memory.advise.discard", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["memory.advise"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function discard(address: uint64, length: uint64): Result<void, PlatformError>;
 
     /// Toggle huge-page preference for one range.
@@ -82,17 +84,20 @@ declare namespace memory {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.memory.advise.hugePage",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["memory.huge.page"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function hugePage(address: uint64, length: uint64, enabled: boolean): Result<void, PlatformError>;
+    @binding("destack.memory.advise.hugePage", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["memory.huge.page"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function hugePage(
+        address: uint64,
+        length: uint64,
+        enabled: boolean,
+    ): Result<void, PlatformError>;
 }

@@ -49,18 +49,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.ids.pid",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.identity.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.ids.pid", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.identity.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function pid(): Result<ProcessId, PlatformError>;
 
     /// Return the parent process identifier.
@@ -80,18 +79,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.ids.ppid",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.identity.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.ids.ppid", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.identity.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function ppid(): Result<ProcessId, PlatformError>;
 
     /// Return the current user identifier.
@@ -111,18 +109,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.ids.uid",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.identity.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.ids.uid", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.identity.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function uid(): Result<UserId, PlatformError>;
 
     /// Return the current group identifier.
@@ -142,18 +139,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.ids.gid",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.identity.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.ids.gid", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.identity.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function gid(): Result<GroupId, PlatformError>;
 
     /// Return the effective user identifier.
@@ -173,18 +169,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.ids.euid",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.identity.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.ids.euid", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.identity.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function euid(): Result<UserId, PlatformError>;
 
     /// Return the effective group identifier.
@@ -204,18 +199,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.ids.egid",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.identity.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.ids.egid", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.identity.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function egid(): Result<GroupId, PlatformError>;
 
     /// Return real, effective, and saved-set user identifiers.
@@ -235,18 +229,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.ids.userIds",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.identity.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.ids.userIds", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.identity.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function userIds(): Result<ProcessUserIds, PlatformError>;
 
     /// Return real, effective, and saved-set group identifiers.
@@ -266,18 +259,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.ids.groupIds",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.identity.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.ids.groupIds", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.identity.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function groupIds(): Result<ProcessGroupIds, PlatformError>;
 
     /// Set the effective user identifier.
@@ -297,18 +289,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.ids.setUid",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.identity.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.ids.setUid", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.identity.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function setUid(userId: UserId): Result<void, PlatformError>;
 
     /// Set the effective user identifier only.
@@ -328,18 +319,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.ids.setEuid",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.identity.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.ids.setEuid", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.identity.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function setEuid(userId: UserId): Result<void, PlatformError>;
 
     /// Set the effective group identifier.
@@ -359,18 +349,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.ids.setGid",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.identity.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.ids.setGid", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.identity.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function setGid(groupId: GroupId): Result<void, PlatformError>;
 
     /// Set the effective group identifier only.
@@ -390,18 +379,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.ids.setEgid",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.identity.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.ids.setEgid", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.identity.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function setEgid(groupId: GroupId): Result<void, PlatformError>;
 
     /// Set real, effective, and saved-set user identifiers together.
@@ -421,18 +409,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.ids.setUserIds",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.identity.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.ids.setUserIds", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.identity.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function setUserIds(ids: ProcessUserIds): Result<void, PlatformError>;
 
     /// Set real, effective, and saved-set group identifiers together.
@@ -452,18 +439,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.ids.setGroupIds",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.identity.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.ids.setGroupIds", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.identity.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function setGroupIds(ids: ProcessGroupIds): Result<void, PlatformError>;
 
     /// Return supplementary group identifiers.
@@ -483,18 +469,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.ids.groups",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.identity.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.ids.groups", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.identity.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function groups(): Result<Slice<GroupId>, PlatformError>;
 
     /// Set supplementary group identifiers.
@@ -514,17 +499,16 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.ids.setGroups",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.identity.write"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.ids.setGroups", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.identity.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function setGroups(groups: Slice<GroupId>): Result<void, PlatformError>;
 }

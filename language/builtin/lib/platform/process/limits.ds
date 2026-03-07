@@ -30,21 +30,18 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.limits.getLimit",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.run"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
-    export function getLimit(
-        resource: ProcessLimitResource,
-    ): Result<ProcessLimit, PlatformError>;
+    @binding("destack.process.limits.getLimit", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.run"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
+    export function getLimit(resource: ProcessLimitResource): Result<ProcessLimit, PlatformError>;
 
     /// Set a process resource limit.
     ///
@@ -63,18 +60,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.limits.setLimit",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.run"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.limits.setLimit", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.run"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function setLimit(
         resource: ProcessLimitResource,
         limit: ProcessLimit,

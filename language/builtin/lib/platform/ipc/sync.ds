@@ -20,19 +20,22 @@ declare namespace ipc {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.ipc.sync.semaphoreCreate",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["ipc.semaphore"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function semaphoreCreate(name: string, initial: uint32, flags: uint32): Result<SemaphoreHandle, PlatformError>;
+    @binding("destack.ipc.sync.semaphoreCreate", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["ipc.semaphore"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function semaphoreCreate(
+        name: string,
+        initial: uint32,
+        flags: uint32,
+    ): Result<SemaphoreHandle, PlatformError>;
 
     /// Wait one semaphore count.
     ///
@@ -51,19 +54,21 @@ declare namespace ipc {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.ipc.sync.semaphoreWait",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["ipc.semaphore"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function semaphoreWait(handle: SemaphoreHandle, timeoutNs: uint64): Result<void, PlatformError>;
+    @binding("destack.ipc.sync.semaphoreWait", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["ipc.semaphore"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function semaphoreWait(
+        handle: SemaphoreHandle,
+        timeoutNs: uint64,
+    ): Result<void, PlatformError>;
 
     /// Increment one semaphore count.
     ///
@@ -82,19 +87,21 @@ declare namespace ipc {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.ipc.sync.semaphorePost",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["ipc.semaphore"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function semaphorePost(handle: SemaphoreHandle, count: uint32): Result<void, PlatformError>;
+    @binding("destack.ipc.sync.semaphorePost", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["ipc.semaphore"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function semaphorePost(
+        handle: SemaphoreHandle,
+        count: uint32,
+    ): Result<void, PlatformError>;
 
     /// Wait on one shared-memory futex word.
     ///
@@ -113,18 +120,17 @@ declare namespace ipc {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.ipc.sync.futexWait",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["ipc.futex"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.ipc.sync.futexWait", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["ipc.futex"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function futexWait(
         sharedMemory: SharedMemoryHandle,
         offset: uint64,
@@ -149,18 +155,17 @@ declare namespace ipc {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.ipc.sync.futexWake",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["ipc.futex"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.ipc.sync.futexWake", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["ipc.futex"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function futexWake(
         sharedMemory: SharedMemoryHandle,
         offset: uint64,

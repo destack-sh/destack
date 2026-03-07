@@ -39,18 +39,17 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tls.session.open",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tls.session"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tls.session.open", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tls.session"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function sessionOpen(
         context: TlsContextHandle,
         socket: SocketHandle,
@@ -74,18 +73,17 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tls.session.handshake",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tls.handshake"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tls.session.handshake", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tls.handshake"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function sessionHandshake(handle: TlsSessionHandle): Result<TlsHandshakeStatus, PlatformError>;
 
     /// Read decrypted application bytes from one tls session.
@@ -105,18 +103,17 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.tls.session.read",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["tls.session"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tls.session.read", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["tls.session"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function sessionRead(
         handle: TlsSessionHandle,
         buffer: Slice<uint8>,
@@ -139,18 +136,17 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.tls.session.write",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["tls.session"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tls.session.write", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["tls.session"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function sessionWrite(
         handle: TlsSessionHandle,
         buffer: Slice<uint8>,
@@ -173,18 +169,17 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tls.session.shutdown",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tls.session"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tls.session.shutdown", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tls.session"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function sessionShutdown(handle: TlsSessionHandle): Result<void, PlatformError>;
 
     /// Close one tls session object.
@@ -204,18 +199,17 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tls.session.close",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tls.session"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tls.session.close", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tls.session"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function sessionClose(handle: TlsSessionHandle): Result<void, PlatformError>;
 
     /// Return negotiated alpn protocol bytes.
@@ -235,18 +229,17 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tls.session.negotiatedAlpn",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tls.session"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tls.session.negotiatedAlpn", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tls.session"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function sessionNegotiatedAlpn(handle: TlsSessionHandle): Result<Slice<uint8>, PlatformError>;
 
     /// Return the peer certificate chain bytes in pem encoding.
@@ -266,18 +259,17 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.tls.session.peerCertificatesPem",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["tls.certificate.read"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tls.session.peerCertificatesPem", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["tls.certificate.read"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function sessionPeerCertificatesPem(handle: TlsSessionHandle): Result<Slice<uint8>, PlatformError>;
 
     /// Export keying material bytes for one tls session.
@@ -297,18 +289,17 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.tls.session.exportKeyingMaterial",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["tls.session", "tls.exporter"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.tls.session.exportKeyingMaterial", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["tls.session", "tls.exporter"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function sessionExportKeyingMaterial(
         handle: TlsSessionHandle,
         label: string,
@@ -333,19 +324,16 @@ declare namespace tls {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.tls.session.resumptionState",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["tls.session", "tls.resumption"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function sessionResumptionState(
-        handle: TlsSessionHandle,
-    ): Result<TlsSessionResumptionState, PlatformError>;
+    @binding("destack.tls.session.resumptionState", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["tls.session", "tls.resumption"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function sessionResumptionState(handle: TlsSessionHandle): Result<TlsSessionResumptionState, PlatformError>;
 }

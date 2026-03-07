@@ -41,7 +41,12 @@ export struct ProcessStdioDescriptor {
 }
 
 /// Stdio entry for process spawning.
-export newtype ProcessStdio = ProcessStdioInherit | ProcessStdioNull | ProcessStdioPipe | ProcessStdioFile | ProcessStdioDescriptor;
+export newtype ProcessStdio =
+    | ProcessStdioInherit
+    | ProcessStdioNull
+    | ProcessStdioPipe
+    | ProcessStdioFile
+    | ProcessStdioDescriptor;
 
 /// Close one descriptor before exec.
 export struct ProcessFdActionClose {
@@ -109,18 +114,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.spawn.start",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.spawn"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.spawn.start", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.spawn"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function spawn(
         command: OsPath,
         arguments: Slice<string>,
@@ -145,18 +149,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.spawn.withActions",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.spawn", "process.spawn.actions"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.spawn.withActions", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.spawn", "process.spawn.actions"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function spawnWithActions(
         command: OsPath,
         arguments: Slice<string>,

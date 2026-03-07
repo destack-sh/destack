@@ -280,7 +280,17 @@ export struct InputCompositionEvent {
 }
 
 /// Input event payload.
-export newtype InputEvent = InputKeyEvent | InputPointerMotionEvent | InputPointerButtonEvent | InputScrollEvent | InputTouchEvent | InputGamepadEvent | InputTextEvent | InputDeviceEvent | InputSensorEvent | InputCompositionEvent;
+export newtype InputEvent =
+    | InputKeyEvent
+    | InputPointerMotionEvent
+    | InputPointerButtonEvent
+    | InputScrollEvent
+    | InputTouchEvent
+    | InputGamepadEvent
+    | InputTextEvent
+    | InputDeviceEvent
+    | InputSensorEvent
+    | InputCompositionEvent;
 
 /// Shared metadata for all monitor events.
 export struct InputMonitorEventMetadata {
@@ -321,7 +331,10 @@ export struct InputMonitorChangeEvent {
 }
 
 /// Device monitor event payload.
-export newtype InputMonitorEvent = InputMonitorConnectEvent | InputMonitorDisconnectEvent | InputMonitorChangeEvent;
+export newtype InputMonitorEvent =
+    | InputMonitorConnectEvent
+    | InputMonitorDisconnectEvent
+    | InputMonitorChangeEvent;
 
 /// Input event bindings.
 declare namespace input {
@@ -353,6 +366,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function monitorOpen(): Result<InputMonitorHandle, PlatformError>;
 
@@ -381,6 +395,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function monitorClose(handle: InputMonitorHandle): Result<void, PlatformError>;
 
@@ -412,6 +427,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function monitorRead(handle: InputMonitorHandle): Result<InputMonitorEvent, PlatformError>;
 
@@ -443,6 +459,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function monitorTryRead(handle: InputMonitorHandle): Result<InputMonitorEvent, PlatformError>;
 
@@ -476,6 +493,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function read(handle: InputDeviceHandle): Result<InputEvent, PlatformError>;
 
@@ -509,6 +527,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function tryRead(handle: InputDeviceHandle): Result<InputEvent, PlatformError>;
 
@@ -539,6 +558,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function readBatch(
         handle: InputDeviceHandle,
@@ -573,8 +593,12 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function setExclusiveGrab(handle: InputDeviceHandle, enable: boolean): Result<void, PlatformError>;
+    export function setExclusiveGrab(
+        handle: InputDeviceHandle,
+        enable: boolean,
+    ): Result<void, PlatformError>;
 
     /// Select event decoding mode for one input stream.
     ///
@@ -603,6 +627,10 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function setReadMode(handle: InputDeviceHandle, mode: InputReadMode): Result<void, PlatformError>;
+    export function setReadMode(
+        handle: InputDeviceHandle,
+        mode: InputReadMode,
+    ): Result<void, PlatformError>;
 }

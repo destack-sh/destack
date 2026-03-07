@@ -41,18 +41,17 @@ declare namespace os {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.os.info.systemSnapshot",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["os.sysinfo"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.os.info.systemSnapshot", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.sysinfo"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function systemSnapshot(): Result<SystemSnapshot, PlatformError>;
 
     /// Read host uptime.
@@ -72,18 +71,17 @@ declare namespace os {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.os.info.uptimeNs",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["os.sysinfo"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.os.info.uptimeNs", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.sysinfo"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function uptimeNs(): Result<uint64, PlatformError>;
 
     /// Read host load averages.
@@ -103,18 +101,17 @@ declare namespace os {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.os.info.loadAverage",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["os.sysinfo"],
-            platforms: ["unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.os.info.loadAverage", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.sysinfo"],
+        platforms: ["unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function loadAverage(): Result<LoadAverage, PlatformError>;
 
     /// Read host boot time.
@@ -134,17 +131,16 @@ declare namespace os {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.os.info.bootTimeUnixNs",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["os.sysinfo"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.os.info.bootTimeUnixNs", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.sysinfo"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function bootTimeUnixNs(): Result<uint64, PlatformError>;
 }

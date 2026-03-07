@@ -141,6 +141,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function backgroundStatus(): Result<BackgroundStatus, PlatformError>;
 
@@ -168,6 +169,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function backgroundList(): Result<Array<BackgroundTaskDescriptor>, PlatformError>;
 
@@ -195,6 +197,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function backgroundRegister(options: BackgroundTaskOptions): Result<void, PlatformError>;
 
@@ -222,6 +225,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function backgroundUnregister(identifier: string): Result<void, PlatformError>;
 
@@ -249,6 +253,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function backgroundTriggerTest(identifier: string): Result<boolean, PlatformError>;
 
@@ -276,8 +281,12 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function backgroundComplete(executionId: string, result: BackgroundTaskResult): Result<void, PlatformError>;
+    export function backgroundComplete(
+        executionId: string,
+        result: BackgroundTaskResult,
+    ): Result<void, PlatformError>;
 
     /// Open one background-task event stream.
     ///
@@ -303,6 +312,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function backgroundEventOpen(options: BackgroundEventOpenOptions): Result<BackgroundEventHandle, PlatformError>;
 
@@ -330,6 +340,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function backgroundEventClose(handle: BackgroundEventHandle): Result<void, PlatformError>;
 
@@ -357,6 +368,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function backgroundEventRead(
         handle: BackgroundEventHandle,
@@ -387,6 +399,7 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function backgroundEventTryRead(handle: BackgroundEventHandle): Result<BackgroundEvent, PlatformError>;
 }

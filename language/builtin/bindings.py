@@ -17,6 +17,7 @@ FIELD_ORDER = [
     "payload",
     "scope",
     "blocking",
+    "affinity",
     "capabilities",
     "platforms",
 ]
@@ -68,6 +69,7 @@ class BindingRecord:
     payload: str | None
     scope: str | None
     blocking: str | None
+    affinity: str | None
     capabilities: list[str]
     platforms: list[str]
 
@@ -274,6 +276,7 @@ def collect_records(root: Path, allowed_modules: set[str]) -> list[BindingRecord
                     payload=parse_option_value(block, "payload"),
                     scope=parse_option_value(block, "scope"),
                     blocking=parse_option_value(block, "blocking"),
+                    affinity=parse_option_value(block, "affinity"),
                     capabilities=parse_capabilities(block),
                     platforms=parse_platforms(block),
                 )
@@ -290,6 +293,7 @@ def render_record_metadata(record: BindingRecord) -> str:
         "payload": record.payload or "-",
         "scope": record.scope or "-",
         "blocking": record.blocking or "-",
+        "affinity": record.affinity or "-",
         "capabilities": ",".join(record.capabilities) if record.capabilities else "-",
         "platforms": ",".join(record.platforms) if record.platforms else "-",
     }
@@ -415,6 +419,18 @@ def validate_records(records: list[BindingRecord]) -> list[str]:
                     f"{record.relative_file}:{record.line}: unsupported platform tag '{platform}' "
                     f"in {record.binding_id}"
                 )
+
+        # affinity classification
+        if record.affinity is None:
+            issues.append(
+                f"{record.relative_file}:{record.line}: missing affinity classification in "
+                f"{record.binding_id}"
+            )
+        elif record.affinity not in {"any", "eventLoop", "owner", "processMain"}:
+            issues.append(
+                f"{record.relative_file}:{record.line}: unsupported affinity "
+                f"'{record.affinity}' in {record.binding_id}"
+            )
 
     return issues
 

@@ -45,11 +45,17 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.setLinger", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
-    export function setLinger(
-        handle: SocketHandle,
-        linger: Linger,
-    ): Result<void, PlatformError>;
+    @binding("destack.net.options.setLinger", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
+    export function setLinger(handle: SocketHandle, linger: Linger): Result<void, PlatformError>;
 
     /// Set the receive buffer size.
     ///
@@ -68,11 +74,17 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.setRecvBuffer", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
-    export function setRecvBuffer(
-        handle: SocketHandle,
-        size: uint32,
-    ): Result<void, PlatformError>;
+    @binding("destack.net.options.setRecvBuffer", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
+    export function setRecvBuffer(handle: SocketHandle, size: uint32): Result<void, PlatformError>;
 
     /// Set the send buffer size.
     ///
@@ -91,11 +103,17 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.setSendBuffer", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
-    export function setSendBuffer(
-        handle: SocketHandle,
-        size: uint32,
-    ): Result<void, PlatformError>;
+    @binding("destack.net.options.setSendBuffer", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
+    export function setSendBuffer(handle: SocketHandle, size: uint32): Result<void, PlatformError>;
 
     /// Enable or disable broadcast.
     ///
@@ -114,7 +132,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.setBroadcast", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.options.setBroadcast", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function setBroadcast(
         handle: SocketHandle,
         enabled: boolean,
@@ -137,11 +164,17 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.setTtl", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
-    export function setTtl(
-        handle: SocketHandle,
-        ttl: uint32,
-    ): Result<void, PlatformError>;
+    @binding("destack.net.options.setTtl", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
+    export function setTtl(handle: SocketHandle, ttl: uint32): Result<void, PlatformError>;
 
     /// Set the IP type-of-service field.
     ///
@@ -160,11 +193,17 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.setTos", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
-    export function setTos(
-        handle: SocketHandle,
-        tos: uint32,
-    ): Result<void, PlatformError>;
+    @binding("destack.net.options.setTos", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
+    export function setTos(handle: SocketHandle, tos: uint32): Result<void, PlatformError>;
 
     /// Set the read timeout in milliseconds.
     ///
@@ -183,7 +222,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.setReadTimeout", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.options.setReadTimeout", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function setReadTimeout(
         handle: SocketHandle,
         timeoutMs: uint32,
@@ -206,7 +254,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.setWriteTimeout", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.options.setWriteTimeout", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function setWriteTimeout(
         handle: SocketHandle,
         timeoutMs: uint32,
@@ -229,7 +286,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.setOnlyV6", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.options.setOnlyV6", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function setOnlyV6(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>;
 
     /// Read socket linger settings.
@@ -249,7 +315,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.getLinger", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.options.getLinger", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function getLinger(handle: SocketHandle): Result<Linger, PlatformError>;
 
     /// Read the receive buffer size.
@@ -269,7 +344,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.getRecvBuffer", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.options.getRecvBuffer", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function getRecvBuffer(handle: SocketHandle): Result<uint32, PlatformError>;
 
     /// Read the send buffer size.
@@ -289,7 +373,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.getSendBuffer", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.options.getSendBuffer", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function getSendBuffer(handle: SocketHandle): Result<uint32, PlatformError>;
 
     /// Read broadcast mode.
@@ -309,7 +402,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.getBroadcast", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.options.getBroadcast", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function getBroadcast(handle: SocketHandle): Result<boolean, PlatformError>;
 
     /// Read the IP time-to-live.
@@ -329,7 +431,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.getTtl", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.options.getTtl", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function getTtl(handle: SocketHandle): Result<uint32, PlatformError>;
 
     /// Read the IP type-of-service field.
@@ -349,7 +460,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.getTos", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.options.getTos", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function getTos(handle: SocketHandle): Result<uint32, PlatformError>;
 
     /// Set packet timestamping mode.
@@ -369,7 +489,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.setTimestamping", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.options.setTimestamping", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function setTimestamping(
         handle: SocketHandle,
         mode: SocketTimestampingMode,
@@ -392,7 +521,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.getTimestamping", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.options.getTimestamping", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function getTimestamping(handle: SocketHandle): Result<SocketTimestampingMode, PlatformError>;
 
     /// Set socket packet mark.
@@ -412,7 +550,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.setPacketMark", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.options.setPacketMark", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function setPacketMark(handle: SocketHandle, mark: uint32): Result<void, PlatformError>;
 
     /// Read socket packet mark.
@@ -432,7 +579,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.getPacketMark", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.options.getPacketMark", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function getPacketMark(handle: SocketHandle): Result<uint32, PlatformError>;
 
     /// Read the read timeout in milliseconds.
@@ -452,7 +608,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.getReadTimeout", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.options.getReadTimeout", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function getReadTimeout(handle: SocketHandle): Result<uint32, PlatformError>;
 
     /// Read the write timeout in milliseconds.
@@ -472,7 +637,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.getWriteTimeout", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.options.getWriteTimeout", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function getWriteTimeout(handle: SocketHandle): Result<uint32, PlatformError>;
 
     /// Read IPv6-only mode.
@@ -492,7 +666,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.getOnlyV6", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.options.getOnlyV6", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function getOnlyV6(handle: SocketHandle): Result<boolean, PlatformError>;
 
     /// Set one raw socket option payload.
@@ -512,7 +695,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.setSockOptRaw", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.options.setSockOptRaw", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function setSockOptRaw(
         handle: SocketHandle,
         level: SocketOptionLevel,
@@ -537,7 +729,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.getSockOptRaw", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.options.getSockOptRaw", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function getSockOptRaw(
         handle: SocketHandle,
         level: SocketOptionLevel,

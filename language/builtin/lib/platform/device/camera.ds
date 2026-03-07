@@ -211,6 +211,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function cameraDeviceList(): Result<Slice<CameraDeviceDescriptor>, PlatformError>;
 
@@ -238,6 +239,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function cameraDeviceOpen(id: string): Result<CameraDeviceHandle, PlatformError>;
 
@@ -265,10 +267,9 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function cameraDeviceStreamConfigList(
-        handle: CameraDeviceHandle,
-    ): Result<Slice<CameraStreamConfig>, PlatformError>;
+    export function cameraDeviceStreamConfigList(handle: CameraDeviceHandle): Result<Slice<CameraStreamConfig>, PlatformError>;
 
     /// List supported stream capabilities for one opened camera endpoint.
     ///
@@ -294,10 +295,9 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function cameraDeviceStreamCapabilityList(
-        handle: CameraDeviceHandle,
-    ): Result<Slice<CameraStreamCapability>, PlatformError>;
+    export function cameraDeviceStreamCapabilityList(handle: CameraDeviceHandle): Result<Slice<CameraStreamCapability>, PlatformError>;
 
     /// Close camera endpoint.
     ///
@@ -323,6 +323,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function cameraDeviceClose(handle: CameraDeviceHandle): Result<void, PlatformError>;
 
@@ -350,6 +351,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function cameraStreamOpen(
         device: CameraDeviceHandle,
@@ -380,6 +382,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function cameraStreamClose(handle: CameraStreamHandle): Result<void, PlatformError>;
 
@@ -407,6 +410,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function cameraStreamStart(handle: CameraStreamHandle): Result<void, PlatformError>;
 
@@ -434,6 +438,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function cameraStreamStop(handle: CameraStreamHandle): Result<void, PlatformError>;
 
@@ -461,8 +466,12 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function cameraStreamRead(handle: CameraStreamHandle, timeoutNs: uint64): Result<CameraFrame, PlatformError>;
+    export function cameraStreamRead(
+        handle: CameraStreamHandle,
+        timeoutNs: uint64,
+    ): Result<CameraFrame, PlatformError>;
 
     /// Poll camera frame without blocking.
     ///
@@ -488,6 +497,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function cameraStreamTryRead(handle: CameraStreamHandle): Result<CameraFrame, PlatformError>;
 
@@ -515,6 +525,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function cameraStreamSetControl(
         handle: CameraStreamHandle,
@@ -546,6 +557,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function cameraStreamGetControl(
         handle: CameraStreamHandle,
@@ -576,6 +588,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function cameraStreamControlRange(
         handle: CameraStreamHandle,
@@ -606,6 +619,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function cameraStreamSetExposureMode(
         handle: CameraStreamHandle,
@@ -636,6 +650,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function cameraStreamExposureMode(handle: CameraStreamHandle): Result<CameraExposureMode, PlatformError>;
 
@@ -663,6 +678,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function cameraStreamSetStabilizationMode(
         handle: CameraStreamHandle,
@@ -693,10 +709,9 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
-    export function cameraStreamStabilizationMode(
-        handle: CameraStreamHandle,
-    ): Result<CameraStabilizationMode, PlatformError>;
+    export function cameraStreamStabilizationMode(handle: CameraStreamHandle): Result<CameraStabilizationMode, PlatformError>;
 
     /// Set camera torch mode.
     ///
@@ -722,6 +737,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function cameraStreamSetTorchMode(
         handle: CameraStreamHandle,
@@ -752,6 +768,7 @@ declare namespace device {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function cameraStreamTorchMode(handle: CameraStreamHandle): Result<CameraTorchMode, PlatformError>;
 }

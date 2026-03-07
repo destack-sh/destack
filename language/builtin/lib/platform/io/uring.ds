@@ -45,18 +45,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.uring.open",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.uring"],
-            platforms: ["linux"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.uring.open", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.uring"],
+        platforms: ["linux"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function uringOpen(parameters: UringParameters): Result<UringHandle, PlatformError>;
 
     /// Close one io_uring ring.
@@ -76,18 +75,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.uring.close",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.uring"],
-            platforms: ["linux"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.uring.close", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.uring"],
+        platforms: ["linux"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function uringClose(handle: UringHandle): Result<void, PlatformError>;
 
     /// Query io_uring feature support.
@@ -107,18 +105,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.uring.features",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.uring"],
-            platforms: ["linux"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.uring.features", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.uring"],
+        platforms: ["linux"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function uringFeatures(handle: UringHandle): Result<UringFeatures, PlatformError>;
 
     /// Register fixed files with a ring.
@@ -138,19 +135,21 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.uring.registerFiles",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.register"],
-            platforms: ["linux"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function uringRegisterFiles(handle: UringHandle, files: Slice<ResourceId>): Result<void, PlatformError>;
+    @binding("destack.io.uring.registerFiles", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.register"],
+        platforms: ["linux"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function uringRegisterFiles(
+        handle: UringHandle,
+        files: Slice<ResourceId>,
+    ): Result<void, PlatformError>;
 
     /// Unregister fixed files for a ring.
     ///
@@ -169,18 +168,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.uring.unregisterFiles",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.register"],
-            platforms: ["linux"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.uring.unregisterFiles", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.register"],
+        platforms: ["linux"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function uringUnregisterFiles(handle: UringHandle): Result<void, PlatformError>;
 
     /// Register fixed buffers with a ring.
@@ -200,18 +198,17 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.uring.registerBuffers",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.register"],
-            platforms: ["linux"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.uring.registerBuffers", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.register"],
+        platforms: ["linux"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function uringRegisterBuffers(
         handle: UringHandle,
         addresses: Slice<uint64>,
@@ -235,17 +232,16 @@ declare namespace io {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.io.uring.unregisterBuffers",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["io.register"],
-            platforms: ["linux"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.io.uring.unregisterBuffers", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["io.register"],
+        platforms: ["linux"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function uringUnregisterBuffers(handle: UringHandle): Result<void, PlatformError>;
 }

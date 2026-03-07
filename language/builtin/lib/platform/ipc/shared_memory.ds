@@ -28,19 +28,22 @@ declare namespace ipc {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.ipc.sharedMemory.create",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["ipc.shared.memory"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function sharedMemoryCreate(name: string, size: uint64, flags: uint32): Result<SharedMemoryHandle, PlatformError>;
+    @binding("destack.ipc.sharedMemory.create", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["ipc.shared.memory"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function sharedMemoryCreate(
+        name: string,
+        size: uint64,
+        flags: uint32,
+    ): Result<SharedMemoryHandle, PlatformError>;
 
     /// Open one named shared memory object.
     ///
@@ -59,19 +62,21 @@ declare namespace ipc {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.ipc.sharedMemory.open",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["ipc.shared.memory"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function sharedMemoryOpen(name: string, flags: uint32): Result<SharedMemoryHandle, PlatformError>;
+    @binding("destack.ipc.sharedMemory.open", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["ipc.shared.memory"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function sharedMemoryOpen(
+        name: string,
+        flags: uint32,
+    ): Result<SharedMemoryHandle, PlatformError>;
 
     /// Close one shared memory object handle.
     ///
@@ -90,18 +95,17 @@ declare namespace ipc {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.ipc.sharedMemory.close",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["ipc.shared.memory"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.ipc.sharedMemory.close", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["ipc.shared.memory"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function sharedMemoryClose(handle: SharedMemoryHandle): Result<void, PlatformError>;
 
     /// Map one shared memory range.
@@ -121,18 +125,17 @@ declare namespace ipc {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.ipc.sharedMemory.map",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["ipc.shared.memory"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.ipc.sharedMemory.map", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["ipc.shared.memory"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function sharedMemoryMap(
         handle: SharedMemoryHandle,
         offset: uint64,
@@ -157,17 +160,16 @@ declare namespace ipc {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.ipc.sharedMemory.unmap",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["ipc.shared.memory"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.ipc.sharedMemory.unmap", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["ipc.shared.memory"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function sharedMemoryUnmap(address: uint64, length: uint64): Result<void, PlatformError>;
 }

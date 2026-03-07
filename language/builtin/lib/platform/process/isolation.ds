@@ -48,19 +48,21 @@ declare namespace process {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.process.isolation.setns",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["process.namespace"],
-            platforms: ["linux"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function setns(pid: ProcessId, namespace: ProcessNamespaceKind): Result<void, PlatformError>;
+    @binding("destack.process.isolation.setns", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["process.namespace"],
+        platforms: ["linux"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function setns(
+        pid: ProcessId,
+        namespace: ProcessNamespaceKind,
+    ): Result<void, PlatformError>;
 
     /// Unshare one or more namespaces.
     ///
@@ -79,18 +81,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.process.isolation.unshare",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["process.namespace"],
-            platforms: ["linux"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.isolation.unshare", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["process.namespace"],
+        platforms: ["linux"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function unshare(flags: ProcessUnshareFlags): Result<void, PlatformError>;
 
     /// Change the root directory for path resolution.
@@ -110,18 +111,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.process.isolation.chroot",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["security.restrict"],
-            platforms: ["unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.isolation.chroot", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["security.restrict"],
+        platforms: ["unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function chroot(path: OsPath): Result<void, PlatformError>;
 
     /// Install one syscall filter program.
@@ -141,19 +141,21 @@ declare namespace process {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.process.isolation.installSyscallFilter",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["security.filter"],
-            platforms: ["linux"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function installSyscallFilter(program: Array<uint8>, flags: SyscallFilterFlags): Result<void, PlatformError>;
+    @binding("destack.process.isolation.installSyscallFilter", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["security.filter"],
+        platforms: ["linux"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function installSyscallFilter(
+        program: Array<uint8>,
+        flags: SyscallFilterFlags,
+    ): Result<void, PlatformError>;
 
     /// Set process host name inside the active UTS namespace.
     ///
@@ -172,18 +174,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.process.isolation.setHostName",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["process.namespace"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.isolation.setHostName", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["process.namespace"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function setHostName(name: string): Result<void, PlatformError>;
 
     /// Set network namespace context for subsequent network operations.
@@ -203,17 +204,16 @@ declare namespace process {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.process.isolation.setNetworkNamespace",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["process.namespace"],
-            platforms: ["linux"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.process.isolation.setNetworkNamespace", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["process.namespace"],
+        platforms: ["linux"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function setNetworkNamespace(path: OsPath): Result<void, PlatformError>;
 }

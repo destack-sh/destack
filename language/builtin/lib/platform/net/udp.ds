@@ -55,7 +55,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.socket", { effect: "external", replay: "recordable", capabilities: ["net.udp"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.udp.socket", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.udp"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function udpSocket(family: SocketFamily): Result<SocketHandle, PlatformError>;
 
     /// Bind a UDP socket to a raw local address.
@@ -75,7 +84,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.bind", { effect: "external", replay: "recordable", capabilities: ["net.udp"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.udp.bind", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.udp"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function udpBind(
         handle: SocketHandle,
         address: SocketAddress,
@@ -98,7 +116,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.connect", { effect: "external", replay: "recordable", capabilities: ["net.udp"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.udp.connect", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.udp"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function udpConnect(
         handle: SocketHandle,
         address: SocketAddress,
@@ -121,7 +148,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.sendTo", { effect: "external", replay: "recordable", capabilities: ["net.udp"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.udp.sendTo", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.udp"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function udpSendTo(
         handle: SocketHandle,
         address: SocketAddress,
@@ -146,7 +182,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.recvFrom", { effect: "external", replay: "recordable", capabilities: ["net.udp"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.udp.recvFrom", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.udp"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function udpRecvFrom(
         handle: SocketHandle,
         buffer: Slice<uint8>,
@@ -170,7 +215,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.joinMulticastV4", { effect: "external", replay: "recordable", capabilities: ["net.multicast"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.udp.joinMulticastV4", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.multicast"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function joinMulticastV4(
         handle: SocketHandle,
         group: string,
@@ -194,7 +248,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.leaveMulticastV4", { effect: "external", replay: "recordable", capabilities: ["net.multicast"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.udp.leaveMulticastV4", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.multicast"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function leaveMulticastV4(
         handle: SocketHandle,
         group: string,
@@ -218,7 +281,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.joinMulticastV6", { effect: "external", replay: "recordable", capabilities: ["net.multicast"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.udp.joinMulticastV6", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.multicast"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function joinMulticastV6(
         handle: SocketHandle,
         group: string,
@@ -242,7 +314,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.leaveMulticastV6", { effect: "external", replay: "recordable", capabilities: ["net.multicast"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.udp.leaveMulticastV6", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.multicast"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function leaveMulticastV6(
         handle: SocketHandle,
         group: string,
@@ -266,7 +347,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.setMulticastLoop", { effect: "external", replay: "recordable", capabilities: ["net.multicast"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.udp.setMulticastLoop", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.multicast"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function setMulticastLoop(
         handle: SocketHandle,
         enabled: boolean,
@@ -289,10 +379,17 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.getMulticastLoop", { effect: "external", replay: "recordable", capabilities: ["net.multicast"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function getMulticastLoop(
-        handle: SocketHandle,
-    ): Result<boolean, PlatformError>;
+    @binding("destack.net.udp.getMulticastLoop", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.multicast"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function getMulticastLoop(handle: SocketHandle): Result<boolean, PlatformError>;
 
     /// Set multicast TTL.
     ///
@@ -311,11 +408,17 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.setMulticastTtl", { effect: "external", replay: "recordable", capabilities: ["net.multicast"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function setMulticastTtl(
-        handle: SocketHandle,
-        ttl: uint32,
-    ): Result<void, PlatformError>;
+    @binding("destack.net.udp.setMulticastTtl", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.multicast"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function setMulticastTtl(handle: SocketHandle, ttl: uint32): Result<void, PlatformError>;
 
     /// Read multicast TTL or hop-limit.
     ///
@@ -334,10 +437,17 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.getMulticastTtl", { effect: "external", replay: "recordable", capabilities: ["net.multicast"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function getMulticastTtl(
-        handle: SocketHandle,
-    ): Result<uint32, PlatformError>;
+    @binding("destack.net.udp.getMulticastTtl", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.multicast"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function getMulticastTtl(handle: SocketHandle): Result<uint32, PlatformError>;
 
     /// Join one IPv4 source-specific multicast membership.
     ///
@@ -356,7 +466,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.joinMulticastSourceV4", { effect: "external", replay: "recordable", capabilities: ["net.multicast"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.udp.joinMulticastSourceV4", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.multicast"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function joinMulticastSourceV4(
         handle: SocketHandle,
         membership: UdpSourceMembershipV4,
@@ -379,7 +498,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.leaveMulticastSourceV4", { effect: "external", replay: "recordable", capabilities: ["net.multicast"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.udp.leaveMulticastSourceV4", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.multicast"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function leaveMulticastSourceV4(
         handle: SocketHandle,
         membership: UdpSourceMembershipV4,
@@ -402,7 +530,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.joinMulticastSourceV6", { effect: "external", replay: "recordable", capabilities: ["net.multicast"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.udp.joinMulticastSourceV6", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.multicast"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function joinMulticastSourceV6(
         handle: SocketHandle,
         membership: UdpSourceMembershipV6,
@@ -425,7 +562,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.leaveMulticastSourceV6", { effect: "external", replay: "recordable", capabilities: ["net.multicast"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.udp.leaveMulticastSourceV6", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.multicast"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function leaveMulticastSourceV6(
         handle: SocketHandle,
         membership: UdpSourceMembershipV6,
@@ -448,7 +594,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.setMulticastInterfaceV4", { effect: "external", replay: "recordable", capabilities: ["net.multicast"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.udp.setMulticastInterfaceV4", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.multicast"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function setMulticastInterfaceV4(
         handle: SocketHandle,
         interfaceAddress: string,
@@ -471,10 +626,17 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.getMulticastInterfaceV4", { effect: "external", replay: "recordable", capabilities: ["net.multicast"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function getMulticastInterfaceV4(
-        handle: SocketHandle,
-    ): Result<string, PlatformError>;
+    @binding("destack.net.udp.getMulticastInterfaceV4", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.multicast"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function getMulticastInterfaceV4(handle: SocketHandle): Result<string, PlatformError>;
 
     /// Select the default IPv6 multicast interface for one socket.
     ///
@@ -493,7 +655,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.setMulticastInterfaceV6", { effect: "external", replay: "recordable", capabilities: ["net.multicast"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.udp.setMulticastInterfaceV6", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.multicast"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function setMulticastInterfaceV6(
         handle: SocketHandle,
         interfaceIndex: uint32,
@@ -516,8 +687,15 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.udp.getMulticastInterfaceV6", { effect: "external", replay: "recordable", capabilities: ["net.multicast"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function getMulticastInterfaceV6(
-        handle: SocketHandle,
-    ): Result<uint32, PlatformError>;
+    @binding("destack.net.udp.getMulticastInterfaceV6", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.multicast"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function getMulticastInterfaceV6(handle: SocketHandle): Result<uint32, PlatformError>;
 }

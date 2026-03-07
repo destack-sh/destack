@@ -32,11 +32,17 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.tcp.setNoDelay", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
-    export function setNoDelay(
-        handle: SocketHandle,
-        enabled: boolean,
-    ): Result<void, PlatformError>;
+    @binding("destack.net.tcp.setNoDelay", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
+    export function setNoDelay(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>;
 
     /// Read TCP_NODELAY.
     ///
@@ -55,7 +61,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.tcp.getNoDelay", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.tcp.getNoDelay", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function getNoDelay(handle: SocketHandle): Result<boolean, PlatformError>;
 
     /// Write full TCP keepalive parameters.
@@ -75,7 +90,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.tcp.setKeepAlive", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.tcp.setKeepAlive", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function setKeepAlive(
         handle: SocketHandle,
         config: KeepAliveConfig,
@@ -98,6 +122,15 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.tcp.getKeepAlive", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "never" })
+    @binding("destack.net.tcp.getKeepAlive", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
     export function getKeepAlive(handle: SocketHandle): Result<KeepAliveConfig, PlatformError>;
 }

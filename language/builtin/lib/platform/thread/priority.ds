@@ -20,18 +20,17 @@ declare namespace thread {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.thread.priority.setPriority",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["thread.priority"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.thread.priority.setPriority", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["thread.priority"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function setPriority(handle: ThreadHandle, priority: int32): Result<void, PlatformError>;
 
     /// Read thread priority.
@@ -51,18 +50,17 @@ declare namespace thread {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.thread.priority.getPriority",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["thread.priority"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.thread.priority.getPriority", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["thread.priority"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function getPriority(handle: ThreadHandle): Result<int32, PlatformError>;
 
     /// Set thread affinity mask.
@@ -82,18 +80,17 @@ declare namespace thread {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.thread.priority.setAffinity",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["thread.priority"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.thread.priority.setAffinity", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["thread.priority"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function setAffinity(handle: ThreadHandle, mask: uint64): Result<void, PlatformError>;
 
     /// Read thread affinity mask.
@@ -113,17 +110,16 @@ declare namespace thread {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.thread.priority.getAffinity",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["thread.priority"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.thread.priority.getAffinity", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["thread.priority"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function getAffinity(handle: ThreadHandle): Result<uint64, PlatformError>;
 }

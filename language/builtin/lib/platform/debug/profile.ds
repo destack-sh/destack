@@ -30,18 +30,17 @@ declare namespace debug {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.debug.profile.start",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["debug.profile"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.debug.profile.start", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["debug.profile"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function profileStart(kind: ProfileKind): Result<ProfileHandle, PlatformError>;
 
     /// Stop a profiling session.
@@ -61,18 +60,17 @@ declare namespace debug {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.debug.profile.stop",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["debug.profile"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.debug.profile.stop", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["debug.profile"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function profileStop(handle: ProfileHandle): Result<void, PlatformError>;
 
     /// Capture a profiling snapshot.
@@ -92,17 +90,16 @@ declare namespace debug {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.debug.profile.snapshot",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["debug.profile"],
-            platforms: ["windows", "unix", "wasi"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.debug.profile.snapshot", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["debug.profile"],
+        platforms: ["windows", "unix", "wasi"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function profileSnapshot(handle: ProfileHandle): Result<Array<uint8>, PlatformError>;
 }

@@ -41,18 +41,17 @@ declare namespace ipc {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.ipc.unix.send",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["ipc.unix", "ipc.fd.pass"],
-            platforms: ["unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.ipc.unix.send", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["ipc.unix", "ipc.fd.pass"],
+        platforms: ["unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function unixSend(
         socket: SocketHandle,
         payload: Slice<uint8>,
@@ -76,17 +75,19 @@ declare namespace ipc {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.ipc.unix.receive",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["ipc.unix", "ipc.fd.pass"],
-            platforms: ["unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function unixReceive(socket: SocketHandle, maxHandles: uint32): Result<UnixReceiveAncillary, PlatformError>;
+    @binding("destack.ipc.unix.receive", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["ipc.unix", "ipc.fd.pass"],
+        platforms: ["unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function unixReceive(
+        socket: SocketHandle,
+        maxHandles: uint32,
+    ): Result<UnixReceiveAncillary, PlatformError>;
 }

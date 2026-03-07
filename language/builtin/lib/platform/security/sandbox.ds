@@ -20,18 +20,17 @@ declare namespace security {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.security.sandbox.enter",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["security.sandbox"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.security.sandbox.enter", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["security.sandbox"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function sandboxEnter(name: string): Result<SandboxHandle, PlatformError>;
 
     /// Leave a sandbox scope.
@@ -51,17 +50,16 @@ declare namespace security {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.security.sandbox.exit",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["security.sandbox"],
-            platforms: ["windows", "unix"],
-            simulation: "unsupported",
-            scope: "runtime",
-            blocking: "never",
-        },
-    )
+    @binding("destack.security.sandbox.exit", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["security.sandbox"],
+        platforms: ["windows", "unix"],
+        simulation: "unsupported",
+        scope: "runtime",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function sandboxExit(handle: SandboxHandle): Result<void, PlatformError>;
 }

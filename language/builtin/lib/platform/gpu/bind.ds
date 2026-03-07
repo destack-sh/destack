@@ -148,7 +148,11 @@ export struct GpuBindGroupLayoutSamplerResource {
 }
 
 /// Bind group layout resource payload.
-export newtype GpuBindGroupLayoutResource = GpuBindGroupLayoutBufferResource | GpuBindGroupLayoutSampledTextureResource | GpuBindGroupLayoutStorageTextureResource | GpuBindGroupLayoutSamplerResource;
+export newtype GpuBindGroupLayoutResource =
+    | GpuBindGroupLayoutBufferResource
+    | GpuBindGroupLayoutSampledTextureResource
+    | GpuBindGroupLayoutStorageTextureResource
+    | GpuBindGroupLayoutSamplerResource;
 
 /// Bind group layout entry.
 export struct GpuBindGroupLayoutEntry {
@@ -191,7 +195,10 @@ export struct GpuBindGroupSamplerResource {
 }
 
 /// Bind group resource payload.
-export newtype GpuBindGroupResource = GpuBindGroupBufferResource | GpuBindGroupTextureResource | GpuBindGroupSamplerResource;
+export newtype GpuBindGroupResource =
+    | GpuBindGroupBufferResource
+    | GpuBindGroupTextureResource
+    | GpuBindGroupSamplerResource;
 
 /// Bind group resource entry.
 export struct GpuBindGroupEntry {
@@ -240,6 +247,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bindGroupLayoutCreate(
         device: GpuDeviceHandle,
@@ -272,6 +280,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function bindGroupLayoutDestroy(handle: GpuBindGroupLayoutHandle): Result<void, PlatformError>;
 
@@ -300,6 +309,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function pipelineLayoutCreate(
         device: GpuDeviceHandle,
@@ -331,6 +341,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function pipelineLayoutDestroy(handle: GpuPipelineLayoutHandle): Result<void, PlatformError>;
 
@@ -359,6 +370,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function bindGroupCreate(
         device: GpuDeviceHandle,
@@ -392,6 +404,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function bindGroupDestroy(handle: GpuBindGroupHandle): Result<void, PlatformError>;
 }

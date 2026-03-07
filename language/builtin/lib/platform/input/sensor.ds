@@ -109,6 +109,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function sensorList(handle: InputDeviceHandle): Result<Array<InputSensorDescriptor>, PlatformError>;
 
@@ -137,6 +138,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function sensorConfigure(
         handle: InputDeviceHandle,
@@ -169,6 +171,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function sensorRead(
         handle: InputDeviceHandle,
@@ -199,6 +202,7 @@ declare namespace input {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function sensorTryRead(
         handle: InputDeviceHandle,

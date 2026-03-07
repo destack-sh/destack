@@ -21,18 +21,17 @@ declare namespace ffi {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.ffi.library.open",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["ffi.load"],
-            platforms: ["windows", "unix"],
-            simulation: "stub",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.ffi.library.open", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["ffi.load"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function open(path: OsPath, flags: uint32): Result<LibraryHandle, PlatformError>;
 
     /// Close a dynamic library.
@@ -52,17 +51,16 @@ declare namespace ffi {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding(
-        "destack.ffi.library.close",
-        {
-            effect: "external",
-            replay: "nonrecordable",
-            capabilities: ["ffi.load"],
-            platforms: ["windows", "unix"],
-            simulation: "stub",
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
+    @binding("destack.ffi.library.close", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["ffi.load"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
     export function close(handle: LibraryHandle): Result<void, PlatformError>;
 }

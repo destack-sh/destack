@@ -30,11 +30,17 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.getxattr", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function getxattr(
-        path: OsPath,
-        name: string,
-    ): Result<Array<uint8>, PlatformError>;
+    @binding("destack.fs.xattr.getxattr", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function getxattr(path: OsPath, name: string): Result<Array<uint8>, PlatformError>;
 
     /// Read an extended attribute by path with a raw name payload.
     ///
@@ -53,7 +59,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.getxattrBytes", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.getxattrBytes", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function getxattrBytes(
         path: OsPath,
         name: Slice<uint8>,
@@ -76,11 +91,17 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.lgetxattr", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function lgetxattr(
-        path: OsPath,
-        name: string,
-    ): Result<Array<uint8>, PlatformError>;
+    @binding("destack.fs.xattr.lgetxattr", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function lgetxattr(path: OsPath, name: string): Result<Array<uint8>, PlatformError>;
 
     /// Read an extended attribute without following symlinks, using a raw name payload.
     ///
@@ -99,7 +120,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.lgetxattrBytes", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.lgetxattrBytes", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function lgetxattrBytes(
         path: OsPath,
         name: Slice<uint8>,
@@ -122,7 +152,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.fgetxattr", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.fgetxattr", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function fgetxattr(
         handle: FileHandle,
         name: string,
@@ -145,7 +184,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.fgetxattrBytes", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.fgetxattrBytes", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function fgetxattrBytes(
         handle: FileHandle,
         name: Slice<uint8>,
@@ -168,7 +216,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.setxattr", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.setxattr", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function setxattr(
         path: OsPath,
         name: string,
@@ -193,7 +250,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.setxattrBytes", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.setxattrBytes", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function setxattrBytes(
         path: OsPath,
         name: Slice<uint8>,
@@ -218,7 +284,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.lsetxattr", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.lsetxattr", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function lsetxattr(
         path: OsPath,
         name: string,
@@ -243,7 +318,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.lsetxattrBytes", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.lsetxattrBytes", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function lsetxattrBytes(
         path: OsPath,
         name: Slice<uint8>,
@@ -268,7 +352,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.fsetxattr", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.fsetxattr", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function fsetxattr(
         handle: FileHandle,
         name: string,
@@ -293,7 +386,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.fsetxattrBytes", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.fsetxattrBytes", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function fsetxattrBytes(
         handle: FileHandle,
         name: Slice<uint8>,
@@ -318,7 +420,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.listxattr", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.listxattr", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function listxattr(path: OsPath): Result<Array<string>, PlatformError>;
 
     /// List extended attribute names by path as raw byte payloads.
@@ -338,7 +449,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.listxattrBytes", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.listxattrBytes", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function listxattrBytes(path: OsPath): Result<Array<uint8[]>, PlatformError>;
 
     /// List extended attribute names without following symlinks.
@@ -358,7 +478,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.llistxattr", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.llistxattr", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function llistxattr(path: OsPath): Result<Array<string>, PlatformError>;
 
     /// List extended attribute names without following symlinks as raw byte payloads.
@@ -378,7 +507,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.llistxattrBytes", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.llistxattrBytes", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function llistxattrBytes(path: OsPath): Result<Array<uint8[]>, PlatformError>;
 
     /// List extended attribute names by handle.
@@ -398,7 +536,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.flistxattr", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.flistxattr", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function flistxattr(handle: FileHandle): Result<Array<string>, PlatformError>;
 
     /// List extended attribute names by handle as raw byte payloads.
@@ -418,7 +565,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.flistxattrBytes", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.flistxattrBytes", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function flistxattrBytes(handle: FileHandle): Result<Array<uint8[]>, PlatformError>;
 
     /// Remove an extended attribute by path.
@@ -438,7 +594,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.removexattr", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.removexattr", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function removexattr(path: OsPath, name: string): Result<void, PlatformError>;
 
     /// Remove an extended attribute by path with a raw name payload.
@@ -458,7 +623,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.removexattrBytes", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.removexattrBytes", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function removexattrBytes(path: OsPath, name: Slice<uint8>): Result<void, PlatformError>;
 
     /// Remove an extended attribute without following symlinks.
@@ -478,7 +652,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.lremovexattr", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.lremovexattr", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function lremovexattr(path: OsPath, name: string): Result<void, PlatformError>;
 
     /// Remove an extended attribute without following symlinks, using a raw name payload.
@@ -498,8 +681,20 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.lremovexattrBytes", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function lremovexattrBytes(path: OsPath, name: Slice<uint8>): Result<void, PlatformError>;
+    @binding("destack.fs.xattr.lremovexattrBytes", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function lremovexattrBytes(
+        path: OsPath,
+        name: Slice<uint8>,
+    ): Result<void, PlatformError>;
 
     /// Remove an extended attribute by handle.
     ///
@@ -518,7 +713,16 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.fremovexattr", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.xattr.fremovexattr", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function fremovexattr(handle: FileHandle, name: string): Result<void, PlatformError>;
 
     /// Remove an extended attribute by handle with a raw name payload.
@@ -538,6 +742,18 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.xattr.fremovexattrBytes", { effect: "external", replay: "recordable", capabilities: ["fs.xattr"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function fremovexattrBytes(handle: FileHandle, name: Slice<uint8>): Result<void, PlatformError>;
+    @binding("destack.fs.xattr.fremovexattrBytes", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["fs.xattr"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function fremovexattrBytes(
+        handle: FileHandle,
+        name: Slice<uint8>,
+    ): Result<void, PlatformError>;
 }

@@ -1,10 +1,6 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
-import {
-    GpuAdapterHandle,
-    GpuDeviceHandle,
-    GpuQueueHandle,
-} from "../resource/index.ds";
+import { GpuAdapterHandle, GpuDeviceHandle, GpuQueueHandle } from "../resource/index.ds";
 import { GpuAdapterLimits, GpuBackend, GpuFeatureId } from "./adapter.ds";
 
 /// Device-loss reason category.
@@ -112,6 +108,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function deviceOpen(
         adapter: GpuAdapterHandle,
@@ -143,6 +140,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function deviceInfo(device: GpuDeviceHandle): Result<GpuDeviceInfo, PlatformError>;
 
@@ -171,6 +169,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function deviceFeatures(device: GpuDeviceHandle): Result<Slice<GpuFeatureId>, PlatformError>;
 
@@ -199,6 +198,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function deviceLimits(device: GpuDeviceHandle): Result<GpuAdapterLimits, PlatformError>;
 
@@ -227,8 +227,12 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
-    export function deviceHasFeature(device: GpuDeviceHandle, feature: GpuFeatureId): Result<boolean, PlatformError>;
+    export function deviceHasFeature(
+        device: GpuDeviceHandle,
+        feature: GpuFeatureId,
+    ): Result<boolean, PlatformError>;
 
     /// Read health status for one logical device.
     ///
@@ -255,6 +259,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function deviceStatus(device: GpuDeviceHandle): Result<GpuDeviceStatus, PlatformError>;
 
@@ -283,6 +288,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function deviceQueue(device: GpuDeviceHandle): Result<GpuQueueHandle, PlatformError>;
 
@@ -311,6 +317,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function devicePoll(
         device: GpuDeviceHandle,
@@ -343,6 +350,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "never",
+        affinity: "any",
     })
     export function devicePushErrorScope(
         device: GpuDeviceHandle,
@@ -374,6 +382,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function devicePopErrorScope(
         device: GpuDeviceHandle,
@@ -405,6 +414,7 @@ declare namespace gpu {
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
+        affinity: "any",
     })
     export function deviceClose(handle: GpuDeviceHandle): Result<void, PlatformError>;
 }

@@ -27,7 +27,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.listener.listen", { effect: "external", replay: "recordable", capabilities: ["net.listen"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.listener.listen", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.listen"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function listen(
         address: SocketAddress,
         backlog: uint32,
@@ -50,11 +59,17 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.listener.bind", { effect: "external", replay: "recordable", capabilities: ["net.listen"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function bind(
-        handle: SocketHandle,
-        address: SocketAddress,
-    ): Result<void, PlatformError>;
+    @binding("destack.net.listener.bind", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.listen"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function bind(handle: SocketHandle, address: SocketAddress): Result<void, PlatformError>;
 
     /// Accept a new connection from a listener.
     ///
@@ -73,7 +88,16 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.listener.accept", { effect: "external", replay: "recordable", capabilities: ["net.accept"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
+    @binding("destack.net.listener.accept", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.accept"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
     export function accept(
         listener: ListenerHandle,
         flags: AcceptFlags,
@@ -96,8 +120,15 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.listener.closeListener", { effect: "external", replay: "recordable", capabilities: ["net.close"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
-    export function closeListener(
-        handle: ListenerHandle,
-    ): Result<void, PlatformError>;
+    @binding("destack.net.listener.closeListener", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["net.close"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function closeListener(handle: ListenerHandle): Result<void, PlatformError>;
 }

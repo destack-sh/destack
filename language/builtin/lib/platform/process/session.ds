@@ -20,18 +20,17 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.session.setsid",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.session"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.session.setsid", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.session"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function setsid(): Result<ProcessId, PlatformError>;
 
     /// Set a process group id for a process.
@@ -51,22 +50,18 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.session.setpgid",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.session"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
-    export function setpgid(
-        pid: ProcessId,
-        pgid: ProcessId,
-    ): Result<void, PlatformError>;
+    @binding("destack.process.session.setpgid", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.session"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
+    export function setpgid(pid: ProcessId, pgid: ProcessId): Result<void, PlatformError>;
 
     /// Read a process group id.
     ///
@@ -85,17 +80,16 @@ declare namespace process {
     ///
     /// # Replay
     /// External, recordable.
-    @binding(
-        "destack.process.session.getpgid",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["process.session"],
-            platforms: ["windows", "unix"],
-            simulation: "model",
-            scope: "host",
-            blocking: "never",
-        },
-    )
+    @binding("destack.process.session.getpgid", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["process.session"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+
+        affinity: "any",
+    })
     export function getpgid(pid: ProcessId): Result<ProcessId, PlatformError>;
 }
