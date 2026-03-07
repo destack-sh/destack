@@ -82,10 +82,20 @@ fn test_world_shared_commands_affect_detached_agents() {
     // create one shared world with two agents
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let _ =
-        Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
-    let _ =
-        Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
+    let _ = Agent::new_in_world(
+        Vec::new(),
+        &options,
+        &world,
+        Box::new(TestEngine::default()),
+    )
+    .expect("agent should construct in world");
+    let _ = Agent::new_in_world(
+        Vec::new(),
+        &options,
+        &world,
+        Box::new(TestEngine::default()),
+    )
+    .expect("agent should construct in world");
 
     // install one rule through one world command
     world
@@ -128,8 +138,13 @@ fn test_agent_world_control_update_refreshes_policy() {
     // create one agent in one shared world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent =
-        Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
+    let agent = Agent::new_in_world(
+        Vec::new(),
+        &options,
+        &world,
+        Box::new(TestEngine::default()),
+    )
+    .expect("agent should construct in world");
     let host = Host::from_runtime_options(&options, agent.runtime_id);
     let descriptor = BindingDescriptor::pure("destack.test.live.policy", "()");
 
@@ -170,8 +185,13 @@ fn test_agent_world_control_update_refreshes_hooks() {
     // create one agent in one shared world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent =
-        Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
+    let agent = Agent::new_in_world(
+        Vec::new(),
+        &options,
+        &world,
+        Box::new(TestEngine::default()),
+    )
+    .expect("agent should construct in world");
     let host = Host::from_runtime_options(&options, agent.runtime_id);
     let descriptor = BindingDescriptor::pure("destack.test.live.hooks", "()");
 
@@ -222,12 +242,22 @@ fn test_agent_world_control_agent_selector() {
     let mut options_b = RuntimeOptions::default();
     options_b.primary_agent.name = Some("agent-b".to_string());
     let world = Arc::new(World::default());
-    let mut agent_a = Agent::new_in_world(Vec::new(), &options_a, &world)
-        .expect("agent should construct in world");
-    let mut agent_b = Agent::new_in_world(Vec::new(), &options_b, &world)
-        .expect("agent should construct in world");
-    let host_a = Host::from_runtime_options(&options_a, RuntimeId(1));
-    let host_b = Host::from_runtime_options(&options_b, RuntimeId(2));
+    let mut agent_a = Agent::new_in_world(
+        Vec::new(),
+        &options_a,
+        &world,
+        Box::new(TestEngine::default()),
+    )
+    .expect("agent should construct in world");
+    let mut agent_b = Agent::new_in_world(
+        Vec::new(),
+        &options_b,
+        &world,
+        Box::new(TestEngine::default()),
+    )
+    .expect("agent should construct in world");
+    let host_a = Host::from_runtime_options(&options_a, agent_a.runtime_id);
+    let host_b = Host::from_runtime_options(&options_b, agent_b.runtime_id);
 
     // install one scheduler hook rule scoped to agent_a
     world
@@ -267,12 +297,11 @@ fn test_agent_world_control_agent_selector() {
         .expect("policy update should succeed");
 
     // apply control updates on both agents
-    let mut engine = TestEngine::default();
     let _ = agent_a
-        .tick(&world, &host_a, &mut engine)
+        .tick(&world, &host_a)
         .expect("tick should refresh policy state");
     let _ = agent_b
-        .tick(&world, &host_b, &mut engine)
+        .tick(&world, &host_b)
         .expect("tick should refresh policy state");
 
     // fire the same hook on both agents
@@ -290,8 +319,13 @@ fn test_world_apply_policy_command_updates_rules() {
     // create one agent in one shared world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent =
-        Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
+    let agent = Agent::new_in_world(
+        Vec::new(),
+        &options,
+        &world,
+        Box::new(TestEngine::default()),
+    )
+    .expect("agent should construct in world");
     let host = Host::from_runtime_options(&options, agent.runtime_id);
     let descriptor = BindingDescriptor::pure("destack.test.program.policy", "()");
 
@@ -439,8 +473,13 @@ fn test_world_resource_lifecycle_updates_topology() {
     // create one agent and insert one resource
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent =
-        Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
+    let agent = Agent::new_in_world(
+        Vec::new(),
+        &options,
+        &world,
+        Box::new(TestEngine::default()),
+    )
+    .expect("agent should construct in world");
     let resource_id = agent.resources.insert(
         &world,
         ResourceEntry::new(ResourceKind::Timer).with_label("test-timer"),
@@ -479,8 +518,13 @@ fn test_world_remove_agent_cleans_topology() {
     // create one world and one detached agent
     let world = Arc::new(World::default());
     let options = RuntimeOptions::default();
-    let agent =
-        Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct in world");
+    let agent = Agent::new_in_world(
+        Vec::new(),
+        &options,
+        &world,
+        Box::new(TestEngine::default()),
+    )
+    .expect("agent should construct in world");
     let agent_id = agent.id;
     let host = Host::from_runtime_options(&options, agent.runtime_id);
     let descriptor = BindingDescriptor::pure("destack.test.removed.agent", "()");
@@ -553,7 +597,7 @@ fn test_world_revision_advances_for_runtime_lifecycle_mutations() {
 
     // spawning one agent should advance revision
     let spawned_agent_id = world
-        .spawn_agent(runtime_id)
+        .spawn_agent(runtime_id, TestEngine::default())
         .expect("agent spawn should succeed");
     let revision_after_spawn = world.revision();
     assert!(revision_after_spawn > revision_after_runtime);
@@ -658,7 +702,13 @@ fn test_agent_capability_profile_configures_binding_policy() {
     options.security.capability_profile = Some("fs.read,net.connect".to_string());
 
     let world = World::from_options(&options).expect("world should construct");
-    let agent = Agent::new_in_world(Vec::new(), &options, &world).expect("agent should construct");
+    let agent = Agent::new_in_world(
+        Vec::new(),
+        &options,
+        &world,
+        Box::new(TestEngine::default()),
+    )
+    .expect("agent should construct");
     let policy = agent.bindings.policy().read();
 
     assert!(policy.is_capability_requirements_enforced());

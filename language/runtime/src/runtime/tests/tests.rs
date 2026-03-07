@@ -225,14 +225,25 @@ impl HostPoller for TestPoller {
 impl TestRuntime {
     /// Create one test agent with default options.
     pub(super) fn new() -> Self {
-        let (world, agent, host) = agent_for_options(&RuntimeOptions::default());
+        let (world, agent, host) =
+            agent_for_options_with_engine(&RuntimeOptions::default(), TestEngine::default());
 
         Self { world, agent, host }
     }
 
     /// Create one test agent with explicit runtime options.
     pub(super) fn with_options(options: &RuntimeOptions) -> Self {
-        let (world, agent, host) = agent_for_options(options);
+        let (world, agent, host) = agent_for_options_with_engine(options, TestEngine::default());
+
+        Self { world, agent, host }
+    }
+
+    /// Create one test agent with explicit options and one explicit engine.
+    pub(super) fn with_options_and_engine(
+        options: &RuntimeOptions,
+        engine: impl Engine + 'static,
+    ) -> Self {
+        let (world, agent, host) = agent_for_options_with_engine(options, engine);
 
         Self { world, agent, host }
     }
@@ -244,6 +255,21 @@ impl TestRuntime {
     ) -> Self {
         let (world, agent, host) =
             agent_for_options_with_host_clock_source(options, Some(host_clock_source));
+
+        Self { world, agent, host }
+    }
+
+    /// Create one test agent with explicit options, one explicit engine, and one host clock source.
+    pub(super) fn with_options_engine_and_host_clock_source(
+        options: &RuntimeOptions,
+        engine: impl Engine + 'static,
+        host_clock_source: Arc<dyn HostClockSource>,
+    ) -> Self {
+        let (world, agent, host) = agent_for_options_with_engine_and_host_clock_source(
+            options,
+            engine,
+            Some(host_clock_source),
+        );
 
         Self { world, agent, host }
     }
@@ -384,44 +410,37 @@ impl TestRuntime {
     }
 
     /// Tick once and fail loudly on runtime errors.
-    pub(super) fn tick<E: Engine>(&mut self, engine: &mut E) -> bool {
+    pub(super) fn tick(&mut self) -> bool {
         self.agent
-            .tick(&self.world, &self.host, engine)
+            .tick(&self.world, &self.host)
             .expect("tick should execute runtime work")
     }
 
     /// Tick until idle and fail loudly on runtime errors.
-    pub(super) fn tick_until_idle<E: Engine>(&mut self, engine: &mut E) {
+    pub(super) fn tick_until_idle(&mut self) {
         self.agent
-            .tick_until_idle(&self.world, &self.host, engine)
+            .tick_until_idle(&self.world, &self.host)
             .expect("tick until idle should complete");
     }
 
     /// Run until one task completes.
-    pub(super) fn run_loop_until_task_complete<E: Engine>(
+    pub(super) fn run_loop_until_task_complete(
         &mut self,
-        engine: &mut E,
         task_id: u64,
     ) -> RuntimeResult<EngineOutput> {
-        self.agent.run_loop_until_task_complete(
-            &self.world,
-            &self.host,
-            engine,
-            TaskId::new(task_id),
-        )
+        self.agent
+            .run_loop_until_task_complete(&self.world, &self.host, TaskId::new(task_id))
     }
 
     /// Run until one task completes or one timeout elapses.
-    pub(super) fn run_loop_until_task_complete_with_timeout<E: Engine>(
+    pub(super) fn run_loop_until_task_complete_with_timeout(
         &mut self,
-        engine: &mut E,
         task_id: u64,
         timeout_nanos: Option<u64>,
     ) -> RuntimeResult<Option<EngineOutput>> {
         self.agent.run_loop_until_task_complete_with_timeout(
             &self.world,
             &self.host,
-            engine,
             TaskId::new(task_id),
             timeout_nanos,
         )
@@ -435,6 +454,16 @@ impl TestRuntime {
     /// Return whether the event loop has pending microtasks.
     pub(super) fn has_microtasks(&self) -> bool {
         self.agent.event_loop.has_microtasks()
+    }
+
+    /// Run one closure with one stored agent engine by explicit type.
+    pub(super) fn with_engine<T: Engine, R>(&self, callback: impl FnOnce(&T) -> R) -> R {
+        let engine = self.agent.engine.as_ref() as &dyn std::any::Any;
+        let engine = engine
+            .downcast_ref::<T>()
+            .expect("agent engine should exist");
+
+        callback(engine)
     }
 
     /// Return event-loop drop accounting.
@@ -483,10 +512,10 @@ impl TestMultiAgentRuntime {
             .expect("runtime should exist")
     }
 
-    /// Spawn one additional agent and return its id.
-    pub(super) fn spawn_agent(&mut self) -> AgentId {
+    /// Spawn one additional agent with one explicit engine and return its id.
+    pub(super) fn spawn_agent(&mut self, engine: impl Engine + 'static) -> AgentId {
         self.world
-            .spawn_agent(self.runtime_id)
+            .spawn_agent(self.runtime_id, engine)
             .expect("agent should spawn")
     }
 
@@ -546,11 +575,38 @@ impl TestMultiAgentRuntime {
         self.world.mono_nanos()
     }
 
-    /// Run one closure with one stored runtime engine by explicit type.
-    pub(super) fn with_engine<T: Engine, R>(&self, callback: impl FnOnce(&T) -> R) -> R {
+    /// Run one closure with one stored primary-agent engine by explicit type.
+    pub(super) fn with_primary_engine<T: Engine, R>(&self, callback: impl FnOnce(&T) -> R) -> R {
         self.world
             .with_runtime(self.runtime_id, |runtime| {
-                let engine = runtime.engine::<T>().expect("runtime engine should exist");
+                let primary_agent_id = runtime.primary_agent_id();
+                let agent = runtime
+                    .agent(primary_agent_id)
+                    .expect("primary agent should exist");
+                let engine = agent.engine.as_ref() as &dyn std::any::Any;
+                let engine = engine
+                    .downcast_ref::<T>()
+                    .expect("agent engine should exist");
+                Ok(callback(engine))
+            })
+            .expect("runtime should exist")
+    }
+
+    /// Run one closure with one stored agent engine by explicit type.
+    pub(super) fn with_agent_engine<T: Engine, R>(
+        &self,
+        agent_id: AgentId,
+        callback: impl FnOnce(&T) -> R,
+    ) -> R {
+        self.world
+            .with_runtime(self.runtime_id, |runtime| {
+                let agent = runtime
+                    .agent(agent_id)
+                    .expect("agent should exist in runtime");
+                let engine = agent.engine.as_ref() as &dyn std::any::Any;
+                let engine = engine
+                    .downcast_ref::<T>()
+                    .expect("agent engine should exist");
                 Ok(callback(engine))
             })
             .expect("runtime should exist")
@@ -559,12 +615,33 @@ impl TestMultiAgentRuntime {
 
 /// Build one agent configured for runtime tests.
 fn agent_for_options(options: &RuntimeOptions) -> (Arc<World>, Agent, Host) {
-    agent_for_options_with_host_clock_source(options, None)
+    agent_for_options_with_engine(options, TestEngine::default())
 }
 
 /// Build one agent configured for runtime tests and one optional host clock source.
 fn agent_for_options_with_host_clock_source(
     options: &RuntimeOptions,
+    host_clock_source: Option<Arc<dyn HostClockSource>>,
+) -> (Arc<World>, Agent, Host) {
+    agent_for_options_with_engine_and_host_clock_source(
+        options,
+        TestEngine::default(),
+        host_clock_source,
+    )
+}
+
+/// Build one agent configured for runtime tests with one explicit engine.
+fn agent_for_options_with_engine(
+    options: &RuntimeOptions,
+    engine: impl Engine + 'static,
+) -> (Arc<World>, Agent, Host) {
+    agent_for_options_with_engine_and_host_clock_source(options, engine, None)
+}
+
+/// Build one agent configured for runtime tests with one explicit engine and one optional host clock source.
+fn agent_for_options_with_engine_and_host_clock_source(
+    options: &RuntimeOptions,
+    engine: impl Engine + 'static,
     host_clock_source: Option<Arc<dyn HostClockSource>>,
 ) -> (Arc<World>, Agent, Host) {
     let world = if let Some(host_clock_source) = host_clock_source.clone() {
@@ -574,8 +651,8 @@ fn agent_for_options_with_host_clock_source(
     };
 
     // construct one runtime agent from explicit options
-    let mut agent =
-        Agent::new_in_world(Vec::new(), options, &world).expect("runtime test agent should build");
+    let mut agent = Agent::new_in_world(Vec::new(), options, &world, Box::new(engine))
+        .expect("runtime test agent should build");
 
     // configure scheduler options for deterministic tests
     agent

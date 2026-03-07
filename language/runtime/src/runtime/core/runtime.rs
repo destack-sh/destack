@@ -28,8 +28,6 @@ pub struct Runtime {
     host: Host,
     /// Shared platform poller for external events.
     poller: Option<Box<dyn HostPoller>>,
-    /// Execution engine owned by this runtime.
-    engine: Box<dyn Engine>,
     /// Drop accounting at the runtime coordination boundary.
     drop_counts: DropCounts,
     /// All active agents keyed by identifier.
@@ -80,8 +78,8 @@ impl Runtime {
         engine: Box<dyn Engine>,
     ) -> RuntimeResult<Self> {
         let platform_args = platform_args.into();
-        let primary_agent = Agent::new_in_world(platform_args.clone(), options, world)?;
-        let mut runtime = Self::new(platform_args, options, primary_agent, engine)?;
+        let primary_agent = Agent::new_in_world(platform_args.clone(), options, world, engine)?;
+        let mut runtime = Self::new(platform_args, options, primary_agent)?;
         if let Some(poller) = poller_for_options(options)? {
             runtime.set_poller(poller);
         }
@@ -143,8 +141,12 @@ impl Runtime {
     }
 
     /// Spawn one additional agent in the shared runtime world.
-    pub fn spawn_agent(&mut self, world: &World) -> RuntimeResult<AgentId> {
-        self.spawn_agent_with_options(world, &self.options.clone())
+    pub fn spawn_agent(
+        &mut self,
+        world: &World,
+        engine: Box<dyn Engine>,
+    ) -> RuntimeResult<AgentId> {
+        self.spawn_agent_with_options(world, &self.options.clone(), engine)
     }
 
     /// Spawn one additional agent with explicit options in the shared runtime world.
@@ -152,6 +154,7 @@ impl Runtime {
         &mut self,
         world: &World,
         options: &RuntimeOptions,
+        engine: Box<dyn Engine>,
     ) -> RuntimeResult<AgentId> {
         // force runtime identity to stay shared across all agents in this runtime
         let mut options = options.clone();
@@ -160,7 +163,8 @@ impl Runtime {
         self.align_spawn_options_with_runtime(&mut options);
 
         // create one new agent attached to the runtime world
-        let agent = Agent::new_in_runtime(self.platform_args.clone(), &options, world, self.id)?;
+        let agent =
+            Agent::new_in_runtime(self.platform_args.clone(), &options, world, self.id, engine)?;
 
         Ok(self.insert_agent(agent))
     }
@@ -190,7 +194,6 @@ impl Runtime {
     ) -> RuntimeResult<EngineOutput> {
         let host = &self.host;
         let poller = &mut self.poller;
-        let engine = self.engine.as_mut();
         let agent = self
             .agents
             .get_mut(&agent_id)
@@ -201,7 +204,7 @@ impl Runtime {
                 }
                 .boxed()
             })?;
-        agent.run_entrypoint_with_host_and_poller(world, host, engine, entry, args, poller)
+        agent.run_entrypoint_with_host_and_poller(world, host, entry, args, poller)
     }
 
     /// Execute one runtime tick across all agents without advancing world time.
@@ -212,7 +215,6 @@ impl Runtime {
         // run one local agent tick in stable id order
         let agent_ids = self.agent_ids();
         let host = &self.host;
-        let engine = self.engine.as_mut();
         let agents = &mut self.agents;
         for agent_id in agent_ids {
             let agent = agents.get_mut(&agent_id).map(Box::as_mut).ok_or_else(|| {
@@ -221,7 +223,7 @@ impl Runtime {
                 }
                 .boxed()
             })?;
-            if agent.tick(world, host, engine)? {
+            if agent.tick(world, host)? {
                 return Ok(TickOutcome::Progressed);
             }
         }
@@ -270,7 +272,6 @@ impl Runtime {
         platform_args: Arc<[String]>,
         options: &RuntimeOptions,
         primary_agent: Agent,
-        engine: Box<dyn Engine>,
     ) -> RuntimeResult<Self> {
         // seed runtime identity from runtime options
         let primary_agent = Box::new(primary_agent);
@@ -292,7 +293,6 @@ impl Runtime {
             options: options.clone(),
             host,
             poller: None,
-            engine,
             drop_counts: DropCounts::default(),
             agents,
             primary_agent_id,
@@ -496,12 +496,5 @@ impl Runtime {
         options.time = self.options.time.clone();
         options.random = self.options.random.clone();
         options.rules = self.options.rules.clone();
-    }
-
-    /// Return one stored engine with one explicit concrete type.
-    #[cfg(test)]
-    pub(crate) fn engine<T: Engine>(&self) -> Option<&T> {
-        let engine = self.engine.as_ref() as &dyn std::any::Any;
-        engine.downcast_ref::<T>()
     }
 }
