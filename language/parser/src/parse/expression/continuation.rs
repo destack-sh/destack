@@ -169,12 +169,13 @@ impl Parser {
                     has_pending_newline_tokens = true;
                     has_line_break_before = cursor.has_line_break_before;
 
-                    if !matches!(
+                    let can_continue_after_newline = matches!(
                         token_type,
                         TokenType::OpenParenthesis | TokenType::Dot | TokenType::Maybe
-                    ) && (!is_in_type
-                        || !matches!(token_type, TokenType::LessThan | TokenType::ShiftLeft))
-                    {
+                    ) || (!is_in_type
+                        && matches!(token_type, TokenType::LessThan | TokenType::ShiftLeft));
+
+                    if !can_continue_after_newline {
                         break;
                     }
                 }
