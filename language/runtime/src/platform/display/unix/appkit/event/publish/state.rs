@@ -1,24 +1,24 @@
 use std::sync::Arc;
 
-use crate::platform::display::host::unix::appkit::core::AppKitRuntimeState;
-use crate::platform::display::host::unix::appkit::model::AppKitWindowBinding;
-use crate::platform::display::host::unix::appkit::window;
+use crate::platform::display::unix::appkit::core::AppKitRuntimeState;
+use crate::platform::display::unix::appkit::model::AppKitWindowHostState;
+use crate::platform::display::unix::appkit::window;
 use crate::platform::resource;
 
-use super::super::queue::publish_window_event;
-use super::super::{WindowEventRecordKind, window_event_record};
 use super::core::{
     occlusion_from_visibility, publish_window_focus_changed, publish_window_mode_changed,
     publish_window_position_changed, publish_window_size_changed,
     publish_window_visibility_changed,
 };
+use crate::platform::display::unix::appkit::event::queue::publish_window_event;
+use crate::platform::display::unix::appkit::event::{WindowEventRecordKind, window_event_record};
 
 /// Publish all supported state-delta events between two AppKit window snapshots.
 pub(crate) fn publish_state_deltas(
     runtime_state: &Arc<AppKitRuntimeState>,
     window: resource::WindowHandle,
-    previous: &AppKitWindowBinding,
-    next: &AppKitWindowBinding,
+    previous: &AppKitWindowHostState,
+    next: &AppKitWindowHostState,
 ) {
     // publish visibility transitions
     if previous.visibility != next.visibility {
@@ -116,6 +116,30 @@ pub(crate) fn publish_state_deltas(
                 window,
                 previous_chrome: previous.chrome,
                 current_chrome: next.chrome,
+            }),
+        );
+    }
+
+    // publish taskbar-visibility transitions
+    if previous.taskbar_visible != next.taskbar_visible {
+        publish_window_event(
+            runtime_state,
+            window_event_record(WindowEventRecordKind::TaskbarVisibilityChanged {
+                window,
+                previous_taskbar_visible: previous.taskbar_visible,
+                current_taskbar_visible: next.taskbar_visible,
+            }),
+        );
+    }
+
+    // publish safe-area transitions
+    if previous.safe_area_insets != next.safe_area_insets {
+        publish_window_event(
+            runtime_state,
+            window_event_record(WindowEventRecordKind::SafeAreaChanged {
+                window,
+                previous_safe_area_insets: previous.safe_area_insets,
+                current_safe_area_insets: next.safe_area_insets,
             }),
         );
     }

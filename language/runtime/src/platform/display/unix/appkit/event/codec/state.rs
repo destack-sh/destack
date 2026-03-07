@@ -7,14 +7,16 @@ use crate::platform::display::{
     WindowOcclusionChangedEvent, WindowOcclusionPayload, WindowOpacityChangedEvent,
     WindowOpacityPayload, WindowParentChangedEvent, WindowParentPayload,
     WindowPositionChangedEvent, WindowPositionPayload, WindowRefreshRequestedEvent,
-    WindowScaleFactorChangedEvent, WindowScaleFactorPayload, WindowSizeChangedEvent,
-    WindowSizePayload, WindowThemeChangedEvent, WindowThemePayload, WindowTransientChangedEvent,
-    WindowTransientPayload, WindowVisibilityChangedEvent, WindowVisibilityPayload,
+    WindowSafeAreaChangedEvent, WindowSafeAreaPayload, WindowScaleFactorChangedEvent,
+    WindowScaleFactorPayload, WindowSizeChangedEvent, WindowSizePayload,
+    WindowTaskbarVisibilityChangedEvent, WindowTaskbarVisibilityPayload, WindowThemeChangedEvent,
+    WindowThemePayload, WindowTransientChangedEvent, WindowTransientPayload,
+    WindowVisibilityChangedEvent, WindowVisibilityPayload,
 };
 use crate::runtime::BindingCallContext;
 
-use super::super::{WindowEventRecord, WindowEventRecordKind};
 use super::core::window_event_metadata;
+use crate::platform::display::unix::appkit::event::{WindowEventRecord, WindowEventRecordKind};
 
 /// Convert one non-drop window-event record into one ABI event payload.
 pub(crate) fn window_state_event_from_record(
@@ -239,6 +241,42 @@ pub(crate) fn window_state_event_from_record(
             payload: WindowChromePayload {
                 previous_chrome,
                 current_chrome,
+            },
+        }),
+        WindowEventRecordKind::TaskbarVisibilityChanged {
+            window,
+            previous_taskbar_visible,
+            current_taskbar_visible,
+        } => {
+            WindowEvent::WindowTaskbarVisibilityChangedEvent(WindowTaskbarVisibilityChangedEvent {
+                kind: context.store_string("taskbarVisibilityChanged"),
+                metadata: window_event_metadata(
+                    window,
+                    value.timestamp_ns,
+                    value.sequence,
+                    value.dropped_count,
+                ),
+                payload: WindowTaskbarVisibilityPayload {
+                    previous_taskbar_visible,
+                    current_taskbar_visible,
+                },
+            })
+        }
+        WindowEventRecordKind::SafeAreaChanged {
+            window,
+            previous_safe_area_insets,
+            current_safe_area_insets,
+        } => WindowEvent::WindowSafeAreaChangedEvent(WindowSafeAreaChangedEvent {
+            kind: context.store_string("safeAreaChanged"),
+            metadata: window_event_metadata(
+                window,
+                value.timestamp_ns,
+                value.sequence,
+                value.dropped_count,
+            ),
+            payload: WindowSafeAreaPayload {
+                previous_safe_area_insets,
+                current_safe_area_insets,
             },
         }),
         WindowEventRecordKind::OpacityChanged {

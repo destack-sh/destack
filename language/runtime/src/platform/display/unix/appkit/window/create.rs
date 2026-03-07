@@ -15,12 +15,12 @@ use crate::platform::display::{WindowOptions, WindowRole, WindowVisibility};
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
-use super::super::core::delegate::AppKitWindowDelegate;
-use super::super::core::{self as appkit_core, AppKitWindowHost};
-use super::super::{event, resource as display_resource};
 use super::constants::DEFAULT_WINDOW_OPACITY;
 use super::cursor::apply_cursor_policy;
 use super::{core, drop, geometry, mode, options, reconcile, relation};
+use crate::platform::display::unix::appkit::core::delegate::AppKitWindowDelegate;
+use crate::platform::display::unix::appkit::core::{self as appkit_core, AppKitWindowHost};
+use crate::platform::display::unix::appkit::{event, resource as display_resource};
 
 /// Create one native AppKit window object.
 fn create_native_window(
@@ -109,19 +109,20 @@ pub(crate) unsafe fn window_open(
     resolved_options.always_on_top = resolved_always_on_top;
     resolved_options.display = resolved_display;
 
-    // register the runtime-visible binding before creating the host window
-    let binding = Arc::new(Mutex::new(options::initial_binding(
+    // register the runtime-visible host state before creating the host window
+    let host_state = Arc::new(Mutex::new(options::initial_host_state(
         &resolved_options,
         title,
     )));
-    let entry = display_resource::window_resource_entry(Arc::clone(&binding));
-    let resource_id = context
-        .agent()
-        .resources
-        .insert(entry, Some(context.engine()));
+    let entry = display_resource::window_resource_entry(context, Arc::clone(&host_state));
+    let resource_id =
+        context
+            .agent()
+            .resources
+            .insert(context.world(), entry, Some(context.engine()));
     let window_handle = resource::WindowHandle(resource_id);
     let runtime_state = appkit_core::runtime_state(context);
-    let binding_for_delegate = Arc::clone(&binding);
+    let host_state_for_delegate = Arc::clone(&host_state);
     let runtime_state_for_delegate = Arc::clone(&runtime_state);
     let initial_display_frame = if let Some(display) = resolved_options.display {
         Some(mode::display_frame(
@@ -207,7 +208,7 @@ pub(crate) unsafe fn window_open(
             mtm,
             Arc::clone(&runtime_state_for_delegate),
             window_handle,
-            Arc::clone(&binding_for_delegate),
+            Arc::clone(&host_state_for_delegate),
         );
         let protocol: &ProtocolObject<dyn objc2_app_kit::NSWindowDelegate> = delegate.as_protocol();
         window.setDelegate(Some(protocol));
@@ -239,10 +240,10 @@ pub(crate) unsafe fn window_open(
         application.activateIgnoringOtherApps(resolved_options.focus_on_show);
 
         {
-            let mut binding = binding_for_delegate
+            let mut host_state = host_state_for_delegate
                 .lock()
                 .unwrap_or_else(|error| error.into_inner());
-            core::refresh_binding_geometry(&mut binding, &window);
+            core::refresh_host_state_geometry(&mut host_state, &window);
         }
 
         let mut state = runtime_state_for_delegate
@@ -252,7 +253,7 @@ pub(crate) unsafe fn window_open(
         state.windows.insert(
             window_handle,
             AppKitWindowHost {
-                binding: Arc::clone(&binding_for_delegate),
+                host_state: Arc::clone(&host_state_for_delegate),
                 window,
                 _delegate: delegate,
                 drop_session: Default::default(),
@@ -284,17 +285,16 @@ pub(crate) unsafe fn window_open(
             }
         });
 
-        drop(
-            context
-                .agent()
-                .resources
-                .remove(window_handle.0, Some(context.engine())),
-        );
+        drop(context.agent().resources.remove(
+            context.world(),
+            window_handle.0,
+            Some(context.engine()),
+        ));
 
         return Err(error);
     }
 
-    // reconcile the binding, then publish creation side effects
+    // reconcile the host state, then publish creation side effects
     reconcile::refresh_host_window_binding(&runtime_state, window_handle)?;
 
     event::publish_window_created(&runtime_state, window_handle);

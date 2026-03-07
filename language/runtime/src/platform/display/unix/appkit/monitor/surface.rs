@@ -6,8 +6,8 @@ use crate::platform::display::{
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
-use super::super::{core, resource as display_resource};
 use super::{descriptor_from_owned, enumerate_monitor_snapshots, monitor_snapshot_by_display_id};
+use crate::platform::display::unix::appkit::{core, resource as display_resource};
 
 /// Close one display endpoint.
 pub(crate) unsafe fn monitor_close(
@@ -17,7 +17,7 @@ pub(crate) unsafe fn monitor_close(
     let removed = binding
         .agent()
         .resources
-        .remove(handle.0, Some(binding.engine()))
+        .remove(binding.world(), handle.0, Some(binding.engine()))
         .is_some();
 
     // report unknown handles after resource removal

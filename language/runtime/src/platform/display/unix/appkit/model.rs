@@ -1,5 +1,3 @@
-use std::thread::ThreadId;
-
 use crate::platform::display::{
     DisplayBackend, DisplayMode, DisplayOrientation, DisplaySupportStatus, WindowAspectRatio,
     WindowChromeKind, WindowCursorIcon, WindowCursorMode, WindowLogicalSize, WindowModeOptions,
@@ -66,18 +64,16 @@ pub(crate) struct MonitorSnapshot {
 
 /// Resource payload for one opened monitor handle.
 #[derive(Debug, Clone)]
-pub(crate) struct AppKitDisplayBinding {
+pub(crate) struct AppKitDisplayHostState {
     /// The stable monitor identifier.
     pub(crate) id: String,
 }
 
 /// Resource payload for one opened window handle.
 #[derive(Debug, Clone)]
-pub(crate) struct AppKitWindowBinding {
+pub(crate) struct AppKitWindowHostState {
     /// The stable runtime identifier.
     pub(crate) id: String,
-    /// The owner thread identifier that created this window.
-    pub(crate) owner_thread_id: ThreadId,
     /// The current host-visible title.
     pub(crate) title: String,
     /// The current window role.

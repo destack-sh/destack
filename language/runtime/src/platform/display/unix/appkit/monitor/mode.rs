@@ -9,8 +9,8 @@ use crate::platform::display::DisplayMode;
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::{BindingCallContext, NativeSlice};
 
-use super::super::{core, event, resource as display_resource};
 use super::{core as monitor_core, monitor_snapshot_by_display_id};
+use crate::platform::display::unix::appkit::{core, event, resource as display_resource};
 
 /// Resolve one requested mode to the closest supported mode.
 pub(crate) unsafe fn monitor_closest_mode(
@@ -180,7 +180,7 @@ pub(crate) unsafe fn monitor_set_mode(
     if status != CGError(0) {
         return Err(core::io_error(
             "destack.display.monitor.setMode",
-            format!("CGDisplaySetDisplayMode failed with status {:?}", status),
+            format!("CGDisplaySetDisplayMode failed with status {status:?}"),
         ));
     }
 

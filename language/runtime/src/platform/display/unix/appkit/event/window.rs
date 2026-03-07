@@ -1,13 +1,12 @@
 use std::collections::VecDeque;
 use std::sync::Mutex;
-use std::thread::ThreadId;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::display::host::unix::appkit::core as appkit_core;
+use crate::platform::display::unix::appkit::core as appkit_core;
 use crate::platform::display::{
     DisplayEventOverflowPolicy, WindowAspectRatio, WindowChromeKind, WindowEventFilter,
     WindowEventOpenOptions, WindowLogicalSize, WindowModeOptions, WindowOcclusionState,
-    WindowPhysicalSize, WindowPosition, WindowTheme, WindowVisibility,
+    WindowPhysicalSize, WindowPosition, WindowSafeAreaInsets, WindowTheme, WindowVisibility,
 };
 use crate::platform::{core as core_platform, resource};
 
@@ -141,6 +140,24 @@ pub(crate) enum WindowEventRecordKind {
         previous_chrome: WindowChromeKind,
         /// Chrome payload after this event.
         current_chrome: WindowChromeKind,
+    },
+    /// Taskbar-visibility-changed payload.
+    TaskbarVisibilityChanged {
+        /// Associated runtime window handle.
+        window: resource::WindowHandle,
+        /// Previous taskbar visibility.
+        previous_taskbar_visible: bool,
+        /// Current taskbar visibility.
+        current_taskbar_visible: bool,
+    },
+    /// Safe-area-changed payload.
+    SafeAreaChanged {
+        /// Associated runtime window handle.
+        window: resource::WindowHandle,
+        /// Previous safe-area insets.
+        previous_safe_area_insets: Option<WindowSafeAreaInsets>,
+        /// Current safe-area insets.
+        current_safe_area_insets: Option<WindowSafeAreaInsets>,
     },
     /// Opacity-changed payload.
     OpacityChanged {
@@ -292,6 +309,12 @@ impl WindowEventRecordKind {
             WindowEventRecordKind::ChromeChanged { .. } => {
                 appkit_core::WINDOW_EVENT_KIND_CHROME_CHANGED
             }
+            WindowEventRecordKind::TaskbarVisibilityChanged { .. } => {
+                appkit_core::WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED
+            }
+            WindowEventRecordKind::SafeAreaChanged { .. } => {
+                appkit_core::WINDOW_EVENT_KIND_SAFE_AREA_CHANGED
+            }
             WindowEventRecordKind::OpacityChanged { .. } => {
                 appkit_core::WINDOW_EVENT_KIND_OPACITY_CHANGED
             }
@@ -352,6 +375,8 @@ impl WindowEventRecordKind {
             | WindowEventRecordKind::DisplayChanged { window, .. }
             | WindowEventRecordKind::ThemeChanged { window, .. }
             | WindowEventRecordKind::ChromeChanged { window, .. }
+            | WindowEventRecordKind::TaskbarVisibilityChanged { window, .. }
+            | WindowEventRecordKind::SafeAreaChanged { window, .. }
             | WindowEventRecordKind::OpacityChanged { window, .. }
             | WindowEventRecordKind::ParentChanged { window, .. }
             | WindowEventRecordKind::TransientChanged { window, .. }
@@ -432,15 +457,15 @@ pub(crate) struct WindowEventState {
     pub(crate) seeded: VecDeque<WindowEventRecord>,
 }
 
-/// Shared window-event stream binding.
+/// Shared window-event stream payload.
 #[derive(Debug)]
-pub(crate) struct WindowEventBinding {
+pub(crate) struct WindowEventStream {
+    /// Stable runtime stream identifier.
+    pub(crate) stream_id: u64,
     /// Mutable stream state.
     pub(crate) state: Mutex<WindowEventState>,
     /// Stream filter configuration.
     pub(crate) filter: WindowEventFilterState,
-    /// Owner thread id for AppKit event pumping operations.
-    pub(crate) owner_thread_id: ThreadId,
 }
 
 /// Build one window-event record with default metadata fields.

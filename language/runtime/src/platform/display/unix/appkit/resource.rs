@@ -1,42 +1,14 @@
 use std::sync::{Arc, Mutex};
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::resource::{ResourceEntry, ResourceKind};
+use crate::platform::resource::{ResourceAffinity, ResourceEntry, ResourceKind, resolve_payload};
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
-use crate::runtime::bindings::BindingEngine;
+use crate::runtime::bindings::{BindingAffinity, BindingEngine};
 
 use super::core::{self, AppKitRuntimeState};
-use super::event::{MonitorEventBinding, WindowEventBinding};
-use super::model::{AppKitDisplayBinding, AppKitWindowBinding};
-
-/// Resolve one typed resource payload by kind and optional label.
-fn resolve_payload<T: Clone + Send + Sync + 'static>(
-    context: &BindingCallContext,
-    handle: resource::ResourceId,
-    kind: ResourceKind,
-    label: Option<&str>,
-) -> Option<T> {
-    context
-        .agent()
-        .resources
-        .with_entry(handle, |entry| {
-            // reject mismatched resource kinds
-            if entry.kind != kind {
-                return None;
-            }
-
-            // reject mismatched resource labels
-            if let Some(expected_label) = label
-                && entry.label.as_deref() != Some(expected_label)
-            {
-                return None;
-            }
-
-            entry.payload_cloned::<T>()
-        })
-        .flatten()
-}
+use super::event::{MonitorEventStream, WindowEventStream};
+use super::model::{AppKitDisplayHostState, AppKitWindowHostState};
 
 /// Insert one monitor resource for one monitor identifier.
 pub(crate) fn open_display_handle(
@@ -45,11 +17,13 @@ pub(crate) fn open_display_handle(
 ) -> resource::DisplayHandle {
     let entry = ResourceEntry::new(ResourceKind::Display)
         .with_label(core::DISPLAY_RESOURCE_LABEL)
-        .with_payload(AppKitDisplayBinding { id });
-    let resource_id = context
-        .agent()
-        .resources
-        .insert(entry, Some(context.engine()));
+        .with_binding_affinity(BindingAffinity::EventLoop, context.execution_context())
+        .with_payload(AppKitDisplayHostState { id });
+    let resource_id =
+        context
+            .agent()
+            .resources
+            .insert(context.world(), entry, Some(context.engine()));
 
     resource::DisplayHandle(resource_id)
 }
@@ -61,9 +35,13 @@ pub(crate) fn open_display_handle_for_runtime(
 ) -> resource::DisplayHandle {
     let entry = ResourceEntry::new(ResourceKind::Display)
         .with_label(core::DISPLAY_RESOURCE_LABEL)
-        .with_payload(AppKitDisplayBinding { id });
-    let resource_id =
-        core::resource_table(runtime_state).insert(entry, Some(BindingEngine::Native));
+        .with_affinity(ResourceAffinity::EventLoop)
+        .with_payload(AppKitDisplayHostState { id });
+    let resource_id = runtime_state.resource_table().insert(
+        runtime_state.world(),
+        entry,
+        Some(BindingEngine::Native),
+    );
 
     resource::DisplayHandle(resource_id)
 }
@@ -80,7 +58,7 @@ pub(crate) fn cached_display_handle_for_runtime(
 
     // reuse one still-live resource handle when possible
     if let Some(handle) = cache.get(id).copied()
-        && core::resource_table(runtime_state).contains(handle.0)
+        && runtime_state.resource_table().contains(handle.0)
     {
         return handle;
     }
@@ -96,51 +74,58 @@ pub(crate) fn resolve_display_id(
     handle: resource::DisplayHandle,
     operation: &'static str,
 ) -> RuntimeResult<String> {
-    let binding = resolve_payload::<AppKitDisplayBinding>(
+    let host_state = resolve_payload::<AppKitDisplayHostState>(
         context,
         handle.0,
         ResourceKind::Display,
         Some(core::DISPLAY_RESOURCE_LABEL),
-    )
+        operation,
+    )?
     .ok_or_else(|| core::display_not_found(operation, handle))?;
 
-    Ok(binding.id)
+    Ok(host_state.id)
 }
 
-/// Build one resource entry for one opened AppKit window binding.
-pub(crate) fn window_resource_entry(binding: Arc<Mutex<AppKitWindowBinding>>) -> ResourceEntry {
+/// Build one resource entry for one opened AppKit window host state.
+pub(crate) fn window_resource_entry(
+    context: &BindingCallContext,
+    binding: Arc<Mutex<AppKitWindowHostState>>,
+) -> ResourceEntry {
     ResourceEntry::new(ResourceKind::Window)
         .with_label(core::WINDOW_RESOURCE_LABEL)
+        .with_binding_affinity(BindingAffinity::EventLoop, context.execution_context())
         .with_payload(binding)
 }
 
-/// Resolve one window binding payload from one opened window handle.
-pub(crate) fn resolve_window_binding(
+/// Resolve one window host-state payload from one opened window handle.
+pub(crate) fn resolve_window_host_state(
     context: &BindingCallContext,
     window: resource::WindowHandle,
     operation: &'static str,
-) -> RuntimeResult<Arc<Mutex<AppKitWindowBinding>>> {
-    resolve_payload::<Arc<Mutex<AppKitWindowBinding>>>(
+) -> RuntimeResult<Arc<Mutex<AppKitWindowHostState>>> {
+    resolve_payload::<Arc<Mutex<AppKitWindowHostState>>>(
         context,
         window.0,
         ResourceKind::Window,
         Some(core::WINDOW_RESOURCE_LABEL),
-    )
+        operation,
+    )?
     .ok_or_else(|| core::window_not_found(operation, window))
 }
 
-/// Resolve one monitor-event binding payload from one opened monitor-event handle.
-pub(crate) fn resolve_monitor_event_binding(
+/// Resolve one monitor-event stream payload from one opened monitor-event handle.
+pub(crate) fn resolve_monitor_event_stream(
     context: &BindingCallContext,
     handle: resource::DisplayEventHandle,
     operation: &'static str,
-) -> RuntimeResult<Arc<MonitorEventBinding>> {
-    resolve_payload::<Arc<MonitorEventBinding>>(
+) -> RuntimeResult<Arc<MonitorEventStream>> {
+    resolve_payload::<Arc<MonitorEventStream>>(
         context,
         handle.0,
         ResourceKind::Display,
         Some(core::DISPLAY_EVENT_RESOURCE_LABEL),
-    )
+        operation,
+    )?
     .ok_or_else(|| {
         core_platform::io_not_found(
             operation,
@@ -149,18 +134,19 @@ pub(crate) fn resolve_monitor_event_binding(
     })
 }
 
-/// Resolve one window-event binding payload from one opened window-event handle.
-pub(crate) fn resolve_window_event_binding(
+/// Resolve one window-event stream payload from one opened window-event handle.
+pub(crate) fn resolve_window_event_stream(
     context: &BindingCallContext,
     handle: resource::WindowEventHandle,
     operation: &'static str,
-) -> RuntimeResult<Arc<WindowEventBinding>> {
-    resolve_payload::<Arc<WindowEventBinding>>(
+) -> RuntimeResult<Arc<WindowEventStream>> {
+    resolve_payload::<Arc<WindowEventStream>>(
         context,
         handle.0,
         ResourceKind::Window,
         Some(core::WINDOW_EVENT_RESOURCE_LABEL),
-    )
+        operation,
+    )?
     .ok_or_else(|| {
         core_platform::io_not_found(
             operation,

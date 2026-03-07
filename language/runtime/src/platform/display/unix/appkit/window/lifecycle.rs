@@ -3,9 +3,9 @@ use crate::platform::display::WindowVisibility;
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
-use super::super::{core as appkit_core, resource as display_resource};
 use super::cursor::apply_cursor_policy;
-use super::{drop, reconcile, runtime};
+use super::{drop, reconcile};
+use crate::platform::display::unix::appkit::{core as appkit_core, resource as display_resource};
 
 /// Close one window.
 pub(crate) unsafe fn window_close(
@@ -13,14 +13,13 @@ pub(crate) unsafe fn window_close(
     window_handle: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.close",
     )?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.close")?;
-    drop(binding);
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    drop(host_state);
 
     appkit_core::with_main_thread_state(&runtime_state, |state| {
         let mut state = state.borrow_mut();
@@ -38,7 +37,7 @@ pub(crate) unsafe fn window_close(
     let removed = context
         .agent()
         .resources
-        .remove(window_handle.0, Some(context.engine()))
+        .remove(context.world(), window_handle.0, Some(context.engine()))
         .is_some();
 
     // report unknown handles after resource removal
@@ -58,14 +57,13 @@ pub(crate) unsafe fn window_minimize(
     window_handle: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.minimize",
     )?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.minimize")?;
-    drop(binding);
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    drop(host_state);
 
     appkit_core::with_window_host(
         &runtime_state,
@@ -92,14 +90,13 @@ pub(crate) unsafe fn window_maximize(
     window_handle: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.maximize",
     )?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.maximize")?;
-    drop(binding);
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    drop(host_state);
 
     appkit_core::with_window_host(
         &runtime_state,
@@ -132,15 +129,14 @@ pub(crate) unsafe fn window_restore(
     window_handle: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.restore",
     )?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.restore")?;
-    let restore_visibility = binding.restored_visibility;
-    drop(binding);
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let restore_visibility = host_state.restored_visibility;
+    drop(host_state);
 
     appkit_core::with_window_host(
         &runtime_state,

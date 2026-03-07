@@ -12,11 +12,11 @@ mod mode;
 mod options;
 mod reconcile;
 mod relation;
-mod runtime;
 mod state;
 
 pub(crate) use action::*;
 pub(crate) use appearance::*;
+pub(crate) use core::*;
 pub(crate) use create::*;
 pub(crate) use cursor::*;
 pub(crate) use drop::*;

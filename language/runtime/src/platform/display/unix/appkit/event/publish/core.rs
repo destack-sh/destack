@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use crate::platform::display::host::unix::appkit::core::AppKitRuntimeState;
+use crate::platform::display::unix::appkit::core::AppKitRuntimeState;
 use crate::platform::display::{
     WindowLogicalSize, WindowModeOptions, WindowOcclusionState, WindowPhysicalSize, WindowPosition,
     WindowVisibility,
 };
 use crate::platform::resource;
 
-use super::super::queue::publish_window_event;
-use super::super::{WindowEventRecordKind, window_event_record};
+use crate::platform::display::unix::appkit::event::queue::publish_window_event;
+use crate::platform::display::unix::appkit::event::{WindowEventRecordKind, window_event_record};
 
 /// Resolve one occlusion state from one visibility value.
 pub(crate) fn occlusion_from_visibility(visibility: WindowVisibility) -> WindowOcclusionState {

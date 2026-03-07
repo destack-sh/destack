@@ -1,41 +1,42 @@
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::display::host::unix::appkit::{
-    core as appkit_core, resource as display_resource,
-};
+use crate::platform::display::unix::appkit::{core as appkit_core, resource as display_resource};
 use crate::platform::display::{DisplayMonitorEvent, DisplayMonitorEventOpenOptions};
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{NativeArray, core as core_platform, resource};
+use crate::platform::{NativeArray, core as core_platform, display as display_runtime, resource};
 use crate::runtime::BindingCallContext;
+use crate::runtime::bindings::BindingAffinity;
 
-use super::super::codec::display_event_from_record;
-use super::super::publish::seed_monitor_event_stream;
-use super::super::queue::{
+use crate::platform::display::unix::appkit::event::codec::display_event_from_record;
+use crate::platform::display::unix::appkit::event::publish::seed_monitor_event_stream;
+use crate::platform::display::unix::appkit::event::queue::{
     pop_live_monitor_record, pop_seeded_monitor_record, take_monitor_overflow_error,
-    trim_monitor_events, wait_duration,
+    trim_monitor_events,
 };
-use super::super::{MonitorEventBinding, MonitorEventFilterState, MonitorEventState};
+use crate::platform::display::unix::appkit::event::{
+    MonitorEventFilterState, MonitorEventState, MonitorEventStream,
+};
 
 /// Return the next monitor event available to one stream.
 fn next_monitor_event(
     binding: &BindingCallContext,
     runtime_state: &Arc<appkit_core::AppKitRuntimeState>,
-    resolved_binding: &Arc<MonitorEventBinding>,
+    resolved_stream: &Arc<MonitorEventStream>,
     operation: &'static str,
 ) -> RuntimeResult<Option<DisplayMonitorEvent>> {
     // surface queued overflow immediately
-    if take_monitor_overflow_error(resolved_binding) {
+    if take_monitor_overflow_error(resolved_stream) {
         return Err(appkit_core::overflow_error(operation));
     }
 
     // deliver seeded snapshot records before live records
-    if let Some(record) = pop_seeded_monitor_record(resolved_binding) {
+    if let Some(record) = pop_seeded_monitor_record(resolved_stream) {
         return Ok(Some(display_event_from_record(binding, record)));
     }
 
     // deliver one live record when the shared event log has one
-    if let Some(record) = pop_live_monitor_record(runtime_state, resolved_binding) {
+    if let Some(record) = pop_live_monitor_record(runtime_state, resolved_stream) {
         return Ok(Some(display_event_from_record(binding, record)));
     }
 
@@ -46,7 +47,7 @@ fn next_monitor_event(
 fn drain_monitor_events(
     binding: &BindingCallContext,
     runtime_state: &Arc<appkit_core::AppKitRuntimeState>,
-    resolved_binding: &Arc<MonitorEventBinding>,
+    resolved_stream: &Arc<MonitorEventStream>,
     maxevents: usize,
     operation: &'static str,
 ) -> RuntimeResult<Vec<DisplayMonitorEvent>> {
@@ -55,18 +56,18 @@ fn drain_monitor_events(
     // drain seeded and live records until the batch is full or the stream is empty
     while events.len() < maxevents {
         // surface queued overflow before each record pull
-        if take_monitor_overflow_error(resolved_binding) {
+        if take_monitor_overflow_error(resolved_stream) {
             return Err(appkit_core::overflow_error(operation));
         }
 
         // prefer seeded records before the live frontier
-        if let Some(record) = pop_seeded_monitor_record(resolved_binding) {
+        if let Some(record) = pop_seeded_monitor_record(resolved_stream) {
             events.push(display_event_from_record(binding, record));
             continue;
         }
 
         // stop once the live frontier is exhausted
-        let Some(record) = pop_live_monitor_record(runtime_state, resolved_binding) else {
+        let Some(record) = pop_live_monitor_record(runtime_state, resolved_stream) else {
             break;
         };
         events.push(display_event_from_record(binding, record));
@@ -96,9 +97,10 @@ pub(crate) unsafe fn monitor_event_open(
     };
 
     // allocate stream state before seeding the initial snapshot
-    let resolved_binding = Arc::new(MonitorEventBinding {
+    let resolved_stream = Arc::new(MonitorEventStream {
+        stream_id: runtime_state.next_monitor_stream_id(),
         state: std::sync::Mutex::new(MonitorEventState {
-            queue_capacity: appkit_core::resolved_queue_capacity(
+            queue_capacity: display_runtime::resolved_event_queue_capacity(
                 binding,
                 options.queue.queue_capacity,
             ),
@@ -114,31 +116,19 @@ pub(crate) unsafe fn monitor_event_open(
     });
 
     // seed the stream from the current topology snapshot
-    let snapshots = seed_monitor_event_stream(&resolved_binding)?;
-    {
-        let mut topology_snapshot = runtime_state
-            .monitor_topology_snapshot
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
+    let snapshots = seed_monitor_event_stream(&resolved_stream)?;
+    runtime_state.initialize_monitor_topology_snapshot(snapshots);
 
-        // initialize the runtime topology baseline once without resetting active streams
-        if topology_snapshot.is_none() {
-            *topology_snapshot = Some(snapshots);
-        }
-    }
-
-    // register the resource and subscriber entry
+    // register the resource and stream entry
     let resource_id = binding.agent().resources.insert(
+        binding.world(),
         ResourceEntry::new(ResourceKind::Display)
             .with_label(appkit_core::DISPLAY_EVENT_RESOURCE_LABEL)
-            .with_payload(Arc::clone(&resolved_binding)),
+            .with_binding_affinity(BindingAffinity::EventLoop, binding.execution_context())
+            .with_payload(Arc::clone(&resolved_stream)),
         Some(binding.engine()),
     );
-    runtime_state
-        .monitor_event_registry
-        .lock()
-        .unwrap_or_else(|error| error.into_inner())
-        .push(Arc::downgrade(&resolved_binding));
+    runtime_state.register_monitor_stream(Arc::clone(&resolved_stream));
 
     // write the opened stream handle
     unsafe {
@@ -154,29 +144,22 @@ pub(crate) unsafe fn monitor_event_close(
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<()> {
     // resolve the stream before removing it from the registry
-    let resolved_binding = display_resource::resolve_monitor_event_binding(
+    let resolved_stream = display_resource::resolve_monitor_event_stream(
         binding,
         handle,
         "destack.display.monitor.eventClose",
     )?;
-    let identity = Arc::as_ptr(&resolved_binding) as usize;
     let runtime_state = appkit_core::runtime_state(binding);
 
-    // remove the subscriber entry and trim any now-unreachable live records
-    {
-        let mut registry = runtime_state
-            .monitor_event_registry
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
-        appkit_core::retain_live_without_identity(&mut registry, identity);
-    }
+    // remove the stream entry and trim any now-unreachable live records
+    runtime_state.unregister_monitor_stream(resolved_stream.stream_id);
     trim_monitor_events(&runtime_state);
 
     // remove the resource entry itself
     let removed = binding
         .agent()
         .resources
-        .remove(handle.0, Some(binding.engine()))
+        .remove(binding.world(), handle.0, Some(binding.engine()))
         .is_some();
 
     // reject unknown handles loudly
@@ -197,9 +180,9 @@ pub(crate) unsafe fn monitor_event_read(
     handle: resource::DisplayEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    // validate out pointer and resolve the stream binding
+    // validate out pointer and resolve the stream payload
     core_platform::ensure_out(out, "out")?;
-    let resolved_binding = display_resource::resolve_monitor_event_binding(
+    let resolved_stream = display_resource::resolve_monitor_event_stream(
         binding,
         handle,
         "destack.display.monitor.eventRead",
@@ -208,42 +191,37 @@ pub(crate) unsafe fn monitor_event_read(
     let deadline = core_platform::monotonic_now_ns().saturating_add(timeoutns);
 
     // wait until one seeded or live record becomes visible
-    loop {
-        if let Some(event) = next_monitor_event(
-            binding,
-            &runtime_state,
-            &resolved_binding,
-            "destack.display.monitor.eventRead",
-        )? {
-            unsafe {
-                *out = event;
-            }
-            return Ok(());
-        }
-
-        let now = core_platform::monotonic_now_ns();
-
-        // stop once the timeout budget is exhausted
-        if now >= deadline {
-            return Err(core_platform::io_would_block(
+    let event = binding.wait_for_binding_result(
+        "destack.display.monitor.eventRead",
+        "event read timed out",
+        deadline,
+        display_runtime::event_wait_slice_ns(binding),
+        || {
+            next_monitor_event(
+                binding,
+                &runtime_state,
+                &resolved_stream,
                 "destack.display.monitor.eventRead",
-                "event read timed out",
-            ));
-        }
+            )
+        },
+        |duration| {
+            let monitor_events = runtime_state
+                .monitor_events
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            let (monitor_events, _) = runtime_state
+                .monitor_event_signal
+                .wait_timeout(monitor_events, duration)
+                .unwrap_or_else(|error| error.into_inner());
+            drop(monitor_events);
+        },
+    )?;
 
-        // wait on the shared monitor-event signal for the next publication
-        let remaining = deadline.saturating_sub(now);
-        let duration = wait_duration(remaining, appkit_core::DEFAULT_EVENT_WAIT_SLICE_NS);
-        let monitor_events = runtime_state
-            .monitor_events
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
-        let (monitor_events, _) = runtime_state
-            .monitor_event_signal
-            .wait_timeout(monitor_events, duration)
-            .unwrap_or_else(|error| error.into_inner());
-        drop(monitor_events);
+    unsafe {
+        *out = event;
     }
+
+    Ok(())
 }
 
 /// Wait for one batch of monitor events.
@@ -257,7 +235,7 @@ pub(crate) unsafe fn monitor_event_read_batch(
     // validate out pointer and batch size
     core_platform::ensure_out(out, "out")?;
     let maxevents = core_platform::u32_to_nonzero_usize("maxevents", maxevents)?;
-    let resolved_binding = display_resource::resolve_monitor_event_binding(
+    let resolved_stream = display_resource::resolve_monitor_event_stream(
         binding,
         handle,
         "destack.display.monitor.eventReadBatch",
@@ -266,45 +244,44 @@ pub(crate) unsafe fn monitor_event_read_batch(
     let deadline = core_platform::monotonic_now_ns().saturating_add(timeoutns);
 
     // wait until at least one event is available, then drain a bounded batch
-    loop {
-        let events = drain_monitor_events(
-            binding,
-            &runtime_state,
-            &resolved_binding,
-            maxevents,
-            "destack.display.monitor.eventReadBatch",
-        )?;
-
-        if !events.is_empty() {
-            unsafe {
-                *out = binding.store_array(events);
-            }
-            return Ok(());
-        }
-
-        let now = core_platform::monotonic_now_ns();
-
-        // stop once the timeout budget is exhausted
-        if now >= deadline {
-            return Err(core_platform::io_would_block(
+    let events = binding.wait_for_binding_result(
+        "destack.display.monitor.eventReadBatch",
+        "event read timed out",
+        deadline,
+        display_runtime::event_wait_slice_ns(binding),
+        || {
+            let events = drain_monitor_events(
+                binding,
+                &runtime_state,
+                &resolved_stream,
+                maxevents,
                 "destack.display.monitor.eventReadBatch",
-                "event read timed out",
-            ));
-        }
+            )?;
 
-        // wait on the shared monitor-event signal for another publication
-        let remaining = deadline.saturating_sub(now);
-        let duration = wait_duration(remaining, appkit_core::DEFAULT_EVENT_WAIT_SLICE_NS);
-        let monitor_events = runtime_state
-            .monitor_events
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
-        let (monitor_events, _) = runtime_state
-            .monitor_event_signal
-            .wait_timeout(monitor_events, duration)
-            .unwrap_or_else(|error| error.into_inner());
-        drop(monitor_events);
+            if events.is_empty() {
+                return Ok(None);
+            }
+
+            Ok(Some(events))
+        },
+        |duration| {
+            let monitor_events = runtime_state
+                .monitor_events
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            let (monitor_events, _) = runtime_state
+                .monitor_event_signal
+                .wait_timeout(monitor_events, duration)
+                .unwrap_or_else(|error| error.into_inner());
+            drop(monitor_events);
+        },
+    )?;
+
+    unsafe {
+        *out = binding.store_array(events);
     }
+
+    Ok(())
 }
 
 /// Poll one monitor event without blocking.
@@ -313,9 +290,9 @@ pub(crate) unsafe fn monitor_event_try_read(
     out: *mut DisplayMonitorEvent,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<()> {
-    // validate out pointer and resolve the stream binding
+    // validate out pointer and resolve the stream payload
     core_platform::ensure_out(out, "out")?;
-    let resolved_binding = display_resource::resolve_monitor_event_binding(
+    let resolved_stream = display_resource::resolve_monitor_event_stream(
         binding,
         handle,
         "destack.display.monitor.eventTryRead",
@@ -326,7 +303,7 @@ pub(crate) unsafe fn monitor_event_try_read(
     let Some(event) = next_monitor_event(
         binding,
         &runtime_state,
-        &resolved_binding,
+        &resolved_stream,
         "destack.display.monitor.eventTryRead",
     )?
     else {
@@ -354,7 +331,7 @@ pub(crate) unsafe fn monitor_event_try_read_batch(
     let maxevents = core_platform::u32_to_nonzero_usize("maxevents", maxevents)?;
 
     // resolve the stream and drain one bounded batch immediately
-    let resolved_binding = display_resource::resolve_monitor_event_binding(
+    let resolved_stream = display_resource::resolve_monitor_event_stream(
         binding,
         handle,
         "destack.display.monitor.eventTryReadBatch",
@@ -363,7 +340,7 @@ pub(crate) unsafe fn monitor_event_try_read_batch(
     let events = drain_monitor_events(
         binding,
         &runtime_state,
-        &resolved_binding,
+        &resolved_stream,
         maxevents,
         "destack.display.monitor.eventTryReadBatch",
     )?;

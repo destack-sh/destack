@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::sync::{Arc, Condvar, Mutex, OnceLock, Weak};
 
 use dispatch2::{MainThreadBound, run_on_main};
@@ -9,62 +9,21 @@ use objc2_core_graphics::{
     CGDisplayRegisterReconfigurationCallback, CGError,
 };
 
+use super::delegate::AppKitWindowDelegate;
 use crate::diagnostic::{AgentDiagnosticStore, RuntimeResult};
-use crate::host::apple::message::{self as apple_message, AppleThreadMessageObserver};
-use crate::platform::display::WindowPosition;
+use crate::host::{RuntimeIngressObserver, register_runtime_ingress_observer};
+use crate::platform::display::unix::appkit::event::{
+    self as appkit_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord,
+    WindowEventStream,
+};
+use crate::platform::display::unix::appkit::model::{AppKitWindowHostState, MonitorSnapshot};
+use crate::platform::display::unix::appkit::window;
+use crate::platform::display::{
+    RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry, WindowPosition, WindowTheme,
+};
 use crate::platform::{ResourceTable, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
-
-use super::super::event::{
-    DisplayEventRecord, MonitorEventBinding, WindowEventBinding, WindowEventRecord,
-};
-use super::super::model::{AppKitWindowBinding, MonitorSnapshot};
-use super::super::{event, window};
-use super::delegate::AppKitWindowDelegate;
-
-/// Runtime-owned monitor-event log state.
-#[derive(Debug)]
-pub(crate) struct AppKitMonitorEventRuntimeState {
-    /// Sequence for the first retained live record.
-    pub(crate) first_sequence: u64,
-    /// Sequence to assign to the next live record.
-    pub(crate) next_sequence: u64,
-    /// Retained live monitor-event records.
-    pub(crate) records: VecDeque<DisplayEventRecord>,
-}
-
-impl Default for AppKitMonitorEventRuntimeState {
-    /// Build one empty monitor-event runtime state.
-    fn default() -> Self {
-        Self {
-            first_sequence: 1,
-            next_sequence: 1,
-            records: VecDeque::new(),
-        }
-    }
-}
-
-/// Runtime-owned window-event log state.
-#[derive(Debug)]
-pub(crate) struct AppKitWindowEventRuntimeState {
-    /// Sequence for the first retained live record.
-    pub(crate) first_sequence: u64,
-    /// Sequence to assign to the next live record.
-    pub(crate) next_sequence: u64,
-    /// Retained live window-event records.
-    pub(crate) records: VecDeque<WindowEventRecord>,
-}
-
-impl Default for AppKitWindowEventRuntimeState {
-    /// Build one empty window-event runtime state.
-    fn default() -> Self {
-        Self {
-            first_sequence: 1,
-            next_sequence: 1,
-            records: VecDeque::new(),
-        }
-    }
-}
+use crate::runtime::world::World;
 
 /// Transient drag and drop state for one native AppKit window.
 #[derive(Debug, Default)]
@@ -81,8 +40,8 @@ pub(crate) struct AppKitDropSessionState {
 
 /// Main-thread AppKit host payload for one opened runtime window.
 pub(crate) struct AppKitWindowHost {
-    /// The runtime binding payload for this window.
-    pub(crate) binding: Arc<Mutex<AppKitWindowBinding>>,
+    /// The runtime host-state payload for this window.
+    pub(crate) host_state: Arc<Mutex<AppKitWindowHostState>>,
     /// The native AppKit window object.
     pub(crate) window: objc2::rc::Retained<NSWindow>,
     /// The native AppKit delegate object.
@@ -106,28 +65,44 @@ pub(crate) struct AppKitResourceTableRef(*const ResourceTable);
 unsafe impl Send for AppKitResourceTableRef {}
 unsafe impl Sync for AppKitResourceTableRef {}
 
+/// Callback-safe reference to the owning runtime world.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct AppKitWorldRef(*const World);
+
+unsafe impl Send for AppKitWorldRef {}
+unsafe impl Sync for AppKitWorldRef {}
+
 /// Host-owned thread-message observer for one AppKit runtime.
 #[derive(Debug)]
-struct AppKitThreadMessageObserver {
+struct AppKitIngressObserver {
     /// Weak runtime state used for post-pump reconciliation.
     runtime_state: Weak<AppKitRuntimeState>,
 }
 
-impl AppleThreadMessageObserver for AppKitThreadMessageObserver {
-    /// Reconcile runtime-owned window state after one host message pump.
-    fn did_pump_thread_messages(&self) {
+impl RuntimeIngressObserver for AppKitIngressObserver {
+    /// Service AppKit ingress after one host message pump step.
+    fn process_runtime_ingress(&self) -> RuntimeResult<()> {
         let Some(runtime_state) = self.runtime_state.upgrade() else {
-            return;
+            return Ok(());
         };
 
-        // keep callback-driven window state coherent after the host services AppKit work
-        if let Err(error) = window::reconcile_all_host_window_bindings(&runtime_state) {
-            super::core::warn_callback_error(
-                runtime_state.as_ref(),
-                "destack.display.window.hostPump",
-                error.as_ref(),
-            );
+        let theme = window::current_window_theme();
+        let mut current_theme = runtime_state
+            .current_theme
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+
+        // skip global reconciliation when the application theme is unchanged
+        if *current_theme == theme {
+            return Ok(());
         }
+
+        *current_theme = theme;
+        drop(current_theme);
+
+        // keep application theme changes host authoritative without rescanning all window state
+        window::reconcile_all_host_window_themes(&runtime_state, theme);
+        Ok(())
     }
 }
 
@@ -137,32 +112,36 @@ pub(crate) struct AppKitRuntimeState {
     pub(crate) main_thread_state: MainThreadBound<RefCell<AppKitMainThreadState>>,
     /// Agent resource table used for callback-owned display-handle updates.
     pub(crate) resources: AppKitResourceTableRef,
+    /// Runtime world used for callback-owned resource-table updates.
+    pub(crate) world: AppKitWorldRef,
     /// Cached display handles keyed by stable AppKit display identifier.
     pub(crate) display_handle_cache: Mutex<HashMap<String, resource::DisplayHandle>>,
     /// Runtime-owned monitor-event log.
-    pub(crate) monitor_events: Mutex<AppKitMonitorEventRuntimeState>,
+    pub(crate) monitor_events: Mutex<RuntimeEventLog<DisplayEventRecord>>,
     /// Wake signal for monitor-event readers.
     pub(crate) monitor_event_signal: Condvar,
     /// Runtime-owned window-event log.
-    pub(crate) window_events: Mutex<AppKitWindowEventRuntimeState>,
+    pub(crate) window_events: Mutex<RuntimeEventLog<WindowEventRecord>>,
     /// Wake signal for window-event readers.
     pub(crate) window_event_signal: Condvar,
     /// Runtime diagnostics store for callback and best-effort lanes.
     pub(crate) diagnostics: Arc<AgentDiagnosticStore>,
-    /// Monitor-event subscribers for this runtime.
-    pub(crate) monitor_event_registry: Mutex<Vec<Weak<MonitorEventBinding>>>,
-    /// Window-event subscribers for this runtime.
-    pub(crate) window_event_registry: Mutex<Vec<Weak<WindowEventBinding>>>,
+    /// The last application theme observed from the host.
+    pub(crate) current_theme: Mutex<WindowTheme>,
+    /// Registered monitor-event streams for this runtime.
+    pub(crate) monitor_streams: RuntimeStreamRegistry<MonitorEventStream>,
+    /// Registered window-event streams for this runtime.
+    pub(crate) window_streams: RuntimeStreamRegistry<WindowEventStream>,
     /// Cached monitor topology snapshot for monitor-event delta publication.
-    pub(crate) monitor_topology_snapshot: Mutex<Option<Vec<MonitorSnapshot>>>,
+    pub(crate) monitor_topology_snapshot: RuntimeSnapshotCache<Vec<MonitorSnapshot>>,
     /// Whether the process-global AppKit cursor is currently hidden.
     pub(crate) cursor_hidden: Mutex<bool>,
     /// Registered host-owned observer for post-pump AppKit reconciliation.
-    thread_message_observer: OnceLock<Arc<AppKitThreadMessageObserver>>,
+    runtime_ingress_observer: OnceLock<Arc<AppKitIngressObserver>>,
 }
 
 /// Shared runtime registry for process-global CoreGraphics display callbacks.
-static APPKIT_MONITOR_CALLBACK_RUNTIMES: OnceLock<Mutex<Vec<Weak<AppKitRuntimeState>>>> =
+static APPKIT_MONITOR_CALLBACK_RUNTIMES: OnceLock<Mutex<HashMap<u64, Weak<AppKitRuntimeState>>>> =
     OnceLock::new();
 
 /// Guard that ensures the CoreGraphics display callback is registered once.
@@ -195,30 +174,128 @@ impl AppKitRuntimeState {
         Self {
             main_thread_state,
             resources: AppKitResourceTableRef(&binding.agent().resources),
+            world: AppKitWorldRef(binding.world()),
             display_handle_cache: Mutex::new(HashMap::new()),
-            monitor_events: Mutex::new(AppKitMonitorEventRuntimeState::default()),
+            monitor_events: Mutex::new(RuntimeEventLog::default()),
             monitor_event_signal: Condvar::new(),
-            window_events: Mutex::new(AppKitWindowEventRuntimeState::default()),
+            window_events: Mutex::new(RuntimeEventLog::default()),
             window_event_signal: Condvar::new(),
             diagnostics: Arc::clone(&binding.agent().diagnostic),
-            monitor_event_registry: Mutex::new(Vec::new()),
-            window_event_registry: Mutex::new(Vec::new()),
-            monitor_topology_snapshot: Mutex::new(None),
+            current_theme: Mutex::new(window::current_window_theme()),
+            monitor_streams: RuntimeStreamRegistry::default(),
+            window_streams: RuntimeStreamRegistry::default(),
+            monitor_topology_snapshot: RuntimeSnapshotCache::default(),
             cursor_hidden: Mutex::new(false),
-            thread_message_observer: OnceLock::new(),
+            runtime_ingress_observer: OnceLock::new(),
         }
+    }
+
+    /// Allocate one stable monitor-event stream identifier.
+    pub(crate) fn next_monitor_stream_id(&self) -> u64 {
+        self.monitor_streams.next_stream_id()
+    }
+
+    /// Allocate one stable window-event stream identifier.
+    pub(crate) fn next_window_stream_id(&self) -> u64 {
+        self.window_streams.next_stream_id()
+    }
+
+    /// Register one monitor-event stream for this runtime.
+    pub(crate) fn register_monitor_stream(&self, stream: Arc<MonitorEventStream>) {
+        self.monitor_streams.register(stream.stream_id, stream);
+    }
+
+    /// Unregister one monitor-event stream for this runtime.
+    pub(crate) fn unregister_monitor_stream(
+        &self,
+        stream_id: u64,
+    ) -> Option<Arc<MonitorEventStream>> {
+        self.monitor_streams.unregister(stream_id)
+    }
+
+    /// Return one snapshot of the live monitor-event streams.
+    pub(crate) fn monitor_streams_snapshot(&self) -> Vec<Arc<MonitorEventStream>> {
+        self.monitor_streams.snapshot()
+    }
+
+    /// Register one window-event stream for this runtime.
+    pub(crate) fn register_window_stream(&self, stream: Arc<WindowEventStream>) {
+        self.window_streams.register(stream.stream_id, stream);
+    }
+
+    /// Unregister one window-event stream for this runtime.
+    pub(crate) fn unregister_window_stream(
+        &self,
+        stream_id: u64,
+    ) -> Option<Arc<WindowEventStream>> {
+        self.window_streams.unregister(stream_id)
+    }
+
+    /// Return one snapshot of the live window-event streams.
+    pub(crate) fn window_streams_snapshot(&self) -> Vec<Arc<WindowEventStream>> {
+        self.window_streams.snapshot()
+    }
+
+    /// Initialize the cached monitor topology snapshot when no baseline exists yet.
+    pub(crate) fn initialize_monitor_topology_snapshot(
+        &self,
+        snapshots: Vec<MonitorSnapshot>,
+    ) -> bool {
+        self.monitor_topology_snapshot.initialize(snapshots)
+    }
+
+    /// Replace the cached monitor topology snapshot with one fresh baseline.
+    pub(crate) fn reset_monitor_topology_snapshot(&self, snapshots: Vec<MonitorSnapshot>) {
+        self.monitor_topology_snapshot.reset(snapshots);
+    }
+
+    /// Replace the cached monitor topology snapshot and return the observed delta records.
+    pub(crate) fn replace_monitor_topology_snapshot(
+        &self,
+        snapshots: Vec<MonitorSnapshot>,
+        build_records: impl FnOnce(&[MonitorSnapshot], &[MonitorSnapshot]) -> Vec<DisplayEventRecord>,
+    ) -> Option<Vec<DisplayEventRecord>> {
+        self.monitor_topology_snapshot.replace(
+            snapshots,
+            |previous_snapshots, current_snapshots| {
+                build_records(previous_snapshots, current_snapshots)
+            },
+        )
+    }
+
+    /// Borrow the agent resource table captured by this runtime.
+    pub(crate) fn resource_table(&self) -> &ResourceTable {
+        // safety: the agent owns the resource table for the lifetime of the runtime state
+        unsafe { &*self.resources.0 }
+    }
+
+    /// Borrow the runtime world captured by this runtime.
+    pub(crate) fn world(&self) -> &World {
+        // safety: the world outlives the runtime state for the lifetime of the agent
+        unsafe { &*self.world.0 }
+    }
+
+    /// Register one host-owned ingress observer for this runtime.
+    fn register_runtime_ingress(self: &Arc<Self>, context: &BindingCallContext) {
+        let runtime_id = context.agent().runtime_id;
+
+        let observer = self
+            .runtime_ingress_observer
+            .get_or_init(|| {
+                Arc::new(AppKitIngressObserver {
+                    runtime_state: Arc::downgrade(self),
+                })
+            })
+            .clone();
+        let observer: Arc<dyn RuntimeIngressObserver> = observer;
+
+        register_runtime_ingress_observer(runtime_id.0, &observer);
     }
 }
 
-/// Borrow the agent resource table captured by this runtime.
-pub(crate) fn resource_table(runtime_state: &AppKitRuntimeState) -> &ResourceTable {
-    // safety: the agent owns the resource table for the lifetime of the runtime state
-    unsafe { &*runtime_state.resources.0 }
-}
-
 /// Return the shared runtime registry for process-global monitor callbacks.
-fn monitor_callback_runtimes() -> &'static Mutex<Vec<Weak<AppKitRuntimeState>>> {
-    APPKIT_MONITOR_CALLBACK_RUNTIMES.get_or_init(|| Mutex::new(Vec::new()))
+fn monitor_callback_runtimes() -> &'static Mutex<HashMap<u64, Weak<AppKitRuntimeState>>> {
+    APPKIT_MONITOR_CALLBACK_RUNTIMES.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 /// Register the process-global CoreGraphics display callback once.
@@ -240,54 +317,16 @@ fn ensure_monitor_callback_registered() {
 }
 
 /// Register one runtime for process-global monitor reconfiguration callbacks.
-fn register_monitor_runtime(runtime_state: &Arc<AppKitRuntimeState>) {
-    let identity = Arc::as_ptr(runtime_state) as usize;
+fn register_monitor_runtime(runtime_id: u64, runtime_state: &Arc<AppKitRuntimeState>) {
     let mut registry = monitor_callback_runtimes()
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    let mut found_existing = false;
 
-    // retain only live runtimes and avoid duplicate registrations
-    registry.retain(|weak| {
-        let Some(strong) = weak.upgrade() else {
-            return false;
-        };
-
-        let strong_identity = Arc::as_ptr(&strong) as usize;
-        if strong_identity == identity {
-            found_existing = true;
-        }
-
-        true
-    });
-
-    if !found_existing {
-        registry.push(Arc::downgrade(runtime_state));
-    }
+    // prune dead runtimes before updating the keyed registration
+    registry.retain(|_, weak| weak.strong_count() > 0);
+    registry.insert(runtime_id, Arc::downgrade(runtime_state));
 
     ensure_monitor_callback_registered();
-}
-
-/// Register one host-owned thread-message observer for this runtime.
-fn register_thread_message_runtime(
-    binding: &BindingCallContext,
-    runtime_state: &Arc<AppKitRuntimeState>,
-) {
-    let Some(runtime_id) = binding.host().callback_runtime_id() else {
-        return;
-    };
-
-    let observer = runtime_state
-        .thread_message_observer
-        .get_or_init(|| {
-            Arc::new(AppKitThreadMessageObserver {
-                runtime_state: Arc::downgrade(runtime_state),
-            })
-        })
-        .clone();
-    let observer: Arc<dyn AppleThreadMessageObserver> = observer;
-
-    apple_message::register_thread_message_observer(runtime_id, &observer);
 }
 
 /// Handle one process-global display reconfiguration callback from CoreGraphics.
@@ -306,12 +345,12 @@ unsafe extern "C-unwind" fn handle_display_reconfiguration(
         .unwrap_or_else(|error| error.into_inner());
 
     // retain only live runtimes while broadcasting the topology refresh
-    registry.retain(|weak| {
+    registry.retain(|_, weak| {
         let Some(runtime_state) = weak.upgrade() else {
             return false;
         };
 
-        if let Err(error) = event::publish_monitor_topology_deltas(&runtime_state) {
+        if let Err(error) = appkit_event::publish_monitor_topology_deltas(&runtime_state) {
             super::core::warn_callback_error(
                 runtime_state.as_ref(),
                 "destack.display.monitor.reconfigurationCallback",
@@ -331,8 +370,11 @@ pub(crate) fn runtime_state(binding: &BindingCallContext) -> Arc<AppKitRuntimeSt
         .display
         .appkit_runtime_state(|| AppKitRuntimeState::from_context(binding));
 
-    register_monitor_runtime(&runtime_state);
-    register_thread_message_runtime(binding, &runtime_state);
+    {
+        let runtime_id = binding.agent().runtime_id;
+        register_monitor_runtime(runtime_id.0, &runtime_state);
+    }
+    runtime_state.register_runtime_ingress(binding);
 
     runtime_state
 }

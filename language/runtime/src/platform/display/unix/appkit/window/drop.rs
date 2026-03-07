@@ -8,8 +8,8 @@ use objc2_foundation::{NSArray, NSPoint, NSURL};
 use crate::platform::display::WindowPosition;
 use crate::platform::resource::WindowHandle;
 
-use super::super::core::{self as appkit_core, AppKitWindowHost};
-use super::super::event;
+use crate::platform::display::unix::appkit::core::{self as appkit_core, AppKitWindowHost};
+use crate::platform::display::unix::appkit::event;
 
 /// Parsed drag payload for one AppKit pasteboard snapshot.
 enum AppKitDropPayload {

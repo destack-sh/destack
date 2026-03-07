@@ -8,10 +8,11 @@ use crate::platform::display::{
     WindowTheme, WindowVisibility,
 };
 
-use super::super::core as appkit_core;
-use super::super::model::AppKitWindowBinding;
 use super::constants::DEFAULT_WINDOW_OPACITY;
+use super::core::frame_origin_from_desktop_position;
 use super::mode;
+use crate::platform::display::unix::appkit::core as appkit_core;
+use crate::platform::display::unix::appkit::model::AppKitWindowHostState;
 
 /// Resolve role-specific defaults for one AppKit open request.
 pub(crate) fn resolve_role_open_defaults(
@@ -137,15 +138,16 @@ pub(crate) fn window_rect(
     position: Option<WindowPosition>,
 ) -> objc2_foundation::NSRect {
     let origin = position.unwrap_or(WindowPosition { x: 0, y: 0 });
+    let origin = frame_origin_from_desktop_position(origin, size.height.max(1.0));
 
     objc2_foundation::NSRect::new(
-        objc2_foundation::NSPoint::new(origin.x as f64, origin.y as f64),
+        origin,
         objc2_foundation::NSSize::new(size.width.max(1.0), size.height.max(1.0)),
     )
 }
 
-/// Build one initial binding snapshot for one open request.
-pub(crate) fn initial_binding(options: &WindowOptions, title: &str) -> AppKitWindowBinding {
+/// Build one initial host-state snapshot for one open request.
+pub(crate) fn initial_host_state(options: &WindowOptions, title: &str) -> AppKitWindowHostState {
     let position = options.position.unwrap_or(WindowPosition { x: 0, y: 0 });
     let size_logical = options.size_logical;
     let size_physical = WindowPhysicalSize {
@@ -153,13 +155,12 @@ pub(crate) fn initial_binding(options: &WindowOptions, title: &str) -> AppKitWin
         height: size_logical.height.round().max(1.0) as u32,
     };
 
-    AppKitWindowBinding {
+    AppKitWindowHostState {
         id: format!(
             "{}-window-{}",
             appkit_core::selected_backend_name(),
             core_platform::monotonic_now_ns()
         ),
-        owner_thread_id: std::thread::current().id(),
         title: title.to_string(),
         role: options.role,
         mode: options.mode,

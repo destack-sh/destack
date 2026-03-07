@@ -6,20 +6,18 @@ use crate::platform::display::{WindowAttentionLevel, WindowResizeEdge, unsupport
 use crate::platform::resource::WindowHandle;
 use crate::runtime::BindingCallContext;
 
-use super::super::{core as appkit_core, event, resource as display_resource};
-use super::runtime;
+use crate::platform::display::unix::appkit::{
+    core as appkit_core, event, resource as display_resource,
+};
 
-/// Validate one window action handle and owner thread, then return runtime state.
+/// Validate one window action handle and return runtime state.
 fn validated_runtime_state(
     context: &BindingCallContext,
     window_handle: WindowHandle,
     operation: &'static str,
 ) -> RuntimeResult<std::sync::Arc<appkit_core::AppKitRuntimeState>> {
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(context, window_handle, operation)?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-
-    runtime::ensure_window_thread(&binding, operation)?;
+    let _ = display_resource::resolve_window_host_state(context, window_handle, operation)?;
 
     Ok(runtime_state)
 }

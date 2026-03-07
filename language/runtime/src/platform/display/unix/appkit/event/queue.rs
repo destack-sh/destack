@@ -1,34 +1,9 @@
 use std::sync::Arc;
-use std::time::Duration;
 
-use crate::diagnostic::RuntimeResult;
-use crate::platform::core as core_platform;
+use crate::platform::display::RuntimeEventLog;
 
-use super::super::core::{self as appkit_core, AppKitRuntimeState};
-use super::{DisplayEventRecord, MonitorEventBinding, WindowEventBinding, WindowEventRecord};
-
-/// Return one bounded wait duration from one timeout budget and wait-slice limit.
-pub(crate) fn wait_duration(remaining_ns: u64, wait_slice_ns: u64) -> Duration {
-    Duration::from_nanos(remaining_ns.min(wait_slice_ns))
-}
-
-/// Enforce owner-thread affinity for one window-event stream.
-pub(crate) fn ensure_window_event_thread(
-    binding: &Arc<WindowEventBinding>,
-    operation: &'static str,
-) -> RuntimeResult<()> {
-    let current_thread_id = std::thread::current().id();
-
-    // accept reads from the owner thread only
-    if binding.owner_thread_id == current_thread_id {
-        return Ok(());
-    }
-
-    Err(core_platform::invalid_argument(
-        "handle",
-        format!("{operation} must run on the owner thread of this window event stream"),
-    ))
-}
+use super::{DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream};
+use crate::platform::display::unix::appkit::core::AppKitRuntimeState;
 
 /// Publish one monitor event into the runtime-owned live log.
 pub(crate) fn publish_monitor_event(
@@ -47,28 +22,28 @@ pub(crate) fn publish_monitor_event(
         monitor_events.records.push_back(record.clone());
     }
 
-    let subscribers = collect_monitor_subscribers(runtime_state);
+    let streams = runtime_state.monitor_streams_snapshot();
 
     // update per-stream frontier state for this new live record
-    for binding in &subscribers {
-        note_monitor_publication(runtime_state, binding, &record);
+    for stream in &streams {
+        note_monitor_publication(runtime_state, stream, &record);
     }
 
-    prune_monitor_events(runtime_state, &subscribers);
+    prune_monitor_events(runtime_state, &streams);
     runtime_state.monitor_event_signal.notify_all();
 }
 
 /// Push one seeded monitor record into one stream state.
 pub(crate) fn push_seeded_monitor_record(
-    binding: &Arc<MonitorEventBinding>,
+    stream: &Arc<MonitorEventStream>,
     record: DisplayEventRecord,
 ) {
     // skip seeded records filtered out for this stream
-    if !binding.filter.matches(&record) {
+    if !stream.filter.matches(&record) {
         return;
     }
 
-    let mut state = binding
+    let mut state = stream
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
@@ -120,75 +95,29 @@ pub(crate) fn publish_window_event(
         window_events.records.push_back(record.clone());
     }
 
-    let subscribers = collect_window_subscribers(runtime_state);
+    let streams = runtime_state.window_streams_snapshot();
 
     // update per-stream frontier state for this new live record
-    for binding in &subscribers {
-        note_window_publication(runtime_state, binding, &record);
+    for stream in &streams {
+        note_window_publication(runtime_state, stream, &record);
     }
 
-    prune_window_events(runtime_state, &subscribers);
+    prune_window_events(runtime_state, &streams);
     runtime_state.window_event_signal.notify_all();
-}
-
-/// Collect one live monitor-subscriber snapshot and clear stale weak entries.
-fn collect_monitor_subscribers(
-    runtime_state: &Arc<AppKitRuntimeState>,
-) -> Vec<Arc<MonitorEventBinding>> {
-    let mut registry = runtime_state
-        .monitor_event_registry
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    let mut subscribers = Vec::new();
-
-    // retain only live monitor subscribers
-    registry.retain(|weak| {
-        let Some(strong) = weak.upgrade() else {
-            return false;
-        };
-
-        subscribers.push(strong);
-        true
-    });
-
-    subscribers
-}
-
-/// Collect one live window-subscriber snapshot and clear stale weak entries.
-fn collect_window_subscribers(
-    runtime_state: &Arc<AppKitRuntimeState>,
-) -> Vec<Arc<WindowEventBinding>> {
-    let mut registry = runtime_state
-        .window_event_registry
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    let mut subscribers = Vec::new();
-
-    // retain only live window subscribers
-    registry.retain(|weak| {
-        let Some(strong) = weak.upgrade() else {
-            return false;
-        };
-
-        subscribers.push(strong);
-        true
-    });
-
-    subscribers
 }
 
 /// Record one newly published monitor event against one stream frontier.
 fn note_monitor_publication(
     runtime_state: &Arc<AppKitRuntimeState>,
-    binding: &Arc<MonitorEventBinding>,
+    stream: &Arc<MonitorEventStream>,
     record: &DisplayEventRecord,
 ) {
     // ignore live records filtered out for this stream
-    if !binding.filter.matches(record) {
+    if !stream.filter.matches(record) {
         return;
     }
 
-    let mut state = binding
+    let mut state = stream
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
@@ -218,7 +147,7 @@ fn note_monitor_publication(
                 return;
             }
 
-            drop_oldest_live_monitor_record(runtime_state, binding, &mut state);
+            drop_oldest_live_monitor_record(runtime_state, stream, &mut state);
         }
     }
 }
@@ -226,15 +155,15 @@ fn note_monitor_publication(
 /// Record one newly published window event against one stream frontier.
 fn note_window_publication(
     runtime_state: &Arc<AppKitRuntimeState>,
-    binding: &Arc<WindowEventBinding>,
+    stream: &Arc<WindowEventStream>,
     record: &WindowEventRecord,
 ) {
     // ignore live records filtered out for this stream
-    if !binding.filter.matches(record) {
+    if !stream.filter.matches(record) {
         return;
     }
 
-    let mut state = binding
+    let mut state = stream
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
@@ -264,7 +193,7 @@ fn note_window_publication(
                 return;
             }
 
-            drop_oldest_live_window_record(runtime_state, binding, &mut state);
+            drop_oldest_live_window_record(runtime_state, stream, &mut state);
         }
     }
 }
@@ -272,7 +201,7 @@ fn note_window_publication(
 /// Drop the oldest unread live monitor record for one stream.
 fn drop_oldest_live_monitor_record(
     runtime_state: &Arc<AppKitRuntimeState>,
-    binding: &Arc<MonitorEventBinding>,
+    stream: &Arc<MonitorEventStream>,
     state: &mut super::MonitorEventState,
 ) {
     // accept the newest record when this stream currently has no unread live backlog
@@ -294,7 +223,7 @@ fn drop_oldest_live_monitor_record(
         };
         next_live_sequence = next_live_sequence.saturating_add(1);
 
-        if binding.filter.matches(record) {
+        if stream.filter.matches(record) {
             state.next_live_sequence = next_live_sequence;
             return;
         }
@@ -307,7 +236,7 @@ fn drop_oldest_live_monitor_record(
 /// Drop the oldest unread live window record for one stream.
 fn drop_oldest_live_window_record(
     runtime_state: &Arc<AppKitRuntimeState>,
-    binding: &Arc<WindowEventBinding>,
+    stream: &Arc<WindowEventStream>,
     state: &mut super::WindowEventState,
 ) {
     // accept the newest record when this stream currently has no unread live backlog
@@ -329,7 +258,7 @@ fn drop_oldest_live_window_record(
         };
         next_live_sequence = next_live_sequence.saturating_add(1);
 
-        if binding.filter.matches(record) {
+        if stream.filter.matches(record) {
             state.next_live_sequence = next_live_sequence;
             return;
         }
@@ -342,13 +271,13 @@ fn drop_oldest_live_window_record(
 /// Trim retained monitor live records to the earliest active frontier.
 fn prune_monitor_events(
     runtime_state: &Arc<AppKitRuntimeState>,
-    subscribers: &[Arc<MonitorEventBinding>],
+    streams: &[Arc<MonitorEventStream>],
 ) {
     let mut min_sequence: Option<u64> = None;
 
     // compute the earliest live frontier across active streams
-    for binding in subscribers {
-        let state = binding
+    for stream in streams {
+        let state = stream
             .state
             .lock()
             .unwrap_or_else(|error| error.into_inner());
@@ -378,13 +307,13 @@ fn prune_monitor_events(
 /// Trim retained window live records to the earliest active frontier.
 fn prune_window_events(
     runtime_state: &Arc<AppKitRuntimeState>,
-    subscribers: &[Arc<WindowEventBinding>],
+    streams: &[Arc<WindowEventStream>],
 ) {
     let mut min_sequence: Option<u64> = None;
 
     // compute the earliest live frontier across active streams
-    for binding in subscribers {
-        let state = binding
+    for stream in streams {
+        let state = stream
             .state
             .lock()
             .unwrap_or_else(|error| error.into_inner());
@@ -411,23 +340,23 @@ fn prune_window_events(
     }
 }
 
-/// Trim retained monitor live records after one subscriber-set change.
+/// Trim retained monitor live records after one stream-set change.
 pub(crate) fn trim_monitor_events(runtime_state: &Arc<AppKitRuntimeState>) {
-    let subscribers = collect_monitor_subscribers(runtime_state);
-    prune_monitor_events(runtime_state, &subscribers);
+    let streams = runtime_state.monitor_streams_snapshot();
+    prune_monitor_events(runtime_state, &streams);
 }
 
-/// Trim retained window live records after one subscriber-set change.
+/// Trim retained window live records after one stream-set change.
 pub(crate) fn trim_window_events(runtime_state: &Arc<AppKitRuntimeState>) {
-    let subscribers = collect_window_subscribers(runtime_state);
-    prune_window_events(runtime_state, &subscribers);
+    let streams = runtime_state.window_streams_snapshot();
+    prune_window_events(runtime_state, &streams);
 }
 
 /// Resolve one retained monitor record by live sequence.
-fn monitor_record_at_sequence<'a>(
-    state: &'a appkit_core::AppKitMonitorEventRuntimeState,
+fn monitor_record_at_sequence(
+    state: &RuntimeEventLog<DisplayEventRecord>,
     sequence: u64,
-) -> Option<&'a DisplayEventRecord> {
+) -> Option<&DisplayEventRecord> {
     if sequence < state.first_sequence || sequence >= state.next_sequence {
         return None;
     }
@@ -437,10 +366,10 @@ fn monitor_record_at_sequence<'a>(
 }
 
 /// Resolve one retained window record by live sequence.
-fn window_record_at_sequence<'a>(
-    state: &'a appkit_core::AppKitWindowEventRuntimeState,
+fn window_record_at_sequence(
+    state: &RuntimeEventLog<WindowEventRecord>,
     sequence: u64,
-) -> Option<&'a WindowEventRecord> {
+) -> Option<&WindowEventRecord> {
     if sequence < state.first_sequence || sequence >= state.next_sequence {
         return None;
     }
@@ -451,9 +380,9 @@ fn window_record_at_sequence<'a>(
 
 /// Deliver one seeded monitor record with stream-local metadata.
 pub(crate) fn pop_seeded_monitor_record(
-    binding: &Arc<MonitorEventBinding>,
+    stream: &Arc<MonitorEventStream>,
 ) -> Option<DisplayEventRecord> {
-    let mut state = binding
+    let mut state = stream
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
@@ -466,9 +395,9 @@ pub(crate) fn pop_seeded_monitor_record(
 
 /// Deliver one seeded window record with stream-local metadata.
 pub(crate) fn pop_seeded_window_record(
-    binding: &Arc<WindowEventBinding>,
+    stream: &Arc<WindowEventStream>,
 ) -> Option<WindowEventRecord> {
-    let mut state = binding
+    let mut state = stream
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
@@ -482,9 +411,9 @@ pub(crate) fn pop_seeded_window_record(
 /// Pop one live monitor record visible to this stream.
 pub(crate) fn pop_live_monitor_record(
     runtime_state: &Arc<AppKitRuntimeState>,
-    binding: &Arc<MonitorEventBinding>,
+    stream: &Arc<MonitorEventStream>,
 ) -> Option<DisplayEventRecord> {
-    let mut state = binding
+    let mut state = stream
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
@@ -506,7 +435,7 @@ pub(crate) fn pop_live_monitor_record(
         };
         next_live_sequence = next_live_sequence.saturating_add(1);
 
-        if !binding.filter.matches(record) {
+        if !stream.filter.matches(record) {
             continue;
         }
 
@@ -519,8 +448,8 @@ pub(crate) fn pop_live_monitor_record(
         drop(monitor_events);
         drop(state);
 
-        let subscribers = collect_monitor_subscribers(runtime_state);
-        prune_monitor_events(runtime_state, &subscribers);
+        let streams = runtime_state.monitor_streams_snapshot();
+        prune_monitor_events(runtime_state, &streams);
         return Some(record);
     }
 
@@ -532,9 +461,9 @@ pub(crate) fn pop_live_monitor_record(
 /// Pop one live window record visible to this stream.
 pub(crate) fn pop_live_window_record(
     runtime_state: &Arc<AppKitRuntimeState>,
-    binding: &Arc<WindowEventBinding>,
+    stream: &Arc<WindowEventStream>,
 ) -> Option<WindowEventRecord> {
-    let mut state = binding
+    let mut state = stream
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
@@ -556,7 +485,7 @@ pub(crate) fn pop_live_window_record(
         };
         next_live_sequence = next_live_sequence.saturating_add(1);
 
-        if !binding.filter.matches(record) {
+        if !stream.filter.matches(record) {
             continue;
         }
 
@@ -569,8 +498,8 @@ pub(crate) fn pop_live_window_record(
         drop(window_events);
         drop(state);
 
-        let subscribers = collect_window_subscribers(runtime_state);
-        prune_window_events(runtime_state, &subscribers);
+        let streams = runtime_state.window_streams_snapshot();
+        prune_window_events(runtime_state, &streams);
         return Some(record);
     }
 
@@ -580,8 +509,8 @@ pub(crate) fn pop_live_window_record(
 }
 
 /// Return whether this monitor stream has a pending overflow error.
-pub(crate) fn take_monitor_overflow_error(binding: &Arc<MonitorEventBinding>) -> bool {
-    let mut state = binding
+pub(crate) fn take_monitor_overflow_error(stream: &Arc<MonitorEventStream>) -> bool {
+    let mut state = stream
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
@@ -591,8 +520,8 @@ pub(crate) fn take_monitor_overflow_error(binding: &Arc<MonitorEventBinding>) ->
 }
 
 /// Return whether this window stream has a pending overflow error.
-pub(crate) fn take_window_overflow_error(binding: &Arc<WindowEventBinding>) -> bool {
-    let mut state = binding
+pub(crate) fn take_window_overflow_error(stream: &Arc<WindowEventStream>) -> bool {
+    let mut state = stream
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());

@@ -3,8 +3,8 @@ use crate::platform::display::{WindowDescriptor, WindowState};
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
-use super::super::resource as display_resource;
-use super::{core, runtime};
+use super::core;
+use crate::platform::display::unix::appkit::resource as display_resource;
 
 /// Read descriptor metadata for one window.
 pub(crate) unsafe fn window_descriptor(
@@ -14,14 +14,13 @@ pub(crate) unsafe fn window_descriptor(
 ) -> RuntimeResult<()> {
     core_platform::ensure_out(out, "out")?;
 
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.descriptor",
     )?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.descriptor")?;
-    let descriptor = core::descriptor_from_binding(context, &binding);
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let descriptor = core::descriptor_from_host_state(context, &host_state);
 
     unsafe {
         *out = descriptor;
@@ -38,14 +37,13 @@ pub(crate) unsafe fn window_state(
 ) -> RuntimeResult<()> {
     core_platform::ensure_out(out, "out")?;
 
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.state",
     )?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.state")?;
-    let state = core::state_from_binding(&binding);
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let state = core::state_from_host_state(&host_state);
 
     unsafe {
         *out = state;

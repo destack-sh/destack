@@ -1,4 +1,4 @@
-use objc2_foundation::{NSPoint, NSSize};
+use objc2_foundation::NSSize;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
@@ -8,9 +8,12 @@ use crate::platform::display::{
 use crate::platform::resource::WindowHandle;
 use crate::runtime::BindingCallContext;
 
-use super::super::event::{publish_state_deltas, publish_window_position_changed};
-use super::super::{core as appkit_core, resource as display_resource};
-use super::{reconcile, runtime};
+use super::core::frame_origin_from_desktop_position;
+use super::reconcile;
+use crate::platform::display::unix::appkit::event::{
+    publish_state_deltas, publish_window_position_changed,
+};
+use crate::platform::display::unix::appkit::{core as appkit_core, resource as display_resource};
 
 const UNBOUNDED_WINDOW_SIZE: f64 = 10_000_000.0;
 
@@ -23,22 +26,22 @@ pub(crate) fn validate_size_constraints(
         return Ok(());
     };
 
-    if let Some(minimum) = constraints.min {
-        if minimum.width <= 0.0 || minimum.height <= 0.0 {
-            return Err(core_platform::invalid_argument(
-                "constraints",
-                format!("{operation}: minimum logical size must be greater than zero"),
-            ));
-        }
+    if let Some(minimum) = constraints.min
+        && (minimum.width <= 0.0 || minimum.height <= 0.0)
+    {
+        return Err(core_platform::invalid_argument(
+            "constraints",
+            format!("{operation}: minimum logical size must be greater than zero"),
+        ));
     }
 
-    if let Some(maximum) = constraints.max {
-        if maximum.width <= 0.0 || maximum.height <= 0.0 {
-            return Err(core_platform::invalid_argument(
-                "constraints",
-                format!("{operation}: maximum logical size must be greater than zero"),
-            ));
-        }
+    if let Some(maximum) = constraints.max
+        && (maximum.width <= 0.0 || maximum.height <= 0.0)
+    {
+        return Err(core_platform::invalid_argument(
+            "constraints",
+            format!("{operation}: maximum logical size must be greater than zero"),
+        ));
     }
 
     Ok(())
@@ -51,24 +54,24 @@ pub(crate) unsafe fn window_set_position(
     position: WindowPosition,
 ) -> RuntimeResult<()> {
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setPosition",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setPosition")?;
-    let previous_position = binding.position;
-    binding.position = position;
-    drop(binding);
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous_position = host_state.position;
+    host_state.position = position;
+    drop(host_state);
 
     appkit_core::with_window_host(
         &runtime_state,
         window_handle,
         "destack.display.window.setPosition",
         |host| {
-            host.window
-                .setFrameOrigin(NSPoint::new(position.x as f64, position.y as f64));
+            let frame_height = host.window.frame().size.height.max(1.0);
+            let origin = frame_origin_from_desktop_position(position, frame_height);
+            host.window.setFrameOrigin(origin);
             Ok(())
         },
     )?;
@@ -86,15 +89,14 @@ pub(crate) unsafe fn window_set_size_constraints(
     validate_size_constraints(constraints, "destack.display.window.setSizeConstraints")?;
 
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setSizeConstraints",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setSizeConstraints")?;
-    binding.constraints = constraints;
-    drop(binding);
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    host_state.constraints = constraints;
+    drop(host_state);
 
     appkit_core::with_window_host(
         &runtime_state,
@@ -144,14 +146,13 @@ pub(crate) unsafe fn window_set_size_logical(
     }
 
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setSizeLogical",
     )?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setSizeLogical")?;
-    drop(binding);
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    drop(host_state);
 
     appkit_core::with_window_host(
         &runtime_state,
@@ -214,17 +215,16 @@ pub(crate) unsafe fn window_set_aspect_ratio(
     }
 
     let runtime_state = appkit_core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
+    let host_state = display_resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setAspectRatio",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    runtime::ensure_window_thread(&binding, "destack.display.window.setAspectRatio")?;
-    let previous = binding.clone();
-    binding.aspect_ratio = aspect_ratio;
-    let next = binding.clone();
-    drop(binding);
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let previous = host_state.clone();
+    host_state.aspect_ratio = aspect_ratio;
+    let next = host_state.clone();
+    drop(host_state);
 
     appkit_core::with_window_host(
         &runtime_state,
