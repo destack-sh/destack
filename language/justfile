@@ -1,6 +1,5 @@
-set unstable
 set shell := ["bash", "-cu"]
-set script-interpreter := ["bash", "-euo", "pipefail"]
+set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 
 # all language crates
 packages := "-p destack_base -p destack_ast -p destack_builtin -p destack_test_mirbench -p destack_codegen_native -p destack_codegen_lib -p destack_codegen_js -p destack_compiler -p destack_compiler_macros -p destack_dir -p destack_fir -p destack_formatter -p destack_heap -p destack_json -p destack_linter -p destack_linter_macros -p destack_vm -p destack_vm_abi -p destack_mir -p destack_parser -p destack_resolver -p destack_runtime -p destack_source -p destack_test -p destack_unicode -p destack_workspace -p destack_service"
@@ -10,49 +9,12 @@ _default:
     @just --list --unsorted
 
 # keep rust test concurrency on one repo wide knob when configured
-[script]
 _run-rust-test *args:
-    cargo_bin="cargo"
-    if [ "${OS:-}" = "Windows_NT" ] && command -v cargo.exe >/dev/null 2>&1; then
-        cargo_bin="cargo.exe"
-    fi
-
-    test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"
-    if [ -n "${test_threads}" ]; then
-        export RUST_TEST_THREADS="${test_threads}"
-    fi
-
-    "${cargo_bin}" test {{args}}
+    cargo_bin="cargo"; if [ "${OS:-}" = "Windows_NT" ] && command -v cargo.exe >/dev/null 2>&1; then cargo_bin="cargo.exe"; fi; test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"; if [ -n "${test_threads}" ]; then export RUST_TEST_THREADS="${test_threads}"; fi; "${cargo_bin}" test {{args}}
 
 # keep custom harness worker pools on one repo wide knob when configured
-[script]
 _run-destack-test test_binary *args:
-    cargo_bin="cargo"
-    if [ "${OS:-}" = "Windows_NT" ] && command -v cargo.exe >/dev/null 2>&1; then
-        cargo_bin="cargo.exe"
-    fi
-
-    test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"
-    test_jobs="${DESTACK_TEST_JOBS:-${DESTACK_TEST_THREADS:-}}"
-    if [ -n "${test_threads}" ]; then
-        export RUST_TEST_THREADS="${test_threads}"
-    fi
-
-    command=( "${cargo_bin}" test --release -p destack_test --test "{{test_binary}}" )
-    if [ -n "${test_jobs}" ]; then
-        command+=( -- -j "${test_jobs}" )
-        set -- {{args}}
-        if [ "$#" -gt 0 ]; then
-            command+=( "$@" )
-        fi
-    else
-        set -- {{args}}
-        if [ "$#" -gt 0 ]; then
-            command+=( -- "$@" )
-        fi
-    fi
-
-    "${command[@]}"
+    cargo_bin="cargo"; if [ "${OS:-}" = "Windows_NT" ] && command -v cargo.exe >/dev/null 2>&1; then cargo_bin="cargo.exe"; fi; test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"; test_jobs="${DESTACK_TEST_JOBS:-${DESTACK_TEST_THREADS:-}}"; if [ -n "${test_threads}" ]; then export RUST_TEST_THREADS="${test_threads}"; fi; command=( "${cargo_bin}" test --release -p destack_test --test "{{test_binary}}" ); if [ -n "${test_jobs}" ]; then command+=( -- -j "${test_jobs}" ); set -- {{args}}; if [ "$#" -gt 0 ]; then command+=( "$@" ); fi; else set -- {{args}}; if [ "$#" -gt 0 ]; then command+=( -- "$@" ); fi; fi; "${command[@]}"
 
 # --- setup ---
 
@@ -79,36 +41,8 @@ install-formatter-conformance:
     bash ./test/fixtures/formatter/conformance/oxfmt-fetch.sh
 
 # install resolver fixture dependencies
-[script]
 install-resolver:
-    FIXTURES_DIR="test/fixtures/resolver"
-    required_fixture_sources=(
-        "$FIXTURES_DIR/enhanced_resolve/test/fixtures/node_modules/m1/a.js"
-        "$FIXTURES_DIR/enhanced_resolve/test/fixtures/multiple_modules/node_modules/m1/a.js"
-        "$FIXTURES_DIR/bench-tsconfig-paths/README.md"
-        "$FIXTURES_DIR/tsconfck/package.json"
-    )
-
-    for fixture_source_path in "${required_fixture_sources[@]}"; do
-        if [ ! -f "$fixture_source_path" ]; then
-            echo "missing vendored resolver fixture source: $fixture_source_path"
-            echo "restore resolver fixtures from git before running install-resolver"
-            exit 1
-        fi
-    done
-
-    if [ -f "$FIXTURES_DIR/pnpm/package.json" ]; then
-        (cd "$FIXTURES_DIR/pnpm" && CI=1 pnpm install --ignore-workspace)
-    fi
-    if [ -f "$FIXTURES_DIR/pnpm-workspace/package.json" ]; then
-        (cd "$FIXTURES_DIR/pnpm-workspace" && CI=1 pnpm install)
-    fi
-
-    for dir in "$FIXTURES_DIR/yarn" "$FIXTURES_DIR/global-pnp" "$FIXTURES_DIR/pnp"; do
-        if [ -f "$dir/package.json" ]; then
-            (cd "$dir" && CI=1 corepack yarn install)
-        fi
-    done
+    bash scripts/install-resolver.sh
 
 # fetch ecosystem packages
 fetch-ecosystem:
@@ -121,16 +55,8 @@ check:
     cargo clippy --release {{ packages }}
 
 # run privileged runtime platform tests for process, fs, and net
-[script]
 test-runtime-privileged:
-    if [ "$(id -u)" != "0" ]; then
-        echo "test-runtime-privileged requires elevated privileges (run as root/admin)"
-        exit 1
-    fi
-
-    LC_ALL=C LANG=C LC_CTYPE=C DESTACK_TEST_PRIVILEGED=1 just _run-rust-test -p destack_runtime platform::process::tests:: -- --nocapture
-    LC_ALL=C LANG=C LC_CTYPE=C DESTACK_TEST_PRIVILEGED=1 just _run-rust-test -p destack_runtime platform::fs::tests:: -- --nocapture
-    LC_ALL=C LANG=C LC_CTYPE=C DESTACK_TEST_PRIVILEGED=1 just _run-rust-test -p destack_runtime platform::net::tests:: -- --nocapture
+    bash scripts/test-runtime-privileged.sh
 
 # install runtime target toolchains and host prerequisites where possible
 install-toolchain:
@@ -232,63 +158,8 @@ generate-schema:
     @echo "generated workspace/generated/dsconfig.schema.json"
 
 # generate runtime binding catalog
-[script]
 generate-bindings *args:
-    runtime_args=()
-    refresh_stubs="true"
-
-    set -- {{args}}
-    while [ "$#" -gt 0 ]; do
-        case "$1" in
-            --domains)
-                if [ "$#" -lt 2 ]; then
-                    echo "missing value for --domains"
-                    exit 1
-                fi
-                runtime_args+=("--domains" "$2")
-                shift
-                ;;
-            --domains=*)
-                runtime_args+=("$1")
-                ;;
-            --domain)
-                if [ "$#" -lt 2 ]; then
-                    echo "missing value for --domain"
-                    exit 1
-                fi
-                runtime_args+=("--domain" "$2")
-                shift
-                ;;
-            --domain=*)
-                runtime_args+=("$1")
-                ;;
-            --refresh-stubs)
-                refresh_stubs="true"
-                ;;
-            --no-refresh-stubs)
-                refresh_stubs="false"
-                ;;
-            *)
-                echo "unsupported generate-bindings option: $1"
-                echo "supported: --domain, --domains, --refresh-stubs, --no-refresh-stubs"
-                exit 1
-                ;;
-        esac
-        shift
-    done
-
-    if [ "$refresh_stubs" = "true" ]; then
-        runtime_args+=("--refresh-stubs")
-    fi
-
-    if [ "${#runtime_args[@]}" -gt 0 ]; then
-        cargo run -p destack_runtime --features generate_bindings --bin generate-bindings --release -- "${runtime_args[@]}"
-    else
-        cargo run -p destack_runtime --features generate_bindings --bin generate-bindings --release
-    fi
-
-    cargo fmt -p destack_runtime
-    echo "generated runtime binding catalog"
+    bash scripts/generate-bindings.sh {{args}}
 
 # --- builtin libs ---
 

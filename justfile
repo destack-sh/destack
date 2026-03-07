@@ -1,6 +1,5 @@
-set unstable
 set shell := ["bash", "-cu"]
-set script-interpreter := ["bash", "-euo", "pipefail"]
+set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 set dotenv-load := true
 set dotenv-filename := ".env.local"
 
@@ -108,8 +107,8 @@ full:
 check-hygiene:
     just ensure-hygiene-toolchain
     PATH="${HOME}/.local/bin:${PATH}" actionlint
-    shellcheck -x .github/scripts/*.sh scripts/toolchain/*.sh scripts/toolchain/lib/*.sh scripts/ci/*.sh bridge/scripts/*.sh
-    shfmt -d .github/scripts/*.sh scripts/toolchain/*.sh scripts/toolchain/lib/*.sh scripts/ci/*.sh bridge/scripts/*.sh
+    shellcheck -x .github/scripts/*.sh scripts/toolchain/*.sh scripts/toolchain/lib/*.sh scripts/ci/*.sh app/scripts/*.sh bridge/scripts/*.sh language/scripts/*.sh
+    shfmt -d .github/scripts/*.sh scripts/toolchain/*.sh scripts/toolchain/lib/*.sh scripts/ci/*.sh app/scripts/*.sh bridge/scripts/*.sh language/scripts/*.sh
     just check-workflow-policy
 
 # validate ci workflow and target policy architecture
@@ -173,17 +172,8 @@ generate-release-changelog:
     bash scripts/ci/update-changelog.sh "$(cat VERSION.txt)"
 
 # validate release version, tracked file versions, and changelog entry
-[script]
 validate-release tag="":
-    version="$(cat VERSION.txt)"
-    release_tag="{{tag}}"
-    if [ -z "${release_tag}" ]; then
-        release_tag="v${version}"
-    fi
-
-    bash scripts/ci/validate-release-tag-version.sh "${release_tag}"
-    cargo run --release -p destack_cli -- dev version check
-    bash scripts/ci/validate-release-changelog.sh "${version}"
+    bash scripts/ci/validate-release.sh "{{tag}}"
 
 # publish all packages (dry-run by default)
 publish dry="--dry-run":
@@ -203,68 +193,13 @@ publish-release:
     just template/publish-create-destack-live
 
 # publish all packages live with local cli binary staging
-[script]
 publish-release-local:
-    cli_artifacts_directory="${DESTACK_CLI_ARTIFACTS:-release-cli-assets}"
-
-    just build
-
-    if [ -d "${cli_artifacts_directory}" ]; then
-        just app/stage-cli-binaries-from-artifacts "$(cat VERSION.txt)" "${cli_artifacts_directory}"
-    else
-        if [ -z "${DESTACK_RELEASE_TARGETS:-}" ]; then
-            host_target="$(rustc -vV | awk '/^host: / { print $2 }')"
-            case "${host_target}" in
-                aarch64-apple-darwin|x86_64-apple-darwin|aarch64-unknown-linux-gnu|x86_64-unknown-linux-gnu|x86_64-pc-windows-msvc)
-                    export DESTACK_RELEASE_TARGETS="${host_target}"
-                    ;;
-                *)
-                    echo "error: unsupported host target for default local publish: ${host_target}" >&2
-                    echo "set DESTACK_RELEASE_TARGETS explicitly to one or more supported targets" >&2
-                    exit 1
-                    ;;
-            esac
-        fi
-
-        just app/build-cli-binaries
-        (cd app/cli && npm run stage:binaries)
-    fi
-
-    just app/validate-cli-publish
-    just library/publish ""
-    just app/publish ""
-    just bridge/publish ""
-    just template/publish-create-destack-live
+    bash scripts/ci/publish-release-local.sh
 
 # create a new release (bump, validate, changelog, commit, tag)
-[script]
 release kind:
-    just bump {{ kind }}
-    just generate-release-changelog
-    VERSION=$(cat VERSION.txt)
-    just validate-release "v${VERSION}"
-
-    release_commit_message="chore(all): bump version to ${VERSION}"
-    git add -A
-    git commit -m "${release_commit_message}"
-    git tag -a "v${VERSION}" -m "Release v${VERSION}"
-
-    echo ""
-    echo "Release v${VERSION} created locally."
-    echo "To publish:"
-    echo "  just push-release"
-    echo "  just publish-release"
-    echo "  just publish-release-local   # uses release-cli-assets when present, else host target"
+    bash scripts/ci/create-release.sh "{{kind}}"
 
 # push the current release commit and tag
-[script]
 push-release:
-    version="$(cat VERSION.txt)"
-    if ! git rev-parse --verify "v${version}" >/dev/null 2>&1; then
-        echo "error: missing local release tag v${version}" >&2
-        echo "run: just release <major|minor|patch>" >&2
-        exit 1
-    fi
-
-    git push origin main
-    git push origin "v${version}"
+    bash scripts/ci/push-release.sh

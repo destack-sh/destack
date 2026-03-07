@@ -1,6 +1,5 @@
-set unstable
 set shell := ["bash", "-cu"]
-set script-interpreter := ["bash", "-euo", "pipefail"]
+set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 set dotenv-load := true
 set dotenv-filename := "../.env.local"
 
@@ -13,19 +12,8 @@ _default:
     @just --list --unsorted
 
 # keep rust test concurrency on one repo wide knob when configured
-[script]
 _run-rust-test *args:
-    cargo_bin="cargo"
-    if [ "${OS:-}" = "Windows_NT" ] && command -v cargo.exe >/dev/null 2>&1; then
-        cargo_bin="cargo.exe"
-    fi
-
-    test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"
-    if [ -n "${test_threads}" ]; then
-        export RUST_TEST_THREADS="${test_threads}"
-    fi
-
-    "${cargo_bin}" test {{args}}
+    cargo_bin="cargo"; if [ "${OS:-}" = "Windows_NT" ] && command -v cargo.exe >/dev/null 2>&1; then cargo_bin="cargo.exe"; fi; test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"; if [ -n "${test_threads}" ]; then export RUST_TEST_THREADS="${test_threads}"; fi; "${cargo_bin}" test {{args}}
 
 # --- build ---
 
