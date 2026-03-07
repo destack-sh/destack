@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::display::unix::x11::{core as x11_core, resource as display_resource};
-use crate::platform::display::{WindowEvent, WindowEventOpenOptions};
+use crate::platform::display::{WindowEvent, WindowEventOpenOptions, options as display_options};
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{NativeArray, core as core_platform, display as display_runtime, resource};
+use crate::platform::{NativeArray, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 use crate::runtime::bindings::BindingAffinity;
 
@@ -89,7 +89,7 @@ pub(crate) unsafe fn window_event_open(
     let resolved_stream = Arc::new(WindowEventStream {
         stream_id: runtime_state.next_window_stream_id(),
         state: std::sync::Mutex::new(WindowEventState {
-            queue_capacity: display_runtime::resolved_event_queue_capacity(
+            queue_capacity: display_options::resolved_event_queue_capacity(
                 binding,
                 options.queue.queue_capacity,
             ),
@@ -172,7 +172,7 @@ pub(crate) unsafe fn window_event_read(
         "destack.display.window.eventRead",
         "event read timed out",
         deadline,
-        display_runtime::event_wait_slice_ns(binding),
+        display_options::event_wait_slice_ns(binding),
         || {
             next_window_event(
                 binding,
@@ -223,7 +223,7 @@ pub(crate) unsafe fn window_event_read_batch(
         "destack.display.window.eventReadBatch",
         "event read timed out",
         deadline,
-        display_runtime::event_wait_slice_ns(binding),
+        display_options::event_wait_slice_ns(binding),
         || {
             let events = drain_window_events(
                 binding,

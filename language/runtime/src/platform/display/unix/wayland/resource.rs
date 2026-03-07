@@ -1,7 +1,8 @@
 use std::sync::{Arc, Mutex};
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::resource::{ResourceEntry, ResourceKind, resolve_payload};
+use crate::platform::resource::resolve::resolve_payload;
+use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 use crate::runtime::bindings::BindingAffinity;

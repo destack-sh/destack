@@ -5,9 +5,8 @@ use windows_sys::Win32::Foundation::HWND;
 use windows_sys::Win32::UI::WindowsAndMessaging::{IsWindow, PostMessageW, WM_CLOSE};
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::resource::{
-    ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind, resolve_payload,
-};
+use crate::platform::resource::resolve::resolve_payload;
+use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 use crate::runtime::bindings::BindingAffinity;

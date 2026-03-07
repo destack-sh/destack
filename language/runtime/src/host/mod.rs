@@ -2,7 +2,7 @@
 mod android;
 #[cfg(any(target_os = "ios", target_os = "macos"))]
 pub(crate) mod apple;
-mod core;
+pub(crate) mod core;
 #[cfg(any(test, target_os = "dragonfly"))]
 mod dragonfly;
 #[cfg(any(test, target_os = "freebsd"))]
@@ -58,9 +58,6 @@ pub use core::{
     HostLifecycleState, HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent,
     HostPlatform, HostPollOutcome, HostPowerMode, HostPowerModeEvent, HostState, HostThermalEvent,
     HostThermalState, HostWallClockEvent, HostWindowEvent, HostWindowFocusEvent, default_host,
-};
-pub(crate) use core::{
-    RuntimeIngressObserver, process_runtime_ingress_observers, register_runtime_ingress_observer,
 };
 
 #[cfg(any(test, target_os = "android"))]

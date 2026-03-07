@@ -19,10 +19,11 @@ pub use event::{
     HostPermissionEvent, HostPowerModeEvent, HostThermalEvent, HostWallClockEvent, HostWindowEvent,
     HostWindowFocusEvent,
 };
-pub(crate) use ingress::{
-    RuntimeIngressObserver, cleanup_runtime_ingress_observers, process_runtime_ingress_observer,
-    process_runtime_ingress_observers, register_runtime_ingress_observer,
-};
+#[cfg(feature = "affinity")]
+pub(crate) use ingress::process_runtime_ingress_observers;
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+pub(crate) use ingress::{RuntimeIngressObserver, register_runtime_ingress_observer};
+pub(crate) use ingress::{cleanup_runtime_ingress_observers, process_runtime_ingress_observer};
 pub(crate) use queue::HostEventQueue;
 #[allow(unused_imports)]
 pub(crate) use registry::{

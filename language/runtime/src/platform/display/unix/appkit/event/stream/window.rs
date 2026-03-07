@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::display::unix::appkit::{core as appkit_core, resource as display_resource};
-use crate::platform::display::{WindowEvent, WindowEventOpenOptions};
+use crate::platform::display::{WindowEvent, WindowEventOpenOptions, options as display_options};
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{NativeArray, core as core_platform, display as display_runtime, resource};
+use crate::platform::{NativeArray, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 use crate::runtime::bindings::BindingAffinity;
 
@@ -102,7 +102,7 @@ pub(crate) unsafe fn window_event_open(
     let resolved_stream = Arc::new(WindowEventStream {
         stream_id: runtime_state.next_window_stream_id(),
         state: std::sync::Mutex::new(WindowEventState {
-            queue_capacity: display_runtime::resolved_event_queue_capacity(
+            queue_capacity: display_options::resolved_event_queue_capacity(
                 binding,
                 options.queue.queue_capacity,
             ),
@@ -188,7 +188,7 @@ pub(crate) unsafe fn window_event_read(
 
     let runtime_state = appkit_core::runtime_state(binding);
     let deadline = core_platform::monotonic_now_ns().saturating_add(timeoutns);
-    let wait_slice_ns = display_runtime::event_wait_slice_ns(binding);
+    let wait_slice_ns = display_options::event_wait_slice_ns(binding);
 
     // wait until one seeded or live record becomes visible
     let event = binding.wait_for_binding_result(
@@ -243,7 +243,7 @@ pub(crate) unsafe fn window_event_read_batch(
 
     let runtime_state = appkit_core::runtime_state(binding);
     let deadline = core_platform::monotonic_now_ns().saturating_add(timeoutns);
-    let wait_slice_ns = display_runtime::event_wait_slice_ns(binding);
+    let wait_slice_ns = display_options::event_wait_slice_ns(binding);
 
     // wait until at least one event is available, then drain a bounded batch
     let events = binding.wait_for_binding_result(

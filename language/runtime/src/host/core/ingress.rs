@@ -19,12 +19,14 @@ struct RuntimeIngressRegistryState {
 }
 
 /// Observer notified when one runtime ingress path should make progress.
+#[allow(dead_code)]
 pub(crate) trait RuntimeIngressObserver: std::fmt::Debug + Send + Sync {
     /// Service runtime-owned ingress.
     fn process_runtime_ingress(&self) -> RuntimeResult<()>;
 }
 
 /// Register one runtime ingress observer.
+#[allow(dead_code)]
 pub(crate) fn register_runtime_ingress_observer(
     runtime_id: u64,
     observer: &Arc<dyn RuntimeIngressObserver>,
@@ -90,6 +92,7 @@ pub(crate) fn process_runtime_ingress_observer(runtime_id: u64) -> RuntimeResult
 }
 
 /// Service ingress for every registered runtime.
+#[allow(dead_code)]
 pub(crate) fn process_runtime_ingress_observers() -> RuntimeResult<()> {
     let observers = {
         let mut registry = runtime_ingress_observers().write();

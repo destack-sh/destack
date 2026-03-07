@@ -44,6 +44,7 @@ pub(crate) fn ensure_resource_affinity(
 }
 
 /// Resolve one typed payload by resource kind and optional label.
+#[allow(dead_code)]
 pub(crate) fn resolve_payload<T: Clone + Send + Sync + 'static>(
     binding: &BindingCallContext,
     handle: ResourceId,

@@ -4,9 +4,8 @@ use x11rb::connection::Connection;
 use x11rb::protocol::xproto::ConnectionExt as XprotoConnectionExt;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::resource::{
-    ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind, resolve_payload,
-};
+use crate::platform::resource::resolve::resolve_payload;
+use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 use crate::runtime::bindings::BindingAffinity;
