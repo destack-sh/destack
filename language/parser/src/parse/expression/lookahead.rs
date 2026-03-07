@@ -219,6 +219,9 @@ impl Parser {
         };
         let tracks_tuple_commas = self.language.is_destack();
         let mut angle_depth = 0u32;
+        let mut parenthesis_depth = 0u32;
+        let mut brace_depth = 0u32;
+        let mut bracket_depth = 0u32;
         let mut token_index = open_pos as usize + 1;
         let close_index = close_pos as usize;
 
@@ -234,21 +237,9 @@ impl Parser {
                 analysis.is_empty = false;
             }
 
-            let is_top_level = angle_depth == 0;
-
-            // skip nested delimiters using cached pair indexes
-            if is_top_level
-                && matches!(
-                    token_type,
-                    TokenType::OpenParenthesis | TokenType::OpenBrace | TokenType::OpenBracket
-                )
-                && let Some(close_index_for_token) = self.matching_pair_or_lex(token_index)
-                && close_index_for_token > token_index
-                && close_index_for_token < close_index
-            {
-                token_index = close_index_for_token + 1;
-                continue;
-            }
+            let is_in_nested_delimiter =
+                parenthesis_depth > 0 || brace_depth > 0 || bracket_depth > 0;
+            let is_top_level = !is_in_nested_delimiter && angle_depth == 0;
 
             if is_top_level {
                 if tracks_tuple_commas && token_type == TokenType::Comma {
@@ -259,10 +250,29 @@ impl Parser {
             }
 
             // track top level angle depth for type parameter forms
+            if !is_in_nested_delimiter {
+                match token_type {
+                    TokenType::LessThan => angle_depth += 1,
+                    TokenType::GreaterThan => angle_depth = angle_depth.saturating_sub(1),
+                    TokenType::ShiftLeft | TokenType::SaturatingShiftLeft => angle_depth += 2,
+                    _ => {}
+                }
+            }
+
+            // track nested non angle delimiters inline instead of consulting cached pairs
             match token_type {
-                TokenType::LessThan => angle_depth += 1,
-                TokenType::GreaterThan => angle_depth = angle_depth.saturating_sub(1),
-                TokenType::ShiftLeft | TokenType::SaturatingShiftLeft => angle_depth += 2,
+                TokenType::OpenParenthesis => parenthesis_depth += 1,
+                TokenType::CloseParenthesis => {
+                    parenthesis_depth = parenthesis_depth.saturating_sub(1);
+                }
+                TokenType::OpenBrace => brace_depth += 1,
+                TokenType::CloseBrace => {
+                    brace_depth = brace_depth.saturating_sub(1);
+                }
+                TokenType::OpenBracket => bracket_depth += 1,
+                TokenType::CloseBracket => {
+                    bracket_depth = bracket_depth.saturating_sub(1);
+                }
                 _ => {}
             }
 
