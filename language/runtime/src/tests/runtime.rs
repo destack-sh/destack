@@ -1,17 +1,21 @@
-#![cfg_attr(not(test), allow(dead_code))]
-
 use destack_base::LocalStringPool;
 use destack_mir::NodeTree;
 use destack_workspace::{ExecutionMode, RandomMode, RandomOptions, RuntimeOptions};
 use {destack_heap as heap, destack_vm as vm};
 
-use crate::diagnostic::{DiagnosticId, RuntimeError, RuntimeResult, RuntimeStatus};
+#[cfg(test)]
+use crate::diagnostic::{DiagnosticId, RuntimeStatus};
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::Host;
+#[cfg(test)]
 use crate::platform::PlatformError;
+#[cfg(test)]
 use crate::platform::diagnostic::PlatformErrorCode;
+#[cfg(test)]
 use crate::platform::random::{
     RandomStream, destack_random_stream_next_u64, destack_random_stream_next_u64_from,
 };
+#[cfg(test)]
 use crate::platform::resource::{ListenerHandle, ResourceKind};
 use crate::runtime::engine::{
     Engine, EngineContinuation, EngineOutcome, EngineOutput, EngineSnapshot, Entry,
@@ -62,7 +66,6 @@ impl Engine for TestRuntimeEngine {
 }
 
 /// Runtime harness for runtime tests.
-#[cfg_attr(windows, allow(dead_code))]
 pub(crate) struct TestRuntime {
     /// Shared world that owns the agent lifetime.
     world: std::sync::Arc<World>,
@@ -74,7 +77,6 @@ pub(crate) struct TestRuntime {
     vm_isolate: std::cell::RefCell<vm::Isolate>,
 }
 
-#[cfg_attr(windows, allow(dead_code))]
 impl TestRuntime {
     /// Build a runtime with deterministic random settings.
     pub(crate) fn deterministic_random() -> Self {
@@ -206,6 +208,7 @@ impl TestRuntime {
     }
 
     /// Execute the native random binding with deterministic runtime state.
+    #[cfg(test)]
     pub(crate) fn call_native_next_u64(&self) -> RuntimeResult<u64> {
         self.with_native_call_context(|_| {
             let mut out = 0u64;
@@ -215,6 +218,7 @@ impl TestRuntime {
     }
 
     /// Execute the native stream binding with deterministic runtime state.
+    #[cfg(test)]
     pub(crate) fn call_native_next_u64_from(&self, stream: u64) -> RuntimeResult<u64> {
         self.with_native_call_context(|_| {
             let mut out = 0u64;
@@ -225,6 +229,7 @@ impl TestRuntime {
     }
 
     /// Convert a native status and value into a runtime result.
+    #[cfg(test)]
     fn status_value<T>(&self, status: RuntimeStatus, label: &str, value: T) -> RuntimeResult<T> {
         // return the produced value on success
         if status == RuntimeStatus::OK {
@@ -262,6 +267,7 @@ impl TestRuntime {
 
     /// Read the port assigned to a listener handle.
     #[cfg(unix)]
+    #[cfg(test)]
     pub(crate) fn listener_port(&self, handle: ListenerHandle) -> u16 {
         let fd = self
             .agent
@@ -330,10 +336,4 @@ impl TestRuntime {
             _ => panic!("unsupported listener address family"),
         }
     }
-}
-
-/// Run one registered runtime affinity case.
-#[cfg(feature = "affinity")]
-pub(crate) fn run_affinity_case(_case_name: &str) -> bool {
-    false
 }
