@@ -8,14 +8,18 @@ Release CI reuses the repository `full` verification depth and then adds artifac
 
 Use the repository root `just` recipes as the public operator surface.
 Do not bypass them with ad hoc script invocations unless you are repairing a failed release.
+Destack uses one canonical monorepo release version from [VERSION.txt](/Users/florian/symbol/destack/VERSION.txt).
+Public project maturity is tracked separately through the single `Status` label in [PROJECTS.toml](/Users/florian/symbol/destack/PROJECTS.toml) and the area README inventories.
 
 | Command | Purpose |
 |---------|---------|
-| `just bump patch`, `just bump minor`, `just bump major` | Update `VERSION.txt` and all tracked version files |
+| `just bump`, `just bump minor`, `just bump major` | Update `VERSION.txt` and all tracked version files |
+| `just release` | Prepare the default patch release commit and tag locally |
 | `just generate-release-changelog` | Refresh the root changelog entry for the current version |
 | `just validate-release` | Validate tag, tracked versions, and changelog state |
-| `just release patch` | Bump, validate, generate changelog, commit, and tag locally |
-| `just push-release` | Push the current release commit and local release tag |
+| `just check-release-drift` | Validate `VERSION.txt` and `CHANGELOG.md` drift together |
+| `just release minor`, `just release major` | Prepare a non-patch release commit and tag locally |
+| `just release-push` | Push the current release commit and local release tag |
 | `just publish --dry-run` | Dry run the full multi-registry publish fanout |
 | `just publish-release` | Publish live using the normal staged release path |
 | `just publish-release-local` | Publish live using local CLI binary staging |
@@ -26,9 +30,9 @@ This is the normal operator path.
 
 1. Run `just quick`.
 2. Run `just full` if you want local deep validation before tagging.
-3. Run `just release patch`, `just release minor`, or `just release major`.
+3. Run `just release`, `just release minor`, or `just release major`.
 4. Review the resulting commit, tag, and changelog.
-5. Run `just push-release`.
+5. Run `just release-push`.
 
 Pushing the `vX.Y.Z` tag triggers [.github/workflows/release.yml](/Users/florian/symbol/destack/.github/workflows/release.yml).
 
@@ -86,6 +90,11 @@ Only include items with clear external impact for users, operators, or package c
 Treat [CHANGELOG.md](/Users/florian/symbol/destack/CHANGELOG.md) as the canonical monorepo release history.
 Treat package local changelogs as thin package metadata that can point back to the root changelog.
 
+Version bumps and maturity labels are intentionally separate.
+The monorepo version tracks coordinated releases.
+Project `Status` tracks local maturity such as `Experimental`, `Alpha`, or `Beta`.
+Do not use package local versions or changelogs as a second release source of truth.
+
 `just generate-release-changelog` is the single source of truth for release changelog generation.
 That command also refreshes `bridge/dart/CHANGELOG.md` and syncs `bridge/dart/LICENSE` from `LICENSE.txt`.
 
@@ -127,7 +136,7 @@ The CI release path uses trusted publishing or OIDC where the registry supports 
 
 If `just release <kind>` has already created a release commit and tag locally, do not run it again.
 Inspect the state first.
-If the tag is correct, use `just push-release`.
+If the tag is correct, use `just release-push`.
 
 If CI packaging or publish fails after the tag is pushed, fix the underlying problem and rerun the failed workflow or publish step.
 Do not create a second tag for the same intended version.

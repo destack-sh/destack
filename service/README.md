@@ -2,12 +2,12 @@
 
 First-party services for most things most software needs, including some Destack-specific background services.
 
-## Components
+## Projects
 
-| Component | Description | Link |
-|-----------|-------------|------|
-| `daemon` | Background service for watch mode, orchestration, and caching. | [daemon/README.md](daemon/README.md) |
-| `lsp` | Language Server Protocol service implementation. | [lsp/README.md](lsp/README.md) |
+| Project | Status | Summary |
+|---------|--------|---------|
+| [`daemon`](daemon/README.md) | Experimental | Background service for watch mode, orchestration, and caching |
+| [`lsp`](lsp/README.md) | Experimental | Language Server Protocol service implementation |
 
 ## Commands
 

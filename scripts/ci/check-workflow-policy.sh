@@ -29,6 +29,8 @@ assert_required_recipe "install-toolchain"
 assert_required_recipe "doctor-toolchain"
 assert_required_recipe "ensure-toolchain"
 assert_required_recipe "check-hygiene"
+assert_required_recipe "check-projects"
+assert_required_recipe "check-release-drift"
 assert_required_recipe "check-workflow-policy"
 assert_required_recipe "quick"
 assert_required_recipe "full"
@@ -52,6 +54,37 @@ fi
 # bridge jobs should install with the canonical ensure entrypoint
 if rg -n "just bridge/install-toolchain" "${ci_file}" "${nightly_file}" "${release_file}"; then
 	echo "workflow bridge toolchain setup must use just bridge/ensure-toolchain" >&2
+	exit 1
+fi
+
+# ci and nightly should validate project inventory docs explicitly
+if ! rg -n "just check-projects" "${ci_file}" >/dev/null; then
+	echo "ci.yml must run just check-projects" >&2
+	exit 1
+fi
+
+if ! rg -n "just check-projects" "${nightly_file}" >/dev/null; then
+	echo "nightly.yml must run just check-projects" >&2
+	exit 1
+fi
+
+if ! rg -n "just check-release-drift" "${ci_file}" >/dev/null; then
+	echo "ci.yml must run just check-release-drift" >&2
+	exit 1
+fi
+
+if ! rg -n "just check-release-drift" "${nightly_file}" >/dev/null; then
+	echo "nightly.yml must run just check-release-drift" >&2
+	exit 1
+fi
+
+if ! rg -n "fetch-depth: 0" "${ci_file}" >/dev/null; then
+	echo "ci.yml must fetch full history for release metadata checks" >&2
+	exit 1
+fi
+
+if ! rg -n "fetch-depth: 0" "${nightly_file}" >/dev/null; then
+	echo "nightly.yml must fetch full history for release metadata checks" >&2
 	exit 1
 fi
 

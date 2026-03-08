@@ -1,7 +1,5 @@
 # create-destack
 
-Status: Experimental
-
 Create a new Destack app.
 This package powers `npm create destack`.
 

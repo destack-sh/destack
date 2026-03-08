@@ -2,28 +2,28 @@
 
 Destack bridge into and out of the existing universe.
 
-## Components
+## Projects
 
-| Component | Description | Link |
-|-----------|-------------|------|
-| `napi` | Node-API bindings package and crate. | [napi/README.md](napi/README.md) |
-| `wasm` | WebAssembly bindings package and crate. | [wasm/README.md](wasm/README.md) |
-| `core` | Shared Rust bridge core used by language clients and bindings. | [core/README.md](core/README.md) |
-| `capi` | Minimal C ABI bridge surface for FFI language clients. | [capi/README.md](capi/README.md) |
-| `typescript` | Runtime client package published as `@destack/runtime`. | [typescript/README.md](typescript/README.md) |
-| `rust` | Rust client crate published as `destack`. | [rust/README.md](rust/README.md) |
-| `python` | Python client package published as `destack`. | [python/README.md](python/README.md) |
-| `go` | Go client module intended for `go.destack.sh/destack`. | [go/README.md](go/README.md) |
-| `dotnet` | .NET client intended for NuGet as `Destack`. | [dotnet/README.md](dotnet/README.md) |
-| `java` | Java client intended for Maven Central as `industries.symbol.destack:destack-java`. | [java/README.md](java/README.md) |
-| `ruby` | Ruby client intended for RubyGems as `destack`. | [ruby/README.md](ruby/README.md) |
-| `dart` | Dart client intended for pub.dev as `destack`. | [dart/README.md](dart/README.md) |
-| `elixir` | Elixir client intended for Hex as `destack`. | [elixir/README.md](elixir/README.md) |
-| `swift` | Swift client intended for Swift Package Manager as `Destack`. | [swift/README.md](swift/README.md) |
-| `bun` | Bun plugin and loader for `.ds` files. | [bun/README.md](bun/README.md) |
-| `vite` | Vite plugin for Destack projects. | [vite/README.md](vite/README.md) |
-| `vscode` | VS Code extension and language support. | [vscode/README.md](vscode/README.md) |
-| `zed` | Zed extension integration. | [zed/README.md](zed/README.md) |
+| Project | Status | Summary |
+|---------|--------|---------|
+| [`core`](core/README.md) | Experimental | Shared Rust bridge core used by language clients and bindings |
+| [`capi`](capi/README.md) | Experimental | Minimal C ABI bridge surface for FFI language clients |
+| [`typescript`](typescript/README.md) | Alpha | Primary runtime client package published as `@destack/runtime` |
+| [`napi`](napi/README.md) | Experimental | Node-API bindings package and crate |
+| [`wasm`](wasm/README.md) | Experimental | WebAssembly bindings package and crate |
+| [`bun`](bun/README.md) | Experimental | Bun plugin and loader for `.ds` files |
+| [`vite`](vite/README.md) | Experimental | Vite plugin for Destack projects |
+| [`rust`](rust/README.md) | Experimental | Rust client crate published as `destack` |
+| [`python`](python/README.md) | Experimental | Python client package published as `destack` |
+| [`go`](go/README.md) | Experimental | Go client module intended for `go.destack.sh/destack` |
+| [`dotnet`](dotnet/README.md) | Experimental | .NET client intended for NuGet as `Destack` |
+| [`java`](java/README.md) | Experimental | Java client intended for Maven Central as `industries.symbol.destack:destack-java` |
+| [`ruby`](ruby/README.md) | Experimental | Ruby client intended for RubyGems as `destack` |
+| [`dart`](dart/README.md) | Experimental | Dart client intended for pub.dev as `destack` |
+| [`elixir`](elixir/README.md) | Experimental | Elixir client intended for Hex as `destack` |
+| [`swift`](swift/README.md) | Experimental | Swift client intended for Swift Package Manager as `Destack` |
+| [`vscode`](vscode/README.md) | Experimental | VS Code extension and language support |
+| [`zed`](zed/README.md) | Experimental | Zed extension integration |
 
 ## Commands
 
