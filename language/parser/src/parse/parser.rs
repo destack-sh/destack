@@ -8,7 +8,7 @@ use std::sync::Arc;
 #[cfg(feature = "parser_timings")]
 use std::time::Instant;
 
-use crate::{TokenStream, TokenStreamCursor, TokenStreamMark, is_semantic, keyword_from_identifier};
+use crate::{TokenStream, TokenStreamMark, is_semantic, keyword_from_identifier};
 use destack_ast::{
     BlockFormat, Expression, Keyword, LocalNodeId, NodeTree, NodeTreeMark, StringId, Token,
     TokenSpan, TokenType,
@@ -1255,7 +1255,7 @@ impl Parser {
     #[inline]
     pub(crate) fn next_non_newline_index_from_stream(&mut self, start: usize) -> usize {
         let _timing = self.timing_scope(crate::parse::timing::tags::PARSE_LEX_NEXT_NON_NEWLINE);
-        self.token_stream.next_non_newline_index_from(start)
+        self.first_non_newline_index_from(start)
     }
 
     /// Return the first non-newline token index from a start index.
@@ -1266,14 +1266,31 @@ impl Parser {
             if self.token_type_at(start) != TokenType::Newline {
                 return start;
             }
-            return self.next_non_newline_index_from_stream(start);
+
+            let mut index = start;
+            loop {
+                let token_type = self.token_type_at(index);
+                if token_type != TokenType::Newline {
+                    return index;
+                }
+                if token_type == TokenType::End {
+                    return index;
+                }
+                index += 1;
+            }
         }
 
-        if self.token_type_at(start) != TokenType::Newline {
-            return start;
+        let mut index = start;
+        loop {
+            let token_type = self.token_type_at(index);
+            if token_type != TokenType::Newline {
+                return index;
+            }
+            if token_type == TokenType::End {
+                return index;
+            }
+            index += 1;
         }
-
-        self.next_non_newline_index_from_stream(start)
     }
 
     /// Return cursor information for the first non-newline token from a start index.
@@ -1289,7 +1306,7 @@ impl Parser {
                     index: start,
                     token_type,
                     skipped_newline_count: 0,
-                    has_line_break_before: self.token_stream.line_terminator_before_cached(start),
+                    has_line_break_before: self.line_terminator_before_index(start),
                 };
             }
         }
@@ -1302,7 +1319,7 @@ impl Parser {
             let has_line_break_before = if skipped_newline_count > 0 {
                 true
             } else {
-                self.token_stream.line_terminator_before_cached(index)
+                self.line_terminator_before_index(index)
             };
             return NonNewlineTokenCursor {
                 index,
@@ -1312,12 +1329,14 @@ impl Parser {
             };
         }
 
-        let TokenStreamCursor {
-            index,
-            token_type,
-            skipped_newline_count,
-            has_line_break_before,
-        } = self.token_stream.scanner_cursor_from(start);
+        let index = self.first_non_newline_index_from(start);
+        let token_type = self.token_type_at(index);
+        let skipped_newline_count = index.saturating_sub(start);
+        let has_line_break_before = if skipped_newline_count > 0 {
+            true
+        } else {
+            self.line_terminator_before_index(index)
+        };
 
         NonNewlineTokenCursor {
             index,
@@ -1342,7 +1361,30 @@ impl Parser {
             return self.token_stream.matching_pair(index);
         }
 
-        self.token_stream.matching_pair_or_lex(index)
+        self.ensure_token(index);
+
+        let token = self.tokens().get(index)?;
+        if !matches!(
+            token.token.ty,
+            TokenType::OpenParenthesis | TokenType::OpenBrace | TokenType::OpenBracket
+        ) {
+            return None;
+        }
+
+        let result = loop {
+            let value = self.token_stream.matching_pair(index);
+            if value.is_some() {
+                break value;
+            }
+
+            if self.token_stream.is_lexed_to_end() {
+                break None;
+            }
+
+            self.ensure_token(self.tokens().len());
+        };
+
+        result
     }
 
     /// Return owned token buffers after lexing to EOF.
@@ -1555,7 +1597,12 @@ impl Parser {
     #[inline]
     pub(crate) fn line_terminator_before_index(&mut self, index: usize) -> bool {
         let _timing = self.timing_scope(crate::parse::timing::tags::PARSE_LEX_LINE_TERMINATOR);
-        self.token_stream.line_terminator_before(index)
+
+        if index >= self.tokens().len() {
+            self.ensure_token(index);
+        }
+
+        self.token_stream.materialized_line_terminator_before(index)
     }
 
     /// Return a lookahead index adjusted for an active split token.
