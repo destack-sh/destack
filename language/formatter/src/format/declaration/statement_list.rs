@@ -55,25 +55,23 @@ fn expression_prefix_start(
     expression_id: LocalNodeId<Expression>,
     default_start: u32,
 ) -> u32 {
-    let Some(annotation_ids) = context.annotations(expression_id) else {
-        return default_start;
-    };
-
     let mut start = default_start;
-    for annotation_id in annotation_ids {
-        let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
-            continue;
-        };
-        if !matches!(
-            position,
-            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-        ) {
-            continue;
-        }
+    context.visit_annotations(expression_id, |annotation_ids| {
+        for annotation_id in annotation_ids {
+            let Annotation::Comment { node, position } = context.annotation(*annotation_id) else {
+                continue;
+            };
+            if !matches!(
+                position,
+                AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+            ) {
+                continue;
+            }
 
-        let comment_span = context.span(node);
-        start = start.min(comment_span.start);
-    }
+            let comment_span = context.span(node);
+            start = start.min(comment_span.start);
+        }
+    });
 
     start
 }
@@ -84,25 +82,23 @@ fn expression_postfix_end(
     expression_id: LocalNodeId<Expression>,
     default_end: u32,
 ) -> u32 {
-    let Some(annotation_ids) = context.annotations(expression_id) else {
-        return default_end;
-    };
-
     let mut end = default_end;
-    for annotation_id in annotation_ids {
-        let annotation = context.annotation(annotation_id);
-        if !matches!(
-            annotation.position(),
-            AnnotationPosition::BlockPostfix
-                | AnnotationPosition::LinePostfix
-                | AnnotationPosition::LinePostfixBoundary
-        ) {
-            continue;
-        }
+    context.visit_annotations(expression_id, |annotation_ids| {
+        for annotation_id in annotation_ids {
+            let annotation = context.annotation(*annotation_id);
+            if !matches!(
+                annotation.position(),
+                AnnotationPosition::BlockPostfix
+                    | AnnotationPosition::LinePostfix
+                    | AnnotationPosition::LinePostfixBoundary
+            ) {
+                continue;
+            }
 
-        let annotation_span = context.annotation_span(annotation_id);
-        end = end.max(annotation_span.end);
-    }
+            let annotation_span = context.annotation_span(*annotation_id);
+            end = end.max(annotation_span.end);
+        }
+    });
 
     end
 }
@@ -194,9 +190,8 @@ fn expression_has_effective_blank_postfix_annotation(
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let has_blank_postfix_annotation = context
-        .annotations(expression_id)
-        .map(|annotation_ids| {
-            annotation_ids.into_iter().any(|annotation_id| {
+        .visit_annotations(expression_id, |annotation_ids| {
+            annotation_ids.iter().copied().any(|annotation_id| {
                 matches!(
                     context.annotation(annotation_id),
                     Annotation::Blank {
@@ -215,9 +210,8 @@ fn expression_has_effective_blank_postfix_annotation(
 
     match context.tree.get(expression_id) {
         Expression::Declaration(declaration_id) => context
-            .annotations(*declaration_id)
-            .map(|annotation_ids| {
-                annotation_ids.into_iter().any(|annotation_id| {
+            .visit_annotations(*declaration_id, |annotation_ids| {
+                annotation_ids.iter().copied().any(|annotation_id| {
                     matches!(
                         context.annotation(annotation_id),
                         Annotation::Blank {
@@ -360,13 +354,13 @@ pub(crate) fn format_block_of_statements<'ast>(
         // blank line between expressions
         if i > 0 {
             let previous_expression_id = effective_expressions[i - 1];
-            let has_blank_prefix_annotation =
-                expression_has_effective_blank_prefix_annotation(f.context(), expression_id);
             let previous_has_blank_postfix_annotation =
                 expression_has_effective_blank_postfix_annotation(
                     f.context(),
                     previous_expression_id,
                 );
+            let has_blank_prefix_annotation =
+                expression_has_effective_blank_prefix_annotation(f.context(), expression_id);
             let source_has_blank_line_between = if has_ignore_range {
                 if let Some((previous_file, previous_end)) = previous_output_end {
                     if previous_file != expression_span.file {
