@@ -519,8 +519,7 @@ pub(crate) unsafe fn window_open(
     let runtime_state = wayland_core::runtime_state(context);
 
     // allocate one runtime host state before host object creation
-    let host_id = runtime_state.next_window_host_id();
-    let window_id = format!("wayland-window-{host_id}");
+    let window_id = format!("wayland-window-{}", runtime_state.next_window_host_id());
     let position = options.position.unwrap_or(WindowPosition { x: 0, y: 0 });
     let visibility = options.visibility;
     let focused = false;
@@ -529,7 +528,6 @@ pub(crate) unsafe fn window_open(
     let host_state = Arc::new(Mutex::new(WaylandWindowHostState {
         id: window_id.clone(),
         host: WaylandWindowHost {
-            id: host_id,
             surface: ObjectId::null(),
             xdg_surface: None,
             xdg_toplevel: None,

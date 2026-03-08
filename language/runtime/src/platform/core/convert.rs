@@ -1,3 +1,4 @@
+#[cfg(unix)]
 use std::time::Duration;
 
 use crate::diagnostic::RuntimeResult;
@@ -52,6 +53,7 @@ pub(crate) fn u32_to_isize(field: &'static str, value: u32) -> RuntimeResult<isi
 }
 
 /// Resolve one optional u64 nanosecond value into one bounded duration.
+#[cfg(unix)]
 pub(crate) fn duration_from_option_ns(value: Option<u64>, default: u64, min: u64) -> Duration {
     Duration::from_nanos(option_u64_or_min(value, default, min))
 }

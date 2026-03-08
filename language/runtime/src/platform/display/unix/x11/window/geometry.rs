@@ -25,31 +25,29 @@ pub(crate) fn validate_size_constraints(
     };
 
     // validate minimum constraint values when present
-    if let Some(minimum) = constraints.min {
-        if !minimum.width.is_finite()
+    if let Some(minimum) = constraints.min
+        && (!minimum.width.is_finite()
             || !minimum.height.is_finite()
             || minimum.width <= 0.0
-            || minimum.height <= 0.0
-        {
-            return Err(core_platform::invalid_argument(
-                "constraints",
-                format!("{operation}: minimum logical size must be finite and greater than zero"),
-            ));
-        }
+            || minimum.height <= 0.0)
+    {
+        return Err(core_platform::invalid_argument(
+            "constraints",
+            format!("{operation}: minimum logical size must be finite and greater than zero"),
+        ));
     }
 
     // validate maximum constraint values when present
-    if let Some(maximum) = constraints.max {
-        if !maximum.width.is_finite()
+    if let Some(maximum) = constraints.max
+        && (!maximum.width.is_finite()
             || !maximum.height.is_finite()
             || maximum.width <= 0.0
-            || maximum.height <= 0.0
-        {
-            return Err(core_platform::invalid_argument(
-                "constraints",
-                format!("{operation}: maximum logical size must be finite and greater than zero"),
-            ));
-        }
+            || maximum.height <= 0.0)
+    {
+        return Err(core_platform::invalid_argument(
+            "constraints",
+            format!("{operation}: maximum logical size must be finite and greater than zero"),
+        ));
     }
 
     // validate min and max ordering when both lanes are present
@@ -161,7 +159,6 @@ pub(crate) unsafe fn window_set_position(
     let mut resolved_host_state = resolved_host_state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    let previous = resolved_host_state.clone();
 
     // apply host configure request and publish state delta
     let previous_position = resolved_host_state.position;
@@ -423,6 +420,7 @@ pub(crate) unsafe fn window_set_aspect_ratio(
     let mut resolved_host_state = resolved_host_state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
+    let previous = resolved_host_state.clone();
 
     // apply one host normal-hints mutation before updating the snapshot
     apply_window_size_hints(

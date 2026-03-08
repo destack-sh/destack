@@ -12,13 +12,14 @@ use std::sync::OnceLock;
 use std::time::Instant;
 
 #[cfg(unix)]
+pub(crate) use convert::duration_from_option_ns;
+#[cfg(unix)]
 #[allow(unused_imports)]
 pub(crate) use convert::u32_to_nonzero_usize;
 #[allow(unused_imports)]
 pub(crate) use convert::{
-    duration_from_option_ns, option_u64_or_min, option_u64_to_u32, option_u64_to_usize,
-    option_u64_to_usize_or_min, u32_to_isize, u32_to_usize, u64_to_usize,
-    u64_to_usize_with_message, usize_to_u64,
+    option_u64_or_min, option_u64_to_u32, option_u64_to_usize, option_u64_to_usize_or_min,
+    u32_to_isize, u32_to_usize, u64_to_usize, u64_to_usize_with_message, usize_to_u64,
 };
 #[cfg(target_os = "linux")]
 pub(crate) use dll::load_dll_api_named;
@@ -29,10 +30,12 @@ pub(crate) use errno::{get_errno, set_errno};
 #[cfg(unix)]
 #[allow(unused_imports)]
 pub(crate) use error::invalid_state;
+#[cfg(unix)]
+pub(crate) use error::unknown_handle;
 #[allow(unused_imports)]
 pub(crate) use error::{
     ensure_out, ensure_zero_flags, invalid_argument, io_busy, io_not_found, io_operation_error,
-    io_would_block, not_supported, unknown_handle, unsupported_flags,
+    io_would_block, not_supported, unsupported_flags,
 };
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub(crate) use unix::io_error_with_errno;

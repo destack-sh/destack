@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::platform::display::unix::wayland::core as wayland_core;
 use crate::platform::display::{
-    WindowLogicalSize, WindowModeOptions, WindowOcclusionState, WindowPhysicalSize, WindowPosition,
+    WindowLogicalSize, WindowModeOptions, WindowOcclusionState, WindowPhysicalSize,
     WindowVisibility,
 };
 use crate::platform::resource;

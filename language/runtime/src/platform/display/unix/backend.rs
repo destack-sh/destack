@@ -65,10 +65,10 @@ fn resolve_display_backend_by_handle(
             return Ok(DisplayBackend::X11);
         }
 
-        return Err(core_platform::io_not_found(
+        Err(core_platform::io_not_found(
             operation,
             format!("display handle {} was not found", handle.0.0),
-        ));
+        ))
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -97,10 +97,10 @@ fn resolve_window_backend_by_handle(
             return Ok(DisplayBackend::X11);
         }
 
-        return Err(core_platform::io_not_found(
+        Err(core_platform::io_not_found(
             operation,
             format!("window handle {} was not found", window.0.0),
-        ));
+        ))
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -129,10 +129,10 @@ fn resolve_monitor_event_backend_by_handle(
             return Ok(DisplayBackend::X11);
         }
 
-        return Err(core_platform::io_not_found(
+        Err(core_platform::io_not_found(
             operation,
             format!("display event handle {} was not found", handle.0.0),
-        ));
+        ))
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -161,10 +161,10 @@ fn resolve_window_event_backend_by_handle(
             return Ok(DisplayBackend::X11);
         }
 
-        return Err(core_platform::io_not_found(
+        Err(core_platform::io_not_found(
             operation,
             format!("window event handle {} was not found", handle.0.0),
-        ));
+        ))
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -189,7 +189,7 @@ fn resolve_window_capabilities(
             return wayland::effective_window_capabilities(binding, window, _operation);
         }
 
-        return Ok(core::backend_capabilities(binding, backend));
+        Ok(core::backend_capabilities(binding, backend))
     }
 
     #[cfg(not(target_os = "linux"))]

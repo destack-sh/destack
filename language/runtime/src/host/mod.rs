@@ -59,6 +59,8 @@ pub use core::{
     HostPlatform, HostPollOutcome, HostPowerMode, HostPowerModeEvent, HostState, HostThermalEvent,
     HostThermalState, HostWallClockEvent, HostWindowEvent, HostWindowFocusEvent, default_host,
 };
+#[cfg(windows)]
+pub(crate) use windows::process_ingress_loop;
 
 #[cfg(any(test, target_os = "android"))]
 pub use android::{

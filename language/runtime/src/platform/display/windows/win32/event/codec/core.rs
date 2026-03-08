@@ -1,5 +1,4 @@
 use crate::platform::abi::NativeAbi;
-use crate::platform::display::windows::win32::core as win32_core;
 use crate::platform::display::windows::win32::event::{WindowEventRecord, WindowEventRecordKind};
 use crate::platform::display::{DisplayBackend, WindowEvent, WindowEventMetadata};
 use crate::platform::fs::{self as platform_fs, PathUtf16Abi, core as core_fs};

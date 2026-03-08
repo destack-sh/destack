@@ -4,14 +4,13 @@ use crate::platform::display::{
 
 use super::{
     WaylandConnectionDispatchState, WaylandWindowDispatchToken, XDG_TOPLEVEL_STATE_ACTIVATED,
-    XDG_TOPLEVEL_STATE_FULLSCREEN, XDG_TOPLEVEL_STATE_MAXIMIZED,
+    XDG_TOPLEVEL_STATE_MAXIMIZED,
 };
 use crate::platform::display::unix::wayland::event;
 
 /// Decode xdg_toplevel state flags from one raw state-array payload.
-fn decode_toplevel_states(states: &[u8]) -> (bool, bool, bool) {
+fn decode_toplevel_states(states: &[u8]) -> (bool, bool) {
     let mut is_maximized = false;
-    let mut is_fullscreen = false;
     let mut is_activated = false;
 
     // parse one u32 sequence from the packed wayland state array
@@ -21,15 +20,12 @@ fn decode_toplevel_states(states: &[u8]) -> (bool, bool, bool) {
         if lane == XDG_TOPLEVEL_STATE_MAXIMIZED {
             is_maximized = true;
         }
-        if lane == XDG_TOPLEVEL_STATE_FULLSCREEN {
-            is_fullscreen = true;
-        }
         if lane == XDG_TOPLEVEL_STATE_ACTIVATED {
             is_activated = true;
         }
     }
 
-    (is_maximized, is_fullscreen, is_activated)
+    (is_maximized, is_activated)
 }
 
 /// Apply one toplevel configure event to runtime window state and events.
@@ -59,11 +55,9 @@ pub(crate) fn apply_toplevel_configure(
     }
 
     // update visibility from maximize and fullscreen state lanes
-    let (is_maximized, is_fullscreen, is_activated) = decode_toplevel_states(states);
+    let (is_maximized, is_activated) = decode_toplevel_states(states);
     let next_visibility = if is_maximized {
         WindowVisibility::Maximized
-    } else if is_fullscreen {
-        WindowVisibility::Visible
     } else {
         WindowVisibility::Visible
     };
@@ -88,9 +82,6 @@ pub(crate) fn apply_toplevel_configure(
         };
 
         if host_state.size_physical != current_size_physical {
-            let previous_size_logical = host_state.size_logical;
-            let previous_size_physical = host_state.size_physical;
-
             let scale = if host_state.scale_factor_milli == 0 {
                 1.0
             } else {
@@ -170,8 +161,6 @@ pub(crate) fn apply_popup_configure(
     let current_position = WindowPosition { x, y };
     host_state.position = current_position;
 
-    let mut size_change = None;
-
     // update runtime size snapshots when compositor provided positive dimensions
     if width > 0 && height > 0 {
         let next_width = width as u32;
@@ -185,7 +174,6 @@ pub(crate) fn apply_popup_configure(
         if previous_size_physical != next_size_physical {
             let scale_factor_milli = host_state.scale_factor_milli.max(1);
             let scale_factor = scale_factor_milli as f64 / 1000.0;
-            let previous_size_logical = host_state.size_logical;
             let next_size_logical = WindowLogicalSize {
                 width: next_width as f64 / scale_factor,
                 height: next_height as f64 / scale_factor,
@@ -193,13 +181,6 @@ pub(crate) fn apply_popup_configure(
 
             host_state.size_physical = next_size_physical;
             host_state.size_logical = next_size_logical;
-
-            size_change = Some((
-                previous_size_logical,
-                previous_size_physical,
-                next_size_logical,
-                next_size_physical,
-            ));
         }
     }
 
@@ -250,7 +231,6 @@ pub(crate) fn apply_layer_surface_configure(
 
     let scale_factor_milli = host_state.scale_factor_milli.max(1);
     let scale_factor = scale_factor_milli as f64 / 1000.0;
-    let previous_size_logical = host_state.size_logical;
     let next_size_logical = WindowLogicalSize {
         width: width as f64 / scale_factor,
         height: height as f64 / scale_factor,

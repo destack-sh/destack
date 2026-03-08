@@ -17,7 +17,7 @@ use crate::platform::display::unix::x11::event::queue::{
     trim_monitor_events,
 };
 use crate::platform::display::unix::x11::event::{
-    MonitorEventFilterState, MonitorEventState, MonitorEventStream, display_event_record,
+    MonitorEventFilterState, MonitorEventState, MonitorEventStream,
 };
 
 /// Return the next monitor event available to one stream.

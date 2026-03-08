@@ -9,16 +9,6 @@ use crate::platform::display::{
 };
 use crate::platform::resource;
 
-/// Resolve one occlusion state from one window visibility value.
-pub(crate) fn occlusion_from_visibility(visibility: WindowVisibility) -> WindowOcclusionState {
-    // hidden and minimized windows are not visible to presentation
-    if visibility == WindowVisibility::Hidden || visibility == WindowVisibility::Minimized {
-        return WindowOcclusionState::Occluded;
-    }
-
-    WindowOcclusionState::Unknown
-}
-
 /// Publish one created window event.
 pub(crate) fn publish_window_created(
     runtime_state: &Arc<Win32RuntimeState>,

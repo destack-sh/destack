@@ -74,8 +74,6 @@ pub(crate) struct WaylandDisplayHostState {
 /// Runtime payload for one Wayland host window lane.
 #[derive(Debug, Clone)]
 pub(crate) struct WaylandWindowHost {
-    /// Stable host-surface identity.
-    pub(crate) id: u64,
     /// Native wayland `wl_surface` object id.
     pub(crate) surface: ObjectId,
     /// Native wayland `xdg_surface` object id.

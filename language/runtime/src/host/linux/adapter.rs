@@ -3,7 +3,7 @@ use std::sync::Arc;
 use destack_workspace::PlatformHostOptions;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostAdapterState, default_host_capabilities, not_supported};
+use crate::host::core::{HostAdapterState, default_host_capabilities};
 use crate::host::{HostAdapter, HostPlatform, HostPollOutcome};
 use crate::runtime::capability::PlatformCapabilitySet;
 use crate::runtime::poller::HostPollerWakeHandle;

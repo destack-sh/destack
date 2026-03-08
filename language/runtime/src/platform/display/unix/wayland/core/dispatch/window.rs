@@ -17,7 +17,7 @@ use crate::platform::display::unix::wayland::core::{
     apply_layer_surface_configure, apply_popup_configure, apply_toplevel_close,
     apply_toplevel_configure, scale_factor_milli_from_fractional_scale,
 };
-use crate::platform::display::unix::wayland::{event, window};
+use crate::platform::display::unix::wayland::event;
 
 /// Publish one refresh-requested event when this token still resolves to one live window.
 fn publish_window_refresh_if_live(
@@ -137,11 +137,13 @@ impl Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, WaylandWindowDispatch
             && !viewport_id.is_null()
             && let Ok(viewport) = wp_viewport::WpViewport::from_id(connection, viewport_id)
         {
-            let destination_width = current_size_logical
+            let destination_width = current
+                .size_logical
                 .width
                 .round()
                 .clamp(1.0, i32::MAX as f64) as i32;
-            let destination_height = current_size_logical
+            let destination_height = current
+                .size_logical
                 .height
                 .round()
                 .clamp(1.0, i32::MAX as f64) as i32;

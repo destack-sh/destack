@@ -26,18 +26,14 @@ use wayland_protocols_wlr::gamma_control::v1::client::zwlr_gamma_control_manager
 use wayland_protocols_wlr::layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1};
 use wayland_protocols_wlr::output_management::v1::client::zwlr_output_configuration_head_v1;
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::display::{
-    DisplayEventOverflowPolicy, DisplayMonitorEventKindMask, WindowEventKindMask,
-};
-use crate::platform::{PlatformError, core as core_platform, resource};
-use crate::runtime::BindingCallContext;
-
 use super::input::WaylandInputState;
 use super::output::WaylandOutputState;
 use super::registry::WaylandGlobalState;
 use super::runtime::WaylandRuntimeState;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::display::unix::wayland::constants::*;
+use crate::platform::display::{DisplayMonitorEventKindMask, WindowEventKindMask};
+use crate::platform::{PlatformError, core as core_platform, resource};
 
 /// Runtime-owned Wayland connection dispatch state.
 #[derive(Debug)]
@@ -360,36 +356,4 @@ pub(crate) fn io_error(operation: &'static str, message: impl Into<String>) -> B
         message.into(),
     ))
     .boxed()
-}
-
-/// Push one event into one queue under overflow policy.
-pub(crate) fn push_with_overflow<T>(
-    queue: &mut std::collections::VecDeque<T>,
-    queue_capacity: usize,
-    overflow_policy: DisplayEventOverflowPolicy,
-    overflow_error_pending: &mut bool,
-    dropped_count: &mut u64,
-    value: T,
-) {
-    // append directly while capacity remains
-    if queue.len() < queue_capacity {
-        queue.push_back(value);
-        return;
-    }
-
-    // apply policy for full queue state
-    match overflow_policy {
-        DisplayEventOverflowPolicy::DropNewest => {
-            *dropped_count = dropped_count.saturating_add(1);
-        }
-        DisplayEventOverflowPolicy::DropOldest => {
-            drop(queue.pop_front());
-            *dropped_count = dropped_count.saturating_add(1);
-            queue.push_back(value);
-        }
-        DisplayEventOverflowPolicy::Error => {
-            *overflow_error_pending = true;
-            *dropped_count = dropped_count.saturating_add(1);
-        }
-    }
 }

@@ -4,22 +4,25 @@ use std::sync::{Arc, Mutex};
 use super::{
     DisplayEventRecordKind, MonitorEventFilterState, MonitorEventState, MonitorEventStream,
     WindowEventFilterState, WindowEventRecordKind, WindowEventState, WindowEventStream,
-    display_event_record, monitor_topology_records,
+    display_event_record,
 };
 use crate::platform::display::{
-    DisplayBackend, DisplayEventOverflowPolicy, DisplayMode, DisplayOrientation,
-    DisplaySupportStatus, WindowPosition,
+    DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED, DisplayBackend, DisplayEventOverflowPolicy,
+    DisplayMode, DisplayOrientation, DisplaySupportStatus, WINDOW_EVENT_KIND_DROP_STARTED,
+    WINDOW_EVENT_KIND_TEXT_DROPPED, WindowPosition,
 };
 use crate::platform::resource::{ResourceId, WindowHandle};
 
+use crate::platform::display::windows::win32::DISPLAY_CHANGED_MASK_BOUNDS;
 use crate::platform::display::windows::win32::core::Win32RuntimeState;
+use crate::platform::display::windows::win32::event::codec::monitor_topology_records;
 use crate::platform::display::windows::win32::event::publish::{
-    publish_monitor_event, publish_window_drop_cancelled_event,
-    publish_window_drop_completed_event, publish_window_drop_started_event,
-    publish_window_file_dropped_event, publish_window_text_dropped_event,
+    publish_window_drop_cancelled_event, publish_window_drop_completed_event,
+    publish_window_drop_started_event, publish_window_file_dropped_event,
+    publish_window_text_dropped_event,
 };
 use crate::platform::display::windows::win32::event::queue::{
-    pop_live_monitor_record, pop_live_window_record,
+    pop_live_monitor_record, pop_live_window_record, publish_monitor_event,
 };
 use crate::platform::display::windows::win32::model::{DisplayDescriptorSnapshot, MonitorSnapshot};
 
@@ -240,7 +243,7 @@ fn test_file_drop_publisher_preserves_path_and_position_payloads() {
         record.kind,
         WindowEventRecordKind::FileDropped {
             window: value,
-            path: Some(path),
+            path_utf16: Some(path),
             position: payload_position,
         } if value == window && path == path_utf16 && payload_position == position
     ));
@@ -272,10 +275,9 @@ fn test_text_drop_publisher_preserves_text_and_position_payloads() {
 fn test_window_event_filter_restricts_window_handle() {
     let target_window = WindowHandle(ResourceId(200));
     let other_window = WindowHandle(ResourceId(201));
-    let (runtime_state, stream, _) = subscribed_window_stream_with_filter(WindowEventFilterState {
-        window: Some(target_window),
-        kind_mask: None,
-    });
+    let (runtime_state, stream, _) = subscribed_window_stream_with_filter(
+        WindowEventFilterState::new(Some(target_window), None),
+    );
 
     publish_window_drop_started_event(&runtime_state, other_window);
     publish_window_drop_started_event(&runtime_state, target_window);
@@ -295,11 +297,9 @@ fn test_window_event_filter_restricts_window_handle() {
 /// Window-event filters should restrict delivery by event-kind mask.
 #[test]
 fn test_window_event_filter_restricts_kind_mask() {
-    let (runtime_state, stream, window) =
-        subscribed_window_stream_with_filter(WindowEventFilterState {
-            window: None,
-            kind_mask: Some(WINDOW_EVENT_KIND_DROP_STARTED),
-        });
+    let (runtime_state, stream, window) = subscribed_window_stream_with_filter(
+        WindowEventFilterState::new(None, Some(WINDOW_EVENT_KIND_DROP_STARTED.0)),
+    );
 
     publish_window_drop_started_event(&runtime_state, window);
     publish_window_drop_completed_event(&runtime_state, window);
@@ -319,11 +319,9 @@ fn test_window_event_filter_restricts_kind_mask() {
 /// Window-event kind filters should route only text-dropped records.
 #[test]
 fn test_window_event_filter_accepts_text_dropped_kind() {
-    let (runtime_state, stream, window) =
-        subscribed_window_stream_with_filter(WindowEventFilterState {
-            window: None,
-            kind_mask: Some(WINDOW_EVENT_KIND_TEXT_DROPPED),
-        });
+    let (runtime_state, stream, window) = subscribed_window_stream_with_filter(
+        WindowEventFilterState::new(None, Some(WINDOW_EVENT_KIND_TEXT_DROPPED.0)),
+    );
 
     publish_window_drop_started_event(&runtime_state, window);
     publish_window_text_dropped_event(
@@ -352,10 +350,9 @@ fn test_window_event_filter_accepts_text_dropped_kind() {
 /// Monitor-event filters should restrict delivery by event-kind mask.
 #[test]
 fn test_monitor_event_filter_restricts_kind_mask() {
-    let (runtime_state, stream) = subscribed_monitor_stream_with_filter(MonitorEventFilterState {
-        display_id: None,
-        kind_mask: Some(DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED),
-    });
+    let (runtime_state, stream) = subscribed_monitor_stream_with_filter(
+        MonitorEventFilterState::new(None, Some(DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED.0)),
+    );
 
     publish_monitor_event(
         &runtime_state,
@@ -388,10 +385,9 @@ fn test_monitor_event_filter_restricts_kind_mask() {
 /// Monitor-event filters should restrict delivery by display identifier.
 #[test]
 fn test_monitor_event_filter_restricts_display_identifier() {
-    let (runtime_state, stream) = subscribed_monitor_stream_with_filter(MonitorEventFilterState {
-        display_id: Some(String::from(r"\\.\DISPLAY2")),
-        kind_mask: None,
-    });
+    let (runtime_state, stream) = subscribed_monitor_stream_with_filter(
+        MonitorEventFilterState::new(Some(String::from(r"\\.\DISPLAY2")), None),
+    );
 
     publish_monitor_event(
         &runtime_state,

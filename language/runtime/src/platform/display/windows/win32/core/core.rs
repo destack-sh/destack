@@ -1,6 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::display::{DisplayMonitorEventKindMask, WindowEventKindMask};
 use crate::platform::{PlatformError, core as core_platform};
 use windows_sys::Win32::Foundation::{
     ERROR_ACCESS_DENIED, ERROR_INVALID_HANDLE, ERROR_INVALID_PARAMETER,
@@ -42,16 +41,6 @@ pub(crate) fn io_error(
 ) -> Box<RuntimeError> {
     let code = core_platform::last_error_code() as u32;
     io_error_with_code(operation, syscall, code, message)
-}
-
-/// Return one monitor-event kind mask with the full set as the default.
-pub(crate) fn monitor_kind_mask(value: Option<DisplayMonitorEventKindMask>) -> u32 {
-    value.map_or(DISPLAY_MONITOR_EVENT_KIND_MASK_ALL, |value| value.0)
-}
-
-/// Return one window-event kind mask with the full set as the default.
-pub(crate) fn window_kind_mask(value: Option<WindowEventKindMask>) -> u64 {
-    value.map_or(WINDOW_EVENT_KIND_MASK_ALL, |value| value.0)
 }
 
 /// Validate one batch-size payload.

@@ -12,8 +12,6 @@ pub(crate) const WINDOW_EVENT_RESOURCE_LABEL: &str = "display.window.event";
 pub(crate) const DISPLAY_ID_PREFIX: &str = "wayland-output-";
 /// xdg_toplevel state value for maximized.
 pub(crate) const XDG_TOPLEVEL_STATE_MAXIMIZED: u32 = 1;
-/// xdg_toplevel state value for fullscreen.
-pub(crate) const XDG_TOPLEVEL_STATE_FULLSCREEN: u32 = 2;
 /// xdg_toplevel state value for activated.
 pub(crate) const XDG_TOPLEVEL_STATE_ACTIVATED: u32 = 4;
 /// Fallback refresh-rate used when compositor mode metadata is unavailable.

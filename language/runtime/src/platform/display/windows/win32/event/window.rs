@@ -390,6 +390,12 @@ pub(crate) struct WindowEventFilterState {
 }
 
 impl WindowEventFilterState {
+    #[cfg(test)]
+    /// Build one window-event filter state from explicit fields.
+    pub(crate) fn new(window: Option<resource::WindowHandle>, kind_mask: Option<u64>) -> Self {
+        Self { window, kind_mask }
+    }
+
     /// Build one window-event filter state from open options.
     pub(crate) fn from_open_options(options: WindowEventOpenOptions) -> RuntimeResult<Self> {
         let Some(filter) = options.filter else {

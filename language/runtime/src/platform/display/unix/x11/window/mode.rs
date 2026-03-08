@@ -28,6 +28,11 @@ pub(crate) fn mode_display_mode(mode: WindowModeOptions) -> Option<DisplayMode> 
     }
 }
 
+/// Return whether two window-mode payloads describe the same effective mode.
+pub(crate) fn same_window_mode(left: WindowModeOptions, right: WindowModeOptions) -> bool {
+    mode_display(left) == mode_display(right) && mode_display_mode(left) == mode_display_mode(right)
+}
+
 /// Apply one fullscreen state lane through EWMH state messages.
 pub(crate) fn apply_fullscreen_state(
     connection_state: &core::X11ConnectionState,

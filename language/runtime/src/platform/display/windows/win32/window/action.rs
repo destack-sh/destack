@@ -254,8 +254,7 @@ pub(crate) unsafe fn window_begin_resize_drag(
 #[cfg(test)]
 mod tests {
     use crate::platform::display::WindowTheme;
-
-    use super::theme_from_preferences;
+    use crate::platform::display::windows::win32::window::core::theme_from_preferences;
 
     /// Resolve high-contrast light theme when both lanes request it.
     #[test]
