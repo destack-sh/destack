@@ -582,7 +582,13 @@ pub(crate) fn handle_managed_alloc(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
-    let max_heap_cells = state.interpreter.isolate.options.limits.max_heap_cells;
+    let max_heap_cells = state
+        .interpreter
+        .isolate
+        .image
+        .options
+        .limits
+        .max_heap_cells;
 
     // decode instruction data
     let ThreadedInstructionData::ManagedAlloc {
@@ -597,14 +603,14 @@ pub(crate) fn handle_managed_alloc(
     // allocate heap cell
     let handle = {
         let heap = state.heap();
-        if heap.managed.cell_count() >= max_heap_cells {
+        if heap.managed().cell_count() >= max_heap_cells {
             return ControlFlow::Error(Error::AllocationFailed);
         }
 
         if *slot_count == UNKNOWN_SLOT_COUNT {
-            heap.managed.allocate()
+            heap.managed_mut().allocate()
         } else {
-            heap.managed.allocate_with_slots(*slot_count as usize)
+            heap.managed_mut().allocate_with_slots(*slot_count as usize)
         }
     };
     if state.collect_stats {
@@ -629,7 +635,13 @@ pub(crate) fn handle_managed_alloc_array(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
-    let max_heap_cells = state.interpreter.isolate.options.limits.max_heap_cells;
+    let max_heap_cells = state
+        .interpreter
+        .isolate
+        .image
+        .options
+        .limits
+        .max_heap_cells;
 
     // decode instruction data
     let ThreadedInstructionData::ManagedAllocArray {
@@ -648,11 +660,11 @@ pub(crate) fn handle_managed_alloc_array(
     // allocate heap cell with slots
     let handle = {
         let heap = state.heap();
-        if heap.managed.cell_count() >= max_heap_cells {
+        if heap.managed().cell_count() >= max_heap_cells {
             return ControlFlow::Error(Error::AllocationFailed);
         }
 
-        heap.managed.allocate_with_slots(length)
+        heap.managed_mut().allocate_with_slots(length)
     };
     if state.collect_stats {
         state.interpreter.engine.statistics.heap_allocations += 1;
@@ -676,7 +688,7 @@ pub(crate) fn handle_raw_alloc(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
-    let max_raw_cells = state.interpreter.isolate.options.limits.max_raw_cells;
+    let max_raw_cells = state.interpreter.isolate.image.options.limits.max_raw_cells;
 
     // decode instruction data
     let ThreadedInstructionData::RawAlloc {
@@ -691,14 +703,14 @@ pub(crate) fn handle_raw_alloc(
     // allocate raw heap cell
     let ptr = {
         let heap = state.heap();
-        if heap.raw.cell_count() >= max_raw_cells {
+        if heap.raw().cell_count() >= max_raw_cells {
             return ControlFlow::Error(Error::AllocationFailed);
         }
 
         if *slot_count == UNKNOWN_SLOT_COUNT {
-            heap.raw.allocate()
+            heap.raw_mut().allocate()
         } else {
-            heap.raw.allocate_with_slots(*slot_count as usize)
+            heap.raw_mut().allocate_with_slots(*slot_count as usize)
         }
     };
     if state.collect_stats {
@@ -735,8 +747,8 @@ pub(crate) fn handle_raw_free(
     if let Some(p) = ptr.as_raw_pointer() {
         // report invalid handle
         let heap = state.heap();
-        if !heap.raw.free(p) {
-            return ControlFlow::Error(Error::InvalidHeapHandle);
+        if !heap.raw_mut().free(p) {
+            return ControlFlow::Error(Error::InvalidManagedPointer);
         }
     }
     // otherwise report type mismatch
@@ -770,8 +782,8 @@ pub(crate) fn handle_raw_drop(
     if let Some(p) = ptr.as_raw_pointer() {
         // report invalid handle
         let heap = state.heap();
-        if !heap.raw.free(p) {
-            return ControlFlow::Error(Error::InvalidHeapHandle);
+        if !heap.raw_mut().free(p) {
+            return ControlFlow::Error(Error::InvalidManagedPointer);
         }
     }
     // otherwise report type mismatch
@@ -811,7 +823,7 @@ pub(crate) fn handle_stack_alloc(
             .current_frame_mut()
             .allocate_stack_cell_with_slots(*slot_count as usize)
     };
-    let sp = crate::memory::StackPointer::new(frame_index, slot);
+    let sp = destack_heap::StackPointer::new(frame_index, slot);
     let value = Value::stack_pointer_with_meta(sp, *reference);
 
     // validate reference kind

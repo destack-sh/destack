@@ -1,5 +1,7 @@
+use serde::{Deserialize, Serialize};
+
 /// Trust policy for runtime execution.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum TrustPolicy {
     /// Untrusted code with strict limits and validation.
     #[default]
@@ -11,7 +13,7 @@ pub enum TrustPolicy {
 }
 
 /// Policy for calling external functions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum ExternalCallPolicy {
     /// Allow external calls with registered handlers.
     #[default]
@@ -23,7 +25,7 @@ pub enum ExternalCallPolicy {
 }
 
 /// Runtime capability policy for an isolate.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum RuntimePolicy {
     /// Allow all runtime features.
     #[default]
@@ -35,7 +37,7 @@ pub enum RuntimePolicy {
 }
 
 /// Borrow checking mode for owned and borrowed references.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum BorrowMode {
     /// Record violations as hints.
     #[default]
@@ -45,7 +47,7 @@ pub enum BorrowMode {
 }
 
 /// Runtime policy options for a VM isolate.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PolicyOptions {
     /// The trust policy for this isolate.
     pub trust_policy: TrustPolicy,
@@ -58,7 +60,7 @@ pub struct PolicyOptions {
 }
 
 /// Policy for runtime checks that can be disabled for speed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum CheckPolicy {
     /// Always enforce the check.
     #[default]
@@ -85,7 +87,7 @@ impl CheckPolicy {
 }
 
 /// Runtime check configuration for a VM isolate.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CheckOptions {
     /// The bounds check policy for aggregate and array access.
     pub bounds: CheckPolicy,
@@ -98,7 +100,7 @@ pub struct CheckOptions {
 }
 
 /// Resource limits for a VM isolate.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LimitOptions {
     /// The maximum call stack depth before a stack overflow error.
     /// Default is 1024.

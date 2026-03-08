@@ -1,5 +1,5 @@
-use crate::memory::Value;
 use crate::tests::run_mir_expect;
+use destack_heap::Value;
 
 /// function.addr produces a callable pointer for call.indirect.
 #[test]

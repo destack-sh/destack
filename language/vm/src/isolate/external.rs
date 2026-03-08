@@ -2,7 +2,7 @@ use std::fmt;
 use std::ptr::NonNull;
 
 use crate::diagnostic::Error;
-use crate::memory::{RawCellStorage, RawPointer, SlotStorage, Value, ValueTag};
+use destack_heap::{Heap, RawCellStorage, RawPointer, SlotStorage, Value, ValueTag};
 
 use super::IsolateState;
 
@@ -27,57 +27,59 @@ pub(crate) type ExternalFnPtr = NonNull<dyn ExternalHandler>;
 pub struct ExternalCallContext<'ctx> {
     /// The isolate state backing this external call.
     state: &'ctx mut IsolateState,
+    /// The heap backing this external call.
+    heap: &'ctx mut Heap,
 }
 
 impl<'ctx> ExternalCallContext<'ctx> {
     /// Wrap an isolate state for external calls.
-    pub(crate) fn new(state: &'ctx mut IsolateState) -> Self {
-        Self { state }
+    pub(crate) fn new(state: &'ctx mut IsolateState, heap: &'ctx mut Heap) -> Self {
+        Self { state, heap }
     }
 
     /// Intern a UTF-8 string and return the managed string value.
     pub fn intern_string(&mut self, value: &str) -> Value {
-        self.state.intern_string_literal(value)
+        self.state.intern_string_literal(self.heap, value)
     }
 
     /// Read a UTF-8 string value from the heap.
     pub fn string_value(&self, value: Value) -> Result<String, Error> {
-        self.state.string_value(value)
+        self.state.string_value(self.heap, value)
     }
 
     /// Read a UTF-8 string view from the heap.
     pub fn string_value_ref(&self, value: Value) -> Result<super::StringRef<'_>, Error> {
-        self.state.string_value_ref(value)
+        self.state.string_value_ref(self.heap, value)
     }
 
     /// Read a UTF-8 string view from the heap using a string handle.
     pub fn string_ref(&self, value: super::StringHandle) -> Result<super::StringRef<'_>, Error> {
-        self.state.string_value_ref(value.value())
+        self.state.string_value_ref(self.heap, value.value())
     }
 
     /// Allocate an aggregate on the heap and return it as a Value.
     pub fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
-        self.state.allocate_aggregate(values)
+        self.state.allocate_aggregate(self.heap, values)
     }
 
     /// Allocate a 2-element aggregate on the heap.
     pub fn allocate_pair(&mut self, first: Value, second: Value) -> Value {
-        self.state.allocate_pair(first, second)
+        self.state.allocate_pair(self.heap, first, second)
     }
 
     /// Allocate a 1-element aggregate on the heap.
     pub fn allocate_single(&mut self, value: Value) -> Value {
-        self.state.allocate_single(value)
+        self.state.allocate_single(self.heap, value)
     }
 
     /// Allocate a raw heap cell with value slots and return its pointer.
     pub fn allocate_raw_values(&mut self, values: Vec<Value>) -> RawPointer {
-        self.state.allocate_raw_values(values)
+        self.state.allocate_raw_values(self.heap, values)
     }
 
     /// Allocate a raw heap byte buffer and return its pointer.
     pub fn allocate_raw_bytes(&mut self, bytes: &[u8]) -> RawPointer {
-        self.state.allocate_raw_bytes(bytes)
+        self.state.allocate_raw_bytes(self.heap, bytes)
     }
 
     /// Read aggregate slots from the heap.
@@ -88,16 +90,24 @@ impl<'ctx> ExternalCallContext<'ctx> {
                 actual: format!("{:?}", value.tag()),
             });
         }
-        let handle = value.as_heap_handle().ok_or(Error::InvalidHeapHandle)?;
-        let heap = self.state.heap_borrow();
-        let cell = heap.managed.get(handle).ok_or(Error::InvalidHeapHandle)?;
+        let handle = value
+            .as_managed_pointer()
+            .ok_or(Error::InvalidManagedPointer)?;
+        let cell = self
+            .heap
+            .managed()
+            .get(handle)
+            .ok_or(Error::InvalidManagedPointer)?;
         Ok(cell.slots.as_slice().to_vec())
     }
 
     /// Read the raw cell storage for a raw pointer.
     pub fn raw_cell_storage(&self, pointer: RawPointer) -> Result<RawCellStorage, Error> {
-        let heap = self.state.heap_borrow_read();
-        let cell = heap.raw.get(pointer).ok_or(Error::InvalidHeapHandle)?;
+        let cell = self
+            .heap
+            .raw()
+            .get(pointer)
+            .ok_or(Error::InvalidManagedPointer)?;
         Ok(cell.storage.clone())
     }
 
@@ -125,8 +135,11 @@ impl<'ctx> ExternalCallContext<'ctx> {
 
     /// Write raw values into a pointer to a values cell.
     pub fn write_raw_values(&mut self, pointer: RawPointer, values: &[Value]) -> Result<(), Error> {
-        let mut heap = self.state.heap_borrow();
-        let cell = heap.raw.get_mut(pointer).ok_or(Error::InvalidHeapHandle)?;
+        let cell = self
+            .heap
+            .raw_mut()
+            .get_mut(pointer)
+            .ok_or(Error::InvalidManagedPointer)?;
         match &mut cell.storage {
             RawCellStorage::Values(_) => {
                 cell.storage = RawCellStorage::Values(SlotStorage::from_values(values.to_vec()));
@@ -141,8 +154,11 @@ impl<'ctx> ExternalCallContext<'ctx> {
 
     /// Write raw bytes into a pointer to a bytes cell.
     pub fn write_raw_bytes(&mut self, pointer: RawPointer, bytes: &[u8]) -> Result<(), Error> {
-        let mut heap = self.state.heap_borrow();
-        let cell = heap.raw.get_mut(pointer).ok_or(Error::InvalidHeapHandle)?;
+        let cell = self
+            .heap
+            .raw_mut()
+            .get_mut(pointer)
+            .ok_or(Error::InvalidManagedPointer)?;
         match &mut cell.storage {
             RawCellStorage::Bytes(storage) => {
                 storage.clear();

@@ -1,15 +1,14 @@
-use crate::Isolate;
-use crate::memory::Value;
-use crate::tests::{create_aggregate, run_mir_expect, run_mir_with_ok};
+use crate::tests::{TestIsolate, create_aggregate, run_mir_expect, run_mir_with_ok};
+use destack_heap::Value;
 
 /// Create a tensor aggregate value from the provided elements.
-fn tensor_from_values(isolate: &mut Isolate, values: &[i32]) -> Value {
+fn tensor_from_values(isolate: &mut TestIsolate, values: &[i32]) -> Value {
     let elements = values.iter().copied().map(Value::int32).collect();
     create_aggregate(isolate, elements)
 }
 
 /// Create a tensor aggregate value from the provided float elements.
-fn tensor_from_f64_values(isolate: &mut Isolate, values: &[f64]) -> Value {
+fn tensor_from_f64_values(isolate: &mut TestIsolate, values: &[f64]) -> Value {
     let elements = values.iter().copied().map(Value::float64).collect();
     create_aggregate(isolate, elements)
 }

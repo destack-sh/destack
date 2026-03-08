@@ -4,7 +4,7 @@ use destack_mir as mir;
 use smallvec::SmallVec;
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::memory::Value;
+use destack_heap::Value;
 
 use super::super::decode::{
     ArgumentRange, ControlFlow, CopyPair, CopyRange, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID,
@@ -470,7 +470,7 @@ impl<'a> InterpreterContext<'a> {
         self.engine.local_stack.clear();
 
         // load function metadata
-        let function = self.isolate.tree.get(func_id);
+        let function = self.isolate.image.tree.get(func_id);
 
         // handle imported or external functions
         if function.is_import() {
@@ -481,7 +481,7 @@ impl<'a> InterpreterContext<'a> {
             // safety: handler pointer is stable for interpreter lifetime
             let handler = unsafe { handler.as_ref() };
             let value = {
-                let mut context = ExternalCallContext::new(self.isolate);
+                let mut context = ExternalCallContext::new(self.isolate, self.heap);
                 handler(&mut context, arguments)
             }
             .map_err(|e| self.make_error(e))?;
@@ -607,12 +607,11 @@ impl<'a> InterpreterContext<'a> {
     /// Assemble a completed execution outcome.
     fn finish_execution(&mut self, value: Value) -> ExecutionOutcome {
         // assemble output
-        let heap = self.isolate.heap_borrow();
         let output = ExecutionOutput {
             value,
             statistics: self.engine.statistics.clone(),
-            heap_cells: heap.managed.cell_count(),
-            raw_heap_cells: heap.raw.cell_count(),
+            heap_cells: self.heap.managed().cell_count(),
+            raw_heap_cells: self.heap.raw().cell_count(),
         };
 
         // return completed outcome
@@ -676,7 +675,7 @@ impl<'a> InterpreterContext<'a> {
 
         // call stack for nested function calls
         self.engine.call_stack.push(frame);
-        if self.isolate.options.telemetry.collect_stats {
+        if self.isolate.image.options.telemetry.collect_stats {
             self.engine.statistics.max_stack_depth = self
                 .engine
                 .statistics
@@ -693,9 +692,9 @@ impl<'a> InterpreterContext<'a> {
     /// Returns when execution completes or yields.
     fn execute_threaded_loop(&mut self) -> RuntimeResult<ExecutionOutcome> {
         // cache stats settings
-        let collect_stats = self.isolate.options.telemetry.collect_stats;
+        let collect_stats = self.isolate.image.options.telemetry.collect_stats;
         let track_instructions =
-            collect_stats || self.isolate.options.limits.max_instructions.is_some();
+            collect_stats || self.isolate.image.options.limits.max_instructions.is_some();
 
         // ensure there is an active frame
         if self.engine.call_stack.is_empty() {
@@ -705,7 +704,7 @@ impl<'a> InterpreterContext<'a> {
         // main execution loop (trampoline pattern)
         loop {
             // check step limit
-            if let Some(max) = self.isolate.options.limits.max_instructions
+            if let Some(max) = self.isolate.image.options.limits.max_instructions
                 && self.engine.statistics.threaded_instructions_executed >= max
             {
                 return Err(self.make_error(Error::StepLimitExceeded));
@@ -844,7 +843,7 @@ impl<'a> InterpreterContext<'a> {
                         // safety: handler pointer is stable for interpreter lifetime
                         let handler = unsafe { handler.as_ref() };
                         let result = {
-                            let mut context = ExternalCallContext::new(self.isolate);
+                            let mut context = ExternalCallContext::new(self.isolate, self.heap);
                             handler(&mut context, &args)
                         }
                         .map_err(|e| self.make_error(e))?;
@@ -886,7 +885,9 @@ impl<'a> InterpreterContext<'a> {
                         })?;
 
                     // check stack overflow
-                    if self.engine.call_stack.len() >= self.isolate.options.limits.max_stack_depth {
+                    if self.engine.call_stack.len()
+                        >= self.isolate.image.options.limits.max_stack_depth
+                    {
                         return Err(self.make_error(Error::StackOverflow));
                     }
 
@@ -1011,7 +1012,7 @@ impl<'a> InterpreterContext<'a> {
                         // safety: handler pointer is stable for interpreter lifetime
                         let handler = unsafe { handler.as_ref() };
                         let result = {
-                            let mut context = ExternalCallContext::new(self.isolate);
+                            let mut context = ExternalCallContext::new(self.isolate, self.heap);
                             handler(&mut context, &argument_values)
                         }
                         .map_err(|e| self.make_error(e))?;

@@ -1073,7 +1073,7 @@ pub(crate) fn handle_binary_elementwise(
     };
 
     let result_type_id = *result_type;
-    let result_type = state.interpreter.isolate.tree.get(result_type_id);
+    let result_type = state.interpreter.isolate.image.tree.get(result_type_id);
     match result_type {
         mir::Type::Vector { lanes, .. } => {
             let left_value = state.get(*left);
@@ -1108,10 +1108,11 @@ pub(crate) fn handle_binary_elementwise(
             next!(state, block, pc)
         }
         mir::Type::Tensor { .. } => {
-            let layout = match tensor_layout_info(&state.interpreter.isolate.tree, result_type_id) {
-                Ok(layout) => layout,
-                Err(error) => return ControlFlow::Error(error),
-            };
+            let layout =
+                match tensor_layout_info(&state.interpreter.isolate.image.tree, result_type_id) {
+                    Ok(layout) => layout,
+                    Err(error) => return ControlFlow::Error(error),
+                };
             let left_value = state.get(*left);
             let right_value = state.get(*right);
             let left_slots = match aggregate_slots(state, left_value) {
@@ -1190,7 +1191,7 @@ pub(crate) fn handle_unary_elementwise(
     };
 
     let result_type_id = *result_type;
-    let result_type = state.interpreter.isolate.tree.get(result_type_id);
+    let result_type = state.interpreter.isolate.image.tree.get(result_type_id);
     match result_type {
         mir::Type::Vector { lanes, .. } => {
             let argument = state.get(*arg);
@@ -1220,10 +1221,11 @@ pub(crate) fn handle_unary_elementwise(
             next!(state, block, pc)
         }
         mir::Type::Tensor { .. } => {
-            let layout = match tensor_layout_info(&state.interpreter.isolate.tree, result_type_id) {
-                Ok(layout) => layout,
-                Err(error) => return ControlFlow::Error(error),
-            };
+            let layout =
+                match tensor_layout_info(&state.interpreter.isolate.image.tree, result_type_id) {
+                    Ok(layout) => layout,
+                    Err(error) => return ControlFlow::Error(error),
+                };
             let argument = state.get(*arg);
             let slots = match aggregate_slots(state, argument) {
                 Ok(slots) => slots,

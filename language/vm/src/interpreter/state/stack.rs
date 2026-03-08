@@ -1,4 +1,4 @@
-use crate::memory::Value;
+use destack_heap::Value;
 
 /// Resize a stack and clear the active range.
 #[allow(clippy::uninit_vec)]

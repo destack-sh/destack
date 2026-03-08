@@ -3,9 +3,9 @@ use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
 
 use crate::diagnostic::Error;
-use crate::memory::Value;
-use crate::tests::{run_mir, run_mir_expect, run_mir_ok};
+use crate::tests::{create_isolate, run_mir, run_mir_expect, run_mir_ok};
 use crate::{Isolate, IsolateOptions};
+use destack_heap::{Heap, ManagedHeap, RawHeap, Value};
 
 /// Branch instruction takes the true path when condition is true.
 #[test]
@@ -227,10 +227,18 @@ block0(v0: fn(i32) -> i32, v1: i32):
         .expect("double not found");
 
     // create isolate and run
-    let mut isolate = Isolate::with_options(tree, strings, IsolateOptions::test())
+    let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
         .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
+    let mut heap = Heap::new(ManagedHeap::new(), RawHeap::new());
+
+    // initialize isolate state against the authoritative heap
+    isolate
+        .initialize(&mut heap)
+        .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
+
     let result = isolate
         .run_function_by_name(
+            &mut heap,
             "caller",
             &[Value::function_pointer(double_id), Value::int32(21)],
         )
@@ -250,11 +258,18 @@ block0(v0: fn(i32) -> i32, v1: i32):
 }"#;
     let (tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
         .expect("failed to parse MIR");
-    let mut isolate = Isolate::with_options(tree, strings, IsolateOptions::test())
+    let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
         .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
+    let mut heap = Heap::new(ManagedHeap::new(), RawHeap::new());
+
+    // initialize isolate state against the authoritative heap
+    isolate
+        .initialize(&mut heap)
+        .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
     // pass an integer instead of a function pointer
-    let result = isolate.run_function_by_name("caller", &[Value::int32(999), Value::int32(21)]);
+    let result =
+        isolate.run_function_by_name(&mut heap, "caller", &[Value::int32(999), Value::int32(21)]);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(matches!(err.error, Error::TypeMismatch { .. }));
@@ -326,8 +341,7 @@ block0(v0: i32, v1: fn(i32, i32) -> i32):
         .expect("countdown not found");
 
     // create isolate and run
-    let mut isolate = Isolate::with_options(tree, strings, IsolateOptions::test())
-        .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
+    let mut isolate = create_isolate(mir_text);
     let result = isolate
         .run_function_by_name(
             "entry",

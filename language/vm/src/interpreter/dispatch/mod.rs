@@ -6,8 +6,8 @@ use destack_mir as mir;
 use smallvec::SmallVec;
 
 use crate::diagnostic::Error;
-use crate::memory::{
-    HeapHandle, LocalPointer, RawPointer, ReferenceAddressSpace, ReferenceMeta, StackPointer,
+use destack_heap::{
+    LocalPointer, ManagedPointer, RawPointer, ReferenceAddressSpace, ReferenceMeta, StackPointer,
     Value, ValueTag,
 };
 
@@ -90,6 +90,7 @@ fn check_reference_kind(
     if !state
         .interpreter
         .isolate
+        .image
         .options
         .checks
         .enforce_reference_kinds
@@ -159,16 +160,18 @@ fn aggregate_slots<'a>(
     value: Value,
 ) -> Result<super::state::AggregateSlots<'a>, Error> {
     // require aggregate payload
-    let handle = value.as_heap_handle().ok_or_else(|| Error::TypeMismatch {
-        expected: "aggregate".to_string(),
-        actual: format!("{value:?}"),
-    })?;
+    let handle = value
+        .as_managed_pointer()
+        .ok_or_else(|| Error::TypeMismatch {
+            expected: "aggregate".to_string(),
+            actual: format!("{value:?}"),
+        })?;
 
     let cell = state
         .heap_ref()
-        .managed
+        .managed()
         .get(handle)
-        .ok_or(Error::InvalidHeapHandle)?;
+        .ok_or(Error::InvalidManagedPointer)?;
     Ok(super::state::AggregateSlots::new(cell.slots.as_slice()))
 }
 
@@ -391,17 +394,17 @@ fn offset_pointer(value: Value, offset: usize, length: usize) -> Result<Value, E
 
     match value.tag() {
         ValueTag::ManagedReference => {
-            let Some(handle) = value.as_heap_handle() else {
+            let Some(handle) = value.as_managed_pointer() else {
                 return Err(Error::InvalidPointerType {
                     actual: format!("{value:?}"),
                 });
             };
-            let base = handle.slot_index();
+            let base = handle.slot_offset();
             let slot = base.saturating_add(offset);
             let slot = u32::try_from(slot).map_err(|_| Error::InvalidPointerType {
                 actual: format!("{value:?}"),
             })?;
-            let handle = HeapHandle::with_slot(handle.id(), slot);
+            let handle = ManagedPointer::with_slot_offset(handle.id(), slot);
             Ok(Value::managed_reference_with_meta(handle, reference))
         }
         ValueTag::RawPointer => {
@@ -410,12 +413,12 @@ fn offset_pointer(value: Value, offset: usize, length: usize) -> Result<Value, E
                     actual: format!("{value:?}"),
                 });
             };
-            let base = pointer.slot_index();
+            let base = pointer.slot_offset();
             let slot = base.saturating_add(offset);
             let slot = u32::try_from(slot).map_err(|_| Error::InvalidPointerType {
                 actual: format!("{value:?}"),
             })?;
-            let pointer = RawPointer::with_slot(pointer.id(), slot);
+            let pointer = RawPointer::with_slot_offset(pointer.id(), slot);
             Ok(Value::raw_pointer_with_meta(pointer, reference))
         }
         ValueTag::StackPointer => {
@@ -1151,6 +1154,7 @@ fn check_reference_address_space(
     if !state
         .interpreter
         .isolate
+        .image
         .options
         .checks
         .enforce_reference_kinds
@@ -1211,6 +1215,7 @@ fn check_reference_mutability(
     if !state
         .interpreter
         .isolate
+        .image
         .options
         .checks
         .enforce_reference_mutability

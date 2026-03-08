@@ -1,5 +1,5 @@
 use destack_vm::{
-    Frame, HeapHandle, RawPointer, StackPointer, ThreadedBlock, ThreadedFunction,
+    Frame, ManagedPointer, RawPointer, StackPointer, ThreadedBlock, ThreadedFunction,
     ThreadedInstruction, ThreadedState, Value,
 };
 
@@ -23,7 +23,10 @@ fn main() {
     );
 
     println!("Value: {} bytes", std::mem::size_of::<Value>());
-    println!("HeapHandle: {} bytes", std::mem::size_of::<HeapHandle>());
+    println!(
+        "ManagedPointer: {} bytes",
+        std::mem::size_of::<ManagedPointer>()
+    );
     println!("RawPointer: {} bytes", std::mem::size_of::<RawPointer>());
     println!(
         "StackPointer: {} bytes",

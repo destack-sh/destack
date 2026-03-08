@@ -1,7 +1,7 @@
 use destack_mir as mir;
 
 use crate::diagnostic::Error;
-use crate::memory::{RawPointer, Value, ValueTag};
+use destack_heap::{RawPointer, Value, ValueTag};
 
 /// Execute a binary operation.
 #[inline(always)]

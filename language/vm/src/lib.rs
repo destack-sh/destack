@@ -8,10 +8,19 @@ pub mod diagnostic;
 pub mod execute;
 pub mod interpreter;
 pub mod isolate;
-pub mod memory;
 pub mod options;
 pub mod snapshot;
 pub mod telemetry;
+
+pub use destack_heap::string::{
+    STRING_FLAG_HAS_HASH, STRING_FLAG_IS_ASCII, STRING_FLAG_IS_EXTERNAL, STRING_FLAG_IS_INTERNED,
+    STRING_FLAG_IS_STATIC, STRING_TYPE_ALIAS, StringLayout, string_layout_matches,
+};
+pub use destack_heap::{
+    GcStats, GlobalPointer, Heap, HeapSnapshot, LocalPointer, ManagedHeap, ManagedPointer, RawCell,
+    RawCellStorage, RawHeap, RawPointer, ReferenceAddressSpace, ReferenceMeta, SlotStorage,
+    StackPointer, Value, ValueTag,
+};
 
 #[cfg(test)]
 mod tests;
@@ -19,5 +28,4 @@ mod tests;
 pub use diagnostic::*;
 pub use interpreter::*;
 pub use isolate::*;
-pub use memory::*;
 pub use options::*;

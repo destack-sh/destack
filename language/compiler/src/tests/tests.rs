@@ -22,7 +22,7 @@ use destack_source::{
     PackageVersion, PhysicalFileSystem, PrintOptions, ProfileStamp, ProfileVersion, Uri,
     print_diagnostics, print_diff,
 };
-use destack_vm::{Isolate, IsolateOptions, Value};
+use destack_vm::{Heap, Isolate, IsolateOptions, ManagedHeap, RawHeap, Value};
 use destack_workspace::{
     CacheMode, CacheStore, DiskCacheStore, DsConfig, DsConfigJson, DsConfigOptions,
     MemoryCacheStore, Module, OutputFormat, ProfileId, Program, Session, Target, TargetId,
@@ -189,17 +189,33 @@ pub fn expect_let_declarator_by_name(
 pub struct TestIsolate {
     /// The underlying MIR interpreter.
     isolate: Isolate,
+    /// The authoritative heap for the isolate.
+    heap: Heap,
 }
 
 impl TestIsolate {
+    /// Run a MIR function by name and return the full execution output.
+    pub fn run_function_by_name_output(
+        &mut self,
+        function: &str,
+        arguments: &[Value],
+    ) -> destack_vm::RuntimeResult<destack_vm::ExecutionOutput> {
+        self.isolate
+            .run_function_by_name(&mut self.heap, function, arguments)
+    }
+
     /// Run a MIR function by name and return its output value.
     pub fn run_function_by_name(&mut self, function: &str, arguments: &[Value]) -> Value {
         let output = self
-            .isolate
-            .run_function_by_name(function, arguments)
+            .run_function_by_name_output(function, arguments)
             .expect("execution failed");
 
         output.value
+    }
+
+    /// Read one VM string value through the authoritative heap.
+    pub fn string_value(&self, value: Value) -> Result<String, destack_vm::Error> {
+        self.isolate.string_value(&self.heap, value)
     }
 }
 
@@ -1109,22 +1125,29 @@ impl TestProgram {
     }
 
     /// Create a fresh MIR interpreter for the module and target.
-    pub fn mir_isolate(&self, module_id: ModuleId, target: &str) -> Isolate {
+    pub fn mir_isolate(&self, module_id: ModuleId, target: &str) -> TestIsolate {
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let target_id = TargetId::new(module.package_id, target);
         let mir = module.mir(&target_id);
         let tree = mir.tree.read().clone();
         let strings = mir.strings.clone().into_immutable();
-        Isolate::with_options(tree, strings, IsolateOptions::test())
-            .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"))
+        let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
+            .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
+
+        let heap = Heap::new(ManagedHeap::new(), RawHeap::new());
+        let mut heap = heap;
+
+        isolate
+            .initialize(&mut heap)
+            .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
+
+        TestIsolate { isolate, heap }
     }
 
     /// Create a reusable MIR interpreter for repeated calls.
     pub fn mir_isolate_runner(&self, module_id: ModuleId, target: &str) -> TestIsolate {
-        let isolate = self.mir_isolate(module_id, target);
-
-        TestIsolate { isolate }
+        self.mir_isolate(module_id, target)
     }
 
     /// Run a MIR function by name and return its output value.

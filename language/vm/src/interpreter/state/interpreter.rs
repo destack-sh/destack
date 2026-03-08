@@ -5,13 +5,14 @@ use std::time::Duration;
 
 use destack_mir as mir;
 
-use crate::diagnostic::{DiagnosticAnchor, Error, FrameInfo, RuntimeError, RuntimeResult};
+use crate::diagnostic::{Error, FrameInfo, RuntimeError, RuntimeResult};
 use crate::execute::Continuation;
 use crate::isolate::{ExternalFnPtr, GlobalStorage, IsolateState};
-use crate::memory::{
-    GcStats, HeapHandle, RawCellStorage, RawPointer, ReferenceMeta, Value, string_layout_matches,
-};
+use crate::snapshot::InterpreterSnapshot;
 use crate::telemetry::Statistics;
+use destack_heap::{
+    GcStats, Heap, ManagedPointer, RawPointer, ReferenceMeta, Value, string_layout_matches,
+};
 
 use super::super::decode::{INVALID_FUNCTION_INDEX, ThreadedFunction, thread_function};
 use super::Frame;
@@ -46,7 +47,7 @@ pub struct Interpreter {
 impl Interpreter {
     /// Create a new interpreter engine for the given isolate state.
     pub(crate) fn new(isolate: &IsolateState) -> Self {
-        let threaded_functions = ThreadedFunctionTable::new(&isolate.tree);
+        let threaded_functions = ThreadedFunctionTable::new(&isolate.image.tree);
 
         Self {
             state: InterpreterState {
@@ -65,9 +66,11 @@ impl Interpreter {
     pub(crate) fn context<'a>(
         &'a mut self,
         isolate: &'a mut IsolateState,
+        heap: &'a mut Heap,
     ) -> InterpreterContext<'a> {
         InterpreterContext {
             isolate,
+            heap,
             engine: &mut self.state,
         }
     }
@@ -76,12 +79,84 @@ impl Interpreter {
     pub(crate) fn call_stack(&self) -> &[Frame] {
         &self.state.call_stack
     }
+
+    /// Capture one durable interpreter snapshot.
+    pub(crate) fn snapshot(&self) -> InterpreterSnapshot {
+        let call_stack = self.state.call_stack.iter().map(Frame::snapshot).collect();
+
+        InterpreterSnapshot {
+            call_stack,
+            value_stack: self.state.value_stack.clone(),
+            local_stack: self.state.local_stack.clone(),
+            statistics: self.state.statistics.clone(),
+        }
+    }
+
+    /// Restore one interpreter from a durable snapshot.
+    pub(crate) fn restore(
+        isolate: &IsolateState,
+        _heap: &mut Heap,
+        snapshot: &InterpreterSnapshot,
+    ) -> RuntimeResult<Self> {
+        // rebuild the threaded decode tables from the current isolate
+        let mut interpreter = Self::new(isolate);
+
+        // restore the mutable execution state
+        let call_stack = snapshot
+            .call_stack
+            .iter()
+            .map(|frame| Frame::restore(frame, &interpreter.state.threaded_functions))
+            .collect::<RuntimeResult<Vec<_>>>()?;
+
+        interpreter.state.call_stack = call_stack;
+        interpreter.state.value_stack = snapshot.value_stack.clone();
+        interpreter.state.local_stack = snapshot.local_stack.clone();
+        interpreter.state.statistics = snapshot.statistics.clone();
+
+        #[cfg(feature = "stats")]
+        {
+            interpreter.state.instruction_profile = None;
+        }
+
+        Ok(interpreter)
+    }
+
+    /// Enable instruction profiling with the given sampling interval.
+    #[cfg(feature = "stats")]
+    pub(crate) fn enable_instruction_profile(&mut self, sample_interval: Duration) {
+        self.state.instruction_profile = Some(InstructionProfile::new(sample_interval));
+    }
+
+    /// Reset instruction profiling samples without disabling sampling.
+    #[cfg(feature = "stats")]
+    pub(crate) fn reset_instruction_profile(&mut self) {
+        if let Some(profile) = self.state.instruction_profile.as_mut() {
+            profile.reset();
+        }
+    }
+
+    /// Clear instruction profiling data and disable sampling.
+    #[cfg(feature = "stats")]
+    pub(crate) fn clear_instruction_profile(&mut self) {
+        self.state.instruction_profile = None;
+    }
+
+    /// Return a compact instruction profile report if available.
+    #[cfg(feature = "stats")]
+    pub(crate) fn instruction_profile_report(&self, target_percent: f64) -> Option<String> {
+        self.state
+            .instruction_profile
+            .as_ref()
+            .map(|profile| profile.summary_target(target_percent).format_compact())
+    }
 }
 
 /// Interpreter context with access to isolate and engine state.
 pub(crate) struct InterpreterContext<'a> {
     /// Shared isolate state for this execution.
     pub(crate) isolate: &'a mut IsolateState,
+    /// Authoritative heap for this agent.
+    pub(crate) heap: &'a mut Heap,
     /// Interpreter engine state for execution.
     pub(crate) engine: &'a mut InterpreterState,
 }
@@ -197,37 +272,7 @@ impl ThreadedFunctionTable {
     }
 }
 
-#[allow(dead_code)]
 impl<'a> InterpreterContext<'a> {
-    /// Enable instruction profiling with the given sampling interval.
-    #[cfg(feature = "stats")]
-    pub(crate) fn enable_instruction_profile(&mut self, sample_interval: Duration) {
-        self.engine.instruction_profile = Some(InstructionProfile::new(sample_interval));
-    }
-
-    /// Reset instruction profiling samples without disabling sampling.
-    #[cfg(feature = "stats")]
-    pub(crate) fn reset_instruction_profile(&mut self) {
-        if let Some(profile) = self.engine.instruction_profile.as_mut() {
-            profile.reset();
-        }
-    }
-
-    /// Clear instruction profiling data and disable sampling.
-    #[cfg(feature = "stats")]
-    pub(crate) fn clear_instruction_profile(&mut self) {
-        self.engine.instruction_profile = None;
-    }
-
-    /// Return a compact instruction profile report if available.
-    #[cfg(feature = "stats")]
-    pub(crate) fn instruction_profile_report(&self, target_percent: f64) -> Option<String> {
-        self.engine
-            .instruction_profile
-            .as_ref()
-            .map(|profile| profile.summary_target(target_percent).format_compact())
-    }
-
     /// Initialize global variables from the MIR tree.
     pub(crate) fn initialize_globals(&mut self) -> RuntimeResult<()> {
         // seed empty global storage
@@ -236,6 +281,7 @@ impl<'a> InterpreterContext<'a> {
         // snapshot globals to avoid borrowing self during initialization
         let global_entries: Vec<_> = self
             .isolate
+            .image
             .tree
             .iter_nodes::<mir::Global>()
             .map(|(id, global)| {
@@ -283,15 +329,14 @@ impl<'a> InterpreterContext<'a> {
                 // validate the declared string layout
                 self.validate_string_initializer_type(ty)?;
 
-                Ok(self.isolate.intern_string_literal(value))
+                Ok(self.isolate.intern_string_literal(self.heap, value))
             }
             mir::GlobalInitializer::Bytes(bytes) => {
                 // convert bytes to u8 values
                 let values: Vec<Value> = bytes.iter().map(|&b| Value::uint(b as u64, 8)).collect();
 
                 // allocate managed aggregate for bytes
-                let mut heap = self.isolate.heap.borrow();
-                let handle = heap.managed.allocate_with_values(values);
+                let handle = self.heap.managed_mut().allocate_with_values(values);
 
                 Ok(Value::aggregate(handle))
             }
@@ -303,8 +348,7 @@ impl<'a> InterpreterContext<'a> {
                     .collect::<RuntimeResult<_>>()?;
 
                 // allocate managed aggregate for elements
-                let mut heap = self.isolate.heap.borrow();
-                let handle = heap.managed.allocate_with_values(values);
+                let handle = self.heap.managed_mut().allocate_with_values(values);
 
                 Ok(Value::aggregate(handle))
             }
@@ -317,10 +361,10 @@ impl<'a> InterpreterContext<'a> {
         ty: mir::LocalNodeId<mir::Type>,
     ) -> RuntimeResult<()> {
         // resolve the reference type
-        let mir::Type::Reference { kind, pointee, .. } = self.isolate.tree.get(ty) else {
+        let mir::Type::Reference { kind, pointee, .. } = self.isolate.image.tree.get(ty) else {
             return Err(self.make_error(Error::TypeMismatch {
                 expected: "ref<managed String>".to_string(),
-                actual: format!("{:?}", self.isolate.tree.get(ty)),
+                actual: format!("{:?}", self.isolate.image.tree.get(ty)),
             }));
         };
 
@@ -328,15 +372,15 @@ impl<'a> InterpreterContext<'a> {
         if *kind != mir::ReferenceKind::Managed {
             return Err(self.make_error(Error::TypeMismatch {
                 expected: "ref<managed String>".to_string(),
-                actual: format!("{:?}", self.isolate.tree.get(ty)),
+                actual: format!("{:?}", self.isolate.image.tree.get(ty)),
             }));
         }
 
         // validate the struct layout matches the runtime definition
-        if !string_layout_matches(&self.isolate.tree, *pointee) {
+        if !string_layout_matches(&self.isolate.image.tree, *pointee) {
             return Err(self.make_error(Error::TypeMismatch {
                 expected: "ref<managed String>".to_string(),
-                actual: format!("{:?}", self.isolate.tree.get(ty)),
+                actual: format!("{:?}", self.isolate.image.tree.get(ty)),
             }));
         }
 
@@ -351,7 +395,7 @@ impl<'a> InterpreterContext<'a> {
     /// Create a zero value for a given type.
     fn zero_value(&mut self, ty: mir::LocalNodeId<mir::Type>) -> RuntimeResult<Value> {
         // resolve the type node
-        let ty_node = self.isolate.tree.get(ty).clone();
+        let ty_node = self.isolate.image.tree.get(ty).clone();
 
         // build a zero value based on type
         match ty_node {
@@ -393,9 +437,10 @@ impl<'a> InterpreterContext<'a> {
 
                 let meta = ReferenceMeta::new(kind, address_space, mutability, is_nullable);
                 match kind {
-                    mir::ReferenceKind::Managed => {
-                        Ok(Value::managed_reference_with_meta(HeapHandle::NULL, meta))
-                    }
+                    mir::ReferenceKind::Managed => Ok(Value::managed_reference_with_meta(
+                        ManagedPointer::NULL,
+                        meta,
+                    )),
                     mir::ReferenceKind::Owned
                     | mir::ReferenceKind::Borrowed
                     | mir::ReferenceKind::Raw => {
@@ -414,8 +459,7 @@ impl<'a> InterpreterContext<'a> {
                     .collect::<RuntimeResult<_>>()?;
 
                 // allocate managed aggregate for tuple
-                let mut heap = self.isolate.heap.borrow();
-                let handle = heap.managed.allocate_with_values(values);
+                let handle = self.heap.managed_mut().allocate_with_values(values);
 
                 Ok(Value::aggregate(handle))
             }
@@ -429,8 +473,7 @@ impl<'a> InterpreterContext<'a> {
                 let values: Vec<Value> = (0..length).map(|_| elem_zero).collect();
 
                 // allocate managed aggregate for array
-                let mut heap = self.isolate.heap.borrow();
-                let handle = heap.managed.allocate_with_values(values);
+                let handle = self.heap.managed_mut().allocate_with_values(values);
 
                 Ok(Value::aggregate(handle))
             }
@@ -440,131 +483,10 @@ impl<'a> InterpreterContext<'a> {
         }
     }
 
-    /// Get the slot count for a raw pointer.
-    pub(crate) fn raw_slot_count(&self, pointer: RawPointer) -> Option<usize> {
-        let heap = self.isolate.heap.borrow();
-        Some(heap.raw.get(pointer)?.storage.len())
-    }
-
-    /// Read a raw slot, dispatching to the correct raw heap.
-    pub(crate) fn read_raw_slot(
-        &self,
-        pointer: RawPointer,
-        slot_index: usize,
-        bounds_checks: bool,
-    ) -> Result<Value, Error> {
-        let heap = self.isolate.heap.borrow();
-        let cell = heap.raw.get(pointer).ok_or(Error::InvalidHeapHandle)?;
-
-        match &cell.storage {
-            RawCellStorage::Bytes(bytes) => {
-                // treat empty slot 0 as void
-                if bytes.is_empty() && slot_index == 0 {
-                    return Ok(Value::VOID);
-                }
-
-                // enforce bounds even in unchecked mode to avoid UB
-                if slot_index >= bytes.len() {
-                    return Err(Error::InvalidFieldAccess {
-                        index: slot_index as u32,
-                        field_count: bytes.len(),
-                    });
-                }
-
-                let byte = bytes[slot_index];
-                Ok(Value::uint(byte as u64, 8))
-            }
-            RawCellStorage::Values(slots) => {
-                // treat empty slot 0 as void
-                if slots.is_empty() && slot_index == 0 {
-                    return Ok(Value::VOID);
-                }
-
-                // fast path without bounds checks
-                if !bounds_checks {
-                    debug_assert!(slot_index < slots.len(), "raw slot out of bounds");
-                    // #Safety: bounds checks are disabled and slot is trusted
-                    let value = unsafe { *slots.get_unchecked(slot_index) };
-                    return Ok(value);
-                }
-
-                // read the slot when in bounds
-                if let Some(value) = slots.get(slot_index).copied() {
-                    return Ok(value);
-                }
-
-                Err(Error::InvalidFieldAccess {
-                    index: slot_index as u32,
-                    field_count: slots.len(),
-                })
-            }
-        }
-    }
-
-    /// Write a raw slot, dispatching to the correct raw heap.
-    pub(crate) fn write_raw_slot(
-        &mut self,
-        pointer: RawPointer,
-        slot_index: usize,
-        value: Value,
-        bounds_checks: bool,
-    ) -> Result<(), Error> {
-        let mut heap = self.isolate.heap.borrow();
-        let cell = heap.raw.get_mut(pointer).ok_or(Error::InvalidHeapHandle)?;
-
-        match &mut cell.storage {
-            RawCellStorage::Bytes(bytes) => {
-                let raw = value.as_uint().ok_or_else(|| Error::TypeMismatch {
-                    expected: "integer".to_string(),
-                    actual: format!("{value:?}"),
-                })?;
-                let byte = raw as u8;
-
-                // enforce bounds even in unchecked mode to avoid UB
-                if slot_index >= bytes.len() {
-                    return Err(Error::InvalidFieldAccess {
-                        index: slot_index as u32,
-                        field_count: bytes.len(),
-                    });
-                }
-
-                bytes[slot_index] = byte;
-                Ok(())
-            }
-            RawCellStorage::Values(slots) => {
-                // resize slots as needed when bounds checks are enabled
-                if bounds_checks && slots.len() <= slot_index {
-                    slots.resize(slot_index + 1, Value::VOID);
-                }
-
-                // fast path without bounds checks
-                if !bounds_checks {
-                    debug_assert!(slot_index < slots.len(), "raw slot out of bounds");
-                    // #Safety: bounds checks are disabled and slot is trusted
-                    unsafe {
-                        *slots.get_unchecked_mut(slot_index) = value;
-                    }
-                    return Ok(());
-                }
-
-                // write the slot when in bounds
-                if let Some(slot) = slots.get_mut(slot_index) {
-                    *slot = value;
-                    return Ok(());
-                }
-
-                Err(Error::InvalidFieldAccess {
-                    index: slot_index as u32,
-                    field_count: slots.len(),
-                })
-            }
-        }
-    }
-
     /// Sweep raw string payloads for freed managed string headers.
     fn sweep_string_buffers(&mut self) {
         // delegate to the isolate string interner
-        self.isolate.sweep_string_buffers();
+        self.isolate.sweep_string_buffers(self.heap);
     }
 
     /// Resolve an external handler for an imported function id.
@@ -581,8 +503,8 @@ impl<'a> InterpreterContext<'a> {
             self.isolate.externals_by_id.resize(index + 1, None);
         }
 
-        let func = self.isolate.tree.get(function_id);
-        let name = self.isolate.strings.get(func.name).to_string();
+        let func = self.isolate.image.tree.get(function_id);
+        let name = self.isolate.image.strings.get(func.name).to_string();
         let handler = self
             .isolate
             .externals
@@ -602,42 +524,13 @@ impl<'a> InterpreterContext<'a> {
 
     /// Allocate an aggregate on the heap and return it as a Value.
     pub(crate) fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
-        self.isolate.allocate_aggregate(values)
+        self.isolate.allocate_aggregate(self.heap, values)
     }
 
     /// Allocate a 2-element aggregate on the heap (avoids Vec allocation).
     #[inline]
     pub(crate) fn allocate_pair(&mut self, first: Value, second: Value) -> Value {
-        self.isolate.allocate_pair(first, second)
-    }
-
-    /// Allocate a 1-element aggregate on the heap (avoids Vec allocation).
-    #[inline]
-    pub(crate) fn allocate_single(&mut self, value: Value) -> Value {
-        self.isolate.allocate_single(value)
-    }
-
-    /// Create an error with instruction anchor.
-    #[cold]
-    pub(crate) fn make_error_at(
-        &self,
-        error: Error,
-        instruction_id: mir::LocalNodeId<mir::Instruction>,
-    ) -> RuntimeError {
-        let frame = self.engine.call_stack.last();
-        let anchor = if let Some(f) = frame {
-            DiagnosticAnchor::Instruction {
-                function: f.function,
-                block: f.current_block,
-                instruction: instruction_id,
-            }
-        } else {
-            DiagnosticAnchor::None
-        };
-
-        RuntimeError::new(error)
-            .with_call_stack(self.get_call_stack_info())
-            .with_anchor(anchor)
+        self.isolate.allocate_pair(self.heap, first, second)
     }
 
     /// Get call stack info for error reporting.
@@ -646,8 +539,8 @@ impl<'a> InterpreterContext<'a> {
             .call_stack
             .iter()
             .map(|f| {
-                let func = self.isolate.tree.get(f.function);
-                let name = self.isolate.strings.get(func.name).to_string();
+                let func = self.isolate.image.tree.get(f.function);
+                let name = self.isolate.image.strings.get(func.name).to_string();
                 FrameInfo {
                     function: f.function,
                     block: f.current_block,
@@ -684,7 +577,7 @@ impl<'a> InterpreterContext<'a> {
 
         // collect roots from globals
         for value in self.isolate.globals.values() {
-            if let Some(handle) = value.as_heap_handle() {
+            if let Some(handle) = value.as_managed_pointer() {
                 roots.push(handle);
             }
         }
@@ -693,10 +586,7 @@ impl<'a> InterpreterContext<'a> {
         self.isolate.collect_string_roots(&mut roots);
 
         // run collection
-        let stats = {
-            let mut heap = self.isolate.heap.borrow();
-            heap.managed.collect(&roots)
-        };
+        let stats = self.heap.managed_mut().collect_handles(roots);
 
         // sweep raw payload buffers for freed strings
         self.sweep_string_buffers();

@@ -20,7 +20,7 @@ pub(crate) fn handle_tensor_load(
     };
 
     // resolve layout info
-    let layout = match tensor_layout_info(&state.interpreter.isolate.tree, *view_type) {
+    let layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *view_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -76,7 +76,7 @@ pub(crate) fn handle_tensor_store(
     };
 
     // resolve layout info
-    let layout = match tensor_layout_info(&state.interpreter.isolate.tree, *view_type) {
+    let layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *view_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -130,7 +130,7 @@ pub(crate) fn handle_tensor_fill(
     };
 
     // resolve layout info
-    let layout = match tensor_layout_info(&state.interpreter.isolate.tree, *view_type) {
+    let layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *view_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -170,14 +170,16 @@ pub(crate) fn handle_tensor_copy(
     };
 
     // resolve layouts
-    let target_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *target_type) {
-        Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
-    };
-    let source_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *source_type) {
-        Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
-    };
+    let target_layout =
+        match tensor_layout_info(&state.interpreter.isolate.image.tree, *target_type) {
+            Ok(layout) => layout,
+            Err(error) => return ControlFlow::Error(error),
+        };
+    let source_layout =
+        match tensor_layout_info(&state.interpreter.isolate.image.tree, *source_type) {
+            Ok(layout) => layout,
+            Err(error) => return ControlFlow::Error(error),
+        };
 
     // validate element counts
     if target_layout.storage_len != source_layout.storage_len {
@@ -241,7 +243,7 @@ pub(crate) fn handle_tensor_reshape(
     };
 
     // resolve output layout
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
+    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -302,11 +304,12 @@ pub(crate) fn handle_tensor_broadcast(
     };
 
     // resolve layouts
-    let source_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *source_type) {
-        Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
-    };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
+    let source_layout =
+        match tensor_layout_info(&state.interpreter.isolate.image.tree, *source_type) {
+            Ok(layout) => layout,
+            Err(error) => return ControlFlow::Error(error),
+        };
+    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -388,11 +391,12 @@ pub(crate) fn handle_tensor_transpose(
     };
 
     // resolve layouts
-    let source_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *source_type) {
-        Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
-    };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
+    let source_layout =
+        match tensor_layout_info(&state.interpreter.isolate.image.tree, *source_type) {
+            Ok(layout) => layout,
+            Err(error) => return ControlFlow::Error(error),
+        };
+    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -475,11 +479,12 @@ pub(crate) fn handle_tensor_slice(
     };
 
     // resolve layouts
-    let source_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *source_type) {
-        Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
-    };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
+    let source_layout =
+        match tensor_layout_info(&state.interpreter.isolate.image.tree, *source_type) {
+            Ok(layout) => layout,
+            Err(error) => return ControlFlow::Error(error),
+        };
+    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -590,11 +595,12 @@ pub(crate) fn handle_tensor_pad(
     };
 
     // resolve layouts
-    let source_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *source_type) {
-        Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
-    };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
+    let source_layout =
+        match tensor_layout_info(&state.interpreter.isolate.image.tree, *source_type) {
+            Ok(layout) => layout,
+            Err(error) => return ControlFlow::Error(error),
+        };
+    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -721,7 +727,7 @@ pub(crate) fn handle_tensor_concat(
     };
 
     // resolve destination layout
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
+    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -740,7 +746,7 @@ pub(crate) fn handle_tensor_concat(
             Ok(slots) => slots,
             Err(error) => return ControlFlow::Error(error),
         };
-        let layout = match tensor_layout_info(&state.interpreter.isolate.tree, *type_id) {
+        let layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *type_id) {
             Ok(layout) => layout,
             Err(error) => return ControlFlow::Error(error),
         };
@@ -831,11 +837,12 @@ pub(crate) fn handle_tensor_reduce(
     };
 
     // resolve layouts
-    let source_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *source_type) {
-        Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
-    };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
+    let source_layout =
+        match tensor_layout_info(&state.interpreter.isolate.image.tree, *source_type) {
+            Ok(layout) => layout,
+            Err(error) => return ControlFlow::Error(error),
+        };
+    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -919,15 +926,16 @@ pub(crate) fn handle_tensor_dot(
     };
 
     // resolve layouts
-    let left_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *left_type) {
+    let left_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *left_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
-    let right_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *right_type) {
+    let right_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *right_type)
+    {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
+    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1085,15 +1093,17 @@ pub(crate) fn handle_tensor_convolution(
     };
 
     // resolve layouts
-    let input_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *input_type) {
+    let input_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *input_type)
+    {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
-    let kernel_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *kernel_type) {
-        Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
-    };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
+    let kernel_layout =
+        match tensor_layout_info(&state.interpreter.isolate.image.tree, *kernel_type) {
+            Ok(layout) => layout,
+            Err(error) => return ControlFlow::Error(error),
+        };
+    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1329,15 +1339,17 @@ pub(crate) fn handle_tensor_gather(
     };
 
     // resolve layouts
-    let operand_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *operand_type) {
-        Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
-    };
-    let indices_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *indices_type) {
-        Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
-    };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
+    let operand_layout =
+        match tensor_layout_info(&state.interpreter.isolate.image.tree, *operand_type) {
+            Ok(layout) => layout,
+            Err(error) => return ControlFlow::Error(error),
+        };
+    let indices_layout =
+        match tensor_layout_info(&state.interpreter.isolate.image.tree, *indices_type) {
+            Ok(layout) => layout,
+            Err(error) => return ControlFlow::Error(error),
+        };
+    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1478,19 +1490,22 @@ pub(crate) fn handle_tensor_scatter(
     };
 
     // resolve layouts
-    let operand_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *operand_type) {
-        Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
-    };
-    let indices_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *indices_type) {
-        Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
-    };
-    let updates_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *updates_type) {
-        Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
-    };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
+    let operand_layout =
+        match tensor_layout_info(&state.interpreter.isolate.image.tree, *operand_type) {
+            Ok(layout) => layout,
+            Err(error) => return ControlFlow::Error(error),
+        };
+    let indices_layout =
+        match tensor_layout_info(&state.interpreter.isolate.image.tree, *indices_type) {
+            Ok(layout) => layout,
+            Err(error) => return ControlFlow::Error(error),
+        };
+    let updates_layout =
+        match tensor_layout_info(&state.interpreter.isolate.image.tree, *updates_type) {
+            Ok(layout) => layout,
+            Err(error) => return ControlFlow::Error(error),
+        };
+    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1635,7 +1650,7 @@ pub(crate) fn handle_tensor_convert(
     };
 
     // resolve tensor types
-    let source_type = match state.interpreter.isolate.tree.get(*source_type) {
+    let source_type = match state.interpreter.isolate.image.tree.get(*source_type) {
         mir::Type::Tensor { element, .. } => *element,
         _ => {
             return ControlFlow::Error(Error::TypeMismatch {
@@ -1644,10 +1659,11 @@ pub(crate) fn handle_tensor_convert(
             });
         }
     };
-    let dest_type_info = state.interpreter.isolate.tree.get(*dest_type);
+    let dest_type_info = state.interpreter.isolate.image.tree.get(*dest_type);
     let (dest_element, dest_layout) = match dest_type_info {
         mir::Type::Tensor { element, .. } => {
-            let layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
+            let layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type)
+            {
                 Ok(layout) => layout,
                 Err(error) => return ControlFlow::Error(error),
             };
@@ -1678,11 +1694,13 @@ pub(crate) fn handle_tensor_convert(
         }
 
         // resolve conversion types
-        let source_info = match scalar_type_info(&state.interpreter.isolate.tree, source_type) {
+        let source_info = match scalar_type_info(&state.interpreter.isolate.image.tree, source_type)
+        {
             Ok(info) => info,
             Err(error) => return ControlFlow::Error(error),
         };
-        let dest_info = match scalar_type_info(&state.interpreter.isolate.tree, dest_element) {
+        let dest_info = match scalar_type_info(&state.interpreter.isolate.image.tree, dest_element)
+        {
             Ok(info) => info,
             Err(error) => return ControlFlow::Error(error),
         };
@@ -1730,15 +1748,16 @@ pub(crate) fn handle_tensor_compare(
     };
 
     // resolve layouts
-    let left_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *left_type) {
+    let left_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *left_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
-    let right_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *right_type) {
+    let right_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *right_type)
+    {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
+    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1819,7 +1838,7 @@ pub(crate) fn handle_tensor_select(
         unreachable!()
     };
 
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
+    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1917,11 +1936,12 @@ pub(crate) fn handle_tensor_view(
     };
 
     // resolve layouts
-    let source_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *source_type) {
-        Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
-    };
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
+    let source_layout =
+        match tensor_layout_info(&state.interpreter.isolate.image.tree, *source_type) {
+            Ok(layout) => layout,
+            Err(error) => return ControlFlow::Error(error),
+        };
+    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *dest_type) {
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };

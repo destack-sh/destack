@@ -1,5 +1,7 @@
+use serde::{Deserialize, Serialize};
+
 /// Statistics collected during interpreter execution.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Statistics {
     /// Total number of MIR instructions executed (original IR).
     pub mir_instructions_executed: u64,

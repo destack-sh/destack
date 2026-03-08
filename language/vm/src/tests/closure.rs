@@ -1,6 +1,6 @@
 use crate::diagnostic::Error;
-use crate::memory::Value;
 use crate::tests::{create_isolate, run_mir, run_mir_expect};
+use destack_heap::Value;
 
 /// Closure env state is preserved across repeated calls in one isolate.
 #[test]

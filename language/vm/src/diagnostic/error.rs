@@ -95,8 +95,8 @@ pub enum Error {
     /// Invalid array element access.
     InvalidArrayAccess { index: u64, length: u64 } = 17,
 
-    /// Invalid heap handle (dangling reference).
-    InvalidHeapHandle = 18,
+    /// Invalid managed pointer (dangling reference).
+    InvalidManagedPointer = 18,
 
     /// Unsupported instruction for comptime evaluation.
     UnsupportedInstruction { name: String } = 19,
@@ -201,7 +201,9 @@ impl Error {
             Self::InvalidArrayAccess { index, length } => {
                 format!("invalid array access: index {index}, array has {length} elements")
             }
-            Self::InvalidHeapHandle => "invalid heap handle (dangling reference)".to_string(),
+            Self::InvalidManagedPointer => {
+                "invalid managed pointer (dangling reference)".to_string()
+            }
             Self::UnsupportedInstruction { name } => {
                 format!("unsupported instruction for comptime: {name}")
             }

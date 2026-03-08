@@ -3,8 +3,10 @@ use std::ptr::NonNull;
 use destack_mir as mir;
 
 use super::super::decode::{INVALID_VALUE_ID, ThreadedBlock, ThreadedFunction};
+use super::interpreter::ThreadedFunctionTable;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::memory::{HeapCell, HeapHandle, Value};
+use crate::snapshot::FrameSnapshot;
+use destack_heap::{HeapCell, ManagedPointer, Value};
 
 /// Call frame in the interpreter.
 #[derive(Debug)]
@@ -222,8 +224,13 @@ impl Frame {
         self.stack_cells.get_mut(slot)
     }
 
-    /// Collect all heap handles from this frame for GC roots.
-    pub fn collect_roots(&self, values: &[Value], locals: &[Value], roots: &mut Vec<HeapHandle>) {
+    /// Collect all managed pointers from this frame for GC roots.
+    pub fn collect_roots(
+        &self,
+        values: &[Value],
+        locals: &[Value],
+        roots: &mut Vec<ManagedPointer>,
+    ) {
         // validate stack bounds in debug builds
         debug_assert!(
             self.value_base + self.value_count <= values.len(),
@@ -238,28 +245,28 @@ impl Frame {
         let value_slice = &values[self.value_base..self.value_base + self.value_count];
         let local_slice = &locals[self.local_base..self.local_base + self.local_count];
 
-        // collect handles from values
+        // collect pointers from values
         for value in value_slice {
-            Self::collect_handles_from_value(value, roots);
+            Self::collect_pointers_from_value(value, roots);
         }
 
-        // collect handles from locals
+        // collect pointers from locals
         for value in local_slice {
-            Self::collect_handles_from_value(value, roots);
+            Self::collect_pointers_from_value(value, roots);
         }
 
-        // collect handles from stack cells
+        // collect pointers from stack cells
         for cell in &self.stack_cells {
             for value in &cell.slots {
-                Self::collect_handles_from_value(value, roots);
+                Self::collect_pointers_from_value(value, roots);
             }
         }
     }
 
-    /// Collect heap handle from a value if applicable.
-    fn collect_handles_from_value(value: &Value, roots: &mut Vec<HeapHandle>) {
-        if let Some(handle) = value.as_heap_handle() {
-            roots.push(handle);
+    /// Collect one managed pointer from a value if applicable.
+    fn collect_pointers_from_value(value: &Value, roots: &mut Vec<ManagedPointer>) {
+        if let Some(pointer) = value.as_managed_pointer() {
+            roots.push(pointer);
         }
     }
 
@@ -289,5 +296,81 @@ impl Frame {
             closure_env: self.closure_env,
             return_destination: self.return_destination,
         }
+    }
+
+    /// Capture one durable frame snapshot.
+    pub(crate) fn snapshot(&self) -> FrameSnapshot {
+        FrameSnapshot {
+            function: self.function,
+            entry_block: self.entry_block,
+            current_block: self.current_block,
+            block_index: self.block_index,
+            resume_pc: self.resume_pc,
+            value_base: self.value_base,
+            value_count: self.value_count,
+            local_base: self.local_base,
+            local_count: self.local_count,
+            stack_cells: self.stack_cells.clone(),
+            closure_env: self.closure_env,
+            return_destination: self.return_destination,
+        }
+    }
+
+    /// Restore one frame from a durable snapshot.
+    pub(crate) fn restore(
+        snapshot: &FrameSnapshot,
+        threaded_functions: &ThreadedFunctionTable,
+    ) -> RuntimeResult<Self> {
+        // resolve the threaded function for this frame
+        let threaded_index = threaded_functions
+            .index_for(snapshot.function)
+            .ok_or_else(|| {
+                RuntimeError::new(Error::UndefinedFunction {
+                    function: snapshot.function,
+                })
+            })?;
+
+        let threaded = threaded_functions
+            .get_ptr_by_index(threaded_index)
+            .ok_or_else(|| {
+                RuntimeError::new(Error::UndefinedFunction {
+                    function: snapshot.function,
+                })
+            })?;
+
+        // resolve the current block pointer from the threaded function
+        let threaded_ref = unsafe { threaded.as_ref() };
+        let block = threaded_ref
+            .blocks
+            .get(snapshot.block_index)
+            .ok_or_else(|| {
+                RuntimeError::new(Error::UndefinedBlock {
+                    block: snapshot.current_block,
+                })
+            })?;
+
+        // validate the restored block identity
+        if block.mir_block != snapshot.current_block {
+            return Err(RuntimeError::new(Error::UndefinedBlock {
+                block: snapshot.current_block,
+            }));
+        }
+
+        Ok(Self {
+            function: snapshot.function,
+            threaded,
+            block_ptr: NonNull::from(block),
+            entry_block: snapshot.entry_block,
+            current_block: snapshot.current_block,
+            block_index: snapshot.block_index,
+            resume_pc: snapshot.resume_pc,
+            value_base: snapshot.value_base,
+            value_count: snapshot.value_count,
+            local_base: snapshot.local_base,
+            local_count: snapshot.local_count,
+            stack_cells: snapshot.stack_cells.clone(),
+            closure_env: snapshot.closure_env,
+            return_destination: snapshot.return_destination,
+        })
     }
 }

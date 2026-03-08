@@ -1,6 +1,6 @@
 use crate::diagnostic::Error;
-use crate::memory::Value;
 use crate::tests::{run_mir, run_mir_expect, run_mir_ok};
+use destack_heap::Value;
 
 /// Global constant can be read.
 #[test]

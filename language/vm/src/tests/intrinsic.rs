@@ -1,7 +1,7 @@
 //! Tests for intrinsic execution.
 
-use crate::memory::Value;
 use crate::tests::{create_aggregate, run_mir, run_mir_expect, run_mir_ok, run_mir_with_ok};
+use destack_heap::Value;
 
 // bit manipulation
 

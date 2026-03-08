@@ -4,6 +4,7 @@ use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{ComptimeOutput, ModuleComptime, ModuleDir, ProfileId, TrustPolicy};
 
 use super::{ComptimePatch, collect_comptime_dependencies};
+use vm::{Heap, ManagedHeap, RawHeap};
 use {destack_dir as dir, destack_vm as vm};
 
 impl Compiler {
@@ -299,7 +300,7 @@ impl Compiler {
             };
             options.apply_trust_policy(trust_policy);
 
-            let mut isolate = vm::Isolate::with_options(
+            let mut isolate = vm::Isolate::build_with_options(
                 mir_tree,
                 strings.into_immutable(), // TODO #Performance: avoid cloning the string pool
                 options,
@@ -308,17 +309,25 @@ impl Compiler {
                 module: module_id,
                 message: format!("{error}"),
             })?;
-            let output = isolate.run_function(function_id, &[]).map_err(|error| {
-                ExecuteError::FailedExecution {
+            let heap = Heap::new(ManagedHeap::new(), RawHeap::new());
+            let mut heap = heap;
+            isolate
+                .initialize(&mut heap)
+                .map_err(|error| ExecuteError::FailedExecution {
                     module: module_id,
                     message: format!("{error}"),
-                }
-            })?;
+                })?;
+            let output = isolate
+                .run_function(&mut heap, function_id, &[])
+                .map_err(|error| ExecuteError::FailedExecution {
+                    module: module_id,
+                    message: format!("{error}"),
+                })?;
 
             // convert the vm value to a static expression
             let vm_value = output.value;
             let dir_value = self
-                .value_to_static_expression(&isolate, &vm_value)
+                .value_to_static_expression(&isolate, &heap, &vm_value)
                 .ok_or_else(|| ExecuteError::FailedExecution {
                     module: module_id,
                     message: "unsupported comptime result".to_string(),

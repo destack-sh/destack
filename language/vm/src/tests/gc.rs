@@ -1,4 +1,4 @@
-use crate::memory::{HeapHandle, ManagedHeap, Value};
+use destack_heap::{ManagedHeap, ManagedPointer, Value};
 
 /// Garbage collection removes cells not reachable from roots.
 #[test]
@@ -13,7 +13,7 @@ fn test_gc_collects_unreachable() {
     assert_eq!(heap.cell_count(), 3);
 
     // only keep handle1 and handle2 as roots
-    heap.collect(&[handle1, handle2]);
+    heap.collect_handles([handle1, handle2]);
 
     // handle3 should be collected
     assert_eq!(heap.cell_count(), 2);
@@ -29,7 +29,7 @@ fn test_gc_preserves_reachable() {
     let handle1 = heap.allocate();
     let handle2 = heap.allocate();
 
-    heap.collect(&[handle1, handle2]);
+    heap.collect_handles([handle1, handle2]);
 
     assert_eq!(heap.cell_count(), 2);
     assert!(heap.get(handle1).is_some());
@@ -52,7 +52,7 @@ fn test_gc_follows_references() {
     assert_eq!(heap.cell_count(), 4);
 
     // only root is in the roots list, but child1 and child2 should be preserved
-    heap.collect(&[root]);
+    heap.collect_handles([root]);
 
     assert_eq!(heap.cell_count(), 3);
     assert!(heap.get(root).is_some());
@@ -86,7 +86,7 @@ fn test_gc_handles_cycles() {
     assert_eq!(heap.cell_count(), 4);
 
     // collect with only 'a' as root
-    heap.collect(&[a]);
+    heap.collect_handles([a]);
 
     // cycle should be preserved, unreachable should be collected
     assert_eq!(heap.cell_count(), 2);
@@ -106,7 +106,7 @@ fn test_gc_empty_roots() {
     assert_eq!(heap.cell_count(), 3);
 
     // no roots = collect everything
-    heap.collect(&[]);
+    heap.collect_handles([]);
 
     assert_eq!(heap.cell_count(), 0);
 }
@@ -123,7 +123,7 @@ fn test_gc_multiple_references_to_same_cell() {
     assert_eq!(heap.cell_count(), 3);
 
     // both holders reference the same shared cell
-    heap.collect(&[holder1, holder2]);
+    heap.collect_handles([holder1, holder2]);
 
     assert_eq!(heap.cell_count(), 3);
     assert!(heap.get(shared).is_some());
@@ -147,7 +147,7 @@ fn test_gc_handles_aggregates() {
 
     assert_eq!(heap.cell_count(), 4);
 
-    heap.collect(&[parent]);
+    heap.collect_handles([parent]);
 
     // parent, inner_agg, and child should be preserved
     assert_eq!(heap.cell_count(), 3);
@@ -164,12 +164,12 @@ fn test_gc_invalid_root_ignored() {
     let valid = heap.allocate();
 
     // create an invalid handle
-    let invalid = HeapHandle::new(9999);
+    let invalid = ManagedPointer::new(9999);
 
     assert_eq!(heap.cell_count(), 1);
 
     // gc should not crash with invalid roots
-    heap.collect(&[valid, invalid]);
+    heap.collect_handles([valid, invalid]);
 
     assert_eq!(heap.cell_count(), 1);
     assert!(heap.get(valid).is_some());
@@ -183,13 +183,13 @@ fn test_gc_repeated_collection() {
     let root = heap.allocate();
     let _garbage = heap.allocate();
 
-    heap.collect(&[root]);
+    heap.collect_handles([root]);
     assert_eq!(heap.cell_count(), 1);
 
     // allocate more garbage
     let _more_garbage = heap.allocate();
     let _even_more = heap.allocate();
 
-    heap.collect(&[root]);
+    heap.collect_handles([root]);
     assert_eq!(heap.cell_count(), 1);
 }
