@@ -587,30 +587,33 @@ fn expression_has_multiline_block_postfix_annotation(
     ctx: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(annotation_ids) = ctx.annotations(expression_id) else {
+    if !ctx.has_postfix_annotation(expression_id) {
         return false;
-    };
+    }
 
-    annotation_ids.into_iter().any(|annotation_id| {
-        let Annotation::Comment { node, position } = ctx.annotation(annotation_id) else {
-            return false;
-        };
-        if !matches!(
-            position,
-            AnnotationPosition::LinePostfix
-                | AnnotationPosition::LinePostfixBoundary
-                | AnnotationPosition::BlockPostfix
-        ) {
-            return false;
-        }
+    ctx.visit_annotations(expression_id, |annotation_ids| {
+        annotation_ids.iter().copied().any(|annotation_id| {
+            let Annotation::Comment { node, position } = ctx.annotation(annotation_id) else {
+                return false;
+            };
+            if !matches!(
+                position,
+                AnnotationPosition::LinePostfix
+                    | AnnotationPosition::LinePostfixBoundary
+                    | AnnotationPosition::BlockPostfix
+            ) {
+                return false;
+            }
 
-        let comment = ctx.tree.get::<Comment>(node);
-        if comment.style != CommentStyle::Star {
-            return false;
-        }
+            let comment = ctx.tree.get::<Comment>(node);
+            if comment.style != CommentStyle::Star {
+                return false;
+            }
 
-        ctx.has_newline(ctx.annotation_span(annotation_id))
+            ctx.has_newline(ctx.annotation_span(annotation_id))
+        })
     })
+    .unwrap_or(false)
 }
 
 /// Return whether one statement wrapper should delay semicolon emission to after postfix docs.
@@ -893,9 +896,9 @@ fn format_using_expression<'ast>(
 /// Return whether block annotations include a block prefix annotation.
 fn block_has_block_prefix_annotation(
     ctx: &DestackFormatContext<'_>,
-    block_id: LocalNodeId<Block>,
+    body: LocalNodeId<Block>,
 ) -> bool {
-    let Some(annotations) = ctx.annotations(block_id) else {
+    let Some(annotations) = ctx.annotations(body) else {
         return false;
     };
 
@@ -922,9 +925,9 @@ fn block_has_block_prefix_annotation(
 /// Return whether block annotations include a line prefix annotation.
 fn block_has_line_prefix_annotation(
     ctx: &DestackFormatContext<'_>,
-    block_id: LocalNodeId<Block>,
+    body: LocalNodeId<Block>,
 ) -> bool {
-    let Some(annotations) = ctx.annotations(block_id) else {
+    let Some(annotations) = ctx.annotations(body) else {
         return false;
     };
 

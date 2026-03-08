@@ -152,7 +152,7 @@ pub(crate) fn format_for_each_binding_pattern<'ast>(
     }
 }
 
-/// Return whether expression annotations include a block prefix annotation.
+/// Return whether an if branch should include a space after the condition head.
 fn expression_has_block_prefix_annotation(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
@@ -427,19 +427,7 @@ fn match_case_has_line_postfix_boundary_annotation(
     context: &DestackFormatContext<'_>,
     case_id: LocalNodeId<MatchCase>,
 ) -> bool {
-    let Some(annotation_ids) = context.annotations(case_id) else {
-        return false;
-    };
-
-    annotation_ids.iter().copied().any(|annotation_id| {
-        matches!(
-            context.annotation(annotation_id),
-            Annotation::Comment {
-                position: AnnotationPosition::LinePostfixBoundary,
-                ..
-            }
-        )
-    })
+    context.has_boundary_comment_annotation(case_id)
 }
 
 /// Return whether one match case has an inline block boundary comment.
@@ -447,22 +435,27 @@ fn match_case_has_inline_star_line_postfix_boundary_comment(
     context: &DestackFormatContext<'_>,
     case_id: LocalNodeId<MatchCase>,
 ) -> bool {
-    let Some(annotation_ids) = context.annotations(case_id) else {
+    if !context.has_boundary_comment_annotation(case_id) {
         return false;
-    };
+    }
 
-    annotation_ids.iter().copied().any(|annotation_id| {
-        let Annotation::Comment {
-            node,
-            position: AnnotationPosition::LinePostfixBoundary,
-        } = context.annotation(annotation_id)
-        else {
-            return false;
-        };
+    context
+        .visit_annotations(case_id, |annotation_ids| {
+            annotation_ids.iter().copied().any(|annotation_id| {
+                let Annotation::Comment {
+                    node,
+                    position: AnnotationPosition::LinePostfixBoundary,
+                } = context.annotation(annotation_id)
+                else {
+                    return false;
+                };
 
-        let comment = context.tree.get(node);
-        comment.style == CommentStyle::Star && !context.annotation_starts_on_own_line(annotation_id)
-    })
+                let comment = context.tree.get(node);
+                comment.style == CommentStyle::Star
+                    && !context.annotation_starts_on_own_line(annotation_id)
+            })
+        })
+        .unwrap_or(false)
 }
 
 /// Format a match selector according to the selected case style.
