@@ -8,7 +8,7 @@ use std::sync::Arc;
 #[cfg(feature = "parser_timings")]
 use std::time::Instant;
 
-use crate::{TokenStream, TokenStreamCursor, TokenStreamMark, is_semantic};
+use crate::{TokenStream, TokenStreamCursor, TokenStreamMark, is_semantic, keyword_from_identifier};
 use destack_ast::{
     BlockFormat, Expression, Keyword, LocalNodeId, NodeTree, NodeTreeMark, StringId, Token,
     TokenSpan, TokenType,
@@ -1464,8 +1464,25 @@ impl Parser {
     /// Look up a keyword at a token index.
     #[inline]
     pub(crate) fn keyword_for_index(&mut self, index: usize) -> Option<Keyword> {
+        if index >= self.tokens().len() {
+            self.ensure_token(index);
+        }
+
+        if !self
+            .tokens()
+            .get(index)
+            .is_some_and(|token| token.token.ty == TokenType::Identifier)
+        {
+            return None;
+        }
+
         let _timing = self.timing_scope(crate::parse::timing::tags::PARSE_LEX_KEYWORD);
-        self.token_stream.keyword_at(index)
+        let token = self
+            .tokens()
+            .get(index)
+            .copied()
+            .expect("identifier token should be materialized");
+        keyword_from_identifier(self.file.span_str(token.span))
     }
 
     /// Return whether an identifier token contains escape syntax.
