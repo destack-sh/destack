@@ -8,7 +8,7 @@ use std::{panic, thread};
 #[cfg(feature = "affinity")]
 use crate::host::apple::message as apple_host_message;
 #[cfg(feature = "affinity")]
-use crate::tests::{platform as platform_tests, runtime as runtime_tests};
+use crate::tests::registry as affinity_registry;
 
 /// Environment marker for subprocess affinity execution.
 #[cfg(target_os = "macos")]
@@ -50,8 +50,7 @@ pub(crate) fn run_main_thread_case_or_return(case_name: &str) -> bool {
 pub fn run_affinity_case(case_name: &str) {
     let case_name = case_name.to_string();
     run_with_apple_main_thread_service(move || {
-        let handled = platform_tests::run_affinity_case(case_name.as_str())
-            || runtime_tests::run_affinity_case(case_name.as_str());
+        let handled = affinity_registry::run_affinity_case(case_name.as_str());
 
         assert!(handled, "unknown affinity case: {case_name}");
     });
