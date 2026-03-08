@@ -28,6 +28,19 @@ This runs the same repository quick gate that CI enforces across language, libra
 Use `just quick` for normal local confidence, `just fmt` for formatting, `just check` for static checks, and `just full` for the deepest local verification sweep.
 See [TESTING.md](TESTING.md) for the full test matrix and suite details.
 
+## Versioning And Status
+
+Destack uses one canonical monorepo release version from [VERSION.txt](VERSION.txt).
+The canonical release history lives in [CHANGELOG.md](CHANGELOG.md).
+Do not bump versions during normal development.
+Only bump versions through `just bump` or `just release`.
+
+Public project inventory and maturity live in [PROJECTS.toml](PROJECTS.toml) and the area README tables.
+Keep the area inventories and `PROJECTS.toml` in sync.
+Run `just check-projects` when you change public project metadata.
+Keep `VERSION.txt` and `CHANGELOG.md` in sync.
+Run `just check-release-drift` when you touch release metadata directly.
+
 ## Commit Style
 
 Use conventional commits for all repository changes.
@@ -61,7 +74,7 @@ To contribute to Destack and build it yourself locally you will need at least `c
 - [Rust](https://rustup.rs/): Rust compiler (`nightly-2025-11-27`, see [rust-toolchain.toml](rust-toolchain.toml))
 - [Bun](https://bun.sh/): JavaScript runtime and package management
 - [just](https://github.com/casey/just): Scripts and command runner
-- [Python](https://python.org/): Scripts and codegen utilities (*optional*)
+- [Python](https://python.org/): Project docs validation and codegen utilities
 
 ## Commands
 
@@ -69,6 +82,8 @@ We use `justfile`s as the source of truth for all commands:
 ```sh
 just install        # setup everything
 just check          # run repository static checks
+just check-projects   # validate project inventory and status labels
+just check-release-drift   # validate VERSION.txt and CHANGELOG.md drift
 just test           # run area test aggregates
 just fmt            # format all code
 just quick          # run the repository quick gate
@@ -94,6 +109,7 @@ just bridge/full
 ## Release
 
 Release CI is tag driven and runs on `v*` pushes.
-Use `just release patch` to prepare a local release commit and tag.
-Use `just push-release` to push the current release commit and tag.
+Use `just release` to prepare a local patch release commit and tag.
+Use `just release patch`, `just release minor`, or `just release major` when you want to choose the bump explicitly.
+Use `just release-push` to push the current release commit and tag.
 See [RELEASE.md](RELEASE.md) for the canonical release runbook, credential matrix, signing model, and failure recovery guidance.

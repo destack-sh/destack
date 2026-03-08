@@ -468,7 +468,7 @@ mod tests {
 
     #[test]
     fn test_should_ignore_path_for_project_template_package() {
-        let path = Path::new("template/create-destack/templates/empty/package.json");
+        let path = Path::new("template/create-destack/templates/blank/package.json");
 
         assert!(should_ignore_path(path));
     }

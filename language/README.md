@@ -6,33 +6,19 @@ See [COMPATIBILITY.md](COMPATIBILITY.md) for the language and target compatibili
 
 The Destack compiler takes source files from a supported language (`.ds`, `.ts`/`.tsx`, `.js`/`.jsx`) and transforms them into final output via several intermediate representations (AST → DIR → MIR). See [compiler/README.md](compiler/README.md) for the full pipeline.
 
-## Crates
+## Projects
 
-The language toolchain is split into several crates, each handling a specific part of the pipeline:
+The language toolchain is split into several Rust crates, each handling a specific part of the pipeline.
 
-| Crate | Description | Link |
-|-------|-------------|------|
-| `ast` | CST-style AST definition | [ast/README.md](ast/README.md) |
-| `base` | Shared utilities (ids, interning, small helpers) | [base/README.md](base/README.md) |
-| `builtin` | Builtin libraries and definitions | [builtin/README.md](builtin/README.md) |
-| `codegen` | Code generation backends (JS, Cranelift) | [codegen/README.md](codegen/README.md) |
-| `compiler` | End-to-end compiler (AST → DIR → MIR) | [compiler/README.md](compiler/README.md) |
-| `dir` | High-level DIR and program definition | [dir/README.md](dir/README.md) |
-| `fir` | Formatter IR used by all formatters | [fir/README.md](fir/README.md) |
-| `formatter` | Source formatter (for `.ds` only) | [formatter/README.md](formatter/README.md) |
-| `heap` | Heap values and runtime memory structures | [heap/README.md](heap/README.md) |
-| `json` | JSON and JSONC AST, parser, and formatter | [json/README.md](json/README.md) |
-| `linter` | Linter rules and interface | [linter/README.md](linter/README.md) |
-| `mir` | Machine-level IR | [mir/README.md](mir/README.md) |
-| `parser` | Lexer and parser (`.(js,jsx,ts,tsx,ds)` → AST) | [parser/README.md](parser/README.md) |
-| `resolver` | JS/TS-style module resolution | [resolver/README.md](resolver/README.md) |
-| `runtime` | Native and WASM runtime support | [runtime/README.md](runtime/README.md) |
-| `service` | Workspace-rooted language tooling orchestration | [service/README.md](service/README.md) |
-| `source` | Source files, spans, diagnostics | [source/README.md](source/README.md) |
-| `test` | Integration tests and fixtures | [test/README.md](test/README.md) |
-| `unicode` | Unicode property tables and utilities | [unicode/README.md](unicode/README.md) |
-| `vm` | MIR interpreter for comptime, debug, and deopt | [vm/README.md](vm/README.md) |
-| `workspace` | Stateful, multi-program workspaces | [workspace/README.md](workspace/README.md) |
+| Project | Status | Summary |
+|---------|--------|---------|
+| [`compiler`](compiler/README.md) | Experimental | End-to-end compiler from AST through DIR to MIR |
+| [`formatter`](formatter/README.md) | Alpha | Canonical source formatter |
+| [`linter`](linter/README.md) | Experimental | Linter rules and linting interface |
+| [`parser`](parser/README.md) | Alpha | Lexer and parser for `.ds`, `.ts`, `.tsx`, `.js`, and `.jsx` |
+| [`resolver`](resolver/README.md) | Alpha | JS and TS style module and package resolution |
+| [`runtime`](runtime/README.md) | Experimental | Native runtime, platform bindings, and host integration |
+| [`workspace`](workspace/README.md) | Experimental | Stateful multi-program workspaces |
 
 ## Commands
 

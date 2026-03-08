@@ -2,11 +2,11 @@
 
 First-party applications and programmer tools.
 
-## Components
+## Projects
 
-| Component | Description | Link |
-|-----------|-------------|------|
-| `cli` | Command-line interface (`destack`, `ds`, `dsc`, `dsx`). | [cli/README.md](cli/README.md) |
+| Project | Status | Summary |
+|---------|--------|---------|
+| [`cli`](cli/README.md) | Alpha | Command-line interface for `destack`, `ds`, `dsc`, and `dsx` |
 
 ## Commands
 

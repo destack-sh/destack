@@ -24,6 +24,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Install Rust and just
@@ -33,6 +34,12 @@ jobs:
 
       - name: Check Hygiene
         run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just check-hygiene
+
+      - name: Check Projects
+        run: just check-projects
+
+      - name: Check Release Drift
+        run: just check-release-drift
 
   language-check:
     name: Language Check

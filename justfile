@@ -71,6 +71,8 @@ alias fmt := format
 # run repository static checks
 check:
     just check-hygiene
+    just check-projects
+    just check-release-drift
     just language/check
     just library/check
     just service/check
@@ -88,6 +90,8 @@ test:
 # run the repository quick gate
 quick:
     just check-hygiene
+    just check-projects
+    just check-release-drift
     just language/quick
     just library/quick
     just service/quick
@@ -114,6 +118,14 @@ check-hygiene:
 # validate ci workflow and target policy architecture
 check-workflow-policy:
     bash scripts/ci/check-workflow-policy.sh
+
+# validate project inventory docs and local status labels
+check-projects:
+    python3 scripts/ci/validate-projects.py
+
+# validate local release metadata drift between VERSION.txt and CHANGELOG.md
+check-release-drift:
+    bash scripts/ci/validate-release-drift.sh
 
 # install ci hygiene toolchains on this host
 install-hygiene-toolchain:
@@ -164,7 +176,7 @@ version:
     @cat VERSION.txt
 
 # bump version: major, minor, or patch
-bump kind:
+bump kind="patch":
     cargo run --release -p destack_cli -- dev version {{ kind }}
 
 # generate or refresh the changelog entry for VERSION.txt
@@ -197,9 +209,9 @@ publish-release-local:
     bash scripts/ci/publish-release-local.sh
 
 # create a new release (bump, validate, changelog, commit, tag)
-release kind:
+release kind="patch":
     bash scripts/ci/create-release.sh "{{kind}}"
 
 # push the current release commit and tag
-push-release:
-    bash scripts/ci/push-release.sh
+release-push:
+    bash scripts/ci/release-push.sh

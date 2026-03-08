@@ -3,13 +3,12 @@
 The Destack standard library.
 Integrated packages for building full-stack applications with Destack.
 
-## Packages
+## Projects
 
-| Package | Description | Link |
-|---------|-------------|------|
-| `entity` | Core entity system, events, and paths | [entity/README.md](entity/README.md) |
-| `test` | Testing utilities | [test/README.md](test/README.md) |
-| `schema` | Shared schemas for cross-package contracts | [schema/README.md](schema/README.md) |
+| Project | Status | Summary |
+|---------|--------|---------|
+| [`schema`](schema/README.md) | Experimental | Shared schemas for cross-package contracts |
+| [`test`](test/README.md) | Experimental | Library testing utilities and verification support |
 
 ## Commands
 
