@@ -14,19 +14,12 @@ use std::path::PathBuf;
 
 #[cfg(target_os = "windows")]
 fn normalize_windows_fixture_root(fixture_root: PathBuf) -> PathBuf {
+    use destack_source::{PathExt, strip_windows_prefix};
+
     let fixture_root = std::fs::canonicalize(&fixture_root).unwrap_or(fixture_root);
-    let fixture_root_text = fixture_root.to_string_lossy();
+    let fixture_root = strip_windows_prefix(fixture_root.clone()).unwrap_or(fixture_root);
 
-    if let Some(stripped) = fixture_root_text.strip_prefix(r"\\?\") {
-        return PathBuf::from(stripped);
-    }
-
-    if let Some(stripped) = fixture_root_text.strip_prefix("//?/") {
-        let stripped = stripped.replace('/', r"\");
-        return PathBuf::from(stripped);
-    }
-
-    fixture_root
+    fixture_root.normalize()
 }
 
 pub(crate) fn fixture_root() -> PathBuf {

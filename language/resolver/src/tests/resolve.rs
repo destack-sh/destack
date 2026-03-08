@@ -275,10 +275,9 @@ fn test_resolve_dot_spelled_out() {
 #[test]
 fn test_resolve_abnormal_relative() {
     let f = fixture_root().join("abnormal-relative-with-node_modules");
-    assert!(
-        f.join("node_modules").is_dir(),
-        "abnormal-relative-with-node_modules must contain node_modules fixture directory"
-    );
+
+    // keep the empty fixture directory present across checkouts
+    std::fs::create_dir_all(f.join("node_modules")).unwrap();
 
     let base = f.join("foo/bar/baz");
 

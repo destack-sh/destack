@@ -4,6 +4,8 @@ use std::hash::{BuildHasherDefault, Hash, Hasher};
 use std::io;
 use std::path::{Component, Path, PathBuf};
 
+#[cfg(target_os = "windows")]
+use destack_source::strip_windows_prefix;
 use destack_source::{FileMetadata, PathExt};
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -53,6 +55,15 @@ pub(crate) fn append_extension(path: &Path, extension: &str) -> PathBuf {
 }
 
 impl Resolver {
+    /// Normalize one Windows path and reject unsupported DOS device forms.
+    #[cfg(target_os = "windows")]
+    fn normalize_windows_path(path: &Path) -> Result<PathBuf, ResolveError> {
+        let normalized = path.normalize();
+        strip_windows_prefix(normalized.clone())
+            .map(|path| path.normalize())
+            .map_err(|_| ResolveError::UnsupportedPath { path: normalized })
+    }
+
     /// Read a path as bytes, with optional Yarn PnP virtual/zip support.
     pub(crate) fn read_path(&self, path: &Path) -> io::Result<Vec<u8>> {
         #[cfg(not(target_arch = "wasm32"))]
@@ -213,7 +224,7 @@ impl Resolver {
             })?;
 
         #[cfg(target_os = "windows")]
-        let result = Self::normalize_root(&result);
+        let result = Self::normalize_windows_path(&result)?;
 
         Ok(result)
     }
@@ -242,6 +253,9 @@ impl Resolver {
                     let normalized = parent_canonical
                         .normalize_with(path.strip_prefix(parent).unwrap_or(Path::new("")));
 
+                    #[cfg(target_os = "windows")]
+                    let normalized = Self::normalize_windows_path(&normalized)?;
+
                     // follow symlink targets explicitly to match oxc semantics on windows
                     if self
                         .symlink_metadata(path)
@@ -263,13 +277,23 @@ impl Resolver {
 
                         // absolute symlink target
                         if link.is_absolute() {
-                            return self.canonicalize_recursive(&link.normalize(), visited);
+                            #[cfg(target_os = "windows")]
+                            let link = Self::normalize_windows_path(&link)?;
+
+                            #[cfg(not(target_os = "windows"))]
+                            let link = link.normalize();
+
+                            return self.canonicalize_recursive(&link, visited);
                         }
 
                         // relative symlink target
                         if let Some(directory) = normalized.parent() {
-                            return self
-                                .canonicalize_recursive(&directory.normalize_with(&link), visited);
+                            let link = directory.normalize_with(&link);
+
+                            #[cfg(target_os = "windows")]
+                            let link = Self::normalize_windows_path(&link)?;
+
+                            return self.canonicalize_recursive(&link, visited);
                         }
                     }
 
@@ -287,13 +311,7 @@ impl Resolver {
     /// Normalize a root path to remove extended path prefix on Windows.
     #[cfg(target_os = "windows")]
     fn normalize_root(path: &Path) -> PathBuf {
-        const VERBATIM: &str = r"\\?\";
-        let path_str = path.to_string_lossy();
-        if path_str.starts_with(VERBATIM) {
-            PathBuf::from(&path_str[VERBATIM.len()..])
-        } else {
-            path.to_path_buf()
-        }
+        path.normalize()
     }
 
     #[cfg(not(target_os = "windows"))]
