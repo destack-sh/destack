@@ -1371,7 +1371,7 @@ impl Parser {
             return None;
         }
 
-        let result = loop {
+        loop {
             let value = self.token_stream.matching_pair(index);
             if value.is_some() {
                 break value;
@@ -1382,9 +1382,7 @@ impl Parser {
             }
 
             self.ensure_token(self.tokens().len());
-        };
-
-        result
+        }
     }
 
     /// Return owned token buffers after lexing to EOF.
