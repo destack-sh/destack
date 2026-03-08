@@ -37,7 +37,7 @@ pub(crate) unsafe fn destack_audio_event_close(
             .unwrap_or_else(|error| error.into_inner());
         resolved_binding.options.backend
     };
-    audio_core::unregister_event_binding(&resolved_binding);
+    audio_core::unregister_event_binding(binding, &resolved_binding);
 
     let removed =
         binding
@@ -51,7 +51,7 @@ pub(crate) unsafe fn destack_audio_event_close(
         ));
     }
 
-    let _ = audio_core::refresh_backend_device_monitor(backend);
+    let _ = audio_core::refresh_backend_device_monitor(binding, backend);
 
     Ok(())
 }
@@ -99,9 +99,9 @@ pub(crate) unsafe fn destack_audio_event_open(
             .with_payload(payload.clone()),
         Some(binding.engine()),
     );
-    audio_core::register_event_binding(&payload);
-    if let Err(error) = audio_core::refresh_backend_device_monitor(options.backend) {
-        audio_core::unregister_event_binding(&payload);
+    audio_core::register_event_binding(binding, &payload);
+    if let Err(error) = audio_core::refresh_backend_device_monitor(binding, options.backend) {
+        audio_core::unregister_event_binding(binding, &payload);
         let _ = binding
             .agent()
             .resources

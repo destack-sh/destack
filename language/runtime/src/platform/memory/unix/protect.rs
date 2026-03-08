@@ -5,9 +5,9 @@ use crate::platform::memory::{
 };
 use crate::runtime::BindingCallContext;
 
-use super::core::{
-    REMAP_OPERATION, decode_remap_flags, page_size, unix_protection, validated_range,
-};
+#[cfg(not(target_os = "linux"))]
+use super::core::REMAP_OPERATION;
+use super::core::{decode_remap_flags, page_size, unix_protection, validated_range};
 
 /// Operation tag for instruction-cache flush bindings.
 #[cfg(target_os = "android")]
@@ -95,7 +95,7 @@ pub(crate) unsafe fn destack_memory_remap(
             });
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]

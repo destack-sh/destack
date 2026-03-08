@@ -15,7 +15,7 @@ pub(crate) fn is_backend_supported() -> bool {
     // linux implementation
     #[cfg(target_os = "linux")]
     {
-        return jack_available();
+        jack_available()
     }
 
     // unsupported host

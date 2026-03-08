@@ -754,7 +754,7 @@ pub(crate) unsafe fn destack_fs_fgetxattr_handle(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_setxattr_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathBytes,
     name: NativeSlice<u8>,
     value: NativeSlice<u8>,
@@ -809,7 +809,7 @@ pub(crate) unsafe fn destack_fs_setxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_setxattr_utf16(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathUtf16,
     name: NativeSlice<u8>,
     value: NativeSlice<u8>,
@@ -864,7 +864,7 @@ pub(crate) unsafe fn destack_fs_setxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathBytes,
     name: NativeSlice<u8>,
     value: NativeSlice<u8>,
@@ -919,7 +919,7 @@ pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lsetxattr_utf16(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathUtf16,
     name: NativeSlice<u8>,
     value: NativeSlice<u8>,
@@ -1231,7 +1231,7 @@ pub(crate) unsafe fn destack_fs_flistxattr_handle(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_removexattr_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathBytes,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -1262,7 +1262,7 @@ pub(crate) unsafe fn destack_fs_removexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_removexattr_utf16(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathUtf16,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -1293,7 +1293,7 @@ pub(crate) unsafe fn destack_fs_removexattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathBytes,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -1324,7 +1324,7 @@ pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lremovexattr_utf16(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathUtf16,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {

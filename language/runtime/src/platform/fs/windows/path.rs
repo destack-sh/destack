@@ -44,7 +44,7 @@ const RENAME_WHITEOUT: u32 = 0x4;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_link_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     from: PathBytes,
     to: PathBytes,
 ) -> RuntimeResult<()> {
@@ -79,7 +79,7 @@ pub(crate) unsafe fn destack_fs_link_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_link_utf16(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     from: PathUtf16,
     to: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -220,7 +220,7 @@ pub(crate) unsafe fn destack_fs_linkat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlink_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     target: PathBytes,
     path: PathBytes,
     kind: SymlinkType,
@@ -271,7 +271,7 @@ pub(crate) unsafe fn destack_fs_symlink_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlink_utf16(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     target: PathUtf16,
     path: PathUtf16,
     kind: SymlinkType,
@@ -692,7 +692,7 @@ pub(crate) unsafe fn destack_fs_realpath_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rename_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     from: PathBytes,
     to: PathBytes,
 ) -> RuntimeResult<()> {
@@ -727,7 +727,7 @@ pub(crate) unsafe fn destack_fs_rename_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rename_utf16(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     from: PathUtf16,
     to: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -1130,7 +1130,7 @@ pub(crate) unsafe fn destack_fs_renameat2_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlink_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathBytes,
 ) -> RuntimeResult<()> {
     // decode the path
@@ -1164,7 +1164,7 @@ pub(crate) unsafe fn destack_fs_unlink_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlink_utf16(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
     // decode the path

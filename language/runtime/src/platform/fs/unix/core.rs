@@ -167,28 +167,48 @@ pub(super) fn path_bytes_to_cstring(path: PathBytes, name: &str) -> RuntimeResul
 
 /// Convert one host mode value into the ABI mode width.
 pub(super) fn file_mode_u32(mode: libc::mode_t) -> u32 {
-    #[cfg(target_os = "android")]
+    #[cfg(any(target_os = "android", target_os = "linux"))]
     {
         mode
     }
 
-    #[cfg(not(target_os = "android"))]
+    #[cfg(not(any(target_os = "android", target_os = "linux")))]
     {
-        mode as u32
+        u32::from(mode)
     }
 }
 
 /// Convert one host link-count value into the ABI width.
 pub(super) fn file_nlink_u32(link_count: libc::nlink_t) -> u32 {
-    #[cfg(target_os = "android")]
+    #[cfg(any(target_os = "android", target_os = "linux"))]
     {
         link_count
     }
 
-    #[cfg(not(target_os = "android"))]
+    #[cfg(any(
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "ios",
+        target_os = "macos",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
     {
-        link_count as u32
+        u32::from(link_count)
     }
+
+    // clamp wider host link counts to the ABI width
+    #[cfg(not(any(
+        target_os = "android",
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "ios",
+        target_os = "macos",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    )))]
+    u32::try_from(link_count).unwrap_or(u32::MAX)
 }
 
 /// Map a libc dirent type to our dirent kind.

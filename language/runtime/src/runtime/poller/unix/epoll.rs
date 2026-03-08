@@ -468,7 +468,7 @@ fn nanos_to_timeout_ms(nanos: u64) -> c_int {
     }
 
     // round up to the nearest millisecond
-    let ms = (nanos + 999_999) / 1_000_000;
+    let ms = nanos.div_ceil(1_000_000);
     if ms > i32::MAX as u64 {
         i32::MAX
     } else {

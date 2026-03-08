@@ -2216,7 +2216,7 @@ pub(crate) unsafe fn destack_net_get_timestamping(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_packet_mark(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     _handle: SocketHandle,
     _mark: u32,
 ) -> RuntimeResult<()> {
@@ -2241,7 +2241,7 @@ pub(crate) unsafe fn destack_net_set_packet_mark(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_packet_mark(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     _out: *mut u32,
     _handle: SocketHandle,
 ) -> RuntimeResult<()> {

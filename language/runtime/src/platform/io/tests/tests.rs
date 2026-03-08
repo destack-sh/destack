@@ -505,7 +505,7 @@ fn insert_completion_target_with_host_handle(binding: &BindingCallContext) -> Re
     {
         binding.agent().resources.insert(
             binding.world(),
-            ResourceEntry::new(ResourceKind::File).with_handle(1usize as *mut c_void),
+            ResourceEntry::new(ResourceKind::File).with_handle(std::ptr::dangling_mut::<c_void>()),
             Some(binding.engine()),
         )
     }

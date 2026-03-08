@@ -527,7 +527,7 @@ fn socket_address_native_from_host_port(
 
 #[cfg(windows)]
 fn socket_address_native_from_host_port(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     host: &str,
     port: u16,
     family: SocketFamily,
@@ -559,8 +559,7 @@ fn socket_address_native_from_host_port(
             };
 
             let mut bytes = vec![0u8; 16];
-            let family_bytes =
-                (windows_sys::Win32::Networking::WinSock::AF_INET as u16).to_ne_bytes();
+            let family_bytes = windows_sys::Win32::Networking::WinSock::AF_INET.to_ne_bytes();
             bytes[0] = family_bytes[0];
             bytes[1] = family_bytes[1];
             let port_bytes = port.to_be_bytes();
@@ -568,10 +567,7 @@ fn socket_address_native_from_host_port(
             bytes[3] = port_bytes[1];
             bytes[4..8].copy_from_slice(&ip.octets());
 
-            (
-                windows_sys::Win32::Networking::WinSock::AF_INET as u16,
-                bytes,
-            )
+            (windows_sys::Win32::Networking::WinSock::AF_INET, bytes)
         }
         // encode ipv6 sockaddr bytes
         SocketFamily::IPv6 => {
@@ -599,8 +595,7 @@ fn socket_address_native_from_host_port(
             };
 
             let mut bytes = vec![0u8; 28];
-            let family_bytes =
-                (windows_sys::Win32::Networking::WinSock::AF_INET6 as u16).to_ne_bytes();
+            let family_bytes = windows_sys::Win32::Networking::WinSock::AF_INET6.to_ne_bytes();
             bytes[0] = family_bytes[0];
             bytes[1] = family_bytes[1];
             let port_bytes = port.to_be_bytes();
@@ -608,10 +603,7 @@ fn socket_address_native_from_host_port(
             bytes[3] = port_bytes[1];
             bytes[8..24].copy_from_slice(&ip.octets());
 
-            (
-                windows_sys::Win32::Networking::WinSock::AF_INET6 as u16,
-                bytes,
-            )
+            (windows_sys::Win32::Networking::WinSock::AF_INET6, bytes)
         }
         SocketFamily::Unspecified => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(

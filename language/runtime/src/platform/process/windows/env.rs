@@ -36,7 +36,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_delete(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     use windows_sys::Win32::Foundation::ERROR_ENVVAR_NOT_FOUND;
@@ -79,7 +79,7 @@ pub(crate) unsafe fn destack_process_env_delete(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_delete_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     use windows_sys::Win32::Foundation::ERROR_ENVVAR_NOT_FOUND;
@@ -272,7 +272,7 @@ pub(crate) unsafe fn destack_process_env_get_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_set(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     name: NativeStringRef,
     argument_value: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -318,7 +318,7 @@ pub(crate) unsafe fn destack_process_env_set(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_set_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     name: NativeSlice<u8>,
     argument_value: NativeSlice<u8>,
 ) -> RuntimeResult<()> {

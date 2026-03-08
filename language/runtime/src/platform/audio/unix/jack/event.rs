@@ -1,12 +1,16 @@
+#[cfg(target_os = "linux")]
+use super::super::backend as unix_backend;
 #[cfg(not(target_os = "linux"))]
 use super::super::backend::backend_not_supported;
 #[cfg(target_os = "linux")]
 use super::abi::JackClient;
 #[cfg(target_os = "linux")]
-use super::core::{jack_error, jack_succeeded, require_jack_library};
+use super::core::{JackLibrary, jack_error, jack_succeeded, require_jack_library};
 #[cfg(target_os = "linux")]
 use super::host::{close_jack_client, open_jack_client};
 use crate::diagnostic::RuntimeResult;
+#[cfg(target_os = "linux")]
+use crate::platform::audio::AudioBackend;
 #[cfg(target_os = "linux")]
 use crate::platform::audio::core as audio_core;
 use crate::runtime::BindingCallContext;
@@ -30,8 +34,6 @@ use std::time::Duration;
 struct JackDeviceMonitor {
     /// Signal used to stop the monitor thread.
     stop: Arc<AtomicBool>,
-    /// Pending callback signal shared with JACK callback threads.
-    pending: Arc<AtomicBool>,
     /// Running monitor thread.
     handle: JoinHandle<()>,
     /// Active reference count for subscriptions using this monitor.
@@ -94,7 +96,7 @@ fn register_runtime_finalizer(
 pub(crate) fn native_device_events_supported() -> bool {
     #[cfg(target_os = "linux")]
     {
-        return unix_core::backend_supported(AudioBackend::Jack);
+        unix_backend::backend_supported(AudioBackend::Jack)
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -109,7 +111,7 @@ pub(crate) fn start_native_device_event_monitor(
 ) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]
     {
-        let monitor_runtime_state = jack_monitor_runtime_state(binding);
+        let monitor_runtime_state = jack_monitor_runtime_state(_binding);
         let mut monitor_slot = monitor_runtime_state
             .monitor
             .lock()
@@ -121,7 +123,7 @@ pub(crate) fn start_native_device_event_monitor(
 
         let stop = Arc::new(AtomicBool::new(false));
         let pending = Arc::new(AtomicBool::new(false));
-        let runtime_state = audio_core::audio_event_runtime_state(binding);
+        let runtime_state = audio_core::audio_event_runtime_state(_binding);
         let stop_signal = Arc::clone(&stop);
         let pending_signal = Arc::clone(&pending);
         let callback_runtime_state = Arc::clone(&runtime_state);
@@ -152,12 +154,11 @@ pub(crate) fn start_native_device_event_monitor(
 
         *monitor_slot = Some(JackDeviceMonitor {
             stop,
-            pending,
             handle,
             reference_count: 1,
         });
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -170,7 +171,7 @@ pub(crate) fn start_native_device_event_monitor(
 pub(crate) fn stop_native_device_event_monitor(_binding: &BindingCallContext) {
     #[cfg(target_os = "linux")]
     {
-        let runtime_state = jack_monitor_runtime_state(binding);
+        let runtime_state = jack_monitor_runtime_state(_binding);
         let monitor = {
             let mut monitor_slot = runtime_state
                 .monitor
@@ -262,11 +263,11 @@ fn run_device_monitor_thread(
 /// Install callback hooks for JACK monitor-side graph notifications.
 #[cfg(target_os = "linux")]
 fn install_monitor_callbacks(
-    library: &jack_core::JackLibrary,
+    library: &JackLibrary,
     client: *mut JackClient,
     pending: &Arc<AtomicBool>,
 ) -> RuntimeResult<()> {
-    let callback_argument = Arc::as_ptr(pending) as *const AtomicBool as *mut std::ffi::c_void;
+    let callback_argument = Arc::as_ptr(pending) as *mut std::ffi::c_void;
 
     let registration_status = unsafe {
         (library.api.jack_set_port_registration_callback)(

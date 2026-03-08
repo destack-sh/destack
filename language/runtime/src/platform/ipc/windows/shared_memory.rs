@@ -274,7 +274,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_unmap(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {

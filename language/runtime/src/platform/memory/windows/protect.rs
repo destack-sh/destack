@@ -44,7 +44,7 @@ fn protection_allows_read(protection: u32) -> bool {
 
 /// Change memory protection for one range.
 pub(crate) unsafe fn destack_memory_protect(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     address: u64,
     length: u64,
     protection: MemoryProtection,
@@ -78,7 +78,7 @@ pub(crate) unsafe fn destack_memory_protect(
 
 /// Resize one mapped range.
 pub(crate) unsafe fn destack_memory_remap(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut ProtectedMemoryRange,
     address: u64,
     oldlength: u64,
@@ -205,7 +205,7 @@ pub(crate) unsafe fn destack_memory_remap(
 
 /// Flush instruction cache for one range.
 pub(crate) unsafe fn destack_memory_flush_instruction_cache(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {

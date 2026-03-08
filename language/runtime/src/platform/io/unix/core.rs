@@ -240,7 +240,7 @@ fn write_event_payload(descriptor: c_int, payload: &[u8]) -> RuntimeResult<()> {
 pub(crate) fn host_completion_create_proactor(entries: u32) -> RuntimeResult<Box<dyn Proactor>> {
     #[cfg(target_os = "linux")]
     {
-        return Ok(Box::new(IoUringProactor::with_entries(entries)?));
+        Ok(Box::new(IoUringProactor::with_entries(entries)?))
     }
 
     #[cfg(all(unix, not(target_os = "linux")))]
@@ -505,7 +505,7 @@ pub(crate) fn host_event_open(
                 .agent()
                 .resources
                 .insert(binding.world(), entry, Some(binding.engine()));
-        return Ok(EventToken(resource_id.0));
+        Ok(EventToken(resource_id.0))
     }
 
     #[cfg(all(unix, not(target_os = "linux")))]

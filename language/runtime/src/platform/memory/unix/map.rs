@@ -5,9 +5,11 @@ use crate::platform::memory::{
 };
 use crate::runtime::BindingCallContext;
 
+#[cfg(not(target_os = "linux"))]
+use super::core::NUMA_BIND_OPERATION;
 use super::core::{
-    NUMA_BIND_OPERATION, decode_reserve_flags, page_size, to_size_t, unix_protection,
-    validated_hint, validated_range, zero_offset,
+    decode_reserve_flags, page_size, to_size_t, unix_protection, validated_hint, validated_range,
+    zero_offset,
 };
 
 /// Reserve one virtual memory range.
@@ -170,13 +172,14 @@ pub(crate) unsafe fn destack_memory_numa_bind(
             return Err(core_platform::io_error("mbind", None));
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]
     {
         // mark unsupported numa-bind operation on this unix backend
-        let _ = (pointer, length, policy, nodemask);
+        let _ = (pointer, length);
+        let _ = (policy, nodemask);
         Err(core_platform::not_supported(NUMA_BIND_OPERATION))
     }
 }

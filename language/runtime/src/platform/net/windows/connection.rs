@@ -406,13 +406,17 @@ pub(crate) unsafe fn destack_net_close(
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
     // remove the resource entry
-    let entry = binding.agent().resources.remove(handle.0).ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown socket handle",
-        ))
-        .boxed()
-    })?;
+    let entry = binding
+        .agent()
+        .resources
+        .remove(binding.world(), handle.0, Some(binding.engine()))
+        .ok_or_else(|| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                "handle",
+                "unknown socket handle",
+            ))
+            .boxed()
+        })?;
 
     // finalize the socket
     entry.finalize(handle.0);
@@ -442,13 +446,17 @@ pub(crate) unsafe fn destack_net_close_listener(
     handle: ListenerHandle,
 ) -> RuntimeResult<()> {
     // remove the resource entry
-    let entry = binding.agent().resources.remove(handle.0).ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown listener handle",
-        ))
-        .boxed()
-    })?;
+    let entry = binding
+        .agent()
+        .resources
+        .remove(binding.world(), handle.0, Some(binding.engine()))
+        .ok_or_else(|| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                "handle",
+                "unknown listener handle",
+            ))
+            .boxed()
+        })?;
 
     // finalize the listener
     entry.finalize(handle.0);

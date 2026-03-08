@@ -10,6 +10,7 @@ use super::core::{
 };
 
 /// Message queue close operation.
+#[cfg(not(target_os = "linux"))]
 const MESSAGE_QUEUE_CLOSE_OPERATION: &str = "destack.ipc.message.queueClose";
 /// Message queue open operation.
 const MESSAGE_QUEUE_OPEN_OPERATION: &str = "destack.ipc.message.queueOpen";
@@ -56,7 +57,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_close(
             ));
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -173,7 +174,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_open(
             out.write(handle);
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -276,7 +277,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_receive(
             });
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -370,7 +371,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_send(
             ));
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -419,7 +420,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_unlink(
             ));
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]

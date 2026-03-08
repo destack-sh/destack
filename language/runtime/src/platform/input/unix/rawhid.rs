@@ -414,7 +414,7 @@ pub(crate) unsafe fn destack_input_raw_hid_get_feature(
             *out = binding.store_slice(report);
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -479,7 +479,7 @@ pub(crate) unsafe fn destack_input_raw_hid_read(
             *out = report;
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -523,12 +523,12 @@ pub(crate) unsafe fn destack_input_raw_hid_set_feature(
     #[cfg(target_os = "linux")]
     {
         // submit one feature-report write through hidraw ioctls
-        return set_feature_linux(
+        set_feature_linux(
             descriptor,
             reportid,
             payload,
             "destack.input.rawhid.setFeature",
-        );
+        )
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -594,7 +594,7 @@ pub(crate) unsafe fn destack_input_raw_hid_try_read(
             *out = report;
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -653,7 +653,7 @@ pub(crate) unsafe fn destack_input_raw_hid_write(
             *out = written;
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]

@@ -83,7 +83,7 @@ pub(crate) unsafe fn destack_thread_get_affinity(
         unsafe {
             *out = mask;
         }
-        return Ok(());
+        Ok(())
     }
 
     // report unsupported affinity reads on android pthread targets
@@ -221,7 +221,7 @@ pub(crate) unsafe fn destack_thread_set_affinity(
             return Err(pthread_error("pthread_setaffinity_np", rc));
         }
 
-        return Ok(());
+        Ok(())
     }
 
     // report unsupported affinity writes on android pthread targets

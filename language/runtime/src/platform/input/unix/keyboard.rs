@@ -33,13 +33,13 @@ fn keyboard_state(
                     return Err(input_core::input_not_found(operation, handle));
                 };
 
-                return input_linux::keyboard_state_snapshot(
+                input_linux::keyboard_state_snapshot(
                     binding,
                     descriptor,
                     sequence,
                     &resolved_binding.device_id,
                     operation,
-                );
+                )
             }
 
             #[cfg(target_os = "macos")]

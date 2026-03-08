@@ -1,3 +1,5 @@
+#[cfg(target_os = "linux")]
+use super::backend;
 #[cfg(not(target_os = "linux"))]
 use super::backend::backend_not_supported;
 #[cfg(target_os = "linux")]
@@ -120,7 +122,7 @@ pub(crate) fn native_device_events_supported(backend: audio_core::AudioBackend) 
             return false;
         }
 
-        return backend::backend_supported(backend);
+        backend::backend_supported(backend)
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -187,7 +189,7 @@ pub(crate) fn start_native_device_event_monitor(
             },
         );
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]

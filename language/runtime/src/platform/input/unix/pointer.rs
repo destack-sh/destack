@@ -187,13 +187,13 @@ fn set_relative_mode(
 
     #[cfg(target_os = "linux")]
     {
-        return set_relative_mode_linux(
+        set_relative_mode_linux(
             binding,
             handle,
             resolved_binding.descriptor,
             enabled,
             operation,
-        );
+        )
     }
 
     #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
@@ -284,11 +284,11 @@ pub(crate) unsafe fn destack_input_pointer_capture(
             .boxed());
         }
 
-        return input_core::set_unix_grab(
+        input_core::set_unix_grab(
             resolved_binding.descriptor,
             resolved_binding.backend,
             enabled,
-        );
+        )
     }
 
     #[cfg(target_os = "macos")]

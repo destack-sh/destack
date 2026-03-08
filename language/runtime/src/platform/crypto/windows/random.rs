@@ -19,7 +19,7 @@ use crate::platform::crypto::core::{decode_mut_bytes, write_out_bytes};
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_random_fill(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let buffer = decode_mut_bytes(buffer, "buffer")?;

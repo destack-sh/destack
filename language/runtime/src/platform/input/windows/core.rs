@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, OnceLock};
 
 use windows_sys::Win32::Foundation::{
     CloseHandle, DUPLICATE_SAME_ACCESS, DuplicateHandle, ERROR_ACCESS_DENIED,
@@ -24,12 +24,14 @@ use super::{raw as raw_input, xinput as xinput_input};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputCompositionEventPayload, InputDeviceEventPayload, InputEvent, InputEventAction,
-    InputEventKind, InputEventPayload, InputGamepadEventPayload, InputKeyEventPayload,
-    InputPointerButtonEventPayload, InputPointerMotionEventPayload, InputReadMode,
-    InputScrollEventPayload, InputSensorEffectiveConfig, InputSensorEventPayload, InputSensorKind,
-    InputTextEventPayload, InputTextInputArea, InputTextInputType, InputTouchEventPayload,
-    InputWindowTarget,
+    InputCompositionEvent, InputCompositionEventPayload, InputDeviceEvent, InputDeviceEventPayload,
+    InputEvent, InputEventAction, InputEventKind, InputEventMetadata, InputEventPayload,
+    InputGamepadEvent, InputGamepadEventPayload, InputKeyEvent, InputKeyEventPayload,
+    InputPointerButtonEvent, InputPointerButtonEventPayload, InputPointerMotionEvent,
+    InputPointerMotionEventPayload, InputReadMode, InputScrollEvent, InputScrollEventPayload,
+    InputSensorEffectiveConfig, InputSensorEvent, InputSensorEventPayload, InputSensorKind,
+    InputTextEvent, InputTextEventPayload, InputTextInputArea, InputTextInputType, InputTouchEvent,
+    InputTouchEventPayload, InputWindowTarget,
 };
 use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::{PlatformError, core as core_platform, resource};
@@ -161,12 +163,83 @@ pub(super) fn build_input_event(
     device_id: &str,
     payload: InputEventPayload,
 ) -> InputEvent {
-    InputEvent {
-        kind,
+    let metadata = InputEventMetadata {
         timestamp_ns,
         sequence,
         device_id: binding.store_string(device_id),
-        payload,
+    };
+
+    match kind {
+        InputEventKind::Key => InputEvent::InputKeyEvent(InputKeyEvent {
+            kind: binding.store_string("key"),
+            metadata,
+            payload: payload.key,
+        }),
+        InputEventKind::PointerMotion => {
+            InputEvent::InputPointerMotionEvent(InputPointerMotionEvent {
+                kind: binding.store_string("pointerMotion"),
+                metadata,
+                payload: payload.pointer_motion,
+            })
+        }
+        InputEventKind::PointerButton => {
+            InputEvent::InputPointerButtonEvent(InputPointerButtonEvent {
+                kind: binding.store_string("pointerButton"),
+                metadata,
+                payload: payload.pointer_button,
+            })
+        }
+        InputEventKind::Scroll => InputEvent::InputScrollEvent(InputScrollEvent {
+            kind: binding.store_string("scroll"),
+            metadata,
+            payload: payload.scroll,
+        }),
+        InputEventKind::Touch => InputEvent::InputTouchEvent(InputTouchEvent {
+            kind: binding.store_string("touch"),
+            metadata,
+            payload: payload.touch,
+        }),
+        InputEventKind::Gamepad => InputEvent::InputGamepadEvent(InputGamepadEvent {
+            kind: binding.store_string("gamepad"),
+            metadata,
+            payload: payload.gamepad,
+        }),
+        InputEventKind::Text => InputEvent::InputTextEvent(InputTextEvent {
+            kind: binding.store_string("text"),
+            metadata,
+            payload: payload.text,
+        }),
+        InputEventKind::Device => InputEvent::InputDeviceEvent(InputDeviceEvent {
+            kind: binding.store_string("device"),
+            metadata,
+            payload: payload.device,
+        }),
+        InputEventKind::Sensor => InputEvent::InputSensorEvent(InputSensorEvent {
+            kind: binding.store_string("sensor"),
+            metadata,
+            payload: payload.sensor,
+        }),
+        InputEventKind::Composition => InputEvent::InputCompositionEvent(InputCompositionEvent {
+            kind: binding.store_string("composition"),
+            metadata,
+            payload: payload.composition,
+        }),
+    }
+}
+
+/// Set one sequence number on one windows input event.
+pub(super) fn set_input_event_sequence(event: &mut InputEvent, sequence: u64) {
+    match event {
+        InputEvent::InputCompositionEvent(value) => value.metadata.sequence = sequence,
+        InputEvent::InputDeviceEvent(value) => value.metadata.sequence = sequence,
+        InputEvent::InputGamepadEvent(value) => value.metadata.sequence = sequence,
+        InputEvent::InputKeyEvent(value) => value.metadata.sequence = sequence,
+        InputEvent::InputPointerButtonEvent(value) => value.metadata.sequence = sequence,
+        InputEvent::InputPointerMotionEvent(value) => value.metadata.sequence = sequence,
+        InputEvent::InputScrollEvent(value) => value.metadata.sequence = sequence,
+        InputEvent::InputSensorEvent(value) => value.metadata.sequence = sequence,
+        InputEvent::InputTextEvent(value) => value.metadata.sequence = sequence,
+        InputEvent::InputTouchEvent(value) => value.metadata.sequence = sequence,
     }
 }
 
@@ -354,12 +427,14 @@ impl ResourceFinalizer for WindowsInputFinalizer {
 pub(super) struct RawInputDeviceFinalizer {
     /// Registered raw-input device identifier.
     pub(super) device_id: String,
+    /// Runtime-owned raw input state for queue cleanup.
+    pub(super) runtime_state: Arc<raw_input::WindowsRawInputRuntimeState>,
 }
 
 impl ResourceFinalizer for RawInputDeviceFinalizer {
     /// Release one registered raw-input stream on resource finalization.
     fn finalize(self: Box<Self>, _resource_id: ResourceId) {
-        raw_input::release_input_stream(&self.device_id);
+        raw_input::release_input_stream(&self.runtime_state, &self.device_id);
     }
 }
 
@@ -756,6 +831,54 @@ pub(super) fn now_timestamp_ns() -> u64 {
     }
 
     ((counter as u128).saturating_mul(1_000_000_000u128) / u128::from(frequency)) as u64
+}
+
+/// Return the configured raw-input queue capacity.
+pub(super) fn windows_raw_input_queue_capacity(binding: &BindingCallContext) -> usize {
+    binding
+        .agent()
+        .options
+        .input
+        .event_queue_capacity
+        .and_then(|capacity| usize::try_from(capacity).ok())
+        .unwrap_or(raw_input::RAW_INPUT_QUEUE_LIMIT)
+        .max(1)
+}
+
+/// Return the configured raw monitor queue capacity.
+pub(super) fn windows_raw_monitor_queue_capacity(binding: &BindingCallContext) -> usize {
+    binding
+        .agent()
+        .options
+        .input
+        .event_queue_capacity
+        .and_then(|capacity| usize::try_from(capacity).ok())
+        .unwrap_or(raw_input::RAW_MONITOR_QUEUE_LIMIT)
+        .max(1)
+}
+
+/// Return the configured raw HID queue capacity.
+pub(super) fn windows_raw_hid_queue_capacity(binding: &BindingCallContext) -> usize {
+    binding
+        .agent()
+        .options
+        .input
+        .event_queue_capacity
+        .and_then(|capacity| usize::try_from(capacity).ok())
+        .unwrap_or(raw_input::RAW_HID_QUEUE_LIMIT)
+        .max(1)
+}
+
+/// Return the configured raw touch queue capacity.
+pub(super) fn windows_raw_touch_queue_capacity(binding: &BindingCallContext) -> usize {
+    binding
+        .agent()
+        .options
+        .input
+        .event_queue_capacity
+        .and_then(|capacity| usize::try_from(capacity).ok())
+        .unwrap_or(raw_input::RAW_TOUCH_QUEUE_LIMIT)
+        .max(1)
 }
 
 /// Persist one xinput player-index override for one input handle.
@@ -1189,6 +1312,10 @@ pub(super) fn is_sensor_stream_enabled(
 
 #[cfg(test)]
 mod tests {
+    use crate::platform::input::InputReadMode;
+    use crate::platform::input::host::windows::core::{
+        ENABLE_ECHO_INPUT, ENABLE_LINE_INPUT, ENABLE_PROCESSED_INPUT, read_mode_from_console_mode,
+    };
 
     /// Detect cooked mode from the corresponding console mode bits.
     #[test]

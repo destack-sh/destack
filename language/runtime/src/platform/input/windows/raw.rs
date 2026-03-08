@@ -47,8 +47,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 
 use super::core as windows_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::Host;
-use crate::host::windows::process_ingress_loop as run_windows_ingress_loop;
+use crate::host::{Host, process_ingress_loop as run_windows_ingress_loop};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
     InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
@@ -70,13 +69,13 @@ pub(super) const WINDOWS_INPUT_MONITOR_ID_PREFIX: &str = "raw:device:";
 /// Pseudo-device identifier used for monitor queue overflow notifications.
 const WINDOWS_INPUT_RAW_MONITOR_ID: &str = "raw:monitor";
 /// Maximum queued keyboard or mouse packets before oldest-drop backpressure.
-const RAW_INPUT_QUEUE_LIMIT: usize = 8192;
+pub(super) const RAW_INPUT_QUEUE_LIMIT: usize = 8192;
 /// Maximum queued monitor packets before oldest-drop backpressure.
-const RAW_MONITOR_QUEUE_LIMIT: usize = 1024;
+pub(super) const RAW_MONITOR_QUEUE_LIMIT: usize = 1024;
 /// Maximum queued raw-hid packets before oldest-drop backpressure.
-const RAW_HID_QUEUE_LIMIT: usize = 4096;
+pub(super) const RAW_HID_QUEUE_LIMIT: usize = 4096;
 /// Maximum queued touch snapshots before oldest-drop backpressure.
-const RAW_TOUCH_QUEUE_LIMIT: usize = 2048;
+pub(super) const RAW_TOUCH_QUEUE_LIMIT: usize = 2048;
 /// Event code for raw keyboard and mouse queue overflow notifications.
 const RAW_INPUT_OVERFLOW_CODE: u32 = 0xffff_ff01;
 /// Event code for raw monitor queue overflow notifications.
@@ -2222,7 +2221,7 @@ fn spawn_raw_input_service(
 fn raw_input_thread_main(
     runtime_state: Arc<WindowsRawInputRuntimeState>,
     state: Arc<RawInputState>,
-    host: Host,
+    _host: Host,
     ready_tx: mpsc::Sender<Result<u32, String>>,
 ) {
     // resolve module instance and register a message-only window class
@@ -2291,7 +2290,7 @@ fn raw_input_thread_main(
     let _ = ready_tx.send(Ok(thread_id));
 
     // run the host-owned blocking ingress loop until shutdown
-    let loop_result = {
+    let loop_result: Result<(), String> = {
         run_windows_ingress_loop();
         Ok(())
     };
@@ -4465,6 +4464,34 @@ pub(super) fn write_output_report(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::{HashMap, VecDeque};
+
+    use super::{
+        GIDC_REMOVAL, RAW_MOUSE_MOVE_ABSOLUTE, RI_MOUSE_BUTTON_1_DOWN, VK_CAPITAL, VK_LSHIFT,
+        VK_LWIN, VK_RCONTROL, VK_RMENU,
+    };
+    use crate::platform::diagnostic::PlatformErrorCode;
+    use crate::platform::input::host::windows::raw::{
+        CAPSLOCK_ON, ENHANCED_KEY, HID_USAGE_GENERIC_GAMEPAD, HID_USAGE_GENERIC_RX,
+        HID_USAGE_GENERIC_RY, HID_USAGE_GENERIC_X, HID_USAGE_GENERIC_Y, HID_USAGE_PAGE_BUTTON,
+        HID_USAGE_PAGE_GENERIC, HID_USAGE_PAGE_SENSOR, HID_USAGE_SENSOR_ACCELEROMETER_3D,
+        HID_USAGE_SENSOR_GYROMETER_3D, NUMLOCK_ON, RAW_INPUT_OVERFLOW_CODE, RAW_INPUT_QUEUE_LIMIT,
+        RAW_MONITOR_OVERFLOW_CODE, RAW_MONITOR_QUEUE_LIMIT, RIGHT_ALT_PRESSED, RIGHT_CTRL_PRESSED,
+        RawHidButtonCapability, RawHidPacket, RawHidValueCapability, RawInputDeviceDescriptor,
+        RawInputPacket, RawInputQueues, RawMonitorPacket, SCROLLLOCK_ON, SHIFT_PRESSED,
+        SONY_DUALSENSE_USB_EFFECTS_REPORT_BYTES, SONY_DUALSHOCK4_USB_EFFECTS_REPORT_BYTES,
+        STANDARD_GAMEPAD_BUTTON_COUNT, WINDOWS_INPUT_MONITOR_ID_PREFIX,
+        WindowsRawInputRuntimeState, apply_hat_switch_to_dpad, build_sony_dualsense_light_report,
+        build_sony_dualshock4_light_report, classify_gamepad_mapping_from_capabilities,
+        control_key_state_from_queues, decode_sensor_sample_from_packet,
+        gamepad_report_id_candidates, monitor_device_id, normalize_raw_mouse_motion,
+        push_input_packet, push_monitor_packet, push_mouse_button_events,
+        resolve_monitor_device_id, sensor_kind_from_usage, sensor_kinds_for_device,
+        standard_button_index_for_hid_usage, update_lock_key_state,
+    };
+    use crate::platform::input::{
+        InputDeviceKind, InputEventAction, InputEventKind, InputGamepadMappingType, InputSensorKind,
+    };
 
     /// Drop the oldest keyboard packet when the queue reaches its bounded capacity.
     #[test]

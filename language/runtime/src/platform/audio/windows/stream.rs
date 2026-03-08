@@ -339,7 +339,7 @@ pub(crate) unsafe fn destack_audio_stream_open(
         Some(binding.engine()),
     );
     let stream_handle = resource::AudioStreamHandle(resource_id);
-    audio_core::register_stream_binding_handle(&stream, stream_handle);
+    audio_core::register_stream_binding_handle(binding, &stream, stream_handle);
 
     unsafe {
         *out = stream_handle;

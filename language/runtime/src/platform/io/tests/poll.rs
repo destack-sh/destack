@@ -208,11 +208,11 @@ fn create_poll_targets(context: &IoHarnessContext<'_>) -> RuntimeResult<PollTarg
             Some(context.call_context.engine()),
         );
 
-        return Ok(PollTargets {
+        Ok(PollTargets {
             read_target,
             write_target,
             write_endpoint: PollWriteEndpoint { socket: sender },
-        });
+        })
     }
 
     #[cfg(not(any(unix, windows)))]

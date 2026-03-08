@@ -85,7 +85,7 @@ pub(crate) unsafe fn destack_input_haptics_effects(
             *out = binding.store_array(effects);
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -187,7 +187,7 @@ pub(crate) unsafe fn destack_input_haptics_play(
             *out = result;
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -249,7 +249,7 @@ pub(crate) unsafe fn destack_input_haptics_stop(
             None,
             "destack.input.haptics.stop",
         )?;
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]

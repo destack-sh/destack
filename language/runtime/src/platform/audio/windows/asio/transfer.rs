@@ -129,7 +129,7 @@ fn process_callback_transfer(runtime: &Arc<AsioStreamRuntime>, buffer_index: usi
     if !runtime.input_lanes.is_empty() {
         if let Some(encoding) = runtime.input_encoding {
             transfer_capture_block(
-                &binding,
+                &stream_binding,
                 runtime,
                 &mut state,
                 &runtime.input_lanes,

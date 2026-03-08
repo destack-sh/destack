@@ -34,7 +34,7 @@ const RAW_PROTOCOL: i32 = libc::IPPROTO_RAW;
 
 /// Raw protocol identifier used for raw-socket tests.
 #[cfg(windows)]
-const RAW_PROTOCOL: i32 = IPPROTO_RAW as i32;
+const RAW_PROTOCOL: i32 = IPPROTO_RAW;
 
 /// Assert one packet-control call fails with one explicit invalid-handle or unsupported contract.
 fn assert_packet_control_error<T>(result: RuntimeResult<T>) -> RuntimeResult<()> {

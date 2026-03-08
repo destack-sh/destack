@@ -1,7 +1,5 @@
 use crate::platform::audio::PlatformAudioState;
-#[cfg(any(windows, target_os = "linux"))]
-use crate::platform::display::PlatformDisplayState;
-#[cfg(target_os = "macos")]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 use crate::platform::display::PlatformDisplayState;
 #[cfg(windows)]
 use crate::platform::fs::PlatformFsState;
@@ -31,7 +29,6 @@ pub(crate) struct PlatformState {
     pub input: PlatformInputState,
 
     /// Network module state.
-    #[allow(dead_code)]
     pub net: PlatformNetState,
 
     /// OS module state.

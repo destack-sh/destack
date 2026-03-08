@@ -108,7 +108,7 @@ fn startup_error(message: impl Into<String>) -> Box<RuntimeError> {
 pub(crate) fn native_device_events_supported() -> bool {
     #[cfg(target_os = "linux")]
     {
-        return backend_supported();
+        backend_supported()
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -123,7 +123,7 @@ pub(crate) fn start_native_device_event_monitor(
 ) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]
     {
-        let runtime_state = alsa_monitor_runtime_state(binding);
+        let runtime_state = alsa_monitor_runtime_state(_binding);
         let mut monitor_slot = runtime_state
             .monitor
             .lock()
@@ -134,7 +134,7 @@ pub(crate) fn start_native_device_event_monitor(
         }
 
         let stop = Arc::new(AtomicBool::new(false));
-        let runtime_state = audio_core::audio_event_runtime_state(binding);
+        let runtime_state = audio_core::audio_event_runtime_state(_binding);
         let stop_signal = Arc::clone(&stop);
         let callback_runtime_state = Arc::clone(&runtime_state);
         let (ready_sender, ready_receiver) = mpsc::sync_channel(1);
@@ -157,7 +157,7 @@ pub(crate) fn start_native_device_event_monitor(
             reference_count: 1,
         });
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -170,7 +170,7 @@ pub(crate) fn start_native_device_event_monitor(
 pub(crate) fn stop_native_device_event_monitor(_binding: &BindingCallContext) {
     #[cfg(target_os = "linux")]
     {
-        let runtime_state = alsa_monitor_runtime_state(binding);
+        let runtime_state = alsa_monitor_runtime_state(_binding);
         let monitor = {
             let mut monitor_slot = runtime_state
                 .monitor

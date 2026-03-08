@@ -598,6 +598,9 @@ pub(super) fn stop_haptics_for_xinput(
 
 #[cfg(test)]
 mod tests {
+    use crate::platform::input::host::windows::xinput::{
+        normalize_stick_axis, parse_xinput_device_id, xinput_device_id,
+    };
 
     /// Parse valid xinput identifiers into user indices.
     #[test]

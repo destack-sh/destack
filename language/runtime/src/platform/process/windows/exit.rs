@@ -36,7 +36,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_exit(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     code: u32,
 ) -> RuntimeResult<()> {
     unsafe { windows_sys::Win32::System::Threading::ExitProcess(code) }

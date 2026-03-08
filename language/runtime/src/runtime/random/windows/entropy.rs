@@ -17,7 +17,7 @@ pub(crate) fn host_fill_bytes(buffer: &mut [u8]) -> RuntimeResult<()> {
     // use system preferred rng with null algorithm handle
     let status = unsafe {
         BCryptGenRandom(
-            0,
+            std::ptr::null_mut(),
             buffer.as_mut_ptr(),
             length,
             BCRYPT_USE_SYSTEM_PREFERRED_RNG,

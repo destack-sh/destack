@@ -32,7 +32,7 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_access_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathBytes,
     mode: AccessMode,
 ) -> RuntimeResult<()> {
@@ -71,7 +71,7 @@ pub(crate) unsafe fn destack_fs_access_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_access_utf16(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathUtf16,
     mode: AccessMode,
 ) -> RuntimeResult<()> {
@@ -110,7 +110,7 @@ pub(crate) unsafe fn destack_fs_access_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chmod_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathBytes,
     mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -157,7 +157,7 @@ pub(crate) unsafe fn destack_fs_chmod_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chmod_utf16(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathUtf16,
     mode: FileMode,
 ) -> RuntimeResult<()> {

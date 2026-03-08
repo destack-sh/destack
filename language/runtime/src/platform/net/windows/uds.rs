@@ -17,10 +17,7 @@ use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
-use super::{
-    destack_net_accept, destack_net_close_listener, destack_net_resolve,
-    destack_net_reverse_lookup, destack_net_reverse_lookup_names, destack_net_socket_pair,
-};
+use super::connection::{destack_net_accept, destack_net_close_listener};
 
 /// Monotonic suffix for temporary UDS socket-pair paths.
 #[derive(Debug, Default)]

@@ -37,7 +37,7 @@ const FUTEX_WAKE_OPERATION: &str = "destack.ipc.sync.futexWake";
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_futex_wait(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
     expected: u32,
@@ -66,7 +66,7 @@ pub(crate) unsafe fn destack_ipc_futex_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_futex_wake(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u32,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,

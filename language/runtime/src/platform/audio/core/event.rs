@@ -427,10 +427,10 @@ pub(crate) fn publish_device_snapshot_native(
 
 /// Register one opened event binding for native event delivery.
 pub(crate) fn register_event_binding(
-    binding_2: &BindingCallContext,
+    ctx: &BindingCallContext,
     binding: &Arc<Mutex<AudioEventBinding>>,
 ) {
-    let runtime_state = audio_event_runtime_state(binding_2);
+    let runtime_state = audio_event_runtime_state(ctx);
     let mut registry = event_binding_registry(&runtime_state)
         .lock()
         .unwrap_or_else(|error| error.into_inner());
@@ -439,10 +439,10 @@ pub(crate) fn register_event_binding(
 
 /// Unregister one closed event binding from native event delivery.
 pub(crate) fn unregister_event_binding(
-    binding_2: &BindingCallContext,
+    ctx: &BindingCallContext,
     binding: &Arc<Mutex<AudioEventBinding>>,
 ) {
-    let runtime_state = audio_event_runtime_state(binding_2);
+    let runtime_state = audio_event_runtime_state(ctx);
     let binding_identity = Arc::as_ptr(binding) as usize;
     let mut registry = event_binding_registry(&runtime_state)
         .lock()
@@ -459,11 +459,11 @@ pub(crate) fn unregister_event_binding(
 
 /// Register one opened stream binding for native event delivery.
 pub(crate) fn register_stream_binding_handle(
-    binding_2: &BindingCallContext,
+    ctx: &BindingCallContext,
     binding: &Arc<AudioStreamBinding>,
     handle: resource::AudioStreamHandle,
 ) {
-    let runtime_state = audio_event_runtime_state(binding_2);
+    let runtime_state = audio_event_runtime_state(ctx);
     binding
         .stream_handle_raw
         .store(handle.0.0, Ordering::Release);
@@ -1004,7 +1004,7 @@ fn refresh_device_events_from_snapshot(
 
 /// Refresh pending events for one monitor binding.
 pub(crate) fn refresh_event_queue(
-    binding_2: &BindingCallContext,
+    ctx: &BindingCallContext,
     binding: &mut AudioEventBinding,
 ) -> RuntimeResult<()> {
     let now = host_monotonic_nanos();
@@ -1025,8 +1025,7 @@ pub(crate) fn refresh_event_queue(
             .options
             .stream
             .expect("stream tracking requires stream");
-        let stream_result =
-            resolve_stream_binding(binding_2, stream_handle, "destack.audio.event.read");
+        let stream_result = resolve_stream_binding(ctx, stream_handle, "destack.audio.event.read");
 
         match stream_result {
             Ok(stream) => {
@@ -1161,14 +1160,14 @@ pub(crate) fn refresh_event_queue(
 
 /// Refresh one event queue according to selected delivery mode.
 pub(crate) fn refresh_event_queue_for_delivery_mode(
-    binding_2: &BindingCallContext,
+    ctx: &BindingCallContext,
     binding: &mut AudioEventBinding,
 ) -> RuntimeResult<()> {
     if binding.options.delivery_mode == AudioEventDeliveryMode::NativeOnly {
         return Ok(());
     }
 
-    refresh_event_queue(binding_2, binding)
+    refresh_event_queue(ctx, binding)
 }
 
 /// Force one immediate refresh pass for device subscriptions on one backend.

@@ -141,7 +141,7 @@ pub(crate) fn stream_state_snapshot(binding: &AudioStreamBinding) -> AudioStream
 
 /// Build one stream timing snapshot.
 pub(crate) fn stream_timing_snapshot(
-    binding_2: &BindingCallContext,
+    ctx: &BindingCallContext,
     binding: &AudioStreamBinding,
 ) -> AudioStreamTiming {
     let state = binding
@@ -184,7 +184,7 @@ pub(crate) fn stream_timing_snapshot(
         } else {
             None
         },
-        monotonic_clock_ns: binding_2.world().mono_nanos(),
+        monotonic_clock_ns: ctx.world().mono_nanos(),
         drift_ppm: estimate_drift_ppm(&state, binding.sample_rate),
         callback_cpu_load: state.last_callback_cpu_load,
     }
@@ -233,7 +233,7 @@ pub(crate) fn satisfied_stream_requirements(
 
 /// Build one stream availability snapshot.
 pub(crate) fn stream_availability_snapshot(
-    binding_2: &BindingCallContext,
+    ctx: &BindingCallContext,
     binding: &AudioStreamBinding,
 ) -> AudioStreamAvailability {
     let state = binding
@@ -254,13 +254,13 @@ pub(crate) fn stream_availability_snapshot(
         writable_frames,
         min_transfer_frames: binding.period_frames,
         max_transfer_frames: binding.period_frames,
-        timestamp_ns: binding_2.world().mono_nanos(),
+        timestamp_ns: ctx.world().mono_nanos(),
     }
 }
 
 /// Build one stream snapshot payload.
 pub(crate) fn stream_descriptor(
-    binding_2: &BindingCallContext,
+    ctx: &BindingCallContext,
     binding: &AudioStreamBinding,
 ) -> AudioStreamDescriptor {
     let state = binding
@@ -271,8 +271,8 @@ pub(crate) fn stream_descriptor(
 
     AudioStreamDescriptor {
         backend: binding.device.backend,
-        backend_id: binding_2.store_string(host::backend_name(binding.device.backend)),
-        device_id: binding_2.store_string(&binding.device.id),
+        backend_id: ctx.store_string(host::backend_name(binding.device.backend)),
+        device_id: ctx.store_string(&binding.device.id),
         sample_rate: binding.sample_rate,
         channels: binding.channels,
         channel_layout: binding.requested.channel_layout,

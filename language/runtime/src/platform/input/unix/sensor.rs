@@ -44,7 +44,7 @@ fn sensor_infos_for_binding(
         };
 
         let infos = input_linux::linux_sensor_infos(descriptor, binding.device_kind);
-        return Ok(infos);
+        Ok(infos)
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -262,7 +262,7 @@ pub(crate) unsafe fn destack_input_sensor_read(
             *out = sample;
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -330,7 +330,7 @@ pub(crate) unsafe fn destack_input_sensor_try_read(
             *out = sample;
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]

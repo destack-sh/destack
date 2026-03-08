@@ -35,14 +35,14 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_get_affinity(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut ProcessCpuSet,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, pid);
+    let _ = pid;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.sched.getAffinity",
     ))
@@ -67,7 +67,7 @@ pub(crate) unsafe fn destack_process_get_affinity(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_get_priority(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut i32,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
@@ -142,14 +142,14 @@ pub(crate) unsafe fn destack_process_get_priority(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_get_scheduler(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut ProcessSchedulerConfig,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, pid);
+    let _ = pid;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.sched.getScheduler",
     ))
@@ -174,12 +174,12 @@ pub(crate) unsafe fn destack_process_get_scheduler(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_affinity(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     pid: ProcessId,
     cpus: ProcessCpuSet,
 ) -> RuntimeResult<()> {
     let cpus = unsafe { cpus.cpus.as_slice()? };
-    let _ = (binding, pid, cpus);
+    let _ = (pid, cpus);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.sched.setAffinity",
     ))
@@ -204,7 +204,7 @@ pub(crate) unsafe fn destack_process_set_affinity(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_priority(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     pid: ProcessId,
     priority: i32,
 ) -> RuntimeResult<()> {
@@ -270,11 +270,11 @@ pub(crate) unsafe fn destack_process_set_priority(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_scheduler(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     pid: ProcessId,
     config: ProcessSchedulerConfig,
 ) -> RuntimeResult<()> {
-    let _ = (binding, pid, config);
+    let _ = (pid, config);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.sched.setScheduler",
     ))
@@ -298,7 +298,7 @@ pub(crate) unsafe fn destack_process_set_scheduler(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_process_yield_now(binding: &BindingCallContext) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_process_yield_now(_binding: &BindingCallContext) -> RuntimeResult<()> {
     use windows_sys::Win32::System::Threading::{Sleep, SwitchToThread};
 
     let switched = unsafe { SwitchToThread() };

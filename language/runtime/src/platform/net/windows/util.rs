@@ -1,11 +1,11 @@
 use windows_sys::Win32::Networking::WinSock::{
-    AF_INET, AF_INET6, SOCKADDR, SOCKADDR_STORAGE, SOCKET, closesocket,
+    AF_INET, AF_INET6, SOCKADDR, SOCKADDR_STORAGE, SOCKET, WSAGetLastError, closesocket,
 };
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::net::{SocketAddress, SocketFamily, core as core_net};
 use crate::platform::resource::{ListenerHandle, ResourceFinalizer, ResourceKind, SocketHandle};
-use crate::platform::{PlatformError, ResourceId};
+use crate::platform::{PlatformError, ResourceId, core as core_platform};
 use crate::runtime::BindingCallContext;
 
 /// Finalizer that closes a socket handle.
@@ -29,6 +29,21 @@ impl ResourceFinalizer for SocketFinalizer {
             closesocket(self.socket);
         }
     }
+}
+
+/// Ensure that WinSock is initialized for the current process.
+pub(super) fn ensure_winsock() -> RuntimeResult<()> {
+    core_platform::ensure_winsock()
+}
+
+/// Return one network error for the specified WinSock code.
+pub(super) fn net_error_with_code(syscall: &'static str, code: i32) -> Box<RuntimeError> {
+    core_platform::net_error_with_code(syscall, code)
+}
+
+/// Return one network error from the current WinSock error code.
+pub(super) fn last_net_error(syscall: &'static str) -> Box<RuntimeError> {
+    core_platform::net_error_with_code(syscall, unsafe { WSAGetLastError() })
 }
 
 /// Resolve a socket descriptor from a handle.
