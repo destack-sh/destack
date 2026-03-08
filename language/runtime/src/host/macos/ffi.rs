@@ -36,7 +36,7 @@ pub(super) const MACOS_POWER_MODE_NORMAL: u32 = 0;
 /// macOS power mode code for low power state.
 pub(super) const MACOS_POWER_MODE_LOW_POWER: u32 = 1;
 
-/// Notify the runtime host state about one macOS application lifecycle transition.
+/// Notify the runtime host about one macOS application lifecycle transition.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_macos_notify_application_lifecycle(
     runtime_id: u64,
@@ -48,7 +48,7 @@ pub unsafe extern "C" fn destack_host_macos_notify_application_lifecycle(
     runtime_status(result)
 }
 
-/// Notify the runtime host state with one macOS permission result.
+/// Notify the runtime host with one macOS permission result.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_macos_notify_permission_result(
     runtime_id: u64,
@@ -62,7 +62,7 @@ pub unsafe extern "C" fn destack_host_macos_notify_permission_result(
     runtime_status(result)
 }
 
-/// Notify the runtime host state that interruption state changed on macOS.
+/// Notify the runtime host that interruption state changed on macOS.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_macos_notify_interruption_changed(
     runtime_id: u64,
@@ -71,7 +71,7 @@ pub unsafe extern "C" fn destack_host_macos_notify_interruption_changed(
     runtime_status(macos_notify_interruption_changed(runtime_id, interrupted))
 }
 
-/// Notify the runtime host state that memory pressure changed on macOS.
+/// Notify the runtime host that memory pressure changed on macOS.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_macos_notify_memory_pressure_changed(
     runtime_id: u64,
@@ -83,7 +83,7 @@ pub unsafe extern "C" fn destack_host_macos_notify_memory_pressure_changed(
     runtime_status(result)
 }
 
-/// Notify the runtime host state that thermal state changed on macOS.
+/// Notify the runtime host that thermal state changed on macOS.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_macos_notify_thermal_state_changed(
     runtime_id: u64,
@@ -95,7 +95,7 @@ pub unsafe extern "C" fn destack_host_macos_notify_thermal_state_changed(
     runtime_status(result)
 }
 
-/// Notify the runtime host state that power mode changed on macOS.
+/// Notify the runtime host that power mode changed on macOS.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_macos_notify_power_mode_changed(
     runtime_id: u64,
@@ -107,7 +107,7 @@ pub unsafe extern "C" fn destack_host_macos_notify_power_mode_changed(
     runtime_status(result)
 }
 
-/// Notify the runtime host state that wall clock changed on macOS.
+/// Notify the runtime host that wall clock changed on macOS.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_macos_notify_wall_clock_changed(
     runtime_id: u64,

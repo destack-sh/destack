@@ -11,7 +11,7 @@ use objc2_core_graphics::{
 
 use super::delegate::AppKitWindowDelegate;
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
-use crate::host::core::observer::{RuntimeIngressObserver, register_runtime_ingress_observer};
+use crate::host::core::observer::{RuntimeIngressObserver, RuntimeIngressObserverRegistry};
 use crate::platform::display::unix::appkit::event::{
     self as appkit_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord,
     WindowEventStream,
@@ -289,7 +289,9 @@ impl AppKitRuntimeState {
             .clone();
         let observer: Arc<dyn RuntimeIngressObserver> = observer;
 
-        register_runtime_ingress_observer(runtime_id.0, &observer);
+        RuntimeIngressObserverRegistry::shared()
+            .write()
+            .register(runtime_id.0, &observer);
     }
 }
 

@@ -1,9 +1,8 @@
 use super::{
     AndroidActivityLifecycle, android_notify_activity_lifecycle,
     android_notify_interruption_changed, android_notify_memory_pressure_changed,
-    android_notify_permission_request_in_flight, android_notify_permission_result,
-    android_notify_power_mode_changed, android_notify_thermal_state_changed, android_notify_wake,
-    android_notify_wall_clock_changed,
+    android_notify_permission_result, android_notify_power_mode_changed,
+    android_notify_thermal_state_changed, android_notify_wake, android_notify_wall_clock_changed,
 };
 use crate::diagnostic::{RuntimeResult, RuntimeStatus};
 use crate::host::core::error::invalid_argument_value;
@@ -33,19 +32,6 @@ pub unsafe extern "C" fn destack_host_android_notify_activity_lifecycle(
 ) -> RuntimeStatus {
     let result = decode_android_activity_lifecycle(lifecycle_code)
         .and_then(|lifecycle| android_notify_activity_lifecycle(runtime_id, lifecycle));
-
-    runtime_status(result)
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_notify_permission_request_in_flight(
-    runtime_id: u64,
-    permission: NativeStringRef,
-    is_in_flight: bool,
-) -> RuntimeStatus {
-    let result = decode_permission_name(permission).and_then(|permission| {
-        android_notify_permission_request_in_flight(runtime_id, permission.as_str(), is_in_flight)
-    });
 
     runtime_status(result)
 }

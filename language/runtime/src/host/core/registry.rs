@@ -3,39 +3,39 @@ use std::sync::{Arc, OnceLock, Weak};
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 
-use super::error::missing_host_state;
-use super::observer::cleanup_runtime_ingress_observers;
-use super::{HostState, Platform};
+use super::error::missing_host_queue;
+use super::observer::RuntimeIngressObserverRegistry;
+use super::{HostQueue, Platform};
 use crate::diagnostic::RuntimeResult;
 use crate::runtime::world::RuntimeId;
 
-/// Cleanup hook run when one runtime host-state registration is removed.
+/// Cleanup hook run when one runtime host queue registration is removed.
 pub(crate) type HostCleanup = fn(runtime_id: u64);
 
-/// Shared process-global host-state registry.
-static HOST_RUNTIME_STATE_REGISTRY: OnceLock<RwLock<HostStateRegistryState>> = OnceLock::new();
+/// Shared process-global host queue registry.
+static HOST_RUNTIME_QUEUE_REGISTRY: OnceLock<RwLock<HostQueueRegistry>> = OnceLock::new();
 
-/// Registration guard for one host runtime state.
+/// Registration guard for one host runtime queue.
 #[derive(Debug)]
 pub(crate) struct HostRegistrationGuard {
-    /// Stable runtime id for this state.
+    /// Stable runtime id for this queue.
     runtime_id: RuntimeId,
 }
 
-/// Shared registry state for active host runtime states.
+/// Shared registry state for active host runtime queues.
 #[derive(Debug, Default)]
-struct HostStateRegistryState {
-    /// State entries keyed by runtime id.
-    states: FxHashMap<RuntimeId, HostStateRegistryEntry>,
+pub(crate) struct HostQueueRegistry {
+    /// Queue entries keyed by runtime id.
+    queues: FxHashMap<RuntimeId, HostQueueRegistryEntry>,
 }
 
-/// Shared registry entry metadata for one host runtime state.
+/// Shared registry entry metadata for one host runtime queue.
 #[derive(Debug)]
-struct HostStateRegistryEntry {
-    /// Platform tag for this state.
+struct HostQueueRegistryEntry {
+    /// Platform tag for this queue.
     platform: Platform,
-    /// Weak reference to one runtime-owned state.
-    state: Weak<HostState>,
+    /// Weak reference to one runtime-owned queue.
+    queue: Weak<HostQueue>,
     /// Optional platform-specific cleanup hook for this runtime id.
     cleanup: Option<HostCleanup>,
 }
@@ -49,68 +49,71 @@ impl HostRegistrationGuard {
 
 impl Drop for HostRegistrationGuard {
     fn drop(&mut self) {
-        unregister_host_state(self.runtime_id);
+        let mut registry = HostQueueRegistry::shared().write();
+        registry.unregister(self.runtime_id);
     }
 }
 
-/// Register one host runtime state with one runtime id.
-pub(crate) fn register_host_state(
-    platform: Platform,
-    runtime_id: RuntimeId,
-    runtime_state: Weak<HostState>,
-    cleanup: Option<HostCleanup>,
-) -> HostRegistrationGuard {
-    let mut state = host_runtime_state_registry().write();
-    let entry = HostStateRegistryEntry {
-        platform,
-        state: runtime_state,
-        cleanup,
-    };
-    state.states.insert(runtime_id, entry);
-
-    HostRegistrationGuard { runtime_id }
-}
-
-/// Resolve one host runtime state by runtime id and platform tag.
-pub(crate) fn host_state_for_runtime(
-    runtime_id: RuntimeId,
-    platform: Platform,
-) -> RuntimeResult<Arc<HostState>> {
-    let mut state = host_runtime_state_registry().write();
-    let Some(entry) = state.states.get(&runtime_id) else {
-        return Err(missing_host_state(runtime_id.0, platform));
-    };
-
-    if entry.platform != platform {
-        return Err(missing_host_state(runtime_id.0, platform));
+impl HostQueueRegistry {
+    /// Return the shared host runtime queue registry lock.
+    pub(crate) fn shared() -> &'static RwLock<Self> {
+        HOST_RUNTIME_QUEUE_REGISTRY.get_or_init(|| RwLock::new(Self::default()))
     }
 
-    let Some(runtime_state) = entry.state.upgrade() else {
-        state.states.remove(&runtime_id);
-        return Err(missing_host_state(runtime_id.0, platform));
-    };
+    /// Register one host runtime queue with one runtime id.
+    pub(crate) fn register(
+        &mut self,
+        platform: Platform,
+        runtime_id: RuntimeId,
+        queue: Weak<HostQueue>,
+        cleanup: Option<HostCleanup>,
+    ) -> HostRegistrationGuard {
+        let entry = HostQueueRegistryEntry {
+            platform,
+            queue,
+            cleanup,
+        };
+        self.queues.insert(runtime_id, entry);
 
-    Ok(runtime_state)
-}
+        HostRegistrationGuard { runtime_id }
+    }
 
-/// Return the shared host runtime-state registry lock.
-fn host_runtime_state_registry() -> &'static RwLock<HostStateRegistryState> {
-    HOST_RUNTIME_STATE_REGISTRY.get_or_init(|| RwLock::new(HostStateRegistryState::default()))
-}
+    /// Resolve one host runtime queue by runtime id and platform tag.
+    pub(crate) fn queue_for_runtime(
+        &mut self,
+        runtime_id: RuntimeId,
+        platform: Platform,
+    ) -> RuntimeResult<Arc<HostQueue>> {
+        let Some(entry) = self.queues.get(&runtime_id) else {
+            return Err(missing_host_queue(runtime_id.0, platform));
+        };
 
-/// Remove one registration from the shared host runtime-state registry.
-fn unregister_host_state(runtime_id: RuntimeId) {
-    let mut state = host_runtime_state_registry().write();
-    let cleanup = state
-        .states
-        .remove(&runtime_id)
-        .and_then(|entry| entry.cleanup);
-    drop(state);
+        if entry.platform != platform {
+            return Err(missing_host_queue(runtime_id.0, platform));
+        }
 
-    cleanup_runtime_ingress_observers(runtime_id.0);
+        let Some(queue) = entry.queue.upgrade() else {
+            self.queues.remove(&runtime_id);
+            return Err(missing_host_queue(runtime_id.0, platform));
+        };
 
-    if let Some(cleanup) = cleanup {
-        cleanup(runtime_id.0);
+        Ok(queue)
+    }
+
+    /// Remove one registration from the shared host runtime queue registry.
+    pub(crate) fn unregister(&mut self, runtime_id: RuntimeId) {
+        let cleanup = self
+            .queues
+            .remove(&runtime_id)
+            .and_then(|entry| entry.cleanup);
+
+        RuntimeIngressObserverRegistry::shared()
+            .write()
+            .unregister_runtime(runtime_id.0);
+
+        if let Some(cleanup) = cleanup {
+            cleanup(runtime_id.0);
+        }
     }
 }
 
@@ -119,9 +122,9 @@ mod tests {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicU64, Ordering};
 
-    use super::{host_state_for_runtime, register_host_state};
+    use super::HostQueueRegistry;
     use crate::host::Platform;
-    use crate::host::core::HostState;
+    use crate::host::core::HostQueue;
     use crate::runtime::world::RuntimeId;
 
     /// Shared runtime id captured by one cleanup hook invocation in tests.
@@ -133,62 +136,71 @@ mod tests {
     }
 
     #[test]
-    fn test_register_host_state_resolves_by_runtime_id() {
-        let runtime_state = HostState::new_for_test();
-        let registration = register_host_state(
+    fn test_register_host_queue_resolves_by_runtime_id() {
+        let queue = Arc::new(HostQueue::new());
+        let mut registry = HostQueueRegistry::shared().write();
+        let registration = registry.register(
             Platform::Android,
             RuntimeId(1),
-            Arc::downgrade(&runtime_state),
+            Arc::downgrade(&queue),
             None,
         );
         let runtime_id = registration.runtime_id;
+        drop(registry);
 
-        let resolved_state = host_state_for_runtime(runtime_id, Platform::Android).unwrap();
+        let resolved_queue = HostQueueRegistry::shared()
+            .write()
+            .queue_for_runtime(runtime_id, Platform::Android)
+            .unwrap();
 
-        assert!(Arc::ptr_eq(&runtime_state, &resolved_state));
+        assert!(Arc::ptr_eq(&queue, &resolved_queue));
     }
 
     #[test]
     fn test_drop_registration_unregisters_runtime_id() {
-        let runtime_state = HostState::new_for_test();
-        let registration = register_host_state(
+        let queue = Arc::new(HostQueue::new());
+        let registration = HostQueueRegistry::shared().write().register(
             Platform::MacOS,
             RuntimeId(2),
-            Arc::downgrade(&runtime_state),
+            Arc::downgrade(&queue),
             None,
         );
         let runtime_id = registration.runtime_id;
 
         drop(registration);
 
-        let resolved_state = host_state_for_runtime(runtime_id, Platform::MacOS);
-        assert!(resolved_state.is_err());
+        let resolved_queue = HostQueueRegistry::shared()
+            .write()
+            .queue_for_runtime(runtime_id, Platform::MacOS);
+        assert!(resolved_queue.is_err());
     }
 
     #[test]
-    fn test_host_state_for_runtime_rejects_platform_mismatch() {
-        let runtime_state = HostState::new_for_test();
-        let registration = register_host_state(
+    fn test_host_queue_for_runtime_rejects_platform_mismatch() {
+        let queue = Arc::new(HostQueue::new());
+        let registration = HostQueueRegistry::shared().write().register(
             Platform::Windows,
             RuntimeId(3),
-            Arc::downgrade(&runtime_state),
+            Arc::downgrade(&queue),
             None,
         );
         let runtime_id = registration.runtime_id;
 
-        let resolved_state = host_state_for_runtime(runtime_id, Platform::Android);
-        assert!(resolved_state.is_err());
+        let resolved_queue = HostQueueRegistry::shared()
+            .write()
+            .queue_for_runtime(runtime_id, Platform::Android);
+        assert!(resolved_queue.is_err());
     }
 
     #[test]
     fn test_drop_registration_runs_cleanup_hook() {
         TEST_CLEANUP_RUNTIME_ID.store(0, Ordering::Relaxed);
 
-        let runtime_state = HostState::new_for_test();
-        let registration = register_host_state(
+        let queue = Arc::new(HostQueue::new());
+        let registration = HostQueueRegistry::shared().write().register(
             Platform::Android,
             RuntimeId(4),
-            Arc::downgrade(&runtime_state),
+            Arc::downgrade(&queue),
             Some(test_cleanup_hook),
         );
         let runtime_id = registration.runtime_id;

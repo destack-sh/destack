@@ -3,12 +3,50 @@ use std::sync::Arc;
 use destack_workspace::{Platform, PlatformHostOptions, RuntimeOptions};
 
 use super::backend::{HostBackend, HostPollOutcome};
-use super::event::{HostEvent, HostLifecycleState};
-use super::observer::process_runtime_observer;
-use super::registry::{HostRegistrationGuard, register_host_state};
-use super::select::{compile_target_host_platform, default_host};
-use super::state::HostState;
+use super::event::{HostEvent, HostLifecycleEvent, HostLifecycleState};
+use super::observer::RuntimeIngressObserverRegistry;
+use super::queue::HostQueue;
+use super::registry::{HostQueueRegistry, HostRegistrationGuard};
 use crate::diagnostic::RuntimeResult;
+#[cfg(target_os = "android")]
+use crate::host::android::AndroidHost;
+#[cfg(target_os = "dragonfly")]
+use crate::host::dragonfly::DragonflyHost;
+#[cfg(target_os = "freebsd")]
+use crate::host::freebsd::FreeBsdHost;
+#[cfg(target_os = "haiku")]
+use crate::host::haiku::HaikuHost;
+#[cfg(target_os = "illumos")]
+use crate::host::illumos::IllumosHost;
+#[cfg(target_os = "ios")]
+use crate::host::ios::IosHost;
+#[cfg(target_os = "linux")]
+use crate::host::linux::LinuxHost;
+#[cfg(target_os = "macos")]
+use crate::host::macos::MacosHost;
+#[cfg(target_os = "netbsd")]
+use crate::host::netbsd::NetBsdHost;
+#[cfg(target_os = "openbsd")]
+use crate::host::openbsd::OpenBsdHost;
+#[cfg(target_os = "solaris")]
+use crate::host::solaris::SolarisHost;
+#[cfg(not(any(
+    target_os = "android",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "haiku",
+    target_os = "illumos",
+    target_os = "ios",
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "netbsd",
+    target_os = "openbsd",
+    target_os = "solaris",
+    windows,
+)))]
+use crate::host::unsupported::UnsupportedHost;
+#[cfg(windows)]
+use crate::host::windows::WindowsHost;
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilityId, PlatformCapabilitySet};
 use crate::runtime::poller::PollerWakeHandle;
 use crate::runtime::world::RuntimeId;
@@ -17,8 +55,8 @@ use crate::runtime::world::RuntimeId;
 pub struct Host {
     /// Active host implementation for this runtime instance.
     backend: Arc<dyn HostBackend>,
-    /// Shared runtime state for this host instance.
-    runtime_state: Arc<HostState>,
+    /// Shared host queue for this runtime instance.
+    queue: Arc<HostQueue>,
     /// Shared registration guard for callback routing.
     registration_guard: HostRegistrationGuard,
     /// Runtime id used for host callback routing and ingress observers.
@@ -67,25 +105,32 @@ impl Host {
         host_options: PlatformHostOptions,
     ) -> Self {
         let platform = backend.platform();
-        let runtime_state = HostState::new();
+        let queue = Arc::new(HostQueue::new());
 
         // register callback routing before this host starts serving callers
-        let registration_guard = register_host_state(
+        let registration_guard = HostQueueRegistry::shared().write().register(
             platform,
             runtime_id,
-            Arc::downgrade(&runtime_state),
-            backend.runtime_state_cleanup(),
+            Arc::downgrade(&queue),
+            backend.runtime_cleanup(),
         );
 
-        // apply queue policy to the shared host runtime state
-        runtime_state.apply_host_options(&host_options);
-        runtime_state.push_lifecycle(HostLifecycleState::Initializing);
+        // apply queue policy to the shared host event queue
+        let queue_capacity = host_options
+            .event_queue_capacity
+            .and_then(|capacity| usize::try_from(capacity).ok());
+        queue.configure_capacity(queue_capacity);
+
+        // seed one initializing lifecycle event for the new runtime
+        queue.enqueue(HostEvent::Lifecycle(HostLifecycleEvent {
+            state: HostLifecycleState::Initializing,
+        }));
 
         let host_capabilities = backend.host_capabilities();
 
         Self {
             backend,
-            runtime_state,
+            queue,
             registration_guard,
             runtime_id,
             host_capabilities,
@@ -96,8 +141,8 @@ impl Host {
     /// Create one host runtime from runtime options and one explicit runtime id.
     pub fn from_runtime_options(options: &RuntimeOptions, runtime_id: RuntimeId) -> Self {
         // select the host for this compile target
-        let host = default_host();
-        let host_options = host_options_for_target(options);
+        let host = Self::default_backend();
+        let host_options = Self::host_options_for_target(options);
 
         Self::new_with_options(host, runtime_id, host_options)
     }
@@ -136,18 +181,19 @@ impl Host {
 
     /// Poll host events using the active host.
     pub fn poll_events(&self, timeout_nanos: Option<u64>) -> RuntimeResult<HostPollOutcome> {
-        let poll_result = self.runtime_state.poll_events(timeout_nanos)?;
-        let events = filter_events(poll_result.events, &self.host_options);
+        let events = self.queue.poll_events(timeout_nanos)?;
+        let events = self.filter_events(events);
+        let dropped_event_count = self.queue.take_dropped_event_count();
 
         Ok(HostPollOutcome {
             events,
-            dropped_event_count: poll_result.dropped_event_count,
+            dropped_event_count,
         })
     }
 
     /// Return one shared host wake handle.
     pub fn poll_wake_handle(&self) -> Arc<dyn PollerWakeHandle> {
-        self.runtime_state.poll_wake_handle()
+        self.queue.poll_wake_handle()
     }
 
     /// Return the runtime id used for host callback routing.
@@ -171,48 +217,186 @@ impl Host {
         self.process_ingress()?;
 
         // service registered runtime observers for this runtime
-        process_runtime_observer(self.runtime_id.0)
+        RuntimeIngressObserverRegistry::shared()
+            .write()
+            .process_runtime(self.runtime_id.0)
     }
-}
 
-/// Return host integration options for the current compile target.
-fn host_options_for_target(options: &RuntimeOptions) -> PlatformHostOptions {
-    match compile_target_host_platform() {
-        Platform::Android => options.platform.android.clone(),
-        Platform::DragonFly => options.platform.dragonfly.clone(),
-        Platform::FreeBsd => options.platform.freebsd.clone(),
-        Platform::Haiku => options.platform.haiku.clone(),
-        Platform::Illumos => options.platform.illumos.clone(),
-        Platform::IOS => options.platform.ios.clone(),
-        Platform::Linux => options.platform.linux.clone(),
-        Platform::MacOS => options.platform.macos.clone(),
-        Platform::NetBsd => options.platform.netbsd.clone(),
-        Platform::OpenBsd => options.platform.openbsd.clone(),
-        Platform::Solaris => options.platform.solaris.clone(),
-        Platform::Windows => options.platform.windows.host_options(),
-        _ => PlatformHostOptions::default(),
+    /// Return the default backend for the active compile target.
+    fn default_backend() -> Arc<dyn HostBackend> {
+        #[cfg(target_os = "android")]
+        return Arc::new(AndroidHost::new());
+
+        #[cfg(target_os = "dragonfly")]
+        return Arc::new(DragonflyHost::new());
+
+        #[cfg(target_os = "freebsd")]
+        return Arc::new(FreeBsdHost::new());
+
+        #[cfg(target_os = "haiku")]
+        return Arc::new(HaikuHost::new());
+
+        #[cfg(target_os = "illumos")]
+        return Arc::new(IllumosHost::new());
+
+        #[cfg(target_os = "ios")]
+        return Arc::new(IosHost::new());
+
+        #[cfg(target_os = "linux")]
+        return Arc::new(LinuxHost::new());
+
+        #[cfg(target_os = "macos")]
+        return Arc::new(MacosHost::new());
+
+        #[cfg(target_os = "netbsd")]
+        return Arc::new(NetBsdHost::new());
+
+        #[cfg(target_os = "openbsd")]
+        return Arc::new(OpenBsdHost::new());
+
+        #[cfg(target_os = "solaris")]
+        return Arc::new(SolarisHost::new());
+
+        #[cfg(windows)]
+        return Arc::new(WindowsHost::new());
+
+        #[cfg(not(any(
+            target_os = "android",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "haiku",
+            target_os = "illumos",
+            target_os = "ios",
+            target_os = "linux",
+            target_os = "macos",
+            target_os = "netbsd",
+            target_os = "openbsd",
+            target_os = "solaris",
+            windows,
+        )))]
+        return Arc::new(UnsupportedHost::new());
     }
-}
 
-/// Filter one host event vector with host integration options.
-fn filter_events(events: Vec<HostEvent>, host_options: &PlatformHostOptions) -> Vec<HostEvent> {
-    let mut filtered_events = Vec::with_capacity(events.len());
-
-    for event in events {
-        let is_enabled = match event {
-            HostEvent::Lifecycle(_) => host_options.enable_lifecycle_events,
-            HostEvent::Permission(_) => host_options.enable_permission_events,
-            HostEvent::Interruption(_) => host_options.enable_interruption_events,
-            HostEvent::MemoryPressure(_) => host_options.enable_interruption_events,
-            HostEvent::ThermalState(_) => host_options.enable_interruption_events,
-            HostEvent::PowerMode(_) => host_options.enable_interruption_events,
-            HostEvent::WallClock(_) => host_options.enable_lifecycle_events,
-        };
-
-        if is_enabled {
-            filtered_events.push(event);
+    /// Return host integration options for the current compile target.
+    fn host_options_for_target(options: &RuntimeOptions) -> PlatformHostOptions {
+        match Self::compile_target_host_platform() {
+            Platform::Android => options.platform.android.clone(),
+            Platform::DragonFly => options.platform.dragonfly.clone(),
+            Platform::FreeBsd => options.platform.freebsd.clone(),
+            Platform::Haiku => options.platform.haiku.clone(),
+            Platform::Illumos => options.platform.illumos.clone(),
+            Platform::IOS => options.platform.ios.clone(),
+            Platform::Linux => options.platform.linux.clone(),
+            Platform::MacOS => options.platform.macos.clone(),
+            Platform::NetBsd => options.platform.netbsd.clone(),
+            Platform::OpenBsd => options.platform.openbsd.clone(),
+            Platform::Solaris => options.platform.solaris.clone(),
+            Platform::Windows => options.platform.windows.host_options(),
+            _ => PlatformHostOptions::default(),
         }
     }
 
-    filtered_events
+    /// Filter one host event vector with host integration options.
+    fn filter_events(&self, events: Vec<HostEvent>) -> Vec<HostEvent> {
+        let mut filtered_events = Vec::with_capacity(events.len());
+
+        for event in events {
+            let is_enabled = match event {
+                HostEvent::Lifecycle(_) => self.host_options.enable_lifecycle_events,
+                HostEvent::Permission(_) => self.host_options.enable_permission_events,
+                HostEvent::Interruption(_) => self.host_options.enable_interruption_events,
+                HostEvent::MemoryPressure(_) => self.host_options.enable_interruption_events,
+                HostEvent::ThermalState(_) => self.host_options.enable_interruption_events,
+                HostEvent::PowerMode(_) => self.host_options.enable_interruption_events,
+                HostEvent::WallClock(_) => self.host_options.enable_lifecycle_events,
+            };
+
+            if is_enabled {
+                filtered_events.push(event);
+            }
+        }
+
+        filtered_events
+    }
+
+    /// Return the host platform for the current compile target.
+    const fn compile_target_host_platform() -> Platform {
+        #[cfg(target_os = "android")]
+        {
+            Platform::Android
+        }
+
+        #[cfg(target_os = "dragonfly")]
+        {
+            Platform::DragonFly
+        }
+
+        #[cfg(target_os = "freebsd")]
+        {
+            Platform::FreeBsd
+        }
+
+        #[cfg(target_os = "haiku")]
+        {
+            Platform::Haiku
+        }
+
+        #[cfg(target_os = "illumos")]
+        {
+            Platform::Illumos
+        }
+
+        #[cfg(target_os = "ios")]
+        {
+            Platform::IOS
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            Platform::Linux
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            Platform::MacOS
+        }
+
+        #[cfg(target_os = "netbsd")]
+        {
+            Platform::NetBsd
+        }
+
+        #[cfg(target_os = "openbsd")]
+        {
+            Platform::OpenBsd
+        }
+
+        #[cfg(target_os = "solaris")]
+        {
+            Platform::Solaris
+        }
+
+        #[cfg(windows)]
+        {
+            Platform::Windows
+        }
+
+        #[cfg(not(any(
+            target_os = "android",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "haiku",
+            target_os = "illumos",
+            target_os = "ios",
+            target_os = "linux",
+            target_os = "macos",
+            target_os = "netbsd",
+            target_os = "openbsd",
+            target_os = "solaris",
+            windows,
+        )))]
+        {
+            Platform::Universal
+        }
+    }
 }

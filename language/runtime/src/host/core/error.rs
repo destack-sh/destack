@@ -15,8 +15,8 @@ pub(crate) fn invalid_argument_value(
     RuntimeError::from(PlatformError::invalid_argument_value(argument, message)).boxed()
 }
 
-/// Return one missing runtime-host state error.
-pub(crate) fn missing_host_state(runtime_id: u64, platform: Platform) -> Box<RuntimeError> {
+/// Return one missing runtime-host queue error.
+pub(crate) fn missing_host_queue(runtime_id: u64, platform: Platform) -> Box<RuntimeError> {
     let platform = platform.canonical_tag();
-    not_supported(format!("runtime.host.state.{platform}.{runtime_id}"))
+    not_supported(format!("runtime.host.queue.{platform}.{runtime_id}"))
 }

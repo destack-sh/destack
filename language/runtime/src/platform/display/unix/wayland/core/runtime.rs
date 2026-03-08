@@ -4,7 +4,7 @@ use std::sync::{Arc, Condvar, Mutex, OnceLock, Weak};
 
 use super::WaylandConnectionState;
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::observer::{RuntimeIngressObserver, register_runtime_ingress_observer};
+use crate::host::core::observer::{RuntimeIngressObserver, RuntimeIngressObserverRegistry};
 use crate::platform::display::DisplayBackend;
 use crate::platform::display::unix::wayland::event::{
     self as wayland_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord,
@@ -262,7 +262,9 @@ impl WaylandRuntimeState {
             .clone();
         let observer: Arc<dyn RuntimeIngressObserver> = observer;
 
-        register_runtime_ingress_observer(runtime_id.0, &observer);
+        RuntimeIngressObserverRegistry::shared()
+            .write()
+            .register(runtime_id.0, &observer);
     }
 }
 
