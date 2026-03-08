@@ -112,6 +112,10 @@ check-runtime-linux:
     LC_ALL=C LANG=C LC_CTYPE=C cargo clippy -p destack_runtime --all-targets -- -D warnings
     LC_ALL=C LANG=C LC_CTYPE=C just _run-rust-test -p destack_runtime runtime::host::linux:: -- --nocapture
 
+# check runtime for linux aarch64 target using one configured cross toolchain
+check-runtime-linux-aarch64:
+    bash ../scripts/toolchain/check-runtime-linux-aarch64.sh
+
 # check runtime wayland backend against one real compositor on linux host
 check-runtime-linux-wayland:
     bash ../scripts/toolchain/check-runtime-linux-wayland.sh
