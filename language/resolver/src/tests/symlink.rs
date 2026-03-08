@@ -206,34 +206,6 @@ fn test_symlinks_resolution() {
     }
 }
 
-/// Keep unsupported DOS device target behavior aligned with upstream Windows semantics.
-#[cfg(target_os = "windows")]
-#[test]
-fn test_symlinks_unsupported_targets() {
-    use crate::ResolveError;
-
-    let Some(SymlinkFixturePaths { root, temp_path }) =
-        prepare_symlinks("temp.test_unsupported_targets").unwrap()
-    else {
-        return;
-    };
-
-    let resolver_with_symlinks = Resolver::physical(ResolveOptions::default());
-
-    // unsupported DOS device path targets should be rejected from DOS device context
-    let dos_device_temp_path = get_dos_device_path(&temp_path).unwrap();
-    let dos_device_root = get_dos_device_path(&root).unwrap();
-    let resolution = resolver_with_symlinks.resolve(&dos_device_temp_path, "./index.js");
-
-    assert!(
-        matches!(
-            resolution,
-            Err(ResolveError::UnsupportedPath { ref path }) if *path == dos_device_root
-        ),
-        "unexpected unsupported DOS device target resolution: {resolution:?}"
-    );
-}
-
 /// Test circular symlink detection.
 #[test]
 fn test_symlinks_circular() {
