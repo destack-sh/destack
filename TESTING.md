@@ -65,6 +65,7 @@ See [`TARGETS.md`](TARGETS.md) for the canonical support policy.
 
 Use the `just` commands as the public interface.
 The scripts below are the backing implementation for target-specific lanes.
+GitHub Actions Rust lanes use the shared setup actions, which also enable `sccache` through `setup-rust-just` and `setup-rust-bun-just`.
 
 | Purpose | Public command | Backing script |
 |---------|----------------|----------------|
