@@ -1,5 +1,5 @@
 use super::super::{Program, scale_axis};
-use destack_vm::memory::Value;
+use destack_heap::Value;
 
 declare_program! {
     /// Simple state machine cycling through three states.

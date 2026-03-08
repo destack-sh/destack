@@ -1,6 +1,6 @@
 use super::super::common::clamp_min;
 use super::super::{Program, scale_axis};
-use destack_vm::memory::Value;
+use destack_heap::Value;
 
 const HASH_TABLE_MIN_LEN: i64 = 8;
 

@@ -1,5 +1,5 @@
 use super::super::{Program, function_pointer_by_name, scale_axis};
-use destack_vm::memory::Value;
+use destack_heap::Value;
 
 declare_program! {
     /// Indirect calls loaded from a function pointer table.

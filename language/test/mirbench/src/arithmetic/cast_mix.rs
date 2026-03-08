@@ -1,5 +1,5 @@
 use super::super::{Program, scale_axis};
-use destack_vm::memory::Value;
+use destack_heap::Value;
 
 declare_program! {
     /// Cast mix covering integer truncation and float conversions.

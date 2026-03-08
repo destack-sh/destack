@@ -1,6 +1,6 @@
 use super::super::common::mix_result;
 use super::super::{Program, function_pointer_by_name, scale_axis};
-use destack_vm::memory::Value;
+use destack_heap::Value;
 
 declare_program! {
     /// Call pipeline with an indirect callback stage.

@@ -1,6 +1,6 @@
 use super::super::common::mix_result;
 use super::super::{Program, scale_axis};
-use destack_vm::memory::Value;
+use destack_heap::Value;
 
 const HEADER_MAP_CAPACITY: i64 = 32;
 const HEADER_MAP_SIZE: i64 = 16;

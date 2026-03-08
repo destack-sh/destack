@@ -1,6 +1,6 @@
 use super::super::common::mix_result;
 use super::super::{Program, scale_axis};
-use destack_vm::memory::Value;
+use destack_heap::Value;
 
 const POOL_CAPACITY: i64 = 32;
 const POOL_HASH_MUL: i64 = 1103515245;

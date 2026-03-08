@@ -1,5 +1,5 @@
 use super::super::{Program, scale_axis_range};
-use destack_vm::memory::Value;
+use destack_heap::Value;
 
 declare_program! {
     /// Mutually recursive even and odd functions.

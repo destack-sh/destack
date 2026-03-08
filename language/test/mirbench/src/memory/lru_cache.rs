@@ -1,6 +1,6 @@
 use super::super::common::mix_result;
 use super::super::{Program, scale_axis};
-use destack_vm::memory::Value;
+use destack_heap::Value;
 
 const LRU_CAPACITY: i64 = 16;
 const LRU_HASH_MUL: i64 = 1103515245;

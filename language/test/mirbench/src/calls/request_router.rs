@@ -1,6 +1,6 @@
 use super::super::common::mix_result;
 use super::super::{Program, scale_axis};
-use destack_vm::memory::Value;
+use destack_heap::Value;
 
 const ROUTE_HASH_MUL: i64 = 1103515245;
 const ROUTE_HASH_ADD: i64 = 12345;

@@ -1,6 +1,6 @@
 use super::super::common::clamp_min;
 use super::super::{Program, scale_axis};
-use destack_vm::memory::Value;
+use destack_heap::Value;
 
 declare_program! {
     /// Object graph build and mark traversal with stride-based retention.

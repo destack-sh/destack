@@ -18,6 +18,7 @@ perf-counters = ["destack_vm/perf-counters"]
 stats = ["destack_vm/stats"]
 
 [dependencies]
+destack_heap = { workspace = true }
 destack_mir = { workspace = true }
 destack_source = { workspace = true }
 destack_vm = { workspace = true }

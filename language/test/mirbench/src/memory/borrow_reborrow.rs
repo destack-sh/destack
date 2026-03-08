@@ -1,6 +1,6 @@
 use super::super::common::mix_result;
 use super::super::{Program, scale_axis};
-use destack_vm::memory::Value;
+use destack_heap::Value;
 
 declare_program! {
     /// Borrowed references passed through a call in a tight loop.
