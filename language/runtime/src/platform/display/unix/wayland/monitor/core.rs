@@ -1,5 +1,3 @@
-use crate::diagnostic::RuntimeResult;
-use crate::platform::core as core_platform;
 use crate::platform::display::{DisplayBackend, DisplayMode, DisplaySupportStatus};
 
 use crate::platform::display::unix::wayland::core;
@@ -157,14 +155,4 @@ pub(crate) fn output_mode_id_for_display_mode(
     }
 
     first_match
-}
-
-/// Return one wl_output global name for one stable display id.
-pub(crate) fn output_global_name_for_display_id(display_id: &str) -> RuntimeResult<u32> {
-    core::output_global_name_from_display_id(display_id).ok_or_else(|| {
-        core_platform::invalid_argument(
-            "display",
-            format!("display id `{display_id}` is not one wayland output identifier"),
-        )
-    })
 }

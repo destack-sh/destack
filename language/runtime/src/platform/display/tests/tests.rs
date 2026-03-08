@@ -1,5 +1,3 @@
-#![cfg_attr(windows, allow(dead_code, unused_imports))]
-
 use destack_vm as vm;
 #[cfg(any(windows, target_os = "macos"))]
 use std::sync::{Mutex, OnceLock};
@@ -797,11 +795,11 @@ pub(crate) fn harness_window_icon_set_none(
 }
 
 /// Window mode helper for harness payload construction.
-#[cfg_attr(not(windows), allow(dead_code))]
 pub(crate) enum HarnessWindowMode {
     /// Windowed mode.
     Windowed,
     /// Borderless mode.
+    #[allow(dead_code)]
     Borderless,
     /// Exclusive fullscreen mode.
     ExclusiveFullscreen {

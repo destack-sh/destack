@@ -45,12 +45,6 @@ impl PlatformDisplayState {
         )
     }
 
-    /// Return existing Win32 display state when it was initialized already.
-    #[cfg(windows)]
-    pub(crate) fn existing_win32_runtime_state(&self) -> Option<Arc<Win32RuntimeState>> {
-        self.win32_runtime_state.get().map(Arc::clone)
-    }
-
     /// Return runtime-owned linux x11 display state.
     #[cfg(target_os = "linux")]
     pub(crate) fn x11_runtime_state(
@@ -63,12 +57,6 @@ impl PlatformDisplayState {
         )
     }
 
-    /// Return existing linux x11 display state when it was initialized already.
-    #[cfg(target_os = "linux")]
-    pub(crate) fn existing_x11_runtime_state(&self) -> Option<Arc<X11RuntimeState>> {
-        self.x11_runtime_state.get().map(Arc::clone)
-    }
-
     /// Return runtime-owned linux wayland display state.
     #[cfg(target_os = "linux")]
     pub(crate) fn wayland_runtime_state(
@@ -79,12 +67,6 @@ impl PlatformDisplayState {
             self.wayland_runtime_state
                 .get_or_init(|| Arc::new(initialize())),
         )
-    }
-
-    /// Return existing linux wayland display state when it was initialized already.
-    #[cfg(target_os = "linux")]
-    pub(crate) fn existing_wayland_runtime_state(&self) -> Option<Arc<WaylandRuntimeState>> {
-        self.wayland_runtime_state.get().map(Arc::clone)
     }
 
     /// Return runtime-owned macOS appkit display state.

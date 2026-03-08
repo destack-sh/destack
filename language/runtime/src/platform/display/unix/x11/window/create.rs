@@ -322,17 +322,17 @@ pub(crate) unsafe fn window_open(
     ) {
         Ok(value) => value,
         Err(error) => {
-            if let Ok(cookie) = connection.destroy_window(window) {
-                if let Err(cleanup_error) = cookie.check() {
-                    context.warn(
-                        "display",
-                        "destack.display.window.open",
-                        format!(
-                            "destroy_window cleanup failed after mode apply error: {cleanup_error}"
-                        ),
-                        None,
-                    );
-                }
+            if let Ok(cookie) = connection.destroy_window(window)
+                && let Err(cleanup_error) = cookie.check()
+            {
+                context.warn(
+                    "display",
+                    "destack.display.window.open",
+                    format!(
+                        "destroy_window cleanup failed after mode apply error: {cleanup_error}"
+                    ),
+                    None,
+                );
             }
             if let Err(cleanup_error) = connection.flush() {
                 context.warn(

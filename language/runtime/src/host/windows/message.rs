@@ -30,7 +30,7 @@ pub(super) fn process_ingress_ready(ignore_quit_message: bool) -> bool {
 }
 
 /// Run the blocking ingress loop until quit or failure.
-pub(super) fn process_ingress_loop() {
+pub(crate) fn process_ingress_loop() {
     // block on get message and dispatch until quit or error
     let mut message = unsafe { std::mem::zeroed::<MSG>() };
     loop {

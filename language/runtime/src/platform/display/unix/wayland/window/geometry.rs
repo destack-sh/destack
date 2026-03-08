@@ -55,13 +55,13 @@ fn validate_mode_request(
         let snapshot = monitor::snapshot_by_display_handle(context, display_handle, operation)?;
 
         // validate optional exclusive-mode payload against available display modes
-        if let Some(display_mode) = mode_display_mode(mode) {
-            if !snapshot.modes.contains(&display_mode) {
-                return Err(core_platform::invalid_argument(
-                    "mode",
-                    "display mode is not supported by the target display",
-                ));
-            }
+        if let Some(display_mode) = mode_display_mode(mode)
+            && !snapshot.modes.contains(&display_mode)
+        {
+            return Err(core_platform::invalid_argument(
+                "mode",
+                "display mode is not supported by the target display",
+            ));
         }
     }
 
@@ -181,27 +181,25 @@ fn apply_size_policy(
                 let height = current_size.height.min(i32::MAX as u32) as i32;
                 toplevel.set_min_size(width.max(1), height.max(1));
                 toplevel.set_max_size(width.max(1), height.max(1));
-            } else {
-                if let Some(constraints) = constraints {
-                    if let Some(minimum) = constraints.min {
-                        let width = minimum.width.round().clamp(1.0, i32::MAX as f64) as i32;
-                        let height = minimum.height.round().clamp(1.0, i32::MAX as f64) as i32;
-                        toplevel.set_min_size(width, height);
-                    } else {
-                        toplevel.set_min_size(0, 0);
-                    }
-
-                    if let Some(maximum) = constraints.max {
-                        let width = maximum.width.round().clamp(1.0, i32::MAX as f64) as i32;
-                        let height = maximum.height.round().clamp(1.0, i32::MAX as f64) as i32;
-                        toplevel.set_max_size(width, height);
-                    } else {
-                        toplevel.set_max_size(0, 0);
-                    }
+            } else if let Some(constraints) = constraints {
+                if let Some(minimum) = constraints.min {
+                    let width = minimum.width.round().clamp(1.0, i32::MAX as f64) as i32;
+                    let height = minimum.height.round().clamp(1.0, i32::MAX as f64) as i32;
+                    toplevel.set_min_size(width, height);
                 } else {
                     toplevel.set_min_size(0, 0);
+                }
+
+                if let Some(maximum) = constraints.max {
+                    let width = maximum.width.round().clamp(1.0, i32::MAX as f64) as i32;
+                    let height = maximum.height.round().clamp(1.0, i32::MAX as f64) as i32;
+                    toplevel.set_max_size(width, height);
+                } else {
                     toplevel.set_max_size(0, 0);
                 }
+            } else {
+                toplevel.set_min_size(0, 0);
+                toplevel.set_max_size(0, 0);
             }
 
             wayland_core::flush_queue(event_queue, operation)?;

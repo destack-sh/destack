@@ -292,27 +292,25 @@ pub(crate) fn handle_data_device_event(
             }
 
             let surface_id = dispatch_state.input.drop_session_state.surface.clone();
-            if let Some(surface_id) = surface_id {
-                if let Some(token) = runtime_state.window_token_from_surface(&surface_id)
-                    && let Some(window_handle) =
-                        runtime_state.window_handle_from_id(&token.window_id)
+            if let Some(surface_id) = surface_id
+                && let Some(token) = runtime_state.window_token_from_surface(&surface_id)
+                && let Some(window_handle) = runtime_state.window_handle_from_id(&token.window_id)
+            {
+                if let Some(previous_path) = dispatch_state
+                    .input
+                    .drop_session_state
+                    .last_hovered_path
+                    .take()
                 {
-                    if let Some(previous_path) = dispatch_state
-                        .input
-                        .drop_session_state
-                        .last_hovered_path
-                        .take()
-                    {
-                        event::publish_window_file_hover_left(
-                            &runtime_state,
-                            window_handle,
-                            Some(previous_path),
-                            dispatch_state.input.drop_session_state.position,
-                        );
-                    }
-
-                    event::publish_window_drop_cancelled(&runtime_state, window_handle);
+                    event::publish_window_file_hover_left(
+                        &runtime_state,
+                        window_handle,
+                        Some(previous_path),
+                        dispatch_state.input.drop_session_state.position,
+                    );
                 }
+
+                event::publish_window_drop_cancelled(&runtime_state, window_handle);
             }
 
             clear_drop_session(dispatch_state);

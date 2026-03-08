@@ -114,6 +114,15 @@ pub(crate) struct MonitorEventFilterState {
 }
 
 impl MonitorEventFilterState {
+    #[cfg(test)]
+    /// Build one monitor-event filter state from explicit fields.
+    pub(crate) fn new(display_id: Option<String>, kind_mask: Option<u32>) -> Self {
+        Self {
+            display_id,
+            kind_mask,
+        }
+    }
+
     /// Build one monitor-event filter state from open options.
     pub(crate) unsafe fn from_open_options(
         options: DisplayMonitorEventOpenOptions,

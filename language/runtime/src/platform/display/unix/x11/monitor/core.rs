@@ -243,14 +243,8 @@ fn root_work_area(
     let selected_desktop = current_desktop.min(desktop_count.saturating_sub(1));
     let offset = selected_desktop.saturating_mul(4);
 
-    let x = match i32::try_from(work_area[offset]) {
-        Ok(value) => value,
-        Err(_) => i32::MAX,
-    };
-    let y = match i32::try_from(work_area[offset + 1]) {
-        Ok(value) => value,
-        Err(_) => i32::MAX,
-    };
+    let x = i32::try_from(work_area[offset]).unwrap_or(i32::MAX);
+    let y = i32::try_from(work_area[offset + 1]).unwrap_or(i32::MAX);
     let width = work_area[offset + 2].max(1);
     let height = work_area[offset + 3].max(1);
 
@@ -493,10 +487,11 @@ pub(crate) fn enumerate_randr_output_states(
     }
 
     // assign one fallback primary display when no output reports primary
-    if !states.is_empty() && !states.iter().any(|state| state.descriptor.primary) {
-        if let Some(first_state) = states.first_mut() {
-            first_state.descriptor.primary = true;
-        }
+    if !states.is_empty()
+        && !states.iter().any(|state| state.descriptor.primary)
+        && let Some(first_state) = states.first_mut()
+    {
+        first_state.descriptor.primary = true;
     }
 
     Ok(states)

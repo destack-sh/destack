@@ -1,9 +1,5 @@
-use std::collections::VecDeque;
-
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::display::{
-    DisplayBackend, DisplayEventOverflowPolicy, DisplayMonitorEventKindMask, WindowEventKindMask,
-};
+use crate::platform::display::{DisplayBackend, DisplayMonitorEventKindMask, WindowEventKindMask};
 use crate::platform::{PlatformError, core as core_platform, resource};
 
 pub(crate) use crate::platform::display::unix::x11::constants::*;
@@ -104,6 +100,7 @@ pub(crate) fn io_error(operation: &'static str, message: impl Into<String>) -> B
 }
 
 /// Push one event into one queue under overflow policy.
+#[cfg(test)]
 pub(crate) fn push_with_overflow<T>(
     queue: &mut VecDeque<T>,
     queue_capacity: usize,

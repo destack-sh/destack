@@ -11,6 +11,7 @@ pub(crate) fn invalid_argument(
 }
 
 /// Build one unknown-handle runtime error.
+#[cfg(unix)]
 pub(crate) fn unknown_handle(
     field: impl Into<String>,
     handle_kind: impl Into<String>,
