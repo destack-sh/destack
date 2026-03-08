@@ -4,9 +4,16 @@ use std::time::{Duration, Instant};
 
 use parking_lot::{Condvar, Mutex, MutexGuard};
 
-use super::HostEvent;
+use super::{HostEvent, HostEventKind};
 use crate::diagnostic::RuntimeResult;
-use crate::runtime::poller::HostPollerWakeHandle;
+use crate::runtime::poller::PollerWakeHandle;
+
+/// Host event identity key used for queue coalescing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum HostEventCoalescingKey {
+    /// Coalescing key for one global host event kind.
+    Global(HostEventKind),
+}
 
 /// Shared host event queue for adapter event delivery.
 #[derive(Debug, Clone)]
@@ -91,7 +98,7 @@ impl HostEventQueue {
     }
 
     /// Return one shared wake handle for this queue.
-    pub(crate) fn wake_handle(&self) -> Arc<dyn HostPollerWakeHandle> {
+    pub(crate) fn poll_wake_handle(&self) -> Arc<dyn PollerWakeHandle> {
         self.wake_handle.clone()
     }
 
@@ -126,7 +133,7 @@ impl HostEventQueue {
     }
 }
 
-impl HostPollerWakeHandle for HostEventQueueWakeHandle {
+impl PollerWakeHandle for HostEventQueueWakeHandle {
     fn wake(&self) -> RuntimeResult<()> {
         let mut payload = self.state.queue.lock();
         payload.wake_sequence = payload.wake_sequence.wrapping_add(1);
@@ -180,7 +187,7 @@ fn enforce_capacity_before_enqueue(payload: &mut HostEventQueuePayload, event: &
     };
 
     // permission results must stay lossless
-    if event.is_lossless() {
+    if is_lossless_event(event) {
         return true;
     }
 
@@ -188,7 +195,7 @@ fn enforce_capacity_before_enqueue(payload: &mut HostEventQueuePayload, event: &
         // remove the oldest drop-eligible event first
         let Some(index) = oldest_drop_eligible_event_index(&payload.events) else {
             // coalesced state events should still be accepted when only lossless events are queued
-            if event.is_coalescing() {
+            if is_coalescing_event(event) {
                 return true;
             }
 
@@ -205,18 +212,45 @@ fn enforce_capacity_before_enqueue(payload: &mut HostEventQueuePayload, event: &
 
 /// Remove stale semantic events that are modeled as latest-state signals.
 fn coalesce_semantic_event(events: &mut VecDeque<HostEvent>, event: &HostEvent) {
-    let Some(coalescing_key) = event.coalescing_key() else {
+    let Some(event_coalescing_key) = coalescing_key(event) else {
         return;
     };
 
-    events.retain(|queued_event| queued_event.coalescing_key() != Some(coalescing_key));
+    events.retain(|queued_event| coalescing_key(queued_event) != Some(event_coalescing_key));
 }
 
 /// Return the oldest event index that is eligible for drop-on-pressure policy.
 fn oldest_drop_eligible_event_index(events: &VecDeque<HostEvent>) -> Option<usize> {
     events
         .iter()
-        .position(|queued_event| !queued_event.is_lossless())
+        .position(|queued_event| !is_lossless_event(queued_event))
+}
+
+/// Return whether this event must be handled losslessly.
+fn is_lossless_event(event: &HostEvent) -> bool {
+    matches!(event.kind(), HostEventKind::Permission)
+}
+
+/// Return whether this event uses latest-state coalescing semantics.
+fn is_coalescing_event(event: &HostEvent) -> bool {
+    matches!(
+        event.kind(),
+        HostEventKind::Lifecycle
+            | HostEventKind::Interruption
+            | HostEventKind::MemoryPressure
+            | HostEventKind::ThermalState
+            | HostEventKind::PowerMode
+            | HostEventKind::WallClock
+    )
+}
+
+/// Return one coalescing identity key for this event when applicable.
+fn coalescing_key(event: &HostEvent) -> Option<HostEventCoalescingKey> {
+    if !is_coalescing_event(event) {
+        return None;
+    }
+
+    Some(HostEventCoalescingKey::Global(event.kind()))
 }
 
 #[cfg(test)]
@@ -225,10 +259,7 @@ mod tests {
     use std::thread;
     use std::time::{Duration, Instant};
 
-    use crate::host::{
-        HostEvent, HostLifecycleEvent, HostLifecycleState, HostPermissionEvent, HostWindowEvent,
-        HostWindowFocusEvent,
-    };
+    use crate::host::{HostEvent, HostLifecycleEvent, HostLifecycleState, HostPermissionEvent};
 
     use super::HostEventQueue;
 
@@ -240,17 +271,6 @@ mod tests {
         HostEvent::Permission(HostPermissionEvent {
             permission: permission.to_string(),
             granted,
-        })
-    }
-
-    fn window_event(window_id: u64) -> HostEvent {
-        HostEvent::Window(HostWindowEvent::WindowAvailable { window_id })
-    }
-
-    fn window_focus_event(window_id: u64, is_focused: bool) -> HostEvent {
-        HostEvent::WindowFocus(HostWindowFocusEvent {
-            window_id,
-            is_focused,
         })
     }
 
@@ -279,7 +299,7 @@ mod tests {
     fn test_wake_handle_interrupts_blocking_poll() {
         let queue = HostEventQueue::new();
         let queue_for_thread = queue.clone();
-        let wake_handle = queue.wake_handle();
+        let wake_handle = queue.poll_wake_handle();
         let (sender, receiver) = mpsc::channel();
 
         thread::spawn(move || {
@@ -301,12 +321,12 @@ mod tests {
         let queue = HostEventQueue::new();
         queue.configure(Some(1));
 
-        queue.enqueue(window_event(11));
-        queue.enqueue(window_event(12));
+        queue.enqueue(lifecycle_event(HostLifecycleState::Paused));
+        queue.enqueue(permission_event("camera", true));
 
         let events = queue.poll_events(Some(0)).unwrap();
         assert_eq!(events.len(), 1);
-        assert_eq!(events[0], window_event(12));
+        assert_eq!(events[0], permission_event("camera", true));
     }
 
     #[test]
@@ -314,8 +334,8 @@ mod tests {
         let queue = HostEventQueue::new();
         queue.configure(Some(1));
 
-        queue.enqueue(window_event(11));
-        queue.enqueue(window_focus_event(11, true));
+        queue.enqueue(lifecycle_event(HostLifecycleState::Paused));
+        queue.enqueue(permission_event("camera", true));
 
         let dropped_first = queue.take_dropped_event_count();
         let dropped_second = queue.take_dropped_event_count();
@@ -380,12 +400,15 @@ mod tests {
         queue.configure(Some(1));
 
         queue.enqueue(permission_event("camera", false));
-        queue.enqueue(window_event(55));
+        queue.enqueue(lifecycle_event(HostLifecycleState::Running));
 
         let events = queue.poll_events(Some(0)).unwrap();
         assert_eq!(
             events,
-            vec![permission_event("camera", false), window_event(55),]
+            vec![
+                permission_event("camera", false),
+                lifecycle_event(HostLifecycleState::Running),
+            ]
         );
         assert_eq!(queue.take_dropped_event_count(), 0);
     }

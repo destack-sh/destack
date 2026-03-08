@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
+use destack_workspace::Platform;
+
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostPlatform, HostState, HostWindowEvent, host_state_for_runtime};
+use crate::host::core::HostState;
+use crate::host::core::registry::host_state_for_runtime;
 use crate::host::{HostLifecycleState, HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 use crate::runtime::world::RuntimeId;
 
@@ -24,7 +27,7 @@ pub enum AndroidActivityLifecycle {
 
 /// Return the active Android host state for this process.
 fn android_host_bridge(runtime_id: u64) -> RuntimeResult<Arc<HostState>> {
-    host_state_for_runtime(RuntimeId(runtime_id), HostPlatform::Android)
+    host_state_for_runtime(RuntimeId(runtime_id), Platform::Android)
 }
 
 /// Submit one Android activity lifecycle callback.
@@ -35,51 +38,6 @@ pub fn android_notify_activity_lifecycle(
     let bridge = android_host_bridge(runtime_id)?;
     let state = host_lifecycle_state_for_android_activity(lifecycle);
     bridge.push_lifecycle(state);
-
-    Ok(())
-}
-
-/// Submit one Android surface-available callback.
-pub fn android_notify_window_available(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
-    let bridge = android_host_bridge(runtime_id)?;
-    bridge.push_window(HostWindowEvent::WindowAvailable { window_id });
-
-    Ok(())
-}
-
-/// Submit one Android surface-terminated callback.
-pub fn android_notify_window_terminated(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
-    let bridge = android_host_bridge(runtime_id)?;
-    bridge.push_window(HostWindowEvent::WindowTerminated { window_id });
-
-    Ok(())
-}
-
-/// Submit one Android surface-resized callback.
-pub fn android_notify_window_resized(
-    runtime_id: u64,
-    window_id: u64,
-    width_px: u32,
-    height_px: u32,
-) -> RuntimeResult<()> {
-    let bridge = android_host_bridge(runtime_id)?;
-    bridge.push_window(HostWindowEvent::WindowResized {
-        window_id,
-        width_px,
-        height_px,
-    });
-
-    Ok(())
-}
-
-/// Submit one Android window focus callback.
-pub fn android_notify_window_focus_changed(
-    runtime_id: u64,
-    window_id: u64,
-    is_focused: bool,
-) -> RuntimeResult<()> {
-    let bridge = android_host_bridge(runtime_id)?;
-    bridge.push_window_focus(window_id, is_focused);
 
     Ok(())
 }
@@ -163,7 +121,9 @@ pub fn android_notify_wall_clock_changed(runtime_id: u64) -> RuntimeResult<()> {
 /// Wake one blocked host poll operation for Android.
 pub fn android_notify_wake(runtime_id: u64) -> RuntimeResult<()> {
     let bridge = android_host_bridge(runtime_id)?;
-    bridge.wake_handle().wake()
+    bridge.poll_wake_handle().wake()?;
+
+    Ok(())
 }
 
 /// Map one Android activity lifecycle transition to host lifecycle state.

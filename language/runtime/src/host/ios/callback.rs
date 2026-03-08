@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
+use destack_workspace::Platform;
+
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostPlatform, HostState, HostWindowEvent, host_state_for_runtime};
+use crate::host::core::HostState;
+use crate::host::core::registry::host_state_for_runtime;
 use crate::host::{HostLifecycleState, HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 use crate::runtime::world::RuntimeId;
 
@@ -24,7 +27,7 @@ pub enum IosApplicationLifecycle {
 
 /// Return the active iOS host state for this process.
 fn ios_host_bridge(runtime_id: u64) -> RuntimeResult<Arc<HostState>> {
-    host_state_for_runtime(RuntimeId(runtime_id), HostPlatform::IOS)
+    host_state_for_runtime(RuntimeId(runtime_id), Platform::IOS)
 }
 
 /// Submit one iOS application lifecycle callback.
@@ -35,51 +38,6 @@ pub fn ios_notify_application_lifecycle(
     let bridge = ios_host_bridge(runtime_id)?;
     let state = host_lifecycle_state_for_application_lifecycle(lifecycle);
     bridge.push_lifecycle(state);
-
-    Ok(())
-}
-
-/// Submit one iOS window-available callback.
-pub fn ios_notify_window_available(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
-    let bridge = ios_host_bridge(runtime_id)?;
-    bridge.push_window(HostWindowEvent::WindowAvailable { window_id });
-
-    Ok(())
-}
-
-/// Submit one iOS window-terminated callback.
-pub fn ios_notify_window_terminated(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
-    let bridge = ios_host_bridge(runtime_id)?;
-    bridge.push_window(HostWindowEvent::WindowTerminated { window_id });
-
-    Ok(())
-}
-
-/// Submit one iOS window-resized callback.
-pub fn ios_notify_window_resized(
-    runtime_id: u64,
-    window_id: u64,
-    width_px: u32,
-    height_px: u32,
-) -> RuntimeResult<()> {
-    let bridge = ios_host_bridge(runtime_id)?;
-    bridge.push_window(HostWindowEvent::WindowResized {
-        window_id,
-        width_px,
-        height_px,
-    });
-
-    Ok(())
-}
-
-/// Submit one iOS window focus callback.
-pub fn ios_notify_window_focus_changed(
-    runtime_id: u64,
-    window_id: u64,
-    is_focused: bool,
-) -> RuntimeResult<()> {
-    let bridge = ios_host_bridge(runtime_id)?;
-    bridge.push_window_focus(window_id, is_focused);
 
     Ok(())
 }
@@ -145,11 +103,13 @@ pub fn ios_notify_wall_clock_changed(runtime_id: u64) -> RuntimeResult<()> {
 /// Wake one blocked host poll operation for iOS.
 pub fn ios_notify_wake(runtime_id: u64) -> RuntimeResult<()> {
     let bridge = ios_host_bridge(runtime_id)?;
-    bridge.wake_handle().wake()
+    bridge.poll_wake_handle().wake()?;
+
+    Ok(())
 }
 
 /// Map one iOS application lifecycle transition to host lifecycle state.
-fn host_lifecycle_state_for_application_lifecycle(
+pub(super) fn host_lifecycle_state_for_application_lifecycle(
     lifecycle: IosApplicationLifecycle,
 ) -> HostLifecycleState {
     match lifecycle {
@@ -161,7 +121,3 @@ fn host_lifecycle_state_for_application_lifecycle(
         IosApplicationLifecycle::WillTerminate => HostLifecycleState::Destroyed,
     }
 }
-
-#[cfg(test)]
-#[path = "tests/callback.rs"]
-mod tests;

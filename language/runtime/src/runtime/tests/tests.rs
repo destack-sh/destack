@@ -13,9 +13,8 @@ use crate::runtime::engine::{
     NativeContinuation,
 };
 use crate::runtime::poller::{
-    HostPoller, HostPollerFlags, HostPollerWakeHandle, PlatformHandle, PlatformInterest,
-    PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
-    PollerToken,
+    HostPoller, HostPollerFlags, PlatformHandle, PlatformInterest, PollerEvent, PollerEventFlags,
+    PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
 };
 use crate::runtime::scheduler::{
     Microtask, MicrotaskId, Task, TaskId, TaskStatus, Timer, TimerDeadline,
@@ -207,7 +206,7 @@ impl HostPoller for TestPoller {
     }
 
     /// Return no dedicated wake handle for this scripted poller.
-    fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>> {
+    fn wake_handle(&self) -> Option<Arc<dyn PollerWakeHandle>> {
         None
     }
 

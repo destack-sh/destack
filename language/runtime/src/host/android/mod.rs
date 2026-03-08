@@ -1,7 +1,7 @@
 #[cfg(any(test, target_os = "android"))]
 mod abi;
 #[cfg(target_os = "android")]
-mod adapter;
+mod backend;
 #[cfg(any(test, target_os = "android"))]
 mod bindings;
 #[cfg(any(test, target_os = "android"))]
@@ -26,7 +26,7 @@ pub use abi::{
     HOST_STATUS_PERMISSION_DENIED,
 };
 #[cfg(target_os = "android")]
-pub(super) use adapter::AndroidHost;
+pub(crate) use backend::AndroidHost;
 #[cfg(any(test, target_os = "android"))]
 pub use bindings::{AndroidHostBindings, destack_host_android_register_bindings};
 #[cfg(any(test, target_os = "android"))]
@@ -35,12 +35,9 @@ pub use callback::{
     android_notify_interruption_changed, android_notify_memory_pressure_changed,
     android_notify_permission_request_in_flight, android_notify_permission_result,
     android_notify_power_mode_changed, android_notify_thermal_state_changed, android_notify_wake,
-    android_notify_wall_clock_changed, android_notify_window_available,
-    android_notify_window_focus_changed, android_notify_window_resized,
-    android_notify_window_terminated,
+    android_notify_wall_clock_changed,
 };
 #[cfg(any(test, target_os = "android"))]
-#[allow(unused_imports)]
 pub use credentials::{
     AndroidHostCredentialsAuthenticateCallback, AndroidHostCredentialsCallbacks,
     AndroidHostCredentialsContainsCallback, AndroidHostCredentialsDeleteCallback,
@@ -82,9 +79,7 @@ pub use ffi::{
     destack_host_android_notify_permission_request_in_flight,
     destack_host_android_notify_permission_result, destack_host_android_notify_power_mode_changed,
     destack_host_android_notify_thermal_state_changed, destack_host_android_notify_wake,
-    destack_host_android_notify_wall_clock_changed, destack_host_android_notify_window_available,
-    destack_host_android_notify_window_focus_changed, destack_host_android_notify_window_resized,
-    destack_host_android_notify_window_terminated,
+    destack_host_android_notify_wall_clock_changed,
 };
 #[cfg(any(test, target_os = "android"))]
 pub(crate) use registry::unregister_android_bindings;

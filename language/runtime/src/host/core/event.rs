@@ -1,16 +1,130 @@
-use super::service::{
-    HostLifecycleState, HostMemoryPressureLevel, HostPowerMode, HostThermalState,
-};
+/// Host lifecycle state.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HostLifecycleState {
+    /// Runtime has not received start events yet.
+    Initializing,
+    /// Runtime is active and can process host interactions.
+    Running,
+    /// Runtime is paused by the host.
+    Paused,
+    /// Runtime is stopped by the host.
+    Stopped,
+    /// Runtime host process is being destroyed.
+    Destroyed,
+}
+
+impl HostLifecycleState {
+    /// Return this lifecycle state as one compact atomic value.
+    pub(crate) const fn encode(self) -> u8 {
+        self as u8
+    }
+
+    /// Decode one compact atomic lifecycle value.
+    #[cfg(test)]
+    pub(crate) const fn decode(encoded_state: u8) -> Self {
+        match encoded_state {
+            1 => Self::Running,
+            2 => Self::Paused,
+            3 => Self::Stopped,
+            4 => Self::Destroyed,
+            _ => Self::Initializing,
+        }
+    }
+}
+
+/// Host memory pressure state.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HostMemoryPressureLevel {
+    /// Memory pressure is normal.
+    Normal,
+    /// Memory pressure is elevated.
+    Warning,
+    /// Memory pressure is critical.
+    Critical,
+}
+
+impl HostMemoryPressureLevel {
+    /// Return this memory pressure level as one compact atomic value.
+    pub(crate) const fn encode(self) -> u8 {
+        self as u8
+    }
+
+    /// Decode one compact atomic memory pressure value.
+    #[cfg(test)]
+    pub(crate) const fn decode(encoded_level: u8) -> Self {
+        match encoded_level {
+            1 => Self::Warning,
+            2 => Self::Critical,
+            _ => Self::Normal,
+        }
+    }
+}
+
+/// Host thermal state.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HostThermalState {
+    /// Thermal state is nominal.
+    Nominal,
+    /// Thermal state is fair.
+    Fair,
+    /// Thermal state is serious.
+    Serious,
+    /// Thermal state is critical.
+    Critical,
+}
+
+impl HostThermalState {
+    /// Return this thermal state as one compact atomic value.
+    pub(crate) const fn encode(self) -> u8 {
+        self as u8
+    }
+
+    /// Decode one compact atomic thermal value.
+    #[cfg(test)]
+    pub(crate) const fn decode(encoded_state: u8) -> Self {
+        match encoded_state {
+            1 => Self::Fair,
+            2 => Self::Serious,
+            3 => Self::Critical,
+            _ => Self::Nominal,
+        }
+    }
+}
+
+/// Host power mode state.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HostPowerMode {
+    /// Normal power mode.
+    Normal,
+    /// Low power mode.
+    LowPower,
+}
+
+impl HostPowerMode {
+    /// Return this power mode as one compact atomic value.
+    pub(crate) const fn encode(self) -> u8 {
+        self as u8
+    }
+
+    /// Decode one compact atomic power mode value.
+    #[cfg(test)]
+    pub(crate) const fn decode(encoded_mode: u8) -> Self {
+        match encoded_mode {
+            1 => Self::LowPower,
+            _ => Self::Normal,
+        }
+    }
+}
 
 /// Host semantic event kind key for scheduler watches.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HostEventKind {
     /// Lifecycle transitions.
     Lifecycle,
-    /// Window and surface events.
-    Window,
-    /// Window focus events.
-    WindowFocus,
     /// Permission result events.
     Permission,
     /// Interruption events.
@@ -25,29 +139,11 @@ pub enum HostEventKind {
     WallClock,
 }
 
-/// Host event identity key used for coalescing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum HostEventCoalescingKey {
-    /// Coalescing key for one global host event kind.
-    Global(HostEventKind),
-    /// Coalescing key for one window-scoped host event kind.
-    Window {
-        /// Host event kind for this key.
-        kind: HostEventKind,
-        /// Window identifier for this key.
-        window_id: u64,
-    },
-}
-
 /// Runtime-visible host event payload.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HostEvent {
     /// Host lifecycle transition event.
     Lifecycle(HostLifecycleEvent),
-    /// Host window and surface event.
-    Window(HostWindowEvent),
-    /// Host window focus event.
-    WindowFocus(HostWindowFocusEvent),
     /// Host permission flow result event.
     Permission(HostPermissionEvent),
     /// Host interruption event.
@@ -63,77 +159,16 @@ pub enum HostEvent {
 }
 
 impl HostEvent {
-    /// Return the host semantic event kind for this event when one exists.
-    pub const fn kind(&self) -> Option<HostEventKind> {
+    /// Return the host semantic event kind for this event.
+    pub const fn kind(&self) -> HostEventKind {
         match self {
-            HostEvent::Lifecycle(_) => Some(HostEventKind::Lifecycle),
-            HostEvent::Window(_) => Some(HostEventKind::Window),
-            HostEvent::WindowFocus(_) => Some(HostEventKind::WindowFocus),
-            HostEvent::Permission(_) => Some(HostEventKind::Permission),
-            HostEvent::Interruption(_) => Some(HostEventKind::Interruption),
-            HostEvent::MemoryPressure(_) => Some(HostEventKind::MemoryPressure),
-            HostEvent::ThermalState(_) => Some(HostEventKind::ThermalState),
-            HostEvent::PowerMode(_) => Some(HostEventKind::PowerMode),
-            HostEvent::WallClock(_) => Some(HostEventKind::WallClock),
-        }
-    }
-
-    /// Return whether this event must be handled losslessly.
-    pub const fn is_lossless(&self) -> bool {
-        matches!(self.kind(), Some(HostEventKind::Permission))
-    }
-
-    /// Return whether this event uses latest-state coalescing semantics.
-    pub const fn is_coalescing(&self) -> bool {
-        matches!(
-            self.kind(),
-            Some(
-                HostEventKind::Lifecycle
-                    | HostEventKind::Window
-                    | HostEventKind::WindowFocus
-                    | HostEventKind::Interruption
-                    | HostEventKind::MemoryPressure
-                    | HostEventKind::ThermalState
-                    | HostEventKind::PowerMode
-                    | HostEventKind::WallClock
-            )
-        )
-    }
-
-    /// Return one coalescing identity key for this event when applicable.
-    pub(crate) const fn coalescing_key(&self) -> Option<HostEventCoalescingKey> {
-        if !self.is_coalescing() {
-            return None;
-        }
-
-        match self {
-            HostEvent::Window(event) => Some(HostEventCoalescingKey::Window {
-                kind: HostEventKind::Window,
-                window_id: event.window_id(),
-            }),
-            HostEvent::WindowFocus(event) => Some(HostEventCoalescingKey::Window {
-                kind: HostEventKind::WindowFocus,
-                window_id: event.window_id,
-            }),
-            HostEvent::Lifecycle(_) => {
-                Some(HostEventCoalescingKey::Global(HostEventKind::Lifecycle))
-            }
-            HostEvent::Permission(_) => None,
-            HostEvent::Interruption(_) => {
-                Some(HostEventCoalescingKey::Global(HostEventKind::Interruption))
-            }
-            HostEvent::MemoryPressure(_) => Some(HostEventCoalescingKey::Global(
-                HostEventKind::MemoryPressure,
-            )),
-            HostEvent::ThermalState(_) => {
-                Some(HostEventCoalescingKey::Global(HostEventKind::ThermalState))
-            }
-            HostEvent::PowerMode(_) => {
-                Some(HostEventCoalescingKey::Global(HostEventKind::PowerMode))
-            }
-            HostEvent::WallClock(_) => {
-                Some(HostEventCoalescingKey::Global(HostEventKind::WallClock))
-            }
+            HostEvent::Lifecycle(_) => HostEventKind::Lifecycle,
+            HostEvent::Permission(_) => HostEventKind::Permission,
+            HostEvent::Interruption(_) => HostEventKind::Interruption,
+            HostEvent::MemoryPressure(_) => HostEventKind::MemoryPressure,
+            HostEvent::ThermalState(_) => HostEventKind::ThermalState,
+            HostEvent::PowerMode(_) => HostEventKind::PowerMode,
+            HostEvent::WallClock(_) => HostEventKind::WallClock,
         }
     }
 }
@@ -143,53 +178,6 @@ impl HostEvent {
 pub struct HostLifecycleEvent {
     /// Next lifecycle state after this transition.
     pub state: HostLifecycleState,
-}
-
-/// Host window and surface payload.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HostWindowEvent {
-    /// Host window became available.
-    /// On Android this aligns to surface creation events such as `InitWindow`.
-    WindowAvailable {
-        /// Host window identifier.
-        window_id: u64,
-    },
-    /// Host window was torn down.
-    /// On Android this aligns to surface teardown events such as `TerminateWindow`.
-    WindowTerminated {
-        /// Host window identifier.
-        window_id: u64,
-    },
-    /// Host window dimensions changed.
-    /// This aligns to window resize events in common host event systems.
-    WindowResized {
-        /// Host window identifier.
-        window_id: u64,
-        /// Window width in physical pixels.
-        width_px: u32,
-        /// Window height in physical pixels.
-        height_px: u32,
-    },
-}
-
-impl HostWindowEvent {
-    /// Return the host window identifier for this event payload.
-    pub const fn window_id(&self) -> u64 {
-        match self {
-            HostWindowEvent::WindowAvailable { window_id } => *window_id,
-            HostWindowEvent::WindowTerminated { window_id } => *window_id,
-            HostWindowEvent::WindowResized { window_id, .. } => *window_id,
-        }
-    }
-}
-
-/// Host window focus payload.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct HostWindowFocusEvent {
-    /// Host window identifier.
-    pub window_id: u64,
-    /// Whether one host window is focused.
-    pub is_focused: bool,
 }
 
 /// Host permission flow payload.

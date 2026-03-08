@@ -1,64 +1,53 @@
-use std::sync::Arc;
-
-use super::{
+use super::super::callback::{
     UnixApplicationLifecycle, host_lifecycle_state_for_unix_application,
-    unix_notify_window_available,
+    unix_notify_permission_result,
 };
-use crate::host::core::{HostState, host_state_for_runtime, register_host_state};
-use crate::host::{HostEvent, HostLifecycleState, HostPlatform, HostWindowEvent};
+use crate::host::core::HostState;
+use crate::host::core::registry::register_host_state;
+use crate::host::{HostEvent, HostLifecycleState, HostPermissionEvent, Platform};
 use crate::runtime::world::RuntimeId;
+use std::sync::Arc;
 
 #[test]
 fn test_map_unix_lifecycle_to_host_states() {
     assert_eq!(
         host_lifecycle_state_for_unix_application(UnixApplicationLifecycle::Created),
-        HostLifecycleState::Initializing
+        HostLifecycleState::Initializing,
     );
     assert_eq!(
         host_lifecycle_state_for_unix_application(UnixApplicationLifecycle::Running),
-        HostLifecycleState::Running
+        HostLifecycleState::Running,
     );
     assert_eq!(
         host_lifecycle_state_for_unix_application(UnixApplicationLifecycle::Paused),
-        HostLifecycleState::Paused
+        HostLifecycleState::Paused,
     );
     assert_eq!(
         host_lifecycle_state_for_unix_application(UnixApplicationLifecycle::Stopped),
-        HostLifecycleState::Stopped
+        HostLifecycleState::Stopped,
     );
     assert_eq!(
         host_lifecycle_state_for_unix_application(UnixApplicationLifecycle::Destroyed),
-        HostLifecycleState::Destroyed
+        HostLifecycleState::Destroyed,
     );
 }
 
 #[test]
-fn test_notify_window_available_enqueues_window_event_for_runtime_bridge() {
-    let state = Arc::new(HostState::new());
-    let registration = register_host_state(HostPlatform::Linux, RuntimeId(1), &state, None);
+fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() {
+    let state = HostState::new_for_test();
+    let registration =
+        register_host_state(Platform::Linux, RuntimeId(1), Arc::downgrade(&state), None);
     let runtime_id = registration.runtime_id();
 
-    unix_notify_window_available(runtime_id.0, HostPlatform::Linux, 7).unwrap();
+    unix_notify_permission_result(runtime_id.0, Platform::Linux, "camera", true).unwrap();
 
     let poll_result = state.poll_events(Some(0)).unwrap();
     let events = poll_result.events;
     assert_eq!(
         events.as_slice(),
-        [HostEvent::Window(HostWindowEvent::WindowAvailable {
-            window_id: 7,
-        })]
+        [HostEvent::Permission(HostPermissionEvent {
+            permission: "camera".to_string(),
+            granted: true,
+        })],
     );
-}
-
-#[test]
-fn test_notify_window_available_rejects_platform_mismatch_for_runtime_bridge() {
-    let state = Arc::new(HostState::new());
-    let registration = register_host_state(HostPlatform::Linux, RuntimeId(1), &state, None);
-    let runtime_id = registration.runtime_id();
-
-    let result = unix_notify_window_available(runtime_id.0, HostPlatform::FreeBsd, 7);
-    assert!(result.is_err());
-
-    let resolved_state = host_state_for_runtime(runtime_id, HostPlatform::Linux).unwrap();
-    assert!(Arc::ptr_eq(&state, &resolved_state));
 }

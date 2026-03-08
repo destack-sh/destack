@@ -1,100 +1,66 @@
+use destack_workspace::Platform;
+
 use crate::diagnostic::RuntimeResult;
 use crate::host::unix::{
     UnixApplicationLifecycle, unix_notify_application_lifecycle, unix_notify_interruption_changed,
     unix_notify_memory_pressure_changed, unix_notify_permission_result,
     unix_notify_power_mode_changed, unix_notify_thermal_state_changed, unix_notify_wake,
-    unix_notify_wall_clock_changed, unix_notify_window_available, unix_notify_window_focus_changed,
-    unix_notify_window_resized, unix_notify_window_terminated,
+    unix_notify_wall_clock_changed,
 };
-use crate::host::{HostMemoryPressureLevel, HostPlatform, HostPowerMode, HostThermalState};
+use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
-/// haiku application lifecycle transitions from native callbacks.
+/// Haiku application lifecycle transitions from native callbacks.
 pub type HaikuApplicationLifecycle = UnixApplicationLifecycle;
 
-/// Submit one haiku application lifecycle callback.
+/// Submit one Haiku application lifecycle callback.
 pub fn haiku_notify_application_lifecycle(
     runtime_id: u64,
     lifecycle: HaikuApplicationLifecycle,
 ) -> RuntimeResult<()> {
-    unix_notify_application_lifecycle(runtime_id, HostPlatform::Haiku, lifecycle)
+    unix_notify_application_lifecycle(runtime_id, Platform::Haiku, lifecycle)
 }
 
-/// Submit one haiku window-available callback.
-pub fn haiku_notify_window_available(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
-    unix_notify_window_available(runtime_id, HostPlatform::Haiku, window_id)
-}
-
-/// Submit one haiku window-terminated callback.
-pub fn haiku_notify_window_terminated(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
-    unix_notify_window_terminated(runtime_id, HostPlatform::Haiku, window_id)
-}
-
-/// Submit one haiku window-resized callback.
-pub fn haiku_notify_window_resized(
-    runtime_id: u64,
-    window_id: u64,
-    width_px: u32,
-    height_px: u32,
-) -> RuntimeResult<()> {
-    unix_notify_window_resized(
-        runtime_id,
-        HostPlatform::Haiku,
-        window_id,
-        width_px,
-        height_px,
-    )
-}
-
-/// Submit one haiku permission-result callback.
+/// Submit one Haiku permission-result callback.
 pub fn haiku_notify_permission_result(
     runtime_id: u64,
     permission: &str,
     granted: bool,
 ) -> RuntimeResult<()> {
-    unix_notify_permission_result(runtime_id, HostPlatform::Haiku, permission, granted)
+    unix_notify_permission_result(runtime_id, Platform::Haiku, permission, granted)
 }
 
-/// Submit one haiku interruption callback.
+/// Submit one Haiku interruption callback.
 pub fn haiku_notify_interruption_changed(runtime_id: u64, interrupted: bool) -> RuntimeResult<()> {
-    unix_notify_interruption_changed(runtime_id, HostPlatform::Haiku, interrupted)
+    unix_notify_interruption_changed(runtime_id, Platform::Haiku, interrupted)
 }
 
-/// Submit one haiku window focus callback.
-pub fn haiku_notify_window_focus_changed(
-    runtime_id: u64,
-    window_id: u64,
-    is_focused: bool,
-) -> RuntimeResult<()> {
-    unix_notify_window_focus_changed(runtime_id, HostPlatform::Haiku, window_id, is_focused)
-}
-
-/// Submit one haiku memory pressure callback.
+/// Submit one Haiku memory pressure callback.
 pub fn haiku_notify_memory_pressure_changed(
     runtime_id: u64,
     level: HostMemoryPressureLevel,
 ) -> RuntimeResult<()> {
-    unix_notify_memory_pressure_changed(runtime_id, HostPlatform::Haiku, level)
+    unix_notify_memory_pressure_changed(runtime_id, Platform::Haiku, level)
 }
 
-/// Submit one haiku thermal state callback.
+/// Submit one Haiku thermal state callback.
 pub fn haiku_notify_thermal_state_changed(
     runtime_id: u64,
     state: HostThermalState,
 ) -> RuntimeResult<()> {
-    unix_notify_thermal_state_changed(runtime_id, HostPlatform::Haiku, state)
+    unix_notify_thermal_state_changed(runtime_id, Platform::Haiku, state)
 }
 
-/// Submit one haiku power mode callback.
+/// Submit one Haiku power mode callback.
 pub fn haiku_notify_power_mode_changed(runtime_id: u64, mode: HostPowerMode) -> RuntimeResult<()> {
-    unix_notify_power_mode_changed(runtime_id, HostPlatform::Haiku, mode)
+    unix_notify_power_mode_changed(runtime_id, Platform::Haiku, mode)
 }
 
-/// Submit one haiku wall clock callback.
+/// Submit one Haiku wall clock callback.
 pub fn haiku_notify_wall_clock_changed(runtime_id: u64) -> RuntimeResult<()> {
-    unix_notify_wall_clock_changed(runtime_id, HostPlatform::Haiku)
+    unix_notify_wall_clock_changed(runtime_id, Platform::Haiku)
 }
 
-/// Wake one blocked host poll operation for haiku.
+/// Wake one blocked host poll operation for Haiku.
 pub fn haiku_notify_wake(runtime_id: u64) -> RuntimeResult<()> {
-    unix_notify_wake(runtime_id, HostPlatform::Haiku)
+    unix_notify_wake(runtime_id, Platform::Haiku)
 }

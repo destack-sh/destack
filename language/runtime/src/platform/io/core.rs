@@ -20,8 +20,8 @@ use crate::platform::resource::{self, ResourceEntry, ResourceKind};
 use crate::platform::{NativeSlice, PlatformError, PlatformErrorCode, ResourceId};
 use crate::runtime::BindingCallContext;
 use crate::runtime::poller::{
-    HostPoller, HostPollerFlags, HostPollerWakeHandle, PlatformInterest, PollerEvent,
-    PollerEventPayload, PollerToken, create_host_poller_for_io,
+    HostPoller, HostPollerFlags, PlatformInterest, PollerEvent, PollerEventPayload, PollerToken,
+    PollerWakeHandle, create_host_poller_for_io,
 };
 
 #[cfg(target_os = "linux")]
@@ -144,7 +144,7 @@ struct PollResource {
     /// Poll backend state protected for concurrent runtime access.
     poller: Mutex<Box<dyn HostPoller>>,
     /// Shared poller wake path used by event routing.
-    wake_handle: Option<Arc<dyn HostPollerWakeHandle>>,
+    wake_handle: Option<Arc<dyn PollerWakeHandle>>,
     /// Queued synthetic events emitted by attached event tokens.
     queued_events: Mutex<VecDeque<PollEvent>>,
 }

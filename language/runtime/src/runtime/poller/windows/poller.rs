@@ -10,9 +10,8 @@ use windows_sys::Win32::Networking::WinSock::{
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{PlatformError, ResourceId, core as core_platform};
 use crate::runtime::poller::{
-    HostPoller, HostPollerFlags, HostPollerWakeHandle, PlatformHandle, PlatformInterest,
-    PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
-    PollerToken,
+    HostPoller, HostPollerFlags, PlatformHandle, PlatformInterest, PollerEvent, PollerEventFlags,
+    PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
 };
 
 /// Build a runtime error from the last socket error.
@@ -159,7 +158,7 @@ struct WindowsWakeHandle {
     sender: SOCKET,
 }
 
-impl HostPollerWakeHandle for WindowsWakeHandle {
+impl PollerWakeHandle for WindowsWakeHandle {
     fn wake(&self) -> RuntimeResult<()> {
         wake_socket(self.sender)
     }
@@ -295,7 +294,7 @@ impl HostPoller for WindowsPoller {
         Ok(())
     }
 
-    fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>> {
+    fn wake_handle(&self) -> Option<Arc<dyn PollerWakeHandle>> {
         Some(self.wake_handle.clone())
     }
 

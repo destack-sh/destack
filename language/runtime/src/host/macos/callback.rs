@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
+use destack_workspace::Platform;
+
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostPlatform, HostState, HostWindowEvent, host_state_for_runtime};
+use crate::host::core::HostState;
+use crate::host::core::registry::host_state_for_runtime;
 use crate::host::{HostLifecycleState, HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 use crate::runtime::world::RuntimeId;
 
@@ -20,7 +23,7 @@ pub enum MacosApplicationLifecycle {
 
 /// Return the active macOS host state for this process.
 fn macos_host_bridge(runtime_id: u64) -> RuntimeResult<Arc<HostState>> {
-    host_state_for_runtime(RuntimeId(runtime_id), HostPlatform::MacOS)
+    host_state_for_runtime(RuntimeId(runtime_id), Platform::MacOS)
 }
 
 /// Submit one macOS application lifecycle callback.
@@ -31,51 +34,6 @@ pub fn macos_notify_application_lifecycle(
     let bridge = macos_host_bridge(runtime_id)?;
     let state = host_lifecycle_state_for_application_lifecycle(lifecycle);
     bridge.push_lifecycle(state);
-
-    Ok(())
-}
-
-/// Submit one macOS window-available callback.
-pub fn macos_notify_window_available(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
-    let bridge = macos_host_bridge(runtime_id)?;
-    bridge.push_window(HostWindowEvent::WindowAvailable { window_id });
-
-    Ok(())
-}
-
-/// Submit one macOS window-terminated callback.
-pub fn macos_notify_window_terminated(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
-    let bridge = macos_host_bridge(runtime_id)?;
-    bridge.push_window(HostWindowEvent::WindowTerminated { window_id });
-
-    Ok(())
-}
-
-/// Submit one macOS window-resized callback.
-pub fn macos_notify_window_resized(
-    runtime_id: u64,
-    window_id: u64,
-    width_px: u32,
-    height_px: u32,
-) -> RuntimeResult<()> {
-    let bridge = macos_host_bridge(runtime_id)?;
-    bridge.push_window(HostWindowEvent::WindowResized {
-        window_id,
-        width_px,
-        height_px,
-    });
-
-    Ok(())
-}
-
-/// Submit one macOS window focus callback.
-pub fn macos_notify_window_focus_changed(
-    runtime_id: u64,
-    window_id: u64,
-    is_focused: bool,
-) -> RuntimeResult<()> {
-    let bridge = macos_host_bridge(runtime_id)?;
-    bridge.push_window_focus(window_id, is_focused);
 
     Ok(())
 }
@@ -141,11 +99,13 @@ pub fn macos_notify_wall_clock_changed(runtime_id: u64) -> RuntimeResult<()> {
 /// Wake one blocked host poll operation for macOS.
 pub fn macos_notify_wake(runtime_id: u64) -> RuntimeResult<()> {
     let bridge = macos_host_bridge(runtime_id)?;
-    bridge.wake_handle().wake()
+    bridge.poll_wake_handle().wake()?;
+
+    Ok(())
 }
 
 /// Map one macOS application lifecycle transition to host lifecycle state.
-fn host_lifecycle_state_for_application_lifecycle(
+pub(super) fn host_lifecycle_state_for_application_lifecycle(
     lifecycle: MacosApplicationLifecycle,
 ) -> HostLifecycleState {
     match lifecycle {
@@ -155,7 +115,3 @@ fn host_lifecycle_state_for_application_lifecycle(
         MacosApplicationLifecycle::WillTerminate => HostLifecycleState::Destroyed,
     }
 }
-
-#[cfg(test)]
-#[path = "tests/callback.rs"]
-mod tests;

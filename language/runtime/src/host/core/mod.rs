@@ -1,36 +1,22 @@
-mod adapter;
+mod backend;
 mod capability;
-mod error;
+pub(crate) mod error;
 mod event;
-mod ingress;
+pub(crate) mod observer;
 mod queue;
-mod registry;
+pub(crate) mod registry;
 mod runtime;
 mod select;
-mod service;
 mod state;
 
-pub use adapter::{HostAdapter, HostPlatform, HostPollOutcome};
-pub(crate) use capability::default_host_capabilities;
-#[allow(unused_imports)]
-pub(crate) use error::{invalid_argument_value, missing_host_state, not_supported};
+pub(crate) use backend::HostBackend;
+pub use backend::HostPollOutcome;
+pub(crate) use destack_workspace::Platform;
 pub use event::{
-    HostEvent, HostEventKind, HostInterruptionEvent, HostLifecycleEvent, HostMemoryPressureEvent,
-    HostPermissionEvent, HostPowerModeEvent, HostThermalEvent, HostWallClockEvent, HostWindowEvent,
-    HostWindowFocusEvent,
+    HostEvent, HostEventKind, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
+    HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent, HostPowerMode,
+    HostPowerModeEvent, HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
-#[cfg(feature = "affinity")]
-pub(crate) use ingress::process_runtime_ingress_observers;
-#[cfg(any(target_os = "linux", target_os = "macos", windows))]
-pub(crate) use ingress::{RuntimeIngressObserver, register_runtime_ingress_observer};
-pub(crate) use ingress::{cleanup_runtime_ingress_observers, process_runtime_ingress_observer};
 pub(crate) use queue::HostEventQueue;
-#[allow(unused_imports)]
-pub(crate) use registry::{
-    HostStateCleanup, HostStateRegistration, host_state_for_runtime, register_host_state,
-};
 pub use runtime::Host;
-pub use select::default_host;
-pub use service::{HostLifecycleState, HostMemoryPressureLevel, HostPowerMode, HostThermalState};
-pub(crate) use state::HostAdapterState;
-pub use state::HostState;
+pub(crate) use state::HostState;

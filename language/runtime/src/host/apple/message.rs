@@ -1,7 +1,7 @@
 #[cfg(feature = "affinity")]
 use crate::diagnostic::RuntimeResult;
 #[cfg(feature = "affinity")]
-use crate::host::core::process_runtime_ingress_observers;
+use crate::host::core::observer::process_runtime_observers;
 
 /// CoreFoundation string reference type.
 type CFStringRef = *const libc::c_void;
@@ -87,7 +87,7 @@ pub(crate) fn service_registered_runtimes_until(
 
         // notify runtime observers after one handled source
         if status == KCF_RUN_LOOP_RUN_HANDLED_SOURCE {
-            process_runtime_ingress_observers()?;
+            process_runtime_observers()?;
             continue;
         }
 

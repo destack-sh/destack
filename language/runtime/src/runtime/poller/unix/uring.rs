@@ -10,9 +10,8 @@ use crate::platform::diagnostic::{
 };
 use crate::platform::{PlatformError, ResourceId, core as core_platform};
 use crate::runtime::poller::{
-    HostPoller, HostPollerFlags, HostPollerWakeHandle, PlatformHandle, PlatformInterest,
-    PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
-    PollerToken,
+    HostPoller, HostPollerFlags, PlatformHandle, PlatformInterest, PollerEvent, PollerEventFlags,
+    PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
 };
 
 /// Default io_uring queue depth.
@@ -76,7 +75,7 @@ struct IoUringWakeHandle {
     wake_fd: RawFd,
 }
 
-impl HostPollerWakeHandle for IoUringWakeHandle {
+impl PollerWakeHandle for IoUringWakeHandle {
     fn wake(&self) -> RuntimeResult<()> {
         wake_eventfd(self.wake_fd)
     }
@@ -386,7 +385,7 @@ impl HostPoller for IoUringPoller {
         Ok(())
     }
 
-    fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>> {
+    fn wake_handle(&self) -> Option<Arc<dyn PollerWakeHandle>> {
         Some(self.wake_handle.clone())
     }
 

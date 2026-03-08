@@ -1,36 +1,37 @@
 use super::UnixApplicationLifecycle;
 use crate::diagnostic::{RuntimeResult, RuntimeStatus};
-use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState, core as core_host};
+use crate::host::core::error::invalid_argument_value;
+use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 use crate::runtime::NativeStringRef;
 
 /// Unix lifecycle code for app-created initialization.
-const UNIX_LIFECYCLE_CREATED: u32 = 0;
+pub(super) const UNIX_LIFECYCLE_CREATED: u32 = 0;
 /// Unix lifecycle code for app-running foreground state.
-const UNIX_LIFECYCLE_RUNNING: u32 = 1;
+pub(super) const UNIX_LIFECYCLE_RUNNING: u32 = 1;
 /// Unix lifecycle code for app-paused state.
-const UNIX_LIFECYCLE_PAUSED: u32 = 2;
+pub(super) const UNIX_LIFECYCLE_PAUSED: u32 = 2;
 /// Unix lifecycle code for app-stopping transition.
-const UNIX_LIFECYCLE_STOPPED: u32 = 3;
+pub(super) const UNIX_LIFECYCLE_STOPPED: u32 = 3;
 /// Unix lifecycle code for app-destroyed termination.
-const UNIX_LIFECYCLE_DESTROYED: u32 = 4;
+pub(super) const UNIX_LIFECYCLE_DESTROYED: u32 = 4;
 /// Unix memory pressure code for normal state.
-const UNIX_MEMORY_PRESSURE_NORMAL: u32 = 0;
+pub(super) const UNIX_MEMORY_PRESSURE_NORMAL: u32 = 0;
 /// Unix memory pressure code for warning state.
-const UNIX_MEMORY_PRESSURE_WARNING: u32 = 1;
+pub(super) const UNIX_MEMORY_PRESSURE_WARNING: u32 = 1;
 /// Unix memory pressure code for critical state.
-const UNIX_MEMORY_PRESSURE_CRITICAL: u32 = 2;
+pub(super) const UNIX_MEMORY_PRESSURE_CRITICAL: u32 = 2;
 /// Unix thermal code for nominal state.
-const UNIX_THERMAL_NOMINAL: u32 = 0;
+pub(super) const UNIX_THERMAL_NOMINAL: u32 = 0;
 /// Unix thermal code for fair state.
-const UNIX_THERMAL_FAIR: u32 = 1;
+pub(super) const UNIX_THERMAL_FAIR: u32 = 1;
 /// Unix thermal code for serious state.
-const UNIX_THERMAL_SERIOUS: u32 = 2;
+pub(super) const UNIX_THERMAL_SERIOUS: u32 = 2;
 /// Unix thermal code for critical state.
-const UNIX_THERMAL_CRITICAL: u32 = 3;
+pub(super) const UNIX_THERMAL_CRITICAL: u32 = 3;
 /// Unix power mode code for normal state.
-const UNIX_POWER_MODE_NORMAL: u32 = 0;
+pub(super) const UNIX_POWER_MODE_NORMAL: u32 = 0;
 /// Unix power mode code for low power state.
-const UNIX_POWER_MODE_LOW_POWER: u32 = 1;
+pub(super) const UNIX_POWER_MODE_LOW_POWER: u32 = 1;
 
 /// Convert one unix lifecycle code into the runtime lifecycle enum.
 pub(crate) fn decode_unix_application_lifecycle(
@@ -43,7 +44,7 @@ pub(crate) fn decode_unix_application_lifecycle(
         UNIX_LIFECYCLE_STOPPED => UnixApplicationLifecycle::Stopped,
         UNIX_LIFECYCLE_DESTROYED => UnixApplicationLifecycle::Destroyed,
         _ => {
-            return Err(core_host::invalid_argument_value(
+            return Err(invalid_argument_value(
                 "lifecycle_code",
                 "invalid unix lifecycle code",
             ));
@@ -62,7 +63,7 @@ pub(crate) fn decode_unix_memory_pressure_level(
         UNIX_MEMORY_PRESSURE_WARNING => HostMemoryPressureLevel::Warning,
         UNIX_MEMORY_PRESSURE_CRITICAL => HostMemoryPressureLevel::Critical,
         _ => {
-            return Err(core_host::invalid_argument_value(
+            return Err(invalid_argument_value(
                 "level_code",
                 "invalid unix memory pressure level code",
             ));
@@ -80,7 +81,7 @@ pub(crate) fn decode_unix_thermal_state(thermal_code: u32) -> RuntimeResult<Host
         UNIX_THERMAL_SERIOUS => HostThermalState::Serious,
         UNIX_THERMAL_CRITICAL => HostThermalState::Critical,
         _ => {
-            return Err(core_host::invalid_argument_value(
+            return Err(invalid_argument_value(
                 "thermal_code",
                 "invalid unix thermal state code",
             ));
@@ -96,7 +97,7 @@ pub(crate) fn decode_unix_power_mode(power_mode_code: u32) -> RuntimeResult<Host
         UNIX_POWER_MODE_NORMAL => HostPowerMode::Normal,
         UNIX_POWER_MODE_LOW_POWER => HostPowerMode::LowPower,
         _ => {
-            return Err(core_host::invalid_argument_value(
+            return Err(invalid_argument_value(
                 "power_mode_code",
                 "invalid unix power mode code",
             ));
@@ -115,7 +116,3 @@ pub(crate) fn decode_unix_permission_name(permission: NativeStringRef) -> Runtim
 pub(crate) fn unix_runtime_status(result: RuntimeResult<()>) -> RuntimeStatus {
     RuntimeStatus::from_result(result, None)
 }
-
-#[cfg(test)]
-#[path = "tests/ffi.rs"]
-mod tests;

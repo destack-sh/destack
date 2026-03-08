@@ -3,8 +3,6 @@ use super::{
     freebsd_notify_interruption_changed, freebsd_notify_memory_pressure_changed,
     freebsd_notify_permission_result, freebsd_notify_power_mode_changed,
     freebsd_notify_thermal_state_changed, freebsd_notify_wake, freebsd_notify_wall_clock_changed,
-    freebsd_notify_window_available, freebsd_notify_window_focus_changed,
-    freebsd_notify_window_resized, freebsd_notify_window_terminated,
 };
 use crate::diagnostic::RuntimeStatus;
 use crate::host::unix::{
@@ -14,7 +12,7 @@ use crate::host::unix::{
 };
 use crate::runtime::NativeStringRef;
 
-/// Notify the runtime host state about one freebsd application lifecycle transition.
+/// Notify the runtime host state about one FreeBsd application lifecycle transition.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_freebsd_notify_application_lifecycle(
     runtime_id: u64,
@@ -29,64 +27,21 @@ pub unsafe extern "C" fn destack_host_freebsd_notify_application_lifecycle(
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state that one freebsd window became available.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_freebsd_notify_window_available(
-    runtime_id: u64,
-    window_id: u64,
-) -> RuntimeStatus {
-    unix_runtime_status(freebsd_notify_window_available(runtime_id, window_id))
-}
-
-/// Notify the runtime host state that one freebsd window terminated.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_freebsd_notify_window_terminated(
-    runtime_id: u64,
-    window_id: u64,
-) -> RuntimeStatus {
-    unix_runtime_status(freebsd_notify_window_terminated(runtime_id, window_id))
-}
-
-/// Notify the runtime host state that one freebsd window resized.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_freebsd_notify_window_resized(
-    runtime_id: u64,
-    window_id: u64,
-    width_px: u32,
-    height_px: u32,
-) -> RuntimeStatus {
-    unix_runtime_status(freebsd_notify_window_resized(
-        runtime_id, window_id, width_px, height_px,
-    ))
-}
-
-/// Notify the runtime host state that one freebsd window focus changed.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_freebsd_notify_window_focus_changed(
-    runtime_id: u64,
-    window_id: u64,
-    is_focused: bool,
-) -> RuntimeStatus {
-    unix_runtime_status(freebsd_notify_window_focus_changed(
-        runtime_id, window_id, is_focused,
-    ))
-}
-
-/// Notify the runtime host state with one freebsd permission result.
+/// Notify the runtime host state with one FreeBsd permission result.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_freebsd_notify_permission_result(
     runtime_id: u64,
     permission: NativeStringRef,
     granted: bool,
 ) -> RuntimeStatus {
-    let result = decode_unix_permission_name(permission).and_then(|permission| {
+    let result = decode_unix_permission_name(permission).and_then(|permission: String| {
         freebsd_notify_permission_result(runtime_id, permission.as_str(), granted)
     });
 
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state that interruption state changed on freebsd.
+/// Notify the runtime host state that interruption state changed on FreeBsd.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_freebsd_notify_interruption_changed(
     runtime_id: u64,
@@ -95,7 +50,7 @@ pub unsafe extern "C" fn destack_host_freebsd_notify_interruption_changed(
     unix_runtime_status(freebsd_notify_interruption_changed(runtime_id, interrupted))
 }
 
-/// Notify the runtime host state that memory pressure changed on freebsd.
+/// Notify the runtime host state that memory pressure changed on FreeBsd.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_freebsd_notify_memory_pressure_changed(
     runtime_id: u64,
@@ -107,7 +62,7 @@ pub unsafe extern "C" fn destack_host_freebsd_notify_memory_pressure_changed(
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state that thermal state changed on freebsd.
+/// Notify the runtime host state that thermal state changed on FreeBsd.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_freebsd_notify_thermal_state_changed(
     runtime_id: u64,
@@ -119,7 +74,7 @@ pub unsafe extern "C" fn destack_host_freebsd_notify_thermal_state_changed(
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state that power mode changed on freebsd.
+/// Notify the runtime host state that power mode changed on FreeBsd.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_freebsd_notify_power_mode_changed(
     runtime_id: u64,
@@ -131,7 +86,7 @@ pub unsafe extern "C" fn destack_host_freebsd_notify_power_mode_changed(
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state that wall clock changed on freebsd.
+/// Notify the runtime host state that wall clock changed on FreeBsd.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_freebsd_notify_wall_clock_changed(
     runtime_id: u64,
@@ -139,7 +94,7 @@ pub unsafe extern "C" fn destack_host_freebsd_notify_wall_clock_changed(
     unix_runtime_status(freebsd_notify_wall_clock_changed(runtime_id))
 }
 
-/// Wake one blocked host event poll operation for freebsd.
+/// Wake one blocked host event poll operation for FreeBsd.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_freebsd_notify_wake(runtime_id: u64) -> RuntimeStatus {
     unix_runtime_status(freebsd_notify_wake(runtime_id))

@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
-use super::HostPlatform;
-use super::adapter::HostAdapter;
-use crate::runtime::world::RuntimeId;
-
+use super::Platform;
+use super::backend::HostBackend;
 #[cfg(target_os = "android")]
 use crate::host::android::AndroidHost;
 #[cfg(target_os = "dragonfly")]
@@ -45,65 +43,65 @@ use crate::host::unsupported::UnsupportedHost;
 use crate::host::windows::WindowsHost;
 
 /// Return the host platform for the active compile target.
-pub(super) const fn compile_target_host_platform() -> HostPlatform {
+pub(super) const fn compile_target_host_platform() -> Platform {
     #[cfg(target_os = "android")]
     {
-        HostPlatform::Android
+        Platform::Android
     }
 
     #[cfg(target_os = "dragonfly")]
     {
-        HostPlatform::DragonFly
+        Platform::DragonFly
     }
 
     #[cfg(target_os = "freebsd")]
     {
-        HostPlatform::FreeBsd
+        Platform::FreeBsd
     }
 
     #[cfg(target_os = "haiku")]
     {
-        HostPlatform::Haiku
+        Platform::Haiku
     }
 
     #[cfg(target_os = "illumos")]
     {
-        HostPlatform::Illumos
+        Platform::Illumos
     }
 
     #[cfg(target_os = "ios")]
     {
-        HostPlatform::IOS
+        Platform::IOS
     }
 
     #[cfg(target_os = "linux")]
     {
-        HostPlatform::Linux
+        Platform::Linux
     }
 
     #[cfg(target_os = "macos")]
     {
-        HostPlatform::MacOS
+        Platform::MacOS
     }
 
     #[cfg(target_os = "netbsd")]
     {
-        HostPlatform::NetBsd
+        Platform::NetBsd
     }
 
     #[cfg(target_os = "openbsd")]
     {
-        HostPlatform::OpenBsd
+        Platform::OpenBsd
     }
 
     #[cfg(target_os = "solaris")]
     {
-        HostPlatform::Solaris
+        Platform::Solaris
     }
 
     #[cfg(windows)]
     {
-        HostPlatform::Windows
+        Platform::Windows
     }
 
     #[cfg(not(any(
@@ -121,47 +119,47 @@ pub(super) const fn compile_target_host_platform() -> HostPlatform {
         windows,
     )))]
     {
-        HostPlatform::Universal
+        Platform::Universal
     }
 }
 
 /// Return one default host for the active compile target.
-pub fn default_host(runtime_id: RuntimeId) -> Arc<dyn HostAdapter> {
+pub(crate) fn default_host() -> Arc<dyn HostBackend> {
     #[cfg(target_os = "android")]
-    return Arc::new(AndroidHost::new(runtime_id));
+    return Arc::new(AndroidHost::new());
 
     #[cfg(target_os = "dragonfly")]
-    return Arc::new(DragonflyHost::new(runtime_id));
+    return Arc::new(DragonflyHost::new());
 
     #[cfg(target_os = "freebsd")]
-    return Arc::new(FreeBsdHost::new(runtime_id));
+    return Arc::new(FreeBsdHost::new());
 
     #[cfg(target_os = "haiku")]
-    return Arc::new(HaikuHost::new(runtime_id));
+    return Arc::new(HaikuHost::new());
 
     #[cfg(target_os = "illumos")]
-    return Arc::new(IllumosHost::new(runtime_id));
+    return Arc::new(IllumosHost::new());
 
     #[cfg(target_os = "ios")]
-    return Arc::new(IosHost::new(runtime_id));
+    return Arc::new(IosHost::new());
 
     #[cfg(target_os = "linux")]
-    return Arc::new(LinuxHost::new(runtime_id));
+    return Arc::new(LinuxHost::new());
 
     #[cfg(target_os = "macos")]
-    return Arc::new(MacosHost::new(runtime_id));
+    return Arc::new(MacosHost::new());
 
     #[cfg(target_os = "netbsd")]
-    return Arc::new(NetBsdHost::new(runtime_id));
+    return Arc::new(NetBsdHost::new());
 
     #[cfg(target_os = "openbsd")]
-    return Arc::new(OpenBsdHost::new(runtime_id));
+    return Arc::new(OpenBsdHost::new());
 
     #[cfg(target_os = "solaris")]
-    return Arc::new(SolarisHost::new(runtime_id));
+    return Arc::new(SolarisHost::new());
 
     #[cfg(windows)]
-    return Arc::new(WindowsHost::new(runtime_id));
+    return Arc::new(WindowsHost::new());
 
     #[cfg(not(any(
         target_os = "android",
@@ -177,5 +175,5 @@ pub fn default_host(runtime_id: RuntimeId) -> Arc<dyn HostAdapter> {
         target_os = "solaris",
         windows,
     )))]
-    return Arc::new(UnsupportedHost::new(runtime_id));
+    return Arc::new(UnsupportedHost::new());
 }

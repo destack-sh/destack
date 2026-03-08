@@ -384,7 +384,7 @@ impl EventLoop {
 
     /// Build one task for one host semantic event watch.
     pub fn task_for_host_event(&mut self, event: HostEvent) -> Option<Task> {
-        let kind = event.kind()?;
+        let kind = event.kind();
         let watch = self.host_event_watches.get(&kind)?;
         let EngineContinuation::Native(native) = watch.runnable else {
             return None;

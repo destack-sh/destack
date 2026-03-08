@@ -145,7 +145,7 @@ impl std::ops::BitOrAssign for HostPollerFlags {
 }
 
 /// Shared wake handle for out-of-band poller wakeups.
-pub trait HostPollerWakeHandle: Send + Sync {
+pub trait PollerWakeHandle: Send + Sync {
     /// Wake the poller if it is blocked.
     fn wake(&self) -> RuntimeResult<()>;
 }
@@ -175,7 +175,7 @@ pub trait HostPoller: Send {
     fn deregister(&mut self, resource_id: ResourceId) -> RuntimeResult<()>;
 
     /// Return one shared wake handle for out-of-band wakeups.
-    fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>> {
+    fn wake_handle(&self) -> Option<Arc<dyn PollerWakeHandle>> {
         None
     }
 

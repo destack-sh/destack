@@ -11,7 +11,7 @@ use objc2_core_graphics::{
 
 use super::delegate::AppKitWindowDelegate;
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
-use crate::host::core::{RuntimeIngressObserver, register_runtime_ingress_observer};
+use crate::host::core::observer::{RuntimeIngressObserver, register_runtime_ingress_observer};
 use crate::platform::display::unix::appkit::event::{
     self as appkit_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord,
     WindowEventStream,
