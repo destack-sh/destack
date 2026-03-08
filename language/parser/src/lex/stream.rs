@@ -9,7 +9,7 @@ use super::lexer::{Lexer, LexerSnapshot, TreeState};
 
 /// Return a keyword for an identifier when it can match keyword shape.
 #[inline]
-fn keyword_from_identifier(identifier: &str) -> Option<Keyword> {
+pub(crate) fn keyword_from_identifier(identifier: &str) -> Option<Keyword> {
     // quick reject using identifier length bounds for known keywords
     let length = identifier.len();
     if !(2..=11).contains(&length) {
@@ -119,10 +119,6 @@ pub struct TokenStream {
     next_non_newline: Vec<u32>,
     /// The cached matching pair indexes for delimiters.
     matching_pairs: Vec<u32>,
-    /// Cached keyword values for identifier tokens.
-    token_keywords: Vec<Option<Keyword>>,
-    /// Cached-state bits for keyword lookup entries.
-    token_keywords_cached: Vec<bool>,
     /// Cached line terminator presence before semantic token indexes.
     line_terminators_before: Vec<bool>,
     /// Cached comment trivia presence before semantic token indexes.
@@ -188,8 +184,6 @@ impl TokenStream {
             comment_side_token_indexes: Vec::with_capacity(estimated_tokens / 24),
             next_non_newline: Vec::with_capacity(semantic_token_capacity),
             matching_pairs: Vec::with_capacity(semantic_token_capacity),
-            token_keywords: Vec::with_capacity(semantic_token_capacity),
-            token_keywords_cached: Vec::with_capacity(semantic_token_capacity),
             line_terminators_before: Vec::with_capacity(semantic_token_capacity),
             leading_comment_before: Vec::with_capacity(semantic_token_capacity),
             leading_side_start_by_token: Vec::with_capacity(semantic_token_capacity),
@@ -445,8 +439,6 @@ impl TokenStream {
 
         self.tokens.truncate(tokens_len);
         self.lexer.tokens.truncate(tokens_len);
-        self.token_keywords.truncate(tokens_len);
-        self.token_keywords_cached.truncate(tokens_len);
         self.line_terminators_before.truncate(tokens_len);
         self.leading_comment_before.truncate(tokens_len);
         self.leading_side_start_by_token.truncate(tokens_len);
@@ -569,8 +561,6 @@ impl TokenStream {
         // reset caches and stacks for any follow-up access
         self.next_non_newline.clear();
         self.matching_pairs.clear();
-        self.token_keywords.clear();
-        self.token_keywords_cached.clear();
         self.line_terminators_before.clear();
         self.leading_comment_before.clear();
         self.leading_side_start_by_token.clear();
@@ -638,42 +628,6 @@ impl TokenStream {
             .get(index)
             .copied()
             .unwrap_or(false)
-    }
-
-    /// Return the keyword for a semantic token index.
-    #[inline]
-    pub fn keyword_at(&mut self, index: usize) -> Option<Keyword> {
-        self.ensure_token(index);
-        self.keyword_at_materialized(index)
-    }
-
-    /// Return the keyword for a materialized semantic token index.
-    #[inline]
-    fn keyword_at_materialized(&mut self, index: usize) -> Option<Keyword> {
-        if self
-            .token_keywords_cached
-            .get(index)
-            .copied()
-            .unwrap_or(false)
-        {
-            return self.token_keywords.get(index).copied().unwrap_or(None);
-        }
-
-        let keyword = self
-            .tokens
-            .get(index)
-            .filter(|token| token.token.ty == TokenType::Identifier)
-            .and_then(|token| keyword_from_identifier(self.lexer.get_span_str(token.span)));
-
-        if index >= self.token_keywords.len() {
-            self.token_keywords.resize(index + 1, None);
-        }
-        if index >= self.token_keywords_cached.len() {
-            self.token_keywords_cached.resize(index + 1, false);
-        }
-        self.token_keywords[index] = keyword;
-        self.token_keywords_cached[index] = true;
-        keyword
     }
 
     /// Return whether an identifier token contains escape syntax.
@@ -1053,8 +1007,6 @@ impl TokenStream {
         self.tokens.push(token_span);
         self.next_non_newline.push(u32::MAX);
         self.matching_pairs.push(u32::MAX);
-        self.token_keywords.push(None);
-        self.token_keywords_cached.push(false);
         self.line_terminators_before
             .push(has_line_terminator_before);
         self.leading_comment_before.push(has_comment_before);
