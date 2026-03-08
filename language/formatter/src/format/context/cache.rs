@@ -1,6 +1,7 @@
 use crate::format::context::{
-    Annotation, AnnotationPosition, Cell, Expression, FxHashMap, LocalNodeId,
-    NODE_BOOL_STATE_UNKNOWN, NODE_SPAN_CHAR_LEN_UNKNOWN, RefCell, TYPE_CONTEXT_STATE_UNKNOWN,
+    Annotation, AnnotationPosition, Cell, Comment, Expression, FxHashMap, LocalNodeId,
+    NODE_BOOL_STATE_UNKNOWN, NODE_SPAN_CHAR_LEN_UNKNOWN, OnceCell, RefCell, SmallVec,
+    TYPE_CONTEXT_STATE_UNKNOWN,
 };
 
 /// Snapshot of formatter cache behavior counters.
@@ -91,8 +92,14 @@ pub struct AnnotationData {
     pub ids: Vec<LocalNodeId<Annotation>>,
     /// Whether any annotation is non-blank.
     pub has_non_blank: bool,
+    /// Whether any annotation is non-blank and not a boundary postfix comment.
+    pub has_non_blank_non_boundary: bool,
     /// Whether any annotation is a prefix annotation.
     pub has_prefix: bool,
+    /// Whether any annotation is a block prefix annotation.
+    pub has_block_prefix: bool,
+    /// Whether any annotation is a line prefix annotation.
+    pub has_line_prefix: bool,
     /// Whether any annotation is an infix annotation.
     pub has_infix: bool,
     /// Whether any annotation is a non-blank infix annotation.
@@ -101,10 +108,14 @@ pub struct AnnotationData {
     pub has_postfix: bool,
     /// Whether any annotation is a non-blank postfix annotation.
     pub has_non_blank_postfix: bool,
+    /// Whether any annotation is a blank postfix annotation.
+    pub has_blank_postfix: bool,
     /// Whether any annotation is a blank prefix annotation.
     pub has_blank_prefix: bool,
     /// Whether the first annotation is a blank prefix annotation.
     pub has_blank_prefix_first: bool,
+    /// Whether any annotation is a boundary postfix comment.
+    pub has_boundary_comment: bool,
 }
 
 impl AnnotationData {
@@ -114,13 +125,18 @@ impl AnnotationData {
         mut annotation_for: impl FnMut(LocalNodeId<Annotation>) -> Annotation,
     ) -> Self {
         let mut has_non_blank = false;
+        let mut has_non_blank_non_boundary = false;
         let mut has_prefix = false;
+        let mut has_block_prefix = false;
+        let mut has_line_prefix = false;
         let mut has_infix = false;
         let mut has_non_blank_infix = false;
         let mut has_postfix = false;
         let mut has_non_blank_postfix = false;
+        let mut has_blank_postfix = false;
         let mut has_blank_prefix = false;
         let mut has_blank_prefix_first = false;
+        let mut has_boundary_comment = false;
 
         for (index, annotation_id) in ids.iter().enumerate() {
             let annotation = annotation_for(*annotation_id);
@@ -131,11 +147,28 @@ impl AnnotationData {
                 has_non_blank = true;
             }
 
+            if is_non_blank
+                && !matches!(
+                    annotation,
+                    Annotation::Comment {
+                        position: AnnotationPosition::LinePostfixBoundary,
+                        ..
+                    }
+                )
+            {
+                has_non_blank_non_boundary = true;
+            }
+
             // general position flags
             if position == AnnotationPosition::BlockPrefix
                 || position == AnnotationPosition::LinePrefix
             {
                 has_prefix = true;
+                if position == AnnotationPosition::BlockPrefix {
+                    has_block_prefix = true;
+                } else {
+                    has_line_prefix = true;
+                }
             }
 
             if position == AnnotationPosition::BlockInfix {
@@ -152,6 +185,8 @@ impl AnnotationData {
                 has_postfix = true;
                 if is_non_blank {
                     has_non_blank_postfix = true;
+                } else {
+                    has_blank_postfix = true;
                 }
             }
 
@@ -165,18 +200,33 @@ impl AnnotationData {
                     has_blank_prefix_first = true;
                 }
             }
+
+            if matches!(
+                annotation,
+                Annotation::Comment {
+                    position: AnnotationPosition::LinePostfixBoundary,
+                    ..
+                }
+            ) {
+                has_boundary_comment = true;
+            }
         }
 
         Self {
             ids,
             has_non_blank,
+            has_non_blank_non_boundary,
             has_prefix,
+            has_block_prefix,
+            has_line_prefix,
             has_infix,
             has_non_blank_infix,
             has_postfix,
             has_non_blank_postfix,
+            has_blank_postfix,
             has_blank_prefix,
             has_blank_prefix_first,
+            has_boundary_comment,
         }
     }
 }
@@ -194,24 +244,17 @@ pub struct ArgumentAnnotationCache {
     pub has_prefix_annotation: bool,
 }
 
-/// Cached regular call argument expansion data keyed by call expression node id.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct CallArgumentExpansionCache {
-    /// The final force-expand state.
-    pub force_expand: bool,
-    /// Whether the call has a non blank infix annotation.
-    pub has_call_infix_annotations: bool,
-    /// Whether the last argument is a collection literal.
-    pub trailing_collection_argument: bool,
-}
-
-/// Cached regular and chain call argument expansion data keyed by call expression node id.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct CallArgumentExpansionsCache {
-    /// Cached regular call expansion data.
-    pub regular: CallArgumentExpansionCache,
-    /// Cached chain call force-expand state.
-    pub chain_force_expand: bool,
+/// Cached separator-comment source attached to one argument.
+#[derive(Debug, Clone, Default)]
+pub struct SeparatorLineCommentSourceCache {
+    /// The separator comment node ids in source order.
+    pub comment_ids: SmallVec<[LocalNodeId<Comment>; 2]>,
+    /// Whether the comment starts on its own line after the separator comma.
+    pub is_own_line: bool,
+    /// Whether source had a blank line between separator and first comment.
+    pub has_blank_line_before_first_comment: bool,
+    /// Whether comments were detached from the following argument prefix.
+    pub detached_from_following_prefix: bool,
 }
 
 /// Cached call argument layout data keyed by call expression node id.
@@ -219,22 +262,26 @@ pub struct CallArgumentExpansionsCache {
 pub struct CallArgumentLayoutCache {
     /// Whether the call has a non-blank infix annotation.
     pub has_call_infix_annotations: bool,
+    /// Whether source text around call argument boundaries contains line comments.
+    pub has_boundary_comments: bool,
     /// Whether any dynamic argument has annotations.
     pub has_any_argument_annotation: bool,
-    /// Whether argument source between first and last spans multiple lines.
-    pub is_multiline_in_source: bool,
     /// Whether all dynamic arguments are single-line and unannotated.
     pub all_single_line_and_unannotated: bool,
     /// Whether all dynamic arguments are compact, simple, and unannotated.
     pub all_compact_simple_unannotated: bool,
+    /// Whether all leading arguments before the last are compact, simple, and unannotated.
+    pub leading_arguments_are_compact_simple_unannotated: bool,
+    /// Whether all leading arguments before the last are compact callback-tail candidates.
+    pub leading_arguments_are_compact_callback_tail_candidates: bool,
     /// Whether all arguments can use the plain argument writer.
     pub all_plain_call_arguments: bool,
     /// Whether any argument has a line comment annotation.
     pub has_line_comment_annotations: bool,
+    /// Whether any argument has a prefix line comment annotation.
+    pub has_prefix_line_comment_annotations: bool,
     /// Whether any argument is a block callback.
     pub has_block_callback_argument: bool,
-    /// Whether the first argument is a block callback.
-    pub first_argument_is_block_callback: bool,
     /// Whether the last argument is a block callback.
     pub last_argument_is_block_callback: bool,
     /// Whether any non-last non-callback argument is non-trivial.
@@ -266,18 +313,13 @@ pub(crate) struct FormatterNodeCaches {
     pub(crate) node_span_char_len: Vec<Cell<u32>>,
     /// Cached node span newline predicates keyed by node id.
     pub(crate) node_has_newline: Vec<Cell<u8>>,
-    /// Cached call argument expansion data for regular and chain modes keyed by call node id.
-    pub(crate) call_argument_expansions_cache: Vec<Cell<Option<CallArgumentExpansionsCache>>>,
     /// Cached call argument annotation data keyed by argument node id.
     pub(crate) argument_annotation_cache: Vec<Cell<Option<ArgumentAnnotationCache>>>,
-    /// Cached compact simple unannotated argument predicate keyed by argument node id.
-    pub(crate) argument_compact_simple_unannotated: Vec<Cell<Option<bool>>>,
-    /// Cached plain-call-argument predicate keyed by argument node id.
-    pub(crate) argument_plain_call_argument: Vec<Cell<Option<bool>>>,
     /// Cached call argument layout data keyed by call expression node id.
     pub(crate) call_argument_layout_cache: Vec<Cell<Option<CallArgumentLayoutCache>>>,
-    /// Cached boundary-comment presence keyed by call expression node id.
-    pub(crate) call_argument_boundary_comments: Vec<Cell<Option<bool>>>,
+    /// Cached separator-comment sources keyed by argument node id.
+    pub(crate) separator_line_comment_source:
+        Vec<OnceCell<Option<SeparatorLineCommentSourceCache>>>,
     /// Cached chain call force-expand states keyed by call expression node id.
     pub(crate) call_argument_chain_force_expand: Vec<Cell<Option<bool>>>,
     /// Cached transparent inner expression ids keyed by expression node id.
@@ -296,12 +338,11 @@ impl FormatterNodeCaches {
         Self {
             node_span_char_len: vec![Cell::new(NODE_SPAN_CHAR_LEN_UNKNOWN); node_count],
             node_has_newline: vec![Cell::new(NODE_BOOL_STATE_UNKNOWN); node_count],
-            call_argument_expansions_cache: vec![Cell::new(None); node_count],
             argument_annotation_cache: vec![Cell::new(None); node_count],
-            argument_compact_simple_unannotated: vec![Cell::new(None); node_count],
-            argument_plain_call_argument: vec![Cell::new(None); node_count],
             call_argument_layout_cache: vec![Cell::new(None); node_count],
-            call_argument_boundary_comments: vec![Cell::new(None); node_count],
+            separator_line_comment_source: std::iter::repeat_with(OnceCell::new)
+                .take(node_count)
+                .collect(),
             call_argument_chain_force_expand: vec![Cell::new(None); node_count],
             transparent_inner_expression: vec![Cell::new(None); node_count],
             expression_type_context: vec![Cell::new(TYPE_CONTEXT_STATE_UNKNOWN); node_count],

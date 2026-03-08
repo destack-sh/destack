@@ -223,7 +223,7 @@ pub(crate) fn format_primary_array_expression<'ast>(
     let should_use_fill_layout =
         !has_annotations && array_elements_are_fill_candidates(tree, elements_ids);
 
-    if format_array_with_last_separator_line_comment(f, node_id, elements_ids)? {
+    if format_array_with_last_separator_line_comment(f, elements_ids)? {
         // formatter-owned trailing separator comments around close brackets need
         // explicit comma-before-comment emission to stay source-idempotent
     } else if can_keep_inline_boundary_comment_array {
@@ -245,7 +245,6 @@ pub(crate) fn format_primary_array_expression<'ast>(
 /// Return one trailing separator comment source on the last array element.
 fn array_last_separator_line_comment_source(
     context: &DestackFormatContext<'_>,
-    array_node_id: LocalNodeId<Expression>,
     elements_ids: &[LocalNodeId<Argument>],
 ) -> Option<(LocalNodeId<Argument>, SeparatorLineCommentSource)> {
     let last_argument_id = elements_ids.last().copied()?;
@@ -253,8 +252,7 @@ fn array_last_separator_line_comment_source(
         return None;
     }
 
-    let comment_source =
-        single_argument_separator_line_comment_source(context, array_node_id, last_argument_id)?;
+    let comment_source = single_argument_separator_line_comment_source(context, last_argument_id)?;
 
     Some((last_argument_id, comment_source))
 }
@@ -262,11 +260,10 @@ fn array_last_separator_line_comment_source(
 /// Format one array with the last separator line comment emitted after the trailing comma.
 fn format_array_with_last_separator_line_comment<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    array_node_id: LocalNodeId<Expression>,
     elements_ids: &[LocalNodeId<Argument>],
 ) -> FormatResult<bool> {
     let Some((last_argument_id, comment_source)) =
-        array_last_separator_line_comment_source(f.context(), array_node_id, elements_ids)
+        array_last_separator_line_comment_source(f.context(), elements_ids)
     else {
         return Ok(false);
     };
