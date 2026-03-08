@@ -55,10 +55,6 @@ pub struct TokenStreamMark {
     pub(super) side_tokens_len: usize,
     /// The number of comment side token indexes captured in the mark.
     pub(super) comment_side_tokens_len: usize,
-    /// The first mutable next non newline index at mark time.
-    pub(super) pending_non_newline_start: usize,
-    /// The next non newline tail values from pending_non_newline_start onward.
-    pub(super) next_non_newline_tail: Vec<u32>,
     /// The open parenthesis stack at mark time.
     pub(super) paren_stack: Vec<usize>,
     /// The open brace stack at mark time.
@@ -91,19 +87,6 @@ pub struct TokenStreamMark {
     pub(super) split_token_consumed: bool,
 }
 
-/// Cursor information for the first non-newline token from a start index.
-#[derive(Debug, Copy, Clone)]
-pub struct TokenStreamCursor {
-    /// The semantic token index.
-    pub index: usize,
-    /// The token type at `index`.
-    pub token_type: TokenType,
-    /// The number of leading newline tokens skipped from `start`.
-    pub skipped_newline_count: usize,
-    /// Whether a line break appears before the token at `index`.
-    pub has_line_break_before: bool,
-}
-
 /// Lazy token stream that drives the lexer on demand.
 #[derive(Debug)]
 pub struct TokenStream {
@@ -115,8 +98,6 @@ pub struct TokenStream {
     side_tokens: Vec<TokenSpan>,
     /// Indexes of comment-like side tokens in `side_tokens`.
     comment_side_token_indexes: Vec<u32>,
-    /// The cached next non newline token indexes.
-    next_non_newline: Vec<u32>,
     /// The cached matching pair indexes for delimiters.
     matching_pairs: Vec<u32>,
     /// Cached line terminator presence before semantic token indexes.
@@ -131,8 +112,6 @@ pub struct TokenStream {
     non_whitespace_side_prefix: Vec<u32>,
     /// Side trivia start index for the next semantic token.
     pending_leading_side_start: usize,
-    /// The first token index that still needs a next non newline update.
-    pending_non_newline_start: usize,
     /// The stack of open parenthesis token indexes.
     paren_stack: Vec<usize>,
     /// The stack of open brace token indexes.
@@ -182,7 +161,6 @@ impl TokenStream {
             tokens,
             side_tokens,
             comment_side_token_indexes: Vec::with_capacity(estimated_tokens / 24),
-            next_non_newline: Vec::with_capacity(semantic_token_capacity),
             matching_pairs: Vec::with_capacity(semantic_token_capacity),
             line_terminators_before: Vec::with_capacity(semantic_token_capacity),
             leading_comment_before: Vec::with_capacity(semantic_token_capacity),
@@ -190,7 +168,6 @@ impl TokenStream {
             leading_side_end_by_token: Vec::with_capacity(semantic_token_capacity),
             non_whitespace_side_prefix,
             pending_leading_side_start: 0,
-            pending_non_newline_start: 0,
             paren_stack: Vec::with_capacity(semantic_token_capacity / 64),
             brace_stack: Vec::with_capacity(semantic_token_capacity / 64),
             bracket_stack: Vec::with_capacity(semantic_token_capacity / 64),
@@ -356,24 +333,17 @@ impl TokenStream {
     /// Snapshot token stream state for speculative parsing.
     #[inline]
     pub fn mark(&self) -> TokenStreamMark {
-        let pending_non_newline_start = self.pending_non_newline_start.min(self.tokens.len());
         TokenStreamMark {
             lexer: self.lexer.snapshot(),
             tokens_len: self.tokens.len(),
             side_tokens_len: self.side_tokens.len(),
             comment_side_tokens_len: self.comment_side_token_indexes.len(),
-            pending_non_newline_start,
-            next_non_newline_tail: self.next_non_newline[pending_non_newline_start..].to_vec(),
             paren_stack: self.paren_stack.clone(),
             brace_stack: self.brace_stack.clone(),
             bracket_stack: self.bracket_stack.clone(),
-            leading_side_start_tail: self.leading_side_start_by_token[pending_non_newline_start..]
-                .to_vec(),
-            leading_side_end_tail: self.leading_side_end_by_token[pending_non_newline_start..]
-                .to_vec(),
-            non_whitespace_side_prefix_tail: self.non_whitespace_side_prefix
-                [pending_non_newline_start + 1..]
-                .to_vec(),
+            leading_side_start_tail: self.leading_side_start_by_token.to_vec(),
+            leading_side_end_tail: self.leading_side_end_by_token.to_vec(),
+            non_whitespace_side_prefix_tail: self.non_whitespace_side_prefix[1..].to_vec(),
             pending_leading_side_start: self.pending_leading_side_start,
             pending_line_terminator_before_next: self.pending_line_terminator_before_next,
             pending_comment_before_next: self.pending_comment_before_next,
@@ -393,8 +363,6 @@ impl TokenStream {
             tokens_len,
             side_tokens_len,
             comment_side_tokens_len,
-            pending_non_newline_start,
-            next_non_newline_tail,
             paren_stack,
             brace_stack,
             bracket_stack,
@@ -445,21 +413,16 @@ impl TokenStream {
         self.leading_side_end_by_token.truncate(tokens_len);
         self.non_whitespace_side_prefix.truncate(tokens_len + 1);
 
-        // restore next non newline cache and mutable tail cursor
-        self.next_non_newline.truncate(tokens_len);
-        for (offset, next_non_newline) in next_non_newline_tail.into_iter().enumerate() {
-            self.next_non_newline[pending_non_newline_start + offset] = next_non_newline;
-        }
+        // restore leading side and prefix data
         for (offset, side_start) in leading_side_start_tail.into_iter().enumerate() {
-            self.leading_side_start_by_token[pending_non_newline_start + offset] = side_start;
+            self.leading_side_start_by_token[offset] = side_start;
         }
         for (offset, side_end) in leading_side_end_tail.into_iter().enumerate() {
-            self.leading_side_end_by_token[pending_non_newline_start + offset] = side_end;
+            self.leading_side_end_by_token[offset] = side_end;
         }
         for (offset, prefix) in non_whitespace_side_prefix_tail.into_iter().enumerate() {
-            self.non_whitespace_side_prefix[pending_non_newline_start + 1 + offset] = prefix;
+            self.non_whitespace_side_prefix[1 + offset] = prefix;
         }
-        self.pending_non_newline_start = pending_non_newline_start;
 
         // restore matching pair cache and open delimiter stacks
         self.matching_pairs.truncate(tokens_len);
@@ -559,7 +522,6 @@ impl TokenStream {
         self.comment_side_token_indexes.clear();
 
         // reset caches and stacks for any follow-up access
-        self.next_non_newline.clear();
         self.matching_pairs.clear();
         self.line_terminators_before.clear();
         self.leading_comment_before.clear();
@@ -568,7 +530,6 @@ impl TokenStream {
         self.non_whitespace_side_prefix.clear();
         self.non_whitespace_side_prefix.push(0);
         self.pending_leading_side_start = 0;
-        self.pending_non_newline_start = 0;
         self.paren_stack.clear();
         self.brace_stack.clear();
         self.bracket_stack.clear();
@@ -583,28 +544,9 @@ impl TokenStream {
         (tokens, side_tokens)
     }
 
-    /// Return whether trivia before a semantic token index had a line terminator.
+    /// Return the materialized line terminator flag for a semantic token index.
     #[inline]
-    pub fn line_terminator_before(&mut self, index: usize) -> bool {
-        // hot fast path: full token stream is already materialized
-        if self.is_finished {
-            return self
-                .line_terminators_before
-                .get(index)
-                .copied()
-                .unwrap_or(false);
-        }
-
-        self.ensure_token(index);
-        self.line_terminators_before
-            .get(index)
-            .copied()
-            .unwrap_or(false)
-    }
-
-    /// Return the cached line terminator flag for a semantic token index.
-    #[inline]
-    pub fn line_terminator_before_cached(&self, index: usize) -> bool {
+    pub(crate) fn materialized_line_terminator_before(&self, index: usize) -> bool {
         self.line_terminators_before
             .get(index)
             .copied()
@@ -706,175 +648,6 @@ impl TokenStream {
         )
     }
 
-    /// Look up the next non-newline token index from a start index.
-    pub fn next_non_newline_index_from(&mut self, start: usize) -> usize {
-        // hot fast path: full token stream is already materialized
-        if self.is_finished {
-            if start >= self.tokens.len() {
-                return self.tokens.len();
-            }
-
-            if self.tokens[start].token.ty != TokenType::Newline {
-                return start;
-            }
-
-            let next = self
-                .next_non_newline
-                .get(start)
-                .copied()
-                .unwrap_or(u32::MAX);
-            if next == u32::MAX {
-                return self.tokens.len();
-            }
-
-            return next as usize;
-        }
-
-        // ensure the starting token exists
-        self.ensure_token(start);
-
-        // return immediately if the start is already non newline
-        if let Some(token) = self.tokens.get(start) {
-            if token.token.ty != TokenType::Newline {
-                return start;
-            }
-        } else {
-            return self.tokens.len();
-        }
-
-        // chase the cached next non newline pointer
-        loop {
-            let Some(next) = self.next_non_newline.get(start).copied() else {
-                return self.tokens.len();
-            };
-
-            if next != u32::MAX {
-                return next as usize;
-            }
-
-            if self.is_finished {
-                return self.tokens.len();
-            }
-
-            self.lex_next();
-        }
-    }
-
-    /// Return cursor information for the first non-newline token from a start index.
-    #[inline]
-    pub fn scanner_cursor_from(&mut self, start: usize) -> TokenStreamCursor {
-        // hot fast path: full token stream is already materialized
-        if self.is_finished {
-            return self.scanner_cursor_from_cached(start);
-        }
-
-        self.ensure_token(start);
-        self.scanner_cursor_from_materialized(start)
-    }
-
-    /// Return cursor information for the first non-newline token from a start index.
-    #[inline]
-    fn scanner_cursor_from_cached(&self, start: usize) -> TokenStreamCursor {
-        let len = self.tokens.len();
-        if start >= len {
-            return TokenStreamCursor {
-                index: len,
-                token_type: TokenType::End,
-                skipped_newline_count: 0,
-                has_line_break_before: false,
-            };
-        }
-
-        let token = self.tokens[start];
-        if token.token.ty != TokenType::Newline {
-            let has_line_break_before = self
-                .line_terminators_before
-                .get(start)
-                .copied()
-                .unwrap_or(false);
-            return TokenStreamCursor {
-                index: start,
-                token_type: token.token.ty,
-                skipped_newline_count: 0,
-                has_line_break_before,
-            };
-        }
-
-        let next = self
-            .next_non_newline
-            .get(start)
-            .copied()
-            .unwrap_or(u32::MAX);
-        if next == u32::MAX {
-            return TokenStreamCursor {
-                index: len,
-                token_type: TokenType::End,
-                skipped_newline_count: len.saturating_sub(start),
-                has_line_break_before: true,
-            };
-        }
-
-        let next_index = next as usize;
-        let next_token_type = self
-            .tokens
-            .get(next_index)
-            .map(|token| token.token.ty)
-            .unwrap_or(TokenType::End);
-        TokenStreamCursor {
-            index: next_index,
-            token_type: next_token_type,
-            skipped_newline_count: next_index.saturating_sub(start),
-            has_line_break_before: true,
-        }
-    }
-
-    /// Return cursor information for the first non-newline token from a start index.
-    #[inline]
-    fn scanner_cursor_from_materialized(&mut self, start: usize) -> TokenStreamCursor {
-        let len = self.tokens.len();
-        if start >= len {
-            return TokenStreamCursor {
-                index: len,
-                token_type: TokenType::End,
-                skipped_newline_count: 0,
-                has_line_break_before: false,
-            };
-        }
-
-        let token = self.tokens[start];
-        if token.token.ty != TokenType::Newline {
-            let has_line_break_before = self
-                .line_terminators_before
-                .get(start)
-                .copied()
-                .unwrap_or(false);
-            return TokenStreamCursor {
-                index: start,
-                token_type: token.token.ty,
-                skipped_newline_count: 0,
-                has_line_break_before,
-            };
-        }
-
-        let next_index = self.next_non_newline_index_from(start);
-        if next_index >= self.tokens.len() {
-            return TokenStreamCursor {
-                index: self.tokens.len(),
-                token_type: TokenType::End,
-                skipped_newline_count: next_index.saturating_sub(start),
-                has_line_break_before: true,
-            };
-        }
-
-        let next_token_type = self.tokens[next_index].token.ty;
-        TokenStreamCursor {
-            index: next_index,
-            token_type: next_token_type,
-            skipped_newline_count: next_index.saturating_sub(start),
-            has_line_break_before: true,
-        }
-    }
-
     /// Return the matching close token index for an opening token, if known.
     pub fn matching_pair(&mut self, index: usize) -> Option<usize> {
         // hot fast path: full token stream is already materialized
@@ -895,33 +668,6 @@ impl TokenStream {
         }
 
         Some(value as usize)
-    }
-
-    /// Return the matching close token index for an opening token, lexing ahead if needed.
-    pub fn matching_pair_or_lex(&mut self, index: usize) -> Option<usize> {
-        self.ensure_token(index);
-
-        let token = self.tokens.get(index)?;
-
-        if !matches!(
-            token.token.ty,
-            TokenType::OpenParenthesis | TokenType::OpenBrace | TokenType::OpenBracket
-        ) {
-            return None;
-        }
-
-        loop {
-            let value = self.matching_pairs.get(index).copied().unwrap_or(u32::MAX);
-            if value != u32::MAX {
-                return Some(value as usize);
-            }
-
-            if self.is_finished {
-                return None;
-            }
-
-            self.lex_next();
-        }
     }
 
     /// Lex the next token from the underlying lexer.
@@ -1002,10 +748,8 @@ impl TokenStream {
         let has_non_whitespace_side = self.pending_non_whitespace_side_before_next;
         let leading_side_start = self.pending_leading_side_start as u32;
         let leading_side_end = self.side_tokens.len() as u32;
-
         // add token and cache slots
         self.tokens.push(token_span);
-        self.next_non_newline.push(u32::MAX);
         self.matching_pairs.push(u32::MAX);
         self.line_terminators_before
             .push(has_line_terminator_before);
@@ -1029,14 +773,6 @@ impl TokenStream {
         // update lexer context for regex and tree rules
         self.lexer.track_semantic_token(token_span);
 
-        // update next non newline for pending tokens
-        if token_span.token.ty != TokenType::Newline {
-            for idx in self.pending_non_newline_start..token_index {
-                self.next_non_newline[idx] = token_index as u32;
-            }
-            self.pending_non_newline_start = token_index;
-        }
-
         // update matching pairs for brackets
         match token_span.token.ty {
             TokenType::OpenParenthesis => self.paren_stack.push(token_index),
@@ -1058,11 +794,6 @@ impl TokenStream {
                 }
             }
             _ => {}
-        }
-
-        // fill EOF next non newline once the end is reached
-        if token_span.token.ty == TokenType::End {
-            self.next_non_newline[token_index] = (token_index + 1) as u32;
         }
     }
 

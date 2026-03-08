@@ -661,7 +661,7 @@ impl Parser {
     /// Find the next token index that is not a newline.
     #[inline]
     pub fn next_non_newline_index_from(&mut self, start: usize) -> usize {
-        self.next_non_newline_index_from_stream(start)
+        self.first_non_newline_index_from(start)
     }
 
     /// Skip any newlines at and after a position and check if there's a specific token after.
