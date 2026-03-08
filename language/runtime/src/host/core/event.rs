@@ -1,5 +1,5 @@
 /// Host lifecycle state.
-#[repr(u8)]
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HostLifecycleState {
     /// Runtime has not received start events yet.
@@ -14,27 +14,8 @@ pub enum HostLifecycleState {
     Destroyed,
 }
 
-impl HostLifecycleState {
-    /// Return this lifecycle state as one compact atomic value.
-    pub(crate) const fn encode(self) -> u8 {
-        self as u8
-    }
-
-    /// Decode one compact atomic lifecycle value.
-    #[cfg(test)]
-    pub(crate) const fn decode(encoded_state: u8) -> Self {
-        match encoded_state {
-            1 => Self::Running,
-            2 => Self::Paused,
-            3 => Self::Stopped,
-            4 => Self::Destroyed,
-            _ => Self::Initializing,
-        }
-    }
-}
-
 /// Host memory pressure state.
-#[repr(u8)]
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HostMemoryPressureLevel {
     /// Memory pressure is normal.
@@ -45,25 +26,8 @@ pub enum HostMemoryPressureLevel {
     Critical,
 }
 
-impl HostMemoryPressureLevel {
-    /// Return this memory pressure level as one compact atomic value.
-    pub(crate) const fn encode(self) -> u8 {
-        self as u8
-    }
-
-    /// Decode one compact atomic memory pressure value.
-    #[cfg(test)]
-    pub(crate) const fn decode(encoded_level: u8) -> Self {
-        match encoded_level {
-            1 => Self::Warning,
-            2 => Self::Critical,
-            _ => Self::Normal,
-        }
-    }
-}
-
 /// Host thermal state.
-#[repr(u8)]
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HostThermalState {
     /// Thermal state is nominal.
@@ -76,48 +40,14 @@ pub enum HostThermalState {
     Critical,
 }
 
-impl HostThermalState {
-    /// Return this thermal state as one compact atomic value.
-    pub(crate) const fn encode(self) -> u8 {
-        self as u8
-    }
-
-    /// Decode one compact atomic thermal value.
-    #[cfg(test)]
-    pub(crate) const fn decode(encoded_state: u8) -> Self {
-        match encoded_state {
-            1 => Self::Fair,
-            2 => Self::Serious,
-            3 => Self::Critical,
-            _ => Self::Nominal,
-        }
-    }
-}
-
 /// Host power mode state.
-#[repr(u8)]
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HostPowerMode {
     /// Normal power mode.
     Normal,
     /// Low power mode.
     LowPower,
-}
-
-impl HostPowerMode {
-    /// Return this power mode as one compact atomic value.
-    pub(crate) const fn encode(self) -> u8 {
-        self as u8
-    }
-
-    /// Decode one compact atomic power mode value.
-    #[cfg(test)]
-    pub(crate) const fn decode(encoded_mode: u8) -> Self {
-        match encoded_mode {
-            1 => Self::LowPower,
-            _ => Self::Normal,
-        }
-    }
 }
 
 /// Host semantic event kind key for scheduler watches.

@@ -33,9 +33,8 @@ pub use bindings::{AndroidHostBindings, destack_host_android_register_bindings};
 pub use callback::{
     AndroidActivityLifecycle, android_notify_activity_lifecycle,
     android_notify_interruption_changed, android_notify_memory_pressure_changed,
-    android_notify_permission_request_in_flight, android_notify_permission_result,
-    android_notify_power_mode_changed, android_notify_thermal_state_changed, android_notify_wake,
-    android_notify_wall_clock_changed,
+    android_notify_permission_result, android_notify_power_mode_changed,
+    android_notify_thermal_state_changed, android_notify_wake, android_notify_wall_clock_changed,
 };
 #[cfg(any(test, target_os = "android"))]
 pub use credentials::{
@@ -76,7 +75,6 @@ pub use ffi::{
     destack_host_android_notify_activity_lifecycle,
     destack_host_android_notify_interruption_changed,
     destack_host_android_notify_memory_pressure_changed,
-    destack_host_android_notify_permission_request_in_flight,
     destack_host_android_notify_permission_result, destack_host_android_notify_power_mode_changed,
     destack_host_android_notify_thermal_state_changed, destack_host_android_notify_wake,
     destack_host_android_notify_wall_clock_changed,

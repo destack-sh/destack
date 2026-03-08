@@ -1,10 +1,9 @@
 use destack_workspace::Platform;
 
-use super::capability::default_host_capabilities;
 use super::registry::HostCleanup;
 use crate::diagnostic::RuntimeResult;
 use crate::host::HostEvent;
-use crate::runtime::capability::PlatformCapabilitySet;
+use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
 
 /// Host poll output containing queued events and queue-pressure drops.
 #[derive(Debug, Default)]
@@ -22,11 +21,20 @@ pub(crate) trait HostBackend: std::fmt::Debug + Send + Sync {
 
     /// Return host platform capabilities for this host target.
     fn host_capabilities(&self) -> PlatformCapabilitySet {
-        default_host_capabilities(self.platform())
+        let mut host_capabilities = PlatformCapabilitySet::new();
+
+        // lifecycle and power signals are routed through the host event bridge
+        host_capabilities.insert_capability(PlatformCapability::OsLifecycleRead);
+        host_capabilities.insert_capability(PlatformCapability::OsPower);
+
+        // permission result tracking is routed through host permission callbacks
+        host_capabilities.insert_capability(PlatformCapability::OsPermissionRead);
+
+        host_capabilities
     }
 
-    /// Return one optional cleanup hook for runtime-state teardown.
-    fn runtime_state_cleanup(&self) -> Option<HostCleanup> {
+    /// Return one optional cleanup hook for runtime teardown.
+    fn runtime_cleanup(&self) -> Option<HostCleanup> {
         None
     }
 

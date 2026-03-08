@@ -3,9 +3,12 @@ use std::sync::Arc;
 use destack_workspace::Platform;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostState;
-use crate::host::core::registry::host_state_for_runtime;
-use crate::host::{HostLifecycleState, HostMemoryPressureLevel, HostPowerMode, HostThermalState};
+use crate::host::core::{HostQueue, HostQueueRegistry};
+use crate::host::{
+    HostEvent, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
+    HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent, HostPowerMode,
+    HostPowerModeEvent, HostThermalEvent, HostThermalState, HostWallClockEvent,
+};
 use crate::runtime::world::RuntimeId;
 
 /// Unix application lifecycle transitions from native callbacks.
@@ -23,9 +26,11 @@ pub enum UnixApplicationLifecycle {
     Destroyed,
 }
 
-/// Return the active Unix host state for this process and platform.
-fn unix_host_bridge(runtime_id: u64, platform: Platform) -> RuntimeResult<Arc<HostState>> {
-    host_state_for_runtime(RuntimeId(runtime_id), platform)
+/// Return the active Unix host queue for this process and platform.
+fn unix_host_bridge(runtime_id: u64, platform: Platform) -> RuntimeResult<Arc<HostQueue>> {
+    HostQueueRegistry::shared()
+        .write()
+        .queue_for_runtime(RuntimeId(runtime_id), platform)
 }
 
 /// Submit one Unix application lifecycle callback.
@@ -36,7 +41,7 @@ pub fn unix_notify_application_lifecycle(
 ) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
     let state = host_lifecycle_state_for_unix_application(lifecycle);
-    bridge.push_lifecycle(state);
+    bridge.enqueue(HostEvent::Lifecycle(HostLifecycleEvent { state }));
 
     Ok(())
 }
@@ -49,7 +54,10 @@ pub fn unix_notify_permission_result(
     granted: bool,
 ) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
-    bridge.push_permission_result(permission, granted);
+    bridge.enqueue(HostEvent::Permission(HostPermissionEvent {
+        permission: permission.to_string(),
+        granted,
+    }));
 
     Ok(())
 }
@@ -61,7 +69,9 @@ pub fn unix_notify_interruption_changed(
     interrupted: bool,
 ) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
-    bridge.push_interruption(interrupted);
+    bridge.enqueue(HostEvent::Interruption(HostInterruptionEvent {
+        interrupted,
+    }));
 
     Ok(())
 }
@@ -73,7 +83,7 @@ pub fn unix_notify_memory_pressure_changed(
     level: HostMemoryPressureLevel,
 ) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
-    bridge.push_memory_pressure(level);
+    bridge.enqueue(HostEvent::MemoryPressure(HostMemoryPressureEvent { level }));
 
     Ok(())
 }
@@ -85,7 +95,7 @@ pub fn unix_notify_thermal_state_changed(
     state: HostThermalState,
 ) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
-    bridge.push_thermal_state(state);
+    bridge.enqueue(HostEvent::ThermalState(HostThermalEvent { state }));
 
     Ok(())
 }
@@ -97,7 +107,7 @@ pub fn unix_notify_power_mode_changed(
     mode: HostPowerMode,
 ) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
-    bridge.push_power_mode(mode);
+    bridge.enqueue(HostEvent::PowerMode(HostPowerModeEvent { mode }));
 
     Ok(())
 }
@@ -105,7 +115,7 @@ pub fn unix_notify_power_mode_changed(
 /// Submit one Unix wall clock callback.
 pub fn unix_notify_wall_clock_changed(runtime_id: u64, platform: Platform) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
-    bridge.push_wall_clock_changed();
+    bridge.enqueue(HostEvent::WallClock(HostWallClockEvent));
 
     Ok(())
 }

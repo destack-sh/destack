@@ -6,7 +6,7 @@ use x11rb::connection::Connection;
 use super::connection::X11ConnectionState;
 use super::ingress;
 use crate::diagnostic::DiagnosticStore;
-use crate::host::core::observer::{RuntimeIngressObserver, register_runtime_ingress_observer};
+use crate::host::core::observer::{RuntimeIngressObserver, RuntimeIngressObserverRegistry};
 use crate::platform::display::unix::x11::event::{
     self as x11_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
 };
@@ -249,7 +249,9 @@ impl X11RuntimeState {
             .clone();
         let observer: Arc<dyn RuntimeIngressObserver> = observer;
 
-        register_runtime_ingress_observer(runtime_id.0, &observer);
+        RuntimeIngressObserverRegistry::shared()
+            .write()
+            .register(runtime_id.0, &observer);
     }
 }
 

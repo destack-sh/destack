@@ -12,7 +12,7 @@ use crate::host::unix::{
 };
 use crate::runtime::NativeStringRef;
 
-/// Notify the runtime host state about one Solaris application lifecycle transition.
+/// Notify the runtime host about one Solaris application lifecycle transition.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_solaris_notify_application_lifecycle(
     runtime_id: u64,
@@ -27,7 +27,7 @@ pub unsafe extern "C" fn destack_host_solaris_notify_application_lifecycle(
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state with one Solaris permission result.
+/// Notify the runtime host with one Solaris permission result.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_solaris_notify_permission_result(
     runtime_id: u64,
@@ -41,7 +41,7 @@ pub unsafe extern "C" fn destack_host_solaris_notify_permission_result(
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state that interruption state changed on Solaris.
+/// Notify the runtime host that interruption state changed on Solaris.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_solaris_notify_interruption_changed(
     runtime_id: u64,
@@ -50,7 +50,7 @@ pub unsafe extern "C" fn destack_host_solaris_notify_interruption_changed(
     unix_runtime_status(solaris_notify_interruption_changed(runtime_id, interrupted))
 }
 
-/// Notify the runtime host state that memory pressure changed on Solaris.
+/// Notify the runtime host that memory pressure changed on Solaris.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_solaris_notify_memory_pressure_changed(
     runtime_id: u64,
@@ -62,7 +62,7 @@ pub unsafe extern "C" fn destack_host_solaris_notify_memory_pressure_changed(
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state that thermal state changed on Solaris.
+/// Notify the runtime host that thermal state changed on Solaris.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_solaris_notify_thermal_state_changed(
     runtime_id: u64,
@@ -74,7 +74,7 @@ pub unsafe extern "C" fn destack_host_solaris_notify_thermal_state_changed(
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state that power mode changed on Solaris.
+/// Notify the runtime host that power mode changed on Solaris.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_solaris_notify_power_mode_changed(
     runtime_id: u64,
@@ -86,7 +86,7 @@ pub unsafe extern "C" fn destack_host_solaris_notify_power_mode_changed(
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state that wall clock changed on Solaris.
+/// Notify the runtime host that wall clock changed on Solaris.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_solaris_notify_wall_clock_changed(
     runtime_id: u64,

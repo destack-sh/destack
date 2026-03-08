@@ -19,7 +19,7 @@ impl HostBackend for AndroidHost {
         Platform::Android
     }
 
-    fn runtime_state_cleanup(&self) -> Option<HostCleanup> {
+    fn runtime_cleanup(&self) -> Option<HostCleanup> {
         Some(unregister_android_bindings)
     }
 

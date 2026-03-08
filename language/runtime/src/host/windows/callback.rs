@@ -3,9 +3,12 @@ use std::sync::Arc;
 use destack_workspace::Platform;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostState;
-use crate::host::core::registry::host_state_for_runtime;
-use crate::host::{HostLifecycleState, HostMemoryPressureLevel, HostPowerMode, HostThermalState};
+use crate::host::core::{HostQueue, HostQueueRegistry};
+use crate::host::{
+    HostEvent, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
+    HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent, HostPowerMode,
+    HostPowerModeEvent, HostThermalEvent, HostThermalState, HostWallClockEvent,
+};
 use crate::runtime::world::RuntimeId;
 
 /// Windows application lifecycle transitions from native callbacks.
@@ -25,9 +28,11 @@ pub enum WindowsApplicationLifecycle {
     Destroyed,
 }
 
-/// Return the active Windows host state for this process.
-fn windows_host_bridge(runtime_id: u64) -> RuntimeResult<Arc<HostState>> {
-    host_state_for_runtime(RuntimeId(runtime_id), Platform::Windows)
+/// Return the active Windows host queue for this process.
+fn windows_host_bridge(runtime_id: u64) -> RuntimeResult<Arc<HostQueue>> {
+    HostQueueRegistry::shared()
+        .write()
+        .queue_for_runtime(RuntimeId(runtime_id), Platform::Windows)
 }
 
 /// Submit one Windows application lifecycle callback.
@@ -37,7 +42,7 @@ pub fn windows_notify_application_lifecycle(
 ) -> RuntimeResult<()> {
     let bridge = windows_host_bridge(runtime_id)?;
     let state = host_lifecycle_state_for_windows_application(lifecycle);
-    bridge.push_lifecycle(state);
+    bridge.enqueue(HostEvent::Lifecycle(HostLifecycleEvent { state }));
 
     Ok(())
 }
@@ -49,7 +54,10 @@ pub fn windows_notify_permission_result(
     granted: bool,
 ) -> RuntimeResult<()> {
     let bridge = windows_host_bridge(runtime_id)?;
-    bridge.push_permission_result(permission, granted);
+    bridge.enqueue(HostEvent::Permission(HostPermissionEvent {
+        permission: permission.to_string(),
+        granted,
+    }));
 
     Ok(())
 }
@@ -60,7 +68,9 @@ pub fn windows_notify_interruption_changed(
     interrupted: bool,
 ) -> RuntimeResult<()> {
     let bridge = windows_host_bridge(runtime_id)?;
-    bridge.push_interruption(interrupted);
+    bridge.enqueue(HostEvent::Interruption(HostInterruptionEvent {
+        interrupted,
+    }));
 
     Ok(())
 }
@@ -71,7 +81,7 @@ pub fn windows_notify_memory_pressure_changed(
     level: HostMemoryPressureLevel,
 ) -> RuntimeResult<()> {
     let bridge = windows_host_bridge(runtime_id)?;
-    bridge.push_memory_pressure(level);
+    bridge.enqueue(HostEvent::MemoryPressure(HostMemoryPressureEvent { level }));
 
     Ok(())
 }
@@ -82,7 +92,7 @@ pub fn windows_notify_thermal_state_changed(
     state: HostThermalState,
 ) -> RuntimeResult<()> {
     let bridge = windows_host_bridge(runtime_id)?;
-    bridge.push_thermal_state(state);
+    bridge.enqueue(HostEvent::ThermalState(HostThermalEvent { state }));
 
     Ok(())
 }
@@ -93,7 +103,7 @@ pub fn windows_notify_power_mode_changed(
     mode: HostPowerMode,
 ) -> RuntimeResult<()> {
     let bridge = windows_host_bridge(runtime_id)?;
-    bridge.push_power_mode(mode);
+    bridge.enqueue(HostEvent::PowerMode(HostPowerModeEvent { mode }));
 
     Ok(())
 }
@@ -101,7 +111,7 @@ pub fn windows_notify_power_mode_changed(
 /// Submit one Windows wall clock callback.
 pub fn windows_notify_wall_clock_changed(runtime_id: u64) -> RuntimeResult<()> {
     let bridge = windows_host_bridge(runtime_id)?;
-    bridge.push_wall_clock_changed();
+    bridge.enqueue(HostEvent::WallClock(HostWallClockEvent));
 
     Ok(())
 }

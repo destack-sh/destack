@@ -17,25 +17,25 @@ enum HostEventCoalescingKey {
 
 /// Shared host event queue for adapter event delivery.
 #[derive(Debug, Clone)]
-pub(crate) struct HostEventQueue {
+pub(crate) struct HostQueue {
     /// Shared queue state and synchronization primitives.
-    state: Arc<HostEventQueueState>,
+    state: Arc<HostQueueState>,
     /// Shared out-of-band wake handle for blocked pollers.
-    wake_handle: Arc<HostEventQueueWakeHandle>,
+    wake_handle: Arc<HostQueueWakeHandle>,
 }
 
 /// Shared host event queue state.
 #[derive(Debug, Default)]
-struct HostEventQueueState {
+struct HostQueueState {
     /// Event payload queue and wake sequence metadata.
-    queue: Mutex<HostEventQueuePayload>,
+    queue: Mutex<HostQueuePayload>,
     /// Condition variable for blocking poll operations.
     wake: Condvar,
 }
 
 /// Host event queue payload protected by one mutex.
 #[derive(Debug, Default)]
-struct HostEventQueuePayload {
+struct HostQueuePayload {
     /// Pending host events.
     events: VecDeque<HostEvent>,
     /// Monotonic wake sequence for wake-without-event notifications.
@@ -48,16 +48,16 @@ struct HostEventQueuePayload {
 
 /// Shared wake handle for one host event queue.
 #[derive(Debug)]
-struct HostEventQueueWakeHandle {
+struct HostQueueWakeHandle {
     /// Shared queue state used for wake notifications.
-    state: Arc<HostEventQueueState>,
+    state: Arc<HostQueueState>,
 }
 
-impl HostEventQueue {
+impl HostQueue {
     /// Create one empty host event queue.
     pub(crate) fn new() -> Self {
-        let state = Arc::new(HostEventQueueState::default());
-        let wake_handle = Arc::new(HostEventQueueWakeHandle {
+        let state = Arc::new(HostQueueState::default());
+        let wake_handle = Arc::new(HostQueueWakeHandle {
             state: Arc::clone(&state),
         });
 
@@ -65,7 +65,7 @@ impl HostEventQueue {
     }
 
     /// Configure one optional queue capacity.
-    pub(crate) fn configure(&self, capacity: Option<usize>) {
+    pub(crate) fn configure_capacity(&self, capacity: Option<usize>) {
         let mut payload = self.state.queue.lock();
         payload.capacity = capacity;
     }
@@ -133,7 +133,7 @@ impl HostEventQueue {
     }
 }
 
-impl PollerWakeHandle for HostEventQueueWakeHandle {
+impl PollerWakeHandle for HostQueueWakeHandle {
     fn wake(&self) -> RuntimeResult<()> {
         let mut payload = self.state.queue.lock();
         payload.wake_sequence = payload.wake_sequence.wrapping_add(1);
@@ -145,8 +145,8 @@ impl PollerWakeHandle for HostEventQueueWakeHandle {
 
 /// Wait on one queue until events arrive or one wake is observed.
 fn wait_without_timeout(
-    state: &HostEventQueueState,
-    payload: &mut MutexGuard<'_, HostEventQueuePayload>,
+    state: &HostQueueState,
+    payload: &mut MutexGuard<'_, HostQueuePayload>,
     initial_wake_sequence: u64,
 ) {
     while payload.events.is_empty() && payload.wake_sequence == initial_wake_sequence {
@@ -156,8 +156,8 @@ fn wait_without_timeout(
 
 /// Wait on one queue until events arrive, one wake is observed, or timeout elapses.
 fn wait_with_timeout(
-    state: &HostEventQueueState,
-    payload: &mut MutexGuard<'_, HostEventQueuePayload>,
+    state: &HostQueueState,
+    payload: &mut MutexGuard<'_, HostQueuePayload>,
     initial_wake_sequence: u64,
     timeout_nanos: u64,
 ) {
@@ -176,12 +176,12 @@ fn wait_with_timeout(
 }
 
 /// Drain all queued events into one output vector.
-fn drain_events(payload: &mut HostEventQueuePayload) -> Vec<HostEvent> {
+fn drain_events(payload: &mut HostQueuePayload) -> Vec<HostEvent> {
     payload.events.drain(..).collect()
 }
 
 /// Enforce queue capacity and return whether the new event should be enqueued.
-fn enforce_capacity_before_enqueue(payload: &mut HostEventQueuePayload, event: &HostEvent) -> bool {
+fn enforce_capacity_before_enqueue(payload: &mut HostQueuePayload, event: &HostEvent) -> bool {
     let Some(capacity) = payload.capacity else {
         return true;
     };
@@ -261,7 +261,7 @@ mod tests {
 
     use crate::host::{HostEvent, HostLifecycleEvent, HostLifecycleState, HostPermissionEvent};
 
-    use super::HostEventQueue;
+    use super::HostQueue;
 
     fn lifecycle_event(state: HostLifecycleState) -> HostEvent {
         HostEvent::Lifecycle(HostLifecycleEvent { state })
@@ -276,7 +276,7 @@ mod tests {
 
     #[test]
     fn test_poll_events_drains_enqueued_events() {
-        let queue = HostEventQueue::new();
+        let queue = HostQueue::new();
         queue.enqueue(lifecycle_event(HostLifecycleState::Running));
 
         let events = queue.poll_events(Some(0)).unwrap();
@@ -286,7 +286,7 @@ mod tests {
 
     #[test]
     fn test_poll_events_returns_empty_after_timeout() {
-        let queue = HostEventQueue::new();
+        let queue = HostQueue::new();
         let start = Instant::now();
 
         let events = queue.poll_events(Some(10_000_000)).unwrap();
@@ -297,7 +297,7 @@ mod tests {
 
     #[test]
     fn test_wake_handle_interrupts_blocking_poll() {
-        let queue = HostEventQueue::new();
+        let queue = HostQueue::new();
         let queue_for_thread = queue.clone();
         let wake_handle = queue.poll_wake_handle();
         let (sender, receiver) = mpsc::channel();
@@ -318,8 +318,8 @@ mod tests {
 
     #[test]
     fn test_configure_capacity_drops_oldest_when_full() {
-        let queue = HostEventQueue::new();
-        queue.configure(Some(1));
+        let queue = HostQueue::new();
+        queue.configure_capacity(Some(1));
 
         queue.enqueue(lifecycle_event(HostLifecycleState::Paused));
         queue.enqueue(permission_event("camera", true));
@@ -331,8 +331,8 @@ mod tests {
 
     #[test]
     fn test_take_dropped_event_count_resets_counter() {
-        let queue = HostEventQueue::new();
-        queue.configure(Some(1));
+        let queue = HostQueue::new();
+        queue.configure_capacity(Some(1));
 
         queue.enqueue(lifecycle_event(HostLifecycleState::Paused));
         queue.enqueue(permission_event("camera", true));
@@ -345,7 +345,7 @@ mod tests {
 
     #[test]
     fn test_coalesces_lifecycle_events_to_latest_state() {
-        let queue = HostEventQueue::new();
+        let queue = HostQueue::new();
 
         queue.enqueue(lifecycle_event(HostLifecycleState::Initializing));
         queue.enqueue(lifecycle_event(HostLifecycleState::Running));
@@ -357,8 +357,8 @@ mod tests {
 
     #[test]
     fn test_permission_events_stay_lossless_under_capacity_pressure() {
-        let queue = HostEventQueue::new();
-        queue.configure(Some(1));
+        let queue = HostQueue::new();
+        queue.configure_capacity(Some(1));
 
         queue.enqueue(permission_event("camera", false));
         queue.enqueue(permission_event("microphone", true));
@@ -376,8 +376,8 @@ mod tests {
 
     #[test]
     fn test_coalescing_events_can_overflow_lossless_permission_capacity() {
-        let queue = HostEventQueue::new();
-        queue.configure(Some(1));
+        let queue = HostQueue::new();
+        queue.configure_capacity(Some(1));
 
         queue.enqueue(permission_event("camera", false));
         queue.enqueue(lifecycle_event(HostLifecycleState::Running));
@@ -396,8 +396,8 @@ mod tests {
 
     #[test]
     fn test_coalescing_event_overflows_lossless_capacity_without_drops() {
-        let queue = HostEventQueue::new();
-        queue.configure(Some(1));
+        let queue = HostQueue::new();
+        queue.configure_capacity(Some(1));
 
         queue.enqueue(permission_event("camera", false));
         queue.enqueue(lifecycle_event(HostLifecycleState::Running));

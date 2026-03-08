@@ -3,9 +3,12 @@ use std::sync::Arc;
 use destack_workspace::Platform;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostState;
-use crate::host::core::registry::host_state_for_runtime;
-use crate::host::{HostLifecycleState, HostMemoryPressureLevel, HostPowerMode, HostThermalState};
+use crate::host::core::{HostQueue, HostQueueRegistry};
+use crate::host::{
+    HostEvent, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
+    HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent, HostPowerMode,
+    HostPowerModeEvent, HostThermalEvent, HostThermalState, HostWallClockEvent,
+};
 use crate::runtime::world::RuntimeId;
 
 /// macOS application lifecycle transitions from native callbacks.
@@ -21,9 +24,11 @@ pub enum MacosApplicationLifecycle {
     WillTerminate,
 }
 
-/// Return the active macOS host state for this process.
-fn macos_host_bridge(runtime_id: u64) -> RuntimeResult<Arc<HostState>> {
-    host_state_for_runtime(RuntimeId(runtime_id), Platform::MacOS)
+/// Return the active macOS host queue for this process.
+fn macos_host_bridge(runtime_id: u64) -> RuntimeResult<Arc<HostQueue>> {
+    HostQueueRegistry::shared()
+        .write()
+        .queue_for_runtime(RuntimeId(runtime_id), Platform::MacOS)
 }
 
 /// Submit one macOS application lifecycle callback.
@@ -33,7 +38,7 @@ pub fn macos_notify_application_lifecycle(
 ) -> RuntimeResult<()> {
     let bridge = macos_host_bridge(runtime_id)?;
     let state = host_lifecycle_state_for_application_lifecycle(lifecycle);
-    bridge.push_lifecycle(state);
+    bridge.enqueue(HostEvent::Lifecycle(HostLifecycleEvent { state }));
 
     Ok(())
 }
@@ -45,7 +50,10 @@ pub fn macos_notify_permission_result(
     granted: bool,
 ) -> RuntimeResult<()> {
     let bridge = macos_host_bridge(runtime_id)?;
-    bridge.push_permission_result(permission, granted);
+    bridge.enqueue(HostEvent::Permission(HostPermissionEvent {
+        permission: permission.to_string(),
+        granted,
+    }));
 
     Ok(())
 }
@@ -53,7 +61,9 @@ pub fn macos_notify_permission_result(
 /// Submit one macOS interruption callback.
 pub fn macos_notify_interruption_changed(runtime_id: u64, interrupted: bool) -> RuntimeResult<()> {
     let bridge = macos_host_bridge(runtime_id)?;
-    bridge.push_interruption(interrupted);
+    bridge.enqueue(HostEvent::Interruption(HostInterruptionEvent {
+        interrupted,
+    }));
 
     Ok(())
 }
@@ -64,7 +74,7 @@ pub fn macos_notify_memory_pressure_changed(
     level: HostMemoryPressureLevel,
 ) -> RuntimeResult<()> {
     let bridge = macos_host_bridge(runtime_id)?;
-    bridge.push_memory_pressure(level);
+    bridge.enqueue(HostEvent::MemoryPressure(HostMemoryPressureEvent { level }));
 
     Ok(())
 }
@@ -75,7 +85,7 @@ pub fn macos_notify_thermal_state_changed(
     state: HostThermalState,
 ) -> RuntimeResult<()> {
     let bridge = macos_host_bridge(runtime_id)?;
-    bridge.push_thermal_state(state);
+    bridge.enqueue(HostEvent::ThermalState(HostThermalEvent { state }));
 
     Ok(())
 }
@@ -83,7 +93,7 @@ pub fn macos_notify_thermal_state_changed(
 /// Submit one macOS power mode callback.
 pub fn macos_notify_power_mode_changed(runtime_id: u64, mode: HostPowerMode) -> RuntimeResult<()> {
     let bridge = macos_host_bridge(runtime_id)?;
-    bridge.push_power_mode(mode);
+    bridge.enqueue(HostEvent::PowerMode(HostPowerModeEvent { mode }));
 
     Ok(())
 }
@@ -91,7 +101,7 @@ pub fn macos_notify_power_mode_changed(runtime_id: u64, mode: HostPowerMode) -> 
 /// Submit one macOS wall clock callback.
 pub fn macos_notify_wall_clock_changed(runtime_id: u64) -> RuntimeResult<()> {
     let bridge = macos_host_bridge(runtime_id)?;
-    bridge.push_wall_clock_changed();
+    bridge.enqueue(HostEvent::WallClock(HostWallClockEvent));
 
     Ok(())
 }
