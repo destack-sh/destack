@@ -163,6 +163,7 @@ impl Compiler {
                 language_type,
                 ParserSettings {
                     disallow_ambiguous_tree_literal: self.options.disallow_ambiguous_tree_literal,
+                    ..ParserSettings::default()
                 },
             )
         };

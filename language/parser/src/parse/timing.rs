@@ -1,10 +1,10 @@
-#[cfg(feature = "parser_timings")]
+#[cfg(feature = "timings")]
 use std::cell::RefCell;
-#[cfg(feature = "parser_timings")]
+#[cfg(feature = "timings")]
 use std::collections::HashMap;
 use std::ptr::NonNull;
 use std::time::Duration;
-#[cfg(feature = "parser_timings")]
+#[cfg(feature = "timings")]
 use std::time::Instant;
 
 /// Static timing tag for parser instrumentation.
@@ -39,7 +39,7 @@ pub struct ParserTimingEntry {
 }
 
 /// Timing collector for parser instrumentation.
-#[cfg(feature = "parser_timings")]
+#[cfg(feature = "timings")]
 #[derive(Debug, Default)]
 pub struct ParserTimings {
     entries: RefCell<HashMap<&'static str, ParserTimingEntry>>,
@@ -47,11 +47,11 @@ pub struct ParserTimings {
 }
 
 /// Timing collector for parser instrumentation.
-#[cfg(not(feature = "parser_timings"))]
+#[cfg(not(feature = "timings"))]
 #[derive(Debug, Default)]
 pub struct ParserTimings;
 
-#[cfg(feature = "parser_timings")]
+#[cfg(feature = "timings")]
 impl ParserTimings {
     /// Record a timing sample.
     pub fn record(&self, tag: ParserTimingTag, duration: Duration) {
@@ -100,7 +100,7 @@ impl ParserTimings {
     }
 }
 
-#[cfg(not(feature = "parser_timings"))]
+#[cfg(not(feature = "timings"))]
 impl ParserTimings {
     /// Record a timing sample.
     #[inline]
@@ -114,7 +114,7 @@ impl ParserTimings {
 }
 
 /// Scoped timing guard that records elapsed time on drop.
-#[cfg(feature = "parser_timings")]
+#[cfg(feature = "timings")]
 #[derive(Debug)]
 pub struct ParserTimingScope {
     timings: Option<NonNull<ParserTimings>>,
@@ -123,11 +123,11 @@ pub struct ParserTimingScope {
 }
 
 /// Scoped timing guard that records elapsed time on drop.
-#[cfg(not(feature = "parser_timings"))]
+#[cfg(not(feature = "timings"))]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ParserTimingScope;
 
-#[cfg(feature = "parser_timings")]
+#[cfg(feature = "timings")]
 impl ParserTimingScope {
     /// Create a disabled timing scope.
     #[inline]
@@ -157,7 +157,7 @@ impl ParserTimingScope {
     }
 }
 
-#[cfg(not(feature = "parser_timings"))]
+#[cfg(not(feature = "timings"))]
 impl ParserTimingScope {
     /// Create a disabled timing scope.
     #[inline]
@@ -172,7 +172,7 @@ impl ParserTimingScope {
     }
 }
 
-#[cfg(feature = "parser_timings")]
+#[cfg(feature = "timings")]
 impl Drop for ParserTimingScope {
     #[inline]
     fn drop(&mut self) {

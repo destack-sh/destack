@@ -1,4 +1,5 @@
 use crate::Parser;
+use crate::lex::SideRange;
 use destack_ast::{
     ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, BlankTrivia, Comment,
     CommentDirective, CommentStyle, CommentTrivia, Doc, DocStyle, Expression, LocalNodeId,
@@ -8,7 +9,6 @@ use destack_ast::{
 use destack_source::{NodeSearchMode, Span};
 
 const NO_TOKEN_INDEX: u32 = u32::MAX;
-const NO_OWNER_NODE_ID: u32 = u32::MAX;
 
 #[derive(Debug)]
 struct TokenNeighborIndex {
@@ -19,22 +19,16 @@ struct TokenNeighborIndex {
 
 #[derive(Debug)]
 struct DocumentationOwnerIndex {
-    owner_start_by_token: Vec<u32>,
+    owner_by_token_index: Vec<u32>,
 }
 
 impl DocumentationOwnerIndex {
     #[inline]
     fn owner_start(&self, token_index: usize) -> Option<u32> {
-        let owner_id = self
-            .owner_start_by_token
+        self.owner_by_token_index
             .get(token_index)
             .copied()
-            .unwrap_or(NO_OWNER_NODE_ID);
-        if owner_id == NO_OWNER_NODE_ID {
-            None
-        } else {
-            Some(owner_id)
-        }
+            .filter(|&owner_id| owner_id != NO_TOKEN_INDEX)
     }
 }
 
@@ -89,13 +83,7 @@ impl Parser {
         }
 
         // borrow token arrays directly for one sweep emission
-        let (
-            semantic_tokens,
-            side_tokens,
-            leading_side_start_indexes,
-            leading_side_end_indexes,
-            comment_side_token_indexes,
-        ) = {
+        let (semantic_tokens, side_tokens, leading_side_ranges, comment_side_token_indexes) = {
             let _collect_tokens_timing =
                 self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_COLLECT_TOKENS);
             let semantic_tokens_len = self.token_stream.tokens().len();
@@ -105,13 +93,8 @@ impl Parser {
             }
             let semantic_tokens_ptr = self.token_stream.tokens().as_ptr();
             let side_tokens_ptr = self.token_stream.side_tokens().as_ptr();
-            let leading_side_start_indexes_ptr =
-                self.token_stream.leading_side_start_indexes().as_ptr();
-            let leading_side_start_indexes_len =
-                self.token_stream.leading_side_start_indexes().len();
-            let leading_side_end_indexes_ptr =
-                self.token_stream.leading_side_end_indexes().as_ptr();
-            let leading_side_end_indexes_len = self.token_stream.leading_side_end_indexes().len();
+            let leading_side_ranges_ptr = self.token_stream.leading_side_ranges().as_ptr();
+            let leading_side_ranges_len = self.token_stream.leading_side_ranges().len();
             let comment_side_token_indexes_ptr =
                 self.token_stream.comment_side_token_indexes().as_ptr();
             let comment_side_token_indexes_len =
@@ -123,14 +106,7 @@ impl Parser {
                 (
                     std::slice::from_raw_parts(semantic_tokens_ptr, semantic_tokens_len),
                     std::slice::from_raw_parts(side_tokens_ptr, side_tokens_len),
-                    std::slice::from_raw_parts(
-                        leading_side_start_indexes_ptr,
-                        leading_side_start_indexes_len,
-                    ),
-                    std::slice::from_raw_parts(
-                        leading_side_end_indexes_ptr,
-                        leading_side_end_indexes_len,
-                    ),
+                    std::slice::from_raw_parts(leading_side_ranges_ptr, leading_side_ranges_len),
                     std::slice::from_raw_parts(
                         comment_side_token_indexes_ptr,
                         comment_side_token_indexes_len,
@@ -139,8 +115,7 @@ impl Parser {
             }
         };
         let comment_owner_token_indexes = Self::collect_comment_owner_token_indexes(
-            leading_side_start_indexes,
-            leading_side_end_indexes,
+            leading_side_ranges,
             comment_side_token_indexes,
             semantic_tokens.len(),
         );
@@ -232,7 +207,6 @@ impl Parser {
             {
                 let side_index = comment_side_index as usize;
                 debug_assert!(side_index < side_tokens.len());
-                // safety: comment side indexes are emitted from the same side token stream
                 let token = unsafe { *side_tokens.get_unchecked(side_index) };
 
                 // normalize token seams from lexer side-owner indexes
@@ -320,14 +294,13 @@ impl Parser {
                     ) {
                         let cleaned_text = normalize_comment_payload(raw_text);
                         let string = self.strings.intern(cleaned_text.as_ref());
-                        let position = if has_leading_newline {
-                            AnnotationPosition::BlockPrefix
-                        } else {
-                            AnnotationPosition::LinePrefix
-                        };
                         pending_documentation.push(PendingDocumentationAttachment {
                             target_id,
-                            position,
+                            position: if has_leading_newline {
+                                AnnotationPosition::BlockPrefix
+                            } else {
+                                AnnotationPosition::LinePrefix
+                            },
                             string,
                             style: doc_style,
                             span: token.span,
@@ -407,10 +380,10 @@ impl Parser {
         semantic_tokens: &[TokenSpan],
         documentation_target_token_indexes: &[u32],
     ) -> DocumentationOwnerIndex {
-        let mut owner_start_by_token = vec![NO_OWNER_NODE_ID; semantic_tokens.len()];
+        let mut owner_by_token_index = vec![NO_TOKEN_INDEX; semantic_tokens.len()];
         if semantic_tokens.is_empty() || documentation_target_token_indexes.is_empty() {
             return DocumentationOwnerIndex {
-                owner_start_by_token,
+                owner_by_token_index,
             };
         }
 
@@ -442,25 +415,55 @@ impl Parser {
             else {
                 continue;
             };
-            let token_index = target_token_starts[found_index].1 as usize;
+
+            let token_index = target_token_starts[found_index].1;
+            let token_index = token_index as usize;
             let token_span = semantic_tokens[token_index].span;
             if owner_span.end < token_span.end {
                 continue;
             }
 
-            let current_owner = owner_start_by_token[token_index];
-            if current_owner != NO_OWNER_NODE_ID
+            let current_owner = owner_by_token_index[token_index];
+            if current_owner != NO_TOKEN_INDEX
                 && !self.documentation_owner_is_better(node_id, current_owner)
             {
                 continue;
             }
 
-            owner_start_by_token[token_index] = node_id;
+            owner_by_token_index[token_index] = node_id;
         }
 
         DocumentationOwnerIndex {
-            owner_start_by_token,
+            owner_by_token_index,
         }
+    }
+
+    /// Return whether one owner should replace another in documentation ranking.
+    fn documentation_owner_is_better(&self, candidate_id: u32, current_id: u32) -> bool {
+        let candidate_span = self.tree.get_span_by_id(candidate_id);
+        let current_span = self.tree.get_span_by_id(current_id);
+
+        let candidate_length = candidate_span.end.saturating_sub(candidate_span.start);
+        let current_length = current_span.end.saturating_sub(current_span.start);
+        if candidate_length != current_length {
+            return candidate_length < current_length;
+        }
+
+        let candidate_kind_rank = if self.tree.get_node_type(candidate_id) == NodeType::Expression {
+            1
+        } else {
+            0
+        };
+        let current_kind_rank = if self.tree.get_node_type(current_id) == NodeType::Expression {
+            1
+        } else {
+            0
+        };
+        if candidate_kind_rank != current_kind_rank {
+            return candidate_kind_rank < current_kind_rank;
+        }
+
+        candidate_id < current_id
     }
 
     /// Collect normalized doc target token indexes so owner indexing stays sparse.
@@ -547,8 +550,7 @@ impl Parser {
 
     /// Resolve owner semantic token indexes for sorted comment side token indexes.
     fn collect_comment_owner_token_indexes(
-        leading_side_start_indexes: &[u32],
-        leading_side_end_indexes: &[u32],
+        leading_side_ranges: &[SideRange],
         comment_side_token_indexes: &[u32],
         semantic_tokens_len: usize,
     ) -> Vec<u32> {
@@ -562,9 +564,9 @@ impl Parser {
             let side_index = comment_side_index as usize;
 
             while owner_token_index < semantic_tokens_len {
-                let side_end = leading_side_end_indexes
+                let side_end = leading_side_ranges
                     .get(owner_token_index)
-                    .copied()
+                    .map(|range| range.end)
                     .unwrap_or(0) as usize;
                 if side_end > side_index {
                     break;
@@ -577,13 +579,13 @@ impl Parser {
                 continue;
             }
 
-            let side_start = leading_side_start_indexes
+            let side_start = leading_side_ranges
                 .get(owner_token_index)
-                .copied()
+                .map(|range| range.start)
                 .unwrap_or(0) as usize;
-            let side_end = leading_side_end_indexes
+            let side_end = leading_side_ranges
                 .get(owner_token_index)
-                .copied()
+                .map(|range| range.end)
                 .unwrap_or(0) as usize;
             let owner = if side_start <= side_index && side_index < side_end {
                 owner_token_index as u32
@@ -752,34 +754,6 @@ impl Parser {
 
         // trivia-only fallback: attach to stable anchor expression
         self.find_trivia_anchor_owner()
-    }
-
-    /// Return whether one owner should replace another in documentation ranking.
-    fn documentation_owner_is_better(&self, candidate_id: u32, current_id: u32) -> bool {
-        let candidate_span = self.tree.get_span_by_id(candidate_id);
-        let current_span = self.tree.get_span_by_id(current_id);
-
-        let candidate_length = candidate_span.end.saturating_sub(candidate_span.start);
-        let current_length = current_span.end.saturating_sub(current_span.start);
-        if candidate_length != current_length {
-            return candidate_length < current_length;
-        }
-
-        let candidate_kind_rank = if self.tree.get_node_type(candidate_id) == NodeType::Expression {
-            1
-        } else {
-            0
-        };
-        let current_kind_rank = if self.tree.get_node_type(current_id) == NodeType::Expression {
-            1
-        } else {
-            0
-        };
-        if candidate_kind_rank != current_kind_rank {
-            return candidate_kind_rank < current_kind_rank;
-        }
-
-        candidate_id < current_id
     }
 
     /// Normalize one documentation owner to the semantic declaration node when available.

@@ -232,6 +232,7 @@ fn parse_file_with_parser(
         language,
         ParserSettings {
             disallow_ambiguous_tree_literal: options.disallow_ambiguous_tree_literal,
+            ..ParserSettings::default()
         },
     );
     let _ = parser.parse();

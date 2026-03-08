@@ -172,10 +172,15 @@ impl Lexer {
     /// Lex the input string and return extra flags.
     pub fn lex_with_flags(file: Arc<File>, language: LanguageType) -> LexResult {
         let mut lexer = Lexer::new(file, language);
-        let eof_token = lexer.run();
+        let source_len = lexer.file.text().len();
+        let estimated_tokens = source_len / 6;
+        let estimated_semantic = estimated_tokens * 3 / 5;
+        let estimated_side = estimated_tokens - estimated_semantic;
+        let (tokens, side_tokens, eof_token) =
+            lexer.run_with_buffers(estimated_semantic, estimated_side);
         LexResult {
-            tokens: lexer.tokens,
-            side_tokens: lexer.side_tokens,
+            tokens,
+            side_tokens,
             eof_token,
             has_at: lexer.has_at,
         }
@@ -183,7 +188,14 @@ impl Lexer {
 
     /// Runs the lexer until the end of the input string.
     /// Returns the end-of-sequence Token.
-    fn run(&mut self) -> TokenSpan {
+    fn run_with_buffers(
+        &mut self,
+        semantic_capacity: usize,
+        side_capacity: usize,
+    ) -> (Vec<TokenSpan>, Vec<TokenSpan>, TokenSpan) {
+        let mut tokens = Vec::with_capacity(semantic_capacity);
+        let mut side_tokens = Vec::with_capacity(side_capacity);
+
         // tokenize with spans, classifying into semantic vs side tokens
         loop {
             let start = self.pos as u32;
@@ -199,12 +211,12 @@ impl Lexer {
 
             // push to appropriate vec based on token type
             if is_semantic(token.ty) {
-                self.tokens.push(token_span);
+                tokens.push(token_span);
                 if token.ty == TokenType::At {
                     self.has_at = true;
                 }
             } else {
-                self.side_tokens.push(token_span);
+                side_tokens.push(token_span);
             }
 
             // track last tokens for O(1) context lookups
@@ -217,14 +229,15 @@ impl Lexer {
         }
 
         // eof token (always in semantic tokens)
-        *self.tokens.last().unwrap_or(&TokenSpan {
+        let eof_token = *tokens.last().unwrap_or(&TokenSpan {
             span: Span {
                 file: self.file_id,
                 start: 0,
                 end: 0,
             },
             token: Token::end(),
-        })
+        });
+        (tokens, side_tokens, eof_token)
     }
 
     /// Track semantic token context for regex and tree disambiguation.

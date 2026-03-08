@@ -1,14 +1,5 @@
+use crate::{TokenStream, TokenStreamMark, is_semantic};
 use core::fmt;
-use std::fmt::Debug;
-#[cfg(feature = "parser_timings")]
-use std::ptr::NonNull;
-#[cfg(feature = "parser_timings")]
-use std::rc::Rc;
-use std::sync::Arc;
-#[cfg(feature = "parser_timings")]
-use std::time::Instant;
-
-use crate::{TokenStream, TokenStreamMark, is_semantic, keyword_from_identifier};
 use destack_ast::{
     BlockFormat, Expression, Keyword, LocalNodeId, NodeTree, NodeTreeMark, StringId, Token,
     TokenSpan, TokenType,
@@ -17,9 +8,15 @@ use destack_base::LocalStringPool;
 use destack_source::{
     DiagnosticCollector, EnclosingSpan, File, FileId, LanguageType, MultiSpan, NodeSearchMode, Span,
 };
+use std::fmt::Debug;
+#[cfg(feature = "timings")]
+use std::ptr::NonNull;
+#[cfg(feature = "timings")]
+use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::parse::timing::ParserTimingScope;
-#[cfg(feature = "parser_timings")]
+#[cfg(feature = "timings")]
 use crate::parse::timing::ParserTimings;
 use crate::{ParseError, ParseResult};
 
@@ -100,10 +97,21 @@ impl Default for ParserOptions {
 
 /// Parser settings that can be configured externally.
 /// NOTE #Cleanup: ParserSettings living separately from Parser and ParserOptions feels awkward.
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Debug, Copy, Clone)]
 pub struct ParserSettings {
     /// Whether ambiguous tree literal syntax is disallowed.
     pub disallow_ambiguous_tree_literal: bool,
+    /// Whether token side trivia should be retained for formatter and annotation attachment.
+    pub retain_trivia_tokens: bool,
+}
+
+impl Default for ParserSettings {
+    fn default() -> Self {
+        Self {
+            disallow_ambiguous_tree_literal: false,
+            retain_trivia_tokens: true,
+        }
+    }
 }
 
 /// Counters for speculative parser dispatch and rollback behavior.
@@ -995,7 +1003,7 @@ pub struct Parser {
     /// The errors encountered so far (for deduplication).
     pub errors: Vec<ParseError>,
     /// Optional parser timing collector.
-    #[cfg(feature = "parser_timings")]
+    #[cfg(feature = "timings")]
     pub(crate) timings: Option<Rc<ParserTimings>>,
     /// Optional speculation and dispatch counter collector.
     pub(crate) speculation_stats: Option<ParserSpeculationStats>,
@@ -1082,8 +1090,8 @@ impl Parser {
             strings,
             diagnostics: DiagnosticCollector::new(),
             errors: Vec::new(),
-            #[cfg(feature = "parser_timings")]
-            timings: parser_timings_from_env(),
+            #[cfg(feature = "timings")]
+            timings: timings_from_env(),
             speculation_stats: speculation_stats_enabled_from_env()
                 .then(ParserSpeculationStats::default),
             token_identifiers: Vec::with_capacity(estimated_tokens),
@@ -1118,6 +1126,8 @@ impl Parser {
     pub fn apply_settings(&mut self, settings: ParserSettings) {
         self.options
             .set_disallow_ambiguous_tree_literal(settings.disallow_ambiguous_tree_literal);
+        self.token_stream
+            .set_retain_trivia_tokens(settings.retain_trivia_tokens);
     }
 
     /// Enable or disable parser speculation counters.
@@ -1161,13 +1171,13 @@ impl Parser {
         &self,
         tag: crate::parse::timing::ParserTimingTag,
     ) -> ParserTimingScope {
-        #[cfg(not(feature = "parser_timings"))]
+        #[cfg(not(feature = "timings"))]
         {
             let _ = tag;
             ParserTimingScope::disabled()
         }
 
-        #[cfg(feature = "parser_timings")]
+        #[cfg(feature = "timings")]
         {
             let Some(timings) = self.timings.as_ref() else {
                 return ParserTimingScope::disabled();
@@ -1179,19 +1189,19 @@ impl Parser {
 
     /// Snapshot timing entries recorded by the parser.
     pub fn timing_snapshot(&self) -> Option<Vec<crate::parse::timing::ParserTimingEntry>> {
-        #[cfg(not(feature = "parser_timings"))]
+        #[cfg(not(feature = "timings"))]
         {
             None
         }
 
-        #[cfg(feature = "parser_timings")]
+        #[cfg(feature = "timings")]
         {
             self.timings.as_ref().map(|timings| timings.snapshot())
         }
     }
 
     /// Record a parser timing sample directly.
-    #[cfg(feature = "parser_timings")]
+    #[cfg(feature = "timings")]
     #[inline]
     pub(crate) fn record_timing(
         &self,
@@ -1282,14 +1292,20 @@ impl Parser {
 
         let mut index = start;
         loop {
-            let token_type = self.token_type_at(index);
-            if token_type != TokenType::Newline {
+            let tokens = self.tokens();
+            while let Some(token) = tokens.get(index) {
+                if token.token.ty != TokenType::Newline {
+                    return index;
+                }
+
+                index += 1;
+            }
+
+            if self.token_stream.is_lexed_to_end() {
                 return index;
             }
-            if token_type == TokenType::End {
-                return index;
-            }
-            index += 1;
+
+            self.ensure_token(index);
         }
     }
 
@@ -1330,12 +1346,16 @@ impl Parser {
         }
 
         let index = self.first_non_newline_index_from(start);
-        let token_type = self.token_type_at(index);
+        let token_type = self
+            .tokens()
+            .get(index)
+            .map(|token| token.token.ty)
+            .unwrap_or(TokenType::End);
         let skipped_newline_count = index.saturating_sub(start);
         let has_line_break_before = if skipped_newline_count > 0 {
             true
         } else {
-            self.line_terminator_before_index(index)
+            self.token_stream.materialized_line_terminator_before(index)
         };
 
         NonNewlineTokenCursor {
@@ -1517,12 +1537,7 @@ impl Parser {
         }
 
         let _timing = self.timing_scope(crate::parse::timing::tags::PARSE_LEX_KEYWORD);
-        let token = self
-            .tokens()
-            .get(index)
-            .copied()
-            .expect("identifier token should be materialized");
-        keyword_from_identifier(self.file.span_str(token.span))
+        self.token_stream.materialized_keyword(index)
     }
 
     /// Return whether an identifier token contains escape syntax.
@@ -1546,13 +1561,13 @@ impl Parser {
 
         let token = self.tokens().get(index)?;
         let identifier = if token.token.ty == TokenType::Identifier {
-            #[cfg(feature = "parser_timings")]
+            #[cfg(feature = "timings")]
             let started_at = Instant::now();
 
             let span_str = self.file.span_str(token.span);
             let identifier = self.strings.intern(span_str);
 
-            #[cfg(feature = "parser_timings")]
+            #[cfg(feature = "timings")]
             self.record_timing(
                 crate::parse::timing::tags::PARSE_ALLOC_IDENTIFIER_INTERN,
                 started_at.elapsed(),
@@ -1684,6 +1699,10 @@ impl Parser {
         expressions: &mut Vec<LocalNodeId<Expression>>,
         consumed_to_end: bool,
     ) {
+        if !self.token_stream.retains_trivia_tokens() {
+            return;
+        }
+
         // most files already have parsed body expressions and never need a trivia anchor
         if !consumed_to_end && !expressions.is_empty() {
             return;
@@ -1730,6 +1749,10 @@ impl Parser {
 
     /// Attach trivia after parsing when needed.
     pub fn attach_trivia(&mut self) {
+        if !self.token_stream.retains_trivia_tokens() {
+            return;
+        }
+
         // materialize the stream so trivia presence flags are complete
         self.token_stream.lex_to_end();
 
@@ -2635,7 +2658,7 @@ impl Parser {
     }
 }
 
-#[cfg(feature = "parser_timings")]
+#[cfg(feature = "timings")]
 fn timings_enabled_from_env() -> bool {
     std::env::var("DESTACK_PARSER_TIMINGS")
         .ok()
@@ -2650,8 +2673,8 @@ fn timings_enabled_from_env() -> bool {
         .unwrap_or(false)
 }
 
-#[cfg(feature = "parser_timings")]
-fn parser_timings_from_env() -> Option<Rc<ParserTimings>> {
+#[cfg(feature = "timings")]
+fn timings_from_env() -> Option<Rc<ParserTimings>> {
     timings_enabled_from_env().then(|| Rc::new(ParserTimings::default()))
 }
 

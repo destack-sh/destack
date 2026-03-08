@@ -11,13 +11,14 @@ use super::lexer::{Lexer, LexerSnapshot, TreeState};
 #[inline]
 pub(crate) fn keyword_from_identifier(identifier: &str) -> Option<Keyword> {
     // quick reject using identifier length bounds for known keywords
-    let length = identifier.len();
+    let bytes = identifier.as_bytes();
+    let length = bytes.len();
     if !(2..=11).contains(&length) {
         return None;
     }
 
     // quick reject using keyword (length, first byte) pairs before full string matching
-    let first = identifier.as_bytes().first().copied()?;
+    let first = *bytes.first()?;
     let can_match_keyword = matches!(
         (length, first),
         (2, b'a' | b'd' | b'i' | b'o' | b't')
@@ -44,6 +45,49 @@ pub(crate) fn keyword_from_identifier(identifier: &str) -> Option<Keyword> {
     Keyword::from_str(identifier).ok()
 }
 
+/// Dense metadata for one materialized semantic token.
+#[derive(Debug, Copy, Clone)]
+struct SemanticTokenData {
+    /// The matching close token index for an opening delimiter.
+    matching_pair: u32,
+    /// The contextual keyword classification for identifier tokens.
+    keyword: Option<Keyword>,
+    /// Whether trivia before this token contains a line terminator.
+    has_line_terminator_before: bool,
+    /// Whether trivia before this token contains a comment token.
+    has_comment_before: bool,
+}
+
+impl SemanticTokenData {
+    /// Return an empty semantic token metadata record.
+    #[inline]
+    const fn new(keyword: Option<Keyword>, has_line_terminator_before: bool) -> Self {
+        Self {
+            matching_pair: u32::MAX,
+            keyword,
+            has_line_terminator_before,
+            has_comment_before: false,
+        }
+    }
+}
+
+/// Dense retained trivia bounds for one semantic token.
+#[derive(Debug, Copy, Clone)]
+pub struct SideRange {
+    /// The starting side token index.
+    pub start: u32,
+    /// The ending side token index.
+    pub end: u32,
+}
+
+impl SideRange {
+    /// Return one empty side range.
+    #[inline]
+    const fn new(start: u32, end: u32) -> Self {
+        Self { start, end }
+    }
+}
+
 /// Snapshot of token stream state for speculative parsing.
 #[derive(Debug, Clone)]
 pub struct TokenStreamMark {
@@ -61,20 +105,14 @@ pub struct TokenStreamMark {
     pub(super) brace_stack: Vec<usize>,
     /// The open bracket stack at mark time.
     pub(super) bracket_stack: Vec<usize>,
-    /// Side trivia start indexes per semantic token from the mark tail.
-    pub(super) leading_side_start_tail: Vec<u32>,
-    /// Side trivia end indexes per semantic token from the mark tail.
-    pub(super) leading_side_end_tail: Vec<u32>,
-    /// Prefix counts of semantic tokens that have non whitespace side trivia.
-    pub(super) non_whitespace_side_prefix_tail: Vec<u32>,
+    /// Side trivia ranges per semantic token from the mark tail.
+    pub(super) leading_side_ranges_tail: Vec<SideRange>,
     /// The pending side trivia start index for the next semantic token.
     pub(super) pending_leading_side_start: usize,
     /// Whether side trivia since the last semantic token had a line terminator.
     pub(super) pending_line_terminator_before_next: bool,
     /// Whether side trivia since the last semantic token had a comment token.
     pub(super) pending_comment_before_next: bool,
-    /// Whether side trivia since the last semantic token had non-whitespace content.
-    pub(super) pending_non_whitespace_side_before_next: bool,
     /// Whether this stream snapshot has comment style side annotations.
     pub(super) has_comment_side_tokens: bool,
     /// Whether this stream snapshot has semantic newline tokens.
@@ -92,24 +130,18 @@ pub struct TokenStreamMark {
 pub struct TokenStream {
     /// The underlying lexer.
     lexer: Lexer,
+    /// Whether side trivia buffers should be retained.
+    retain_trivia_tokens: bool,
     /// The semantic tokens produced so far.
     tokens: Vec<TokenSpan>,
     /// The side tokens produced so far.
     side_tokens: Vec<TokenSpan>,
     /// Indexes of comment-like side tokens in `side_tokens`.
     comment_side_token_indexes: Vec<u32>,
-    /// The cached matching pair indexes for delimiters.
-    matching_pairs: Vec<u32>,
-    /// Cached line terminator presence before semantic token indexes.
-    line_terminators_before: Vec<bool>,
-    /// Cached comment trivia presence before semantic token indexes.
-    leading_comment_before: Vec<bool>,
-    /// Side trivia start index before each semantic token.
-    leading_side_start_by_token: Vec<u32>,
-    /// Side trivia end index before each semantic token.
-    leading_side_end_by_token: Vec<u32>,
-    /// Prefix counts for semantic tokens that have non whitespace side trivia.
-    non_whitespace_side_prefix: Vec<u32>,
+    /// Dense metadata for semantic token indexes.
+    token_data: Vec<SemanticTokenData>,
+    /// Side trivia ranges before each semantic token.
+    leading_side_ranges_by_token: Vec<SideRange>,
     /// Side trivia start index for the next semantic token.
     pending_leading_side_start: usize,
     /// The stack of open parenthesis token indexes.
@@ -122,8 +154,6 @@ pub struct TokenStream {
     pending_line_terminator_before_next: bool,
     /// Whether side trivia since the previous semantic token had a comment token.
     pending_comment_before_next: bool,
-    /// Whether side trivia since the previous semantic token had non-whitespace content.
-    pending_non_whitespace_side_before_next: bool,
     /// Whether any comment style side trivia token was seen.
     has_comment_side_tokens: bool,
     /// Whether any semantic newline token was seen.
@@ -152,28 +182,21 @@ impl TokenStream {
         // allocate buffers using the same heuristic as the lexer
         let tokens = Vec::with_capacity(semantic_token_capacity);
         let side_tokens = Vec::with_capacity(side_token_capacity);
-        let mut non_whitespace_side_prefix = Vec::with_capacity(semantic_token_capacity + 1);
-        non_whitespace_side_prefix.push(0);
-
         // build the stream
         Self {
             lexer: Lexer::new(file, language),
+            retain_trivia_tokens: true,
             tokens,
             side_tokens,
             comment_side_token_indexes: Vec::with_capacity(estimated_tokens / 24),
-            matching_pairs: Vec::with_capacity(semantic_token_capacity),
-            line_terminators_before: Vec::with_capacity(semantic_token_capacity),
-            leading_comment_before: Vec::with_capacity(semantic_token_capacity),
-            leading_side_start_by_token: Vec::with_capacity(semantic_token_capacity),
-            leading_side_end_by_token: Vec::with_capacity(semantic_token_capacity),
-            non_whitespace_side_prefix,
+            token_data: Vec::with_capacity(semantic_token_capacity),
+            leading_side_ranges_by_token: Vec::with_capacity(semantic_token_capacity),
             pending_leading_side_start: 0,
             paren_stack: Vec::with_capacity(semantic_token_capacity / 64),
             brace_stack: Vec::with_capacity(semantic_token_capacity / 64),
             bracket_stack: Vec::with_capacity(semantic_token_capacity / 64),
             pending_line_terminator_before_next: false,
             pending_comment_before_next: false,
-            pending_non_whitespace_side_before_next: false,
             has_comment_side_tokens: false,
             has_semantic_newline_tokens: false,
             has_attachable_semantic_tokens: false,
@@ -188,6 +211,22 @@ impl TokenStream {
     #[inline]
     pub fn tokens(&self) -> &[TokenSpan] {
         &self.tokens
+    }
+
+    /// Return whether side trivia buffers are retained.
+    #[inline]
+    pub fn retains_trivia_tokens(&self) -> bool {
+        self.retain_trivia_tokens
+    }
+
+    /// Enable or disable side trivia retention before lexing begins.
+    #[inline]
+    pub fn set_retain_trivia_tokens(&mut self, retain_trivia_tokens: bool) {
+        debug_assert!(
+            self.tokens.is_empty() && self.side_tokens.is_empty(),
+            "trivia retention must be configured before lexing starts"
+        );
+        self.retain_trivia_tokens = retain_trivia_tokens;
     }
 
     /// Return the current side tokens.
@@ -212,26 +251,21 @@ impl TokenStream {
     /// Return the leading side trivia range for a semantic token index.
     #[inline]
     fn leading_side_range_materialized(&self, index: usize) -> (usize, usize) {
-        if index >= self.leading_side_start_by_token.len() {
+        if index >= self.leading_side_ranges_by_token.len() {
             let side_len = self.side_tokens.len();
             return (side_len, side_len);
         }
 
-        let start = self.leading_side_start_by_token[index] as usize;
-        let end = self.leading_side_end_by_token[index] as usize;
+        let range = self.leading_side_ranges_by_token[index];
+        let start = range.start as usize;
+        let end = range.end as usize;
         (start, end)
     }
 
-    /// Return leading side trivia start indexes for semantic tokens.
+    /// Return leading side trivia ranges for semantic tokens.
     #[inline]
-    pub fn leading_side_start_indexes(&self) -> &[u32] {
-        &self.leading_side_start_by_token
-    }
-
-    /// Return leading side trivia end indexes for semantic tokens.
-    #[inline]
-    pub fn leading_side_end_indexes(&self) -> &[u32] {
-        &self.leading_side_end_by_token
+    pub fn leading_side_ranges(&self) -> &[SideRange] {
+        &self.leading_side_ranges_by_token
     }
 
     /// Return true once EOF has been reached.
@@ -341,13 +375,10 @@ impl TokenStream {
             paren_stack: self.paren_stack.clone(),
             brace_stack: self.brace_stack.clone(),
             bracket_stack: self.bracket_stack.clone(),
-            leading_side_start_tail: self.leading_side_start_by_token.to_vec(),
-            leading_side_end_tail: self.leading_side_end_by_token.to_vec(),
-            non_whitespace_side_prefix_tail: self.non_whitespace_side_prefix[1..].to_vec(),
+            leading_side_ranges_tail: self.leading_side_ranges_by_token.to_vec(),
             pending_leading_side_start: self.pending_leading_side_start,
             pending_line_terminator_before_next: self.pending_line_terminator_before_next,
             pending_comment_before_next: self.pending_comment_before_next,
-            pending_non_whitespace_side_before_next: self.pending_non_whitespace_side_before_next,
             has_comment_side_tokens: self.has_comment_side_tokens,
             has_semantic_newline_tokens: self.has_semantic_newline_tokens,
             has_attachable_semantic_tokens: self.has_attachable_semantic_tokens,
@@ -366,13 +397,10 @@ impl TokenStream {
             paren_stack,
             brace_stack,
             bracket_stack,
-            leading_side_start_tail,
-            leading_side_end_tail,
-            non_whitespace_side_prefix_tail,
+            leading_side_ranges_tail,
             pending_leading_side_start,
             pending_line_terminator_before_next,
             pending_comment_before_next,
-            pending_non_whitespace_side_before_next,
             has_comment_side_tokens,
             has_semantic_newline_tokens,
             has_attachable_semantic_tokens,
@@ -386,13 +414,11 @@ impl TokenStream {
         self.lexer.restore(lexer);
         if side_tokens_changed {
             self.side_tokens.truncate(side_tokens_len);
-            self.lexer.side_tokens.truncate(side_tokens_len);
         }
         self.comment_side_token_indexes
             .truncate(comment_side_tokens_len);
         self.pending_line_terminator_before_next = pending_line_terminator_before_next;
         self.pending_comment_before_next = pending_comment_before_next;
-        self.pending_non_whitespace_side_before_next = pending_non_whitespace_side_before_next;
         self.pending_leading_side_start = pending_leading_side_start;
         self.has_comment_side_tokens = has_comment_side_tokens;
         self.has_semantic_newline_tokens = has_semantic_newline_tokens;
@@ -406,33 +432,22 @@ impl TokenStream {
         }
 
         self.tokens.truncate(tokens_len);
-        self.lexer.tokens.truncate(tokens_len);
-        self.line_terminators_before.truncate(tokens_len);
-        self.leading_comment_before.truncate(tokens_len);
-        self.leading_side_start_by_token.truncate(tokens_len);
-        self.leading_side_end_by_token.truncate(tokens_len);
-        self.non_whitespace_side_prefix.truncate(tokens_len + 1);
+        self.token_data.truncate(tokens_len);
+        self.leading_side_ranges_by_token.truncate(tokens_len);
 
-        // restore leading side and prefix data
-        for (offset, side_start) in leading_side_start_tail.into_iter().enumerate() {
-            self.leading_side_start_by_token[offset] = side_start;
-        }
-        for (offset, side_end) in leading_side_end_tail.into_iter().enumerate() {
-            self.leading_side_end_by_token[offset] = side_end;
-        }
-        for (offset, prefix) in non_whitespace_side_prefix_tail.into_iter().enumerate() {
-            self.non_whitespace_side_prefix[1 + offset] = prefix;
+        // restore leading side data
+        for (offset, side_range) in leading_side_ranges_tail.into_iter().enumerate() {
+            self.leading_side_ranges_by_token[offset] = side_range;
         }
 
         // restore matching pair cache and open delimiter stacks
-        self.matching_pairs.truncate(tokens_len);
         for open_index in paren_stack
             .iter()
             .copied()
             .chain(brace_stack.iter().copied())
             .chain(bracket_stack.iter().copied())
         {
-            self.matching_pairs[open_index] = u32::MAX;
+            self.token_data[open_index].matching_pair = u32::MAX;
         }
         self.paren_stack = paren_stack;
         self.brace_stack = brace_stack;
@@ -517,25 +532,17 @@ impl TokenStream {
         // drain token buffers
         let tokens = std::mem::take(&mut self.tokens);
         let side_tokens = std::mem::take(&mut self.side_tokens);
-        self.lexer.tokens.clear();
-        self.lexer.side_tokens.clear();
         self.comment_side_token_indexes.clear();
 
         // reset caches and stacks for any follow-up access
-        self.matching_pairs.clear();
-        self.line_terminators_before.clear();
-        self.leading_comment_before.clear();
-        self.leading_side_start_by_token.clear();
-        self.leading_side_end_by_token.clear();
-        self.non_whitespace_side_prefix.clear();
-        self.non_whitespace_side_prefix.push(0);
+        self.token_data.clear();
+        self.leading_side_ranges_by_token.clear();
         self.pending_leading_side_start = 0;
         self.paren_stack.clear();
         self.brace_stack.clear();
         self.bracket_stack.clear();
         self.pending_line_terminator_before_next = false;
         self.pending_comment_before_next = false;
-        self.pending_non_whitespace_side_before_next = false;
         self.has_comment_side_tokens = false;
         self.has_semantic_newline_tokens = false;
         self.has_attachable_semantic_tokens = false;
@@ -547,28 +554,38 @@ impl TokenStream {
     /// Return the materialized line terminator flag for a semantic token index.
     #[inline]
     pub(crate) fn materialized_line_terminator_before(&self, index: usize) -> bool {
-        self.line_terminators_before
+        self.token_data
             .get(index)
-            .copied()
+            .map(|data| data.has_line_terminator_before)
             .unwrap_or(false)
+    }
+
+    /// Return the cached keyword for a materialized semantic token index.
+    #[inline]
+    pub(crate) fn materialized_keyword(&self, index: usize) -> Option<Keyword> {
+        self.token_data.get(index).and_then(|data| data.keyword)
     }
 
     /// Return whether trivia before a semantic token index had a comment token.
     #[inline]
     pub fn comment_before(&mut self, index: usize) -> bool {
+        if !self.retain_trivia_tokens {
+            return false;
+        }
+
         // hot fast path: full token stream is already materialized
         if self.is_finished {
             return self
-                .leading_comment_before
+                .token_data
                 .get(index)
-                .copied()
+                .map(|data| data.has_comment_before)
                 .unwrap_or(false);
         }
 
         self.ensure_token(index);
-        self.leading_comment_before
+        self.token_data
             .get(index)
-            .copied()
+            .map(|data| data.has_comment_before)
             .unwrap_or(false)
     }
 
@@ -596,63 +613,15 @@ impl TokenStream {
         self.is_finished
     }
 
-    /// Return true when a semantic token window has any non-whitespace side trivia in cached mode.
-    #[inline]
-    pub fn has_non_whitespace_side_in_window_cached(
-        &self,
-        token_window_start: usize,
-        token_window_end_exclusive: usize,
-    ) -> bool {
-        let token_len = self.tokens.len();
-        let token_window_start = token_window_start.min(token_len);
-        let token_window_end_exclusive = token_window_end_exclusive.min(token_len);
-        if token_window_start >= token_window_end_exclusive {
-            return false;
-        }
-
-        let start = self
-            .non_whitespace_side_prefix
-            .get(token_window_start)
-            .copied()
-            .unwrap_or(0);
-        let end = self
-            .non_whitespace_side_prefix
-            .get(token_window_end_exclusive)
-            .copied()
-            .unwrap_or(start);
-        end > start
-    }
-
-    /// Return true when a semantic token window has any non-whitespace side trivia.
-    #[inline]
-    pub fn has_non_whitespace_side_in_window(
-        &mut self,
-        token_window_start: usize,
-        token_window_end_exclusive: usize,
-    ) -> bool {
-        if self.is_finished {
-            return self.has_non_whitespace_side_in_window_cached(
-                token_window_start,
-                token_window_end_exclusive,
-            );
-        }
-
-        if token_window_end_exclusive == 0 {
-            return false;
-        }
-
-        self.ensure_token(token_window_end_exclusive.saturating_sub(1));
-        self.has_non_whitespace_side_in_window_cached(
-            token_window_start,
-            token_window_end_exclusive,
-        )
-    }
-
     /// Return the matching close token index for an opening token, if known.
     pub fn matching_pair(&mut self, index: usize) -> Option<usize> {
         // hot fast path: full token stream is already materialized
         if self.is_finished {
-            let value = self.matching_pairs.get(index).copied().unwrap_or(u32::MAX);
+            let value = self
+                .token_data
+                .get(index)
+                .map(|data| data.matching_pair)
+                .unwrap_or(u32::MAX);
             if value == u32::MAX {
                 return None;
             }
@@ -662,7 +631,11 @@ impl TokenStream {
 
         self.ensure_token(index);
 
-        let value = self.matching_pairs.get(index).copied().unwrap_or(u32::MAX);
+        let value = self
+            .token_data
+            .get(index)
+            .map(|data| data.matching_pair)
+            .unwrap_or(u32::MAX);
         if value == u32::MAX {
             return None;
         }
@@ -717,7 +690,6 @@ impl TokenStream {
     /// Push a side token and update stream flags that depend on side tokens.
     #[inline]
     fn push_side_token(&mut self, token_span: TokenSpan, has_line_terminator: bool) {
-        let side_index = self.side_tokens.len() as u32;
         let is_comment = matches!(
             token_span.token.ty,
             TokenType::LineComment
@@ -725,15 +697,15 @@ impl TokenStream {
                 | TokenType::BlockComment
                 | TokenType::DocBlockComment
         );
-        if is_comment {
+        if self.retain_trivia_tokens && is_comment {
             self.has_comment_side_tokens = true;
             self.pending_comment_before_next = true;
+            let side_index = self.side_tokens.len() as u32;
             self.comment_side_token_indexes.push(side_index);
         }
 
-        self.side_tokens.push(token_span);
-        if token_span.token.ty != TokenType::Whitespace {
-            self.pending_non_whitespace_side_before_next = true;
+        if self.retain_trivia_tokens {
+            self.side_tokens.push(token_span);
         }
         if has_line_terminator {
             self.pending_line_terminator_before_next = true;
@@ -744,30 +716,31 @@ impl TokenStream {
     fn push_semantic_token(&mut self, token_span: TokenSpan) {
         let token_index = self.tokens.len();
         let has_line_terminator_before = self.pending_line_terminator_before_next;
-        let has_comment_before = self.pending_comment_before_next;
-        let has_non_whitespace_side = self.pending_non_whitespace_side_before_next;
-        let leading_side_start = self.pending_leading_side_start as u32;
-        let leading_side_end = self.side_tokens.len() as u32;
-        // add token and cache slots
+        let keyword = if token_span.token.ty == TokenType::Identifier {
+            keyword_from_identifier(self.lexer.get_span_str(token_span.span))
+        } else {
+            None
+        };
+        // add token and dense metadata
         self.tokens.push(token_span);
-        self.matching_pairs.push(u32::MAX);
-        self.line_terminators_before
-            .push(has_line_terminator_before);
-        self.leading_comment_before.push(has_comment_before);
-        self.leading_side_start_by_token.push(leading_side_start);
-        self.leading_side_end_by_token.push(leading_side_end);
-        let previous_non_whitespace_side_prefix =
-            self.non_whitespace_side_prefix.last().copied().unwrap_or(0);
-        self.non_whitespace_side_prefix
-            .push(previous_non_whitespace_side_prefix + has_non_whitespace_side as u32);
-        self.pending_leading_side_start = self.side_tokens.len();
+        self.token_data
+            .push(SemanticTokenData::new(keyword, has_line_terminator_before));
+        if self.retain_trivia_tokens {
+            self.token_data[token_index].has_comment_before = self.pending_comment_before_next;
+            let leading_side_start = self.pending_leading_side_start as u32;
+            let leading_side_end = self.side_tokens.len() as u32;
+            self.leading_side_ranges_by_token
+                .push(SideRange::new(leading_side_start, leading_side_end));
+            self.pending_leading_side_start = self.side_tokens.len();
+        }
         self.pending_line_terminator_before_next = token_span.token.ty == TokenType::Newline;
         self.pending_comment_before_next = false;
-        self.pending_non_whitespace_side_before_next = false;
-        if token_span.token.ty == TokenType::Newline {
-            self.has_semantic_newline_tokens = true;
-        } else if token_span.token.ty != TokenType::End {
-            self.has_attachable_semantic_tokens = true;
+        if self.retain_trivia_tokens {
+            if token_span.token.ty == TokenType::Newline {
+                self.has_semantic_newline_tokens = true;
+            } else if token_span.token.ty != TokenType::End {
+                self.has_attachable_semantic_tokens = true;
+            }
         }
 
         // update lexer context for regex and tree rules
@@ -778,19 +751,19 @@ impl TokenStream {
             TokenType::OpenParenthesis => self.paren_stack.push(token_index),
             TokenType::CloseParenthesis => {
                 if let Some(open) = self.paren_stack.pop() {
-                    self.matching_pairs[open] = token_index as u32;
+                    self.token_data[open].matching_pair = token_index as u32;
                 }
             }
             TokenType::OpenBrace => self.brace_stack.push(token_index),
             TokenType::CloseBrace => {
                 if let Some(open) = self.brace_stack.pop() {
-                    self.matching_pairs[open] = token_index as u32;
+                    self.token_data[open].matching_pair = token_index as u32;
                 }
             }
             TokenType::OpenBracket => self.bracket_stack.push(token_index),
             TokenType::CloseBracket => {
                 if let Some(open) = self.bracket_stack.pop() {
-                    self.matching_pairs[open] = token_index as u32;
+                    self.token_data[open].matching_pair = token_index as u32;
                 }
             }
             _ => {}

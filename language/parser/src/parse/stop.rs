@@ -233,14 +233,19 @@ impl Parser {
     pub fn find_token(&mut self, target_token: TokenType) -> ParseResult<u32> {
         let mut pos = self.pos() as usize;
         loop {
-            self.ensure_token(pos);
-            let Some(token) = self.tokens().get(pos) else {
-                break;
-            };
-            if token.token.ty == target_token {
-                return Ok(pos as u32);
+            while let Some(token) = self.tokens().get(pos) {
+                if token.token.ty == target_token {
+                    return Ok(pos as u32);
+                }
+
+                pos += 1;
             }
-            pos += 1;
+
+            if self.token_stream.is_lexed_to_end() {
+                break;
+            }
+
+            self.ensure_token(pos);
         }
         Err(ParseError::unexpected(self.eof_span()))
     }
@@ -250,14 +255,19 @@ impl Parser {
     pub fn find_token_after(&mut self, pos: u32, target_token: TokenType) -> ParseResult<u32> {
         let mut pos = pos as usize;
         loop {
-            self.ensure_token(pos);
-            let Some(token) = self.tokens().get(pos) else {
-                break;
-            };
-            if token.token.ty == target_token {
-                return Ok(pos as u32);
+            while let Some(token) = self.tokens().get(pos) {
+                if token.token.ty == target_token {
+                    return Ok(pos as u32);
+                }
+
+                pos += 1;
             }
-            pos += 1;
+
+            if self.token_stream.is_lexed_to_end() {
+                break;
+            }
+
+            self.ensure_token(pos);
         }
         Err(ParseError::unexpected(self.eof_span()))
     }
@@ -317,32 +327,38 @@ impl Parser {
                 && self
                     .token_ref_at(pos)
                     .is_some_and(|token| token.token.ty == open_token)
-                && let Some(matching) = self.matching_pair_or_lex(pos)
             {
-                return Ok(matching as u32);
+                if let Some(matching) = self.matching_pair_or_lex(pos) {
+                    return Ok(matching as u32);
+                }
             }
         }
 
         // seek until we find the matching close token
         loop {
-            self.ensure_token(pos);
-            let Some(token) = self.tokens().get(pos) else {
-                break;
-            };
-            // open: +1
-            if token.token.ty == open_token {
-                depth += 1;
-            }
-            // close: -1
-            else if token.token.ty == close_token {
-                depth -= 1;
+            while let Some(token) = self.tokens().get(pos) {
+                // open: +1
+                if token.token.ty == open_token {
+                    depth += 1;
+                }
+                // close: -1
+                else if token.token.ty == close_token {
+                    depth -= 1;
+                }
+
+                // end: return position
+                if depth == 0 {
+                    return Ok(pos as u32);
+                }
+
+                pos += 1;
             }
 
-            // end: return position
-            if depth == 0 {
-                return Ok(pos as u32);
+            if self.token_stream.is_lexed_to_end() {
+                break;
             }
-            pos += 1;
+
+            self.ensure_token(pos);
         }
 
         Err(ParseError::expected(self.eof_span(), open_token))
@@ -428,27 +444,32 @@ impl Parser {
         let mut depth = 0;
         let mut pos = self.pos() as usize;
         loop {
+            while let Some(token) = self.tokens().get(pos) {
+                // open: +1
+                if token.token.ty == open_token {
+                    depth += 1;
+                }
+                // close: -1
+                else if token.token.ty == close_token {
+                    depth -= 1;
+                }
+                // token at depth 1 (immediately inside the matching pair)
+                else if depth == 1 && token.token.ty == target_type {
+                    return Ok(pos as u32);
+                }
+                // end: return position
+                if depth == 0 {
+                    break;
+                }
+
+                pos += 1;
+            }
+
+            if depth == 0 || self.token_stream.is_lexed_to_end() {
+                break;
+            }
+
             self.ensure_token(pos);
-            let Some(token) = self.tokens().get(pos) else {
-                break;
-            };
-            // open: +1
-            if token.token.ty == open_token {
-                depth += 1;
-            }
-            // close: -1
-            else if token.token.ty == close_token {
-                depth -= 1;
-            }
-            // token at depth 1 (immediately inside the matching pair)
-            else if depth == 1 && token.token.ty == target_type {
-                return Ok(pos as u32);
-            }
-            // end: return position
-            if depth == 0 {
-                break;
-            }
-            pos += 1;
         }
         Err(ParseError::expected(self.eof_span(), open_token))
     }
