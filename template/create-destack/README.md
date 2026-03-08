@@ -1,5 +1,7 @@
 # create-destack
 
+Status: Experimental
+
 Create a new Destack app.
 This package powers `npm create destack`.
 
@@ -22,7 +24,7 @@ bun create destack my-app
 ```
 
 The default template is `app`.
-Use `--template empty` for a minimal starter.
+Use `--template blank` for a minimal starter.
 
 ## Options
 
@@ -30,7 +32,7 @@ Use `--template empty` for a minimal starter.
 npm create destack@latest my-app -- --template app --yes
 ```
 
-- `-t, --template <name>`: Select `app` or `empty`.
+- `-t, --template <name>`: Select `app` or `blank`.
 - `-p, --package-manager <name>`: Select `npm`, `pnpm`, `yarn`, or `bun`.
 - `--overwrite`: Allow writing into a non-empty target directory.
 - `--dry-run`: Print the planned actions without writing files.
