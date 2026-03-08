@@ -93,7 +93,7 @@ function flavorValue(): string {
 
     let mut interpreter = test.mir_isolate(module_id, "native");
     let output = interpreter
-        .run_function_by_name("flavorValue", &[])
+        .run_function_by_name_output("flavorValue", &[])
         .expect("execution failed");
     let actual = interpreter
         .string_value(output.value)

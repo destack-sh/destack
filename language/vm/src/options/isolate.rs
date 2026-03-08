@@ -2,9 +2,10 @@ use super::{
     BorrowMode, CheckOptions, ExecutionMode, ExecutionOptions, ExternalCallPolicy, LimitOptions,
     PolicyOptions, TelemetryOptions, TrustPolicy,
 };
+use serde::{Deserialize, Serialize};
 
 /// Configuration options for a VM isolate.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct IsolateOptions {
     /// Execution mode settings for this isolate.
     pub execution: ExecutionOptions,

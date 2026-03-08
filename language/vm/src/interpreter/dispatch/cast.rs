@@ -22,11 +22,15 @@ pub(crate) fn handle_cast(
 
     // execute cast
     let cast_type = type_id(*to_type);
-    let result =
-        match operator::execute_cast(&state.interpreter.isolate.tree, *op, argument, cast_type) {
-            Ok(value) => value,
-            Err(error) => return ControlFlow::Error(error),
-        };
+    let result = match operator::execute_cast(
+        &state.interpreter.isolate.image.tree,
+        *op,
+        argument,
+        cast_type,
+    ) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
 
     // store result
     state.set(*dest, result);

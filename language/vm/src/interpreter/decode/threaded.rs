@@ -7,8 +7,8 @@ use std::ptr::NonNull;
 use destack_mir as mir;
 
 use super::super::state::{Frame, InterpreterContext};
-use crate::diagnostic::Error;
-use crate::memory::{HeapBorrow, HeapStore, RawCellStorage, RawPointer, ReferenceMeta, Value};
+use crate::diagnostic::{Error, RuntimeResult};
+use destack_heap::{Heap, ManagedHeap, RawCellStorage, RawHeap, RawPointer, ReferenceMeta, Value};
 
 /// Handler function for threaded dispatch.
 ///
@@ -1119,10 +1119,6 @@ pub struct ThreadedState<'ctx, 'iso> {
     switch_case_pool: *const SwitchCase,
     /// Switch case pool length.
     switch_case_pool_len: usize,
-    /// Heap borrow guard for the current block execution.
-    _heap_guard: HeapBorrow<'ctx>,
-    /// Raw pointer to the heap store for fast access.
-    heap_ptr: *mut HeapStore,
 }
 
 impl fmt::Debug for ThreadedInstruction {
@@ -1157,15 +1153,22 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
         switch_case_pool: &[SwitchCase],
     ) -> Self {
         // resolve check policies
-        let mode = interpreter.isolate.options.execution.mode;
+        let mode = interpreter.isolate.image.options.execution.mode;
         let bounds_checks = interpreter
             .isolate
+            .image
             .options
             .checks
             .bounds
             .is_enabled_for(mode);
-        let null_checks = interpreter.isolate.options.checks.null.is_enabled_for(mode);
-        let collect_stats = interpreter.isolate.options.telemetry.collect_stats;
+        let null_checks = interpreter
+            .isolate
+            .image
+            .options
+            .checks
+            .null
+            .is_enabled_for(mode);
+        let collect_stats = interpreter.isolate.image.options.telemetry.collect_stats;
 
         // get frame pointer
         // #Safety: frame_index always points at the current frame
@@ -1192,11 +1195,6 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
         let values_ptr = interpreter.engine.value_stack.as_mut_ptr();
         let locals_ptr = interpreter.engine.local_stack.as_mut_ptr();
 
-        // borrow heap storage once for this threaded block
-        let heap_cell = std::ptr::addr_of!(interpreter.isolate.heap);
-        let mut heap_guard = unsafe { (&*heap_cell).borrow() };
-        let heap_ptr = &mut *heap_guard as *mut HeapStore;
-
         // assemble state
         Self {
             frame_index,
@@ -1213,8 +1211,6 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
             argument_pool_len: argument_pool.len(),
             switch_case_pool: switch_case_pool.as_ptr(),
             switch_case_pool_len: switch_case_pool.len(),
-            _heap_guard: heap_guard,
-            heap_ptr,
         }
     }
 
@@ -1256,27 +1252,59 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
         self.switch_case_pool_len = threaded.switch_case_pool.len();
     }
 
-    /// Borrow the heap store for the current block.
+    /// Borrow the heap for the current block.
     #[inline]
-    pub(crate) fn heap(&mut self) -> &mut HeapStore {
-        unsafe { &mut *self.heap_ptr }
+    pub(crate) fn heap(&mut self) -> &mut Heap {
+        self.interpreter.heap
     }
 
-    /// Borrow the heap store immutably for the current block.
+    /// Borrow the heap immutably for the current block.
     #[inline]
-    pub(crate) fn heap_ref(&self) -> &HeapStore {
-        unsafe { &*self.heap_ptr }
+    pub(crate) fn heap_ref(&self) -> &Heap {
+        self.interpreter.heap
     }
 
-    /// Get the raw heap pointer for split borrows.
+    /// Borrow the managed heap mutably for the current block.
     #[inline]
-    pub(crate) fn heap_ptr(&self) -> *mut HeapStore {
-        self.heap_ptr
+    pub(crate) fn managed_mut(&mut self) -> &mut ManagedHeap {
+        self.interpreter.heap.managed_mut()
+    }
+
+    /// Borrow the raw heap for the current block.
+    #[inline]
+    pub(crate) fn raw(&self) -> &RawHeap {
+        self.interpreter.heap.raw()
+    }
+
+    /// Borrow the raw heap mutably for the current block.
+    #[inline]
+    pub(crate) fn raw_mut(&mut self) -> &mut RawHeap {
+        self.interpreter.heap.raw_mut()
+    }
+
+    /// Execute one intrinsic against the current interpreter and heap state.
+    pub(crate) fn execute_intrinsic(
+        &mut self,
+        intrinsic: mir::Intrinsic,
+        args: &[Value],
+        ordering: Option<mir::MemoryOrdering>,
+        scope: Option<mir::AtomicScope>,
+        memory_scope: Option<mir::MemoryScope>,
+        semantics: Option<mir::MemorySemantics>,
+    ) -> RuntimeResult<Value> {
+        self.interpreter.execute_intrinsic_resolved(
+            intrinsic,
+            args,
+            ordering,
+            scope,
+            memory_scope,
+            semantics,
+        )
     }
 
     /// Get the slot count for a raw pointer.
     pub(crate) fn raw_slot_count(&self, pointer: RawPointer) -> Option<usize> {
-        Some(self.heap_ref().raw.get(pointer)?.storage.len())
+        Some(self.raw().get(pointer)?.storage.len())
     }
 
     /// Read a raw slot, dispatching to the correct raw heap.
@@ -1287,10 +1315,9 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
         bounds_checks: bool,
     ) -> Result<Value, Error> {
         let cell = self
-            .heap_ref()
-            .raw
+            .raw()
             .get(pointer)
-            .ok_or(Error::InvalidHeapHandle)?;
+            .ok_or(Error::InvalidManagedPointer)?;
 
         match &cell.storage {
             RawCellStorage::Bytes(bytes) => {
@@ -1346,10 +1373,9 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
         bounds_checks: bool,
     ) -> Result<(), Error> {
         let cell = self
-            .heap()
-            .raw
+            .raw_mut()
             .get_mut(pointer)
-            .ok_or(Error::InvalidHeapHandle)?;
+            .ok_or(Error::InvalidManagedPointer)?;
 
         match &mut cell.storage {
             RawCellStorage::Bytes(bytes) => {
@@ -1403,21 +1429,21 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
     /// Allocate an aggregate on the managed heap.
     #[inline]
     pub(crate) fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
-        let handle = self.heap().managed.allocate_with_values(values);
+        let handle = self.managed_mut().allocate_with_values(values);
         Value::aggregate(handle)
     }
 
     /// Allocate a 2-element aggregate on the managed heap.
     #[inline]
     pub(crate) fn allocate_pair(&mut self, first: Value, second: Value) -> Value {
-        let handle = self.heap().managed.allocate_pair(first, second);
+        let handle = self.managed_mut().allocate_pair(first, second);
         Value::aggregate(handle)
     }
 
     /// Allocate a 1-element aggregate on the managed heap.
     #[inline]
     pub(crate) fn allocate_single(&mut self, value: Value) -> Value {
-        let handle = self.heap().managed.allocate_single(value);
+        let handle = self.managed_mut().allocate_single(value);
         Value::aggregate(handle)
     }
 
@@ -1470,7 +1496,7 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
             .engine
             .call_stack
             .get(frame_index)
-            .ok_or(Error::InvalidHeapHandle)
+            .ok_or(Error::InvalidManagedPointer)
     }
 
     /// Get a frame by index mutably.
@@ -1480,7 +1506,7 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
             .engine
             .call_stack
             .get_mut(frame_index)
-            .ok_or(Error::InvalidHeapHandle)
+            .ok_or(Error::InvalidManagedPointer)
     }
 
     /// Get value by SSA id.

@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
 use destack_mir as mir;
+use serde::{Deserialize, Serialize};
 
-use crate::memory::Value;
+use destack_heap::Value;
 
 /// Storage for global variables.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GlobalStorage {
     values: HashMap<mir::LocalNodeId<mir::Global>, Value>,
 }

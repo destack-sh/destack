@@ -1,10 +1,10 @@
 use destack_mir as mir;
 
 use crate::interpreter::{CopyRange, Frame};
-use crate::memory::{HeapHandle, Value};
 #[cfg(feature = "stats")]
 use crate::telemetry::InstructionProfile;
 use crate::telemetry::Statistics;
+use destack_heap::{ManagedPointer, Value};
 
 /// Resume state captured at a yield terminator.
 #[derive(Debug, Clone)]
@@ -63,7 +63,7 @@ impl Continuation {
     }
 
     /// Collect managed heap roots referenced by this continuation.
-    pub fn collect_roots(&self, roots: &mut Vec<HeapHandle>) {
+    pub fn collect_roots(&self, roots: &mut Vec<ManagedPointer>) {
         // collect roots from captured frames
         for frame in &self.call_stack {
             frame.collect_roots(&self.value_stack, &self.local_stack, roots);

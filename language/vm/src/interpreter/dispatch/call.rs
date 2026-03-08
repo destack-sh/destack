@@ -47,7 +47,13 @@ fn resolve_virtual_dispatch_target(
         .ok_or(Error::InvalidInstruction)?;
 
     // resolve the vtable slot for the virtual call
-    let table = state.interpreter.isolate.tree.type_table.vtable(table_id);
+    let table = state
+        .interpreter
+        .isolate
+        .image
+        .tree
+        .type_table
+        .vtable(table_id);
     let slot = table
         .entries
         .get(slot_id as usize)
@@ -87,7 +93,13 @@ fn resolve_interface_dispatch_target(
     let table_id = mir::ItabId::new(raw_id);
 
     // resolve the itab slot for the interface call
-    let table = state.interpreter.isolate.tree.type_table.itab(table_id);
+    let table = state
+        .interpreter
+        .isolate
+        .image
+        .tree
+        .type_table
+        .itab(table_id);
     let slot = table
         .entries
         .get(slot_id as usize)
@@ -190,7 +202,13 @@ fn call_with_target(
 
             // check stack overflow
             if state.interpreter.engine.call_stack.len()
-                >= state.interpreter.isolate.options.limits.max_stack_depth
+                >= state
+                    .interpreter
+                    .isolate
+                    .image
+                    .options
+                    .limits
+                    .max_stack_depth
             {
                 return ControlFlow::Error(Error::StackOverflow);
             }
@@ -240,7 +258,7 @@ fn call_with_target(
             let current_func = unsafe { current_threaded_ptr.as_ref() };
             let caller_ptr = {
                 let Ok(caller) = state.frame_by_index(caller_index) else {
-                    return ControlFlow::Error(Error::InvalidHeapHandle);
+                    return ControlFlow::Error(Error::InvalidManagedPointer);
                 };
                 caller as *const Frame
             };
@@ -308,6 +326,7 @@ pub(crate) fn handle_call(
         && state
             .interpreter
             .isolate
+            .image
             .options
             .limits
             .max_instructions
@@ -357,6 +376,7 @@ pub(crate) fn handle_call_virtual(
         && state
             .interpreter
             .isolate
+            .image
             .options
             .limits
             .max_instructions
@@ -406,6 +426,7 @@ pub(crate) fn handle_call_interface(
         && state
             .interpreter
             .isolate
+            .image
             .options
             .limits
             .max_instructions

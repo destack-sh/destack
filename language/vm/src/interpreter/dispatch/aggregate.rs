@@ -51,11 +51,11 @@ pub(crate) fn handle_field_get_inline(
         unreachable!()
     };
 
-    // load aggregate and extract heap handle
+    // load aggregate and extract managed pointer
     let agg = state.get(*aggregate);
-    let handle = match agg.as_heap_handle() {
+    let handle = match agg.as_managed_pointer() {
         Some(h) => h,
-        None => return ControlFlow::Error(crate::diagnostic::Error::InvalidHeapHandle),
+        None => return ControlFlow::Error(crate::diagnostic::Error::InvalidManagedPointer),
     };
 
     // reject null handles when enabled
@@ -66,8 +66,8 @@ pub(crate) fn handle_field_get_inline(
     // fast path: directly access heap cell and inline slots
     let value = unsafe {
         let heap = state.heap_ref();
-        let cell = heap.managed.get_unchecked(handle);
-        let slot_index = handle.slot_index().wrapping_add(*index as usize);
+        let cell = heap.managed().get_unchecked(handle);
+        let slot_index = handle.slot_offset().wrapping_add(*index as usize);
         // inline storage is guaranteed for field_count ≤ 2
         *cell.slots.get_unchecked(slot_index)
     };
@@ -103,11 +103,11 @@ pub(crate) fn handle_field_store_inline(
         stat_inc!(state.interpreter.engine.statistics, stores);
     }
 
-    // load aggregate and extract heap handle
+    // load aggregate and extract managed pointer
     let agg = state.get(*aggregate);
-    let handle = match agg.as_heap_handle() {
+    let handle = match agg.as_managed_pointer() {
         Some(h) => h,
-        None => return ControlFlow::Error(crate::diagnostic::Error::InvalidHeapHandle),
+        None => return ControlFlow::Error(crate::diagnostic::Error::InvalidManagedPointer),
     };
 
     // reject null handles when enabled
@@ -121,8 +121,8 @@ pub(crate) fn handle_field_store_inline(
     // fast path: directly access heap cell and inline slots
     unsafe {
         let heap = state.heap();
-        let cell = heap.managed.get_unchecked_mut(handle);
-        let slot_index = handle.slot_index().wrapping_add(*index as usize);
+        let cell = heap.managed_mut().get_unchecked_mut(handle);
+        let slot_index = handle.slot_offset().wrapping_add(*index as usize);
         // inline storage is guaranteed for field_count ≤ 2
         *cell.slots.get_unchecked_mut(slot_index) = val;
     }
@@ -201,7 +201,7 @@ pub(crate) fn handle_field_addr_aggregate(
     }
 
     // compute field address
-    let handle = agg.as_heap_handle().unwrap();
+    let handle = agg.as_managed_pointer().unwrap();
     let value = match instruction::field_addr_managed(state, handle, *index, *field_count) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
@@ -249,7 +249,7 @@ pub(crate) fn handle_field_addr_managed(
     }
 
     // compute field address
-    let handle = agg.as_heap_handle().unwrap();
+    let handle = agg.as_managed_pointer().unwrap();
     let value = match instruction::field_addr_managed(state, handle, *index, *field_count) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
@@ -480,7 +480,7 @@ pub(crate) fn handle_field_load_aggregate(
     }
 
     // load field value
-    let handle = agg.as_heap_handle().unwrap();
+    let handle = agg.as_managed_pointer().unwrap();
     let value = match instruction::load_field_managed(state, handle, *index, *field_count) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
@@ -519,7 +519,7 @@ pub(crate) fn handle_field_load_managed(
     }
 
     // load field value
-    let handle = agg.as_heap_handle().unwrap();
+    let handle = agg.as_managed_pointer().unwrap();
     let value = match instruction::load_field_managed(state, handle, *index, *field_count) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
@@ -756,7 +756,7 @@ pub(crate) fn handle_field_store_aggregate(
     let val = state.get(*value);
 
     // validate reference kind
-    let handle = agg.as_heap_handle().unwrap();
+    let handle = agg.as_managed_pointer().unwrap();
     let pointer = Value::managed_reference_with_meta(handle, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return ControlFlow::Error(error);
@@ -799,7 +799,7 @@ pub(crate) fn handle_field_store_managed(
     let val = state.get(*value);
 
     // validate reference kind
-    let handle = agg.as_heap_handle().unwrap();
+    let handle = agg.as_managed_pointer().unwrap();
     let pointer = Value::managed_reference_with_meta(handle, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return ControlFlow::Error(error);
@@ -1058,7 +1058,7 @@ pub(crate) fn handle_element_addr_aggregate(
     let idx_val = idx.as_uint().unwrap_or(0);
 
     // compute element address
-    let handle = arr.as_heap_handle().unwrap();
+    let handle = arr.as_managed_pointer().unwrap();
     let value = match instruction::element_addr_managed(state, handle, idx_val, *array_length) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
@@ -1108,7 +1108,7 @@ pub(crate) fn handle_element_addr_managed(
     let idx_val = idx.as_uint().unwrap_or(0);
 
     // compute element address
-    let handle = arr.as_heap_handle().unwrap();
+    let handle = arr.as_managed_pointer().unwrap();
     let value = match instruction::element_addr_managed(state, handle, idx_val, *array_length) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
@@ -1349,7 +1349,7 @@ pub(crate) fn handle_element_load_aggregate(
     let idx_val = idx.as_uint().unwrap_or(0);
 
     // load element value
-    let handle = arr.as_heap_handle().unwrap();
+    let handle = arr.as_managed_pointer().unwrap();
     let value = match instruction::load_element_managed(state, handle, idx_val, *array_length) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
@@ -1390,7 +1390,7 @@ pub(crate) fn handle_element_load_managed(
     let idx_val = idx.as_uint().unwrap_or(0);
 
     // load element value
-    let handle = arr.as_heap_handle().unwrap();
+    let handle = arr.as_managed_pointer().unwrap();
     let value = match instruction::load_element_managed(state, handle, idx_val, *array_length) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
@@ -1642,7 +1642,7 @@ pub(crate) fn handle_element_store_aggregate(
     let idx_val = idx.as_uint().unwrap_or(0);
 
     // validate reference semantics
-    let handle = arr.as_heap_handle().unwrap();
+    let handle = arr.as_managed_pointer().unwrap();
     let pointer = Value::managed_reference_with_meta(handle, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return ControlFlow::Error(error);
@@ -1693,7 +1693,7 @@ pub(crate) fn handle_element_store_managed(
     let idx_val = idx.as_uint().unwrap_or(0);
 
     // validate reference semantics
-    let handle = arr.as_heap_handle().unwrap();
+    let handle = arr.as_managed_pointer().unwrap();
     let pointer = Value::managed_reference_with_meta(handle, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return ControlFlow::Error(error);

@@ -354,7 +354,7 @@ pub(crate) fn handle_vector_convert(
     };
 
     // resolve vector element types
-    let source_element = match state.interpreter.isolate.tree.get(*source_type) {
+    let source_element = match state.interpreter.isolate.image.tree.get(*source_type) {
         mir::Type::Vector { element, .. } => *element,
         _ => {
             return ControlFlow::Error(Error::TypeMismatch {
@@ -363,7 +363,7 @@ pub(crate) fn handle_vector_convert(
             });
         }
     };
-    let dest_vector = state.interpreter.isolate.tree.get(*dest_type);
+    let dest_vector = state.interpreter.isolate.image.tree.get(*dest_type);
     let (dest_element, dest_lanes) = match dest_vector {
         mir::Type::Vector { element, lanes, .. } => (*element, *lanes as usize),
         _ => {
@@ -391,11 +391,13 @@ pub(crate) fn handle_vector_convert(
         }
 
         // convert lanes
-        let source_info = match scalar_type_info(&state.interpreter.isolate.tree, source_element) {
-            Ok(info) => info,
-            Err(error) => return ControlFlow::Error(error),
-        };
-        let dest_info = match scalar_type_info(&state.interpreter.isolate.tree, dest_element) {
+        let source_info =
+            match scalar_type_info(&state.interpreter.isolate.image.tree, source_element) {
+                Ok(info) => info,
+                Err(error) => return ControlFlow::Error(error),
+            };
+        let dest_info = match scalar_type_info(&state.interpreter.isolate.image.tree, dest_element)
+        {
             Ok(info) => info,
             Err(error) => return ControlFlow::Error(error),
         };

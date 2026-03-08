@@ -1,5 +1,5 @@
-use crate::memory::Value;
 use crate::telemetry::Statistics;
+use destack_heap::Value;
 
 use super::Continuation;
 

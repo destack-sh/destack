@@ -1,5 +1,7 @@
+use serde::{Deserialize, Serialize};
+
 /// Execution role for a VM isolate.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum ExecutionMode {
     /// Evaluate compile time blocks and expressions.
     #[default]
@@ -20,7 +22,7 @@ impl ExecutionMode {
 }
 
 /// Execution mode options for an isolate.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ExecutionOptions {
     /// The execution role for this isolate.
     pub mode: ExecutionMode,

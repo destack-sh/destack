@@ -19,7 +19,7 @@ function greet(): string {
 
     let mut interpreter = test.mir_isolate(module_id, "native");
     let output = interpreter
-        .run_function_by_name("greet", &[])
+        .run_function_by_name_output("greet", &[])
         .expect("execution failed");
     let actual = interpreter
         .string_value(output.value)

@@ -1,6 +1,6 @@
 use crate::diagnostic::Error;
-use crate::memory::{RawPointer, STRING_TYPE_ALIAS, Value};
 use crate::tests::{create_aggregate, run_mir, run_mir_expect, run_mir_ok, run_mir_with_ok};
+use destack_heap::{RawPointer, STRING_TYPE_ALIAS, Value};
 
 /// Managed allocation creates a heap cell and returns a reference.
 #[test]
@@ -307,7 +307,7 @@ block0:
     let result = run_mir(mir, "double_free", &[]);
     assert!(result.is_err());
     let err = result.unwrap_err();
-    assert!(matches!(err.error, Error::InvalidHeapHandle));
+    assert!(matches!(err.error, Error::InvalidManagedPointer));
 }
 
 /// String header fields expose UTF-16 and UTF-8 lengths.
@@ -448,5 +448,5 @@ block0:
     let result = run_mir(mir, "use_after_free", &[]);
     assert!(result.is_err());
     let err = result.unwrap_err();
-    assert!(matches!(err.error, Error::InvalidHeapHandle));
+    assert!(matches!(err.error, Error::InvalidManagedPointer));
 }

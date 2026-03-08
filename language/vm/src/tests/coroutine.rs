@@ -1,6 +1,6 @@
 use crate::ExecutionOutcome;
 use crate::diagnostic::Error;
-use crate::memory::Value;
+use destack_heap::Value;
 
 /// Yield returns a value and resumes with the provided argument.
 #[test]
@@ -21,7 +21,8 @@ block1(v2: i32, v3: i32):
 
     // start coroutine and capture yield
     let outcome = isolate
-        .run_function_by_name_yielding("yield_once", &[Value::int32(7)])
+        .isolate
+        .run_function_by_name_yielding(&mut isolate.heap, "yield_once", &[Value::int32(7)])
         .expect("execution failed");
 
     // verify yielded value
@@ -33,7 +34,8 @@ block1(v2: i32, v3: i32):
 
     // resume with a value and verify completion
     let outcome = isolate
-        .resume(continuation, Value::int32(11))
+        .isolate
+        .resume(&mut isolate.heap, continuation, Value::int32(11))
         .expect("resume failed");
     let output = match outcome {
         ExecutionOutcome::Completed { output } => output,
@@ -60,7 +62,8 @@ block1(v2: i32, v3: i32):
 
     // start coroutine and capture yield
     let outcome = isolate
-        .run_function_by_name_yielding("yield_ignore", &[Value::int32(9)])
+        .isolate
+        .run_function_by_name_yielding(&mut isolate.heap, "yield_ignore", &[Value::int32(9)])
         .expect("execution failed");
 
     // verify yielded value
@@ -72,7 +75,8 @@ block1(v2: i32, v3: i32):
 
     // resume and verify the resume value is ignored
     let outcome = isolate
-        .resume(continuation, Value::int32(100))
+        .isolate
+        .resume(&mut isolate.heap, continuation, Value::int32(100))
         .expect("resume failed");
     let output = match outcome {
         ExecutionOutcome::Completed { output } => output,
@@ -103,7 +107,8 @@ block2(v5: i32, v6: i32):
 
     // start coroutine and capture first yield
     let outcome = isolate
-        .run_function_by_name_yielding("yield_twice", &[Value::int32(4)])
+        .isolate
+        .run_function_by_name_yielding(&mut isolate.heap, "yield_twice", &[Value::int32(4)])
         .expect("execution failed");
 
     // verify first yielded value
@@ -115,7 +120,8 @@ block2(v5: i32, v6: i32):
 
     // resume for second yield
     let outcome = isolate
-        .resume(continuation, Value::int32(3))
+        .isolate
+        .resume(&mut isolate.heap, continuation, Value::int32(3))
         .expect("resume failed");
 
     // verify second yielded value
@@ -127,7 +133,8 @@ block2(v5: i32, v6: i32):
 
     // resume for completion
     let outcome = isolate
-        .resume(continuation, Value::int32(10))
+        .isolate
+        .resume(&mut isolate.heap, continuation, Value::int32(10))
         .expect("resume failed");
     let output = match outcome {
         ExecutionOutcome::Completed { output } => output,
@@ -154,7 +161,8 @@ block1(v2: i32):
 
     // start coroutine and capture yield
     let outcome = isolate
-        .run_function_by_name_yielding("yield_no_args", &[Value::int32(3)])
+        .isolate
+        .run_function_by_name_yielding(&mut isolate.heap, "yield_no_args", &[Value::int32(3)])
         .expect("execution failed");
 
     // verify yielded value
@@ -166,7 +174,8 @@ block1(v2: i32):
 
     // resume and verify resumed value is returned
     let outcome = isolate
-        .resume(continuation, Value::int32(9))
+        .isolate
+        .resume(&mut isolate.heap, continuation, Value::int32(9))
         .expect("resume failed");
     let output = match outcome {
         ExecutionOutcome::Completed { output } => output,
@@ -198,7 +207,8 @@ block1(v2: i32):
 
     // start coroutine and capture yield
     let outcome = isolate
-        .run_function_by_name_yielding("yield_with_local", &[Value::int32(1)])
+        .isolate
+        .run_function_by_name_yielding(&mut isolate.heap, "yield_with_local", &[Value::int32(1)])
         .expect("execution failed");
 
     // verify yielded value
@@ -210,7 +220,8 @@ block1(v2: i32):
 
     // resume and verify local survives
     let outcome = isolate
-        .resume(continuation, Value::int32(6))
+        .isolate
+        .resume(&mut isolate.heap, continuation, Value::int32(6))
         .expect("resume failed");
     let output = match outcome {
         ExecutionOutcome::Completed { output } => output,
@@ -240,7 +251,8 @@ block1(v3: i32, v4: i32, v5: i32):
 
     // start coroutine and capture yield
     let outcome = isolate
-        .run_function_by_name_yielding("yield_prefix", &[Value::int32(5)])
+        .isolate
+        .run_function_by_name_yielding(&mut isolate.heap, "yield_prefix", &[Value::int32(5)])
         .expect("execution failed");
 
     // verify yielded value
@@ -252,7 +264,8 @@ block1(v3: i32, v4: i32, v5: i32):
 
     // resume and verify argument ordering
     let outcome = isolate
-        .resume(continuation, Value::int32(7))
+        .isolate
+        .resume(&mut isolate.heap, continuation, Value::int32(7))
         .expect("resume failed");
     let output = match outcome {
         ExecutionOutcome::Completed { output } => output,
@@ -287,7 +300,8 @@ block3(v12: i32):
 
     // start coroutine and capture yield
     let outcome = isolate
-        .run_function_by_name_yielding("yield_trailing", &[Value::int32(2)])
+        .isolate
+        .run_function_by_name_yielding(&mut isolate.heap, "yield_trailing", &[Value::int32(2)])
         .expect("execution failed");
 
     // verify yielded value
@@ -299,7 +313,8 @@ block3(v12: i32):
 
     // resume with a value that triggers the return path
     let outcome = isolate
-        .resume(continuation, Value::int32(0))
+        .isolate
+        .resume(&mut isolate.heap, continuation, Value::int32(0))
         .expect("resume failed");
     let output = match outcome {
         ExecutionOutcome::Completed { output } => output,
@@ -334,7 +349,8 @@ block0(v0: i32):
 
     // start coroutine and capture yield
     let outcome = isolate
-        .run_function_by_name_yielding("outer", &[Value::int32(5)])
+        .isolate
+        .run_function_by_name_yielding(&mut isolate.heap, "outer", &[Value::int32(5)])
         .expect("execution failed");
 
     // verify yielded value
@@ -346,7 +362,8 @@ block0(v0: i32):
 
     // resume and verify completion
     let outcome = isolate
-        .resume(continuation, Value::int32(7))
+        .isolate
+        .resume(&mut isolate.heap, continuation, Value::int32(7))
         .expect("resume failed");
     let output = match outcome {
         ExecutionOutcome::Completed { output } => output,
@@ -399,7 +416,8 @@ block1(v2: i32, v3: i32):
 
     // start coroutine and capture continuation
     let outcome = isolate
-        .run_function_by_name_yielding("yield_once", &[Value::int32(7)])
+        .isolate
+        .run_function_by_name_yielding(&mut isolate.heap, "yield_once", &[Value::int32(7)])
         .expect("execution failed");
     let (_, continuation) = match outcome {
         ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
@@ -410,7 +428,9 @@ block1(v2: i32, v3: i32):
     let mut other_isolate = super::create_isolate(mir);
 
     // resume on a different isolate
-    let result = other_isolate.resume(continuation, Value::int32(0));
+    let result = other_isolate
+        .isolate
+        .resume(&mut isolate.heap, continuation, Value::int32(0));
 
     // validate error
     let err = result.unwrap_err();
@@ -435,7 +455,8 @@ block1(v1: i32):
 
     // start coroutine and capture continuation
     let outcome = isolate
-        .run_function_by_name_yielding("yield_once", &[])
+        .isolate
+        .run_function_by_name_yielding(&mut isolate.heap, "yield_once", &[])
         .expect("execution failed");
     let (yielded_value, continuation) = match outcome {
         ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
@@ -448,7 +469,8 @@ block1(v1: i32):
 
     // resume the original continuation
     let outcome = isolate
-        .resume(continuation, Value::int32(5))
+        .isolate
+        .resume(&mut isolate.heap, continuation, Value::int32(5))
         .expect("resume failed");
     let output = match outcome {
         ExecutionOutcome::Completed { output } => output,
@@ -458,7 +480,8 @@ block1(v1: i32):
 
     // resume the forked continuation
     let outcome = isolate
-        .resume(forked, Value::int32(9))
+        .isolate
+        .resume(&mut isolate.heap, forked, Value::int32(9))
         .expect("resume failed");
     let output = match outcome {
         ExecutionOutcome::Completed { output } => output,
@@ -489,7 +512,8 @@ block1(v3: @Pair, v4: i32):
 
     // start coroutine and capture continuation
     let outcome = isolate
-        .run_function_by_name_yielding("yield_alloc", &[])
+        .isolate
+        .run_function_by_name_yielding(&mut isolate.heap, "yield_alloc", &[])
         .expect("execution failed");
     let (_, continuation) = match outcome {
         ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
@@ -502,7 +526,8 @@ block1(v3: @Pair, v4: i32):
 
     // resume and complete the coroutine
     let outcome = isolate
-        .resume(continuation, Value::int32(7))
+        .isolate
+        .resume(&mut isolate.heap, continuation, Value::int32(7))
         .expect("resume failed");
     let output = match outcome {
         ExecutionOutcome::Completed { output } => output,

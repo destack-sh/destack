@@ -31,6 +31,7 @@ impl Compiler {
     pub(crate) fn value_to_static_expression(
         &self,
         isolate: &vm::Isolate,
+        heap: &vm::Heap,
         value: &vm::Value,
     ) -> Option<dir::StaticExpression> {
         use vm::ValueTag;
@@ -44,7 +45,7 @@ impl Compiler {
             ValueTag::Char => dir::ScalarLiteral::Character(value.as_char()?),
             ValueTag::String => {
                 // resolve the heap-backed UTF8 payload
-                let literal = isolate.string_value(*value).ok()?;
+                let literal = isolate.string_value(heap, *value).ok()?;
                 let literal_id = self.program.strings.intern(&literal);
                 return Some(dir::StaticExpression::ScalarLiteral {
                     value: dir::ScalarLiteral::String(literal_id),

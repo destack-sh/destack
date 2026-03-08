@@ -1,4 +1,4 @@
-use crate::memory::GcStats;
+use destack_heap::GcStats;
 
 use super::Statistics;
 
