@@ -1,7 +1,8 @@
 use destack_mir as mir;
+use serde::{Deserialize, Serialize};
 
 /// Address space class for reference metadata.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ReferenceAddressSpace {
     /// Target default address space.
     Generic,
@@ -92,7 +93,7 @@ impl ReferenceAddressSpace {
 }
 
 /// Metadata for reference values.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReferenceMeta {
     bits: u8,
 }

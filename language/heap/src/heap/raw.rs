@@ -1,10 +1,30 @@
+use std::sync::Arc;
+
+use serde::{Deserialize, Serialize};
+
+use super::page::{PageImage, PageKind, PageReference};
 use super::slot::SlotStorage;
 use crate::value::{RawPointer, Value};
 
+const FIRST_ALLOCATED_SLOT_ID: u64 = 1;
+
+/// Immutable raw heap snapshot.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RawHeapSnapshot {
+    /// Captured raw pages.
+    pub pages: Arc<[Arc<PageImage<RawCell>>]>,
+    /// The next slot id to allocate.
+    pub next_unused_id: u64,
+    /// The captured free slot ids.
+    pub free_list: Arc<[u64]>,
+    /// The number of allocated raw cells.
+    pub allocated_cells: usize,
+}
+
 /// Raw heap storage for either value slots or byte buffers.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RawCellStorage {
-    /// Slot storage for Value-based cells.
+    /// Slot storage for value based cells.
     Values(SlotStorage),
     /// Byte buffer storage for raw payloads.
     Bytes(Vec<u8>),
@@ -26,7 +46,7 @@ impl RawCellStorage {
 }
 
 /// A raw heap cell.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RawCell {
     /// The raw storage backing this cell.
     pub storage: RawCellStorage,
@@ -68,25 +88,75 @@ impl RawCell {
     }
 }
 
-/// A raw heap for manual memory management (not GC-tracked).
+/// A raw heap for manual memory management.
 #[derive(Debug)]
 pub struct RawHeap {
-    /// Allocated cells. Index 0 is reserved (null pointer).
-    cells: Vec<Option<RawCell>>,
-    /// Free slot indices available for reuse.
-    free_list: Vec<usize>,
-    /// Count of live heap cells (excluding the null slot).
-    allocated_cells: usize,
+    /// Raw pages keyed by global slot id.
+    pub(super) pages: Vec<PageReference<RawCell>>,
+    /// Free global slot ids available for reuse.
+    pub(super) free_list: Vec<u64>,
+    /// The next global slot id to allocate.
+    pub(super) next_unused_id: u64,
+    /// Count of live heap cells, excluding the null slot.
+    pub(super) allocated_cells: usize,
+}
+
+impl Default for RawHeap {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RawHeap {
     /// Create a new empty raw heap.
     pub fn new() -> Self {
         Self {
-            // reserve slot 0 for null pointer
-            cells: vec![None],
+            pages: vec![PageReference::new(PageKind::Raw)],
             free_list: Vec::new(),
+            next_unused_id: FIRST_ALLOCATED_SLOT_ID,
             allocated_cells: 0,
+        }
+    }
+
+    /// Capture one immutable raw heap snapshot.
+    pub fn snapshot(&mut self) -> RawHeapSnapshot {
+        // capture page contents
+        let pages = self
+            .pages
+            .iter_mut()
+            .map(PageReference::snapshot)
+            .collect::<Vec<_>>()
+            .into();
+
+        // capture allocator state
+        let free_list = self.free_list.clone().into();
+
+        RawHeapSnapshot {
+            pages,
+            next_unused_id: self.next_unused_id,
+            free_list,
+            allocated_cells: self.allocated_cells,
+        }
+    }
+
+    /// Restore one raw heap from an immutable snapshot.
+    pub fn restore(snapshot: &RawHeapSnapshot) -> Self {
+        // rebuild page storage from the immutable images
+        let pages = snapshot
+            .pages
+            .iter()
+            .cloned()
+            .map(PageReference::from_image)
+            .collect::<Vec<_>>();
+
+        // restore allocator state
+        let free_list = snapshot.free_list.iter().copied().collect();
+
+        Self {
+            pages,
+            free_list,
+            next_unused_id: snapshot.next_unused_id,
+            allocated_cells: snapshot.allocated_cells,
         }
     }
 
@@ -95,7 +165,7 @@ impl RawHeap {
         self.allocate_cell(RawCell::new())
     }
 
-    /// Allocate a cell with a given number of slots (initialized to Void).
+    /// Allocate a cell with a given number of slots.
     pub fn allocate_with_slots(&mut self, slot_count: usize) -> RawPointer {
         self.allocate_cell(RawCell::with_slots(slot_count))
     }
@@ -110,45 +180,74 @@ impl RawHeap {
         self.allocate_cell(RawCell::with_bytes(bytes.to_vec()))
     }
 
-    /// Internal: allocate a cell, reusing free slots if available.
+    // reserve one slot and write the cell into its page
     fn allocate_cell(&mut self, cell: RawCell) -> RawPointer {
-        if let Some(index) = self.free_list.pop() {
-            self.cells[index] = Some(cell);
-            self.allocated_cells += 1;
-            RawPointer::new(index as u64)
+        let slot_id = if let Some(slot_id) = self.free_list.pop() {
+            slot_id
         } else {
-            let index = self.cells.len();
-            self.cells.push(Some(cell));
-            self.allocated_cells += 1;
-            RawPointer::new(index as u64)
-        }
+            let slot_id = self.next_unused_id;
+            self.next_unused_id = self.next_unused_id.saturating_add(1);
+            self.ensure_slot(slot_id);
+            slot_id
+        };
+
+        let pointer = RawPointer::new(slot_id);
+        let target_page = pointer.page_index();
+        let target_offset = pointer.page_offset();
+        self.pages[target_page].set(target_offset, cell);
+        self.allocated_cells += 1;
+
+        pointer
     }
 
     /// Get a cell by pointer.
     #[inline]
     pub fn get(&self, pointer: RawPointer) -> Option<&RawCell> {
-        self.cells.get(pointer.id() as usize)?.as_ref()
+        let slot_id = pointer.id();
+        if slot_id == 0 || slot_id >= self.next_unused_id {
+            return None;
+        }
+
+        let target_page = pointer.page_index();
+        let target_offset = pointer.page_offset();
+        let page = self.pages.get(target_page)?;
+
+        page.get(target_offset)
     }
 
     /// Get a mutable reference to a cell.
     #[inline]
     pub fn get_mut(&mut self, pointer: RawPointer) -> Option<&mut RawCell> {
-        self.cells.get_mut(pointer.id() as usize)?.as_mut()
+        let slot_id = pointer.id();
+        if slot_id == 0 || slot_id >= self.next_unused_id {
+            return None;
+        }
+
+        let target_page = pointer.page_index();
+        let target_offset = pointer.page_offset();
+        let page = self.pages.get_mut(target_page)?;
+
+        page.get_mut(target_offset)
     }
 
     /// Free a cell by pointer. Returns true if the cell existed.
     #[inline]
     pub fn free(&mut self, pointer: RawPointer) -> bool {
-        let index = pointer.id() as usize;
-        if index < self.cells.len() && self.cells[index].is_some() {
-            self.cells[index] = None;
-            self.free_list.push(index);
-            debug_assert!(self.allocated_cells > 0, "heap allocation count underflow");
-            self.allocated_cells -= 1;
-            return true;
+        let slot_id = pointer.id();
+        if slot_id == 0 || slot_id >= self.next_unused_id {
+            return false;
         }
 
-        false
+        let target_page = pointer.page_index();
+        let target_offset = pointer.page_offset();
+        let Some(_) = self.pages[target_page].take(target_offset) else {
+            return false;
+        };
+
+        self.free_list.push(slot_id);
+        debug_assert!(self.allocated_cells > 0, "heap allocation count underflow");
+        self.allocated_cells -= 1;
+        true
     }
 
     /// Get the number of allocated cells.
@@ -166,15 +265,19 @@ impl RawHeap {
     /// Clear all allocations.
     #[inline]
     pub fn clear(&mut self) {
-        self.cells.clear();
-        self.cells.push(None);
+        self.pages.clear();
+        self.pages.push(PageReference::new(PageKind::Raw));
         self.free_list.clear();
+        self.next_unused_id = FIRST_ALLOCATED_SLOT_ID;
         self.allocated_cells = 0;
     }
-}
 
-impl Default for RawHeap {
-    fn default() -> Self {
-        Self::new()
+    // ensure the selected slot has page storage allocated
+    fn ensure_slot(&mut self, slot_id: u64) {
+        let required_page = RawPointer::new(slot_id).page_index();
+
+        while self.pages.len() <= required_page {
+            self.pages.push(PageReference::new(PageKind::Raw));
+        }
     }
 }
