@@ -1,9 +1,10 @@
 use crate::value::Value;
+use serde::{Deserialize, Serialize};
 
 const INLINE_SLOT_CAP: usize = 2;
 
 /// Slot storage for heap cells, optimized for small fixed layouts.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SlotStorage {
     /// Inline storage for small slot counts.
     Inline {
@@ -55,7 +56,7 @@ impl SlotStorage {
         }
     }
 
-    /// Create slot storage for exactly 2 values (avoids Vec allocation).
+    /// Create slot storage for exactly 2 values.
     #[inline]
     pub fn from_pair(first: Value, second: Value) -> Self {
         Self::Inline {
@@ -64,7 +65,7 @@ impl SlotStorage {
         }
     }
 
-    /// Create slot storage for exactly 1 value (avoids Vec allocation).
+    /// Create slot storage for exactly 1 value.
     #[inline]
     pub fn from_single(value: Value) -> Self {
         Self::Inline {
@@ -204,13 +205,11 @@ impl<'a> IntoIterator for &'a SlotStorage {
     }
 }
 
-/// A cell on the heap (unit of allocation).
-#[derive(Debug, Default)]
+/// A cell on the managed heap.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HeapCell {
-    /// The cell's slots (for structs/tuples) or elements (for arrays).
+    /// The cell's slots or elements.
     pub slots: SlotStorage,
-    /// Whether this cell has been marked (for GC).
-    pub marked: bool,
 }
 
 impl HeapCell {
@@ -218,15 +217,13 @@ impl HeapCell {
     pub fn new() -> Self {
         Self {
             slots: SlotStorage::default(),
-            marked: false,
         }
     }
 
-    /// Create a cell with the given number of slots (initialized to Void).
+    /// Create a cell with the given number of slots.
     pub fn with_slots(count: usize) -> Self {
         Self {
             slots: SlotStorage::with_slots(count),
-            marked: false,
         }
     }
 
@@ -234,7 +231,6 @@ impl HeapCell {
     pub fn clone_for_fork(&self) -> Self {
         Self {
             slots: self.slots.clone(),
-            marked: false,
         }
     }
 }

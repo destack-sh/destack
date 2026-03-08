@@ -1,9 +1,10 @@
 use destack_mir as mir;
+use serde::{Deserialize, Serialize};
 
 use super::meta::ReferenceMeta;
 use super::pointer::{
-    GlobalPointer, HeapHandle, LocalPointer, POINTER_BASE_MASK, POINTER_SLOT_SHIFT, REF_META_MASK,
-    REF_META_SHIFT, RawPointer, STACK_INDEX_MASK, STACK_SLOT_SHIFT, StackPointer,
+    GlobalPointer, LocalPointer, ManagedPointer, POINTER_BASE_MASK, POINTER_SLOT_SHIFT,
+    REF_META_MASK, REF_META_SHIFT, RawPointer, STACK_INDEX_MASK, STACK_SLOT_SHIFT, StackPointer,
 };
 use super::tag::ValueTag;
 
@@ -11,10 +12,10 @@ use super::tag::ValueTag;
 ///
 /// Compact 16-byte representation using a packed data/meta layout.
 /// The data field stores the actual value, meta stores the tag and width.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Value {
-    /// The value data (i64, u64, f64 bits, handle id, etc.).
+    /// The value data (i64, u64, f64 bits, pointer id, etc.).
     data: u64,
     /// Metadata: tag in low byte, width in second byte.
     meta: u64,
@@ -31,6 +32,8 @@ impl PartialEq for Value {
         self.data == other.data && self.meta == other.meta
     }
 }
+
+impl Eq for Value {}
 
 impl std::fmt::Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -56,28 +59,28 @@ impl std::fmt::Debug for Value {
                 write!(f, "Char('{char_val}')")
             }
             ValueTag::ManagedReference => {
-                let handle = self.as_heap_handle().unwrap();
-                if handle.slot_index() == 0 {
-                    write!(f, "ManagedReference(HeapHandle({}))", handle.id())
+                let handle = self.as_managed_pointer().unwrap();
+                if handle.slot_offset() == 0 {
+                    write!(f, "ManagedReference(ManagedPointer({}))", handle.id())
                 } else {
                     write!(
                         f,
-                        "ManagedReference(HeapHandle({}), slot {})",
+                        "ManagedReference(ManagedPointer({}), slot {})",
                         handle.id(),
-                        handle.slot_index()
+                        handle.slot_offset()
                     )
                 }
             }
             ValueTag::RawPointer => {
                 let pointer = self.as_raw_pointer().unwrap();
-                if pointer.slot_index() == 0 {
+                if pointer.slot_offset() == 0 {
                     write!(f, "RawPointer({})", pointer.id())
                 } else {
                     write!(
                         f,
                         "RawPointer({}, offset: {})",
                         pointer.id(),
-                        pointer.slot_index()
+                        pointer.slot_offset()
                     )
                 }
             }
@@ -118,8 +121,8 @@ impl std::fmt::Debug for Value {
                 }
             }
             ValueTag::FunctionPointer => write!(f, "FunctionPointer({})", self.data as u32),
-            ValueTag::Aggregate => write!(f, "Aggregate(HeapHandle({}))", self.data),
-            ValueTag::String => write!(f, "String(HeapHandle({}))", self.data),
+            ValueTag::Aggregate => write!(f, "Aggregate(ManagedPointer({}))", self.data),
+            ValueTag::String => write!(f, "String(ManagedPointer({}))", self.data),
         }
     }
 }
@@ -291,7 +294,7 @@ impl Value {
 
     /// Create a managed heap reference value.
     #[inline]
-    pub const fn managed_reference(handle: HeapHandle) -> Self {
+    pub const fn managed_reference(handle: ManagedPointer) -> Self {
         Self {
             data: handle.0,
             meta: Self::make_meta(ValueTag::ManagedReference, 0),
@@ -300,7 +303,7 @@ impl Value {
 
     /// Create a managed heap reference value with explicit metadata.
     #[inline]
-    pub fn managed_reference_with_meta(handle: HeapHandle, meta: ReferenceMeta) -> Self {
+    pub fn managed_reference_with_meta(handle: ManagedPointer, meta: ReferenceMeta) -> Self {
         Self::managed_reference(handle).with_reference_meta(meta)
     }
 
@@ -398,7 +401,7 @@ impl Value {
 
     /// Create an aggregate value.
     #[inline]
-    pub const fn aggregate(handle: HeapHandle) -> Self {
+    pub const fn aggregate(handle: ManagedPointer) -> Self {
         Self {
             data: handle.0,
             meta: Self::make_meta(ValueTag::Aggregate, 0),
@@ -407,7 +410,7 @@ impl Value {
 
     /// Create a string value.
     #[inline]
-    pub const fn string(handle: HeapHandle) -> Self {
+    pub const fn string(handle: ManagedPointer) -> Self {
         Self {
             data: handle.0,
             meta: Self::make_meta(ValueTag::String, 0),
@@ -494,12 +497,12 @@ impl Value {
         self.tag() == ValueTag::Aggregate
     }
 
-    /// Try to get this value as a heap handle.
+    /// Try to get this value as a managed pointer.
     #[inline]
-    pub fn as_heap_handle(&self) -> Option<HeapHandle> {
+    pub fn as_managed_pointer(&self) -> Option<ManagedPointer> {
         match self.tag() {
             ValueTag::ManagedReference | ValueTag::Aggregate | ValueTag::String => {
-                Some(HeapHandle(self.data))
+                Some(ManagedPointer(self.data))
             }
             _ => None,
         }

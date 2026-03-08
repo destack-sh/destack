@@ -1398,6 +1398,7 @@ name = "destack_heap"
 version = "0.55.4"
 dependencies = [
  "destack_mir",
+ "serde",
 ]
 
 [[package]]
