@@ -13,7 +13,7 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
     node_type: NodeType,
     node_id: u32,
 ) {
-    let local_idx = tree.local_id_by_node_id[node_id as usize];
+    let local_idx = tree.node_index_by_node_id[node_id as usize].local_id();
     match node_type {
         // --------------------------------------------------------------------
         // Groupings

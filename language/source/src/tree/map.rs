@@ -11,6 +11,9 @@ fn empty_span() -> Span {
     Span::empty(crate::FileId(0))
 }
 
+const MAIN_SPAN_FLAG: u8 = 1 << 0;
+const TYPE_SPAN_FLAG: u8 = 1 << 1;
+
 /// The type of node search to perform.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum NodeSearchMode {
@@ -40,12 +43,10 @@ pub struct NodeSourceMap {
     enclosing_spans: Vec<Span>,
     /// Main spans, indexed by global node id.
     main_spans: Vec<Span>,
-    /// Whether a main span exists for each node.
-    has_main_span: Vec<bool>,
     /// Type spans, indexed by global node id.
     type_spans: Vec<Span>,
-    /// Whether a type span exists for each node.
-    has_type_span: Vec<bool>,
+    /// Presence flags for main and type spans.
+    side_span_flags: Vec<u8>,
     /// Extra side spans for non-main/type spans (sparse).
     side_spans: FxHashMap<(u32, NodeSpanType), Span>,
     /// Interval tree for O(log n + k) enclosing span queries.
@@ -60,9 +61,8 @@ impl Clone for NodeSourceMap {
         Self {
             enclosing_spans: self.enclosing_spans.clone(),
             main_spans: self.main_spans.clone(),
-            has_main_span: self.has_main_span.clone(),
             type_spans: self.type_spans.clone(),
-            has_type_span: self.has_type_span.clone(),
+            side_span_flags: self.side_span_flags.clone(),
             side_spans: self.side_spans.clone(),
             interval_tree: RwLock::new(None),
             interval_tree_ready: AtomicBool::new(false),
@@ -99,20 +99,11 @@ impl Serialize for NodeSourceMap {
         let mut main_spans = Vec::with_capacity(self.enclosing_spans.len());
         let mut type_spans = Vec::with_capacity(self.enclosing_spans.len());
         for index in 0..self.enclosing_spans.len() {
-            let main_span = self
-                .has_main_span
-                .get(index)
-                .copied()
-                .unwrap_or(false)
-                .then(|| self.main_spans[index]);
+            let flags = self.side_span_flags.get(index).copied().unwrap_or(0);
+            let main_span = ((flags & MAIN_SPAN_FLAG) != 0).then(|| self.main_spans[index]);
             main_spans.push(main_span);
 
-            let type_span = self
-                .has_type_span
-                .get(index)
-                .copied()
-                .unwrap_or(false)
-                .then(|| self.type_spans[index]);
+            let type_span = ((flags & TYPE_SPAN_FLAG) != 0).then(|| self.type_spans[index]);
             type_spans.push(type_span);
         }
 
@@ -134,35 +125,35 @@ impl<'de> Deserialize<'de> for NodeSourceMap {
         let data = NodeSourceMapData::deserialize(deserializer)?;
         let enclosing_len = data.enclosing_spans.len();
         let mut main_spans = Vec::with_capacity(enclosing_len);
-        let mut has_main_span = Vec::with_capacity(enclosing_len);
         for index in 0..enclosing_len {
             if let Some(span) = data.main_spans.get(index).copied().flatten() {
                 main_spans.push(span);
-                has_main_span.push(true);
             } else {
                 main_spans.push(empty_span());
-                has_main_span.push(false);
             }
         }
 
         let mut type_spans = Vec::with_capacity(enclosing_len);
-        let mut has_type_span = Vec::with_capacity(enclosing_len);
+        let mut side_span_flags = Vec::with_capacity(enclosing_len);
         for index in 0..enclosing_len {
+            let mut flags = 0;
+            if data.main_spans.get(index).copied().flatten().is_some() {
+                flags |= MAIN_SPAN_FLAG;
+            }
             if let Some(span) = data.type_spans.get(index).copied().flatten() {
                 type_spans.push(span);
-                has_type_span.push(true);
+                flags |= TYPE_SPAN_FLAG;
             } else {
                 type_spans.push(empty_span());
-                has_type_span.push(false);
             }
+            side_span_flags.push(flags);
         }
 
         Ok(Self {
             enclosing_spans: data.enclosing_spans,
             main_spans,
-            has_main_span,
             type_spans,
-            has_type_span,
+            side_span_flags,
             side_spans: data.side_spans,
             interval_tree: RwLock::new(None),
             interval_tree_ready: AtomicBool::new(false),
@@ -198,9 +189,8 @@ impl NodeSourceMap {
         Self {
             enclosing_spans: Vec::with_capacity(capacity),
             main_spans: Vec::with_capacity(capacity / 4),
-            has_main_span: Vec::with_capacity(capacity / 4),
             type_spans: Vec::with_capacity(capacity / 8),
-            has_type_span: Vec::with_capacity(capacity / 8),
+            side_span_flags: Vec::with_capacity(capacity / 4),
             side_spans: FxHashMap::default(),
             interval_tree: RwLock::new(None),
             interval_tree_ready: AtomicBool::new(false),
@@ -259,6 +249,12 @@ impl NodeSourceMap {
         self.invalidate_position_index();
     }
 
+    /// Append a span while building a fresh tree during parsing.
+    #[inline]
+    pub fn append_during_parse(&mut self, span: Span) {
+        self.enclosing_spans.push(span);
+    }
+
     /// Set the span for a node.
     #[inline]
     pub fn set(&mut self, node_id: u32, span: Span) {
@@ -271,9 +267,8 @@ impl NodeSourceMap {
     pub fn prune_from(&mut self, from_idx: u32) {
         self.enclosing_spans.truncate(from_idx as usize);
         self.main_spans.truncate(from_idx as usize);
-        self.has_main_span.truncate(from_idx as usize);
         self.type_spans.truncate(from_idx as usize);
-        self.has_type_span.truncate(from_idx as usize);
+        self.side_span_flags.truncate(from_idx as usize);
         self.side_spans.retain(|&(id, _), _| id < from_idx);
         self.invalidate_position_index();
     }
@@ -292,18 +287,22 @@ impl NodeSourceMap {
             NodeSpanType::Main => {
                 if index >= self.main_spans.len() {
                     self.main_spans.resize(index + 1, empty_span());
-                    self.has_main_span.resize(index + 1, false);
+                }
+                if index >= self.side_span_flags.len() {
+                    self.side_span_flags.resize(index + 1, 0);
                 }
                 self.main_spans[index] = span;
-                self.has_main_span[index] = true;
+                self.side_span_flags[index] |= MAIN_SPAN_FLAG;
             }
             NodeSpanType::Type => {
                 if index >= self.type_spans.len() {
                     self.type_spans.resize(index + 1, empty_span());
-                    self.has_type_span.resize(index + 1, false);
+                }
+                if index >= self.side_span_flags.len() {
+                    self.side_span_flags.resize(index + 1, 0);
                 }
                 self.type_spans[index] = span;
-                self.has_type_span[index] = true;
+                self.side_span_flags[index] |= TYPE_SPAN_FLAG;
             }
             _ => {
                 self.side_spans.insert((node_id, span_type), span);
@@ -317,17 +316,17 @@ impl NodeSourceMap {
         let index = node_id as usize;
         match span_type {
             NodeSpanType::Main => self
-                .has_main_span
+                .side_span_flags
                 .get(index)
                 .copied()
-                .unwrap_or(false)
-                .then(|| self.main_spans[index]),
+                .filter(|flags| (flags & MAIN_SPAN_FLAG) != 0)
+                .map(|_| self.main_spans[index]),
             NodeSpanType::Type => self
-                .has_type_span
+                .side_span_flags
                 .get(index)
                 .copied()
-                .unwrap_or(false)
-                .then(|| self.type_spans[index]),
+                .filter(|flags| (flags & TYPE_SPAN_FLAG) != 0)
+                .map(|_| self.type_spans[index]),
             _ => self.side_spans.get(&(node_id, span_type)).copied(),
         }
     }

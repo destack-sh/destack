@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::Keyword;
 
 /// The type of a node.
+#[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum NodeType {
     Expression,

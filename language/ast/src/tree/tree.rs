@@ -11,6 +11,63 @@ use crate::{
     TriviaRef, WhereClause,
 };
 
+/// Dense metadata for one global node id.
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+pub(crate) struct NodeIndexEntry {
+    /// The packed local id and node type.
+    packed: u32,
+}
+
+impl NodeIndexEntry {
+    const NODE_TYPE_SHIFT: u32 = 24;
+    const LOCAL_ID_MASK: u32 = (1 << Self::NODE_TYPE_SHIFT) - 1;
+
+    /// Pack one local id and node type into a dense entry.
+    #[inline]
+    pub(crate) fn new(local_id: u32, node_type: NodeType) -> Self {
+        debug_assert!(
+            local_id <= Self::LOCAL_ID_MASK,
+            "node local id exceeds packed index capacity: {local_id}"
+        );
+        Self {
+            packed: local_id | ((node_type as u32) << Self::NODE_TYPE_SHIFT),
+        }
+    }
+
+    /// Return the local arena id for this entry.
+    #[inline]
+    pub(crate) fn local_id(self) -> u32 {
+        self.packed & Self::LOCAL_ID_MASK
+    }
+
+    /// Return the concrete node type for this entry.
+    #[inline]
+    pub(crate) fn node_type(self) -> NodeType {
+        match (self.packed >> Self::NODE_TYPE_SHIFT) as u8 {
+            0 => NodeType::Expression,
+            1 => NodeType::Block,
+            2 => NodeType::Declaration,
+            3 => NodeType::Property,
+            4 => NodeType::Member,
+            5 => NodeType::EnumField,
+            6 => NodeType::WhereClause,
+            7 => NodeType::DependencyItem,
+            8 => NodeType::Parameter,
+            9 => NodeType::Argument,
+            10 => NodeType::MatchCase,
+            11 => NodeType::Pattern,
+            12 => NodeType::PatternField,
+            13 => NodeType::Declarator,
+            14 => NodeType::Annotation,
+            15 => NodeType::Blank,
+            16 => NodeType::Doc,
+            17 => NodeType::Comment,
+            18 => NodeType::Decorator,
+            _ => unreachable!("invalid node type tag in packed node index"),
+        }
+    }
+}
+
 /// Snapshot of NodeTree allocation lengths for speculative parser restores.
 /// NOTE #Cleanup: can we somehow do something better than ast::NodeTreeMark?
 #[derive(Debug, Copy, Clone)]
@@ -76,10 +133,8 @@ impl NodeTreeMark {
 pub struct NodeTree {
     /// The next id to allocate.
     pub(crate) next_global_id: u32,
-    /// The local ids of all nodes. Index is the global node id.
-    pub(crate) local_id_by_node_id: Vec<u32>,
-    /// The types of all nodes. Index is the global node id.
-    pub(crate) node_type_by_node_id: Vec<NodeType>,
+    /// Dense local id and node type metadata by global node id.
+    pub(crate) node_index_by_node_id: Vec<NodeIndexEntry>,
     /// The annotations attached to nodes.
     pub(crate) annotations_by_node_id: FxHashMap<u32, Vec<LocalNodeId<Annotation>>>,
     /// Whether annotation vectors are already globally sorted by start span.
@@ -119,7 +174,7 @@ impl Debug for NodeTree {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeTree")
             .field("next_global_id", &self.next_global_id)
-            .field("node_count", &self.local_id_by_node_id.len())
+            .field("node_count", &self.node_index_by_node_id.len())
             .finish()
     }
 }
@@ -140,8 +195,7 @@ impl NodeTree {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             next_global_id: 0,
-            local_id_by_node_id: Vec::with_capacity(capacity),
-            node_type_by_node_id: Vec::with_capacity(capacity),
+            node_index_by_node_id: Vec::with_capacity(capacity),
             annotations_by_node_id: FxHashMap::with_capacity_and_hasher(
                 capacity / 8,
                 Default::default(),
@@ -195,18 +249,32 @@ impl NodeTree {
     {
         let global_id = self.next_global_id;
         self.next_global_id = global_id + 1;
-        self.node_type_by_node_id.push(T::TYPE);
         let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
-        self.local_id_by_node_id.push(local_id);
+        self.node_index_by_node_id
+            .push(NodeIndexEntry::new(local_id, T::TYPE));
         self.source_map.append(span);
+        LocalNodeId::new(global_id)
+    }
+
+    /// Allocate a new node while building a fresh tree during parsing.
+    pub fn insert_during_parse<T>(&mut self, node: T, span: Span) -> LocalNodeId<T>
+    where
+        T: Node,
+        Self: NodeTreeImpl<T>,
+    {
+        let global_id = self.next_global_id;
+        self.next_global_id = global_id + 1;
+        let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
+        self.node_index_by_node_id
+            .push(NodeIndexEntry::new(local_id, T::TYPE));
+        self.source_map.append_during_parse(span);
         LocalNodeId::new(global_id)
     }
 
     /// Prune nodes from the tree. Resets the next id to the given index.
     #[inline]
     pub fn reset_to(&mut self, from_idx: u32) {
-        self.node_type_by_node_id.truncate(from_idx as usize);
-        self.local_id_by_node_id.truncate(from_idx as usize);
+        self.node_index_by_node_id.truncate(from_idx as usize);
         // reset spans & next_id
         self.source_map.prune_from(from_idx);
         self.next_global_id = from_idx;
@@ -245,9 +313,7 @@ impl NodeTree {
     /// Restore tree allocation lengths from a speculative mark.
     #[inline]
     pub fn restore_to_mark(&mut self, mark: NodeTreeMark) {
-        self.node_type_by_node_id
-            .truncate(mark.next_global_id as usize);
-        self.local_id_by_node_id
+        self.node_index_by_node_id
             .truncate(mark.next_global_id as usize);
         self.source_map.prune_from(mark.next_global_id);
         self.next_global_id = mark.next_global_id;
@@ -289,7 +355,7 @@ impl NodeTree {
     /// Get the type of an untyped node id.
     #[inline]
     pub fn get_node_type(&self, id: u32) -> NodeType {
-        self.node_type_by_node_id[id as usize]
+        self.node_index_by_node_id[id as usize].node_type()
     }
 
     /// Get an immutable reference to the node with the given NodeId.
@@ -299,7 +365,7 @@ impl NodeTree {
         T: Node,
         Self: NodeTreeImpl<T>,
     {
-        let local_id = self.local_id_by_node_id[id.id as usize];
+        let local_id = self.node_index_by_node_id[id.id as usize].local_id();
         <Self as NodeTreeImpl<T>>::get(self, local_id)
     }
 
@@ -310,7 +376,7 @@ impl NodeTree {
         T: Node,
         Self: NodeTreeImpl<T>,
     {
-        let local_id = self.local_id_by_node_id[id.id as usize];
+        let local_id = self.node_index_by_node_id[id.id as usize].local_id();
         <Self as NodeTreeImpl<T>>::get_mut(self, local_id)
     }
 
@@ -390,8 +456,8 @@ impl NodeTree {
     #[inline]
     pub fn get_spans_for(&self, node_type: NodeType) -> Vec<Span> {
         let mut spans = Vec::new();
-        for (idx, ty) in self.node_type_by_node_id.iter().enumerate() {
-            if *ty == node_type {
+        for (idx, entry) in self.node_index_by_node_id.iter().enumerate() {
+            if entry.node_type() == node_type {
                 spans.push(self.source_map.get(idx as u32));
             }
         }
@@ -402,8 +468,11 @@ impl NodeTree {
     #[inline]
     pub fn get_side_annotation_spans(&self) -> Vec<Span> {
         let mut spans = Vec::new();
-        for (idx, ty) in self.node_type_by_node_id.iter().enumerate() {
-            if matches!(*ty, NodeType::Annotation | NodeType::Decorator) {
+        for (idx, entry) in self.node_index_by_node_id.iter().enumerate() {
+            if matches!(
+                entry.node_type(),
+                NodeType::Annotation | NodeType::Decorator
+            ) {
                 spans.push(self.source_map.get(idx as u32));
             }
         }
@@ -417,8 +486,8 @@ impl NodeTree {
         T: Node,
     {
         let mut nodes = Vec::new();
-        for (idx, ty) in self.node_type_by_node_id.iter().enumerate() {
-            if *ty == T::TYPE {
+        for (idx, entry) in self.node_index_by_node_id.iter().enumerate() {
+            if entry.node_type() == T::TYPE {
                 nodes.push(LocalNodeId::new(idx as u32));
             }
         }
@@ -431,11 +500,11 @@ impl NodeTree {
     where
         T: Node,
     {
-        self.node_type_by_node_id
+        self.node_index_by_node_id
             .iter()
             .enumerate()
-            .filter_map(|(global_id, &node_type)| {
-                if node_type == T::TYPE {
+            .filter_map(|(global_id, entry)| {
+                if entry.node_type() == T::TYPE {
                     Some(LocalNodeId::new(global_id as u32))
                 } else {
                     None
@@ -450,11 +519,11 @@ impl NodeTree {
     where
         T: Node,
     {
-        self.node_type_by_node_id
+        self.node_index_by_node_id
             .iter()
             .enumerate()
-            .filter_map(|(global_id, &node_type)| {
-                if node_type == T::TYPE {
+            .filter_map(|(global_id, entry)| {
+                if entry.node_type() == T::TYPE {
                     Some(LocalNodeId::new(global_id as u32))
                 } else {
                     None
