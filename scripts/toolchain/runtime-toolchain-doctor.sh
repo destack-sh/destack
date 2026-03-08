@@ -86,6 +86,7 @@ fi
 
 # rust targets used by runtime lanes
 check_rust_target aarch64-linux-android required
+check_rust_target aarch64-unknown-linux-gnu required
 
 # ios checks only apply on macos hosts
 if [ "${host_kernel}" = "Darwin" ]; then
@@ -108,6 +109,10 @@ fi
 
 if [ "${host_kernel}" != "Linux" ]; then
 	check_command weston optional "weston wayland compositor"
+fi
+
+if [ "${host_kernel}" != "Linux" ]; then
+	check_command zig required "zig cross compiler"
 fi
 
 if [ "${has_error}" = "1" ]; then
