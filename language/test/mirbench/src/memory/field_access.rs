@@ -1,5 +1,5 @@
 use super::super::{Program, scale_axis};
-use destack_vm::memory::Value;
+use destack_heap::Value;
 
 declare_program! {
     /// Field access on composite values (tuples from overflow intrinsics).

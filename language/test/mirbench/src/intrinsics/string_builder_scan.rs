@@ -1,6 +1,6 @@
 use super::super::common::{clamp_min, memcmp_bytes};
 use super::super::{Program, scale_axis};
-use destack_vm::memory::Value;
+use destack_heap::Value;
 
 const STRING_SCAN_MASK: i64 = 31;
 

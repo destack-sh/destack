@@ -1,6 +1,6 @@
 use super::super::common::mix_result;
 use super::super::{Program, ProgramRunner, scale_axis_range};
-use destack_vm::memory::Value;
+use destack_heap::Value;
 
 /// Return a constant resume value of two.
 fn resume_two(_: &[Value], _: usize, _: Value) -> Value {

@@ -1,6 +1,6 @@
 use super::super::common::{clamp_min, memcmp_bytes, mix_result};
 use super::super::{Program, scale_axis};
-use destack_vm::memory::Value;
+use destack_heap::Value;
 
 const CHUNK_LEN: usize = 16;
 

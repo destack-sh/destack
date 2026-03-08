@@ -1,5 +1,5 @@
 use super::super::{Program, ProgramRunner, scale_axis_range};
-use destack_vm::memory::Value;
+use destack_heap::Value;
 
 /// Return a constant resume value of one.
 fn resume_one(_: &[Value], _: usize, _: Value) -> Value {

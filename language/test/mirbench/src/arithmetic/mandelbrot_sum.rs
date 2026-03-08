@@ -1,6 +1,6 @@
 use super::super::common::clamp_min;
 use super::super::{Program, scale_axis};
-use destack_vm::memory::Value;
+use destack_heap::Value;
 
 const MANDELBROT_POINTS: i64 = MANDELBROT_SIDE * MANDELBROT_SIDE;
 const MANDELBROT_SIDE: i64 = 64;

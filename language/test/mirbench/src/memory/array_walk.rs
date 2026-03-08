@@ -1,5 +1,5 @@
 use super::super::{Program, scale_axis};
-use destack_vm::memory::Value;
+use destack_heap::Value;
 
 declare_program! {
     /// Element get/set on a managed array with sequential access.
