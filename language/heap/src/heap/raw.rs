@@ -124,7 +124,7 @@ impl RawHeap {
         let pages = self
             .pages
             .iter_mut()
-            .map(PageReference::snapshot)
+            .map(PageReference::freeze)
             .collect::<Vec<_>>()
             .into();
 
@@ -192,8 +192,7 @@ impl RawHeap {
         };
 
         let pointer = RawPointer::new(slot_id);
-        let target_page = pointer.page_index();
-        let target_offset = pointer.page_offset();
+        let (target_page, target_offset) = pointer.page_position();
         self.pages[target_page].set(target_offset, cell);
         self.allocated_cells += 1;
 
@@ -208,8 +207,7 @@ impl RawHeap {
             return None;
         }
 
-        let target_page = pointer.page_index();
-        let target_offset = pointer.page_offset();
+        let (target_page, target_offset) = pointer.page_position();
         let page = self.pages.get(target_page)?;
 
         page.get(target_offset)
@@ -223,8 +221,7 @@ impl RawHeap {
             return None;
         }
 
-        let target_page = pointer.page_index();
-        let target_offset = pointer.page_offset();
+        let (target_page, target_offset) = pointer.page_position();
         let page = self.pages.get_mut(target_page)?;
 
         page.get_mut(target_offset)
@@ -238,8 +235,7 @@ impl RawHeap {
             return false;
         }
 
-        let target_page = pointer.page_index();
-        let target_offset = pointer.page_offset();
+        let (target_page, target_offset) = pointer.page_position();
         let Some(_) = self.pages[target_page].take(target_offset) else {
             return false;
         };

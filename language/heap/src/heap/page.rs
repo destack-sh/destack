@@ -134,7 +134,7 @@ impl<T: Clone + Default> PageReference<T> {
     }
 
     /// Capture one immutable page image and share it with future forks.
-    pub(super) fn snapshot(&mut self) -> Arc<PageImage<T>> {
+    pub(super) fn freeze(&mut self) -> Arc<PageImage<T>> {
         // freeze one owned page into a shared page image
         if matches!(self, Self::Page(_)) {
             let replacement = match self {
@@ -226,7 +226,7 @@ impl<T: Clone + Default> PageReference<T> {
     /// Mark one slot offset.
     #[inline]
     pub(super) fn mark(&mut self, offset: usize) {
-        let page = self.page_mark_mut();
+        let page = self.page_mut();
         page.mark(offset);
     }
 
@@ -259,11 +259,6 @@ impl<T: Clone + Default> PageReference<T> {
             Self::Page(page) => unsafe { page.get_unchecked(offset) },
             Self::Image(image) => unsafe { image.get_unchecked(offset) },
         }
-    }
-
-    // materialize one live page when mark state is needed
-    fn page_mark_mut(&mut self) -> &mut Page<T> {
-        self.page_mut()
     }
 }
 

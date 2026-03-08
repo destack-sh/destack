@@ -78,7 +78,7 @@ impl ManagedHeap {
         let pages = self
             .pages
             .iter_mut()
-            .map(PageReference::snapshot)
+            .map(PageReference::freeze)
             .collect::<Vec<_>>()
             .into();
 
@@ -207,8 +207,7 @@ impl ManagedHeap {
         };
 
         let handle = ManagedPointer::new(slot_id);
-        let target_page = handle.page_index();
-        let target_offset = handle.page_offset();
+        let (target_page, target_offset) = handle.page_position();
         self.pages[target_page].set(target_offset, cell);
 
         self.allocated_cells += 1;
@@ -230,8 +229,7 @@ impl ManagedHeap {
             return None;
         }
 
-        let target_page = handle.page_index();
-        let target_offset = handle.page_offset();
+        let (target_page, target_offset) = handle.page_position();
         let page = self.pages.get(target_page)?;
 
         page.get(target_offset)
@@ -245,8 +243,7 @@ impl ManagedHeap {
             return None;
         }
 
-        let target_page = handle.page_index();
-        let target_offset = handle.page_offset();
+        let (target_page, target_offset) = handle.page_position();
         let page = self.pages.get_mut(target_page)?;
 
         page.get_mut(target_offset)
@@ -259,8 +256,7 @@ impl ManagedHeap {
     #[inline(always)]
     pub unsafe fn get_unchecked(&self, handle: ManagedPointer) -> &HeapCell {
         let slot_id = handle.id();
-        let target_page = handle.page_index();
-        let target_offset = handle.page_offset();
+        let (target_page, target_offset) = handle.page_position();
 
         debug_assert!(slot_id != 0, "managed pointer is null");
         debug_assert!(
@@ -287,8 +283,7 @@ impl ManagedHeap {
     #[inline(always)]
     pub unsafe fn get_unchecked_mut(&mut self, handle: ManagedPointer) -> &mut HeapCell {
         let slot_id = handle.id();
-        let target_page = handle.page_index();
-        let target_offset = handle.page_offset();
+        let (target_page, target_offset) = handle.page_position();
 
         debug_assert!(slot_id != 0, "managed pointer is null");
         debug_assert!(
@@ -366,8 +361,7 @@ impl ManagedHeap {
             return false;
         }
 
-        let target_page = handle.page_index();
-        let target_offset = handle.page_offset();
+        let (target_page, target_offset) = handle.page_position();
 
         let Some(cell) = self.pages[target_page].take(target_offset) else {
             return false;
@@ -513,8 +507,7 @@ impl ManagedHeap {
             return;
         }
 
-        let target_page = pointer.page_index();
-        let target_offset = pointer.page_offset();
+        let (target_page, target_offset) = pointer.page_position();
         let page = &mut self.pages[target_page];
         if !page.is_occupied(target_offset) || page.is_marked(target_offset) {
             return;
@@ -538,8 +531,7 @@ impl ManagedHeap {
             return false;
         }
 
-        let target_page = pointer.page_index();
-        let target_offset = pointer.page_offset();
+        let (target_page, target_offset) = pointer.page_position();
         self.pages[target_page].is_marked(target_offset)
     }
 
