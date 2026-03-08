@@ -2560,15 +2560,15 @@ fn query_device_metadata(path: &str, fallback_name: &str) -> InputDeviceMetadata
         }
     }
 
-    if let Some(instance_id) = query_device_string(descriptor, eviocguniq_request(256)) {
-        if !instance_id.is_empty() {
-            metadata.instance_id = instance_id;
-        }
+    if let Some(instance_id) = query_device_string(descriptor, eviocguniq_request(256))
+        && !instance_id.is_empty()
+    {
+        metadata.instance_id = instance_id;
     }
-    if let Some(hardware_id) = query_device_string(descriptor, eviocgphys_request(256)) {
-        if !hardware_id.is_empty() {
-            metadata.hardware_id = hardware_id;
-        }
+    if let Some(hardware_id) = query_device_string(descriptor, eviocgphys_request(256))
+        && !hardware_id.is_empty()
+    {
+        metadata.hardware_id = hardware_id;
     }
 
     let mut input_id = MaybeUninit::<LinuxInputId>::uninit();

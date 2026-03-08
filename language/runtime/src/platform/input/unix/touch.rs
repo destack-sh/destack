@@ -86,7 +86,7 @@ pub(crate) unsafe fn destack_input_touch_state(
             *out = snapshot;
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]

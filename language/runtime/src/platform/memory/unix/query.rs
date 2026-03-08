@@ -47,7 +47,7 @@ pub(crate) unsafe fn destack_memory_huge_page_size(
             out.write(huge_page_size);
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]

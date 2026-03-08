@@ -1,9 +1,8 @@
-use std::ffi::{c_char, c_int, c_uint, c_void};
 use std::sync::Arc;
 
 use crate::platform::core as core_platform;
 
-use super::abi::{AlsaApi, AlsaHardwareParams, AlsaPcm, AlsaSignedFrames, AlsaUnsignedFrames};
+use super::abi::AlsaApi;
 use super::core::AlsaLibrary;
 
 /// Return one loaded ALSA dynamic-library handle when available.

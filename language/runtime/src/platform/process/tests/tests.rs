@@ -279,7 +279,7 @@ fn vm_path_from_utf8(
         let utf16_values = value.encode_utf16().collect::<Vec<_>>();
         let utf16 = fs::PathUtf16Abi::<VmAbi>(VmArray::from_values(context, &utf16_values)?);
         let kind = vm::StringHandle::new(context.intern_string("utf16"));
-        return Ok(fs::OsPathVm::OsPathUtf16(fs::OsPathUtf16Vm { kind, utf16 }));
+        Ok(fs::OsPathVm::OsPathUtf16(fs::OsPathUtf16Vm { kind, utf16 }))
     }
 
     #[cfg(not(any(unix, windows)))]
@@ -578,8 +578,8 @@ pub(crate) fn syscall_get_limit(resource: ProcessLimitResource) -> RuntimeResult
     }
 
     Ok(ProcessLimit {
-        soft: raw_limit.rlim_cur as u64,
-        hard: raw_limit.rlim_max as u64,
+        soft: raw_limit.rlim_cur,
+        hard: raw_limit.rlim_max,
     })
 }
 

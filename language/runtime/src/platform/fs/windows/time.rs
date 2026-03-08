@@ -27,7 +27,7 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimes_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathBytes,
     atime_ns: u64,
     mtime_ns: u64,
@@ -63,7 +63,7 @@ pub(crate) unsafe fn destack_fs_utimes_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimes_utf16(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathUtf16,
     atime_ns: u64,
     mtime_ns: u64,
@@ -99,7 +99,7 @@ pub(crate) unsafe fn destack_fs_utimes_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lutimes_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathBytes,
     atime_ns: u64,
     mtime_ns: u64,
@@ -135,7 +135,7 @@ pub(crate) unsafe fn destack_fs_lutimes_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lutimes_utf16(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathUtf16,
     atime_ns: u64,
     mtime_ns: u64,

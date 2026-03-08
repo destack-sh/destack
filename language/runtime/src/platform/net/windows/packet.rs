@@ -180,7 +180,7 @@ static PACKET_SOCKET_STATES: LazyLock<Mutex<HashMap<ResourceId, WindowsPacketSta
 
 /// Return configured packet backend mode for Windows packet lanes.
 fn windows_packet_backend_mode(binding: &BindingCallContext) -> PlatformWindowsPacketBackend {
-    binding.agent().options.windows.net_packet_backend
+    binding.agent().options.platform.windows.net_packet_backend
 }
 
 /// Return one `notSupported` error for unsupported Windows packet lanes.
@@ -1361,6 +1361,12 @@ pub(crate) unsafe fn destack_net_packet_stats(
 
 #[cfg(test)]
 mod tests {
+    use crate::platform::PlatformErrorCode;
+    use crate::platform::net::host::windows::packet::{
+        BPF_CLASS_JMP, BPF_CLASS_LD, BPF_CLASS_RET, BPF_MODE_ABSOLUTE, BPF_OPERATION_JA,
+        BPF_OPERATION_JEQ, BPF_RETURN_K, BPF_SIZE_HALF, ClassicBpfInstruction,
+        decode_filter_program, evaluate_filter_program, validate_filter_program,
+    };
 
     /// Return one encoded classic-BPF byte payload.
     fn encode_program(instructions: &[ClassicBpfInstruction]) -> Vec<u8> {

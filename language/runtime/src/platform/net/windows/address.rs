@@ -161,7 +161,7 @@ fn string_from_wide_pointer(pointer: *const u16, label: &str) -> RuntimeResult<S
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_interface_index(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u32,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {

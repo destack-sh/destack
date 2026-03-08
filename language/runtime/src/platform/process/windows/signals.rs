@@ -36,7 +36,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_kill(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     pid: ProcessId,
     signal: Signal,
 ) -> RuntimeResult<()> {
@@ -240,7 +240,7 @@ pub(crate) unsafe fn destack_process_signal_try_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_try_wait(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut SignalEvent,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
@@ -313,7 +313,7 @@ pub(crate) unsafe fn destack_process_signal_unsubscribe(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_wait(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut SignalEvent,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {

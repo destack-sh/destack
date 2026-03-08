@@ -205,7 +205,7 @@ fn list_monitor_devices(binding: &BindingCallContext) -> RuntimeResult<Vec<Monit
         }
         devices.sort_unstable_by(|left, right| left.device_id.cmp(&right.device_id));
         devices.dedup_by(|left, right| left.device_id == right.device_id);
-        return Ok(devices);
+        Ok(devices)
     }
 
     #[cfg(not(target_os = "linux"))]

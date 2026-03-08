@@ -456,7 +456,7 @@ fn route_row_from_entry(route: RouteEntry) -> RuntimeResult<MIB_IPFORWARD_ROW2> 
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_add(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     route: RouteEntry,
 ) -> RuntimeResult<()> {
     // convert one runtime route into host route row fields
@@ -494,7 +494,7 @@ pub(crate) unsafe fn destack_net_route_add(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_delete(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     route: RouteEntry,
 ) -> RuntimeResult<()> {
     // convert one runtime route into host route row fields

@@ -1,5 +1,7 @@
 use std::path::Path;
 
+#[cfg(windows)]
+use super::assert_platform_error_codes_with_privileged_policy;
 use super::{temp_dir, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(unix)]

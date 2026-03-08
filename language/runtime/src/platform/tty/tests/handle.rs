@@ -2,9 +2,11 @@
 use super::close_tty_worker_resource;
 #[cfg(unix)]
 use super::decode_harness_value;
+#[cfg(unix)]
+use super::tty_descriptor;
 use super::{
     assert_ok_or_expected_error, assert_platform_error_codes, open_pty_or_skip_not_supported,
-    tty_descriptor, with_harness_context,
+    with_harness_context,
 };
 #[cfg(unix)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};

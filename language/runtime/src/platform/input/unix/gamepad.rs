@@ -49,7 +49,7 @@ fn gamepad_state(
     // route by host support
     #[cfg(target_os = "linux")]
     {
-        return input_linux::gamepad_state_snapshot(binding, descriptor, player_index, operation);
+        input_linux::gamepad_state_snapshot(binding, descriptor, player_index, operation)
     }
 
     #[cfg(not(target_os = "linux"))]

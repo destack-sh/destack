@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::ffi::c_void;
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use super::{core as input_core, raw as raw_input, xinput as xinput_input};
@@ -93,8 +92,7 @@ pub(super) fn open_device(
     match spec {
         input_core::WindowsInputOpenSpec::Console => {
             // reserve the singleton console stream lane before opening
-            let runtime_state =
-                input_core::acquire_console_stream(binding, "destack.input.device.open")?;
+            input_core::acquire_console_stream("destack.input.device.open")?;
 
             // ensure any open failure releases the reserved stream lane
             let open_result = (|| {
@@ -150,7 +148,6 @@ pub(super) fn open_device(
                         handle: duplicated,
                         restore_mode: Some(mode),
                         release_console_lane: true,
-                        runtime_state: Some(Arc::clone(&runtime_state)),
                     });
                 let resource_id = binding.agent().resources.insert(
                     binding.world(),
@@ -161,7 +158,7 @@ pub(super) fn open_device(
             })();
 
             if open_result.is_err() {
-                runtime_state.console_streams.fetch_sub(1, Ordering::AcqRel);
+                input_core::WINDOWS_CONSOLE_STREAMS.fetch_sub(1, Ordering::AcqRel);
             }
 
             open_result

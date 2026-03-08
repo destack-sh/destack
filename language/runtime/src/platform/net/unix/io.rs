@@ -510,7 +510,9 @@ pub(crate) unsafe fn destack_net_recv_msg(
     };
 
     // decode raw control payload bytes
-    let control_len = (message.msg_controllen as usize).min(control.len());
+    let control_len =
+        core_platform::u64_to_usize(message.msg_controllen as u64, "message.msg_controllen")?;
+    let control_len = control_len.min(control.len());
     let control_bytes = if control_len == 0 {
         Vec::new()
     } else {

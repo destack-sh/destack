@@ -111,7 +111,7 @@ pub(crate) fn host_store_lane_is_available(
 
 /// Open one host store lane and return certificate snapshots.
 pub(crate) fn open_host_store_certificates(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> RuntimeResult<Vec<X509>> {
     // merge certificates from all store collections in this lane

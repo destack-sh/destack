@@ -494,12 +494,12 @@ pub(crate) fn descriptor_from_info(
 
 /// Return one descriptor snapshot for one open device handle.
 pub(crate) fn descriptor_from_binding(
-    binding_2: &BindingCallContext,
+    ctx: &BindingCallContext,
     binding: &AudioDeviceBinding,
 ) -> AudioDeviceDescriptor {
     let mut info = binding.info.clone();
     info.direction = binding.opened_direction;
-    descriptor_from_info(binding_2, &info)
+    descriptor_from_info(ctx, &info)
 }
 
 /// Build one stream-device descriptor using the handle open direction.

@@ -213,7 +213,7 @@ pub(crate) unsafe fn destack_fs_sync_file_range(
         if rc != 0 {
             return Err(core_platform::io_error("sync_file_range", None));
         }
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(all(target_os = "android", target_arch = "arm"))]

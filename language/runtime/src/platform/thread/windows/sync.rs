@@ -56,7 +56,7 @@ fn timeout_to_wait_milliseconds(timeout: Option<Duration>) -> RuntimeResult<u32>
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_address_wait(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     address: u64,
     expected: u32,
     timeoutns: u64,
@@ -114,7 +114,7 @@ pub(crate) unsafe fn destack_thread_address_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_address_wake_all(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     address: u64,
 ) -> RuntimeResult<()> {
     // wake all blocked waiters
@@ -144,7 +144,7 @@ pub(crate) unsafe fn destack_thread_address_wake_all(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_address_wake_one(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     address: u64,
 ) -> RuntimeResult<()> {
     // wake one blocked waiter

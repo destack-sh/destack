@@ -1,4 +1,4 @@
-use super::core as input_core;
+use super::{core as input_core, xinput as xinput_input};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{InputDeviceKind, InputKeyboardState};
@@ -40,7 +40,7 @@ fn resolved_device_id(
     let Some(user_index) = resolved.xinput_user_index else {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     };
-    Ok(xinput_device_id(user_index))
+    Ok(xinput_input::xinput_device_id(user_index))
 }
 
 /// Read one keyboard state snapshot for one opened Windows input handle.

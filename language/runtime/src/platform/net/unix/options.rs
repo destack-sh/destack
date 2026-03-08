@@ -1612,12 +1612,12 @@ pub(crate) unsafe fn destack_net_set_timestamping(
         let flags = match mode {
             SocketTimestampingMode::Off => 0u32,
             SocketTimestampingMode::Software => {
-                (libc::SOF_TIMESTAMPING_SOFTWARE | libc::SOF_TIMESTAMPING_RX_SOFTWARE) as u32
+                libc::SOF_TIMESTAMPING_SOFTWARE | libc::SOF_TIMESTAMPING_RX_SOFTWARE
             }
             SocketTimestampingMode::Hardware => {
-                (libc::SOF_TIMESTAMPING_RX_HARDWARE
+                libc::SOF_TIMESTAMPING_RX_HARDWARE
                     | libc::SOF_TIMESTAMPING_SYS_HARDWARE
-                    | libc::SOF_TIMESTAMPING_RAW_HARDWARE) as u32
+                    | libc::SOF_TIMESTAMPING_RAW_HARDWARE
             }
         };
 
@@ -1679,13 +1679,12 @@ pub(crate) unsafe fn destack_net_get_timestamping(
         let fd = socket_descriptor(binding, handle)?;
         let flags = get_socket_u32(fd, libc::SOL_SOCKET, libc::SO_TIMESTAMPING, "getsockopt")?;
         let has_hardware_flags = (flags
-            & ((libc::SOF_TIMESTAMPING_RX_HARDWARE
+            & (libc::SOF_TIMESTAMPING_RX_HARDWARE
                 | libc::SOF_TIMESTAMPING_SYS_HARDWARE
-                | libc::SOF_TIMESTAMPING_RAW_HARDWARE) as u32))
+                | libc::SOF_TIMESTAMPING_RAW_HARDWARE))
             != 0;
-        let has_software_flags = (flags
-            & ((libc::SOF_TIMESTAMPING_SOFTWARE | libc::SOF_TIMESTAMPING_RX_SOFTWARE) as u32))
-            != 0;
+        let has_software_flags =
+            (flags & (libc::SOF_TIMESTAMPING_SOFTWARE | libc::SOF_TIMESTAMPING_RX_SOFTWARE)) != 0;
 
         // map host flags into one runtime mode
         let mode = if has_hardware_flags {

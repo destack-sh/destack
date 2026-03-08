@@ -18,10 +18,11 @@ use windows_sys::Win32::System::Console::{
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputCompositionEvent, InputDeviceEventPayload, InputEvent, InputEventAction, InputEventKind,
-    InputGamepadEventPayload, InputKeyEventPayload, InputMonitorEvent,
-    InputPointerButtonEventPayload, InputPointerMotionEventPayload, InputReadMode,
-    InputScrollEventPayload, InputTextEventPayload, validation as input_validation,
+    InputCompositionEvent, InputCompositionEventPayload, InputDeviceEventPayload, InputEvent,
+    InputEventAction, InputEventKind, InputEventMetadata, InputGamepadEventPayload,
+    InputKeyEventPayload, InputMonitorEvent, InputPointerButtonEventPayload,
+    InputPointerMotionEventPayload, InputReadMode, InputScrollEventPayload, InputTextEventPayload,
+    validation as input_validation,
 };
 use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::{NativeArray, PlatformError, core as core_platform, resource};
@@ -515,6 +516,17 @@ fn map_console_record(
     }
 }
 
+/// Set one sequence number on one monitor event.
+fn set_monitor_event_sequence(event: &mut InputMonitorEvent, sequence: u64) {
+    match event {
+        InputMonitorEvent::InputMonitorChangeEvent(value) => value.metadata.sequence = sequence,
+        InputMonitorEvent::InputMonitorConnectEvent(value) => value.metadata.sequence = sequence,
+        InputMonitorEvent::InputMonitorDisconnectEvent(value) => {
+            value.metadata.sequence = sequence;
+        }
+    }
+}
+
 /// Pop one deferred console pointer-button transition for this handle.
 fn pop_pending_console_button_transition(
     binding: &BindingCallContext,
@@ -881,14 +893,20 @@ pub(super) fn build_composition_event_from_pending(
 ) -> InputCompositionEvent {
     let text = String::from_utf16_lossy(&[pending.code_unit]);
     let selection_end = text.chars().count() as i32;
+
     InputCompositionEvent {
-        timestamp_ns: pending.timestamp_ns,
-        sequence: 0,
-        device_id: binding.store_string(input_core::WINDOWS_INPUT_DEVICE_ID),
-        action: InputEventAction::Commit,
-        text: binding.store_string(&text),
-        selection_start: 0,
-        selection_end,
+        kind: binding.store_string("composition"),
+        metadata: InputEventMetadata {
+            timestamp_ns: pending.timestamp_ns,
+            sequence: 0,
+            device_id: binding.store_string(input_core::WINDOWS_INPUT_DEVICE_ID),
+        },
+        payload: InputCompositionEventPayload {
+            action: InputEventAction::Commit,
+            text: binding.store_string(&text),
+            selection_start: 0,
+            selection_end,
+        },
     }
 }
 
@@ -923,7 +941,8 @@ pub(super) fn read_event(
             input_core::WINDOWS_INPUT_DEVICE_ID,
             payload,
         );
-        event.sequence = input_core::next_sequence(binding, handle, operation)?;
+        let sequence = input_core::next_sequence(binding, handle, operation)?;
+        input_core::set_input_event_sequence(&mut event, sequence);
         return Ok(event);
     }
 
@@ -1043,7 +1062,8 @@ pub(super) fn read_event(
     }
 
     // stamp one per-handle sequence number
-    event.sequence = input_core::next_sequence(binding, handle, operation)?;
+    let sequence = input_core::next_sequence(binding, handle, operation)?;
+    input_core::set_input_event_sequence(&mut event, sequence);
 
     Ok(event)
 }
@@ -1342,7 +1362,7 @@ pub(crate) unsafe fn destack_input_monitor_open(
     }
 
     // ensure raw monitor backend is active
-    raw_input::ensure_service("destack.input.event.monitorOpen")?;
+    raw_input::ensure_service(binding, "destack.input.event.monitorOpen")?;
     acquire_monitor_stream("destack.input.event.monitorOpen")?;
 
     // allocate monitor handle in the resource table
@@ -1398,7 +1418,8 @@ pub(crate) unsafe fn destack_input_monitor_read(
     // read one monitor event from the raw-input service
     let mut event =
         raw_input::read_monitor_event(binding, false, "destack.input.event.monitorRead")?;
-    event.sequence = next_monitor_sequence(binding, handle, "destack.input.event.monitorRead")?;
+    let sequence = next_monitor_sequence(binding, handle, "destack.input.event.monitorRead")?;
+    set_monitor_event_sequence(&mut event, sequence);
 
     // write event to output
     unsafe {
@@ -1442,7 +1463,8 @@ pub(crate) unsafe fn destack_input_monitor_try_read(
     // poll one monitor event from the raw-input service
     let mut event =
         raw_input::read_monitor_event(binding, true, "destack.input.event.monitorTryRead")?;
-    event.sequence = next_monitor_sequence(binding, handle, "destack.input.event.monitorTryRead")?;
+    let sequence = next_monitor_sequence(binding, handle, "destack.input.event.monitorTryRead")?;
+    set_monitor_event_sequence(&mut event, sequence);
 
     // write event to output
     unsafe {
@@ -1619,6 +1641,17 @@ pub(crate) unsafe fn destack_input_try_read(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::VecDeque;
+
+    use crate::platform::input::InputEventAction;
+    use crate::platform::input::host::windows::event::{
+        FROM_LEFT_1ST_BUTTON_PRESSED, FROM_LEFT_2ND_BUTTON_PRESSED, FROM_LEFT_3RD_BUTTON_PRESSED,
+        FROM_LEFT_4TH_BUTTON_PRESSED, INPUT_RECORD, KEY_EVENT, RIGHTMOST_BUTTON_PRESSED,
+        WINDOWS_PENDING_CONSOLE_COMPOSITION_EVENT_LIMIT, WINDOWS_PENDING_CONSOLE_RECORD_LIMIT,
+        composition_code_unit_from_console_record, decode_console_button_transition, input_core,
+        pack_console_buffer_size, push_bounded_console_composition_event,
+        push_bounded_console_record, stable_pointer_buttons_from_console_state,
+    };
 
     /// Decode release transitions even when another button remains pressed.
     #[test]

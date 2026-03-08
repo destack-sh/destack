@@ -274,7 +274,7 @@ fn exec_replace_with_path(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_exec(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     command: fs::OsPath,
     arguments: NativeStringSlice,
     environment: NativeStringSlice,

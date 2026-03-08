@@ -15,11 +15,11 @@ use super::{signals, wait};
 use bindings::*;
 
 use crate::platform::process::{
-    ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdActionKind, ProcessFdFlags,
-    ProcessFdSignalFlags, ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource,
-    ProcessNamespaceKind, ProcessSchedulerConfig, ProcessSchedulerPolicy, ProcessSpawnOptions,
-    ProcessStdio, ProcessStdioKind, ProcessUnshareFlags, ProcessUserIds, ProcessWaitFlags,
-    ProcessWaitKind, ProcessWaitStatus, Signal, SignalEvent, SignalFdFlags, SignalMaskHow,
+    ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdFlags, ProcessFdSignalFlags,
+    ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource, ProcessNamespaceKind,
+    ProcessSchedulerConfig, ProcessSchedulerPolicy, ProcessSpawnOptions, ProcessStdio,
+    ProcessUnshareFlags, ProcessUserIds, ProcessWaitExitedStatus, ProcessWaitFlags,
+    ProcessWaitRunningStatus, ProcessWaitStatus, Signal, SignalEvent, SignalFdFlags, SignalMaskHow,
     SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
@@ -349,6 +349,7 @@ fn resolve_process_fd(
 
 /// Wait one process handle with an explicit timeout in milliseconds.
 fn wait_process_handle_with_timeout(
+    binding: &BindingCallContext,
     pid: ProcessId,
     process_handle: windows_sys::Win32::Foundation::HANDLE,
     timeout_ms: u32,
@@ -379,22 +380,21 @@ fn wait_process_handle_with_timeout(
             }
 
             if exit_code == STILL_ACTIVE as u32 {
-                return Ok(ProcessWaitStatus {
-                    pid,
-                    kind: ProcessWaitKind::Running,
-                    exit_code: 0,
-                    signal: Signal(0),
-                    core_dumped: false,
-                });
+                return Ok(ProcessWaitStatus::ProcessWaitRunningStatus(
+                    ProcessWaitRunningStatus {
+                        kind: binding.store_string("running"),
+                        pid,
+                    },
+                ));
             }
 
-            Ok(ProcessWaitStatus {
-                pid,
-                kind: ProcessWaitKind::Exited,
-                exit_code: exit_code as i32,
-                signal: Signal(0),
-                core_dumped: false,
-            })
+            Ok(ProcessWaitStatus::ProcessWaitExitedStatus(
+                ProcessWaitExitedStatus {
+                    kind: binding.store_string("exited"),
+                    pid,
+                    exit_code: exit_code as i32,
+                },
+            ))
         }
         WAIT_FAILED => {
             let error = core_platform::last_error_code();
@@ -410,6 +410,7 @@ fn wait_process_handle_with_timeout(
 
 /// Wait one process handle using process wait flags.
 fn wait_process_handle_with_flags(
+    binding: &BindingCallContext,
     pid: ProcessId,
     process_handle: windows_sys::Win32::Foundation::HANDLE,
     flags: ProcessWaitFlags,
@@ -429,17 +430,19 @@ fn wait_process_handle_with_flags(
     } else {
         INFINITE
     };
-    wait_process_handle_with_timeout(pid, process_handle, timeout_ms)
+    wait_process_handle_with_timeout(binding, pid, process_handle, timeout_ms)
 }
 
 /// Wait one process handle with a nanosecond timeout.
 fn wait_process_handle_with_timeout_ns(
+    binding: &BindingCallContext,
     pid: ProcessId,
     process_handle: windows_sys::Win32::Foundation::HANDLE,
     timeout_ns: u64,
 ) -> RuntimeResult<ProcessWaitStatus> {
     if timeout_ns == 0 {
         return wait_process_handle_with_flags(
+            binding,
             pid,
             process_handle,
             ProcessWaitFlags(wait::PROCESS_WAIT_FLAG_NOHANG),
@@ -448,7 +451,7 @@ fn wait_process_handle_with_timeout_ns(
 
     let timeout_ms = (timeout_ns / 1_000_000).max(1);
     let timeout_ms = timeout_ms.min(u32::MAX as u64) as u32;
-    wait_process_handle_with_timeout(pid, process_handle, timeout_ms)
+    wait_process_handle_with_timeout(binding, pid, process_handle, timeout_ms)
 }
 
 /// Send one signal through one process handle.
@@ -765,6 +768,7 @@ pub(crate) unsafe fn destack_process_process_fd_try_wait(
     }
     let (process_id, process_handle) = resolve_process_fd(binding, handle)?;
     let status = wait_process_handle_with_flags(
+        binding,
         process_id,
         process_handle,
         ProcessWaitFlags(wait::PROCESS_WAIT_FLAG_NOHANG),
@@ -803,7 +807,8 @@ pub(crate) unsafe fn destack_process_process_fd_wait(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let (process_id, process_handle) = resolve_process_fd(binding, handle)?;
-    let status = wait_process_handle_with_timeout_ns(process_id, process_handle, timeoutns)?;
+    let status =
+        wait_process_handle_with_timeout_ns(binding, process_id, process_handle, timeoutns)?;
     unsafe {
         *out = status;
     }

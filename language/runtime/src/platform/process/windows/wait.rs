@@ -12,11 +12,11 @@ use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::process::{
-    ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdActionKind, ProcessFdFlags,
-    ProcessFdSignalFlags, ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource,
-    ProcessNamespaceKind, ProcessSchedulerConfig, ProcessSchedulerPolicy, ProcessSpawnOptions,
-    ProcessStdio, ProcessStdioKind, ProcessUnshareFlags, ProcessUserIds, ProcessWaitFlags,
-    ProcessWaitKind, ProcessWaitStatus, Signal, SignalEvent, SignalFdFlags, SignalMaskHow,
+    ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdFlags, ProcessFdSignalFlags,
+    ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource, ProcessNamespaceKind,
+    ProcessSchedulerConfig, ProcessSchedulerPolicy, ProcessSpawnOptions, ProcessStdio,
+    ProcessUnshareFlags, ProcessUserIds, ProcessWaitExitedStatus, ProcessWaitFlags,
+    ProcessWaitRunningStatus, ProcessWaitStatus, Signal, SignalEvent, SignalFdFlags, SignalMaskHow,
     SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
@@ -45,11 +45,12 @@ fn resolve_spawned_process_handle(
 
 /// Return true when a wait status is terminal for a spawned process.
 fn is_terminal_wait_status(status: &ProcessWaitStatus) -> bool {
-    status.kind == ProcessWaitKind::Exited || status.kind == ProcessWaitKind::Signaled
+    matches!(status, ProcessWaitStatus::ProcessWaitExitedStatus(_))
 }
 
 /// Wait one process handle with an explicit timeout in milliseconds.
 fn wait_process_handle_with_timeout(
+    binding: &BindingCallContext,
     pid: ProcessId,
     process_handle: windows_sys::Win32::Foundation::HANDLE,
     timeout_ms: u32,
@@ -80,22 +81,21 @@ fn wait_process_handle_with_timeout(
             }
 
             if exit_code == STILL_ACTIVE as u32 {
-                return Ok(ProcessWaitStatus {
-                    pid,
-                    kind: ProcessWaitKind::Running,
-                    exit_code: 0,
-                    signal: Signal(0),
-                    core_dumped: false,
-                });
+                return Ok(ProcessWaitStatus::ProcessWaitRunningStatus(
+                    ProcessWaitRunningStatus {
+                        kind: binding.store_string("running"),
+                        pid,
+                    },
+                ));
             }
 
-            Ok(ProcessWaitStatus {
-                pid,
-                kind: ProcessWaitKind::Exited,
-                exit_code: exit_code as i32,
-                signal: Signal(0),
-                core_dumped: false,
-            })
+            Ok(ProcessWaitStatus::ProcessWaitExitedStatus(
+                ProcessWaitExitedStatus {
+                    kind: binding.store_string("exited"),
+                    pid,
+                    exit_code: exit_code as i32,
+                },
+            ))
         }
         WAIT_FAILED => {
             let error = core_platform::last_error_code();
@@ -111,6 +111,7 @@ fn wait_process_handle_with_timeout(
 
 /// Wait one process handle using process wait flags.
 fn wait_process_handle_with_flags(
+    binding: &BindingCallContext,
     pid: ProcessId,
     process_handle: windows_sys::Win32::Foundation::HANDLE,
     flags: ProcessWaitFlags,
@@ -130,7 +131,7 @@ fn wait_process_handle_with_flags(
     } else {
         INFINITE
     };
-    wait_process_handle_with_timeout(pid, process_handle, timeout_ms)
+    wait_process_handle_with_timeout(binding, pid, process_handle, timeout_ms)
 }
 
 /// Wait for a process identifier.
@@ -159,7 +160,7 @@ pub(crate) unsafe fn destack_process_wait_pid(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = process_wait_pid(pid.0, flags.0)?;
+    let value = process_wait_pid(binding, pid.0, flags.0)?;
     unsafe {
         *out = value;
     }
@@ -195,11 +196,12 @@ pub(crate) unsafe fn destack_process_try_wait(
     let (process_id, process_handle) = resolve_spawned_process_handle(binding, handle)?;
     let status = match process_handle {
         Some(process_handle) => wait_process_handle_with_flags(
+            binding,
             process_id,
             process_handle,
             ProcessWaitFlags(PROCESS_WAIT_FLAG_NOHANG),
         )?,
-        None => process_wait_pid(process_id.0, PROCESS_WAIT_FLAG_NOHANG)?,
+        None => process_wait_pid(binding, process_id.0, PROCESS_WAIT_FLAG_NOHANG)?,
     };
 
     if is_terminal_wait_status(&status) {
@@ -245,8 +247,10 @@ pub(crate) unsafe fn destack_process_wait(
     }
     let (process_id, process_handle) = resolve_spawned_process_handle(binding, handle)?;
     let status = match process_handle {
-        Some(process_handle) => wait_process_handle_with_flags(process_id, process_handle, flags)?,
-        None => process_wait_pid(process_id.0, flags.0)?,
+        Some(process_handle) => {
+            wait_process_handle_with_flags(binding, process_id, process_handle, flags)?
+        }
+        None => process_wait_pid(binding, process_id.0, flags.0)?,
     };
 
     if is_terminal_wait_status(&status) {
@@ -268,7 +272,11 @@ pub(crate) unsafe fn destack_process_wait(
 pub(crate) const PROCESS_WAIT_FLAG_NOHANG: u32 = 0x0000_0001;
 
 /// Wait for one process state transition.
-fn process_wait_pid(pid: u32, flags: u32) -> RuntimeResult<ProcessWaitStatus> {
+fn process_wait_pid(
+    binding: &BindingCallContext,
+    pid: u32,
+    flags: u32,
+) -> RuntimeResult<ProcessWaitStatus> {
     use windows_sys::Win32::Foundation::{
         CloseHandle, ERROR_INVALID_PARAMETER, STILL_ACTIVE, WAIT_FAILED, WAIT_OBJECT_0,
         WAIT_TIMEOUT,
@@ -339,21 +347,20 @@ fn process_wait_pid(pid: u32, flags: u32) -> RuntimeResult<ProcessWaitStatus> {
                 )))
                 .boxed())
             } else if exit_code == STILL_ACTIVE as u32 {
-                Ok(ProcessWaitStatus {
-                    pid: ProcessId(pid),
-                    kind: ProcessWaitKind::Running,
-                    exit_code: 0,
-                    signal: Signal(0),
-                    core_dumped: false,
-                })
+                Ok(ProcessWaitStatus::ProcessWaitRunningStatus(
+                    ProcessWaitRunningStatus {
+                        kind: binding.store_string("running"),
+                        pid: ProcessId(pid),
+                    },
+                ))
             } else {
-                Ok(ProcessWaitStatus {
-                    pid: ProcessId(pid),
-                    kind: ProcessWaitKind::Exited,
-                    exit_code: exit_code as i32,
-                    signal: Signal(0),
-                    core_dumped: false,
-                })
+                Ok(ProcessWaitStatus::ProcessWaitExitedStatus(
+                    ProcessWaitExitedStatus {
+                        kind: binding.store_string("exited"),
+                        pid: ProcessId(pid),
+                        exit_code: exit_code as i32,
+                    },
+                ))
             }
         }
         WAIT_FAILED => {

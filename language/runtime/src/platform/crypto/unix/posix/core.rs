@@ -36,9 +36,3 @@ pub(super) fn keystore_path(
         UNIX_MACHINE_KEYSTORE_ABSOLUTE_PATH,
     )
 }
-
-/// Return one ioInvalidData runtime error.
-pub(super) use unix_core::invalid_data;
-
-/// Return one ioPermissionDenied runtime error.
-pub(super) use unix_core::permission_denied;

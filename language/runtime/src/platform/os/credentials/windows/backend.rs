@@ -84,7 +84,7 @@ const READ_AUTHENTICATION_PROMPT_MESSAGE_PREFIX: &str = "Account";
 
 /// Read one credential record from the Windows credential manager.
 pub(crate) fn read_credentials(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     query: &CredentialQueryOwned,
 ) -> RuntimeResult<CredentialRecordOwned> {
     // enforce explicit host authentication before reading one credential payload
@@ -220,7 +220,7 @@ pub(crate) fn write_credentials(
 
 /// Delete one credential record from the Windows credential manager.
 pub(crate) fn delete_credentials(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     service: &str,
     account: &str,
     access_group: Option<&str>,
@@ -250,7 +250,7 @@ pub(crate) fn delete_credentials(
 
 /// Return whether one credential record exists in the Windows credential manager.
 pub(crate) fn contains_credentials(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     service: &str,
     account: &str,
     access_group: Option<&str>,
@@ -295,7 +295,7 @@ pub(crate) fn contains_credentials(
 
 /// Run one host authentication challenge on Windows.
 pub(crate) fn authenticate_credentials(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     options: &CredentialAuthenticationOptionsOwned,
 ) -> RuntimeResult<CredentialAuthenticationResult> {
     // route by explicit requirement policy

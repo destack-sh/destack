@@ -238,10 +238,10 @@ impl IoUringPoller {
             return;
         }
 
-        if self.submit_poll(token, fd, interests, flags).is_ok() {
-            if let Some(entry) = self.registrations.get_mut(&resource_id) {
-                entry.pending = true;
-            }
+        if self.submit_poll(token, fd, interests, flags).is_ok()
+            && let Some(entry) = self.registrations.get_mut(&resource_id)
+        {
+            entry.pending = true;
         }
     }
 }
@@ -395,10 +395,10 @@ impl HostPoller for IoUringPoller {
     }
 
     fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PollerEvent>> {
-        if let Some(timeout) = timeout_nanos {
-            if timeout > 0 {
-                self.submit_timeout(timeout)?;
-            }
+        if let Some(timeout) = timeout_nanos
+            && timeout > 0
+        {
+            self.submit_timeout(timeout)?;
         }
 
         let wait_for = if matches!(timeout_nanos, Some(0)) {

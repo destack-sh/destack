@@ -307,7 +307,7 @@ pub(crate) unsafe fn destack_fs_readdir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdir_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathBytes,
     _mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -340,7 +340,7 @@ pub(crate) unsafe fn destack_fs_mkdir_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdir_utf16(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathUtf16,
     _mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -479,7 +479,7 @@ pub(crate) unsafe fn destack_fs_mkdirat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rmdir_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathBytes,
 ) -> RuntimeResult<()> {
     // decode the path
@@ -514,7 +514,7 @@ pub(crate) unsafe fn destack_fs_rmdir_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rmdir_utf16(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
     // decode the path

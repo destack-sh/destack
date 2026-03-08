@@ -36,7 +36,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_chroot(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
     let _path = core_fs::os_path_to_utf8_string(path, "path")?;
@@ -64,7 +64,7 @@ pub(crate) unsafe fn destack_process_chroot(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_install_syscall_filter(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     program: NativeArray<u8>,
     flags: SyscallFilterFlags,
 ) -> RuntimeResult<()> {
@@ -94,7 +94,7 @@ pub(crate) unsafe fn destack_process_install_syscall_filter(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_set_host_name(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _name = unsafe { name.as_str()? };
@@ -122,7 +122,7 @@ pub(crate) unsafe fn destack_process_set_host_name(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_set_network_namespace(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
     let _path = core_fs::os_path_to_utf8_string(path, "path")?;
@@ -150,7 +150,7 @@ pub(crate) unsafe fn destack_process_set_network_namespace(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_setns(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     pid: ProcessId,
     namespace: ProcessNamespaceKind,
 ) -> RuntimeResult<()> {
@@ -179,7 +179,7 @@ pub(crate) unsafe fn destack_process_setns(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_unshare(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     _flags: ProcessUnshareFlags,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(

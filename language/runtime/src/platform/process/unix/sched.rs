@@ -62,7 +62,7 @@ pub(crate) unsafe fn destack_process_get_affinity(
             ));
         }
 
-        let cpu_set_size = libc::CPU_SETSIZE;
+        let cpu_set_size = std::mem::size_of::<libc::cpu_set_t>() * 8;
         let mut cpus = Vec::new();
         for cpu in 0..cpu_set_size {
             let is_member = unsafe { libc::CPU_ISSET(cpu, &cpu_set) };
@@ -241,7 +241,7 @@ pub(crate) unsafe fn destack_process_set_affinity(
             libc::CPU_ZERO(&mut cpu_set);
         }
 
-        let cpu_set_size = libc::CPU_SETSIZE;
+        let cpu_set_size = std::mem::size_of::<libc::cpu_set_t>() * 8;
         for cpu in cpus {
             let index = *cpu as usize;
             if index >= cpu_set_size {

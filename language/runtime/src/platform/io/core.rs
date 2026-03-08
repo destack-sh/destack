@@ -1467,7 +1467,7 @@ pub(super) fn uring_open(
                 .resources
                 .insert(binding.world(), entry, Some(binding.engine()));
 
-        return Ok(resource::UringHandle(handle));
+        Ok(resource::UringHandle(handle))
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -1497,7 +1497,7 @@ pub(super) fn uring_close(
             return Err(uring_not_found("destack.io.uring.close", handle));
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -1519,13 +1519,13 @@ pub(super) fn uring_features(
         let state = resource.state.lock();
         let parameters = state.ring.params();
 
-        return Ok(UringFeatures {
+        Ok(UringFeatures {
             has_submission_polling: parameters.is_setup_sqpoll(),
             has_kernel_polling: parameters.is_setup_iopoll(),
             has_fixed_files: true,
             has_fixed_buffers: true,
             max_entries: parameters.sq_entries(),
-        });
+        })
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -1566,7 +1566,7 @@ pub(super) fn uring_register_files(
             .map_err(|error| io_error_from_std("io_uring_register_files", error))?;
         state.has_registered_files = true;
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -1601,7 +1601,7 @@ pub(super) fn uring_unregister_files(
             .map_err(|error| io_error_from_std("io_uring_unregister_files", error))?;
         state.has_registered_files = false;
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -1659,7 +1659,7 @@ pub(super) fn uring_register_buffers(
         }
         state.has_registered_buffers = true;
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -1694,7 +1694,7 @@ pub(super) fn uring_unregister_buffers(
             .map_err(|error| io_error_from_std("io_uring_unregister_buffers", error))?;
         state.has_registered_buffers = false;
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]

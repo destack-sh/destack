@@ -27,7 +27,7 @@ use crate::runtime::{BindingCallContext, NativeSlice};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     from: PathBytes,
     to: PathBytes,
     flags: CopyFlags,
@@ -66,7 +66,7 @@ pub(crate) unsafe fn destack_fs_copyfile_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile_utf16(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     from: PathUtf16,
     to: PathUtf16,
     flags: CopyFlags,

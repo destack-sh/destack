@@ -36,7 +36,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_egid(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut GroupId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -68,7 +68,7 @@ pub(crate) unsafe fn destack_process_egid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_euid(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut UserId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -100,7 +100,7 @@ pub(crate) unsafe fn destack_process_euid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_gid(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut GroupId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -132,7 +132,7 @@ pub(crate) unsafe fn destack_process_gid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_group_ids(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut ProcessGroupIds,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -196,7 +196,7 @@ pub(crate) unsafe fn destack_process_groups(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_pid(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut ProcessId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -228,7 +228,7 @@ pub(crate) unsafe fn destack_process_pid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_ppid(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut ProcessId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -435,7 +435,7 @@ pub(crate) unsafe fn destack_process_set_user_ids(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_uid(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut UserId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -467,7 +467,7 @@ pub(crate) unsafe fn destack_process_uid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_user_ids(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut ProcessUserIds,
 ) -> RuntimeResult<()> {
     if out.is_null() {

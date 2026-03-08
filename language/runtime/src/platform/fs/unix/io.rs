@@ -93,16 +93,16 @@ fn splice_flags_to_native(flags: SpliceFlags, argument: &'static str) -> Runtime
     // map runtime bits into linux splice flags
     let mut native_flags = 0u32;
     if (flags.0 & SPLICE_FLAG_MOVE) != 0 {
-        native_flags |= libc::SPLICE_F_MOVE as u32;
+        native_flags |= libc::SPLICE_F_MOVE;
     }
     if (flags.0 & SPLICE_FLAG_NONBLOCK) != 0 {
-        native_flags |= libc::SPLICE_F_NONBLOCK as u32;
+        native_flags |= libc::SPLICE_F_NONBLOCK;
     }
     if (flags.0 & SPLICE_FLAG_MORE) != 0 {
-        native_flags |= libc::SPLICE_F_MORE as u32;
+        native_flags |= libc::SPLICE_F_MORE;
     }
     if (flags.0 & SPLICE_FLAG_GIFT) != 0 {
-        native_flags |= libc::SPLICE_F_GIFT as u32;
+        native_flags |= libc::SPLICE_F_GIFT;
     }
 
     Ok(native_flags)

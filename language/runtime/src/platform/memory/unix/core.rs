@@ -5,8 +5,10 @@ use crate::platform::{core as core_platform, memory as memory_platform};
 /// Operation tag for reserve bindings.
 pub(crate) const RESERVE_OPERATION: &str = "destack.memory.map.reserve";
 /// Operation tag for numa-bind bindings.
+#[cfg(not(target_os = "linux"))]
 pub(crate) const NUMA_BIND_OPERATION: &str = "destack.memory.map.numaBind";
 /// Operation tag for remap bindings.
+#[cfg(not(target_os = "linux"))]
 pub(crate) const REMAP_OPERATION: &str = "destack.memory.protect.remap";
 /// Operation tag for huge-page advise bindings.
 #[cfg(not(target_os = "linux"))]

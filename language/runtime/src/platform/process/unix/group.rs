@@ -20,10 +20,21 @@ use crate::platform::process::{
 use crate::platform::{fs, resource};
 
 /// Resource selector for cgroup cpu controller limits.
+#[cfg(target_os = "linux")]
+const CGROUP_RESOURCE_CPU: u32 = libc::RLIMIT_CPU;
+#[cfg(not(target_os = "linux"))]
 const CGROUP_RESOURCE_CPU: u32 = libc::RLIMIT_CPU as u32;
+
 /// Resource selector for cgroup memory controller limits.
+#[cfg(target_os = "linux")]
+const CGROUP_RESOURCE_MEMORY: u32 = libc::RLIMIT_AS;
+#[cfg(not(target_os = "linux"))]
 const CGROUP_RESOURCE_MEMORY: u32 = libc::RLIMIT_AS as u32;
+
 /// Resource selector for cgroup process count limits.
+#[cfg(target_os = "linux")]
+const CGROUP_RESOURCE_PROCESSES: u32 = libc::RLIMIT_NPROC;
+#[cfg(not(target_os = "linux"))]
 const CGROUP_RESOURCE_PROCESSES: u32 = libc::RLIMIT_NPROC as u32;
 
 /// Parsed control file shape for one cgroup resource.

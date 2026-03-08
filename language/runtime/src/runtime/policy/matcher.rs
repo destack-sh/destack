@@ -257,7 +257,7 @@ fn binding_component_name(binding_name: &str) -> &str {
 fn runtime_platform_name() -> &'static str {
     #[cfg(target_os = "linux")]
     {
-        return "linux";
+        "linux"
     }
 
     #[cfg(target_os = "macos")]

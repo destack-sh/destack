@@ -508,7 +508,7 @@ pub(super) fn wait_for_readable_descriptor(descriptor: RawFd) -> RuntimeResult<(
 
 /// Read one Unix input event from the selected backend.
 pub(super) fn read_unix_event(
-    binding_2: &BindingCallContext,
+    ctx: &BindingCallContext,
     binding: &UnixInputBinding,
     handle: resource::InputDeviceHandle,
     nonblocking: bool,
@@ -516,14 +516,22 @@ pub(super) fn read_unix_event(
 ) -> RuntimeResult<InputEvent> {
     let mut event = match binding.backend {
         UnixInputBackend::Platform => {
-            read_platform_event(binding_2, binding, handle, nonblocking, operation)
+            #[cfg(target_os = "linux")]
+            {
+                read_platform_event(ctx, handle, nonblocking, operation)
+            }
+
+            #[cfg(not(target_os = "linux"))]
+            {
+                read_platform_event(ctx, binding, handle, nonblocking, operation)
+            }
         }
         UnixInputBackend::UnixTerminal => {
             let Some(descriptor) = binding.descriptor else {
                 return Err(input_not_found(operation, handle));
             };
             read_terminal_event(
-                binding_2,
+                ctx,
                 descriptor,
                 &binding.device_id,
                 nonblocking,
@@ -533,7 +541,7 @@ pub(super) fn read_unix_event(
     }?;
 
     // stamp the event with one per-handle sequence number
-    let sequence = next_unix_event_sequence(binding_2, handle, operation)?;
+    let sequence = next_unix_event_sequence(ctx, handle, operation)?;
     set_unix_event_sequence(&mut event, sequence);
 
     Ok(event)
@@ -1115,7 +1123,6 @@ fn list_platform_devices(
 #[cfg(target_os = "linux")]
 fn read_platform_event(
     binding: &BindingCallContext,
-    _binding: &UnixInputBinding,
     handle: resource::InputDeviceHandle,
     nonblocking: bool,
     operation: &'static str,

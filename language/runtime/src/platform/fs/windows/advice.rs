@@ -29,7 +29,7 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fadvise(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     _handle: FileHandle,
     _offset: FileOffset,
     _length: FileSize,

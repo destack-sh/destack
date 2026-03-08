@@ -37,7 +37,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_chdir(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
     use windows_sys::Win32::System::Environment::SetCurrentDirectoryW;

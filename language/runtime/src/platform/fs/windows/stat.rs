@@ -65,7 +65,7 @@ fn statx_from_fallback_stat(stat: Stat) -> Statx {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_stat_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut Stat,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -106,7 +106,7 @@ pub(crate) unsafe fn destack_fs_stat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_stat_utf16(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut Stat,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -147,7 +147,7 @@ pub(crate) unsafe fn destack_fs_stat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lstat_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut Stat,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -188,7 +188,7 @@ pub(crate) unsafe fn destack_fs_lstat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lstat_utf16(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut Stat,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -229,7 +229,7 @@ pub(crate) unsafe fn destack_fs_lstat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statfs_bytes(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut StatFs,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -270,7 +270,7 @@ pub(crate) unsafe fn destack_fs_statfs_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statfs_utf16(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut StatFs,
     path: PathUtf16,
 ) -> RuntimeResult<()> {

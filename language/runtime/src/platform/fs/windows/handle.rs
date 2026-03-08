@@ -48,13 +48,17 @@ pub(crate) unsafe fn destack_fs_close(
     handle: FileHandle,
 ) -> RuntimeResult<()> {
     // remove the resource entry
-    let entry = binding.agent().resources.remove(handle.0).ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown file handle",
-        ))
-        .boxed()
-    })?;
+    let entry = binding
+        .agent()
+        .resources
+        .remove(binding.world(), handle.0, Some(binding.engine()))
+        .ok_or_else(|| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                "handle",
+                "unknown file handle",
+            ))
+            .boxed()
+        })?;
 
     // finalize the handle
     entry.finalize(handle.0);
@@ -233,13 +237,17 @@ pub(crate) unsafe fn destack_fs_closedir(
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
     // remove the resource entry
-    let entry = binding.agent().resources.remove(handle.0).ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown directory handle",
-        ))
-        .boxed()
-    })?;
+    let entry = binding
+        .agent()
+        .resources
+        .remove(binding.world(), handle.0, Some(binding.engine()))
+        .ok_or_else(|| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                "handle",
+                "unknown directory handle",
+            ))
+            .boxed()
+        })?;
 
     // finalize the handle
     entry.finalize(handle.0);

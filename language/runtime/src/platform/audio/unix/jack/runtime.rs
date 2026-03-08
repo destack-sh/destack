@@ -596,7 +596,7 @@ unsafe extern "C" fn jack_process_callback(nframes: u32, argument: *mut c_void) 
     );
 
     drop(state);
-    binding.sync.wake.notify_all();
+    stream_binding.sync.wake.notify_all();
 
     0
 }
