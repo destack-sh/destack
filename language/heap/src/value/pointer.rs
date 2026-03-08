@@ -64,6 +64,12 @@ impl ManagedPointer {
         page_slot % HEAP_PAGE_CAPACITY
     }
 
+    /// Return the heap page position for this pointer id.
+    #[inline]
+    pub fn page_position(&self) -> (usize, usize) {
+        (self.page_index(), self.page_offset())
+    }
+
     /// Create a new pointer with an aggregate slot offset.
     #[inline]
     pub fn with_slot_offset(id: u64, slot_offset: u32) -> Self {
@@ -125,6 +131,12 @@ impl RawPointer {
         let page_slot = (slot_id - 1) as usize;
 
         page_slot % HEAP_PAGE_CAPACITY
+    }
+
+    /// Return the heap page position for this pointer id.
+    #[inline]
+    pub fn page_position(&self) -> (usize, usize) {
+        (self.page_index(), self.page_offset())
     }
 
     /// Create a new raw pointer with an aggregate slot offset.
