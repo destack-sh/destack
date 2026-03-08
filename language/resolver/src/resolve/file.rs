@@ -216,12 +216,15 @@ impl Resolver {
     pub(crate) fn canonicalize(&self, path: &Path) -> Result<PathBuf, ResolveError> {
         // track visited paths for circular symlink detection
         let mut visited = HashSet::with_hasher(BuildHasherDefault::<IdentityHasher>::default());
-        let result = self
-            .canonicalize_recursive(path, &mut visited)
-            .or_else(|err| {
-                // fallback: try direct FS canonicalize
-                self.canonicalize_path(path).map_err(|_| err)
-            })?;
+        let result = match self.canonicalize_recursive(path, &mut visited) {
+            Ok(result) => result,
+
+            // keep unsupported windows path semantics intact
+            Err(error @ ResolveError::UnsupportedPath { .. }) => return Err(error),
+
+            // fallback: try direct FS canonicalize
+            Err(error) => self.canonicalize_path(path).map_err(|_| error)?,
+        };
 
         #[cfg(target_os = "windows")]
         let result = Self::normalize_windows_path(&result)?;
