@@ -484,7 +484,7 @@ fn write_parameter_without_separator_line_comment<'ast>(
     Ok(true)
 }
 
-/// Collect separator-comment sources for parameters in source order.
+/// Return whether one blank line should be preserved before one parameter.
 fn collect_parameter_separator_line_comment_sources(
     context: &DestackFormatContext<'_>,
     parameters: &[LocalNodeId<Parameter>],
@@ -510,13 +510,15 @@ fn preserve_blank_line_before_parameter_with_separator_comments(
     // preserve blank lines between that cluster and the next parameter
     if let Some(previous_separator_source) =
         separator_line_comment_sources[parameter_index - 1].as_ref()
-        && previous_separator_source.is_own_line
-        && let Some(last_comment_id) = previous_separator_source.comment_ids.last().copied()
     {
-        let last_comment_span = context.span(last_comment_id);
-        let right_parameter_span = context.span(right_parameter_id);
-        if let Some(between_span) = last_comment_span.gap_to(right_parameter_span) {
-            return context.has_blank_line(between_span);
+        if previous_separator_source.is_own_line {
+            if let Some(last_comment_id) = previous_separator_source.comment_ids.last().copied() {
+                let last_comment_span = context.span(last_comment_id);
+                let right_parameter_span = context.span(right_parameter_id);
+                if let Some(between_span) = last_comment_span.gap_to(right_parameter_span) {
+                    return context.has_blank_line(between_span);
+                }
+            }
         }
     }
 
@@ -550,12 +552,13 @@ fn write_signature_separator_comment_multiline_parameter_list<'ast>(
             }
         }
 
-        if let Some(comment_source) = separator_line_comment_sources[index].as_ref()
-            && !parameter_is_variadic(f.context(), *parameter_id)
-            && write_parameter_without_separator_line_comment(f, *parameter_id)?
-        {
-            write_separator_line_comment_after_comma(f, comment_source)?;
-            continue;
+        if let Some(comment_source) = separator_line_comment_sources[index].as_ref() {
+            if !parameter_is_variadic(f.context(), *parameter_id)
+                && write_parameter_without_separator_line_comment(f, *parameter_id)?
+            {
+                write_separator_line_comment_after_comma(f, comment_source)?;
+                continue;
+            }
         }
 
         write!(f, [group(parameter_id)])?;
@@ -850,12 +853,12 @@ pub(crate) fn write_signature_dynamic_parameter_list(
     let use_separator_comment_multiline = should_expand
         && separator_line_comment_sources
             .iter()
-            .zip(parameters.iter())
+            .zip(parameters.iter().copied())
             .any(|(source, parameter_id)| {
                 source.is_some()
                     && parameter_can_render_without_separator_line_comment(
                         f.context(),
-                        *parameter_id,
+                        parameter_id,
                     )
             });
     if use_separator_comment_multiline {

@@ -173,33 +173,6 @@ pub(crate) fn call_arguments_are_multiline_span(
     context.has_newline(Span::new(first_span.file, first_span.start, last_span.end))
 }
 
-/// Return whether one span intersects any line-style comment token.
-fn span_has_line_comment_token(context: &DestackFormatContext<'_>, span: Span) -> bool {
-    if span.start >= span.end {
-        return false;
-    }
-
-    let line_comment_spans = &context.line_comment_spans;
-    if line_comment_spans.is_empty() {
-        return false;
-    }
-
-    let first_relevant_index =
-        line_comment_spans.partition_point(|comment_span| comment_span.end < span.start);
-
-    for comment_span in &line_comment_spans[first_relevant_index..] {
-        if comment_span.start > span.end {
-            break;
-        }
-
-        if span.intersects(*comment_span) {
-            return true;
-        }
-    }
-
-    false
-}
-
 /// Return whether one token type is ignorable trivia for span-adjacent scans.
 #[inline]
 fn is_ignored_span_neighbor_token(token_type: TokenType) -> bool {
@@ -349,102 +322,6 @@ pub(crate) fn token_is_keyword(
     context
         .token_keyword(token)
         .is_some_and(|parsed| parsed == keyword)
-}
-
-/// Return the next close parenthesis token start after one source offset.
-fn next_close_parenthesis_start_after(
-    context: &DestackFormatContext<'_>,
-    start: u32,
-) -> Option<u32> {
-    let tokens = context.tokens;
-    let mut index = tokens.partition_point(|token| token.span.start < start);
-
-    while let Some(token) = tokens.get(index) {
-        if token.token.ty == TokenType::CloseParenthesis {
-            return Some(token.span.start);
-        }
-        index += 1;
-    }
-
-    None
-}
-
-/// Return whether source text around call argument boundaries contains line comments.
-pub(crate) fn call_arguments_have_boundary_comments(
-    context: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    if let Some(has_boundary_comments) =
-        context.lookup_call_argument_boundary_comments(call_node_id)
-    {
-        context.increment_counter("call.arguments.boundary_comments.cache.hits", 1);
-        return has_boundary_comments;
-    }
-    context.increment_counter("call.arguments.boundary_comments.cache.misses", 1);
-
-    if dynamic_arguments.is_empty() {
-        context.store_call_argument_boundary_comments(call_node_id, false);
-        return false;
-    }
-
-    // line comments between call open parenthesis and first argument are boundary comments
-    let first_argument_id = dynamic_arguments[0];
-    let first_argument_span = context.span(first_argument_id);
-    let call_span = context.span(call_node_id);
-    if call_span.file == first_argument_span.file
-        && call_span.start < first_argument_span.start
-        && let Some(open_parenthesis_token) =
-            previous_non_whitespace_token_before_span(context, first_argument_span)
-        && open_parenthesis_token.token.ty == TokenType::OpenParenthesis
-        && open_parenthesis_token.span.end < first_argument_span.start
-    {
-        let leading_boundary_span = Span::new(
-            first_argument_span.file,
-            open_parenthesis_token.span.end,
-            first_argument_span.start,
-        );
-        if span_has_line_comment_token(context, leading_boundary_span) {
-            context.store_call_argument_boundary_comments(call_node_id, true);
-            return true;
-        }
-    }
-
-    // line comments between adjacent arguments are boundary comments
-    for argument_pair in dynamic_arguments.windows(2) {
-        let left_span = context.span(argument_pair[0]);
-        let right_span = context.span(argument_pair[1]);
-        let Some(between_span) = left_span.gap_to(right_span) else {
-            continue;
-        };
-        if span_has_line_comment_token(context, between_span) {
-            context.store_call_argument_boundary_comments(call_node_id, true);
-            return true;
-        }
-    }
-
-    // line comments after the final argument and before the call close are boundary comments
-    let Some(last_argument_id) = dynamic_arguments.last().copied() else {
-        return false;
-    };
-    let last_argument_span = context.span(last_argument_id);
-    if call_span.file != last_argument_span.file || last_argument_span.end >= call_span.end {
-        context.store_call_argument_boundary_comments(call_node_id, false);
-        return false;
-    }
-
-    let close_parenthesis_start =
-        next_close_parenthesis_start_after(context, last_argument_span.end)
-            .unwrap_or(call_span.end);
-    let boundary_end = close_parenthesis_start.min(call_span.end);
-    let boundary_span = Span::new(
-        last_argument_span.file,
-        last_argument_span.end,
-        boundary_end,
-    );
-    let has_boundary_comments = span_has_line_comment_token(context, boundary_span);
-    context.store_call_argument_boundary_comments(call_node_id, has_boundary_comments);
-    has_boundary_comments
 }
 
 /// Return whether source text between two arguments contains an explicit blank line.

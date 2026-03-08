@@ -1,9 +1,11 @@
 use crate::format::context::{
-    ANNOTATION_STATE_CACHED, ANNOTATION_STATE_NONE, ANNOTATION_STATE_PRESENT, Annotation,
-    AnnotationData, AnnotationPosition, Argument, ArgumentAnnotationCache,
-    CallArgumentExpansionsCache, CallArgumentLayoutCache, Cell, Comment, DestackFormatContext,
-    Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, Ref, Span, ast,
+    ANNOTATION_STATE_CACHED, ANNOTATION_STATE_NONE, Annotation, AnnotationData, AnnotationPosition,
+    Argument, ArgumentAnnotationCache, CallArgumentLayoutCache, Cell, Comment,
+    DestackFormatContext, Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, Ref, Span, ast,
 };
+
+#[cfg(feature = "timings")]
+use crate::format::context::ANNOTATION_STATE_PRESENT;
 
 impl<'a> DestackFormatContext<'a> {
     /// Return whether one annotation position is one prefix position.
@@ -156,6 +158,7 @@ impl<'a> DestackFormatContext<'a> {
 
     /// Record one annotation cache hit when instrumentation is enabled.
     #[inline]
+    #[cfg(feature = "timings")]
     fn increment_annotation_cache_hits(&self) {
         if self.instrumentation_enabled {
             self.cache_stats
@@ -164,8 +167,14 @@ impl<'a> DestackFormatContext<'a> {
         }
     }
 
+    /// Record one annotation cache hit when instrumentation is enabled.
+    #[inline]
+    #[cfg(not(feature = "timings"))]
+    fn increment_annotation_cache_hits(&self) {}
+
     /// Record one annotation cache miss when instrumentation is enabled.
     #[inline]
+    #[cfg(feature = "timings")]
     fn increment_annotation_cache_misses(&self) {
         if self.instrumentation_enabled {
             self.cache_stats
@@ -173,6 +182,11 @@ impl<'a> DestackFormatContext<'a> {
                 .set(self.cache_stats.annotation_cache_misses.get() + 1);
         }
     }
+
+    /// Record one annotation cache miss when instrumentation is enabled.
+    #[inline]
+    #[cfg(not(feature = "timings"))]
+    fn increment_annotation_cache_misses(&self) {}
 
     /// Return cached annotation data for one node index.
     #[inline]
@@ -288,6 +302,7 @@ impl<'a> DestackFormatContext<'a> {
 
     /// Check if a node has an annotation.
     #[inline]
+    #[cfg(feature = "timings")]
     pub fn has_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
     where
         T: Node,
@@ -315,6 +330,17 @@ impl<'a> DestackFormatContext<'a> {
         }
     }
 
+    /// Check if a node has an annotation.
+    #[inline]
+    #[cfg(not(feature = "timings"))]
+    pub fn has_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
+    where
+        T: Node,
+        NodeTree: NodeTreeImpl<T>,
+    {
+        self.annotation_state_by_node_id[node_id.id as usize].get() != ANNOTATION_STATE_NONE
+    }
+
     /// Check if a node has a prefix annotation.
     #[inline]
     pub fn has_prefix_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
@@ -324,6 +350,28 @@ impl<'a> DestackFormatContext<'a> {
     {
         self.annotation_data_for_node(node_id)
             .is_some_and(|annotation_data| annotation_data.has_prefix)
+    }
+
+    /// Check if a node has a block prefix annotation.
+    #[inline]
+    pub fn has_block_prefix_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
+    where
+        T: Node,
+        NodeTree: NodeTreeImpl<T>,
+    {
+        self.annotation_data_for_node(node_id)
+            .is_some_and(|annotation_data| annotation_data.has_block_prefix)
+    }
+
+    /// Check if a node has a line prefix annotation.
+    #[inline]
+    pub fn has_line_prefix_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
+    where
+        T: Node,
+        NodeTree: NodeTreeImpl<T>,
+    {
+        self.annotation_data_for_node(node_id)
+            .is_some_and(|annotation_data| annotation_data.has_line_prefix)
     }
 
     /// Check if a node has a block infix annotation.
@@ -346,6 +394,17 @@ impl<'a> DestackFormatContext<'a> {
     {
         self.annotation_data_for_node(node_id)
             .is_some_and(|annotation_data| annotation_data.has_non_blank)
+    }
+
+    /// Check if a node has a non-blank annotation other than one boundary postfix comment.
+    #[inline]
+    pub fn has_non_blank_non_boundary_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
+    where
+        T: Node,
+        NodeTree: NodeTreeImpl<T>,
+    {
+        self.annotation_data_for_node(node_id)
+            .is_some_and(|annotation_data| annotation_data.has_non_blank_non_boundary)
     }
 
     /// Check if a node has a non-blank block infix annotation.
@@ -381,6 +440,17 @@ impl<'a> DestackFormatContext<'a> {
             .is_some_and(|annotation_data| annotation_data.has_non_blank_postfix)
     }
 
+    /// Check if a node has a blank postfix annotation.
+    #[inline]
+    pub fn has_blank_postfix_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
+    where
+        T: Node,
+        NodeTree: NodeTreeImpl<T>,
+    {
+        self.annotation_data_for_node(node_id)
+            .is_some_and(|annotation_data| annotation_data.has_blank_postfix)
+    }
+
     /// Check if a node has a blank block prefix annotation.
     #[inline]
     pub fn has_blank_prefix_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
@@ -401,6 +471,17 @@ impl<'a> DestackFormatContext<'a> {
     {
         self.annotation_data_for_node(node_id)
             .is_some_and(|annotation_data| annotation_data.has_blank_prefix_first)
+    }
+
+    /// Check if a node has a boundary postfix comment annotation.
+    #[inline]
+    pub fn has_boundary_comment_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
+    where
+        T: Node,
+        NodeTree: NodeTreeImpl<T>,
+    {
+        self.annotation_data_for_node(node_id)
+            .is_some_and(|annotation_data| annotation_data.has_boundary_comment)
     }
 
     /// Return cached annotation data for one argument node.
@@ -425,58 +506,6 @@ impl<'a> DestackFormatContext<'a> {
         );
 
         annotation_cache
-    }
-
-    /// Return cached compact simple unannotated argument predicate.
-    #[inline]
-    pub fn lookup_argument_compact_simple_unannotated(
-        &self,
-        argument_id: LocalNodeId<Argument>,
-    ) -> Option<bool> {
-        self.lookup_node_cache_value(
-            &self.node_caches.argument_compact_simple_unannotated,
-            argument_id.id,
-        )
-    }
-
-    /// Store compact simple unannotated argument predicate.
-    #[inline]
-    pub fn store_argument_compact_simple_unannotated(
-        &self,
-        argument_id: LocalNodeId<Argument>,
-        value: bool,
-    ) {
-        self.store_node_cache_value(
-            &self.node_caches.argument_compact_simple_unannotated,
-            argument_id.id,
-            value,
-        );
-    }
-
-    /// Return cached plain call argument predicate.
-    #[inline]
-    pub fn lookup_argument_plain_call_argument(
-        &self,
-        argument_id: LocalNodeId<Argument>,
-    ) -> Option<bool> {
-        self.lookup_node_cache_value(
-            &self.node_caches.argument_plain_call_argument,
-            argument_id.id,
-        )
-    }
-
-    /// Store plain call argument predicate.
-    #[inline]
-    pub fn store_argument_plain_call_argument(
-        &self,
-        argument_id: LocalNodeId<Argument>,
-        value: bool,
-    ) {
-        self.store_node_cache_value(
-            &self.node_caches.argument_plain_call_argument,
-            argument_id.id,
-            value,
-        );
     }
 
     /// Return cached call argument layout data for one call expression node.
@@ -505,32 +534,6 @@ impl<'a> DestackFormatContext<'a> {
         );
     }
 
-    /// Return cached call boundary-comment state for one call expression node.
-    #[inline]
-    pub fn lookup_call_argument_boundary_comments(
-        &self,
-        call_node_id: LocalNodeId<Expression>,
-    ) -> Option<bool> {
-        self.lookup_node_cache_value(
-            &self.node_caches.call_argument_boundary_comments,
-            call_node_id.id,
-        )
-    }
-
-    /// Store call boundary-comment state for one call expression node.
-    #[inline]
-    pub fn store_call_argument_boundary_comments(
-        &self,
-        call_node_id: LocalNodeId<Expression>,
-        has_boundary_comments: bool,
-    ) {
-        self.store_node_cache_value(
-            &self.node_caches.call_argument_boundary_comments,
-            call_node_id.id,
-            has_boundary_comments,
-        );
-    }
-
     /// Return cached chain call force-expand state for one call expression node.
     #[inline]
     pub fn lookup_call_argument_chain_force_expand(
@@ -554,32 +557,6 @@ impl<'a> DestackFormatContext<'a> {
             &self.node_caches.call_argument_chain_force_expand,
             call_node_id.id,
             force_expand,
-        );
-    }
-
-    /// Return cached regular and chain call argument expansion data for one call node.
-    #[inline]
-    pub fn lookup_call_argument_expansion_cache(
-        &self,
-        call_node_id: LocalNodeId<Expression>,
-    ) -> Option<CallArgumentExpansionsCache> {
-        self.lookup_node_cache_value(
-            &self.node_caches.call_argument_expansions_cache,
-            call_node_id.id,
-        )
-    }
-
-    /// Store regular and chain call argument expansion data for one call node.
-    #[inline]
-    pub fn store_call_argument_expansion_cache(
-        &self,
-        call_node_id: LocalNodeId<Expression>,
-        expansions: CallArgumentExpansionsCache,
-    ) {
-        self.store_node_cache_value(
-            &self.node_caches.call_argument_expansions_cache,
-            call_node_id.id,
-            expansions,
         );
     }
 

@@ -509,6 +509,7 @@ impl<'a> DestackFormatContext<'a> {
         {
             let cache = self.span_text_by_span.borrow();
             if let Some(span_str) = cache.get(&span) {
+                #[cfg(feature = "timings")]
                 if self.instrumentation_enabled {
                     self.cache_stats
                         .span_text_hits
@@ -518,6 +519,7 @@ impl<'a> DestackFormatContext<'a> {
             }
         }
 
+        #[cfg(feature = "timings")]
         if self.instrumentation_enabled {
             self.cache_stats
                 .span_text_misses
@@ -682,20 +684,11 @@ impl<'a> DestackFormatContext<'a> {
     /// Get the Unicode scalar count for a source span.
     #[inline]
     pub fn span_char_len(&self, span: Span) -> usize {
-        {
-            let cache = self.span_char_len_by_span.borrow();
-            if let Some(len) = cache.get(&span) {
-                return *len;
-            }
-        }
-
-        let len = if self.source_is_ascii {
+        if self.source_is_ascii {
             span.len() as usize
         } else {
             self.span_str(span).chars().count()
-        };
-        self.span_char_len_by_span.borrow_mut().insert(span, len);
-        len
+        }
     }
 
     /// Get the Unicode scalar count for one node span.
@@ -1094,9 +1087,19 @@ impl<'a> DestackFormatContext<'a> {
             return false;
         }
 
+        if !self.instrumentation_enabled {
+            let newline_offsets = self.newline_offsets();
+            let newline_index = newline_offsets.partition_point(|offset| *offset < span.start);
+
+            return newline_offsets
+                .get(newline_index)
+                .is_some_and(|offset| *offset < span.end);
+        }
+
         {
             let cache = self.span_has_newline_by_span.borrow();
             if let Some(has_newline) = cache.get(&span) {
+                #[cfg(feature = "timings")]
                 if self.instrumentation_enabled {
                     self.cache_stats
                         .span_has_newline_hits
@@ -1106,6 +1109,7 @@ impl<'a> DestackFormatContext<'a> {
             }
         }
 
+        #[cfg(feature = "timings")]
         if self.instrumentation_enabled {
             self.cache_stats
                 .span_has_newline_misses
@@ -1193,9 +1197,28 @@ impl<'a> DestackFormatContext<'a> {
     /// Whether the given span contains a comment token.
     #[inline]
     pub fn has_comment(&self, span: Span) -> bool {
+        if !self.instrumentation_enabled {
+            let first_relevant_index = self
+                .comment_spans
+                .partition_point(|comment_span| comment_span.end < span.start);
+
+            for comment_span in &self.comment_spans[first_relevant_index..] {
+                if comment_span.start > span.end {
+                    break;
+                }
+
+                if span.intersects(*comment_span) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         {
             let cache = self.span_has_comment_by_span.borrow();
             if let Some(has_comment) = cache.get(&span) {
+                #[cfg(feature = "timings")]
                 if self.instrumentation_enabled {
                     self.cache_stats
                         .span_has_comment_hits
@@ -1205,6 +1228,7 @@ impl<'a> DestackFormatContext<'a> {
             }
         }
 
+        #[cfg(feature = "timings")]
         if self.instrumentation_enabled {
             self.cache_stats
                 .span_has_comment_misses

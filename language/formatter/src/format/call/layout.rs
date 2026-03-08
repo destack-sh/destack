@@ -1,70 +1,73 @@
+use crate::CallArgumentLayoutCache;
 use crate::format::analysis::{
     ArgumentSimplicityOptions, argument_has_leading_prefix_annotation_outside_span,
     argument_has_line_comment_annotation, argument_is_collection_literal,
     argument_is_interpolated_template_literal, argument_is_simple_with_options,
-    call_arguments_are_multiline_span, call_has_leading_block_callback_with_simple_tail,
-    call_has_static_arguments, timing,
+    call_has_leading_block_callback_with_simple_tail, call_has_static_arguments, timing,
 };
 use crate::format::call::arguments::{
+    argument_can_render_without_separator_line_comment,
     argument_has_separator_line_comment_annotation, argument_is_plain_call_argument,
-    can_format_multiline_call_argument_list_with_separator_line_comment,
-    single_argument_separator_line_comment_source,
+    single_argument_separator_line_comment_source_exists,
 };
 use crate::format::expression::{
-    AnnotationPosition, Argument, Declaration, DestackFormatContext, Expression, FunctionKind,
-    LocalNodeId, NodeType, ScalarLiteral, TrailingComma, argument_is_array_literal,
-    argument_is_block_callback, argument_is_function_expression, argument_is_lambda_expression,
-    argument_is_object_literal, argument_is_template_literal, argument_value_id,
-    is_block_lambda_argument, is_complex_argument, is_expression_chain, is_trivial_argument,
-    transparent_inner_expression,
+    Argument, Declaration, DestackFormatContext, Expression, FunctionKind, LocalNodeId, NodeType,
+    ScalarLiteral, TrailingComma, argument_is_array_literal, argument_is_block_callback,
+    argument_is_function_expression, argument_is_lambda_expression, argument_is_object_literal,
+    argument_is_template_literal, argument_value_id, is_block_lambda_argument, is_complex_argument,
+    is_expression_chain, is_trivial_argument, transparent_inner_expression,
 };
 use crate::format::tree::has_multiline_jsx_argument;
-use crate::{
-    Annotation, CallArgumentExpansionCache, CallArgumentExpansionsCache, CallArgumentLayoutCache,
-};
 use destack_ast::TypeBinaryOperator;
 
-/// Return whether all leading arguments before the last are compact and simple.
-pub(crate) fn leading_arguments_are_compact_simple_unannotated(
-    ctx: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    dynamic_arguments
-        .split_last()
-        .map_or(&[][..], |(_, leading_arguments)| leading_arguments)
-        .iter()
-        .copied()
-        .all(|argument_id| argument_is_compact_simple_unannotated(ctx, argument_id))
+/// Store direct call expansion facts derived during layout selection.
+#[derive(Clone, Copy)]
+struct CallArgumentExpansion {
+    /// Whether regular argument layout should force expansion.
+    force_expand: bool,
+    /// Whether chain formatting should force expansion.
+    chain_force_expand: bool,
+    /// Whether the last argument is a collection literal.
+    trailing_collection_argument: bool,
 }
 
-/// Return whether all leading arguments before the last are compact callback-tail candidates.
-pub(crate) fn leading_arguments_are_compact_callback_tail_candidates(
-    ctx: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    dynamic_arguments
-        .split_last()
-        .map_or(&[][..], |(_, leading_arguments)| leading_arguments)
-        .iter()
-        .copied()
-        .all(|argument_id| {
-            if ctx.node_has_newline(argument_id)
-                || argument_has_callback_blocking_comment_annotation(ctx, argument_id)
-            {
-                return false;
-            }
+/// Return whether one span intersects any line comment token.
+fn span_has_line_comment(ctx: &DestackFormatContext<'_>, span: destack_source::Span) -> bool {
+    if span.start >= span.end {
+        return false;
+    }
 
-            argument_is_simple_with_options(
-                ctx,
-                argument_id,
-                ArgumentSimplicityOptions {
-                    reject_any_argument_annotation: false,
-                    reject_non_blank_argument_annotation: false,
-                    reject_value_annotation: true,
-                    reject_lambda_values: true,
-                },
-            )
-        })
+    let line_comment_spans = &ctx.line_comment_spans;
+    if line_comment_spans.is_empty() {
+        return false;
+    }
+
+    let first_relevant_index =
+        line_comment_spans.partition_point(|comment_span| comment_span.end < span.start);
+    for comment_span in &line_comment_spans[first_relevant_index..] {
+        if comment_span.start > span.end {
+            break;
+        }
+
+        if span.intersects(*comment_span) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Return the next close parenthesis token start after one source offset.
+fn next_close_parenthesis_start_after(ctx: &DestackFormatContext<'_>, start: u32) -> Option<u32> {
+    let token_index = ctx.tokens.partition_point(|token| token.span.start < start);
+
+    for token in &ctx.tokens[token_index..] {
+        if token.token.ty == crate::TokenType::CloseParenthesis {
+            return Some(token.span.start);
+        }
+    }
+
+    None
 }
 
 /// Resolve one cached call argument layout class.
@@ -86,8 +89,11 @@ pub(crate) fn call_argument_layout_cache(
     let layout_cache = if dynamic_arguments.is_empty() {
         CallArgumentLayoutCache {
             has_call_infix_annotations,
+            has_boundary_comments: false,
             all_single_line_and_unannotated: true,
             all_compact_simple_unannotated: true,
+            leading_arguments_are_compact_simple_unannotated: true,
+            leading_arguments_are_compact_callback_tail_candidates: true,
             all_plain_call_arguments: true,
             has_call_chain_parent,
             ..CallArgumentLayoutCache::default()
@@ -152,35 +158,6 @@ pub(crate) fn call_has_await_ancestor(
     })
 }
 
-/// Return whether one argument is compact, unannotated, and simple.
-pub(crate) fn argument_is_compact_simple_unannotated(
-    ctx: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    if let Some(cached) = ctx.lookup_argument_compact_simple_unannotated(argument_id) {
-        ctx.increment_counter("call.arguments.compact_simple.cache.hits", 1);
-        return cached;
-    }
-
-    ctx.increment_counter("call.arguments.compact_simple.cache.misses", 1);
-    // blank seams should not declassify compact argument simplicity
-    let is_compact_simple_unannotated = !ctx.has_non_blank_annotation(argument_id)
-        && !ctx.node_has_newline(argument_id)
-        && argument_is_simple_with_options(
-            ctx,
-            argument_id,
-            ArgumentSimplicityOptions {
-                reject_any_argument_annotation: true,
-                reject_non_blank_argument_annotation: true,
-                reject_value_annotation: true,
-                reject_lambda_values: true,
-            },
-        );
-    ctx.store_argument_compact_simple_unannotated(argument_id, is_compact_simple_unannotated);
-
-    is_compact_simple_unannotated
-}
-
 /// Build one layout cache entry from scanned argument signals.
 pub(crate) fn scan_call_argument_layout_cache(
     ctx: &DestackFormatContext<'_>,
@@ -191,10 +168,12 @@ pub(crate) fn scan_call_argument_layout_cache(
 ) -> CallArgumentLayoutCache {
     let mut has_any_argument_annotation = false;
     let mut has_line_comment_annotations = false;
+    let mut has_prefix_line_comment_annotations = false;
     let mut all_single_line_and_unannotated = true;
     let mut all_compact_simple_unannotated = true;
+    let mut leading_arguments_are_compact_simple_unannotated = true;
+    let mut leading_arguments_are_compact_callback_tail_candidates = true;
     let mut has_block_callback_argument = false;
-    let mut first_argument_is_block_callback = false;
     let mut last_argument_is_block_callback = false;
     let mut non_last_block_callback_count = 0usize;
     let mut non_last_block_callback_index = None;
@@ -205,7 +184,9 @@ pub(crate) fn scan_call_argument_layout_cache(
     let mut has_non_trivial_non_callback_argument = false;
     let mut has_spread_argument = false;
     let mut has_complex_non_callback_argument = false;
+    let mut has_boundary_comments = false;
 
+    let call_span = ctx.span(call_node_id);
     let last_argument_index = dynamic_arguments.len().saturating_sub(1);
     ctx.increment_counter(
         "call.arguments.layout.scan.arguments",
@@ -214,26 +195,69 @@ pub(crate) fn scan_call_argument_layout_cache(
 
     // scan each argument once and collect layout flags
     for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
+        let argument_span = ctx.span(argument_id);
+
+        // boundary comment seams
+        if index == 0
+            && call_span.file == argument_span.file
+            && call_span.start < argument_span.start
+            && let Some(open_parenthesis_token) =
+                ctx.previous_non_whitespace_token_before_span(argument_span)
+            && open_parenthesis_token.token.ty == crate::TokenType::OpenParenthesis
+            && open_parenthesis_token.span.end < argument_span.start
+        {
+            let leading_boundary_span = destack_source::Span::new(
+                argument_span.file,
+                open_parenthesis_token.span.end,
+                argument_span.start,
+            );
+            has_boundary_comments |= span_has_line_comment(ctx, leading_boundary_span);
+        }
+        if index > 0 && !has_boundary_comments {
+            let previous_argument_span = ctx.span(dynamic_arguments[index - 1]);
+            if let Some(between_span) = previous_argument_span.gap_to(argument_span) {
+                has_boundary_comments = span_has_line_comment(ctx, between_span);
+            }
+        }
+
         // layout decisions only treat non blank annotations as comment signals
         let has_annotation = ctx.has_non_blank_annotation(argument_id);
         let has_newline = ctx.node_has_newline(argument_id);
+        let is_last_argument = index == last_argument_index;
         if has_annotation {
             has_any_argument_annotation = true;
-            if !has_line_comment_annotations
-                && ctx.argument_annotation_cache(argument_id).has_line_comment
-            {
-                has_line_comment_annotations = true;
+            if !has_line_comment_annotations || !has_prefix_line_comment_annotations {
+                let annotation_cache = ctx.argument_annotation_cache(argument_id);
+                if !has_line_comment_annotations && annotation_cache.has_line_comment {
+                    has_line_comment_annotations = true;
+                }
+                if !has_prefix_line_comment_annotations && annotation_cache.has_prefix_line_comment
+                {
+                    has_prefix_line_comment_annotations = true;
+                }
             }
         }
 
         let is_single_line_and_unannotated = !has_annotation && !has_newline;
+        let should_check_compact_simple_unannotated = is_single_line_and_unannotated
+            && (all_compact_simple_unannotated
+                || (!is_last_argument && leading_arguments_are_compact_simple_unannotated));
+        let compact_simple_unannotated = should_check_compact_simple_unannotated.then(|| {
+            argument_is_simple_with_options(
+                ctx,
+                argument_id,
+                ArgumentSimplicityOptions {
+                    reject_any_argument_annotation: true,
+                    reject_non_blank_argument_annotation: true,
+                    reject_value_annotation: true,
+                    reject_lambda_values: true,
+                },
+            )
+        });
+
         all_single_line_and_unannotated &= is_single_line_and_unannotated;
         if all_compact_simple_unannotated {
-            all_compact_simple_unannotated = if is_single_line_and_unannotated {
-                argument_is_compact_simple_unannotated(ctx, argument_id)
-            } else {
-                false
-            };
+            all_compact_simple_unannotated = compact_simple_unannotated.unwrap_or(false);
         }
 
         if all_plain_call_arguments {
@@ -248,7 +272,34 @@ pub(crate) fn scan_call_argument_layout_cache(
         let value_id = argument_value_id(ctx.tree, argument_id);
         let value_id = transparent_inner_expression(ctx, value_id);
         let value = ctx.tree.get(value_id);
-        let is_last_argument = index == last_argument_index;
+
+        // leading argument facts
+        if !is_last_argument {
+            if leading_arguments_are_compact_simple_unannotated {
+                leading_arguments_are_compact_simple_unannotated =
+                    compact_simple_unannotated.unwrap_or(false);
+            }
+
+            if leading_arguments_are_compact_callback_tail_candidates {
+                leading_arguments_are_compact_callback_tail_candidates = if has_newline
+                    || argument_has_callback_blocking_comment_annotation(ctx, argument_id)
+                {
+                    false
+                } else {
+                    argument_is_simple_with_options(
+                        ctx,
+                        argument_id,
+                        ArgumentSimplicityOptions {
+                            reject_any_argument_annotation: false,
+                            reject_non_blank_argument_annotation: false,
+                            reject_value_annotation: true,
+                            reject_lambda_values: true,
+                        },
+                    )
+                };
+            }
+        }
+
         if is_last_argument {
             trailing_collection_argument = matches!(
                 value,
@@ -282,9 +333,6 @@ pub(crate) fn scan_call_argument_layout_cache(
             function_argument_count += 1;
         }
 
-        if index == 0 {
-            first_argument_is_block_callback = is_block_callback;
-        }
         if is_last_argument {
             last_argument_is_block_callback = is_block_callback;
         }
@@ -315,28 +363,63 @@ pub(crate) fn scan_call_argument_layout_cache(
         }
     }
 
-    let force_hug_last_inline = dynamic_arguments.len() > 1
-        && !has_call_infix_annotations
-        && !has_any_argument_annotation
-        && all_single_line_and_unannotated
-        && should_force_hug_last_inline(
-            ctx,
-            call_node_id,
-            dynamic_arguments,
-            trailing_collection_argument,
-        );
-    let is_multiline_in_source = call_arguments_are_multiline_span(ctx, dynamic_arguments);
+    let force_hug_test_like_callback = dynamic_arguments.len() == 2
+        && argument_is_string_like(ctx, dynamic_arguments[0])
+        && dynamic_arguments.last().is_some_and(|argument_id| {
+            argument_is_lambda_expression(ctx, *argument_id)
+                || argument_is_function_expression(ctx, *argument_id)
+        })
+        && call_callee_has_test_like_member_name(ctx, call_node_id);
+    let force_hug_reference_callback_with_collection_tail = dynamic_arguments.len() >= 3
+        && trailing_collection_argument
+        && argument_is_reference_like(ctx, dynamic_arguments[0])
+        && dynamic_arguments
+            .iter()
+            .skip(1)
+            .take(dynamic_arguments.len().saturating_sub(2))
+            .any(|argument_id| {
+                argument_is_lambda_expression(ctx, *argument_id)
+                    || argument_is_function_expression(ctx, *argument_id)
+            });
+    let force_hug_simple_block_lambda_tail = dynamic_arguments.len() <= 3
+        && dynamic_arguments
+            .last()
+            .is_some_and(|argument_id| is_block_lambda_argument(ctx, *argument_id))
+        && leading_arguments_are_compact_simple_unannotated
+        && leading_arguments_are_compact_callback_tail_candidates;
+    let force_hug_last_inline = force_hug_test_like_callback
+        || force_hug_reference_callback_with_collection_tail
+        || force_hug_simple_block_lambda_tail;
+
+    // trailing boundary seam
+    if !has_boundary_comments && let Some(last_argument_id) = dynamic_arguments.last().copied() {
+        let last_argument_span = ctx.span(last_argument_id);
+        if call_span.file == last_argument_span.file && last_argument_span.end < call_span.end {
+            let close_parenthesis_start =
+                next_close_parenthesis_start_after(ctx, last_argument_span.end)
+                    .unwrap_or(call_span.end);
+            let boundary_end = close_parenthesis_start.min(call_span.end);
+            let boundary_span = destack_source::Span::new(
+                last_argument_span.file,
+                last_argument_span.end,
+                boundary_end,
+            );
+            has_boundary_comments = span_has_line_comment(ctx, boundary_span);
+        }
+    }
 
     CallArgumentLayoutCache {
         has_call_infix_annotations,
+        has_boundary_comments,
         has_any_argument_annotation,
-        is_multiline_in_source,
         all_single_line_and_unannotated,
         all_compact_simple_unannotated,
+        leading_arguments_are_compact_simple_unannotated,
+        leading_arguments_are_compact_callback_tail_candidates,
         all_plain_call_arguments,
         has_line_comment_annotations,
+        has_prefix_line_comment_annotations,
         has_block_callback_argument,
-        first_argument_is_block_callback,
         last_argument_is_block_callback,
         has_non_trivial_non_callback_argument,
         non_last_block_callback_count,
@@ -349,6 +432,27 @@ pub(crate) fn scan_call_argument_layout_cache(
         trailing_collection_argument,
         force_hug_last_inline,
     }
+}
+
+/// Return whether the trailing collection argument has non blank comment signals.
+pub(crate) fn trailing_collection_argument_has_comment_signal(
+    ctx: &DestackFormatContext<'_>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+) -> bool {
+    let Some(last_argument_id) = dynamic_arguments.last().copied() else {
+        return false;
+    };
+
+    if !argument_is_collection_literal(ctx, last_argument_id) {
+        return false;
+    }
+
+    if ctx.has_non_blank_annotation(last_argument_id) {
+        return true;
+    }
+
+    let last_argument_value_id = argument_value_id(ctx.tree, last_argument_id);
+    ctx.has_non_blank_annotation(last_argument_value_id)
 }
 
 /// Return whether an argument is a reference-style expression.
@@ -373,34 +477,6 @@ pub(crate) fn argument_is_reference_like(
     )
 }
 
-/// Collect one-pass comment data for call arguments.
-pub(crate) fn call_argument_comments(
-    ctx: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> (bool, bool) {
-    let mut has_line_comment_annotations = false;
-    let mut has_prefix_line_comment_annotations = false;
-
-    for argument_id in dynamic_arguments.iter().copied() {
-        if !ctx.has_non_blank_annotation(argument_id) {
-            continue;
-        }
-
-        let annotation_cache = ctx.argument_annotation_cache(argument_id);
-        if !has_line_comment_annotations && annotation_cache.has_line_comment {
-            has_line_comment_annotations = true;
-        }
-        if !has_prefix_line_comment_annotations && annotation_cache.has_prefix_line_comment {
-            has_prefix_line_comment_annotations = true;
-        }
-    }
-
-    (
-        has_line_comment_annotations,
-        has_prefix_line_comment_annotations,
-    )
-}
-
 /// Return whether one argument has callback-blocking line or multiline prefix annotations.
 pub(crate) fn argument_has_callback_blocking_comment_annotation(
     ctx: &DestackFormatContext<'_>,
@@ -418,56 +494,14 @@ const NON_LAST_BLOCK_CALLBACK_MIN_INDEX: usize = 1;
 const MULTIPLE_FUNCTION_ARGUMENT_MIN_COUNT: usize = 2;
 const FUNCTION_COMPOSITION_MIN_ARGUMENTS: usize = 3;
 
-/// Resolve regular call argument expansion with per-call caching.
-pub(crate) fn call_argument_expansion(
-    ctx: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> CallArgumentExpansionCache {
-    if let Some(cached) = ctx.lookup_call_argument_expansion_cache(call_node_id) {
-        ctx.increment_counter("call.arguments.regular.cache.hits", 1);
-        let expansion = cached.regular;
-        ctx.increment_counter(
-            if expansion.force_expand {
-                "call.arguments.regular.force_expand.true"
-            } else {
-                "call.arguments.regular.force_expand.false"
-            },
-            1,
-        );
-
-        return expansion;
-    }
-
-    ctx.increment_counter("call.arguments.regular.cache.misses", 1);
-
-    let expansions = call_argument_expansions(ctx, call_node_id, dynamic_arguments);
-    let expansion = expansions.regular;
-
-    ctx.store_call_argument_expansion_cache(call_node_id, expansions);
-
-    ctx.increment_counter(
-        if expansion.force_expand {
-            "call.arguments.regular.force_expand.true"
-        } else {
-            "call.arguments.regular.force_expand.false"
-        },
-        1,
-    );
-
-    expansion
-}
-
 /// Resolve chain call argument force-expand state with per-call caching.
 pub(crate) fn chain_call_argument_force_expand(
     ctx: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
 ) -> bool {
-    if let Some(cached) = ctx.lookup_call_argument_expansion_cache(call_node_id) {
+    if let Some(force_expand) = ctx.lookup_call_argument_chain_force_expand(call_node_id) {
         ctx.increment_counter("call.arguments.chain.cache.hits", 1);
-
-        let force_expand = cached.chain_force_expand;
         ctx.increment_counter(
             if force_expand {
                 "call.arguments.chain.force_expand.true"
@@ -482,10 +516,11 @@ pub(crate) fn chain_call_argument_force_expand(
 
     ctx.increment_counter("call.arguments.chain.cache.misses", 1);
 
-    let expansions = call_argument_expansions(ctx, call_node_id, dynamic_arguments);
-    let force_expand = expansions.chain_force_expand;
-
-    ctx.store_call_argument_expansion_cache(call_node_id, expansions);
+    let layout_cache = call_argument_layout_cache(ctx, call_node_id, dynamic_arguments);
+    let expansion =
+        compute_call_argument_expansion(ctx, call_node_id, dynamic_arguments, layout_cache);
+    let force_expand = expansion.chain_force_expand;
+    ctx.store_call_argument_chain_force_expand(call_node_id, force_expand);
 
     ctx.increment_counter(
         if force_expand {
@@ -499,64 +534,51 @@ pub(crate) fn chain_call_argument_force_expand(
     force_expand
 }
 
-/// Build regular and chain call expansion data for one call expression.
-fn call_argument_expansions(
+/// Build regular and chain call expansion facts for one call expression.
+fn compute_call_argument_expansion(
     ctx: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
-) -> CallArgumentExpansionsCache {
+    layout_cache: CallArgumentLayoutCache,
+) -> CallArgumentExpansion {
     ctx.increment_counter("call.arguments.layout.builds", 1);
 
-    let has_call_infix_annotations = ctx.has_non_blank_infix_annotation(call_node_id);
-
     if dynamic_arguments.is_empty() {
-        return CallArgumentExpansionsCache {
-            regular: CallArgumentExpansionCache {
-                force_expand: false,
-                has_call_infix_annotations,
-                trailing_collection_argument: false,
-            },
+        return CallArgumentExpansion {
+            force_expand: false,
             chain_force_expand: false,
+            trailing_collection_argument: false,
         };
     }
-
     if dynamic_arguments.len() == 1 {
-        return single_argument_expansions(
+        return compute_single_argument_expansion(
             ctx,
             call_node_id,
             dynamic_arguments,
-            has_call_infix_annotations,
+            layout_cache,
         );
     }
 
-    multi_argument_expansions(
-        ctx,
-        call_node_id,
-        dynamic_arguments,
-        has_call_infix_annotations,
-    )
+    compute_multi_argument_expansion(ctx, call_node_id, dynamic_arguments, layout_cache)
 }
 
-/// Build expansion data for one multi-argument call.
-fn multi_argument_expansions(
+/// Build expansion facts for one multi-argument call.
+fn compute_multi_argument_expansion(
     ctx: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
-    has_call_infix_annotations: bool,
-) -> CallArgumentExpansionsCache {
-    let layout_cache = call_argument_layout_cache(ctx, call_node_id, dynamic_arguments);
+    layout_cache: CallArgumentLayoutCache,
+) -> CallArgumentExpansion {
+    let has_call_infix_annotations = layout_cache.has_call_infix_annotations;
 
     // compact unannotated argument lists do not need full expansion scans
-    if !layout_cache.has_call_infix_annotations && layout_cache.all_compact_simple_unannotated {
+    if !has_call_infix_annotations && layout_cache.all_compact_simple_unannotated {
         ctx.increment_counter("call.arguments.layout.simple_short_circuit", 1);
 
-        return CallArgumentExpansionsCache {
-            regular: CallArgumentExpansionCache {
-                force_expand: false,
-                has_call_infix_annotations: layout_cache.has_call_infix_annotations,
-                trailing_collection_argument: layout_cache.trailing_collection_argument,
-            },
+        return CallArgumentExpansion {
+            force_expand: false,
             chain_force_expand: false,
+            trailing_collection_argument: layout_cache.trailing_collection_argument,
         };
     }
 
@@ -591,13 +613,10 @@ fn multi_argument_expansions(
     if has_multiple_function_arguments {
         ctx.increment_counter("call.arguments.layout.multiple_function_short_circuit", 1);
 
-        return CallArgumentExpansionsCache {
-            regular: CallArgumentExpansionCache {
-                force_expand: true,
-                has_call_infix_annotations,
-                trailing_collection_argument,
-            },
+        return CallArgumentExpansion {
+            force_expand: true,
             chain_force_expand: true,
+            trailing_collection_argument,
         };
     }
 
@@ -629,13 +648,10 @@ fn multi_argument_expansions(
         || should_expand_for_block_callback
         || has_multiple_function_arguments;
 
-    CallArgumentExpansionsCache {
-        regular: CallArgumentExpansionCache {
-            force_expand: regular_force_expand,
-            has_call_infix_annotations: layout_cache.has_call_infix_annotations,
-            trailing_collection_argument,
-        },
+    CallArgumentExpansion {
+        force_expand: regular_force_expand,
         chain_force_expand,
+        trailing_collection_argument,
     }
 }
 
@@ -706,91 +722,14 @@ pub(crate) fn single_argument_requires_expanded_list(
     }
 
     // force expand only from non-boundary annotation signals on the argument value path
-    let has_annotation_signal = argument_has_non_blank_non_boundary_annotation(ctx, argument_id)
-        || expression_has_non_blank_non_boundary_annotation(ctx, raw_value_id)
-        || expression_has_non_blank_non_boundary_annotation(ctx, value_id);
-    let has_boundary_signal = argument_has_boundary_comment_annotation(ctx, argument_id)
-        || expression_has_boundary_comment_annotation(ctx, raw_value_id)
-        || expression_has_boundary_comment_annotation(ctx, value_id);
+    let has_annotation_signal = ctx.has_non_blank_non_boundary_annotation(argument_id)
+        || ctx.has_non_blank_non_boundary_annotation(raw_value_id)
+        || ctx.has_non_blank_non_boundary_annotation(value_id);
+    let has_boundary_signal = ctx.has_boundary_comment_annotation(argument_id)
+        || ctx.has_boundary_comment_annotation(raw_value_id)
+        || ctx.has_boundary_comment_annotation(value_id);
 
     has_annotation_signal || has_boundary_signal
-}
-
-/// Return whether one argument has non-blank annotations excluding boundary postfix markers.
-fn argument_has_non_blank_non_boundary_annotation(
-    ctx: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    ctx.visit_annotations(argument_id, |annotations| {
-        annotation_ids_have_non_blank_non_boundary_annotation(ctx, annotations)
-    })
-    .unwrap_or(false)
-}
-
-/// Return whether one argument has one boundary postfix comment annotation.
-fn argument_has_boundary_comment_annotation(
-    ctx: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    ctx.visit_annotations(argument_id, |annotations| {
-        annotation_ids_have_boundary_comment_annotation(ctx, annotations)
-    })
-    .unwrap_or(false)
-}
-
-/// Return whether one expression has non-blank annotations excluding boundary postfix markers.
-fn expression_has_non_blank_non_boundary_annotation(
-    ctx: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    ctx.visit_annotations(expression_id, |annotations| {
-        annotation_ids_have_non_blank_non_boundary_annotation(ctx, annotations)
-    })
-    .unwrap_or(false)
-}
-
-/// Return whether one expression has one boundary postfix comment annotation.
-fn expression_has_boundary_comment_annotation(
-    ctx: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    ctx.visit_annotations(expression_id, |annotations| {
-        annotation_ids_have_boundary_comment_annotation(ctx, annotations)
-    })
-    .unwrap_or(false)
-}
-
-/// Return whether one annotation list has a non-blank non-boundary annotation.
-fn annotation_ids_have_non_blank_non_boundary_annotation(
-    ctx: &DestackFormatContext<'_>,
-    annotation_ids: &[LocalNodeId<Annotation>],
-) -> bool {
-    annotation_ids
-        .iter()
-        .any(|annotation_id| match ctx.annotation(*annotation_id) {
-            Annotation::Blank { .. } => false,
-            Annotation::Comment { position, .. }
-            | Annotation::Doc { position, .. }
-            | Annotation::Decorator { position, .. } => {
-                position != AnnotationPosition::LinePostfixBoundary
-            }
-        })
-}
-
-/// Return whether one annotation list has a boundary postfix comment annotation.
-fn annotation_ids_have_boundary_comment_annotation(
-    ctx: &DestackFormatContext<'_>,
-    annotation_ids: &[LocalNodeId<Annotation>],
-) -> bool {
-    annotation_ids.iter().any(|annotation_id| {
-        matches!(
-            ctx.annotation(*annotation_id),
-            Annotation::Comment {
-                position: AnnotationPosition::LinePostfixBoundary,
-                ..
-            }
-        )
-    })
 }
 
 /// Return whether an expression should use chain-aware single-argument call layout rules.
@@ -814,15 +753,16 @@ fn expression_is_chain_layout_candidate(
     }
 }
 
-/// Build expansion data for one single-argument call.
-fn single_argument_expansions(
+/// Build expansion facts for one single-argument call.
+fn compute_single_argument_expansion(
     ctx: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
-    has_call_infix_annotations: bool,
-) -> CallArgumentExpansionsCache {
+    layout_cache: CallArgumentLayoutCache,
+) -> CallArgumentExpansion {
     let argument_id = dynamic_arguments[0];
     let argument_annotation_cache = ctx.argument_annotation_cache(argument_id);
+    let has_call_infix_annotations = layout_cache.has_call_infix_annotations;
     let has_line_comment_annotations = argument_annotation_cache.has_line_comment;
     let trailing_collection_argument = argument_is_collection_literal(ctx, argument_id);
     let has_collection_source_comment =
@@ -851,6 +791,7 @@ fn single_argument_expansions(
         single_argument_requires_expanded_list(ctx, dynamic_arguments);
     let force_expand_single_prefix_line_commented_argument =
         argument_annotation_cache.has_prefix_line_comment;
+    let has_call_infix_annotations = layout_cache.has_call_infix_annotations;
 
     let regular_force_expand = force_expand_jsx
         || has_line_comment_annotations
@@ -867,13 +808,10 @@ fn single_argument_expansions(
         || force_expand_single_chain_argument
         || force_expand_single_multiline_with_static_arguments;
 
-    CallArgumentExpansionsCache {
-        regular: CallArgumentExpansionCache {
-            force_expand: regular_force_expand,
-            has_call_infix_annotations,
-            trailing_collection_argument,
-        },
+    CallArgumentExpansion {
+        force_expand: regular_force_expand,
         chain_force_expand,
+        trailing_collection_argument,
     }
 }
 
@@ -918,68 +856,63 @@ struct CallSeparatorLayoutFacts {
     use_single_plain_separator_comment_layout: bool,
 }
 
-/// Return whether the trailing collection argument has non blank comment signals.
-pub(crate) fn trailing_collection_argument_has_comment_signal(
-    ctx: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    let Some(last_argument_id) = dynamic_arguments.last().copied() else {
-        return false;
-    };
-
-    if !argument_is_collection_literal(ctx, last_argument_id) {
-        return false;
-    }
-
-    if ctx.has_non_blank_annotation(last_argument_id) {
-        return true;
-    }
-
-    let last_argument_value_id = argument_value_id(ctx.tree, last_argument_id);
-    ctx.has_non_blank_annotation(last_argument_value_id)
-}
-
 /// Collect separator-comment facts used by comment-expanded and default list layouts.
 fn collect_call_separator_layout_facts(
     ctx: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
 ) -> CallSeparatorLayoutFacts {
-    let single_argument_id = if dynamic_arguments.len() == 1 {
-        Some(dynamic_arguments[0])
-    } else {
-        None
-    };
+    let single_argument_id = (dynamic_arguments.len() == 1).then_some(dynamic_arguments[0]);
     let last_argument_id = dynamic_arguments.last().copied();
+    let mut single_argument_separator_source_exists = false;
+    let mut last_argument_separator_source_exists = false;
+    let mut use_separator_comment_multiline = false;
 
-    let single_argument_separator_source_exists = single_argument_id.is_some_and(|argument_id| {
-        single_argument_separator_line_comment_source(ctx, call_node_id, argument_id).is_some()
-    });
-    let last_argument_separator_source_exists = if single_argument_id.is_some() {
-        single_argument_separator_source_exists
-    } else {
-        last_argument_id.is_some_and(|argument_id| {
-            single_argument_separator_line_comment_source(ctx, call_node_id, argument_id).is_some()
-        })
-    };
+    if let Some(single_argument_id) = single_argument_id {
+        let has_separator_source =
+            single_argument_separator_line_comment_source_exists(ctx, single_argument_id);
+        single_argument_separator_source_exists = has_separator_source;
+        last_argument_separator_source_exists = has_separator_source;
+        use_separator_comment_multiline = has_separator_source
+            && argument_can_render_without_separator_line_comment(ctx, single_argument_id);
+    } else if let Some(last_argument_id) = last_argument_id {
+        last_argument_separator_source_exists =
+            single_argument_separator_line_comment_source_exists(ctx, last_argument_id);
+        use_separator_comment_multiline = last_argument_separator_source_exists
+            && argument_can_render_without_separator_line_comment(ctx, last_argument_id);
+
+        if !use_separator_comment_multiline {
+            for argument_id in dynamic_arguments.iter().copied() {
+                if argument_id == last_argument_id {
+                    break;
+                }
+                if !argument_can_render_without_separator_line_comment(ctx, argument_id) {
+                    continue;
+                }
+
+                if single_argument_separator_line_comment_source_exists(ctx, argument_id) {
+                    use_separator_comment_multiline = true;
+                    break;
+                }
+            }
+        }
+    }
 
     let has_trailing_collection_comment_signal =
         trailing_collection_argument_has_comment_signal(ctx, dynamic_arguments);
-    let has_single_separator_line_comment_annotation =
-        single_argument_id.is_some_and(|argument_id| {
+    let has_single_separator_line_comment_annotation = single_argument_separator_source_exists
+        || single_argument_id.is_some_and(|argument_id| {
             argument_has_separator_line_comment_annotation(ctx, argument_id)
         });
-    let has_last_separator_line_comment_annotation = last_argument_id.is_some_and(|argument_id| {
-        argument_has_separator_line_comment_annotation(ctx, argument_id)
-    });
+    let has_last_separator_line_comment_annotation = if single_argument_id.is_some() {
+        has_single_separator_line_comment_annotation
+    } else {
+        last_argument_separator_source_exists
+            || last_argument_id.is_some_and(|argument_id| {
+                argument_has_separator_line_comment_annotation(ctx, argument_id)
+            })
+    };
     let last_separator_line_comment_source_missing =
         has_last_separator_line_comment_annotation && !last_argument_separator_source_exists;
-    let use_separator_comment_multiline =
-        can_format_multiline_call_argument_list_with_separator_line_comment(
-            ctx,
-            call_node_id,
-            dynamic_arguments,
-        );
     let use_single_plain_separator_comment_layout = single_argument_id.is_some_and(|argument_id| {
         argument_is_plain_call_argument(ctx, argument_id) && single_argument_separator_source_exists
     });
@@ -994,219 +927,6 @@ fn collect_call_separator_layout_facts(
     }
 }
 
-/// Build one comment-expanded call argument layout.
-fn build_comment_expanded_call_argument_layout(
-    ctx: &DestackFormatContext<'_>,
-    _dynamic_arguments: &[LocalNodeId<Argument>],
-    facts: &CallSeparatorLayoutFacts,
-) -> CallArgumentLayout {
-    let use_trailing_comma = ctx.options.trailing_comma == TrailingComma::All
-        && !facts.has_single_separator_line_comment_annotation;
-    let force_trailing_comma_for_separator_comment = facts
-        .has_last_separator_line_comment_annotation
-        && facts.last_separator_line_comment_source_missing;
-
-    CallArgumentLayout::CommentExpanded {
-        use_separator_comment_multiline: facts.use_separator_comment_multiline,
-        use_single_plain_separator_comment_layout: facts.use_single_plain_separator_comment_layout,
-        use_trailing_comma,
-        force_trailing_comma_for_separator_comment,
-    }
-}
-
-/// Build one default-list call argument layout.
-fn build_default_list_call_argument_layout(
-    ctx: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-    force_expand: bool,
-    has_any_argument_annotation: bool,
-    has_line_comment_annotations: bool,
-    facts: &CallSeparatorLayoutFacts,
-) -> CallArgumentLayout {
-    let is_single_argument = dynamic_arguments.len() == 1;
-    let single_argument_id = dynamic_arguments.first().copied();
-    let has_single_template_literal_argument = single_argument_id
-        .is_some_and(|argument_id| argument_is_template_literal(ctx, argument_id));
-    let has_single_interpolated_template_literal_argument = single_argument_id
-        .is_some_and(|argument_id| argument_is_interpolated_template_literal(ctx, argument_id));
-    let use_plain_default_short_circuit = !ctx.has_ignore_directive_markers()
-        && dynamic_arguments.len() > 1
-        && !has_any_argument_annotation
-        && !has_line_comment_annotations
-        && !facts.has_trailing_collection_comment_signal
-        && !is_single_argument;
-    let disallow_trailing_separator =
-        has_single_template_literal_argument && !has_single_interpolated_template_literal_argument;
-    let force_trailing_separator = facts.has_last_separator_line_comment_annotation
-        || facts.has_single_separator_line_comment_annotation;
-
-    CallArgumentLayout::ListDefault {
-        force_expand,
-        use_separator_comment_multiline: facts.use_separator_comment_multiline,
-        use_plain_default_short_circuit,
-        disallow_trailing_separator,
-        force_trailing_separator,
-    }
-}
-
-/// Hold shared predicates for single-argument inline layout routing.
-struct SingleArgumentInlineFacts {
-    /// Whether one boundary annotation exists around the argument seam.
-    has_boundary_comments: bool,
-    /// Whether call infix annotations exist.
-    has_call_infix_annotations: bool,
-    /// Whether any argument annotation exists.
-    has_any_argument_annotation: bool,
-    /// Whether single-argument expansion is forced.
-    single_argument_force_expand: bool,
-    /// Whether static-plus-multiline expansion is forced.
-    force_expand_single_multiline_with_static_arguments: bool,
-    /// Whether type-binary callee collection expansion is forced.
-    force_expand_single_collection_for_type_binary_callee: bool,
-    /// Whether the call is part of a postfix chain.
-    has_call_chain_parent: bool,
-    /// Whether the call has an await ancestor.
-    has_await_ancestor: bool,
-    /// Whether the argument has a non blank annotation.
-    argument_has_non_blank_annotation: bool,
-    /// Whether the argument value has a non blank annotation.
-    value_has_non_blank_annotation: bool,
-    /// Whether callback-blocking annotations exist for the argument.
-    has_callback_blocking_comment_annotation: bool,
-    /// Whether a leading prefix annotation sits outside argument span.
-    has_leading_prefix_annotation_outside_span: bool,
-    /// Whether line comment annotations exist on the argument.
-    has_line_comment_annotation: bool,
-    /// Whether the argument is a function expression.
-    is_function_expression: bool,
-    /// Whether the argument is a lambda expression.
-    is_lambda_expression: bool,
-    /// Whether the argument is an interpolated template literal.
-    is_interpolated_template_literal: bool,
-    /// Whether the argument is a template literal.
-    is_template_literal: bool,
-    /// Whether the argument is simple under strict call options.
-    is_simple_argument: bool,
-}
-
-/// Build single-argument inline layout facts when exactly one argument exists.
-fn single_argument_inline_facts(
-    ctx: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-    layout_cache: &CallArgumentLayoutCache,
-    single_argument_force_expand: bool,
-    force_expand_single_multiline_with_static_arguments: bool,
-    force_expand_single_collection_for_type_binary_callee: bool,
-    has_boundary_comments: bool,
-) -> Option<SingleArgumentInlineFacts> {
-    if dynamic_arguments.len() != 1 {
-        return None;
-    }
-
-    let argument_id = dynamic_arguments[0];
-    let value_id = argument_value_id(ctx.tree, argument_id);
-    let is_simple_argument = argument_is_simple_with_options(
-        ctx,
-        argument_id,
-        ArgumentSimplicityOptions {
-            reject_any_argument_annotation: true,
-            reject_non_blank_argument_annotation: true,
-            reject_value_annotation: true,
-            reject_lambda_values: true,
-        },
-    );
-
-    Some(SingleArgumentInlineFacts {
-        has_boundary_comments,
-        has_call_infix_annotations: layout_cache.has_call_infix_annotations,
-        has_any_argument_annotation: layout_cache.has_any_argument_annotation,
-        single_argument_force_expand,
-        force_expand_single_multiline_with_static_arguments,
-        force_expand_single_collection_for_type_binary_callee,
-        has_call_chain_parent: layout_cache.has_call_chain_parent,
-        has_await_ancestor: call_has_await_ancestor(ctx, call_node_id),
-        argument_has_non_blank_annotation: ctx.has_non_blank_annotation(argument_id),
-        value_has_non_blank_annotation: ctx.has_non_blank_annotation(value_id),
-        has_callback_blocking_comment_annotation: argument_has_callback_blocking_comment_annotation(
-            ctx,
-            argument_id,
-        ),
-        has_leading_prefix_annotation_outside_span:
-            argument_has_leading_prefix_annotation_outside_span(ctx, argument_id),
-        has_line_comment_annotation: argument_has_line_comment_annotation(ctx, argument_id),
-        is_function_expression: argument_is_function_expression(ctx, argument_id),
-        is_lambda_expression: argument_is_lambda_expression(ctx, argument_id),
-        is_interpolated_template_literal: argument_is_interpolated_template_literal(
-            ctx,
-            argument_id,
-        ),
-        is_template_literal: argument_is_template_literal(ctx, argument_id),
-        is_simple_argument,
-    })
-}
-
-/// Return whether function-expression single argument can stay inline.
-fn can_use_single_function_argument_inline(facts: &SingleArgumentInlineFacts) -> bool {
-    !facts.has_call_infix_annotations
-        && !facts.force_expand_single_multiline_with_static_arguments
-        && !facts.force_expand_single_collection_for_type_binary_callee
-        && !facts.has_boundary_comments
-        && !facts.argument_has_non_blank_annotation
-        && !facts.value_has_non_blank_annotation
-        && !facts.has_callback_blocking_comment_annotation
-        && !facts.has_leading_prefix_annotation_outside_span
-        && facts.is_function_expression
-}
-
-/// Return whether lambda single argument can stay inline.
-fn can_use_single_callback_argument_inline(facts: &SingleArgumentInlineFacts) -> bool {
-    !facts.has_call_infix_annotations
-        && !facts.has_await_ancestor
-        && !facts.force_expand_single_multiline_with_static_arguments
-        && !facts.force_expand_single_collection_for_type_binary_callee
-        && !facts.has_boundary_comments
-        && !facts.argument_has_non_blank_annotation
-        && !facts.value_has_non_blank_annotation
-        && !facts.has_callback_blocking_comment_annotation
-        && !facts.has_leading_prefix_annotation_outside_span
-        && facts.is_lambda_expression
-}
-
-/// Return whether one simple single argument can stay inline.
-fn can_use_single_simple_argument_inline(facts: &SingleArgumentInlineFacts) -> bool {
-    !facts.force_expand_single_multiline_with_static_arguments
-        && !facts.force_expand_single_collection_for_type_binary_callee
-        && !facts.single_argument_force_expand
-        && !facts.has_any_argument_annotation
-        && !facts.argument_has_non_blank_annotation
-        && facts.is_simple_argument
-}
-
-/// Return whether one non-interpolated template argument can stay inline.
-fn can_use_single_template_argument_inline(facts: &SingleArgumentInlineFacts) -> bool {
-    !facts.has_boundary_comments
-        && !facts.has_call_infix_annotations
-        && !facts.has_any_argument_annotation
-        && facts.is_template_literal
-        && !facts.is_interpolated_template_literal
-}
-
-/// Return whether one chain argument should stay inline to preserve chain breaks.
-fn can_use_single_chain_argument_inline(facts: &SingleArgumentInlineFacts) -> bool {
-    facts.has_call_chain_parent
-        && !facts.has_boundary_comments
-        && !facts.has_call_infix_annotations
-        && !facts.has_any_argument_annotation
-        && !facts.single_argument_force_expand
-        && !facts.force_expand_single_multiline_with_static_arguments
-        && !facts.force_expand_single_collection_for_type_binary_callee
-        && !facts.has_line_comment_annotation
-        && !facts.is_lambda_expression
-        && !facts.is_function_expression
-        && !facts.is_interpolated_template_literal
-}
-
 /// Try single-argument inline layout rules in priority order.
 fn try_single_argument_inline_layout(
     ctx: &DestackFormatContext<'_>,
@@ -1218,43 +938,88 @@ fn try_single_argument_inline_layout(
     force_expand_single_collection_for_type_binary_callee: bool,
     has_boundary_comments: bool,
 ) -> Option<CallArgumentLayout> {
-    let facts = single_argument_inline_facts(
-        ctx,
-        call_node_id,
-        dynamic_arguments,
-        layout_cache,
-        single_argument_force_expand,
-        force_expand_single_multiline_with_static_arguments,
-        force_expand_single_collection_for_type_binary_callee,
-        has_boundary_comments,
-    )?;
-
-    // function expression fast path
-    if can_use_single_function_argument_inline(&facts) {
-        ctx.increment_counter("call.arguments.path.single_function_inline", 1);
-        return Some(CallArgumentLayout::InlineSingle);
+    if dynamic_arguments.len() != 1 {
+        return None;
     }
 
-    // lambda callback fast path
-    if can_use_single_callback_argument_inline(&facts) {
-        ctx.increment_counter("call.arguments.path.single_callback_inline", 1);
-        return Some(CallArgumentLayout::InlineSingle);
-    }
+    let argument_id = dynamic_arguments[0];
 
-    // simple argument fast path
-    if can_use_single_simple_argument_inline(&facts) {
+    // simple single arguments can stay inline without extra edge checks
+    if !force_expand_single_multiline_with_static_arguments
+        && !force_expand_single_collection_for_type_binary_callee
+        && !single_argument_force_expand
+        && !layout_cache.has_any_argument_annotation
+        && argument_is_simple_with_options(
+            ctx,
+            argument_id,
+            ArgumentSimplicityOptions {
+                reject_any_argument_annotation: true,
+                reject_non_blank_argument_annotation: true,
+                reject_value_annotation: true,
+                reject_lambda_values: true,
+            },
+        )
+    {
         ctx.increment_counter("call.arguments.path.single_simple", 1);
         return Some(CallArgumentLayout::InlineSingle);
     }
 
-    // non-interpolated template fast path
-    if can_use_single_template_argument_inline(&facts) {
+    // function and lambda callbacks share the same comment blockers
+    if !layout_cache.has_call_infix_annotations
+        && !force_expand_single_multiline_with_static_arguments
+        && !force_expand_single_collection_for_type_binary_callee
+        && !has_boundary_comments
+        && !layout_cache.has_any_argument_annotation
+    {
+        let value_id = argument_value_id(ctx.tree, argument_id);
+        let has_value_annotation = ctx.has_non_blank_annotation(value_id);
+        let has_callback_blocking_comment_annotation =
+            argument_has_callback_blocking_comment_annotation(ctx, argument_id);
+        let has_leading_prefix_annotation_outside_span =
+            argument_has_leading_prefix_annotation_outside_span(ctx, argument_id);
+
+        if !has_value_annotation
+            && !has_callback_blocking_comment_annotation
+            && !has_leading_prefix_annotation_outside_span
+        {
+            if argument_is_function_expression(ctx, argument_id) {
+                ctx.increment_counter("call.arguments.path.single_function_inline", 1);
+                return Some(CallArgumentLayout::InlineSingle);
+            }
+
+            if !call_has_await_ancestor(ctx, call_node_id)
+                && argument_is_lambda_expression(ctx, argument_id)
+            {
+                ctx.increment_counter("call.arguments.path.single_callback_inline", 1);
+                return Some(CallArgumentLayout::InlineSingle);
+            }
+        }
+    }
+
+    // non interpolated templates stay inline when there are no edge comments
+    if !has_boundary_comments
+        && !layout_cache.has_call_infix_annotations
+        && !layout_cache.has_any_argument_annotation
+        && argument_is_template_literal(ctx, argument_id)
+        && !argument_is_interpolated_template_literal(ctx, argument_id)
+    {
         ctx.increment_counter("call.arguments.path.single_template_inline", 1);
         return Some(CallArgumentLayout::InlineSingle);
     }
 
-    // chain continuation fast path
-    if can_use_single_chain_argument_inline(&facts) {
+    // chain continuation path should preserve existing chain breaks
+    if layout_cache.has_call_chain_parent
+        && !has_boundary_comments
+        && !layout_cache.has_call_infix_annotations
+        && !layout_cache.has_any_argument_annotation
+        && !single_argument_force_expand
+        && !force_expand_single_multiline_with_static_arguments
+        && !force_expand_single_collection_for_type_binary_callee
+        && !argument_has_line_comment_annotation(ctx, argument_id)
+        && !argument_is_function_expression(ctx, argument_id)
+        && !argument_is_lambda_expression(ctx, argument_id)
+        && !argument_is_interpolated_template_literal(ctx, argument_id)
+    {
         ctx.increment_counter("call.arguments.path.single_chain_inline", 1);
         return Some(CallArgumentLayout::InlineSingle);
     }
@@ -1262,135 +1027,32 @@ fn try_single_argument_inline_layout(
     None
 }
 
-/// Choose call argument layout from early and main rule phases.
-struct CallCommentPhaseFacts {
+/// Try to select hug-last inline layout for callback and collection tails.
+fn try_hug_last_inline_layout(
+    ctx: &DestackFormatContext<'_>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    layout_cache: &CallArgumentLayoutCache,
+    has_boundary_comments: bool,
     has_line_comment_annotations: bool,
-    has_prefix_line_comment_annotations: bool,
-    separator_facts: CallSeparatorLayoutFacts,
-}
-
-struct CallExpansionPhaseFacts {
-    expansion: CallArgumentExpansionCache,
+    expansion: CallArgumentExpansion,
     force_expand: bool,
-}
-
-/// Collect comment and separator facts for call layout phases.
-fn call_comment_phase_facts(
-    ctx: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-    has_any_argument_annotation: bool,
-    has_call_infix_annotations: bool,
-) -> CallCommentPhaseFacts {
-    let (has_line_comment_annotations, has_prefix_line_comment_annotations) =
-        if has_any_argument_annotation || has_call_infix_annotations {
-            let _timing = ctx.timing_scope(timing::FORMAT_EXPRESSION_CALL_ARGUMENTS_COMMENT_SCAN);
-            ctx.increment_counter("call.arguments.comment_scan.calls", 1);
-            call_argument_comments(ctx, dynamic_arguments)
-        } else {
-            ctx.increment_counter("call.arguments.comment_scan.skip_no_annotation", 1);
-            (false, false)
-        };
-    let separator_facts = collect_call_separator_layout_facts(ctx, call_node_id, dynamic_arguments);
-
-    CallCommentPhaseFacts {
-        has_line_comment_annotations,
-        has_prefix_line_comment_annotations,
-        separator_facts,
-    }
-}
-
-/// Collect expansion and force-expand facts for call layout phases.
-fn call_expansion_phase_facts(
-    ctx: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-    has_any_argument_annotation: bool,
-    has_boundary_comments: bool,
-    has_line_comment_annotations: bool,
-    separator_facts: &CallSeparatorLayoutFacts,
-) -> CallExpansionPhaseFacts {
-    let expansion = {
-        let _timing = ctx.timing_scope(timing::FORMAT_EXPRESSION_CALL_ARGUMENTS_EXPANSION_SCAN);
-        call_argument_expansion(ctx, call_node_id, dynamic_arguments)
-    };
-
-    let force_expand_for_structural_trailing_collection = dynamic_arguments.len() >= 3
-        && expansion.trailing_collection_argument
-        && !has_any_argument_annotation
-        && !has_line_comment_annotations
-        && !has_boundary_comments
-        && !separator_facts.has_trailing_collection_comment_signal
-        && leading_arguments_are_compact_simple_unannotated(ctx, dynamic_arguments);
-    let trailing_collection_comment_force_expand = dynamic_arguments.len() > 1
-        && expansion.trailing_collection_argument
-        && dynamic_arguments
-            .last()
-            .copied()
-            .is_some_and(|last_argument_id| {
-                let has_last_line_comment_annotation = has_line_comment_annotations
-                    && argument_has_line_comment_annotation(ctx, last_argument_id);
-                let has_last_source_comment = ctx.has_comment(ctx.span(last_argument_id));
-                has_last_line_comment_annotation || has_last_source_comment
-            });
-    let force_expand = expansion.force_expand
+) -> Option<CallArgumentLayout> {
+    if dynamic_arguments.len() <= 1
+        || has_line_comment_annotations
         || has_boundary_comments
-        || force_expand_for_structural_trailing_collection
-        || trailing_collection_comment_force_expand;
-
-    CallExpansionPhaseFacts {
-        expansion,
-        force_expand,
-    }
-}
-
-/// Return whether call layout can consider hug-last inline rules.
-fn call_can_consider_hug_last_argument(
-    ctx: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-    has_boundary_comments: bool,
-    has_line_comment_annotations: bool,
-    has_call_infix_annotations: bool,
-) -> bool {
-    dynamic_arguments.len() > 1
-        && !(has_line_comment_annotations || has_boundary_comments)
-        && !has_call_infix_annotations
-        && dynamic_arguments.last().is_some_and(|argument_id| {
+        || layout_cache.has_call_infix_annotations
+        || !dynamic_arguments.last().is_some_and(|argument_id| {
             is_block_lambda_argument(ctx, *argument_id)
                 || argument_is_object_literal(ctx, *argument_id)
                 || argument_is_array_literal(ctx, *argument_id)
                 || argument_is_function_expression(ctx, *argument_id)
         })
-}
-
-/// Try to select hug-last inline layout for callback and collection tails.
-fn try_hug_last_inline_layout(
-    ctx: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-    has_boundary_comments: bool,
-    has_line_comment_annotations: bool,
-    expansion: CallArgumentExpansionCache,
-    force_expand: bool,
-) -> Option<CallArgumentLayout> {
-    let can_consider_hug_last_argument = call_can_consider_hug_last_argument(
-        ctx,
-        dynamic_arguments,
-        has_boundary_comments,
-        has_line_comment_annotations,
-        expansion.has_call_infix_annotations,
-    );
-    if !can_consider_hug_last_argument {
+    {
         return None;
     }
 
     let _timing = ctx.timing_scope(timing::FORMAT_EXPRESSION_CALL_ARGUMENTS_HUG_LAST);
-    let force_hug_last_inline = should_force_hug_last_inline(
-        ctx,
-        call_node_id,
-        dynamic_arguments,
-        expansion.trailing_collection_argument,
-    );
+    let force_hug_last_inline = layout_cache.force_hug_last_inline;
     if force_hug_last_inline {
         ctx.increment_counter("call.arguments.path.hug_last_forced", 1);
     }
@@ -1405,7 +1067,7 @@ fn try_hug_last_inline_layout(
             });
     let use_callback_tail_inline = !force_expand
         && last_argument_is_callback_like
-        && leading_arguments_are_compact_callback_tail_candidates(ctx, dynamic_arguments);
+        && layout_cache.leading_arguments_are_compact_callback_tail_candidates;
     if use_callback_tail_inline {
         ctx.increment_counter("call.arguments.hug_last.callback_tail_inline", 1);
     }
@@ -1425,31 +1087,6 @@ fn try_hug_last_inline_layout(
     Some(CallArgumentLayout::InlineAll)
 }
 
-/// Return whether call layout should use trailing-collection expanded rendering.
-fn should_use_trailing_collection_expanded_layout(
-    ctx: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-    layout_cache: CallArgumentLayoutCache,
-    force_expand: bool,
-    has_any_argument_annotation: bool,
-    has_line_comment_annotations: bool,
-    has_boundary_comments: bool,
-    separator_facts: &CallSeparatorLayoutFacts,
-) -> bool {
-    let has_trailing_collection_argument = dynamic_arguments
-        .last()
-        .copied()
-        .is_some_and(|argument_id| argument_is_collection_literal(ctx, argument_id));
-    force_expand
-        && dynamic_arguments.len() > 1
-        && has_trailing_collection_argument
-        && !layout_cache.has_block_callback_argument
-        && !has_any_argument_annotation
-        && !has_line_comment_annotations
-        && !has_boundary_comments
-        && !separator_facts.has_trailing_collection_comment_signal
-}
-
 pub(crate) fn call_argument_layout(
     ctx: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
@@ -1460,32 +1097,41 @@ pub(crate) fn call_argument_layout(
     has_boundary_comments: bool,
 ) -> CallArgumentLayout {
     let layout_cache = call_argument_layout_cache(ctx, call_node_id, dynamic_arguments);
-    let has_call_infix_annotations = layout_cache.has_call_infix_annotations;
     let has_any_argument_annotation = layout_cache.has_any_argument_annotation;
+    let has_line_comment_annotations = layout_cache.has_line_comment_annotations;
+    let has_prefix_line_comment_annotations = layout_cache.has_prefix_line_comment_annotations;
+    let needs_separator_layout_facts = has_boundary_comments
+        || has_line_comment_annotations
+        || has_prefix_line_comment_annotations;
+    let mut separator_facts = None;
 
-    // phase: comment and separator facts
-    let comment_facts = call_comment_phase_facts(
-        ctx,
-        call_node_id,
-        dynamic_arguments,
-        has_any_argument_annotation,
-        has_call_infix_annotations,
-    );
-    let has_line_comment_annotations = comment_facts.has_line_comment_annotations;
-    let has_prefix_line_comment_annotations = comment_facts.has_prefix_line_comment_annotations;
-    let separator_facts = &comment_facts.separator_facts;
+    // single plain separator comments should route through comment-expanded rendering
+    if dynamic_arguments.len() == 1 && needs_separator_layout_facts {
+        separator_facts = Some(collect_call_separator_layout_facts(ctx, dynamic_arguments));
 
-    // phase: single plain separator comments should route through comment-expanded rendering
-    if dynamic_arguments.len() == 1 && separator_facts.use_single_plain_separator_comment_layout {
-        ctx.increment_counter(
-            "call.arguments.path.comment_expanded.single_plain_separator",
-            1,
-        );
-        return build_comment_expanded_call_argument_layout(
-            ctx,
-            dynamic_arguments,
-            separator_facts,
-        );
+        if separator_facts
+            .as_ref()
+            .is_some_and(|facts| facts.use_single_plain_separator_comment_layout)
+        {
+            ctx.increment_counter(
+                "call.arguments.path.comment_expanded.single_plain_separator",
+                1,
+            );
+            let separator_facts = separator_facts
+                .as_ref()
+                .expect("separator facts should exist for single separator routing");
+
+            return CallArgumentLayout::CommentExpanded {
+                use_separator_comment_multiline: separator_facts.use_separator_comment_multiline,
+                use_single_plain_separator_comment_layout: separator_facts
+                    .use_single_plain_separator_comment_layout,
+                use_trailing_comma: ctx.options.trailing_comma == TrailingComma::All
+                    && !separator_facts.has_single_separator_line_comment_annotation,
+                force_trailing_comma_for_separator_comment: separator_facts
+                    .has_last_separator_line_comment_annotation
+                    && separator_facts.last_separator_line_comment_source_missing,
+            };
+        }
     }
 
     if let Some(layout) = try_single_argument_inline_layout(
@@ -1519,32 +1165,69 @@ pub(crate) fn call_argument_layout(
     if dynamic_arguments.len() > 1
         && (has_line_comment_annotations || has_prefix_line_comment_annotations)
     {
+        let separator_facts = separator_facts
+            .get_or_insert_with(|| collect_call_separator_layout_facts(ctx, dynamic_arguments));
         ctx.increment_counter("call.arguments.path.comment_expanded", 1);
-        return build_comment_expanded_call_argument_layout(
-            ctx,
-            dynamic_arguments,
-            separator_facts,
-        );
+        return CallArgumentLayout::CommentExpanded {
+            use_separator_comment_multiline: separator_facts.use_separator_comment_multiline,
+            use_single_plain_separator_comment_layout: separator_facts
+                .use_single_plain_separator_comment_layout,
+            use_trailing_comma: ctx.options.trailing_comma == TrailingComma::All
+                && !separator_facts.has_single_separator_line_comment_annotation,
+            force_trailing_comma_for_separator_comment: separator_facts
+                .has_last_separator_line_comment_annotation
+                && separator_facts.last_separator_line_comment_source_missing,
+        };
     }
 
-    // phase: expansion and force-expand
-    let expansion_facts = call_expansion_phase_facts(
-        ctx,
-        call_node_id,
-        dynamic_arguments,
-        has_any_argument_annotation,
-        has_boundary_comments,
-        has_line_comment_annotations,
-        separator_facts,
+    // compact leading arguments with a clean trailing collection take the common expanded path
+    let use_structural_trailing_collection_expanded = dynamic_arguments.len() >= 3
+        && layout_cache.trailing_collection_argument
+        && layout_cache.leading_arguments_are_compact_simple_unannotated
+        && !layout_cache.has_call_infix_annotations
+        && !layout_cache.has_block_callback_argument
+        && !has_any_argument_annotation
+        && !has_line_comment_annotations
+        && !has_boundary_comments
+        && !trailing_collection_argument_has_comment_signal(ctx, dynamic_arguments);
+    if use_structural_trailing_collection_expanded {
+        ctx.increment_counter("call.arguments.path.trailing_collection_expanded", 1);
+        return CallArgumentLayout::TrailingCollectionExpanded;
+    }
+
+    // expansion and force-expand
+    let _timing = ctx.timing_scope(timing::FORMAT_EXPRESSION_CALL_ARGUMENTS_EXPANSION_SCAN);
+    let expansion =
+        compute_call_argument_expansion(ctx, call_node_id, dynamic_arguments, layout_cache);
+    ctx.increment_counter(
+        if expansion.force_expand {
+            "call.arguments.regular.force_expand.true"
+        } else {
+            "call.arguments.regular.force_expand.false"
+        },
+        1,
     );
-    let expansion = expansion_facts.expansion;
-    let force_expand = expansion_facts.force_expand;
+    let has_trailing_collection_comment_signal = layout_cache.trailing_collection_argument
+        && trailing_collection_argument_has_comment_signal(ctx, dynamic_arguments);
+    let trailing_collection_comment_force_expand = dynamic_arguments.len() > 1
+        && expansion.trailing_collection_argument
+        && dynamic_arguments
+            .last()
+            .copied()
+            .is_some_and(|last_argument_id| {
+                let has_last_line_comment_annotation = has_line_comment_annotations
+                    && argument_has_line_comment_annotation(ctx, last_argument_id);
+                let has_last_source_comment = ctx.has_comment(ctx.span(last_argument_id));
+                has_last_line_comment_annotation || has_last_source_comment
+            });
+    let force_expand =
+        expansion.force_expand || has_boundary_comments || trailing_collection_comment_force_expand;
 
     // phase: hug-last candidates can still end in default list rendering
     if let Some(layout) = try_hug_last_inline_layout(
         ctx,
-        call_node_id,
         dynamic_arguments,
+        &layout_cache,
         has_boundary_comments,
         has_line_comment_annotations,
         expansion,
@@ -1554,70 +1237,56 @@ pub(crate) fn call_argument_layout(
     }
 
     // phase: trailing collection patterns can force expanded list rendering
-    if should_use_trailing_collection_expanded_layout(
-        ctx,
-        dynamic_arguments,
-        layout_cache,
-        force_expand,
-        has_any_argument_annotation,
-        has_line_comment_annotations,
-        has_boundary_comments,
-        separator_facts,
-    ) {
+    if force_expand
+        && dynamic_arguments.len() > 1
+        && dynamic_arguments
+            .last()
+            .copied()
+            .is_some_and(|argument_id| argument_is_collection_literal(ctx, argument_id))
+        && !layout_cache.has_block_callback_argument
+        && !has_any_argument_annotation
+        && !has_line_comment_annotations
+        && !has_boundary_comments
+        && !has_trailing_collection_comment_signal
+    {
         ctx.increment_counter("call.arguments.path.trailing_collection_expanded", 1);
         return CallArgumentLayout::TrailingCollectionExpanded;
     }
 
+    let separator_facts = separator_facts.unwrap_or_else(|| {
+        if needs_separator_layout_facts {
+            collect_call_separator_layout_facts(ctx, dynamic_arguments)
+        } else {
+            CallSeparatorLayoutFacts {
+                has_trailing_collection_comment_signal,
+                has_single_separator_line_comment_annotation: false,
+                has_last_separator_line_comment_annotation: false,
+                last_separator_line_comment_source_missing: false,
+                use_separator_comment_multiline: false,
+                use_single_plain_separator_comment_layout: false,
+            }
+        }
+    });
+
     // fall back to default list rules
     ctx.increment_counter("call.arguments.path.list_default", 1);
-    build_default_list_call_argument_layout(
-        ctx,
-        dynamic_arguments,
+    CallArgumentLayout::ListDefault {
         force_expand,
-        has_any_argument_annotation,
-        has_line_comment_annotations,
-        separator_facts,
-    )
-}
-
-/// Return whether call arguments should force hug-last inline layout.
-pub(crate) fn should_force_hug_last_inline(
-    ctx: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-    trailing_collection_argument: bool,
-) -> bool {
-    let can_force_hug_test_like_callback = dynamic_arguments.len() == 2
-        && argument_is_string_like(ctx, dynamic_arguments[0])
-        && (argument_is_lambda_expression(ctx, dynamic_arguments[1])
-            || argument_is_function_expression(ctx, dynamic_arguments[1]));
-    let can_force_hug_reference_callback_with_collection_tail = dynamic_arguments.len() >= 3
-        && trailing_collection_argument
-        && argument_is_reference_like(ctx, dynamic_arguments[0]);
-    let can_force_hug_simple_block_lambda_tail = dynamic_arguments.len() <= 3
-        && dynamic_arguments
-            .last()
-            .is_some_and(|argument_id| is_block_lambda_argument(ctx, *argument_id));
-
-    let force_hug_test_like_callback = can_force_hug_test_like_callback
-        && call_callee_has_test_like_member_name(ctx, call_node_id);
-    let force_hug_reference_callback_with_collection_tail =
-        can_force_hug_reference_callback_with_collection_tail
-            && dynamic_arguments
-                .iter()
-                .skip(1)
-                .take(dynamic_arguments.len().saturating_sub(2))
-                .any(|argument_id| {
-                    argument_is_lambda_expression(ctx, *argument_id)
-                        || argument_is_function_expression(ctx, *argument_id)
-                });
-    let force_hug_simple_block_lambda_tail = can_force_hug_simple_block_lambda_tail
-        && leading_arguments_are_compact_simple_unannotated(ctx, dynamic_arguments)
-        && leading_arguments_are_compact_callback_tail_candidates(ctx, dynamic_arguments);
-
-    force_hug_test_like_callback
-        || force_hug_reference_callback_with_collection_tail
-        || force_hug_simple_block_lambda_tail
+        use_separator_comment_multiline: separator_facts.use_separator_comment_multiline,
+        use_plain_default_short_circuit: !ctx.has_ignore_directive_markers()
+            && dynamic_arguments.len() > 1
+            && !has_any_argument_annotation
+            && !has_line_comment_annotations
+            && !separator_facts.has_trailing_collection_comment_signal,
+        disallow_trailing_separator: dynamic_arguments.first().copied().is_some_and(
+            |argument_id| {
+                argument_is_template_literal(ctx, argument_id)
+                    && !argument_is_interpolated_template_literal(ctx, argument_id)
+            },
+        ),
+        force_trailing_separator: separator_facts.has_last_separator_line_comment_annotation
+            || separator_facts.has_single_separator_line_comment_annotation,
+    }
 }
 
 /// Return whether a call matches the react hook callback-plus-deps pattern.

@@ -18,26 +18,15 @@ use destack_parser::{Parser as DestackParser, ParserSpeculationStats};
 use destack_source::{File, FileId, FileType, IgnoreSet, LanguageType, Uri};
 
 const DEFAULT_ROOT: &str = "test/fixtures/ecosystem/checkouts";
-const QUICK_CORPUS_PACKAGES: &[&str] = &[
-    "valibot",
-    "zod",
-    "react-hook-form",
-    "preact",
-    "nest",
-    "rxjs",
-    "typebox",
-    "vite",
-    "vitest",
-    "graphql-js",
-    "react-query",
+const BUILTIN_QUICK_ROOTS: &[&str] = &[
+    "language/builtin/lib",
+    "language/test/fixtures/formatter/conformance/staging/oxfmt",
 ];
-const STANDARD_CORPUS_PACKAGES: &[&str] = &[
-    "typescript",
-    "nextjs",
-    "angular",
-    "eslint",
-    "typescript-eslint",
-    "vitest",
+const BUILTIN_STANDARD_ROOTS: &[&str] = &[
+    "language/builtin/lib",
+    "language/test/fixtures/formatter/conformance/staging/oxfmt",
+    "language/test/fixtures/formatter/conformance/staging/biome",
+    "language/test/fixtures/formatter/conformance/staging/prettier",
 ];
 const SHARE_BAR_WIDTH: usize = 16;
 const HOT_FILE_NAME_WIDTH: usize = 52;
@@ -62,13 +51,17 @@ struct Args {
     #[arg(long, default_value = DEFAULT_ROOT)]
     root: PathBuf,
 
-    /// Preset corpus package profile.
+    /// Preset corpus profile.
     #[arg(long, value_enum, default_value_t = CorpusProfile::Standard)]
     corpus: CorpusProfile,
 
     /// Extra package directories under --root, comma separated.
     #[arg(long, value_delimiter = ',')]
     packages: Vec<String>,
+
+    /// Manifest file with one corpus root per line.
+    #[arg(long)]
+    manifest: Option<PathBuf>,
 
     /// Number of measured benchmark runs.
     #[arg(long, default_value_t = 7)]
@@ -110,6 +103,10 @@ struct Args {
     #[arg(long)]
     timings: bool,
 
+    /// Enable formatter counters and cache stats in addition to timing tags.
+    #[arg(long)]
+    formatter_instrumentation: bool,
+
     /// Number of top timing tags to print when timings are enabled.
     #[arg(long, default_value_t = 20)]
     timings_top: usize,
@@ -149,9 +146,9 @@ enum Output {
 /// Corpus package profile selection.
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 enum CorpusProfile {
-    /// Run the small representative set for fast local checks.
+    /// Run the small portable shared suite for fast local checks.
     Quick,
-    /// Run the larger representative set for daily formatter perf iteration.
+    /// Run the larger portable shared suite for daily formatter perf iteration.
     Standard,
     /// Run all supported files under --root.
     Full,
@@ -351,6 +348,7 @@ struct CorpusLoadStats {
 
 #[derive(Debug, Clone)]
 struct CorpusSelection {
+    display_root: PathBuf,
     roots: Vec<PathBuf>,
     package_names: Vec<String>,
 }
@@ -475,8 +473,13 @@ fn main() -> Result<(), String> {
     }
     let stages = BenchStages::from_args(&args)?;
 
-    let root = resolve_root_path(args.root.as_path())?;
-    let selection = resolve_corpus_selection(root.as_path(), args.corpus, &args.packages)?;
+    let selection = resolve_corpus_selection(
+        args.root.as_path(),
+        args.corpus,
+        args.packages.as_slice(),
+        args.manifest.as_deref(),
+    )?;
+    let root = selection.display_root.clone();
     let respect_path_ignores = !args.no_path_ignores;
     let (files, load_stats) = load_corpus_files(&selection.roots, respect_path_ignores)?;
     if files.is_empty() {
@@ -530,6 +533,7 @@ fn main() -> Result<(), String> {
             &files,
             args.workers,
             args.timings,
+            args.formatter_instrumentation,
             args.parser_counters,
             args.mode,
             stages,
@@ -550,6 +554,7 @@ fn main() -> Result<(), String> {
             &files,
             args.workers,
             args.timings,
+            args.formatter_instrumentation,
             args.parser_counters,
             args.mode,
             stages,
@@ -616,9 +621,32 @@ fn resolve_corpus_selection(
     root: &Path,
     profile: CorpusProfile,
     extra_packages: &[String],
+    manifest: Option<&Path>,
 ) -> Result<CorpusSelection, String> {
+    if let Some(manifest) = manifest {
+        if !extra_packages.is_empty() {
+            return Err("--packages cannot be combined with --manifest".to_string());
+        }
+
+        return resolve_manifest_selection(manifest, None);
+    }
+
+    match profile {
+        CorpusProfile::Quick => resolve_builtin_manifest_selection(profile),
+        CorpusProfile::Standard => resolve_builtin_manifest_selection(profile),
+        CorpusProfile::Full => resolve_root_selection(root, extra_packages),
+    }
+}
+
+/// Resolve a corpus selection from one root and optional package list.
+fn resolve_root_selection(
+    root: &Path,
+    extra_packages: &[String],
+) -> Result<CorpusSelection, String> {
+    let root = resolve_root_path(root)?;
     if root.is_file() {
         return Ok(CorpusSelection {
+            display_root: root.clone(),
             roots: vec![root.to_path_buf()],
             package_names: Vec::new(),
         });
@@ -632,9 +660,6 @@ fn resolve_corpus_selection(
     }
 
     let mut package_names = BTreeSet::new();
-    for package in profile_package_names(profile) {
-        package_names.insert((*package).to_string());
-    }
     for package in extra_packages {
         let package = package.trim();
         if package.is_empty() {
@@ -643,15 +668,9 @@ fn resolve_corpus_selection(
         package_names.insert(package.to_string());
     }
 
-    if profile == CorpusProfile::Full && package_names.is_empty() {
-        return Ok(CorpusSelection {
-            roots: vec![root.to_path_buf()],
-            package_names: Vec::new(),
-        });
-    }
-
     if package_names.is_empty() {
         return Ok(CorpusSelection {
+            display_root: root.clone(),
             roots: vec![root.to_path_buf()],
             package_names: Vec::new(),
         });
@@ -677,18 +696,149 @@ fn resolve_corpus_selection(
     }
 
     Ok(CorpusSelection {
+        display_root: root.clone(),
         roots,
         package_names: package_names.into_iter().collect(),
     })
 }
 
-/// Return package names for a built-in corpus profile.
-fn profile_package_names(profile: CorpusProfile) -> &'static [&'static str] {
-    match profile {
-        CorpusProfile::Quick => QUICK_CORPUS_PACKAGES,
-        CorpusProfile::Standard => STANDARD_CORPUS_PACKAGES,
-        CorpusProfile::Full => &[],
+/// Resolve one built-in portable corpus manifest.
+fn resolve_builtin_manifest_selection(profile: CorpusProfile) -> Result<CorpusSelection, String> {
+    let root_specs = match profile {
+        CorpusProfile::Quick => BUILTIN_QUICK_ROOTS,
+        CorpusProfile::Standard => BUILTIN_STANDARD_ROOTS,
+        CorpusProfile::Full => {
+            return Err("full corpus does not use a built-in root list".to_string());
+        }
+    };
+
+    let mut roots = Vec::with_capacity(root_specs.len());
+    let mut package_names = Vec::with_capacity(root_specs.len());
+    let mut missing = Vec::new();
+
+    for root_spec in root_specs {
+        let root = Path::new(root_spec);
+        match resolve_root_path(root) {
+            Ok(root) => {
+                package_names.push((*root_spec).to_string());
+                roots.push(root);
+            }
+            Err(_) => {
+                missing.push((*root_spec).to_string());
+            }
+        }
     }
+
+    if !missing.is_empty() {
+        return Err(format!(
+            "built-in corpus profile {} is missing roots: {}",
+            profile.as_str(),
+            missing.join(", ")
+        ));
+    }
+
+    Ok(CorpusSelection {
+        display_root: PathBuf::from(format!("<{}>", profile.as_str())),
+        roots,
+        package_names,
+    })
+}
+
+/// Resolve one manifest-backed corpus selection.
+fn resolve_manifest_selection(
+    manifest: &Path,
+    display_name: Option<&str>,
+) -> Result<CorpusSelection, String> {
+    let manifest = resolve_manifest_path(manifest)?;
+    let manifest_directory = manifest.parent().ok_or_else(|| {
+        format!(
+            "manifest path has no parent directory: {}",
+            manifest.display()
+        )
+    })?;
+    let manifest_source = fs::read_to_string(&manifest)
+        .map_err(|error| format!("failed to read manifest {}: {error}", manifest.display()))?;
+    let mut roots = Vec::new();
+    let mut root_set = BTreeSet::new();
+    let mut package_names = Vec::new();
+
+    for (line_index, line) in manifest_source.lines().enumerate() {
+        let Some(entry) = normalize_manifest_line(line) else {
+            continue;
+        };
+        let root =
+            resolve_manifest_entry_path(manifest_directory, Path::new(entry)).map_err(|error| {
+                format!(
+                    "failed to resolve manifest entry {}:{} `{entry}`: {error}",
+                    manifest.display(),
+                    line_index + 1
+                )
+            })?;
+        if root_set.insert(root.clone()) {
+            package_names.push(entry.to_string());
+            roots.push(root);
+        }
+    }
+
+    if roots.is_empty() {
+        return Err(format!(
+            "manifest {} did not resolve any existing roots",
+            manifest.display()
+        ));
+    }
+
+    let display_root = display_name
+        .map(PathBuf::from)
+        .unwrap_or_else(|| manifest.clone());
+
+    Ok(CorpusSelection {
+        display_root,
+        roots,
+        package_names,
+    })
+}
+
+/// Resolve a manifest file path.
+fn resolve_manifest_path(manifest: &Path) -> Result<PathBuf, String> {
+    if manifest.exists() {
+        return Ok(manifest.to_path_buf());
+    }
+
+    if manifest.is_relative() {
+        let crate_relative = Path::new(env!("CARGO_MANIFEST_DIR")).join(manifest);
+        if crate_relative.exists() {
+            return Ok(crate_relative);
+        }
+    }
+
+    Err(format!(
+        "manifest path does not exist: {}",
+        manifest.display()
+    ))
+}
+
+/// Normalize one manifest line.
+fn normalize_manifest_line(line: &str) -> Option<&str> {
+    let line = line.split('#').next().unwrap_or_default().trim();
+    (!line.is_empty()).then_some(line)
+}
+
+/// Resolve one manifest entry path.
+fn resolve_manifest_entry_path(manifest_directory: &Path, entry: &Path) -> Result<PathBuf, String> {
+    if entry.is_absolute() {
+        if entry.exists() {
+            return Ok(entry.to_path_buf());
+        }
+
+        return Err(format!("path does not exist: {}", entry.display()));
+    }
+
+    let manifest_relative = manifest_directory.join(entry);
+    if manifest_relative.exists() {
+        return Ok(manifest_relative);
+    }
+
+    resolve_root_path(entry)
 }
 
 /// Format a package list for progress output.
@@ -715,6 +865,7 @@ fn run_single_benchmark(
     files: &[CorpusFile],
     workers: usize,
     timings_enabled: bool,
+    formatter_instrumentation_enabled: bool,
     parser_counters_enabled: bool,
     mode: BenchMode,
     stages: BenchStages,
@@ -760,6 +911,7 @@ fn run_single_benchmark(
                 index as u32,
                 corpus_file,
                 timings_enabled,
+                formatter_instrumentation_enabled,
                 parser_counters_enabled,
                 mode,
                 stages,
@@ -790,6 +942,7 @@ fn run_single_benchmark(
                         file_index as u32,
                         corpus_file,
                         timings_enabled,
+                        formatter_instrumentation_enabled,
                         parser_counters_enabled,
                         mode,
                         stages,
@@ -981,6 +1134,7 @@ fn benchmark_file(
     file_id: u32,
     corpus_file: &CorpusFile,
     timings_enabled: bool,
+    formatter_instrumentation_enabled: bool,
     parser_counters_enabled: bool,
     mode: BenchMode,
     stages: BenchStages,
@@ -1094,7 +1248,7 @@ fn benchmark_file(
         let parents = parents.expect("format stage requires parent index");
         let options =
             DestackFormatOptions::default().with_respect_file_ignore(mode == BenchMode::RealWorld);
-        let context = DestackFormatContext::new_with_timings(
+        let context = DestackFormatContext::new_with_instrumentation(
             options,
             DestackFormatArtifacts {
                 file: file.as_ref(),
@@ -1106,6 +1260,7 @@ fn benchmark_file(
                 parents,
             },
             timings_enabled,
+            formatter_instrumentation_enabled,
         );
         let timing_collector = context.timings.clone();
         let cache_collector = context.cache_stats.clone();

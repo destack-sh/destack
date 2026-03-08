@@ -99,10 +99,12 @@ Natural sort handles numbers correctly: `a1`, `a2`, `a10` instead of `a1`, `a10`
 
 Formatter performance is measured with the same `bench_stats` pattern used by other language crates.
 Run `cargo run --release -p destack_formatter --example bench_stats -- --help` for all options.
-Default corpus root is `test/fixtures/ecosystem/checkouts`.
-Default corpus profile is `standard`, which targets a larger representative workload for iterative perf work.
-Use `--corpus full` to bench all fetched ecosystem checkouts under `--root`.
-Use `--corpus quick` for a smaller representative set.
+Default corpus profile is `standard`, which uses the built-in portable shared root list in `bench_stats`.
+Use `--corpus quick` to load the smaller built-in shared suite.
+Use `--corpus full --root ...` to bench all supported files under one explicit root.
+Use `--manifest path/to/roots.txt` to load a custom multi-root suite with one path per line.
+Manifest entries may be absolute, relative to the manifest file, or repo-relative.
+The old ecosystem checkout mirror under `test/fixtures/ecosystem/checkouts` is still available as an explicit `--root` input, but it is no longer required for the default shared presets.
 For quick smoke runs you can use `--root test/fixtures/formatter/conformance/staging/oxfmt`.
 Use `--mode real-world` to respect file-level ignore directives and report product behavior.
 Use `--mode engine` to disable file-level ignore directives for cross-tool fairness.

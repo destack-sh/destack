@@ -1,11 +1,10 @@
-use crate::FormatNode;
 use crate::format::analysis::{
     argument_has_multiline_prefix_annotation, argument_is_inline_closure_cast_object,
-    argument_is_interpolated_template_literal, call_arguments_have_boundary_comments,
-    call_arguments_preserve_blank_line_between, call_has_static_arguments,
-    next_non_trivia_token_after_annotation, next_non_whitespace_token_after_annotation,
-    previous_non_trivia_token_before_span, previous_non_whitespace_token_before_annotation,
-    previous_non_whitespace_token_before_span, timing,
+    argument_is_interpolated_template_literal, call_arguments_preserve_blank_line_between,
+    call_has_static_arguments, next_non_trivia_token_after_annotation,
+    next_non_whitespace_token_after_annotation, previous_non_trivia_token_before_span,
+    previous_non_whitespace_token_before_annotation, previous_non_whitespace_token_before_span,
+    timing,
 };
 use crate::format::annotation::{
     AnnotationCapture, annotation_render_items, write_annotation_render_items,
@@ -30,9 +29,13 @@ use crate::format::expression::{
     list_like, soft_block_indent, soft_line_break_or_space, space, token,
     transparent_inner_expression,
 };
+use crate::{FormatNode, SeparatorLineCommentSourceCache};
 use destack_ast::{Comment, CommentStyle, PostfixPosition, TokenSpan};
 use destack_fir::format::{Buffer, Format};
 use destack_fir::write;
+
+/// One detachable separator line comment cluster for one argument seam.
+pub(crate) type SeparatorLineCommentSource = SeparatorLineCommentSourceCache;
 
 /// Write an inline comma-separated call argument list.
 pub(crate) fn write_inline_call_argument_list<'ast>(
@@ -42,12 +45,22 @@ pub(crate) fn write_inline_call_argument_list<'ast>(
 ) -> FormatResult<()> {
     write!(f, [token("(")])?;
 
-    for (index, argument_id) in dynamic_arguments.iter().enumerate() {
-        if index > 0 {
-            write!(f, [token(","), space()])?;
-        }
+    if all_plain_call_arguments {
+        for (index, argument_id) in dynamic_arguments.iter().enumerate() {
+            if index > 0 {
+                write!(f, [token(","), space()])?;
+            }
 
-        write_call_argument_for_list(f, *argument_id, all_plain_call_arguments)?;
+            write_plain_call_argument(f, *argument_id)?;
+        }
+    } else {
+        for (index, argument_id) in dynamic_arguments.iter().enumerate() {
+            if index > 0 {
+                write!(f, [token(","), space()])?;
+            }
+
+            write_plain_call_argument_or_node(f, *argument_id)?;
+        }
     }
 
     write!(f, [token(")")])?;
@@ -60,13 +73,7 @@ pub(crate) fn argument_is_plain_call_argument(
     ctx: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    if let Some(cached) = ctx.lookup_argument_plain_call_argument(argument_id) {
-        ctx.increment_counter("call.arguments.plain.cache.hits", 1);
-        return cached;
-    }
-    ctx.increment_counter("call.arguments.plain.cache.misses", 1);
-
-    let is_plain = !ctx.has_annotation(argument_id)
+    !ctx.has_annotation(argument_id)
         && matches!(
             ctx.tree.get(argument_id),
             Argument::Named {
@@ -82,9 +89,7 @@ pub(crate) fn argument_is_plain_call_argument(
                 modifiers: None,
                 ..
             }
-        );
-    ctx.store_argument_plain_call_argument(argument_id, is_plain);
-    is_plain
+        )
 }
 
 /// Write one call argument that is known to be plain.
@@ -132,19 +137,6 @@ pub(crate) fn write_plain_call_argument_or_node<'ast>(
     }
 
     write_plain_call_argument(f, argument_id)
-}
-
-/// Write one argument in list ctx from the chosen plain-call argument mode.
-fn write_call_argument_for_list<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    argument_id: LocalNodeId<Argument>,
-    all_plain_call_arguments: bool,
-) -> FormatResult<()> {
-    if all_plain_call_arguments {
-        return write_plain_call_argument(f, argument_id);
-    }
-
-    write_plain_call_argument_or_node(f, argument_id)
 }
 
 /// Return whether a call should expand its argument list when formatted in a chain.
@@ -200,9 +192,9 @@ pub(crate) fn format_single_call_argument_with_group<'ast>(
     group_id: GroupId,
 ) -> FormatResult<()> {
     let single_argument = [argument_id];
-    let has_boundary_comments =
-        call_arguments_have_boundary_comments(f.context(), call_node_id, &single_argument);
     let layout_cache = call_argument_layout_cache(f.context(), call_node_id, &single_argument);
+    let has_boundary_comments = layout_cache.has_boundary_comments;
+    let all_plain_call_arguments = layout_cache.all_plain_call_arguments;
     let has_call_infix_annotations = layout_cache.has_call_infix_annotations;
     let has_any_argument_annotation = layout_cache.has_any_argument_annotation;
     let call_has_static_arguments = call_has_static_arguments(f.context(), call_node_id);
@@ -294,8 +286,9 @@ pub(crate) fn format_single_call_argument_with_group<'ast>(
         let _timing = f
             .context()
             .timing_scope(timing::FORMAT_EXPRESSION_CALL_ARGUMENTS_LAYOUT_DECIDE);
+        let context = f.context();
         call_argument_layout(
-            f.context(),
+            context,
             call_node_id,
             &single_argument,
             single_argument_force_expand,
@@ -312,9 +305,8 @@ pub(crate) fn format_single_call_argument_with_group<'ast>(
         f,
         &single_argument,
         layout,
-        call_node_id,
         group_id,
-        argument_is_plain_call_argument(f.context(), argument_id),
+        all_plain_call_arguments,
     )?;
     Ok(())
 }
@@ -349,8 +341,7 @@ pub(crate) fn format_call_arguments_with_group<'ast>(
     // multi argument path: scan once, choose layout, then render
     let layout_cache = call_argument_layout_cache(f.context(), call_node_id, dynamic_arguments);
     let all_plain_call_arguments = layout_cache.all_plain_call_arguments;
-    let has_boundary_comments =
-        call_arguments_have_boundary_comments(f.context(), call_node_id, dynamic_arguments);
+    let has_boundary_comments = layout_cache.has_boundary_comments;
 
     let _timing = f
         .context()
@@ -359,8 +350,9 @@ pub(crate) fn format_call_arguments_with_group<'ast>(
         let _timing = f
             .context()
             .timing_scope(timing::FORMAT_EXPRESSION_CALL_ARGUMENTS_LAYOUT_DECIDE);
+        let context = f.context();
         call_argument_layout(
-            f.context(),
+            context,
             call_node_id,
             dynamic_arguments,
             false,
@@ -377,7 +369,6 @@ pub(crate) fn format_call_arguments_with_group<'ast>(
         f,
         dynamic_arguments,
         layout,
-        call_node_id,
         group_id,
         all_plain_call_arguments,
     )
@@ -493,16 +484,13 @@ pub(crate) fn format_call_arguments<'ast>(
     result
 }
 
-/// Store one separator line comment and whether it started on its own source line.
-pub(crate) struct SeparatorLineCommentSource {
-    /// The separator comment node ids in source order.
-    pub(crate) comment_ids: Vec<LocalNodeId<Comment>>,
-    /// Whether the comment starts on its own line after the separator comma.
-    pub(crate) is_own_line: bool,
-    /// Whether source had a blank line between separator and first comment.
-    pub(crate) has_blank_line_before_first_comment: bool,
-    /// Whether comments were detached from the following argument prefix.
-    pub(crate) detached_from_following_prefix: bool,
+/// Return the parent call-like or array expression that owns one argument.
+fn argument_parent_expression(
+    ctx: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<LocalNodeId<Expression>> {
+    let (parent_id, parent_type) = ctx.parent(argument_id)?;
+    (parent_type == NodeType::Expression).then_some(LocalNodeId::new(parent_id))
 }
 
 /// Control virtual trailing-separator detection for closing-delimiter comment seams.
@@ -712,7 +700,7 @@ where
             continue;
         };
 
-        let mut comment_ids = vec![comment_id];
+        let mut comment_ids = smallvec::smallvec![comment_id];
         for next_annotation_id in annotations.iter().skip(index + 1).copied() {
             if !annotation_allowed(next_annotation_id) {
                 break;
@@ -821,7 +809,7 @@ where
         );
         let is_own_line = ctx.has_newline(before_comment_span);
         let has_blank_line_before_first_comment = ctx.has_blank_line(before_comment_span);
-        let mut comment_ids = vec![node];
+        let mut comment_ids = smallvec::smallvec![node];
         for next_annotation_id in annotations.iter().skip(index + 1).copied() {
             if !annotation_allowed(next_annotation_id) {
                 break;
@@ -856,9 +844,9 @@ where
 /// Return the next argument in one call-like or array argument list.
 fn next_argument_in_expression(
     ctx: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
     argument_id: LocalNodeId<Argument>,
 ) -> Option<LocalNodeId<Argument>> {
+    let call_node_id = argument_parent_expression(ctx, argument_id)?;
     let argument_list = match ctx.tree.get(call_node_id) {
         Expression::Call {
             dynamic_arguments, ..
@@ -898,12 +886,12 @@ fn expression_virtual_trailing_separator_policy(
     }
 }
 
-/// Return one separator line comment source attached to one argument.
-pub(crate) fn single_argument_separator_line_comment_source(
+/// Compute one separator line comment source attached to one argument.
+fn compute_separator_line_comment_source(
     ctx: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
     argument_id: LocalNodeId<Argument>,
 ) -> Option<SeparatorLineCommentSource> {
+    let call_node_id = argument_parent_expression(ctx, argument_id)?;
     let virtual_trailing_separator_policy =
         expression_virtual_trailing_separator_policy(ctx, call_node_id);
     let resolve_from_annotations = |annotations: &[LocalNodeId<Annotation>]| {
@@ -921,37 +909,41 @@ pub(crate) fn single_argument_separator_line_comment_source(
         )
     };
 
-    if let Some(comment_source) = ctx
-        .visit_annotations(argument_id, resolve_from_annotations)
-        .flatten()
-    {
-        return Some(comment_source);
+    if ctx.has_postfix_annotation(argument_id) || ctx.has_boundary_comment_annotation(argument_id) {
+        if let Some(comment_source) = ctx
+            .visit_annotations(argument_id, resolve_from_annotations)
+            .flatten()
+        {
+            return Some(comment_source);
+        }
     }
 
     let value_id = argument_value_id(ctx.tree, argument_id);
     let value_span = ctx.span(value_id);
-    let value_annotation_source = ctx
-        .visit_annotations(value_id, |annotations| {
-            separator_line_comment_source_from_annotations(
-                ctx,
-                annotations,
-                |annotation_id| {
-                    separator_line_comment_annotation_info(
-                        ctx,
-                        annotation_id,
-                        virtual_trailing_separator_policy,
-                    )
-                },
-                |annotation_id| {
-                    let annotation_span = ctx.annotation_span(annotation_id);
-                    annotation_span.file == value_span.file
-                        && annotation_span.start >= value_span.end
-                },
-            )
-        })
-        .flatten();
-    if value_annotation_source.is_some() {
-        return value_annotation_source;
+    if ctx.has_postfix_annotation(value_id) || ctx.has_boundary_comment_annotation(value_id) {
+        let value_annotation_source = ctx
+            .visit_annotations(value_id, |annotations| {
+                separator_line_comment_source_from_annotations(
+                    ctx,
+                    annotations,
+                    |annotation_id| {
+                        separator_line_comment_annotation_info(
+                            ctx,
+                            annotation_id,
+                            virtual_trailing_separator_policy,
+                        )
+                    },
+                    |annotation_id| {
+                        let annotation_span = ctx.annotation_span(annotation_id);
+                        annotation_span.file == value_span.file
+                            && annotation_span.start >= value_span.end
+                    },
+                )
+            })
+            .flatten();
+        if value_annotation_source.is_some() {
+            return value_annotation_source;
+        }
     }
 
     let argument_span = ctx.span(argument_id);
@@ -960,7 +952,7 @@ pub(crate) fn single_argument_separator_line_comment_source(
     if value_span.file != call_span.file || seam_start >= call_span.end {
         return None;
     }
-    let following_argument_id = next_argument_in_expression(ctx, call_node_id, argument_id);
+    let following_argument_id = next_argument_in_expression(ctx, argument_id);
     let seam_end = following_argument_id
         .map(|next_argument_id| ctx.span(next_argument_id).start)
         .unwrap_or(call_span.end);
@@ -968,70 +960,81 @@ pub(crate) fn single_argument_separator_line_comment_source(
         return None;
     }
 
-    let call_annotation_source = ctx
-        .visit_annotations(call_node_id, |annotations| {
-            separator_line_comment_source_from_annotations(
-                ctx,
-                annotations,
-                |annotation_id| {
-                    separator_line_comment_annotation_info(
-                        ctx,
-                        annotation_id,
-                        virtual_trailing_separator_policy,
-                    )
-                },
-                |annotation_id| {
-                    let annotation_span = ctx.annotation_span(annotation_id);
-                    annotation_span.file == argument_span.file
-                        && annotation_span.start >= seam_start
-                        && annotation_span.end <= seam_end
-                },
-            )
-        })
-        .flatten();
-    if call_annotation_source.is_some() {
-        return call_annotation_source;
+    if ctx.has_postfix_annotation(call_node_id) || ctx.has_boundary_comment_annotation(call_node_id)
+    {
+        let call_annotation_source = ctx
+            .visit_annotations(call_node_id, |annotations| {
+                separator_line_comment_source_from_annotations(
+                    ctx,
+                    annotations,
+                    |annotation_id| {
+                        separator_line_comment_annotation_info(
+                            ctx,
+                            annotation_id,
+                            virtual_trailing_separator_policy,
+                        )
+                    },
+                    |annotation_id| {
+                        let annotation_span = ctx.annotation_span(annotation_id);
+                        annotation_span.file == argument_span.file
+                            && annotation_span.start >= seam_start
+                            && annotation_span.end <= seam_end
+                    },
+                )
+            })
+            .flatten();
+        if call_annotation_source.is_some() {
+            return call_annotation_source;
+        }
     }
 
-    let call_prefix_annotation_source = ctx
-        .visit_annotations(call_node_id, |annotations| {
-            separator_line_comment_source_from_following_prefix_annotations(
-                ctx,
-                annotations,
-                |annotation_id| {
-                    let annotation_span = ctx.annotation_span(annotation_id);
-                    annotation_span.file == argument_span.file
-                        && annotation_span.start >= seam_start
-                        && annotation_span.end <= seam_end
-                },
-            )
-        })
-        .flatten();
-    if call_prefix_annotation_source.is_some() {
-        return call_prefix_annotation_source;
+    if ctx.has_prefix_annotation(call_node_id) {
+        let call_prefix_annotation_source = ctx
+            .visit_annotations(call_node_id, |annotations| {
+                separator_line_comment_source_from_following_prefix_annotations(
+                    ctx,
+                    annotations,
+                    |annotation_id| {
+                        let annotation_span = ctx.annotation_span(annotation_id);
+                        annotation_span.file == argument_span.file
+                            && annotation_span.start >= seam_start
+                            && annotation_span.end <= seam_end
+                    },
+                )
+            })
+            .flatten();
+        if call_prefix_annotation_source.is_some() {
+            return call_prefix_annotation_source;
+        }
     }
 
     let following_argument_id = following_argument_id?;
     let following_argument_span = ctx.span(following_argument_id);
-    if let Some(comment_source) = ctx
-        .visit_annotations(following_argument_id, |annotations| {
-            separator_line_comment_source_from_following_prefix_annotations(
-                ctx,
-                annotations,
-                |annotation_id| {
-                    let annotation_span = ctx.annotation_span(annotation_id);
-                    annotation_span.file == following_argument_span.file
-                        && annotation_span.end <= following_argument_span.start
-                },
-            )
-        })
-        .flatten()
-    {
-        return Some(comment_source);
+    if ctx.has_prefix_annotation(following_argument_id) {
+        if let Some(comment_source) = ctx
+            .visit_annotations(following_argument_id, |annotations| {
+                separator_line_comment_source_from_following_prefix_annotations(
+                    ctx,
+                    annotations,
+                    |annotation_id| {
+                        let annotation_span = ctx.annotation_span(annotation_id);
+                        annotation_span.file == following_argument_span.file
+                            && annotation_span.end <= following_argument_span.start
+                    },
+                )
+            })
+            .flatten()
+        {
+            return Some(comment_source);
+        }
     }
 
     let following_value_id = argument_value_id(ctx.tree, following_argument_id);
     let following_value_span = ctx.span(following_value_id);
+    if !ctx.has_prefix_annotation(following_value_id) {
+        return None;
+    }
+
     ctx.visit_annotations(following_value_id, |annotations| {
         separator_line_comment_source_from_following_prefix_annotations(
             ctx,
@@ -1046,17 +1049,24 @@ pub(crate) fn single_argument_separator_line_comment_source(
     .flatten()
 }
 
-/// Return one separator line comment source when the argument can detach boundary separator comments.
-fn plain_single_argument_separator_line_comment_source(
+/// Return one separator line comment source attached to one argument.
+pub(crate) fn single_argument_separator_line_comment_source(
     ctx: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
     argument_id: LocalNodeId<Argument>,
 ) -> Option<SeparatorLineCommentSource> {
-    if !argument_can_render_without_separator_line_comment(ctx, argument_id) {
-        return None;
-    }
+    ctx.separator_line_comment_source_cache(argument_id, || {
+        compute_separator_line_comment_source(ctx, argument_id)
+    })
+}
 
-    single_argument_separator_line_comment_source(ctx, call_node_id, argument_id)
+/// Return whether one separator line comment source exists for one argument.
+pub(crate) fn single_argument_separator_line_comment_source_exists(
+    ctx: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    ctx.has_separator_line_comment_source(argument_id, || {
+        compute_separator_line_comment_source(ctx, argument_id)
+    })
 }
 
 /// Return whether one argument has non-separator boundary-postfix annotations.
@@ -1086,29 +1096,26 @@ pub(crate) fn argument_can_render_without_separator_line_comment(
     ctx: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    if argument_has_non_separator_boundary_postfix_annotation(ctx, argument_id) {
-        return false;
-    }
-
-    matches!(
+    let is_plain_positional = matches!(
         ctx.tree.get(argument_id),
         Argument::Positional {
             modifiers: None,
             ..
         }
-    )
-}
+    );
+    if !is_plain_positional {
+        return false;
+    }
 
-/// Return whether the list can use multiline separator comment rendering on any argument.
-pub(crate) fn can_format_multiline_call_argument_list_with_separator_line_comment(
-    ctx: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    dynamic_arguments.iter().copied().any(|argument_id| {
-        single_argument_separator_line_comment_source(ctx, call_node_id, argument_id).is_some()
-            && argument_can_render_without_separator_line_comment(ctx, argument_id)
-    })
+    if !ctx.has_boundary_comment_annotation(argument_id) {
+        return true;
+    }
+
+    if argument_has_non_separator_boundary_postfix_annotation(ctx, argument_id) {
+        return false;
+    }
+
+    true
 }
 
 /// Return whether one call argument has one separator line comment on a comma seam.
@@ -1116,6 +1123,13 @@ pub(crate) fn argument_has_separator_line_comment_annotation(
     ctx: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
+    if !ctx.has_prefix_annotation(argument_id)
+        && !ctx.has_postfix_annotation(argument_id)
+        && !ctx.has_boundary_comment_annotation(argument_id)
+    {
+        return false;
+    }
+
     ctx.visit_annotations(argument_id, |annotations| {
         annotations.iter().any(|annotation_id| {
             let Annotation::Comment { node, position } = ctx.annotation(*annotation_id) else {
@@ -1198,20 +1212,6 @@ fn write_argument_prefix_annotations_with_suppressed_separator_comments<'ast>(
     write_annotation_render_items(f, AnnotationCapture::AnyPrefix, argument_id, &items)
 }
 
-/// Write one argument without separator line comments and with optional prefix comment suppression.
-fn write_argument_without_separator_line_comment_with_prefix_filter<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    argument_id: LocalNodeId<Argument>,
-    suppressed_prefix_separator_comment_ids: Option<&[LocalNodeId<Comment>]>,
-) -> FormatResult<bool> {
-    write_argument_without_separator_line_comment_with_prefix_filter_and_postfix_blank_policy(
-        f,
-        argument_id,
-        suppressed_prefix_separator_comment_ids,
-        false,
-    )
-}
-
 /// Write one argument without separator line comments and with optional postfix blank suppression.
 fn write_argument_without_separator_line_comment_with_prefix_filter_and_postfix_blank_policy<
     'ast,
@@ -1274,8 +1274,8 @@ fn write_argument_without_separator_line_comment_with_prefix_filter_and_postfix_
     Ok(true)
 }
 
-/// Write one argument for list-level separator rendering.
-fn write_argument_without_separator_line_comment_for_separator_source<'ast>(
+/// Write one argument without separator line comments that are emitted at list level.
+pub(crate) fn write_argument_without_separator_line_comment<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     argument_id: LocalNodeId<Argument>,
 ) -> FormatResult<bool> {
@@ -1283,16 +1283,8 @@ fn write_argument_without_separator_line_comment_for_separator_source<'ast>(
         f,
         argument_id,
         None,
-        true,
+        false,
     )
-}
-
-/// Write one argument without separator line comments that are emitted at list level.
-pub(crate) fn write_argument_without_separator_line_comment<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    argument_id: LocalNodeId<Argument>,
-) -> FormatResult<bool> {
-    write_argument_without_separator_line_comment_with_prefix_filter(f, argument_id, None)
 }
 
 /// Format one single plain argument with a separator line comment seam.
@@ -1475,12 +1467,22 @@ fn format_trailing_collection_hug_list<'ast>(
 
     write!(f, [token("(")])?;
 
-    for (index, argument_id) in leading_arguments.iter().copied().enumerate() {
-        if index > 0 {
-            write!(f, [token(","), space()])?;
-        }
+    if all_plain_call_arguments {
+        for (index, argument_id) in leading_arguments.iter().copied().enumerate() {
+            if index > 0 {
+                write!(f, [token(","), space()])?;
+            }
 
-        write_call_argument_for_list(f, argument_id, all_plain_call_arguments)?;
+            write_plain_call_argument(f, argument_id)?;
+        }
+    } else {
+        for (index, argument_id) in leading_arguments.iter().copied().enumerate() {
+            if index > 0 {
+                write!(f, [token(","), space()])?;
+            }
+
+            write_plain_call_argument_or_node(f, argument_id)?;
+        }
     }
 
     if !leading_arguments.is_empty() {
@@ -1503,12 +1505,22 @@ fn format_plain_default_call_argument_list<'ast>(
     all_plain_call_arguments: bool,
 ) -> FormatResult<()> {
     let body = format_with(|f| {
-        for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
-            if index > 0 {
-                write!(f, [token(","), soft_line_break_or_space()])?;
-            }
+        if all_plain_call_arguments {
+            for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
+                if index > 0 {
+                    write!(f, [token(","), soft_line_break_or_space()])?;
+                }
 
-            write_call_argument_for_list(f, argument_id, all_plain_call_arguments)?;
+                write_plain_call_argument(f, argument_id)?;
+            }
+        } else {
+            for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
+                if index > 0 {
+                    write!(f, [token(","), soft_line_break_or_space()])?;
+                }
+
+                write_plain_call_argument_or_node(f, argument_id)?;
+            }
         }
 
         if should_emit_trailing_separator {
@@ -1529,7 +1541,6 @@ fn format_plain_default_call_argument_list<'ast>(
 /// Format call arguments with the default list formatter.
 fn format_default_call_argument_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    call_node_id: LocalNodeId<Expression>,
     group_id: GroupId,
     dynamic_arguments: &[LocalNodeId<Argument>],
     force_expand: bool,
@@ -1549,7 +1560,6 @@ fn format_default_call_argument_list<'ast>(
     if use_separator_comment_multiline {
         format_separator_comment_multiline_layout(
             f,
-            call_node_id,
             dynamic_arguments,
             "call.arguments.path.list_default.separator_comment_multiline",
             should_emit_trailing_separator,
@@ -1600,13 +1610,15 @@ fn preserve_blank_line_before_argument_with_separator_comments(
     // preserve blank lines only between that rendered comment cluster and the next argument
     if let Some(previous_separator_source) =
         separator_line_comment_sources[argument_index - 1].as_ref()
-        && previous_separator_source.is_own_line
-        && let Some(last_comment_id) = previous_separator_source.comment_ids.last().copied()
     {
-        let last_comment_span = ctx.span(last_comment_id);
-        let right_argument_span = ctx.span(right_argument_id);
-        if let Some(between_span) = last_comment_span.gap_to(right_argument_span) {
-            return ctx.has_blank_line(between_span);
+        if previous_separator_source.is_own_line {
+            if let Some(last_comment_id) = previous_separator_source.comment_ids.last().copied() {
+                let last_comment_span = ctx.span(last_comment_id);
+                let right_argument_span = ctx.span(right_argument_id);
+                if let Some(between_span) = last_comment_span.gap_to(right_argument_span) {
+                    return ctx.has_blank_line(between_span);
+                }
+            }
         }
     }
 
@@ -1616,15 +1628,12 @@ fn preserve_blank_line_before_argument_with_separator_comments(
 /// Collect separator line comment sources for each argument in source order.
 fn collect_separator_line_comment_sources(
     ctx: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
 ) -> Vec<Option<SeparatorLineCommentSource>> {
     dynamic_arguments
         .iter()
         .copied()
-        .map(|argument_id| {
-            single_argument_separator_line_comment_source(ctx, call_node_id, argument_id)
-        })
+        .map(|argument_id| single_argument_separator_line_comment_source(ctx, argument_id))
         .collect::<Vec<_>>()
 }
 
@@ -1649,27 +1658,36 @@ fn write_separator_comment_multiline_arguments<'ast>(
             }
         }
 
-        if index > 0
-            && let Some(previous_separator_source) =
+        if index > 0 {
+            if let Some(detached_separator_source) =
                 separator_line_comment_sources[index - 1].as_ref()
-            && previous_separator_source.detached_from_following_prefix
-            && write_argument_without_separator_line_comment_with_prefix_filter(
-                f,
-                *argument_id,
-                Some(previous_separator_source.comment_ids.as_slice()),
-            )?
-        {
-            if index + 1 < dynamic_arguments.len() || should_emit_trailing_separator {
-                write!(f, [token(",")])?;
+            {
+                if detached_separator_source.detached_from_following_prefix
+                    && write_argument_without_separator_line_comment_with_prefix_filter_and_postfix_blank_policy(
+                        f,
+                        *argument_id,
+                        Some(detached_separator_source.comment_ids.as_slice()),
+                        false,
+                    )?
+                {
+                    if index + 1 < dynamic_arguments.len() || should_emit_trailing_separator {
+                        write!(f, [token(",")])?;
+                    }
+                    continue;
+                }
             }
-            continue;
         }
 
-        if let Some(comment_source) = separator_line_comment_sources[index].as_ref()
-            && write_argument_without_separator_line_comment_for_separator_source(f, *argument_id)?
-        {
-            write_separator_line_comment_after_comma(f, comment_source)?;
-            continue;
+        if let Some(comment_source) = separator_line_comment_sources[index].as_ref() {
+            if write_argument_without_separator_line_comment_with_prefix_filter_and_postfix_blank_policy(
+                f,
+                *argument_id,
+                None,
+                true,
+            )? {
+                write_separator_line_comment_after_comma(f, comment_source)?;
+                continue;
+            }
         }
 
         write!(f, [group(argument_id)])?;
@@ -1685,7 +1703,6 @@ fn write_separator_comment_multiline_arguments<'ast>(
 /// Format call arguments with explicit multiline comment expansion.
 fn format_comment_expanded_call_argument_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
     use_separator_comment_multiline: bool,
     use_single_plain_separator_comment_layout: bool,
@@ -1698,7 +1715,6 @@ fn format_comment_expanded_call_argument_list<'ast>(
         // keep this path delegated to the shared separator-multiline renderer
         format_separator_comment_multiline_layout(
             f,
-            call_node_id,
             dynamic_arguments,
             "call.arguments.path.comment_expanded.separator_comment_multiline",
             should_emit_trailing_separator,
@@ -1714,19 +1730,16 @@ fn format_comment_expanded_call_argument_list<'ast>(
         );
 
         let argument_id = dynamic_arguments[0];
-
-        let separator_line_comment_source = plain_single_argument_separator_line_comment_source(
-            f.context(),
-            call_node_id,
-            argument_id,
-        );
-
-        if let Some(comment_source) = separator_line_comment_source.as_ref() {
-            return format_single_plain_argument_with_separator_line_comment(
-                f,
-                argument_id,
-                comment_source,
-            );
+        if argument_can_render_without_separator_line_comment(f.context(), argument_id) {
+            let separator_source =
+                single_argument_separator_line_comment_source(f.context(), argument_id);
+            if let Some(comment_source) = separator_source.as_ref() {
+                return format_single_plain_argument_with_separator_line_comment(
+                    f,
+                    argument_id,
+                    comment_source,
+                );
+            }
         }
     }
 
@@ -1734,7 +1747,6 @@ fn format_comment_expanded_call_argument_list<'ast>(
         use_trailing_comma || force_trailing_comma_for_separator_comment;
     write_separator_comment_multiline_layout_body(
         f,
-        call_node_id,
         dynamic_arguments,
         should_emit_trailing_separator,
     )
@@ -1743,12 +1755,11 @@ fn format_comment_expanded_call_argument_list<'ast>(
 /// Write one separator-comment multiline call argument list body.
 fn write_separator_comment_multiline_layout_body<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
     should_emit_trailing_separator: bool,
 ) -> FormatResult<()> {
     let separator_line_comment_sources =
-        collect_separator_line_comment_sources(f.context(), call_node_id, dynamic_arguments);
+        collect_separator_line_comment_sources(f.context(), dynamic_arguments);
 
     write!(f, [token("("), hard_line_break()])?;
     write!(
@@ -1772,14 +1783,12 @@ fn write_separator_comment_multiline_layout_body<'ast>(
 /// Format the shared separator-comment multiline list path and increment one counter key.
 fn format_separator_comment_multiline_layout<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
     counter_key: &'static str,
     should_emit_trailing_separator: bool,
 ) -> FormatResult<()> {
     write_separator_comment_multiline_layout_body(
         f,
-        call_node_id,
         dynamic_arguments,
         should_emit_trailing_separator,
     )?;
@@ -1794,7 +1803,6 @@ pub(crate) fn format_call_argument_layout<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     dynamic_arguments: &[LocalNodeId<Argument>],
     layout: CallArgumentLayout,
-    call_node_id: LocalNodeId<Expression>,
     group_id: GroupId,
     all_plain_call_arguments: bool,
 ) -> FormatResult<()> {
@@ -1822,7 +1830,6 @@ pub(crate) fn format_call_argument_layout<'ast>(
             force_trailing_comma_for_separator_comment,
         } => format_comment_expanded_call_argument_list(
             f,
-            call_node_id,
             dynamic_arguments,
             use_separator_comment_multiline,
             use_single_plain_separator_comment_layout,
@@ -1837,7 +1844,6 @@ pub(crate) fn format_call_argument_layout<'ast>(
             force_trailing_separator,
         } => format_default_call_argument_list(
             f,
-            call_node_id,
             group_id,
             dynamic_arguments,
             force_expand,
@@ -2277,10 +2283,9 @@ mod tests {
         argument_can_render_without_separator_line_comment, single_argument_requires_expanded_list,
         single_argument_separator_line_comment_source,
     };
-    use crate::format::analysis::call_arguments_have_boundary_comments;
     use crate::format::call::layout::{
-        CallArgumentLayout, call_argument_comments, call_argument_layout,
-        call_argument_layout_cache, call_force_expand_single_collection_for_type_binary_callee,
+        CallArgumentLayout, call_argument_layout, call_argument_layout_cache,
+        call_force_expand_single_collection_for_type_binary_callee,
         call_force_expand_single_multiline_with_static_arguments,
     };
     use crate::{
@@ -2334,6 +2339,15 @@ mod tests {
         elements.clone()
     }
 
+    /// Return whether one call has boundary comments in the cached layout scan.
+    fn call_has_boundary_comments(
+        ctx: &DestackFormatContext<'_>,
+        call_id: LocalNodeId<Expression>,
+        arguments: &[LocalNodeId<Argument>],
+    ) -> bool {
+        call_argument_layout_cache(ctx, call_id, arguments).has_boundary_comments
+    }
+
     #[test]
     fn test_format_argument_named() {
         assert_format!(
@@ -2378,10 +2392,8 @@ mod tests {
         let ctx = context_from_formatter(&formatter);
         let arguments = call_dynamic_arguments(&ctx, call_id);
         let first_argument_id = arguments[0];
-        let (has_line_comment_annotations, has_prefix_line_comment_annotations) =
-            call_argument_comments(&ctx, &arguments);
-        let has_boundary_comments =
-            call_arguments_have_boundary_comments(&ctx, call_id, &arguments);
+        let layout_cache = call_argument_layout_cache(&ctx, call_id, &arguments);
+        let has_boundary_comments = call_has_boundary_comments(&ctx, call_id, &arguments);
         let layout = call_argument_layout(
             &ctx,
             call_id,
@@ -2393,17 +2405,17 @@ mod tests {
         );
 
         let separator_source =
-            single_argument_separator_line_comment_source(&ctx, call_id, first_argument_id);
+            single_argument_separator_line_comment_source(&ctx, first_argument_id);
         assert!(
             separator_source.is_some(),
             "expected separator comment source for first argument",
         );
         assert!(
-            has_line_comment_annotations,
+            layout_cache.has_line_comment_annotations,
             "expected call argument scan to detect line comment annotations",
         );
         assert!(
-            !has_prefix_line_comment_annotations,
+            !layout_cache.has_prefix_line_comment_annotations,
             "expected no prefix line comment annotations for this fixture",
         );
         assert!(
@@ -2430,10 +2442,8 @@ mod tests {
         let ctx = context_from_formatter(&formatter);
         let arguments = call_dynamic_arguments(&ctx, call_id);
         let first_argument_id = arguments[0];
-        let (has_line_comment_annotations, has_prefix_line_comment_annotations) =
-            call_argument_comments(&ctx, &arguments);
-        let has_boundary_comments =
-            call_arguments_have_boundary_comments(&ctx, call_id, &arguments);
+        let layout_cache = call_argument_layout_cache(&ctx, call_id, &arguments);
+        let has_boundary_comments = call_has_boundary_comments(&ctx, call_id, &arguments);
         let layout = call_argument_layout(
             &ctx,
             call_id,
@@ -2445,17 +2455,17 @@ mod tests {
         );
 
         let separator_source =
-            single_argument_separator_line_comment_source(&ctx, call_id, first_argument_id);
+            single_argument_separator_line_comment_source(&ctx, first_argument_id);
         assert!(
             separator_source.is_some(),
             "expected separator comment source for first argument",
         );
         assert!(
-            has_line_comment_annotations,
+            layout_cache.has_line_comment_annotations,
             "expected call argument scan to detect line comment annotations",
         );
         assert!(
-            !has_prefix_line_comment_annotations,
+            !layout_cache.has_prefix_line_comment_annotations,
             "expected no prefix line comment annotations for this fixture",
         );
         assert!(
@@ -2483,7 +2493,7 @@ mod tests {
         let first_argument_id = arguments[0];
 
         let separator_source =
-            single_argument_separator_line_comment_source(&ctx, call_id, first_argument_id);
+            single_argument_separator_line_comment_source(&ctx, first_argument_id);
         assert!(
             separator_source.is_none(),
             "property trailing comment should not be classified as an argument separator comment",
@@ -2508,7 +2518,7 @@ mod tests {
         let first_argument_id = arguments[0];
 
         let separator_source =
-            single_argument_separator_line_comment_source(&ctx, call_id, first_argument_id);
+            single_argument_separator_line_comment_source(&ctx, first_argument_id);
         assert!(
             separator_source.is_none(),
             "member-dot boundary comments should stay on the expression seam, not on separator rendering",
@@ -2539,7 +2549,7 @@ mod tests {
         let first_argument_id = arguments[0];
 
         let separator_source =
-            single_argument_separator_line_comment_source(&ctx, call_id, first_argument_id);
+            single_argument_separator_line_comment_source(&ctx, first_argument_id);
         assert!(
             separator_source.is_none(),
             "nested function body comments should not become separator comment sources",
@@ -2559,8 +2569,7 @@ mod tests {
         let ctx = context_from_formatter(&formatter);
         let arguments = call_dynamic_arguments(&ctx, call_id);
 
-        let has_boundary_comments =
-            call_arguments_have_boundary_comments(&ctx, call_id, &arguments);
+        let has_boundary_comments = call_has_boundary_comments(&ctx, call_id, &arguments);
         let layout = call_argument_layout(
             &ctx,
             call_id,
@@ -2599,8 +2608,7 @@ mod tests {
         let elements = array_elements(&ctx, array_id);
         let last_element_id = *elements.last().expect("array should have a last element");
 
-        let separator_source =
-            single_argument_separator_line_comment_source(&ctx, array_id, last_element_id);
+        let separator_source = single_argument_separator_line_comment_source(&ctx, last_element_id);
         let separator_source =
             separator_source.expect("expected separator source for last array element");
         assert!(
@@ -2628,8 +2636,7 @@ mod tests {
         let arguments = call_dynamic_arguments(&ctx, call_id);
         let argument_id = arguments[0];
 
-        let separator_source =
-            single_argument_separator_line_comment_source(&ctx, call_id, argument_id);
+        let separator_source = single_argument_separator_line_comment_source(&ctx, argument_id);
         let separator_source =
             separator_source.expect("expected virtual separator source for boundary line comment");
         assert!(
@@ -2654,7 +2661,7 @@ mod tests {
         let last_argument_id = *arguments.last().expect("call should have a last argument");
 
         let separator_source =
-            single_argument_separator_line_comment_source(&ctx, call_id, last_argument_id);
+            single_argument_separator_line_comment_source(&ctx, last_argument_id);
         let separator_source =
             separator_source.expect("expected virtual separator source before closing delimiter");
         assert!(
@@ -2698,8 +2705,7 @@ mod tests {
         let arguments = call_dynamic_arguments(&ctx, call_id);
         let argument_id = arguments[0];
 
-        let separator_source =
-            single_argument_separator_line_comment_source(&ctx, call_id, argument_id);
+        let separator_source = single_argument_separator_line_comment_source(&ctx, argument_id);
         let separator_source =
             separator_source.expect("expected separator source for closing-delimiter separator");
         assert!(
@@ -2723,8 +2729,7 @@ mod tests {
         let arguments = call_dynamic_arguments(&ctx, call_id);
         let argument_id = arguments[0];
 
-        let separator_source =
-            single_argument_separator_line_comment_source(&ctx, call_id, argument_id);
+        let separator_source = single_argument_separator_line_comment_source(&ctx, argument_id);
         let separator_source =
             separator_source.expect("expected virtual separator source before closing delimiter");
         assert!(
@@ -2747,8 +2752,7 @@ mod tests {
             .expect("parse single argument call with closing-delimiter separator");
         let ctx = context_from_formatter(&formatter);
         let arguments = call_dynamic_arguments(&ctx, call_id);
-        let has_boundary_comments =
-            call_arguments_have_boundary_comments(&ctx, call_id, &arguments);
+        let has_boundary_comments = call_has_boundary_comments(&ctx, call_id, &arguments);
         let layout = call_argument_layout(
             &ctx,
             call_id,
@@ -2792,7 +2796,7 @@ mod tests {
         let arguments = call_dynamic_arguments(&ctx, call_id);
         let first_argument_id = arguments[0];
         let separator_source =
-            single_argument_separator_line_comment_source(&ctx, call_id, first_argument_id);
+            single_argument_separator_line_comment_source(&ctx, first_argument_id);
 
         assert!(
             separator_source.is_some(),
@@ -2825,7 +2829,7 @@ mod tests {
         let arguments = call_dynamic_arguments(&ctx, call_id);
         let first_argument_id = arguments[0];
         let separator_source =
-            single_argument_separator_line_comment_source(&ctx, call_id, first_argument_id);
+            single_argument_separator_line_comment_source(&ctx, first_argument_id);
 
         assert!(
             separator_source.is_some(),
@@ -2875,11 +2879,8 @@ mod tests {
             .expect("parse first react hook separator source");
         let first_ctx = context_from_formatter(&first_formatter);
         let first_arguments = call_dynamic_arguments(&first_ctx, first_call_id);
-        let first_separator_source = single_argument_separator_line_comment_source(
-            &first_ctx,
-            first_call_id,
-            first_arguments[0],
-        );
+        let first_separator_source =
+            single_argument_separator_line_comment_source(&first_ctx, first_arguments[0]);
         assert!(
             first_separator_source.is_some(),
             "expected separator source before first pass format",
@@ -2893,11 +2894,8 @@ mod tests {
             .expect("parse second react hook separator source");
         let second_ctx = context_from_formatter(&second_formatter);
         let second_arguments = call_dynamic_arguments(&second_ctx, second_call_id);
-        let second_separator_source = single_argument_separator_line_comment_source(
-            &second_ctx,
-            second_call_id,
-            second_arguments[0],
-        );
+        let second_separator_source =
+            single_argument_separator_line_comment_source(&second_ctx, second_arguments[0]);
         assert!(
             second_separator_source.is_some(),
             "expected separator source after first pass format",
@@ -2986,8 +2984,7 @@ this.props.dao)"#;
             .expect("parse single-call leading line comment source");
         let ctx = context_from_formatter(&formatter);
         let arguments = call_dynamic_arguments(&ctx, call_id);
-        let has_boundary_comments =
-            call_arguments_have_boundary_comments(&ctx, call_id, &arguments);
+        let has_boundary_comments = call_has_boundary_comments(&ctx, call_id, &arguments);
         assert!(
             has_boundary_comments,
             "leading line comment between call `(` and first argument should count as boundary comment",
@@ -3239,11 +3236,8 @@ moreArgTypes(
             .expect("parse first preserve-line comments call");
         let first_ctx = context_from_formatter(&first_formatter);
         let first_arguments = call_dynamic_arguments(&first_ctx, first_call_id);
-        let first_source = single_argument_separator_line_comment_source(
-            &first_ctx,
-            first_call_id,
-            first_arguments[0],
-        );
+        let first_source =
+            single_argument_separator_line_comment_source(&first_ctx, first_arguments[0]);
 
         let first_output = first_formatter.format(
             &first_call_id,
@@ -3256,11 +3250,8 @@ moreArgTypes(
             .expect("parse second preserve-line comments call");
         let second_ctx = context_from_formatter(&second_formatter);
         let second_arguments = call_dynamic_arguments(&second_ctx, second_call_id);
-        let second_source = single_argument_separator_line_comment_source(
-            &second_ctx,
-            second_call_id,
-            second_arguments[0],
-        );
+        let second_source =
+            single_argument_separator_line_comment_source(&second_ctx, second_arguments[0]);
 
         assert_eq!(
             first_source.is_some(),
@@ -3519,8 +3510,7 @@ bar.on(
         };
         let call_id = *concat_call_id;
         let arguments = call_dynamic_arguments(&ctx, call_id);
-        let has_boundary_comments =
-            call_arguments_have_boundary_comments(&ctx, call_id, &arguments);
+        let has_boundary_comments = call_has_boundary_comments(&ctx, call_id, &arguments);
         let single_argument_force_expand = single_argument_requires_expanded_list(&ctx, &arguments);
         let force_expand_single_multiline_with_static_arguments =
             call_force_expand_single_multiline_with_static_arguments(&ctx, call_id, &arguments);
@@ -3593,8 +3583,7 @@ bar.on(
         };
         let call_id = *expect_call_id;
         let arguments = call_dynamic_arguments(&ctx, call_id);
-        let has_boundary_comments =
-            call_arguments_have_boundary_comments(&ctx, call_id, &arguments);
+        let has_boundary_comments = call_has_boundary_comments(&ctx, call_id, &arguments);
         let single_argument_force_expand = single_argument_requires_expanded_list(&ctx, &arguments);
         let force_expand_single_multiline_with_static_arguments =
             call_force_expand_single_multiline_with_static_arguments(&ctx, call_id, &arguments);

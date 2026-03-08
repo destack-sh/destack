@@ -8,8 +8,8 @@ use crate::format::context::{
     FormatterTimingTag, FormatterTimings, FxHashMap, GroupId, ImmutableStringPool, Keyword,
     LocalNodeId, LocalNodeIdAny, MatchCase, Member, MultiSpan, Node, NodeParentIndex,
     NodeSourceMap, NodeTree, NodeTreeImpl, NodeType, OnceCell, Parameter, Pattern, PatternField,
-    Property, Rc, RefCell, SmallVec, Span, TokenSpan, TokenType, WhereClause,
-    formatter_annotation_projection, tag_for_node_type,
+    Property, Rc, RefCell, SeparatorLineCommentSourceCache, SmallVec, Span, TokenSpan, TokenType,
+    WhereClause, formatter_annotation_projection, tag_for_node_type,
 };
 use destack_fir::format::FormatOptions;
 use destack_fir::print::PrintOptions;
@@ -277,8 +277,6 @@ pub struct DestackFormatContext<'a> {
     pub span_text_by_span: RefCell<FxHashMap<Span, &'a str>>,
     /// Cached parsed identifier keywords by token span.
     pub token_keyword_by_span: RefCell<FxHashMap<Span, Option<Keyword>>>,
-    /// Cached char lengths for repeated span width checks.
-    pub span_char_len_by_span: RefCell<FxHashMap<Span, usize>>,
     /// Whether the file text is fully ASCII.
     pub source_is_ascii: bool,
     /// Cached newline byte offsets in file text.
@@ -296,7 +294,7 @@ pub struct DestackFormatContext<'a> {
     /// Line-comment spans for this file, sorted by start position.
     pub line_comment_spans: Vec<Span>,
     /// Optional formatter timing collector.
-    pub timings: Option<Rc<FormatterTimings>>,
+    pub timings: Option<FormatterTimings>,
     /// Whether file text contains formatter ignore directive markers.
     pub has_ignore_directive_markers: bool,
     /// Whether file text contains template literal markers.
@@ -333,7 +331,7 @@ pub struct DestackFormatArtifacts<'a> {
 impl<'a> DestackFormatContext<'a> {
     /// Construct a formatting context from parse artifacts.
     pub fn new(options: DestackFormatOptions, artifacts: DestackFormatArtifacts<'a>) -> Self {
-        Self::new_with_timings(options, artifacts, false)
+        Self::new_with_instrumentation(options, artifacts, false, false)
     }
 
     /// Construct a formatting context from parse artifacts with optional timing collection.
@@ -341,6 +339,16 @@ impl<'a> DestackFormatContext<'a> {
         options: DestackFormatOptions,
         artifacts: DestackFormatArtifacts<'a>,
         timings_enabled: bool,
+    ) -> Self {
+        Self::new_with_instrumentation(options, artifacts, timings_enabled, timings_enabled)
+    }
+
+    /// Construct a formatting context from parse artifacts with optional timing and counter collection.
+    pub fn new_with_instrumentation(
+        options: DestackFormatOptions,
+        artifacts: DestackFormatArtifacts<'a>,
+        timings_enabled: bool,
+        instrumentation_enabled: bool,
     ) -> Self {
         let DestackFormatArtifacts {
             file,
@@ -426,7 +434,6 @@ impl<'a> DestackFormatContext<'a> {
             annotation_state_by_node_id,
             span_text_by_span: RefCell::new(FxHashMap::default()),
             token_keyword_by_span: RefCell::new(token_keyword_by_span),
-            span_char_len_by_span: RefCell::new(FxHashMap::default()),
             source_is_ascii,
             newline_offsets: OnceCell::new(),
             span_has_newline_by_span: RefCell::new(FxHashMap::default()),
@@ -435,10 +442,10 @@ impl<'a> DestackFormatContext<'a> {
             comment_tokens_sorted: OnceCell::new(),
             comment_spans,
             line_comment_spans,
-            timings: timings_enabled.then(|| Rc::new(FormatterTimings::default())),
+            timings: timings_enabled.then(FormatterTimings::default),
             has_ignore_directive_markers,
             has_template_literal_markers,
-            instrumentation_enabled: timings_enabled,
+            instrumentation_enabled,
             file_ignore_applied: Rc::new(Cell::new(false)),
             cache_stats: Rc::new(FormatterCacheStatsCollector::default()),
             counters: Rc::new(FormatterCountersCollector::default()),
@@ -490,6 +497,7 @@ impl<'a> DestackFormatContext<'a> {
 
     /// Increment a formatter instrumentation counter.
     #[inline]
+    #[cfg(feature = "timings")]
     pub fn increment_counter(&self, name: &'static str, delta: usize) {
         if !self.instrumentation_enabled {
             return;
@@ -497,18 +505,90 @@ impl<'a> DestackFormatContext<'a> {
         self.counters.increment(name, delta);
     }
 
+    /// Increment a formatter instrumentation counter.
+    #[inline]
+    #[cfg(not(feature = "timings"))]
+    pub fn increment_counter(&self, _name: &'static str, _delta: usize) {}
+
     /// Record one best fitting evaluation for a logical formatter region.
     #[inline]
+    #[cfg(feature = "timings")]
     pub fn record_best_fitting(&self, label: &'static str, variants: usize) {
         self.increment_counter("best_fitting.calls.total", 1);
         self.increment_counter("best_fitting.variants.total", variants);
         self.increment_counter(label, 1);
     }
 
+    /// Record one best fitting evaluation for a logical formatter region.
+    #[inline]
+    #[cfg(not(feature = "timings"))]
+    pub fn record_best_fitting(&self, _label: &'static str, _variants: usize) {}
+
     /// Snapshot formatter instrumentation counters.
     #[inline]
+    #[cfg(feature = "timings")]
     pub fn counter_snapshot(&self) -> Vec<FormatterCounterEntry> {
         self.counters.snapshot()
+    }
+
+    /// Snapshot formatter instrumentation counters.
+    #[inline]
+    #[cfg(not(feature = "timings"))]
+    pub fn counter_snapshot(&self) -> Vec<FormatterCounterEntry> {
+        Vec::new()
+    }
+
+    /// Resolve one cached separator-comment source for one argument.
+    #[inline]
+    pub fn separator_line_comment_source_cache(
+        &self,
+        argument_id: LocalNodeId<Argument>,
+        compute: impl FnOnce() -> Option<SeparatorLineCommentSourceCache>,
+    ) -> Option<SeparatorLineCommentSourceCache> {
+        let Some(cache_cell) = self
+            .node_caches
+            .separator_line_comment_source
+            .get(argument_id.id as usize)
+        else {
+            return compute();
+        };
+
+        if let Some(cached) = cache_cell.get() {
+            self.increment_counter("call.arguments.separator_source.cache.hits", 1);
+            return cached.clone();
+        }
+
+        self.increment_counter("call.arguments.separator_source.cache.misses", 1);
+        let cached = compute();
+        let _ = cache_cell.set(cached.clone());
+        cached
+    }
+
+    /// Return whether one cached separator-comment source exists for one argument.
+    #[inline]
+    pub fn has_separator_line_comment_source(
+        &self,
+        argument_id: LocalNodeId<Argument>,
+        compute: impl FnOnce() -> Option<SeparatorLineCommentSourceCache>,
+    ) -> bool {
+        let Some(cache_cell) = self
+            .node_caches
+            .separator_line_comment_source
+            .get(argument_id.id as usize)
+        else {
+            return compute().is_some();
+        };
+
+        if let Some(cached) = cache_cell.get() {
+            self.increment_counter("call.arguments.separator_source.cache.hits", 1);
+            return cached.is_some();
+        }
+
+        self.increment_counter("call.arguments.separator_source.cache.misses", 1);
+        let cached = compute();
+        let exists = cached.is_some();
+        let _ = cache_cell.set(cached);
+        exists
     }
 }
 
