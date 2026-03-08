@@ -3,11 +3,13 @@
 Project templates for `destack new`.
 This folder also contains the `create-destack` initializer package.
 
-| Template | Description |
-|----------|-------------|
-| `@destack/template-slides` | Web application starter |
-| `@destack/template-mobile` | Mobile application starter |
-| `create-destack` | npm initializer for `npm|pnpm|yarn|bun create destack` |
+## Projects
+
+| Project | Status | Summary |
+|---------|--------|---------|
+| [`create-destack`](create-destack/README.md) | Experimental | Initializer package for `npm`, `pnpm`, `yarn`, or `bun create destack` |
+| [`app template`](create-destack/templates/app/README.md) | Experimental | Default application starter template |
+| [`blank template`](create-destack/templates/blank/README.md) | Experimental | Minimal starter template |
 
 ## Commands
 

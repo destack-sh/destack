@@ -11,7 +11,7 @@ const DEFAULT_TEMPLATE = "app";
 const DEFAULT_TARGET_DIRECTORY = "destack-app";
 const TEMPLATES = new Map([
     ["app", "Application starter with src/main.ds and dsconfig.json"],
-    ["empty", "Minimal starter with package and source folder"],
+    ["blank", "Minimal starter with package and source folder"],
 ]);
 
 /**
