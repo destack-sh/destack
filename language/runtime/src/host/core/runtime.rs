@@ -1,21 +1,26 @@
 use std::sync::Arc;
 
-use destack_workspace::{PlatformHostOptions, RuntimeOptions};
+use destack_workspace::{Platform, PlatformHostOptions, RuntimeOptions};
 
-use super::adapter::{HostAdapter, HostPlatform, HostPollOutcome};
-use super::event::HostEvent;
-use super::process_runtime_ingress_observer;
+use super::backend::{HostBackend, HostPollOutcome};
+use super::event::{HostEvent, HostLifecycleState};
+use super::observer::process_runtime_observer;
+use super::registry::{HostRegistrationGuard, register_host_state};
 use super::select::{compile_target_host_platform, default_host};
+use super::state::HostState;
 use crate::diagnostic::RuntimeResult;
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilityId, PlatformCapabilitySet};
-use crate::runtime::poller::HostPollerWakeHandle;
+use crate::runtime::poller::PollerWakeHandle;
 use crate::runtime::world::RuntimeId;
 
 /// Runtime host integration container.
-#[derive(Clone)]
 pub struct Host {
     /// Active host implementation for this runtime instance.
-    adapter: Arc<dyn HostAdapter>,
+    backend: Arc<dyn HostBackend>,
+    /// Shared runtime state for this host instance.
+    runtime_state: Arc<HostState>,
+    /// Shared registration guard for callback routing.
+    registration_guard: HostRegistrationGuard,
     /// Runtime id used for host callback routing and ingress observers.
     runtime_id: RuntimeId,
     /// Host capability set reported by the host implementation.
@@ -29,14 +34,14 @@ impl std::fmt::Debug for Host {
         f.debug_struct("Host")
             .field("platform", &self.platform())
             .field("runtime_id", &self.runtime_id)
+            .field(
+                "registration_runtime_id",
+                &self.registration_guard.runtime_id(),
+            )
             .field("host_capability_count", &self.host_capabilities.len())
             .field(
                 "enable_lifecycle_events",
                 &self.host_options.enable_lifecycle_events,
-            )
-            .field(
-                "enable_window_events",
-                &self.host_options.enable_window_events,
             )
             .field(
                 "enable_permission_events",
@@ -55,22 +60,33 @@ impl std::fmt::Debug for Host {
 }
 
 impl Host {
-    /// Create one host runtime from one explicit host.
-    pub fn new(adapter: Arc<dyn HostAdapter>, runtime_id: RuntimeId) -> Self {
-        Self::new_with_options(adapter, runtime_id, PlatformHostOptions::default())
-    }
-
     /// Create one host runtime from one explicit host and host options.
-    pub fn new_with_options(
-        adapter: Arc<dyn HostAdapter>,
+    pub(crate) fn new_with_options(
+        backend: Arc<dyn HostBackend>,
         runtime_id: RuntimeId,
         host_options: PlatformHostOptions,
     ) -> Self {
-        adapter.configure_host_options(&host_options);
-        let host_capabilities = adapter.host_capabilities();
+        let platform = backend.platform();
+        let runtime_state = HostState::new();
+
+        // register callback routing before this host starts serving callers
+        let registration_guard = register_host_state(
+            platform,
+            runtime_id,
+            Arc::downgrade(&runtime_state),
+            backend.runtime_state_cleanup(),
+        );
+
+        // apply queue policy to the shared host runtime state
+        runtime_state.apply_host_options(&host_options);
+        runtime_state.push_lifecycle(HostLifecycleState::Initializing);
+
+        let host_capabilities = backend.host_capabilities();
 
         Self {
-            adapter,
+            backend,
+            runtime_state,
+            registration_guard,
             runtime_id,
             host_capabilities,
             host_options,
@@ -80,20 +96,15 @@ impl Host {
     /// Create one host runtime from runtime options and one explicit runtime id.
     pub fn from_runtime_options(options: &RuntimeOptions, runtime_id: RuntimeId) -> Self {
         // select the host for this compile target
-        let host = default_host(runtime_id);
+        let host = default_host();
         let host_options = host_options_for_target(options);
 
         Self::new_with_options(host, runtime_id, host_options)
     }
 
     /// Return the active host platform.
-    pub fn platform(&self) -> HostPlatform {
-        self.adapter.platform()
-    }
-
-    /// Return the active host implementation.
-    pub fn adapter(&self) -> &Arc<dyn HostAdapter> {
-        &self.adapter
+    pub fn platform(&self) -> Platform {
+        self.backend.platform()
     }
 
     /// Return host platform capabilities reported by this runtime target.
@@ -125,7 +136,7 @@ impl Host {
 
     /// Poll host events using the active host.
     pub fn poll_events(&self, timeout_nanos: Option<u64>) -> RuntimeResult<HostPollOutcome> {
-        let poll_result = self.adapter.poll_events(timeout_nanos)?;
+        let poll_result = self.runtime_state.poll_events(timeout_nanos)?;
         let events = filter_events(poll_result.events, &self.host_options);
 
         Ok(HostPollOutcome {
@@ -134,9 +145,9 @@ impl Host {
         })
     }
 
-    /// Return one shared host wake handle when supported.
-    pub fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>> {
-        self.adapter.wake_handle()
+    /// Return one shared host wake handle.
+    pub fn poll_wake_handle(&self) -> Arc<dyn PollerWakeHandle> {
+        self.runtime_state.poll_wake_handle()
     }
 
     /// Return the runtime id used for host callback routing.
@@ -146,12 +157,12 @@ impl Host {
 
     /// Return whether the current execution context is the process main context.
     pub fn is_process_main_context(&self) -> bool {
-        self.adapter.is_process_main_context()
+        self.backend.is_process_main_context()
     }
 
     /// Service immediately ready native host ingress without blocking.
     pub fn process_ingress(&self) -> RuntimeResult<bool> {
-        self.adapter.process_ingress()
+        self.backend.process_native_ingress()
     }
 
     /// Service host-owned ingress for the active runtime.
@@ -160,25 +171,25 @@ impl Host {
         self.process_ingress()?;
 
         // service registered runtime observers for this runtime
-        process_runtime_ingress_observer(self.runtime_id.0)
+        process_runtime_observer(self.runtime_id.0)
     }
 }
 
 /// Return host integration options for the current compile target.
 fn host_options_for_target(options: &RuntimeOptions) -> PlatformHostOptions {
     match compile_target_host_platform() {
-        HostPlatform::Android => options.platform.android.clone(),
-        HostPlatform::DragonFly => options.platform.dragonfly.clone(),
-        HostPlatform::FreeBsd => options.platform.freebsd.clone(),
-        HostPlatform::Haiku => options.platform.haiku.clone(),
-        HostPlatform::Illumos => options.platform.illumos.clone(),
-        HostPlatform::IOS => options.platform.ios.clone(),
-        HostPlatform::Linux => options.platform.linux.clone(),
-        HostPlatform::MacOS => options.platform.macos.clone(),
-        HostPlatform::NetBsd => options.platform.netbsd.clone(),
-        HostPlatform::OpenBsd => options.platform.openbsd.clone(),
-        HostPlatform::Solaris => options.platform.solaris.clone(),
-        HostPlatform::Windows => options.platform.windows.host_options(),
+        Platform::Android => options.platform.android.clone(),
+        Platform::DragonFly => options.platform.dragonfly.clone(),
+        Platform::FreeBsd => options.platform.freebsd.clone(),
+        Platform::Haiku => options.platform.haiku.clone(),
+        Platform::Illumos => options.platform.illumos.clone(),
+        Platform::IOS => options.platform.ios.clone(),
+        Platform::Linux => options.platform.linux.clone(),
+        Platform::MacOS => options.platform.macos.clone(),
+        Platform::NetBsd => options.platform.netbsd.clone(),
+        Platform::OpenBsd => options.platform.openbsd.clone(),
+        Platform::Solaris => options.platform.solaris.clone(),
+        Platform::Windows => options.platform.windows.host_options(),
         _ => PlatformHostOptions::default(),
     }
 }
@@ -190,8 +201,6 @@ fn filter_events(events: Vec<HostEvent>, host_options: &PlatformHostOptions) -> 
     for event in events {
         let is_enabled = match event {
             HostEvent::Lifecycle(_) => host_options.enable_lifecycle_events,
-            HostEvent::Window(_) => host_options.enable_window_events,
-            HostEvent::WindowFocus(_) => host_options.enable_window_events,
             HostEvent::Permission(_) => host_options.enable_permission_events,
             HostEvent::Interruption(_) => host_options.enable_interruption_events,
             HostEvent::MemoryPressure(_) => host_options.enable_interruption_events,

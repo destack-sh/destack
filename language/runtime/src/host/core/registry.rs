@@ -3,80 +3,80 @@ use std::sync::{Arc, OnceLock, Weak};
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 
-use super::{HostPlatform, HostState, cleanup_runtime_ingress_observers};
+use super::error::missing_host_state;
+use super::observer::cleanup_runtime_ingress_observers;
+use super::{HostState, Platform};
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::missing_host_state;
 use crate::runtime::world::RuntimeId;
 
 /// Cleanup hook run when one runtime host-state registration is removed.
-pub(crate) type HostStateCleanup = fn(runtime_id: u64);
+pub(crate) type HostCleanup = fn(runtime_id: u64);
 
-/// Shared process-global host state registry.
-static HOST_STATE_REGISTRY: OnceLock<RwLock<HostStateRegistryState>> = OnceLock::new();
+/// Shared process-global host-state registry.
+static HOST_RUNTIME_STATE_REGISTRY: OnceLock<RwLock<HostStateRegistryState>> = OnceLock::new();
 
-/// Registration guard for one host state.
+/// Registration guard for one host runtime state.
 #[derive(Debug)]
-pub(crate) struct HostStateRegistration {
+pub(crate) struct HostRegistrationGuard {
     /// Stable runtime id for this state.
     runtime_id: RuntimeId,
 }
 
-/// Shared registry state for active host states.
+/// Shared registry state for active host runtime states.
 #[derive(Debug, Default)]
 struct HostStateRegistryState {
     /// State entries keyed by runtime id.
     states: FxHashMap<RuntimeId, HostStateRegistryEntry>,
 }
 
-/// Shared registry entry metadata for one host state.
+/// Shared registry entry metadata for one host runtime state.
 #[derive(Debug)]
 struct HostStateRegistryEntry {
     /// Platform tag for this state.
-    platform: HostPlatform,
+    platform: Platform,
     /// Weak reference to one runtime-owned state.
     state: Weak<HostState>,
     /// Optional platform-specific cleanup hook for this runtime id.
-    cleanup: Option<HostStateCleanup>,
+    cleanup: Option<HostCleanup>,
 }
 
-#[cfg(test)]
-impl HostStateRegistration {
-    /// Return the stable runtime id for test assertions.
+impl HostRegistrationGuard {
+    /// Return the stable runtime id for this registration.
     pub(crate) fn runtime_id(&self) -> RuntimeId {
         self.runtime_id
     }
 }
 
-impl Drop for HostStateRegistration {
+impl Drop for HostRegistrationGuard {
     fn drop(&mut self) {
         unregister_host_state(self.runtime_id);
     }
 }
 
-/// Register one host state with one runtime id.
+/// Register one host runtime state with one runtime id.
 pub(crate) fn register_host_state(
-    platform: HostPlatform,
+    platform: Platform,
     runtime_id: RuntimeId,
-    host_state: &Arc<HostState>,
-    cleanup: Option<HostStateCleanup>,
-) -> HostStateRegistration {
-    let mut state = host_state_registry().write();
+    runtime_state: Weak<HostState>,
+    cleanup: Option<HostCleanup>,
+) -> HostRegistrationGuard {
+    let mut state = host_runtime_state_registry().write();
     let entry = HostStateRegistryEntry {
         platform,
-        state: Arc::downgrade(host_state),
+        state: runtime_state,
         cleanup,
     };
     state.states.insert(runtime_id, entry);
 
-    HostStateRegistration { runtime_id }
+    HostRegistrationGuard { runtime_id }
 }
 
-/// Resolve one host state by runtime id and platform tag.
+/// Resolve one host runtime state by runtime id and platform tag.
 pub(crate) fn host_state_for_runtime(
     runtime_id: RuntimeId,
-    platform: HostPlatform,
+    platform: Platform,
 ) -> RuntimeResult<Arc<HostState>> {
-    let mut state = host_state_registry().write();
+    let mut state = host_runtime_state_registry().write();
     let Some(entry) = state.states.get(&runtime_id) else {
         return Err(missing_host_state(runtime_id.0, platform));
     };
@@ -85,22 +85,22 @@ pub(crate) fn host_state_for_runtime(
         return Err(missing_host_state(runtime_id.0, platform));
     }
 
-    let Some(host_state) = entry.state.upgrade() else {
+    let Some(runtime_state) = entry.state.upgrade() else {
         state.states.remove(&runtime_id);
         return Err(missing_host_state(runtime_id.0, platform));
     };
 
-    Ok(host_state)
+    Ok(runtime_state)
 }
 
-/// Return the shared host state registry lock.
-fn host_state_registry() -> &'static RwLock<HostStateRegistryState> {
-    HOST_STATE_REGISTRY.get_or_init(|| RwLock::new(HostStateRegistryState::default()))
+/// Return the shared host runtime-state registry lock.
+fn host_runtime_state_registry() -> &'static RwLock<HostStateRegistryState> {
+    HOST_RUNTIME_STATE_REGISTRY.get_or_init(|| RwLock::new(HostStateRegistryState::default()))
 }
 
-/// Remove one registration from the shared host state registry.
+/// Remove one registration from the shared host runtime-state registry.
 fn unregister_host_state(runtime_id: RuntimeId) {
-    let mut state = host_state_registry().write();
+    let mut state = host_runtime_state_registry().write();
     let cleanup = state
         .states
         .remove(&runtime_id)
@@ -120,7 +120,7 @@ mod tests {
     use std::sync::atomic::{AtomicU64, Ordering};
 
     use super::{host_state_for_runtime, register_host_state};
-    use crate::host::HostPlatform;
+    use crate::host::Platform;
     use crate::host::core::HostState;
     use crate::runtime::world::RuntimeId;
 
@@ -134,37 +134,49 @@ mod tests {
 
     #[test]
     fn test_register_host_state_resolves_by_runtime_id() {
-        let host_state = Arc::new(HostState::new());
-        let registration =
-            register_host_state(HostPlatform::Android, RuntimeId(1), &host_state, None);
+        let runtime_state = HostState::new_for_test();
+        let registration = register_host_state(
+            Platform::Android,
+            RuntimeId(1),
+            Arc::downgrade(&runtime_state),
+            None,
+        );
         let runtime_id = registration.runtime_id;
 
-        let resolved_state = host_state_for_runtime(runtime_id, HostPlatform::Android).unwrap();
+        let resolved_state = host_state_for_runtime(runtime_id, Platform::Android).unwrap();
 
-        assert!(Arc::ptr_eq(&host_state, &resolved_state));
+        assert!(Arc::ptr_eq(&runtime_state, &resolved_state));
     }
 
     #[test]
     fn test_drop_registration_unregisters_runtime_id() {
-        let host_state = Arc::new(HostState::new());
-        let registration =
-            register_host_state(HostPlatform::MacOS, RuntimeId(2), &host_state, None);
+        let runtime_state = HostState::new_for_test();
+        let registration = register_host_state(
+            Platform::MacOS,
+            RuntimeId(2),
+            Arc::downgrade(&runtime_state),
+            None,
+        );
         let runtime_id = registration.runtime_id;
 
         drop(registration);
 
-        let resolved_state = host_state_for_runtime(runtime_id, HostPlatform::MacOS);
+        let resolved_state = host_state_for_runtime(runtime_id, Platform::MacOS);
         assert!(resolved_state.is_err());
     }
 
     #[test]
     fn test_host_state_for_runtime_rejects_platform_mismatch() {
-        let host_state = Arc::new(HostState::new());
-        let registration =
-            register_host_state(HostPlatform::Windows, RuntimeId(3), &host_state, None);
+        let runtime_state = HostState::new_for_test();
+        let registration = register_host_state(
+            Platform::Windows,
+            RuntimeId(3),
+            Arc::downgrade(&runtime_state),
+            None,
+        );
         let runtime_id = registration.runtime_id;
 
-        let resolved_state = host_state_for_runtime(runtime_id, HostPlatform::Android);
+        let resolved_state = host_state_for_runtime(runtime_id, Platform::Android);
         assert!(resolved_state.is_err());
     }
 
@@ -172,11 +184,11 @@ mod tests {
     fn test_drop_registration_runs_cleanup_hook() {
         TEST_CLEANUP_RUNTIME_ID.store(0, Ordering::Relaxed);
 
-        let host_state = Arc::new(HostState::new());
+        let runtime_state = HostState::new_for_test();
         let registration = register_host_state(
-            HostPlatform::Android,
+            Platform::Android,
             RuntimeId(4),
-            &host_state,
+            Arc::downgrade(&runtime_state),
             Some(test_cleanup_hook),
         );
         let runtime_id = registration.runtime_id;

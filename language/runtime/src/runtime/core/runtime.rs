@@ -385,18 +385,16 @@ impl Runtime {
                         continue;
                     }
 
-                    let targets = if let Some(kind) = event.kind() {
-                        self.agent_ids()
-                            .into_iter()
-                            .filter(|agent_id| {
-                                self.agent(*agent_id)
-                                    .map(|agent| agent.watches_host_event(kind))
-                                    .unwrap_or(false)
-                            })
-                            .collect::<Vec<_>>()
-                    } else {
-                        Vec::new()
-                    };
+                    let kind = event.kind();
+                    let targets = self
+                        .agent_ids()
+                        .into_iter()
+                        .filter(|agent_id| {
+                            self.agent(*agent_id)
+                                .map(|agent| agent.watches_host_event(kind))
+                                .unwrap_or(false)
+                        })
+                        .collect::<Vec<_>>();
 
                     // explicit unmatched ingress
                     if targets.is_empty() {

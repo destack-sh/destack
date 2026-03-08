@@ -10,9 +10,8 @@ use crate::platform::diagnostic::{
 };
 use crate::platform::{PlatformError, ResourceId, core as core_platform};
 use crate::runtime::poller::{
-    HostPoller, HostPollerFlags, HostPollerWakeHandle, PlatformHandle, PlatformInterest,
-    PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
-    PollerToken,
+    HostPoller, HostPollerFlags, PlatformHandle, PlatformInterest, PollerEvent, PollerEventFlags,
+    PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
 };
 
 /// Poll based platform poller for Unix systems.
@@ -52,7 +51,7 @@ struct UnixPollWakeHandle {
     wake_write: RawFd,
 }
 
-impl HostPollerWakeHandle for UnixPollWakeHandle {
+impl PollerWakeHandle for UnixPollWakeHandle {
     fn wake(&self) -> RuntimeResult<()> {
         wake_pipe(self.wake_write)
     }
@@ -172,7 +171,7 @@ impl HostPoller for UnixPoller {
         Ok(())
     }
 
-    fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>> {
+    fn wake_handle(&self) -> Option<Arc<dyn PollerWakeHandle>> {
         Some(self.wake_handle.clone())
     }
 

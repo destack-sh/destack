@@ -1,9 +1,10 @@
 use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::host::android::unregister_android_bindings;
-use crate::host::core::{HostState, HostStateRegistration, register_host_state};
+use crate::host::core::HostState;
+use crate::host::core::registry::{HostRegistrationGuard, register_host_state};
 use crate::host::{
-    AndroidHostBindings, AndroidHostCredentialsCallbacks, AndroidHostCryptoCallbacks, HostPlatform,
+    AndroidHostBindings, AndroidHostCredentialsCallbacks, AndroidHostCryptoCallbacks, Platform,
     destack_host_android_register_bindings,
 };
 use crate::runtime::world::RuntimeId;
@@ -16,12 +17,12 @@ pub(crate) fn callback_test_lock() -> &'static Mutex<()> {
 }
 
 /// Register one temporary Android host state and keep registration state alive.
-pub(crate) fn register_android_runtime() -> (Arc<HostState>, HostStateRegistration, u64) {
-    let state = Arc::new(HostState::new());
+pub(crate) fn register_android_runtime() -> (Arc<HostState>, HostRegistrationGuard, u64) {
+    let state = HostState::new_for_test();
     let registration = register_host_state(
-        HostPlatform::Android,
+        Platform::Android,
         RuntimeId(1),
-        &state,
+        Arc::downgrade(&state),
         Some(unregister_android_bindings),
     );
     let runtime_id = registration.runtime_id().0;

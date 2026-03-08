@@ -10,9 +10,8 @@ use crate::platform::diagnostic::{
 };
 use crate::platform::{PlatformError, ResourceId, core as core_platform};
 use crate::runtime::poller::{
-    HostPoller, HostPollerFlags, HostPollerWakeHandle, PlatformHandle, PlatformInterest,
-    PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
-    PollerToken,
+    HostPoller, HostPollerFlags, PlatformHandle, PlatformInterest, PollerEvent, PollerEventFlags,
+    PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
 };
 
 /// Kqueue backed poller for BSD targets.
@@ -53,7 +52,7 @@ struct KqueueWakeHandle {
     kqueue_fd: RawFd,
 }
 
-impl HostPollerWakeHandle for KqueueWakeHandle {
+impl PollerWakeHandle for KqueueWakeHandle {
     fn wake(&self) -> RuntimeResult<()> {
         wake_kqueue(self.kqueue_fd)
     }
@@ -258,7 +257,7 @@ impl HostPoller for KqueuePoller {
         Ok(())
     }
 
-    fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>> {
+    fn wake_handle(&self) -> Option<Arc<dyn PollerWakeHandle>> {
         Some(self.wake_handle.clone())
     }
 

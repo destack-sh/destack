@@ -1,5 +1,5 @@
 use crate::diagnostic::RuntimeError;
-use crate::host::HostPlatform;
+use crate::host::Platform;
 use crate::platform::PlatformError;
 
 /// Return one runtime-host not-supported error.
@@ -16,7 +16,7 @@ pub(crate) fn invalid_argument_value(
 }
 
 /// Return one missing runtime-host state error.
-pub(crate) fn missing_host_state(runtime_id: u64, platform: HostPlatform) -> Box<RuntimeError> {
+pub(crate) fn missing_host_state(runtime_id: u64, platform: Platform) -> Box<RuntimeError> {
     let platform = platform.canonical_tag();
     not_supported(format!("runtime.host.state.{platform}.{runtime_id}"))
 }

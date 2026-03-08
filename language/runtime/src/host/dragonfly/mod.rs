@@ -1,5 +1,5 @@
 #[cfg(target_os = "dragonfly")]
-mod adapter;
+mod backend;
 #[cfg(any(test, target_os = "dragonfly"))]
 mod callback;
 #[cfg(any(test, target_os = "dragonfly"))]
@@ -8,16 +8,14 @@ mod ffi;
 mod tests;
 
 #[cfg(target_os = "dragonfly")]
-pub(super) use adapter::DragonflyHost;
+pub(crate) use backend::DragonflyHost;
 #[cfg(any(test, target_os = "dragonfly"))]
 pub use callback::{
     DragonflyApplicationLifecycle, dragonfly_notify_application_lifecycle,
     dragonfly_notify_interruption_changed, dragonfly_notify_memory_pressure_changed,
     dragonfly_notify_permission_result, dragonfly_notify_power_mode_changed,
     dragonfly_notify_thermal_state_changed, dragonfly_notify_wake,
-    dragonfly_notify_wall_clock_changed, dragonfly_notify_window_available,
-    dragonfly_notify_window_focus_changed, dragonfly_notify_window_resized,
-    dragonfly_notify_window_terminated,
+    dragonfly_notify_wall_clock_changed,
 };
 #[cfg(any(test, target_os = "dragonfly"))]
 pub use ffi::{
@@ -28,7 +26,4 @@ pub use ffi::{
     destack_host_dragonfly_notify_power_mode_changed,
     destack_host_dragonfly_notify_thermal_state_changed, destack_host_dragonfly_notify_wake,
     destack_host_dragonfly_notify_wall_clock_changed,
-    destack_host_dragonfly_notify_window_available,
-    destack_host_dragonfly_notify_window_focus_changed,
-    destack_host_dragonfly_notify_window_resized, destack_host_dragonfly_notify_window_terminated,
 };

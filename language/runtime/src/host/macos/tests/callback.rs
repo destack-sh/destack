@@ -1,12 +1,12 @@
-use std::sync::Arc;
-
-use super::{
+use super::super::callback::{
     MacosApplicationLifecycle, host_lifecycle_state_for_application_lifecycle,
-    macos_notify_window_available,
+    macos_notify_permission_result,
 };
-use crate::host::core::{HostState, register_host_state};
-use crate::host::{HostEvent, HostLifecycleState, HostPlatform, HostWindowEvent};
+use crate::host::core::HostState;
+use crate::host::core::registry::register_host_state;
+use crate::host::{HostEvent, HostLifecycleState, HostPermissionEvent, Platform};
 use crate::runtime::world::RuntimeId;
+use std::sync::Arc;
 
 #[test]
 fn test_map_application_lifecycle_to_initializing() {
@@ -38,25 +38,21 @@ fn test_map_application_lifecycle_to_destroyed() {
 }
 
 #[test]
-fn test_notify_window_available_enqueues_window_event_for_runtime_bridge() {
-    let state = Arc::new(HostState::new());
-    let registration = register_host_state(HostPlatform::MacOS, RuntimeId(1), &state, None);
+fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() {
+    let state = HostState::new_for_test();
+    let registration =
+        register_host_state(Platform::MacOS, RuntimeId(1), Arc::downgrade(&state), None);
     let runtime_id = registration.runtime_id();
 
-    macos_notify_window_available(runtime_id.0, 13).unwrap();
+    macos_notify_permission_result(runtime_id.0, "camera", true).unwrap();
 
     let poll_result = state.poll_events(Some(0)).unwrap();
     let events = poll_result.events;
     assert_eq!(
         events.as_slice(),
-        [HostEvent::Window(HostWindowEvent::WindowAvailable {
-            window_id: 13,
-        })]
+        [HostEvent::Permission(HostPermissionEvent {
+            permission: "camera".to_string(),
+            granted: true,
+        })],
     );
-}
-
-#[test]
-fn test_notify_window_available_rejects_unknown_runtime_id() {
-    let result = macos_notify_window_available(0, 13);
-    assert!(result.is_err());
 }

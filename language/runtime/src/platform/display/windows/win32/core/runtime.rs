@@ -8,7 +8,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
-use crate::host::core::{RuntimeIngressObserver, register_runtime_ingress_observer};
+use crate::host::core::observer::{RuntimeIngressObserver, register_runtime_ingress_observer};
 use crate::platform::display::WindowCursorMode;
 use crate::platform::display::windows::win32::event::{
     DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,

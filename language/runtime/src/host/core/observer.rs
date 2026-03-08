@@ -1,4 +1,6 @@
-use std::sync::{Arc, OnceLock, Weak};
+#[cfg(any(test, target_os = "linux", target_os = "macos", windows))]
+use std::sync::Arc;
+use std::sync::{OnceLock, Weak};
 
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
@@ -19,14 +21,13 @@ struct RuntimeIngressRegistryState {
 }
 
 /// Observer notified when one runtime ingress path should make progress.
-#[allow(dead_code)]
 pub(crate) trait RuntimeIngressObserver: std::fmt::Debug + Send + Sync {
     /// Service runtime-owned ingress.
     fn process_runtime_ingress(&self) -> RuntimeResult<()>;
 }
 
 /// Register one runtime ingress observer.
-#[allow(dead_code)]
+#[cfg(any(test, target_os = "linux", target_os = "macos", windows))]
 pub(crate) fn register_runtime_ingress_observer(
     runtime_id: u64,
     observer: &Arc<dyn RuntimeIngressObserver>,
@@ -63,7 +64,7 @@ pub(crate) fn cleanup_runtime_ingress_observers(runtime_id: u64) {
 }
 
 /// Service ingress for one runtime id.
-pub(crate) fn process_runtime_ingress_observer(runtime_id: u64) -> RuntimeResult<()> {
+pub(crate) fn process_runtime_observer(runtime_id: u64) -> RuntimeResult<()> {
     let observers = {
         let mut registry = runtime_ingress_observers().write();
         let Some(observers) = registry.observers_by_runtime.get_mut(&runtime_id) else {
@@ -92,8 +93,8 @@ pub(crate) fn process_runtime_ingress_observer(runtime_id: u64) -> RuntimeResult
 }
 
 /// Service ingress for every registered runtime.
-#[allow(dead_code)]
-pub(crate) fn process_runtime_ingress_observers() -> RuntimeResult<()> {
+#[cfg(feature = "affinity")]
+pub(crate) fn process_runtime_observers() -> RuntimeResult<()> {
     let observers = {
         let mut registry = runtime_ingress_observers().write();
         let mut live_observers = Vec::new();
@@ -134,9 +135,10 @@ mod tests {
 
     use crate::diagnostic::RuntimeResult;
 
+    #[cfg(feature = "affinity")]
+    use super::process_runtime_observers;
     use super::{
-        RuntimeIngressObserver, cleanup_runtime_ingress_observers,
-        process_runtime_ingress_observer, process_runtime_ingress_observers,
+        RuntimeIngressObserver, cleanup_runtime_ingress_observers, process_runtime_observer,
         register_runtime_ingress_observer,
     };
 
@@ -174,7 +176,7 @@ mod tests {
     }
 
     #[test]
-    fn test_process_runtime_ingress_observer_notifies_registered_runtime() {
+    fn test_process_runtime_observer_notifies_registered_runtime() {
         let _guard = test_lock();
         let runtime_id = next_test_runtime_id();
         let callback_count = Arc::new(AtomicU64::new(0));
@@ -183,7 +185,7 @@ mod tests {
         });
 
         register_runtime_ingress_observer(runtime_id, &observer);
-        process_runtime_ingress_observer(runtime_id).unwrap();
+        process_runtime_observer(runtime_id).unwrap();
 
         let callback_count = callback_count.load(Ordering::Relaxed);
         assert_eq!(callback_count, 1);
@@ -191,8 +193,9 @@ mod tests {
         cleanup_runtime_ingress_observers(runtime_id);
     }
 
+    #[cfg(feature = "affinity")]
     #[test]
-    fn test_process_runtime_ingress_observers_notifies_all_registered_runtimes() {
+    fn test_process_runtime_observers_notifies_all_registered_runtimes() {
         let _guard = test_lock();
         let first_runtime_id = next_test_runtime_id();
         let second_runtime_id = next_test_runtime_id();
@@ -208,7 +211,7 @@ mod tests {
 
         register_runtime_ingress_observer(first_runtime_id, &first_observer);
         register_runtime_ingress_observer(second_runtime_id, &second_observer);
-        process_runtime_ingress_observers().unwrap();
+        process_runtime_observers().unwrap();
 
         let first_callback_count = first_callback_count.load(Ordering::Relaxed);
         let second_callback_count = second_callback_count.load(Ordering::Relaxed);

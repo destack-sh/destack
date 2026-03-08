@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
+use destack_workspace::Platform;
+
 use crate::diagnostic::RuntimeResult;
-use crate::host::HostLifecycleState;
-use crate::host::core::{
-    HostMemoryPressureLevel, HostPlatform, HostPowerMode, HostState, HostThermalState,
-    HostWindowEvent, host_state_for_runtime,
-};
+use crate::host::core::HostState;
+use crate::host::core::registry::host_state_for_runtime;
+use crate::host::{HostLifecycleState, HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 use crate::runtime::world::RuntimeId;
 
 /// Unix application lifecycle transitions from native callbacks.
@@ -24,14 +24,14 @@ pub enum UnixApplicationLifecycle {
 }
 
 /// Return the active Unix host state for this process and platform.
-fn unix_host_bridge(runtime_id: u64, platform: HostPlatform) -> RuntimeResult<Arc<HostState>> {
+fn unix_host_bridge(runtime_id: u64, platform: Platform) -> RuntimeResult<Arc<HostState>> {
     host_state_for_runtime(RuntimeId(runtime_id), platform)
 }
 
 /// Submit one Unix application lifecycle callback.
 pub fn unix_notify_application_lifecycle(
     runtime_id: u64,
-    platform: HostPlatform,
+    platform: Platform,
     lifecycle: UnixApplicationLifecycle,
 ) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
@@ -41,65 +41,10 @@ pub fn unix_notify_application_lifecycle(
     Ok(())
 }
 
-/// Submit one Unix window-available callback.
-pub fn unix_notify_window_available(
-    runtime_id: u64,
-    platform: HostPlatform,
-    window_id: u64,
-) -> RuntimeResult<()> {
-    let bridge = unix_host_bridge(runtime_id, platform)?;
-    bridge.push_window(HostWindowEvent::WindowAvailable { window_id });
-
-    Ok(())
-}
-
-/// Submit one Unix window-terminated callback.
-pub fn unix_notify_window_terminated(
-    runtime_id: u64,
-    platform: HostPlatform,
-    window_id: u64,
-) -> RuntimeResult<()> {
-    let bridge = unix_host_bridge(runtime_id, platform)?;
-    bridge.push_window(HostWindowEvent::WindowTerminated { window_id });
-
-    Ok(())
-}
-
-/// Submit one Unix window-resized callback.
-pub fn unix_notify_window_resized(
-    runtime_id: u64,
-    platform: HostPlatform,
-    window_id: u64,
-    width_px: u32,
-    height_px: u32,
-) -> RuntimeResult<()> {
-    let bridge = unix_host_bridge(runtime_id, platform)?;
-    bridge.push_window(HostWindowEvent::WindowResized {
-        window_id,
-        width_px,
-        height_px,
-    });
-
-    Ok(())
-}
-
-/// Submit one Unix window focus callback.
-pub fn unix_notify_window_focus_changed(
-    runtime_id: u64,
-    platform: HostPlatform,
-    window_id: u64,
-    is_focused: bool,
-) -> RuntimeResult<()> {
-    let bridge = unix_host_bridge(runtime_id, platform)?;
-    bridge.push_window_focus(window_id, is_focused);
-
-    Ok(())
-}
-
 /// Submit one Unix permission-result callback.
 pub fn unix_notify_permission_result(
     runtime_id: u64,
-    platform: HostPlatform,
+    platform: Platform,
     permission: &str,
     granted: bool,
 ) -> RuntimeResult<()> {
@@ -112,7 +57,7 @@ pub fn unix_notify_permission_result(
 /// Submit one Unix interruption callback.
 pub fn unix_notify_interruption_changed(
     runtime_id: u64,
-    platform: HostPlatform,
+    platform: Platform,
     interrupted: bool,
 ) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
@@ -124,7 +69,7 @@ pub fn unix_notify_interruption_changed(
 /// Submit one Unix memory pressure callback.
 pub fn unix_notify_memory_pressure_changed(
     runtime_id: u64,
-    platform: HostPlatform,
+    platform: Platform,
     level: HostMemoryPressureLevel,
 ) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
@@ -136,7 +81,7 @@ pub fn unix_notify_memory_pressure_changed(
 /// Submit one Unix thermal state callback.
 pub fn unix_notify_thermal_state_changed(
     runtime_id: u64,
-    platform: HostPlatform,
+    platform: Platform,
     state: HostThermalState,
 ) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
@@ -148,7 +93,7 @@ pub fn unix_notify_thermal_state_changed(
 /// Submit one Unix power mode callback.
 pub fn unix_notify_power_mode_changed(
     runtime_id: u64,
-    platform: HostPlatform,
+    platform: Platform,
     mode: HostPowerMode,
 ) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
@@ -158,10 +103,7 @@ pub fn unix_notify_power_mode_changed(
 }
 
 /// Submit one Unix wall clock callback.
-pub fn unix_notify_wall_clock_changed(
-    runtime_id: u64,
-    platform: HostPlatform,
-) -> RuntimeResult<()> {
+pub fn unix_notify_wall_clock_changed(runtime_id: u64, platform: Platform) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
     bridge.push_wall_clock_changed();
 
@@ -169,13 +111,15 @@ pub fn unix_notify_wall_clock_changed(
 }
 
 /// Wake one blocked host poll operation for Unix platforms.
-pub fn unix_notify_wake(runtime_id: u64, platform: HostPlatform) -> RuntimeResult<()> {
+pub fn unix_notify_wake(runtime_id: u64, platform: Platform) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
-    bridge.wake_handle().wake()
+    bridge.poll_wake_handle().wake()?;
+
+    Ok(())
 }
 
 /// Map one Unix application lifecycle transition to host lifecycle state.
-fn host_lifecycle_state_for_unix_application(
+pub(super) fn host_lifecycle_state_for_unix_application(
     lifecycle: UnixApplicationLifecycle,
 ) -> HostLifecycleState {
     match lifecycle {
@@ -186,7 +130,3 @@ fn host_lifecycle_state_for_unix_application(
         UnixApplicationLifecycle::Destroyed => HostLifecycleState::Destroyed,
     }
 }
-
-#[cfg(test)]
-#[path = "tests/callback.rs"]
-mod tests;

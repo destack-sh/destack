@@ -3,8 +3,6 @@ use super::{
     linux_notify_interruption_changed, linux_notify_memory_pressure_changed,
     linux_notify_permission_result, linux_notify_power_mode_changed,
     linux_notify_thermal_state_changed, linux_notify_wake, linux_notify_wall_clock_changed,
-    linux_notify_window_available, linux_notify_window_focus_changed, linux_notify_window_resized,
-    linux_notify_window_terminated,
 };
 use crate::diagnostic::RuntimeStatus;
 use crate::host::unix::{
@@ -14,7 +12,7 @@ use crate::host::unix::{
 };
 use crate::runtime::NativeStringRef;
 
-/// Notify the runtime host state about one linux application lifecycle transition.
+/// Notify the runtime host state about one Linux application lifecycle transition.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_linux_notify_application_lifecycle(
     runtime_id: u64,
@@ -29,64 +27,21 @@ pub unsafe extern "C" fn destack_host_linux_notify_application_lifecycle(
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state that one linux window became available.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_linux_notify_window_available(
-    runtime_id: u64,
-    window_id: u64,
-) -> RuntimeStatus {
-    unix_runtime_status(linux_notify_window_available(runtime_id, window_id))
-}
-
-/// Notify the runtime host state that one linux window terminated.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_linux_notify_window_terminated(
-    runtime_id: u64,
-    window_id: u64,
-) -> RuntimeStatus {
-    unix_runtime_status(linux_notify_window_terminated(runtime_id, window_id))
-}
-
-/// Notify the runtime host state that one linux window resized.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_linux_notify_window_resized(
-    runtime_id: u64,
-    window_id: u64,
-    width_px: u32,
-    height_px: u32,
-) -> RuntimeStatus {
-    unix_runtime_status(linux_notify_window_resized(
-        runtime_id, window_id, width_px, height_px,
-    ))
-}
-
-/// Notify the runtime host state that one linux window focus changed.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_linux_notify_window_focus_changed(
-    runtime_id: u64,
-    window_id: u64,
-    is_focused: bool,
-) -> RuntimeStatus {
-    unix_runtime_status(linux_notify_window_focus_changed(
-        runtime_id, window_id, is_focused,
-    ))
-}
-
-/// Notify the runtime host state with one linux permission result.
+/// Notify the runtime host state with one Linux permission result.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_linux_notify_permission_result(
     runtime_id: u64,
     permission: NativeStringRef,
     granted: bool,
 ) -> RuntimeStatus {
-    let result = decode_unix_permission_name(permission).and_then(|permission| {
+    let result = decode_unix_permission_name(permission).and_then(|permission: String| {
         linux_notify_permission_result(runtime_id, permission.as_str(), granted)
     });
 
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state that interruption state changed on linux.
+/// Notify the runtime host state that interruption state changed on Linux.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_linux_notify_interruption_changed(
     runtime_id: u64,
@@ -95,7 +50,7 @@ pub unsafe extern "C" fn destack_host_linux_notify_interruption_changed(
     unix_runtime_status(linux_notify_interruption_changed(runtime_id, interrupted))
 }
 
-/// Notify the runtime host state that memory pressure changed on linux.
+/// Notify the runtime host state that memory pressure changed on Linux.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_linux_notify_memory_pressure_changed(
     runtime_id: u64,
@@ -107,7 +62,7 @@ pub unsafe extern "C" fn destack_host_linux_notify_memory_pressure_changed(
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state that thermal state changed on linux.
+/// Notify the runtime host state that thermal state changed on Linux.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_linux_notify_thermal_state_changed(
     runtime_id: u64,
@@ -119,7 +74,7 @@ pub unsafe extern "C" fn destack_host_linux_notify_thermal_state_changed(
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state that power mode changed on linux.
+/// Notify the runtime host state that power mode changed on Linux.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_linux_notify_power_mode_changed(
     runtime_id: u64,
@@ -131,7 +86,7 @@ pub unsafe extern "C" fn destack_host_linux_notify_power_mode_changed(
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state that wall clock changed on linux.
+/// Notify the runtime host state that wall clock changed on Linux.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_linux_notify_wall_clock_changed(
     runtime_id: u64,
@@ -139,7 +94,7 @@ pub unsafe extern "C" fn destack_host_linux_notify_wall_clock_changed(
     unix_runtime_status(linux_notify_wall_clock_changed(runtime_id))
 }
 
-/// Wake one blocked host event poll operation for linux.
+/// Wake one blocked host event poll operation for Linux.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_linux_notify_wake(runtime_id: u64) -> RuntimeStatus {
     unix_runtime_status(linux_notify_wake(runtime_id))

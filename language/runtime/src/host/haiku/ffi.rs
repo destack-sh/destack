@@ -3,8 +3,6 @@ use super::{
     haiku_notify_interruption_changed, haiku_notify_memory_pressure_changed,
     haiku_notify_permission_result, haiku_notify_power_mode_changed,
     haiku_notify_thermal_state_changed, haiku_notify_wake, haiku_notify_wall_clock_changed,
-    haiku_notify_window_available, haiku_notify_window_focus_changed, haiku_notify_window_resized,
-    haiku_notify_window_terminated,
 };
 use crate::diagnostic::RuntimeStatus;
 use crate::host::unix::{
@@ -14,7 +12,7 @@ use crate::host::unix::{
 };
 use crate::runtime::NativeStringRef;
 
-/// Notify the runtime host state about one haiku application lifecycle transition.
+/// Notify the runtime host state about one Haiku application lifecycle transition.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_haiku_notify_application_lifecycle(
     runtime_id: u64,
@@ -29,64 +27,21 @@ pub unsafe extern "C" fn destack_host_haiku_notify_application_lifecycle(
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state that one haiku window became available.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_haiku_notify_window_available(
-    runtime_id: u64,
-    window_id: u64,
-) -> RuntimeStatus {
-    unix_runtime_status(haiku_notify_window_available(runtime_id, window_id))
-}
-
-/// Notify the runtime host state that one haiku window terminated.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_haiku_notify_window_terminated(
-    runtime_id: u64,
-    window_id: u64,
-) -> RuntimeStatus {
-    unix_runtime_status(haiku_notify_window_terminated(runtime_id, window_id))
-}
-
-/// Notify the runtime host state that one haiku window resized.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_haiku_notify_window_resized(
-    runtime_id: u64,
-    window_id: u64,
-    width_px: u32,
-    height_px: u32,
-) -> RuntimeStatus {
-    unix_runtime_status(haiku_notify_window_resized(
-        runtime_id, window_id, width_px, height_px,
-    ))
-}
-
-/// Notify the runtime host state that one haiku window focus changed.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_haiku_notify_window_focus_changed(
-    runtime_id: u64,
-    window_id: u64,
-    is_focused: bool,
-) -> RuntimeStatus {
-    unix_runtime_status(haiku_notify_window_focus_changed(
-        runtime_id, window_id, is_focused,
-    ))
-}
-
-/// Notify the runtime host state with one haiku permission result.
+/// Notify the runtime host state with one Haiku permission result.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_haiku_notify_permission_result(
     runtime_id: u64,
     permission: NativeStringRef,
     granted: bool,
 ) -> RuntimeStatus {
-    let result = decode_unix_permission_name(permission).and_then(|permission| {
+    let result = decode_unix_permission_name(permission).and_then(|permission: String| {
         haiku_notify_permission_result(runtime_id, permission.as_str(), granted)
     });
 
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state that interruption state changed on haiku.
+/// Notify the runtime host state that interruption state changed on Haiku.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_haiku_notify_interruption_changed(
     runtime_id: u64,
@@ -95,7 +50,7 @@ pub unsafe extern "C" fn destack_host_haiku_notify_interruption_changed(
     unix_runtime_status(haiku_notify_interruption_changed(runtime_id, interrupted))
 }
 
-/// Notify the runtime host state that memory pressure changed on haiku.
+/// Notify the runtime host state that memory pressure changed on Haiku.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_haiku_notify_memory_pressure_changed(
     runtime_id: u64,
@@ -107,7 +62,7 @@ pub unsafe extern "C" fn destack_host_haiku_notify_memory_pressure_changed(
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state that thermal state changed on haiku.
+/// Notify the runtime host state that thermal state changed on Haiku.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_haiku_notify_thermal_state_changed(
     runtime_id: u64,
@@ -119,7 +74,7 @@ pub unsafe extern "C" fn destack_host_haiku_notify_thermal_state_changed(
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state that power mode changed on haiku.
+/// Notify the runtime host state that power mode changed on Haiku.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_haiku_notify_power_mode_changed(
     runtime_id: u64,
@@ -131,7 +86,7 @@ pub unsafe extern "C" fn destack_host_haiku_notify_power_mode_changed(
     unix_runtime_status(result)
 }
 
-/// Notify the runtime host state that wall clock changed on haiku.
+/// Notify the runtime host state that wall clock changed on Haiku.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_haiku_notify_wall_clock_changed(
     runtime_id: u64,
@@ -139,7 +94,7 @@ pub unsafe extern "C" fn destack_host_haiku_notify_wall_clock_changed(
     unix_runtime_status(haiku_notify_wall_clock_changed(runtime_id))
 }
 
-/// Wake one blocked host event poll operation for haiku.
+/// Wake one blocked host event poll operation for Haiku.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_haiku_notify_wake(runtime_id: u64) -> RuntimeStatus {
     unix_runtime_status(haiku_notify_wake(runtime_id))

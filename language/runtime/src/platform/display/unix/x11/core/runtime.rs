@@ -6,7 +6,7 @@ use x11rb::connection::Connection;
 use super::connection::X11ConnectionState;
 use super::ingress;
 use crate::diagnostic::DiagnosticStore;
-use crate::host::core::{RuntimeIngressObserver, register_runtime_ingress_observer};
+use crate::host::core::observer::{RuntimeIngressObserver, register_runtime_ingress_observer};
 use crate::platform::display::unix::x11::event::{
     self as x11_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
 };
