@@ -78,11 +78,6 @@ pub struct Lexer {
     token_start: usize,
     /// The previous character.
     prev: char,
-    /// The semantic tokens (identifiers, keywords, literals, operators).
-    pub(super) tokens: Vec<TokenSpan>,
-    /// The non-semantic tokens (whitespace, comments).
-    pub(super) side_tokens: Vec<TokenSpan>,
-
     /// The language type for parsing behavior.
     #[allow(unused)]
     pub(super) language: LanguageType,
@@ -124,12 +119,6 @@ pub struct LexerSnapshot {
 impl Lexer {
     /// Create a new Lexer from a file.
     pub fn new(file: Arc<File>, language: LanguageType) -> Lexer {
-        // estimate ~6 bytes per token on average for capacity hint
-        // semantic tokens are roughly 60% of all tokens
-        let source_len = file.text().len();
-        let estimated_tokens = source_len / 6;
-        let estimated_semantic = estimated_tokens * 3 / 5;
-        let estimated_side = estimated_tokens - estimated_semantic;
         let file_id = file.id;
         Lexer {
             file,
@@ -141,8 +130,6 @@ impl Lexer {
             },
             token_start: 0,
             prev: EOF_CHAR,
-            tokens: Vec::with_capacity(estimated_semantic),
-            side_tokens: Vec::with_capacity(estimated_side),
             language,
             has_at: false,
             last_side_token_had_line_terminator: false,

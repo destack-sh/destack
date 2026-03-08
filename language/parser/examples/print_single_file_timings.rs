@@ -1,8 +1,17 @@
 use std::sync::Arc;
 use std::{env, fs};
 
-use destack_parser::Parser;
+use destack_parser::{Parser, ParserSettings};
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
+
+/// Return whether parser-side trivia retention should stay enabled.
+fn retain_trivia_tokens_from_env() -> bool {
+    env::var("DESTACK_PARSE_RETAIN_TRIVIA")
+        .ok()
+        .and_then(|value| value.parse::<u8>().ok())
+        .map(|value| value > 0)
+        .unwrap_or(true)
+}
 
 /// Print parser timing data for one source file.
 fn main() {
@@ -17,8 +26,20 @@ fn main() {
     let (file_name, uri) = Uri::from_path_with_name(&path);
     let file = File::from_text(FileId::new(0), file_name, uri, None, file_type, content);
 
-    let mut parser = Parser::lex_file(Arc::new(file), language);
-    let nodes = parser.parse();
+    let retain_trivia_tokens = retain_trivia_tokens_from_env();
+    let mut parser = Parser::lex_file_with_settings(
+        Arc::new(file),
+        language,
+        ParserSettings {
+            retain_trivia_tokens,
+            ..ParserSettings::default()
+        },
+    );
+    let nodes = if retain_trivia_tokens {
+        parser.parse()
+    } else {
+        parser.parse_without_trivia()
+    };
 
     let mut timings = parser.timing_snapshot().unwrap_or_default();
     timings.sort_by(|left, right| {

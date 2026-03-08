@@ -149,15 +149,25 @@ impl Parser {
             }
             // eat all regular postfix operators
             loop {
-                // load the raw token first and only normalize across newlines when needed
-                let mut token_type = self.peek_token_type();
+                // load the raw token facts once and only normalize across newlines when needed
+                let mut cursor_index = self.pos_index();
+                let mut token_type = if let Some(token) = self.token_stream.active_split_token() {
+                    token.token.ty
+                } else {
+                    self.ensure_token(cursor_index);
+                    let Some(token) = self.tokens().get(cursor_index) else {
+                        break;
+                    };
+                    token.token.ty
+                };
                 if token_type == TokenType::End {
                     break;
                 }
 
-                let mut cursor_index = self.pos_index();
                 let mut has_pending_newline_tokens = false;
-                let mut has_line_break_before = self.line_terminator_before_index(cursor_index);
+                let mut has_line_break_before = self
+                    .token_stream
+                    .materialized_line_terminator_before(cursor_index);
                 if token_type == TokenType::Newline {
                     let cursor = self.scanner_cursor_from(cursor_index);
                     token_type = cursor.token_type;
@@ -664,14 +674,24 @@ impl Parser {
             let left_precedence = self.options.left_precedence;
             loop {
                 // infix parsing only needs newline normalization when the raw token is newline
-                let mut token_type = self.peek_token_type();
+                let mut cursor_index = self.pos_index();
+                let mut token_type = if let Some(token) = self.token_stream.active_split_token() {
+                    token.token.ty
+                } else {
+                    self.ensure_token(cursor_index);
+                    let Some(token) = self.tokens().get(cursor_index) else {
+                        break;
+                    };
+                    token.token.ty
+                };
                 if token_type == TokenType::End {
                     break;
                 }
 
-                let mut cursor_index = self.pos_index();
                 let mut newline_count = 0;
-                let mut has_line_break_before = self.line_terminator_before_index(cursor_index);
+                let mut has_line_break_before = self
+                    .token_stream
+                    .materialized_line_terminator_before(cursor_index);
                 let mut has_pending_newline_tokens = false;
                 if token_type == TokenType::Newline {
                     let cursor = self.scanner_cursor_from(cursor_index);

@@ -1,6 +1,6 @@
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use destack_parser::Parser;
+use destack_parser::{Parser, ParserSettings};
 use destack_source::{File, FileId, FileType, LanguageType, Uri, glob};
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
@@ -181,8 +181,24 @@ fn print_parser_speculation_snapshot_once(parser: &Parser, label: &str) {
 /// Parse one file through the full parser pipeline.
 fn parse_file(file: Arc<File>) -> Parser {
     let language_type = LanguageType::from(file.ty);
-    let mut parser = Parser::lex_file(file, language_type);
-    parser.parse();
+    let retain_trivia_tokens = env::var("DESTACK_PARSE_RETAIN_TRIVIA")
+        .ok()
+        .and_then(|value| value.parse::<u8>().ok())
+        .map(|value| value > 0)
+        .unwrap_or(true);
+    let mut parser = Parser::lex_file_with_settings(
+        file,
+        language_type,
+        ParserSettings {
+            retain_trivia_tokens,
+            ..ParserSettings::default()
+        },
+    );
+    if retain_trivia_tokens {
+        parser.parse();
+    } else {
+        parser.parse_without_trivia();
+    }
     print_parser_timing_snapshot_once(&parser, "parse-total");
     print_parser_speculation_snapshot_once(&parser, "parse-total");
     parser

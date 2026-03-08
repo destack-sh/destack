@@ -960,19 +960,9 @@ impl Parser {
 
         // allow multiline identifiers in generic parameter lists
         let has_multiline_identifier = if self.peek_next_is(TokenType::Newline) {
-            let mut pos = self.pos() as usize;
-            loop {
-                self.ensure_token(pos + 1);
-                let Some(token) = self.tokens().get(pos + 1) else {
-                    break;
-                };
-                if token.token.ty != TokenType::Newline {
-                    break;
-                }
-                pos += 1;
-            }
+            let next_index = self.next_non_newline_index_from(self.pos() as usize + 1);
             self.tokens()
-                .get(pos + 1)
+                .get(next_index)
                 .is_some_and(|token| token.token.ty == TokenType::Identifier)
         } else {
             false
@@ -994,55 +984,60 @@ impl Parser {
         let mut pos = self.pos() as usize;
         let mut close_pos = None;
         loop {
-            self.ensure_token(pos);
-            let Some(token) = self.tokens().get(pos) else {
+            while let Some(token) = self.tokens().get(pos) {
+                match token.token.ty {
+                    TokenType::LessThan => angle_depth += 1,
+                    TokenType::ShiftLeft | TokenType::SaturatingShiftLeft => angle_depth += 2,
+                    TokenType::GreaterThan => {
+                        angle_depth = angle_depth.saturating_sub(1);
+                        if angle_depth == 0 {
+                            close_pos = Some(pos as u32);
+                            break;
+                        }
+                    }
+                    TokenType::OpenParenthesis => paren_depth += 1,
+                    TokenType::CloseParenthesis => paren_depth = paren_depth.saturating_sub(1),
+                    TokenType::OpenBracket => bracket_depth += 1,
+                    TokenType::CloseBracket => bracket_depth = bracket_depth.saturating_sub(1),
+                    TokenType::OpenBrace => brace_depth += 1,
+                    TokenType::CloseBrace => brace_depth = brace_depth.saturating_sub(1),
+                    TokenType::Comma => {
+                        if angle_depth == 1
+                            && paren_depth == 0
+                            && bracket_depth == 0
+                            && brace_depth == 0
+                        {
+                            has_tree_disambiguator = true;
+                        }
+                    }
+                    TokenType::Assign => {
+                        if angle_depth == 1
+                            && paren_depth == 0
+                            && bracket_depth == 0
+                            && brace_depth == 0
+                        {
+                            has_tree_disambiguator = true;
+                        }
+                    }
+                    _ => {}
+                }
+                if angle_depth == 1
+                    && paren_depth == 0
+                    && bracket_depth == 0
+                    && brace_depth == 0
+                    && self.keyword_for_index(pos) == Some(Keyword::Extends)
+                {
+                    has_tree_disambiguator = true;
+                }
+
+                pos += 1;
+            }
+
+            if close_pos.is_some() || self.token_stream.is_lexed_to_end() {
                 break;
-            };
-            match token.token.ty {
-                TokenType::LessThan => angle_depth += 1,
-                TokenType::ShiftLeft | TokenType::SaturatingShiftLeft => angle_depth += 2,
-                TokenType::GreaterThan => {
-                    angle_depth = angle_depth.saturating_sub(1);
-                    if angle_depth == 0 {
-                        close_pos = Some(pos as u32);
-                        break;
-                    }
-                }
-                TokenType::OpenParenthesis => paren_depth += 1,
-                TokenType::CloseParenthesis => paren_depth = paren_depth.saturating_sub(1),
-                TokenType::OpenBracket => bracket_depth += 1,
-                TokenType::CloseBracket => bracket_depth = bracket_depth.saturating_sub(1),
-                TokenType::OpenBrace => brace_depth += 1,
-                TokenType::CloseBrace => brace_depth = brace_depth.saturating_sub(1),
-                TokenType::Comma => {
-                    if angle_depth == 1
-                        && paren_depth == 0
-                        && bracket_depth == 0
-                        && brace_depth == 0
-                    {
-                        has_tree_disambiguator = true;
-                    }
-                }
-                TokenType::Assign => {
-                    if angle_depth == 1
-                        && paren_depth == 0
-                        && bracket_depth == 0
-                        && brace_depth == 0
-                    {
-                        has_tree_disambiguator = true;
-                    }
-                }
-                _ => {}
             }
-            if angle_depth == 1
-                && paren_depth == 0
-                && bracket_depth == 0
-                && brace_depth == 0
-                && self.keyword_for_index(pos) == Some(Keyword::Extends)
-            {
-                has_tree_disambiguator = true;
-            }
-            pos += 1;
+
+            self.ensure_token(pos);
         }
         let Some(close_pos) = close_pos else {
             return false;
@@ -1052,24 +1047,10 @@ impl Parser {
         }
 
         // skip newlines after the type parameters
-        let after_close_pos = {
-            let mut pos = close_pos as usize;
-            loop {
-                self.ensure_token(pos + 1);
-                let Some(token) = self.tokens().get(pos + 1) else {
-                    break;
-                };
-                if token.token.ty != TokenType::Newline {
-                    break;
-                }
-                pos += 1;
-            }
-            pos as u32
-        };
+        let after_close_index = self.next_non_newline_index_from(close_pos as usize + 1);
 
         // require `(` after the type parameters
-        self.ensure_token(after_close_pos as usize + 1);
-        let Some(after_close) = self.tokens().get(after_close_pos as usize + 1) else {
+        let Some(after_close) = self.tokens().get(after_close_index) else {
             return false;
         };
         if after_close.token.ty != TokenType::OpenParenthesis {
@@ -1078,7 +1059,7 @@ impl Parser {
 
         // find the closing `)` for the parameters
         let Ok(parenthesis_close) = self.find_matching_close(
-            Some(after_close_pos + 1),
+            Some(after_close_index as u32),
             TokenType::OpenParenthesis,
             TokenType::CloseParenthesis,
         ) else {
@@ -1086,24 +1067,11 @@ impl Parser {
         };
 
         // skip newlines after the parameter list
-        let after_parenthesis_pos = {
-            let mut pos = parenthesis_close as usize;
-            loop {
-                self.ensure_token(pos + 1);
-                let Some(token) = self.tokens().get(pos + 1) else {
-                    break;
-                };
-                if token.token.ty != TokenType::Newline {
-                    break;
-                }
-                pos += 1;
-            }
-            pos as u32
-        };
+        let after_parenthesis_index =
+            self.next_non_newline_index_from(parenthesis_close as usize + 1);
 
         // require `:` or `=>` after the parameters
-        self.ensure_token(after_parenthesis_pos as usize + 1);
-        let Some(after_parenthesis) = self.tokens().get(after_parenthesis_pos as usize + 1) else {
+        let Some(after_parenthesis) = self.tokens().get(after_parenthesis_index) else {
             return false;
         };
         matches!(
@@ -1128,21 +1096,11 @@ impl Parser {
             }
 
             // skip newlines after `<`
-            let mut pos = self.pos_index();
-            loop {
-                self.ensure_token(pos + 1);
-                let Some(token) = self.tokens().get(pos + 1) else {
-                    break;
-                };
-                if token.token.ty != TokenType::Newline {
-                    break;
-                }
-                pos += 1;
-            }
+            let next_index = self.next_non_newline_index_from(self.pos_index() + 1);
 
             // next token after `<` (and newlines)
             let next = *self
-                .token_ref_at(pos + 1)
+                .token_ref_at(next_index)
                 .ok_or(ParseError::unexpected(unexpected_span))?;
             // closing tags should only appear inside tree content
             if next.token.ty == TokenType::Divide && !self.in_tree_literal() {
@@ -1157,18 +1115,8 @@ impl Parser {
 
             // exclude generic arrow function disambiguation: <T,>(...)
             if next.token.ty == TokenType::Identifier {
-                let mut comma_pos = pos + 1;
-                loop {
-                    self.ensure_token(comma_pos + 1);
-                    let Some(token) = self.tokens().get(comma_pos + 1) else {
-                        break;
-                    };
-                    if token.token.ty != TokenType::Newline {
-                        break;
-                    }
-                    comma_pos += 1;
-                }
-                if let Some(token) = self.token_ref_at(comma_pos + 1)
+                let comma_index = self.next_non_newline_index_from(next_index + 1);
+                if let Some(token) = self.token_ref_at(comma_index)
                     && token.token.ty == TokenType::Comma
                 {
                     return Err(ParseError::unexpected(unexpected_span));
