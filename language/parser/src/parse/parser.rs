@@ -1939,7 +1939,7 @@ impl Parser {
         NodeTree: destack_ast::NodeTreeImpl<T>,
     {
         let _timing = self.timing_scope(crate::parse::timing::tags::PARSE_ALLOC_NODE);
-        self.tree.insert(node, span)
+        self.tree.insert_during_parse(node, span)
     }
 
     /// Get a mark and return the span of the current position.
