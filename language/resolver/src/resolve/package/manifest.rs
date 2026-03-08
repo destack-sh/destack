@@ -61,9 +61,16 @@ impl Resolver {
         }
         let file = self.files.get(file_id);
 
+        // keep package manifest realpath aligned with symlink canonicalization
+        let package_json_realpath = if self.options.canonicalize_symlinks {
+            self.canonicalize(path)?.join("package.json")
+        } else {
+            package_json_path.clone()
+        };
+
         // parse `package.json` from file
         let package_config =
-            PackageManifest::parse(&file, package_json_path.clone()).map_err(|_| {
+            PackageManifest::parse(&file, package_json_realpath).map_err(|_| {
                 ResolveError::InvalidPackageJson {
                     path: package_json_path.clone(),
                 }
