@@ -70,8 +70,8 @@ impl World {
     pub fn branch_info(&self, branch_id: BranchId) -> RuntimeResult<Branch> {
         let lineage = self.lineage.read();
         let branch = lineage.branches.get(&branch_id).ok_or_else(|| {
-            RuntimeError::Internal {
-                message: format!("branch {} does not exist", branch_id.get()),
+            RuntimeError::BranchNotFound {
+                branch_id: branch_id.get(),
             }
             .boxed()
         })?;
@@ -82,5 +82,23 @@ impl World {
     /// Return identifiers for all known branches in stable order.
     pub fn branch_ids(&self) -> Vec<BranchId> {
         self.lineage.read().branches.keys().copied().collect()
+    }
+
+    /// Replace labels for one specific branch.
+    pub(crate) fn set_branch_labels(
+        &self,
+        branch_id: BranchId,
+        labels: BTreeMap<String, String>,
+    ) -> RuntimeResult<()> {
+        let mut lineage = self.lineage.write();
+        let branch = lineage.branches.get_mut(&branch_id).ok_or_else(|| {
+            RuntimeError::BranchNotFound {
+                branch_id: branch_id.get(),
+            }
+            .boxed()
+        })?;
+        branch.labels = labels;
+
+        Ok(())
     }
 }

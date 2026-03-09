@@ -1,6 +1,9 @@
 #[cfg(windows)]
 use std::sync::{Arc, OnceLock};
 
+use destack_base::{Capture, CaptureMode};
+use serde::{Deserialize, Serialize};
+
 #[cfg(windows)]
 use super::host::WindowsRawInputRuntimeState;
 
@@ -21,14 +24,31 @@ impl std::fmt::Debug for PlatformInputState {
 }
 
 impl PlatformInputState {
-    /// Return whether any runtime-owned input state was initialized.
-    pub(crate) fn is_initialized(&self) -> bool {
+    /// Return whether any runtime-owned input state is active.
+    fn has_runtime_state(&self) -> bool {
         #[cfg(windows)]
         if self.windows_raw_input_runtime_state.get().is_some() {
             return true;
         }
 
         false
+    }
+
+    /// Capture one input-state image.
+    fn image(
+        &self,
+        mode: CaptureMode,
+    ) -> Result<PlatformInputImage, Box<crate::diagnostic::RuntimeError>> {
+        if !self.has_runtime_state() {
+            return Ok(PlatformInputImage);
+        }
+
+        Err(crate::diagnostic::RuntimeError::CaptureBarrier {
+            component: "platform.input".to_string(),
+            mode: format!("{mode:?}"),
+            detail: "runtime state is active".to_string(),
+        }
+        .boxed())
     }
 
     /// Return runtime-owned windows raw-input state.
@@ -41,5 +61,36 @@ impl PlatformInputState {
             self.windows_raw_input_runtime_state
                 .get_or_init(|| Arc::new(initialize())),
         )
+    }
+}
+
+/// Materialized input platform-state image.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct PlatformInputImage;
+
+impl Capture for PlatformInputState {
+    type Image = PlatformInputImage;
+    type Error = Box<crate::diagnostic::RuntimeError>;
+    type CaptureContext<'a> = ();
+    type RestoreContext<'a> = ();
+
+    /// Capture one input platform-state image.
+    fn capture_image(
+        &mut self,
+        mode: CaptureMode,
+        _context: Self::CaptureContext<'_>,
+    ) -> Result<Self::Image, Self::Error> {
+        self.image(mode)
+    }
+
+    /// Restore one input platform-state image.
+    fn restore_image(
+        &mut self,
+        _image: &Self::Image,
+        _context: Self::RestoreContext<'_>,
+    ) -> Result<(), Self::Error> {
+        *self = Self::default();
+
+        Ok(())
     }
 }

@@ -382,6 +382,11 @@ impl ResourceTable {
         *self.hooks.write() = Some(hooks);
     }
 
+    /// Return the number of stored resources.
+    pub fn len(&self) -> usize {
+        self.entries.read().len()
+    }
+
     /// Allocate and insert a resource entry.
     pub fn insert(
         &self,

@@ -320,6 +320,17 @@ impl Trace {
         self.record_event(TraceEvent::Tick(deadline))
     }
 
+    /// Record one explicit trace marker and return its assigned sequence number.
+    pub fn record_marker(&self, label: impl Into<String>) -> RuntimeResult<super::TraceSequence> {
+        // skip recording when disabled
+        if self.mode() != ExecutionMode::Record {
+            return Ok(self.log.next_sequence());
+        }
+
+        // record the marker in the log
+        self.log.record_event(TraceEvent::Marker(label.into()))
+    }
+
     /// Read the next runtime tick event from replay.
     pub fn next_tick(&self) -> RuntimeResult<WorldInstant> {
         let event = self.next_required_event("tick")?;

@@ -6,17 +6,14 @@ use crate::runtime::time::WorldInstant;
 use crate::runtime::{AgentId, TickOutcome};
 use destack_workspace::TimeMode;
 
-use super::{RuntimeId, Wake, World};
+use super::{ObservationEvent, ObservationSchedulerOutcome, RuntimeId, Wake, World};
 
 impl World {
     /// Advance one virtual world clock to one explicit wall-clock deadline.
     pub(crate) fn advance_virtual_to(&self, deadline: WorldInstant) -> RuntimeResult<WorldInstant> {
         // host time cannot be advanced by the deterministic scheduler
         if self.time_mode != TimeMode::Virtual {
-            return Err(RuntimeError::Internal {
-                message: "cannot advance virtual time while world uses host time".to_string(),
-            }
-            .boxed());
+            return Err(RuntimeError::HostTimeAdvance.boxed());
         }
 
         Ok(self.clock.advance_virtual_to(deadline))
@@ -71,6 +68,12 @@ impl World {
         // runnable work and ingress
         for runtime in runtimes.values_mut() {
             if runtime.tick(self)?.progressed() {
+                self.observation.record(ObservationEvent::Scheduler {
+                    branch_id: self.branch_id,
+                    outcome: ObservationSchedulerOutcome::Progressed,
+                    deadline: None,
+                });
+
                 return Ok(TickOutcome::Progressed);
             }
         }
@@ -81,10 +84,8 @@ impl World {
         }
 
         // next global deadline
-        let next_deadline = runtimes
-            .values()
-            .filter_map(|runtime| runtime.next_deadline(self))
-            .min();
+        let next_deadline =
+            self.next_deadline(runtimes.values().map(|runtime| runtime.next_deadline(self)));
         let Some(deadline) = next_deadline else {
             return Ok(TickOutcome::Idle);
         };
@@ -122,6 +123,12 @@ impl World {
             }
         }
 
+        self.observation.record(ObservationEvent::Scheduler {
+            branch_id: self.branch_id,
+            outcome: ObservationSchedulerOutcome::AdvancedTime,
+            deadline: Some(deadline),
+        });
+
         Ok(TickOutcome::AdvancedTime)
     }
 
@@ -140,14 +147,20 @@ impl World {
         let _activity = self.enter_activity()?;
         let mut runtimes = self.runtimes.write();
         let runtime = runtimes.get_mut(&runtime_id).ok_or_else(|| {
-            RuntimeError::Internal {
-                message: format!("runtime {} does not exist", runtime_id.0),
+            RuntimeError::RuntimeNotFound {
+                runtime_id: runtime_id.0,
             }
             .boxed()
         })?;
 
         // local runtime progress wins before any virtual time advance
         if runtime.tick(self)?.progressed() {
+            self.observation.record(ObservationEvent::Scheduler {
+                branch_id: self.branch_id,
+                outcome: ObservationSchedulerOutcome::Progressed,
+                deadline: None,
+            });
+
             return Ok(TickOutcome::Progressed);
         }
 
@@ -157,7 +170,8 @@ impl World {
         }
 
         // single-runtime next deadline
-        let Some(deadline) = runtime.next_deadline(self) else {
+        let next_deadline = self.next_deadline(std::iter::once(runtime.next_deadline(self)));
+        let Some(deadline) = next_deadline else {
             return Ok(TickOutcome::Idle);
         };
 
@@ -171,6 +185,12 @@ impl World {
         self.simulation.write().deliver_due(deadline);
         let wakes = self.drain_due(agent_timers);
         runtime.deliver_wakes(self, wakes)?;
+
+        self.observation.record(ObservationEvent::Scheduler {
+            branch_id: self.branch_id,
+            outcome: ObservationSchedulerOutcome::AdvancedTime,
+            deadline: Some(deadline),
+        });
 
         Ok(TickOutcome::AdvancedTime)
     }

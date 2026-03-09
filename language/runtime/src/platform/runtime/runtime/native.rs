@@ -888,8 +888,12 @@ pub(crate) unsafe fn destack_runtime_agent_create(
     let runtime_id = entry.runtime_id;
     let agent_id =
         world.spawn_agent_with_options(runtime_id, &runtime_options, empty_vm_engine()?)?;
-    let handle =
-        handle::encode_agent_handle(table.register_agent(entry.world_handle_id, world, agent_id));
+    let handle = handle::encode_agent_handle(table.register_agent(
+        entry.world_handle_id,
+        world,
+        runtime_id,
+        agent_id,
+    ));
 
     unsafe { out.write(handle) };
 
@@ -918,8 +922,15 @@ pub(crate) unsafe fn destack_runtime_agent_describe(
 
     // resolve one live agent descriptor
     let table = control_table().read();
-    let (world, agent_id) = table.agent(handle::decode_agent_handle(argument_agent))?;
-    let descriptor = world.with_agent(agent_id, |_, agent| {
+    let (world, runtime_id, agent_id) = table.agent(handle::decode_agent_handle(argument_agent))?;
+    let descriptor = world.with_runtime(runtime_id, |runtime| {
+        let agent = runtime.agent(agent_id).ok_or_else(|| {
+            RuntimeError::AgentNotFound {
+                agent_id: agent_id.0,
+            }
+            .boxed()
+        })?;
+
         encode_agent_descriptor_for_live(binding, &world, agent)
     })?;
 

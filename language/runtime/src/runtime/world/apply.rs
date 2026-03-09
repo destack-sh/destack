@@ -7,7 +7,7 @@ use std::fmt;
 
 use super::topology::Topology;
 use super::{
-    ObserveEvent, World, WorldCommand, WorldEdge, WorldEdgeId, WorldEdgeKindDefinition,
+    ObservationEvent, World, WorldCommand, WorldEdge, WorldEdgeId, WorldEdgeKindDefinition,
     WorldEntity, WorldEntityId, WorldEntityKindDefinition,
 };
 
@@ -130,7 +130,7 @@ impl World {
             self.trace.record_world_command(&command_for_trace)?;
         }
 
-        self.observe.record(ObserveEvent::Control {
+        self.observation.record(ObservationEvent::Control {
             branch_id: self.branch_id,
             summary: format!("{command_for_trace:?}"),
         });

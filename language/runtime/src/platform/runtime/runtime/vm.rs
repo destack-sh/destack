@@ -969,6 +969,7 @@ pub(crate) fn destack_runtime_agent_create(
     Ok(handle::encode_agent_handle(table.register_agent(
         entry.world_handle_id,
         world,
+        entry.runtime_id,
         agent_id,
     )))
 }
@@ -992,8 +993,15 @@ pub(crate) fn destack_runtime_agent_describe(
 ) -> RuntimeResult<AgentDescriptorVm> {
     // resolve one live agent descriptor
     let table = control_table().read();
-    let (world, agent_id) = table.agent(handle::decode_agent_handle(argument_agent))?;
-    world.with_agent(agent_id, |_, agent| {
+    let (world, runtime_id, agent_id) = table.agent(handle::decode_agent_handle(argument_agent))?;
+    world.with_runtime(runtime_id, |runtime| {
+        let agent = runtime.agent(agent_id).ok_or_else(|| {
+            RuntimeError::AgentNotFound {
+                agent_id: agent_id.0,
+            }
+            .boxed()
+        })?;
+
         encode_agent_descriptor_for_live(context, &world, agent)
     })
 }

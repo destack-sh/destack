@@ -24,8 +24,9 @@ use crate::runtime::poller::{
 use crate::runtime::scheduler::Runnable;
 use crate::runtime::time::WorldInstant;
 use crate::runtime::{
-    Agent, BindingCallContext, BranchId, ObserveEvent, World, WorldEdge, WorldEdgeKindDefinition,
-    WorldEntity, WorldEntityKindDefinition,
+    Agent, BindingCallContext, BranchId, ObservationEvent, ObservationKind, ObservationOptions,
+    ObservationSchedulerOutcome, World, WorldEdge, WorldEdgeKindDefinition, WorldEntity,
+    WorldEntityKindDefinition,
 };
 
 /// Build one empty VM engine for checkpoint tests.
@@ -220,18 +221,18 @@ fn test_world_observe_records_control_and_resource_events() {
         })
         .expect("resource lifecycle should succeed");
 
-    let records = world.observe().records_after(None);
+    let records = world.observation().records_after(None);
     assert!(
         records
             .iter()
-            .any(|record| matches!(record.event, ObserveEvent::Control { .. })),
+            .any(|record| matches!(record.event, ObservationEvent::Control { .. })),
         "expected one control observation event"
     );
     assert!(
         records.iter().any(|record| {
             matches!(
                 record.event,
-                ObserveEvent::Resource {
+                ObservationEvent::Resource {
                     is_attach: true,
                     ..
                 }
@@ -243,13 +244,133 @@ fn test_world_observe_records_control_and_resource_events() {
         records.iter().any(|record| {
             matches!(
                 record.event,
-                ObserveEvent::Resource {
+                ObservationEvent::Resource {
                     is_attach: false,
                     ..
                 }
             )
         }),
         "expected one resource detach observation event"
+    );
+    assert!(
+        records
+            .iter()
+            .any(|record| record.kind == ObservationKind::Diagnostic),
+        "expected one diagnostic observation kind"
+    );
+    assert!(
+        records
+            .iter()
+            .filter(|record| record.kind == ObservationKind::Resource)
+            .count()
+            >= 2,
+        "expected resource observation kinds for resource lifecycle"
+    );
+}
+
+/// Ensures observation subscriptions start live and apply event-kind filters.
+#[test]
+fn test_world_observe_subscriptions_filter_live_events() {
+    let options = RuntimeOptions::default();
+    let world = Arc::new(World::default());
+    let runtime_id = world
+        .spawn_runtime(Vec::new(), &options, vm_engine())
+        .expect("runtime should spawn in world");
+
+    let subscription = world.observation().open(ObservationOptions {
+        trace: false,
+        topology: false,
+        resource: true,
+        scheduler: false,
+        diagnostic: false,
+        profile: false,
+    });
+
+    // emit one filtered-out diagnostic observation
+    world
+        .set_policy(world.policy())
+        .expect("policy replacement should succeed");
+
+    // emit resource lifecycle observations after the subscription opened
+    world
+        .with_runtime_mut(runtime_id, |runtime| {
+            let agent_id = runtime.primary_agent_id();
+            let agent = runtime
+                .agent_mut(agent_id)
+                .expect("runtime should keep its primary agent");
+            let resource_id =
+                agent
+                    .resources
+                    .insert(&world, ResourceEntry::new(ResourceKind::Timer), None);
+            let _ = agent.resources.remove(&world, resource_id, None);
+
+            Ok(())
+        })
+        .expect("resource lifecycle should succeed");
+
+    let records = world
+        .observation()
+        .next(subscription, 16)
+        .expect("observe subscription should read");
+    assert_eq!(records.len(), 2, "expected attach and detach observations");
+    assert!(
+        records
+            .iter()
+            .all(|record| record.kind == ObservationKind::Resource),
+        "expected only resource observations through the filter"
+    );
+
+    let records = world
+        .observation()
+        .next(subscription, 16)
+        .expect("observe subscription should advance");
+    assert!(records.is_empty(), "subscription cursor should advance");
+
+    world
+        .observation()
+        .close(subscription)
+        .expect("observe subscription should close");
+}
+
+/// Ensures scheduler observation subscriptions see virtual time advances.
+#[test]
+fn test_world_observe_subscriptions_report_scheduler_progress() {
+    let mut options = RuntimeOptions::default();
+    options.time.mode = TimeMode::Virtual;
+
+    let world = World::from_options(&options).expect("world should construct");
+    let subscription = world.observation().open(ObservationOptions {
+        trace: false,
+        topology: false,
+        resource: false,
+        scheduler: true,
+        diagnostic: false,
+        profile: false,
+    });
+
+    // schedule one simulated deadline so the world must advance time
+    world
+        .write_simulation()
+        .schedule_event(WorldInstant::new(5_000));
+
+    let outcome = world.tick().expect("world tick should succeed");
+    assert_eq!(outcome, crate::runtime::TickOutcome::AdvancedTime);
+
+    let records = world
+        .observation()
+        .next(subscription, 16)
+        .expect("observe subscription should read");
+    assert_eq!(records.len(), 1, "expected one scheduler observation");
+    assert!(
+        matches!(
+            records.first().map(|record| &record.event),
+            Some(ObservationEvent::Scheduler {
+                outcome: ObservationSchedulerOutcome::AdvancedTime,
+                deadline: Some(deadline),
+                ..
+            }) if *deadline == WorldInstant::new(5_000)
+        ),
+        "expected one advanced-time scheduler observation"
     );
 }
 

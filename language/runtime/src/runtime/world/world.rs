@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use destack_base::CaptureMode;
 use parking_lot::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -23,7 +22,7 @@ pub use super::topology::{
     WorldEntityId, WorldEntityKind, WorldEntityKindDefinition,
 };
 use super::{
-    AccessState, BranchId, INITIAL_AGENT_ID, INITIAL_RUNTIME_ID, Observe, WorldResource,
+    AccessState, BranchId, INITIAL_AGENT_ID, INITIAL_RUNTIME_ID, Image, Observation, WorldResource,
     WorldResourceId,
 };
 
@@ -51,7 +50,7 @@ pub struct World {
     /// Trace controller for deterministic world event history.
     pub(super) trace: Trace,
     /// High-volume observation stream kept separate from causal trace.
-    pub(super) observe: Observe,
+    pub(super) observation: Observation,
     /// Active policy state.
     pub(super) policy: RwLock<PolicyState>,
     /// One global mutation gate for replayable world control changes.
@@ -139,6 +138,23 @@ impl World {
         policy.validate_with_kind_catalog(&topology)?;
 
         // final world state
+        let lineage = Arc::new(RwLock::new(Lineage::new_root(
+            Arc::new(Image {
+                id: ROOT_IMAGE_ID,
+                next_runtime_id: INITIAL_RUNTIME_ID,
+                next_agent_id: INITIAL_AGENT_ID,
+                policy: PolicyState::new(policy.clone()),
+                topology: topology.clone(),
+                resources: BTreeMap::new(),
+                simulation: Simulation::default(),
+                clock: clock.snapshot(),
+                random: random.snapshot(),
+                runtimes: BTreeMap::new(),
+                agents: BTreeMap::new(),
+            }),
+            Arc::new(trace.capture_image()),
+        )));
+
         let world = Arc::new(Self {
             branch_id,
             runtimes: RwLock::new(BTreeMap::new()),
@@ -148,24 +164,18 @@ impl World {
             clock,
             random,
             trace,
-            observe: Observe::default(),
+            observation: Observation::default(),
             policy: RwLock::new(PolicyState::new(policy)),
             mutation_lock: Mutex::new(()),
             next_runtime_id: AtomicU64::new(INITIAL_RUNTIME_ID),
             next_agent_id: AtomicU64::new(INITIAL_AGENT_ID),
-            lineage: Arc::new(RwLock::new(Lineage::bootstrap())),
+            lineage,
             access_state: RwLock::new(AccessState::Shared {
                 active_operations: 0,
             }),
             topology: RwLock::new(topology),
             resources: RwLock::new(BTreeMap::new()),
         });
-
-        // root lineage backing
-        let mut root_image = world.capture_image(CaptureMode::Fork)?;
-        root_image.id = ROOT_IMAGE_ID;
-        let root_trace_image = Arc::new(world.trace.capture_image());
-        *world.lineage.write() = Lineage::bootstrap_root(Arc::new(root_image), root_trace_image);
 
         Ok(world)
     }
@@ -198,6 +208,32 @@ impl World {
     /// Snapshot world entities.
     pub fn entities(&self) -> BTreeMap<WorldEntityId, WorldEntity> {
         self.topology.read().entities().clone()
+    }
+
+    /// Return labels for one live runtime.
+    pub fn runtime_labels(&self, runtime_id: RuntimeId) -> RuntimeResult<BTreeMap<String, String>> {
+        let entity_id = format!("runtime.{}", runtime_id.0);
+        let topology = self.topology.read();
+        let entity = topology.entities().get(entity_id.as_str()).ok_or_else(|| {
+            RuntimeError::RuntimeNotFound {
+                runtime_id: runtime_id.0,
+            }
+        })?;
+
+        Ok(entity.labels.clone())
+    }
+
+    /// Return labels for one live agent.
+    pub fn agent_labels(&self, agent_id: AgentId) -> RuntimeResult<BTreeMap<String, String>> {
+        let entity_id = format!("agent.{}", agent_id.0);
+        let topology = self.topology.read();
+        let entity = topology.entities().get(entity_id.as_str()).ok_or_else(|| {
+            RuntimeError::AgentNotFound {
+                agent_id: agent_id.0,
+            }
+        })?;
+
+        Ok(entity.labels.clone())
     }
 
     /// Snapshot world edges.
@@ -240,8 +276,8 @@ impl World {
     }
 
     /// Return the high-volume observation stream for this world.
-    pub fn observe(&self) -> &Observe {
-        &self.observe
+    pub fn observation(&self) -> &Observation {
+        &self.observation
     }
 
     /// Return the current world wall time.

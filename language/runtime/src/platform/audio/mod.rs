@@ -26,4 +26,4 @@ mod windows;
 
 pub(crate) use backend::{backend_descriptors, resolve_requested_backend};
 pub(crate) use kind::AudioEventKind;
-pub(crate) use state::PlatformAudioState;
+pub(crate) use state::*;

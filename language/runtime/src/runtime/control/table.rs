@@ -72,6 +72,8 @@ pub(crate) struct AgentEntry {
     pub world_handle_id: ControlHandleId,
     /// The live world object.
     pub world: Arc<World>,
+    /// The owning runtime identifier inside that world.
+    pub runtime_id: RuntimeId,
     /// The agent identifier inside that world.
     pub agent_id: AgentId,
 }
@@ -219,6 +221,21 @@ impl ControlObject {
     }
 }
 
+/// Return one internal control-store mismatch error.
+fn control_store_kind_mismatch(
+    handle_id: ControlHandleId,
+    control_kind: ControlKind,
+) -> Box<RuntimeError> {
+    RuntimeError::Internal {
+        message: format!(
+            "control store kind mismatch for {} handle {}",
+            control_kind.name(),
+            handle_id.get()
+        ),
+    }
+    .boxed()
+}
+
 impl ControlStore {
     /// Insert one control object under one handle id.
     fn insert_object(&mut self, handle_id: ControlHandleId, object: ControlObject) {
@@ -229,13 +246,7 @@ impl ControlStore {
     fn world_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&WorldEntry> {
         match self.objects.get(&handle_id) {
             Some(ControlObject::World(entry)) => Ok(entry),
-            Some(_) => Err(RuntimeError::Internal {
-                message: format!(
-                    "control store kind mismatch for world handle {}",
-                    handle_id.get()
-                ),
-            }
-            .boxed()),
+            Some(_) => Err(control_store_kind_mismatch(handle_id, ControlKind::World)),
             None => Err(control_handle_not_found(handle_id, ControlKind::World)),
         }
     }
@@ -244,13 +255,7 @@ impl ControlStore {
     fn remove_world_entry(&mut self, handle_id: ControlHandleId) -> RuntimeResult<WorldEntry> {
         match self.objects.remove(&handle_id) {
             Some(ControlObject::World(entry)) => Ok(entry),
-            Some(_) => Err(RuntimeError::Internal {
-                message: format!(
-                    "control store kind mismatch for world handle {}",
-                    handle_id.get()
-                ),
-            }
-            .boxed()),
+            Some(_) => Err(control_store_kind_mismatch(handle_id, ControlKind::World)),
             None => Err(control_handle_not_found(handle_id, ControlKind::World)),
         }
     }
@@ -259,13 +264,7 @@ impl ControlStore {
     fn runtime_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&RuntimeEntry> {
         match self.objects.get(&handle_id) {
             Some(ControlObject::Runtime(entry)) => Ok(entry),
-            Some(_) => Err(RuntimeError::Internal {
-                message: format!(
-                    "control store kind mismatch for runtime handle {}",
-                    handle_id.get()
-                ),
-            }
-            .boxed()),
+            Some(_) => Err(control_store_kind_mismatch(handle_id, ControlKind::Runtime)),
             None => Err(control_handle_not_found(handle_id, ControlKind::Runtime)),
         }
     }
@@ -274,13 +273,7 @@ impl ControlStore {
     fn remove_runtime_entry(&mut self, handle_id: ControlHandleId) -> RuntimeResult<RuntimeEntry> {
         match self.objects.remove(&handle_id) {
             Some(ControlObject::Runtime(entry)) => Ok(entry),
-            Some(_) => Err(RuntimeError::Internal {
-                message: format!(
-                    "control store kind mismatch for runtime handle {}",
-                    handle_id.get()
-                ),
-            }
-            .boxed()),
+            Some(_) => Err(control_store_kind_mismatch(handle_id, ControlKind::Runtime)),
             None => Err(control_handle_not_found(handle_id, ControlKind::Runtime)),
         }
     }
@@ -289,13 +282,7 @@ impl ControlStore {
     fn agent_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&AgentEntry> {
         match self.objects.get(&handle_id) {
             Some(ControlObject::Agent(entry)) => Ok(entry),
-            Some(_) => Err(RuntimeError::Internal {
-                message: format!(
-                    "control store kind mismatch for agent handle {}",
-                    handle_id.get()
-                ),
-            }
-            .boxed()),
+            Some(_) => Err(control_store_kind_mismatch(handle_id, ControlKind::Agent)),
             None => Err(control_handle_not_found(handle_id, ControlKind::Agent)),
         }
     }
@@ -304,13 +291,7 @@ impl ControlStore {
     fn remove_agent_entry(&mut self, handle_id: ControlHandleId) -> RuntimeResult<AgentEntry> {
         match self.objects.remove(&handle_id) {
             Some(ControlObject::Agent(entry)) => Ok(entry),
-            Some(_) => Err(RuntimeError::Internal {
-                message: format!(
-                    "control store kind mismatch for agent handle {}",
-                    handle_id.get()
-                ),
-            }
-            .boxed()),
+            Some(_) => Err(control_store_kind_mismatch(handle_id, ControlKind::Agent)),
             None => Err(control_handle_not_found(handle_id, ControlKind::Agent)),
         }
     }
@@ -319,13 +300,10 @@ impl ControlStore {
     fn observation_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&ObservationEntry> {
         match self.objects.get(&handle_id) {
             Some(ControlObject::Observation(entry)) => Ok(entry),
-            Some(_) => Err(RuntimeError::Internal {
-                message: format!(
-                    "control store kind mismatch for observation handle {}",
-                    handle_id.get()
-                ),
-            }
-            .boxed()),
+            Some(_) => Err(control_store_kind_mismatch(
+                handle_id,
+                ControlKind::Observation,
+            )),
             None => Err(control_handle_not_found(
                 handle_id,
                 ControlKind::Observation,
@@ -340,13 +318,10 @@ impl ControlStore {
     ) -> RuntimeResult<ObservationEntry> {
         match self.objects.remove(&handle_id) {
             Some(ControlObject::Observation(entry)) => Ok(entry),
-            Some(_) => Err(RuntimeError::Internal {
-                message: format!(
-                    "control store kind mismatch for observation handle {}",
-                    handle_id.get()
-                ),
-            }
-            .boxed()),
+            Some(_) => Err(control_store_kind_mismatch(
+                handle_id,
+                ControlKind::Observation,
+            )),
             None => Err(control_handle_not_found(
                 handle_id,
                 ControlKind::Observation,
@@ -358,13 +333,10 @@ impl ControlStore {
     fn trace_cursor_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&TraceCursorEntry> {
         match self.objects.get(&handle_id) {
             Some(ControlObject::TraceCursor(entry)) => Ok(entry),
-            Some(_) => Err(RuntimeError::Internal {
-                message: format!(
-                    "control store kind mismatch for trace cursor handle {}",
-                    handle_id.get()
-                ),
-            }
-            .boxed()),
+            Some(_) => Err(control_store_kind_mismatch(
+                handle_id,
+                ControlKind::TraceCursor,
+            )),
             None => Err(control_handle_not_found(
                 handle_id,
                 ControlKind::TraceCursor,
@@ -379,13 +351,10 @@ impl ControlStore {
     ) -> RuntimeResult<TraceCursorEntry> {
         match self.objects.remove(&handle_id) {
             Some(ControlObject::TraceCursor(entry)) => Ok(entry),
-            Some(_) => Err(RuntimeError::Internal {
-                message: format!(
-                    "control store kind mismatch for trace cursor handle {}",
-                    handle_id.get()
-                ),
-            }
-            .boxed()),
+            Some(_) => Err(control_store_kind_mismatch(
+                handle_id,
+                ControlKind::TraceCursor,
+            )),
             None => Err(control_handle_not_found(
                 handle_id,
                 ControlKind::TraceCursor,
@@ -397,13 +366,10 @@ impl ControlStore {
     fn world_view_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&WorldViewEntry> {
         match self.objects.get(&handle_id) {
             Some(ControlObject::WorldView(entry)) => Ok(entry),
-            Some(_) => Err(RuntimeError::Internal {
-                message: format!(
-                    "control store kind mismatch for world view handle {}",
-                    handle_id.get()
-                ),
-            }
-            .boxed()),
+            Some(_) => Err(control_store_kind_mismatch(
+                handle_id,
+                ControlKind::WorldView,
+            )),
             None => Err(control_handle_not_found(handle_id, ControlKind::WorldView)),
         }
     }
@@ -415,13 +381,10 @@ impl ControlStore {
     ) -> RuntimeResult<WorldViewEntry> {
         match self.objects.remove(&handle_id) {
             Some(ControlObject::WorldView(entry)) => Ok(entry),
-            Some(_) => Err(RuntimeError::Internal {
-                message: format!(
-                    "control store kind mismatch for world view handle {}",
-                    handle_id.get()
-                ),
-            }
-            .boxed()),
+            Some(_) => Err(control_store_kind_mismatch(
+                handle_id,
+                ControlKind::WorldView,
+            )),
             None => Err(control_handle_not_found(handle_id, ControlKind::WorldView)),
         }
     }
@@ -430,13 +393,10 @@ impl ControlStore {
     fn snapshot_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&SnapshotEntry> {
         match self.objects.get(&handle_id) {
             Some(ControlObject::Snapshot(entry)) => Ok(entry),
-            Some(_) => Err(RuntimeError::Internal {
-                message: format!(
-                    "control store kind mismatch for snapshot handle {}",
-                    handle_id.get()
-                ),
-            }
-            .boxed()),
+            Some(_) => Err(control_store_kind_mismatch(
+                handle_id,
+                ControlKind::Snapshot,
+            )),
             None => Err(control_handle_not_found(handle_id, ControlKind::Snapshot)),
         }
     }
@@ -741,6 +701,7 @@ impl ControlTable {
         &mut self,
         world_handle_id: ControlHandleId,
         world: Arc<World>,
+        runtime_id: RuntimeId,
         agent_id: AgentId,
     ) -> ControlHandleId {
         let handle_id = self.allocate_handle_id();
@@ -761,6 +722,7 @@ impl ControlTable {
                 ControlObject::Agent(AgentEntry {
                     world_handle_id,
                     world,
+                    runtime_id,
                     agent_id,
                 }),
             );
@@ -782,12 +744,15 @@ impl ControlTable {
     }
 
     /// Resolve one agent handle into its live world and agent id.
-    pub(crate) fn agent(&self, handle_id: ControlHandleId) -> RuntimeResult<(Arc<World>, AgentId)> {
+    pub(crate) fn agent(
+        &self,
+        handle_id: ControlHandleId,
+    ) -> RuntimeResult<(Arc<World>, RuntimeId, AgentId)> {
         self.require_kind(handle_id, ControlKind::Agent)?;
 
         self.with_store(|control_store| {
             let entry = control_store.agent_entry(handle_id)?;
-            Ok((entry.world.clone(), entry.agent_id))
+            Ok((entry.world.clone(), entry.runtime_id, entry.agent_id))
         })
     }
 

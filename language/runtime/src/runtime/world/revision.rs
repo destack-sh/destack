@@ -74,13 +74,23 @@ impl World {
     pub fn revision_info(&self, revision_id: RevisionId) -> RuntimeResult<Revision> {
         let lineage = self.lineage.read();
         let revision = lineage.revisions.get(&revision_id).ok_or_else(|| {
-            RuntimeError::Internal {
-                message: format!("revision {} does not exist", revision_id.get()),
+            RuntimeError::RevisionNotFound {
+                revision_id: revision_id.get(),
             }
             .boxed()
         })?;
 
         Ok(revision.clone())
+    }
+
+    /// Resolve one revision and all of its materialized backing.
+    pub(crate) fn revision_backing(
+        &self,
+        revision_id: RevisionId,
+    ) -> RuntimeResult<super::lineage::RevisionBacking> {
+        let lineage = self.lineage.read();
+
+        lineage.resolve_revision_backing(revision_id)
     }
 
     /// Return identifiers for all known revisions in stable order.

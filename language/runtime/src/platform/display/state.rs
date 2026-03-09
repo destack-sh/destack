@@ -1,5 +1,8 @@
 use std::sync::{Arc, OnceLock};
 
+use destack_base::{Capture, CaptureMode};
+use serde::{Deserialize, Serialize};
+
 #[cfg(target_os = "macos")]
 use super::unix::AppKitRuntimeState;
 #[cfg(target_os = "linux")]
@@ -33,8 +36,8 @@ impl std::fmt::Debug for PlatformDisplayState {
 }
 
 impl PlatformDisplayState {
-    /// Return whether any runtime-owned display state was initialized.
-    pub(crate) fn is_initialized(&self) -> bool {
+    /// Return whether any runtime-owned display state is active.
+    fn has_runtime_state(&self) -> bool {
         #[cfg(windows)]
         if self.win32_runtime_state.get().is_some() {
             return true;
@@ -51,6 +54,23 @@ impl PlatformDisplayState {
         }
 
         false
+    }
+
+    /// Capture one display-state image.
+    fn image(
+        &self,
+        mode: CaptureMode,
+    ) -> Result<PlatformDisplayImage, Box<crate::diagnostic::RuntimeError>> {
+        if !self.has_runtime_state() {
+            return Ok(PlatformDisplayImage);
+        }
+
+        Err(crate::diagnostic::RuntimeError::CaptureBarrier {
+            component: "platform.display".to_string(),
+            mode: format!("{mode:?}"),
+            detail: "runtime state is active".to_string(),
+        }
+        .boxed())
     }
 
     /// Return runtime-owned Win32 display state.
@@ -99,5 +119,36 @@ impl PlatformDisplayState {
             self.appkit_runtime_state
                 .get_or_init(|| Arc::new(initialize())),
         )
+    }
+}
+
+/// Materialized display platform-state image.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct PlatformDisplayImage;
+
+impl Capture for PlatformDisplayState {
+    type Image = PlatformDisplayImage;
+    type Error = Box<crate::diagnostic::RuntimeError>;
+    type CaptureContext<'a> = ();
+    type RestoreContext<'a> = ();
+
+    /// Capture one display platform-state image.
+    fn capture_image(
+        &mut self,
+        mode: CaptureMode,
+        _context: Self::CaptureContext<'_>,
+    ) -> Result<Self::Image, Self::Error> {
+        self.image(mode)
+    }
+
+    /// Restore one display platform-state image.
+    fn restore_image(
+        &mut self,
+        _image: &Self::Image,
+        _context: Self::RestoreContext<'_>,
+    ) -> Result<(), Self::Error> {
+        *self = Self::default();
+
+        Ok(())
     }
 }

@@ -62,17 +62,14 @@ impl World {
     ) -> RuntimeResult<RuleSubject<'a>> {
         let (runtime_name, runtime_labels) =
             topology.runtime_subject(runtime_id).ok_or_else(|| {
-                RuntimeError::Internal {
-                    message: format!(
-                        "runtime {} is not registered in world topology",
-                        runtime_id.0
-                    ),
+                RuntimeError::TopologyRuntimeMissing {
+                    runtime_id: runtime_id.0,
                 }
                 .boxed()
             })?;
         let (agent_name, agent_labels) = topology.agent_subject(agent_id).ok_or_else(|| {
-            RuntimeError::Internal {
-                message: format!("agent {} is not registered in world topology", agent_id.0),
+            RuntimeError::TopologyAgentMissing {
+                agent_id: agent_id.0,
             }
             .boxed()
         })?;

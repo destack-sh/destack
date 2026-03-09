@@ -15,12 +15,10 @@ mod info;
 pub mod native;
 mod power;
 pub(crate) mod simulation;
-#[cfg(any(target_os = "linux", windows))]
 mod state;
 #[cfg(test)]
 mod tests;
 mod unsupported;
 pub mod vm;
 
-#[cfg(any(target_os = "linux", windows))]
 pub(crate) use state::*;
