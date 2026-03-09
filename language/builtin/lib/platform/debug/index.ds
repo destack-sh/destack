@@ -1,5 +1,3 @@
-export declare namespace debug {}
-
 export * from "./trace.ds";
 export * from "./profile.ds";
 export * from "./inspector.ds";
