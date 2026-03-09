@@ -1,4 +1,5 @@
 mod arena;
+mod capture;
 mod color;
 mod dumper;
 mod fnv;
@@ -7,6 +8,7 @@ mod stack;
 mod string;
 
 pub use arena::*;
+pub use capture::*;
 pub use color::*;
 pub use dumper::*;
 pub use fnv::*;
