@@ -40,7 +40,7 @@ fn test_allocate_raw_cells_across_pages() {
 
 /// Capture and restore managed heap state across page boundaries.
 #[test]
-fn test_roundtrip_managed_heap_snapshot() {
+fn test_roundtrip_managed_heap_image() {
     let mut heap = ManagedHeap::new();
     let mut handles = Vec::new();
 
@@ -56,8 +56,8 @@ fn test_roundtrip_managed_heap_snapshot() {
     let reused_handle = heap.allocate_single(Value::int64(999));
     assert_eq!(reused_handle.id(), freed_handle.id());
 
-    let snapshot = heap.snapshot();
-    let mut restored = ManagedHeap::restore(&snapshot);
+    let image = heap.image().expect("heap image should capture");
+    let mut restored = ManagedHeap::from_image(&image);
 
     // verify preserved live cells and allocator state
     assert_eq!(restored.cell_count(), heap.cell_count());
@@ -72,22 +72,19 @@ fn test_roundtrip_managed_heap_snapshot() {
         Some(&Value::int64(0))
     );
 
-    // snapshots and restored heaps share page images until mutation
-    let restored_snapshot = restored.snapshot();
-    assert!(Arc::ptr_eq(&snapshot.pages[0], &restored_snapshot.pages[0]));
+    // images and restored heaps share page images until mutation
+    let restored_image = restored.image().expect("heap image should capture");
+    assert!(Arc::ptr_eq(&image.pages[0], &restored_image.pages[0]));
 
     // mutating a restored page should detach only that page
     let _ = restored.set_slot(handles[0], 0, Value::int64(-1));
-    let restored_snapshot = restored.snapshot();
-    assert!(!Arc::ptr_eq(
-        &snapshot.pages[0],
-        &restored_snapshot.pages[0]
-    ));
+    let restored_image = restored.image().expect("heap image should capture");
+    assert!(!Arc::ptr_eq(&image.pages[0], &restored_image.pages[0]));
 }
 
 /// Capture and restore raw heap state across page boundaries.
 #[test]
-fn test_roundtrip_raw_heap_snapshot() {
+fn test_roundtrip_raw_heap_image() {
     let mut heap = RawHeap::new();
     let mut pointers = Vec::new();
 
@@ -103,8 +100,8 @@ fn test_roundtrip_raw_heap_snapshot() {
     let reused_pointer = heap.allocate_with_bytes(&[0xFE, 0xED]);
     assert_eq!(reused_pointer.id(), freed_pointer.id());
 
-    let snapshot = heap.snapshot();
-    let restored = RawHeap::restore(&snapshot);
+    let image = heap.image().expect("heap image should capture");
+    let restored = RawHeap::from_image(&image);
 
     // verify preserved live cells and allocator state
     assert_eq!(restored.cell_count(), heap.cell_count());
