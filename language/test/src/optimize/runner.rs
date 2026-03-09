@@ -10,10 +10,10 @@ use destack_compiler::{
     ModulePipeline, OptimizationLevel, Pipeline, PipelineContext, PipelineOptions, PipelineTarget,
     RepeatedPipeline, default_pipeline,
 };
+use destack_heap::{Heap, ManagedHeap, RawHeap, Value};
 use destack_mir as mir;
 use destack_source::{FileId, ModuleId, PackageId};
 use destack_vm::diagnostic::RuntimeResult;
-use destack_vm::memory::Value;
 use destack_vm::{ExecutionOutcome, ExecutionOutput, Isolate, IsolateOptions};
 use destack_workspace::TargetId;
 use mir::parse::ParseOptions;
@@ -2623,13 +2623,14 @@ fn diagnose_pipeline(
 
 /// Run a coroutine program with a resume handler.
 fn run_coroutine(
+    heap: &mut Heap,
     isolate: &mut Isolate,
     entry_id: mir::LocalNodeId<mir::Function>,
     args: &[Value],
     resume_value: fn(args: &[Value], yield_index: usize, yielded: Value) -> Value,
 ) -> RuntimeResult<ExecutionOutput> {
     // start execution
-    let mut outcome = isolate.run_function_yielding(entry_id, args)?;
+    let mut outcome = isolate.run_function_yielding(heap, entry_id, args)?;
     let mut yield_index = 0usize;
 
     // continue until completion
@@ -2641,7 +2642,7 @@ fn run_coroutine(
             ExecutionOutcome::Yielded { yielded } => {
                 let resume = resume_value(args, yield_index, yielded.value);
                 yield_index += 1;
-                outcome = isolate.resume(yielded.continuation, resume)?;
+                outcome = isolate.resume(heap, yielded.continuation, resume)?;
             }
         }
     }
@@ -2667,11 +2668,13 @@ fn run_program_with_tree_result(
     }
 
     // build isolate and arguments
-    let mut isolate = Isolate::with_options(tree, strings, options)?;
+    let mut isolate = Isolate::build_with_options(tree, strings, options)?;
+    let mut heap = Heap::new(ManagedHeap::new(), RawHeap::new());
+    isolate.initialize(&mut heap)?;
     let args = program.args_for_profile(&isolate, profile);
 
     // execute using the requested runner
-    run_program_with_isolate(program, &mut isolate, &args)
+    run_program_with_isolate(program, &mut isolate, &mut heap, &args)
 }
 
 /// Execute a program by cloning the provided tree and strings.
@@ -2710,17 +2713,20 @@ fn run_program_with_tree_result_default_args(
     }
 
     // build isolate and arguments
-    let mut isolate = Isolate::with_options(tree, strings, options)?;
+    let mut isolate = Isolate::build_with_options(tree, strings, options)?;
+    let mut heap = Heap::new(ManagedHeap::new(), RawHeap::new());
+    isolate.initialize(&mut heap)?;
     let args = (program.default_args)(&isolate);
 
     // execute using the requested runner
-    run_program_with_isolate(program, &mut isolate, &args)
+    run_program_with_isolate(program, &mut isolate, &mut heap, &args)
 }
 
 /// Execute a program using an isolate and explicit arguments.
 fn run_program_with_isolate(
     program: &program::Program,
     isolate: &mut Isolate,
+    heap: &mut Heap,
     args: &[Value],
 ) -> RuntimeResult<ExecutionOutput> {
     // resolve entry id
@@ -2730,9 +2736,9 @@ fn run_program_with_isolate(
 
     // execute based on runner configuration
     match program.runner {
-        program::ProgramRunner::Function => isolate.run_function(entry_id, args),
+        program::ProgramRunner::Function => isolate.run_function(heap, entry_id, args),
         program::ProgramRunner::Coroutine { resume_value } => {
-            run_coroutine(isolate, entry_id, args, resume_value)
+            run_coroutine(heap, isolate, entry_id, args, resume_value)
         }
     }
 }
