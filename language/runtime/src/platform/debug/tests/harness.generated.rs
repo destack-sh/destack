@@ -37,6 +37,7 @@ impl<'call> DebugHarnessContext<'call> {
     ///
     /// Trigger one debugger stop request for the current runtime execution context.
     /// Break behavior depends on whether a debugger session is attached.
+    /// This is one low-level debugger hook rather than one general world control operation.
     ///
     /// # Platform
     /// Runtime-managed on all targets.
@@ -59,8 +60,9 @@ impl<'call> DebugHarnessContext<'call> {
 
     /// Mark a debug timeline point.
     ///
-    /// Record one runtime debug marker with a user-provided label.
-    /// Marker ordering follows the active runtime scheduler and trace clock.
+    /// Record one low-level debug or instrumentation marker with a user-provided label.
+    /// Marker ordering follows the active runtime scheduler and may be mirrored into debug trace sinks.
+    /// This is not the full causal runtime trace API.
     ///
     /// # Platform
     /// Runtime-managed on all targets.
@@ -325,10 +327,11 @@ impl<'call> DebugHarnessContext<'call> {
         }
     }
 
-    /// Emit one trace event.
+    /// Emit one debug trace event.
     ///
-    /// Append one structured trace record to the active runtime trace stream.
+    /// Append one structured diagnostic record to the active debug trace stream.
     /// Event ordering follows runtime scheduling and stream flush policy.
+    /// This does not replace the structured causal trace and revision APIs.
     ///
     /// # Platform
     /// Runtime-managed on all targets.
@@ -377,10 +380,11 @@ impl<'call> DebugHarnessContext<'call> {
         }
     }
 
-    /// Start a runtime trace stream.
+    /// Start a debug trace stream.
     ///
-    /// Start one trace stream for runtime events with the requested level and destination.
+    /// Start one debug sink for runtime observation events with the requested level and destination.
     /// Destination routing is runtime-defined and may target file, socket, or collector backends.
+    /// This stream is distinct from the world-owned causal trace used for deterministic replay, fork, and rewind.
     ///
     /// # Platform
     /// Runtime-managed on all targets.
@@ -427,7 +431,7 @@ impl<'call> DebugHarnessContext<'call> {
         }
     }
 
-    /// Stop a runtime trace stream.
+    /// Stop a debug trace stream.
     ///
     /// Stop one active trace stream and flush buffered events.
     /// Flush behavior and durability guarantees follow runtime trace backend policy.
