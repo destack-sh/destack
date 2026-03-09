@@ -1,6 +1,5 @@
 use destack_workspace::Platform;
 
-use super::registry::HostCleanup;
 use crate::diagnostic::RuntimeResult;
 use crate::host::HostEvent;
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
@@ -31,11 +30,6 @@ pub(crate) trait HostBackend: std::fmt::Debug + Send + Sync {
         host_capabilities.insert_capability(PlatformCapability::OsPermissionRead);
 
         host_capabilities
-    }
-
-    /// Return one optional cleanup hook for runtime teardown.
-    fn runtime_cleanup(&self) -> Option<HostCleanup> {
-        None
     }
 
     /// Return whether the current execution context is the process main context.

@@ -6,10 +6,12 @@ use super::backend::{HostBackend, HostPollOutcome};
 use super::event::{HostEvent, HostLifecycleEvent, HostLifecycleState};
 use super::observer::RuntimeIngressObserverRegistry;
 use super::queue::HostQueue;
-use super::registry::{HostQueueRegistry, HostRegistrationGuard};
+use super::registry::{HostCleanup, HostQueueRegistry, HostRegistrationGuard};
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "android")]
 use crate::host::android::AndroidHost;
+#[cfg(target_os = "android")]
+use crate::host::android::unregister_android_bindings;
 #[cfg(target_os = "dragonfly")]
 use crate::host::dragonfly::DragonflyHost;
 #[cfg(target_os = "freebsd")]
@@ -101,6 +103,7 @@ impl Host {
     /// Create one host runtime from one explicit host and host options.
     pub(crate) fn new_with_options(
         backend: Arc<dyn HostBackend>,
+        cleanup: Option<HostCleanup>,
         runtime_id: RuntimeId,
         host_options: PlatformHostOptions,
     ) -> Self {
@@ -112,7 +115,7 @@ impl Host {
             platform,
             runtime_id,
             Arc::downgrade(&queue),
-            backend.runtime_cleanup(),
+            cleanup,
         );
 
         // apply queue policy to the shared host event queue
@@ -141,10 +144,10 @@ impl Host {
     /// Create one host runtime from runtime options and one explicit runtime id.
     pub fn from_runtime_options(options: &RuntimeOptions, runtime_id: RuntimeId) -> Self {
         // select the host for this compile target
-        let host = Self::default_backend();
+        let (host, cleanup) = Self::default_backend_parts();
         let host_options = Self::host_options_for_target(options);
 
-        Self::new_with_options(host, runtime_id, host_options)
+        Self::new_with_options(host, cleanup, runtime_id, host_options)
     }
 
     /// Return the active host platform.
@@ -222,43 +225,46 @@ impl Host {
             .process_runtime(self.runtime_id.0)
     }
 
-    /// Return the default backend for the active compile target.
-    fn default_backend() -> Arc<dyn HostBackend> {
+    /// Return the default backend and runtime cleanup for the active compile target.
+    fn default_backend_parts() -> (Arc<dyn HostBackend>, Option<HostCleanup>) {
         #[cfg(target_os = "android")]
-        return Arc::new(AndroidHost::new());
+        return (
+            Arc::new(AndroidHost::new()),
+            Some(unregister_android_bindings),
+        );
 
         #[cfg(target_os = "dragonfly")]
-        return Arc::new(DragonflyHost::new());
+        return (Arc::new(DragonflyHost::new()), None);
 
         #[cfg(target_os = "freebsd")]
-        return Arc::new(FreeBsdHost::new());
+        return (Arc::new(FreeBsdHost::new()), None);
 
         #[cfg(target_os = "haiku")]
-        return Arc::new(HaikuHost::new());
+        return (Arc::new(HaikuHost::new()), None);
 
         #[cfg(target_os = "illumos")]
-        return Arc::new(IllumosHost::new());
+        return (Arc::new(IllumosHost::new()), None);
 
         #[cfg(target_os = "ios")]
-        return Arc::new(IosHost::new());
+        return (Arc::new(IosHost::new()), None);
 
         #[cfg(target_os = "linux")]
-        return Arc::new(LinuxHost::new());
+        return (Arc::new(LinuxHost::new()), None);
 
         #[cfg(target_os = "macos")]
-        return Arc::new(MacosHost::new());
+        return (Arc::new(MacosHost::new()), None);
 
         #[cfg(target_os = "netbsd")]
-        return Arc::new(NetBsdHost::new());
+        return (Arc::new(NetBsdHost::new()), None);
 
         #[cfg(target_os = "openbsd")]
-        return Arc::new(OpenBsdHost::new());
+        return (Arc::new(OpenBsdHost::new()), None);
 
         #[cfg(target_os = "solaris")]
-        return Arc::new(SolarisHost::new());
+        return (Arc::new(SolarisHost::new()), None);
 
         #[cfg(windows)]
-        return Arc::new(WindowsHost::new());
+        return (Arc::new(WindowsHost::new()), None);
 
         #[cfg(not(any(
             target_os = "android",
@@ -274,7 +280,7 @@ impl Host {
             target_os = "solaris",
             windows,
         )))]
-        return Arc::new(UnsupportedHost::new());
+        return (Arc::new(UnsupportedHost::new()), None);
     }
 
     /// Return host integration options for the current compile target.
