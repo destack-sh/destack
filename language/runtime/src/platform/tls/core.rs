@@ -14,7 +14,7 @@ use rustls::server::{
     WebPkiClientVerifier,
 };
 use rustls::{
-    ClientConfig, ClientConnection, DigitallySignedStruct, HandshakeKind, KeyLog, RootCertStore,
+    ClientConfig, ClientConnection, DigitallySignedStruct, HandshakeKind, RootCertStore,
     ServerConfig, ServerConnection, SignatureScheme, SupportedProtocolVersion, crypto,
 };
 
@@ -63,8 +63,6 @@ pub(crate) struct TlsContextResource {
     pub groups: Option<Vec<String>>,
     /// Optional signature algorithm policy.
     pub signature_algorithms: Option<Vec<SignatureScheme>>,
-    /// Enable key logging.
-    pub keylog_enabled: bool,
     /// Runtime state reused across sessions opened from this context.
     runtime_state: TlsContextRuntimeState,
 }
@@ -152,7 +150,6 @@ impl TlsContextResource {
             cipher_suites: None,
             groups: None,
             signature_algorithms: None,
-            keylog_enabled: false,
             runtime_state: TlsContextRuntimeState::new(),
         })
     }
@@ -729,11 +726,6 @@ fn build_client_config(policy: &mut TlsContextResource) -> RuntimeResult<Arc<Cli
         }
     };
 
-    // apply key logging policy
-    if policy.keylog_enabled {
-        config.key_log = Arc::new(TracingKeyLog);
-    }
-
     let config = Arc::new(config);
     policy.runtime_state.client_config = Some(Arc::clone(&config));
 
@@ -794,11 +786,8 @@ fn build_server_config(policy: &mut TlsContextResource) -> RuntimeResult<Arc<Ser
         .with_single_cert(identity, key)
         .map_err(|error| tls_protocol_error("context.open", error))?;
 
-    // apply ALPN and key logging policy
+    // apply ALPN policy
     config.alpn_protocols = policy.alpn_protocols.clone();
-    if policy.keylog_enabled {
-        config.key_log = Arc::new(TracingKeyLog);
-    }
 
     // apply server resumption policy
     match policy.resumption_mode {
@@ -1326,34 +1315,6 @@ impl ProducesTickets for DisabledServerTicketer {
     }
 }
 
-/// Key logger that emits NSS keylog lines through tracing.
-#[derive(Debug)]
-struct TracingKeyLog;
-
-impl KeyLog for TracingKeyLog {
-    /// Emit one key log line.
-    fn log(&self, label: &str, client_random: &[u8], secret: &[u8]) {
-        let random = hex_encode(client_random);
-        let secret = hex_encode(secret);
-        tracing::debug!("TLS_KEYLOG {label} {random} {secret}");
-    }
-
-    /// Enable key logging for all labels.
-    fn will_log(&self, _label: &str) -> bool {
-        true
-    }
-}
-
-/// Hex-encode one byte buffer.
-fn hex_encode(bytes: &[u8]) -> String {
-    let mut output = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        output.push(char::from_digit((byte >> 4) as u32, 16).unwrap_or('0'));
-        output.push(char::from_digit((byte & 0x0f) as u32, 16).unwrap_or('0'));
-    }
-    output
-}
-
 /// Return whether one connection is still handshaking.
 fn is_handshaking_tls(connection: &HostTlsConnection) -> bool {
     match connection {
@@ -1581,7 +1542,6 @@ mod tests {
             cipher_suites: None,
             groups: None,
             signature_algorithms: None,
-            keylog_enabled: false,
             runtime_state: TlsContextRuntimeState::new(),
         }
     }

@@ -275,45 +275,6 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Set keylog emission for one context.
-    ///
-    /// Enable or disable NSS keylog line emission for sessions from this context.
-    /// Output destination routing is controlled by runtime telemetry or debug sinks.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host tls provider keylog callback APIs.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.context`, `tls.keylog`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_tls_context_set_keylog_enabled(
-        &mut self,
-        handle: resource::TlsContextHandle,
-        enabled: bool,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => tls_vm::destack_tls_context_set_keylog_enabled(
-                self.call_context,
-                context,
-                handle,
-                enabled,
-            ),
-            None => unsafe {
-                tls_native::destack_tls_context_set_keylog_enabled(
-                    self.call_context,
-                    handle,
-                    enabled,
-                )
-            },
-        }
-    }
-
     /// Set session resumption policy for one context.
     ///
     /// Configure whether sessions use stateful cache, stateless tickets, or both.

@@ -348,36 +348,4 @@ declare namespace tls {
         mode: TlsSessionResumptionMode,
     ): Result<void, PlatformError>;
 
-    /// Set keylog emission for one context.
-    ///
-    /// Enable or disable NSS keylog line emission for sessions from this context.
-    /// Output destination routing is controlled by runtime telemetry or debug sinks.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host tls provider keylog callback APIs.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.context`, `tls.keylog`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    @binding("destack.tls.context.setKeylogEnabled", {
-        effect: "external",
-        replay: "nonrecordable",
-        capabilities: ["tls.context", "tls.keylog"],
-        platforms: ["windows", "unix"],
-        simulation: "model",
-        scope: "host",
-        blocking: "sometimes",
-
-        affinity: "any",
-    })
-    export function contextSetKeylogEnabled(
-        handle: TlsContextHandle,
-        enabled: boolean,
-    ): Result<void, PlatformError>;
 }

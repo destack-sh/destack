@@ -298,32 +298,6 @@ pub(crate) fn destack_tls_context_set_identity_pem(
     }
 }
 
-/// Set keylog emission for one context.
-///
-/// Enable or disable NSS keylog line emission for sessions from this context.
-/// Output destination routing is controlled by runtime telemetry or debug sinks.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host tls provider keylog callback APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.context`, `tls.keylog`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) fn destack_tls_context_set_keylog_enabled(
-    binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::TlsContextHandle,
-    enabled: bool,
-) -> RuntimeResult<()> {
-    unsafe { host_tls::destack_tls_context_set_keylog_enabled(binding, handle, enabled) }
-}
-
 /// Set session resumption policy for one context.
 ///
 /// Configure whether sessions use stateful cache, stateless tickets, or both.
