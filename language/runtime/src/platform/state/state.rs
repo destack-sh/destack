@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::PlatformAudioState;
-use crate::platform::display::PlatformDisplayState;
 use crate::platform::net::PlatformNetState;
 
 #[cfg(windows)]
@@ -153,5 +152,19 @@ impl Capture for PlatformState {
         self.restore_default();
 
         Ok(())
+    }
+}
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
+use crate::platform::display::PlatformDisplayState;
+
+#[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
+#[derive(Debug, Default)]
+pub(crate) struct PlatformDisplayState;
+
+#[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
+impl PlatformDisplayState {
+    /// Return whether any runtime-owned display state was initialized.
+    pub(crate) const fn is_initialized(&self) -> bool {
+        false
     }
 }

@@ -302,6 +302,7 @@ impl World {
     }
 
     /// Fork one child world from one stored revision.
+    #[allow(clippy::arc_with_non_send_sync)]
     fn fork_revision_inner(
         &self,
         revision_id: RevisionId,

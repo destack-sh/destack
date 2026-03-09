@@ -4,7 +4,7 @@ use super::page::HEAP_PAGE_CAPACITY;
 
 const PAGE_BITMAP_WORD_BITS: usize = u64::BITS as usize;
 const PAGE_BITMAP_WORDS: usize = HEAP_PAGE_CAPACITY / PAGE_BITMAP_WORD_BITS;
-const _: () = assert!(HEAP_PAGE_CAPACITY % PAGE_BITMAP_WORD_BITS == 0);
+const _: () = assert!(HEAP_PAGE_CAPACITY.is_multiple_of(PAGE_BITMAP_WORD_BITS));
 
 /// The occupancy or mark bitmap for one heap page.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
