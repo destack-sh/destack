@@ -12,8 +12,8 @@ Open source cross-platform TypeScript(++) toolchain, VM, AOT compiler, runtime, 
 <p>
     <a href="VERSION.txt"><img src="https://img.shields.io/badge/version-0.55.4-2ea44f?style=for-the-badge" alt="Version"></a>
     <a href="LICENSE.txt"><img src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge" alt="MIT License"></a>
-    <a href="https://github.com/destack-sh/destack/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/destack-sh/destack/ci.yml?branch=main&label=CI&logo=github&style=for-the-badge" alt="CI"></a>
     <a href="https://github.com/destack-sh/destack/actions/workflows/nightly.yml"><img src="https://img.shields.io/github/actions/workflow/status/destack-sh/destack/nightly.yml?branch=main&label=Nightly&logo=github&style=for-the-badge" alt="Nightly"></a>
+    <a href="https://github.com/destack-sh/destack/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/destack-sh/destack/release.yml?branch=main&label=Release&logo=github&style=for-the-badge" alt="Release"></a>
     <a title="Discord" target="_blank" href="https://discord.gg/xUFQ45TWYd"><img alt="Chat with Destack people on Discord" src="https://img.shields.io/discord/1079840654466752606?label=Discord&logo=discord&logoColor=white&style=for-the-badge"></a>
 </p>
 
@@ -32,7 +32,7 @@ instead of wrangling many disparate languages, tools, libraries, approaches, run
 - [**Destack Services**](service/README.md): First-party services for most things most software needs.
 - [**Destack Apps**](app/README.md): First-party applications and programmer tools.
 - [**Destack Templates**](template/README.md): Ready-to-clone starter kits for common use cases.
-- [**Destack Bridge**](bridge/README.md): Two-way bridges to the existing world.
+- [**Destack Bridge**](bridge/README.md): Two-way bridges for the Destack universe.
 
 Destack is designed as a sort of meta framework for developing and maintaining your _own_ stack using [foundational building blocks](https://caseymuratori.com/blog_0016).
 Destack is more of a "software factory toolkit" than "ready-to-wear software"; we do provide some common apps with a common plugin system, but Destack is optimized for programmers building their own software processes in one correct, optimal, integrated system.
@@ -131,7 +131,7 @@ Software is more than code, and while it's possible there is a future where _no_
 More importantly, we need to program machines in _some_ symbolic system to control the probabilistic system, and we (probably) need _new_ programming systems to do both well.
 
 8. **Why not abandon standards entirely and fix _all_ the problems in a whole new stack?** 
-It's tempting to design the "optimal" stack, but even if AI could magically migrate everything, historically, new "big bang" systems usually fail.
+It's tempting to design the "optimal" stack, but even if AI could magically migrate everything, historically, new "big bang" systems almost always fail.
 The core tension of Destack is deciding which technologies are: 
 a) expressive enough to support universal software,
 b) performant enough to run all software at machine speed, and 
@@ -144,7 +144,7 @@ Library, services, and apps are already written in Destack as much as possible, 
 
 ---
 
-## Platforms and Targets
+## Platforms
 
 Destack supports the web, of course, and also runs natively on Linux, macOS, and Windows as Tier 1 targets, with mobile (iOS, Android) still (very) experimental.
 See [TARGETS.md](TARGETS.md).
