@@ -13,6 +13,18 @@ export enum PacketTimestampMode {
     Hardware = 2,
 }
 
+/// Packet timestamp clock domain.
+export enum PacketTimestampClock {
+    /// No packet timestamp is present.
+    None = 0,
+    /// Timestamp is in the host wall-clock domain.
+    Wall = 1,
+    /// Timestamp is in the host monotonic clock domain.
+    Monotonic = 2,
+    /// Timestamp is in one backend-specific hardware clock domain.
+    HardwareRaw = 3,
+}
+
 /// Packet backend selector.
 export enum PacketBackend {
     /// Select the best backend for the current host.
@@ -87,7 +99,9 @@ export struct PacketCaptureRecord {
     bytes: uint64;
     /// Interface index that produced the packet.
     interfaceIndex: uint32;
-    /// Capture timestamp in nanoseconds.
+    /// Packet timestamp clock domain.
+    timestampClock: PacketTimestampClock;
+    /// Capture timestamp in nanoseconds for `timestampClock`.
     timestampNs: uint64;
     /// Whether packet bytes were truncated.
     truncated: boolean;

@@ -1,3 +1,5 @@
+export declare namespace runtime {}
+
 export * from "./types.ds";
 export * from "./core.ds";
 export * from "./lineage.ds";
