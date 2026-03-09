@@ -53,6 +53,12 @@ impl VirtualClock {
         let delta = deadline.saturating_sub(now);
         self.advance(delta)
     }
+
+    /// Restore one captured virtual clock state.
+    pub(crate) fn restore_snapshot(&self, wall: WorldInstant, mono: WorldInstant) {
+        self.wall_nanos.store(wall.get(), Ordering::Relaxed);
+        self.mono_nanos.store(mono.get(), Ordering::Relaxed);
+    }
 }
 
 impl Clone for VirtualClock {

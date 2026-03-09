@@ -1,11 +1,12 @@
 use super::PollerEvent;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::ResourceId;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 /// Opaque token used by the poller for event routing.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PollerToken(
     /// Raw token value.
     pub u64,

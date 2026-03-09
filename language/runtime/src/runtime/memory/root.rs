@@ -1,17 +1,17 @@
-use destack_heap::HeapHandle;
+use destack_heap::ManagedPointer;
 
 /// Root reference for GC tracing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RootRef {
     /// Managed heap root reference.
-    Managed(HeapHandle),
+    Managed(ManagedPointer),
     /// Native-managed object participating in the heap.
     Native(u64),
 }
 
 impl RootRef {
     /// Create a managed heap root reference.
-    pub fn managed(handle: HeapHandle) -> Self {
+    pub fn managed(handle: ManagedPointer) -> Self {
         Self::Managed(handle)
     }
 
@@ -44,15 +44,15 @@ impl RootSet {
         self.roots.as_slice()
     }
 
-    /// Collect managed heap handles from this root set.
-    pub fn managed_handles(&self) -> Vec<HeapHandle> {
-        let mut handles = Vec::new();
+    /// Collect managed pointers from this root set.
+    pub fn managed_pointers(&self) -> Vec<ManagedPointer> {
+        let mut pointers = Vec::new();
         for root in &self.roots {
-            if let RootRef::Managed(handle) = root {
-                handles.push(*handle);
+            if let RootRef::Managed(pointer) = root {
+                pointers.push(*pointer);
             }
         }
-        handles
+        pointers
     }
 }
 

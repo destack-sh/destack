@@ -1,11 +1,11 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::replay::{
-    EntropyEvent, EntropyKind, EntropySubject, Replay, ReplayError, ReplayEvent,
+    EntropyEvent, EntropyKind, EntropySubject, Trace, TraceError, TraceEvent,
 };
 use destack_workspace::ExecutionMode;
 
-impl Replay {
+impl Trace {
     /// Run one random u64 binding through the entropy replay channel.
     pub fn run_random_u64<Hook, Call>(
         &self,
@@ -49,8 +49,8 @@ impl Replay {
                 let outcome = result
                     .as_ref()
                     .map(|value| *value)
-                    .map_err(|error| ReplayError::from(error.as_ref()));
-                self.record_event(ReplayEvent::Entropy(EntropyEvent::RandomReadU64 {
+                    .map_err(|error| TraceError::from(error.as_ref()));
+                self.record_event(TraceEvent::Entropy(EntropyEvent::RandomReadU64 {
                     subject,
                     stream_id,
                     outcome,
@@ -95,8 +95,8 @@ impl Replay {
                 let outcome = result
                     .as_ref()
                     .map(|value| RandomStreamId::new(*value))
-                    .map_err(|error| ReplayError::from(error.as_ref()));
-                self.record_event(ReplayEvent::Entropy(EntropyEvent::RandomStreamCreate {
+                    .map_err(|error| TraceError::from(error.as_ref()));
+                self.record_event(TraceEvent::Entropy(EntropyEvent::RandomStreamCreate {
                     subject,
                     outcome,
                 }))?;
@@ -154,10 +154,10 @@ impl Replay {
             ExecutionMode::Record => {
                 let result = call();
                 let outcome = match result.as_ref() {
-                    Ok(()) => encode().map_err(|error| ReplayError::from(error.as_ref())),
-                    Err(error) => Err(ReplayError::from(error.as_ref())),
+                    Ok(()) => encode().map_err(|error| TraceError::from(error.as_ref())),
+                    Err(error) => Err(TraceError::from(error.as_ref())),
                 };
-                self.record_event(ReplayEvent::Entropy(EntropyEvent::RandomReadBytes {
+                self.record_event(TraceEvent::Entropy(EntropyEvent::RandomReadBytes {
                     subject,
                     stream_id,
                     len: requested_len,

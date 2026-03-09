@@ -18,5 +18,3 @@ pub const LABEL_RESOURCE_LABEL: &str = "resource.label";
 pub(crate) const INITIAL_RUNTIME_ID: u64 = 1;
 /// First allocated agent id.
 pub(crate) const INITIAL_AGENT_ID: u64 = 1;
-/// First command revision id.
-pub(crate) const INITIAL_CONTROL_REVISION: u64 = 1;

@@ -21,6 +21,16 @@ impl std::fmt::Debug for PlatformFsState {
 }
 
 impl PlatformFsState {
+    /// Return whether any runtime-owned filesystem state was initialized.
+    pub(crate) fn is_initialized(&self) -> bool {
+        #[cfg(windows)]
+        if self.windows_mmap_runtime_state.get().is_some() {
+            return true;
+        }
+
+        false
+    }
+
     /// Return runtime-owned windows mmap state.
     #[cfg(windows)]
     pub(crate) fn windows_mmap_runtime_state(

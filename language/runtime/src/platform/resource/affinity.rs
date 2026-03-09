@@ -1,8 +1,10 @@
+use serde::{Deserialize, Serialize};
+
 use crate::runtime::bindings::BindingAffinity;
 use crate::runtime::{ExecutionContext, ExecutionContextId, execution_context_satisfies};
 
 /// Stored resource-affinity requirement for one live resource entry.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ResourceAffinity {
     /// Require the owning agent event-loop context.
     EventLoop,

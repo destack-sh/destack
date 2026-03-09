@@ -20,6 +20,8 @@ pub use handle::*;
 pub use kind::*;
 pub(crate) use resolve::ensure_resource_affinity;
 pub use snapshot::{
-    ResourceDescriptor, ResourceSnapshot, ResourceSnapshotAdapter, ResourceSnapshotPolicy,
+    ResourceBacking, ResourceCapture, ResourceImageEntry, ResourcePortability, ResourceProvider,
+    ResourceRebindContext, ResourceRebinder, ResourceSnapshot,
 };
+pub(crate) use table::ResourceTableSnapshot;
 pub use table::{ResourceEntry, ResourceFinalizer, ResourceTable};

@@ -72,4 +72,7 @@ pub use proactor::{
     ProactorCompletion, ProactorCompletionData, ProactorOp, ProactorOpKind, ProactorRequest,
     ProactorShutdown,
 };
-pub use resource::{ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind, ResourceTable};
+pub use resource::{
+    ResourceBacking, ResourceCapture, ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind,
+    ResourcePortability, ResourceTable,
+};

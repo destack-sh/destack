@@ -482,7 +482,7 @@ impl WorldEdge {
 
 /// World topology graph and kind catalog.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Topology {
+pub(crate) struct Topology {
     /// Registered entity kinds by kind id.
     entity_kinds: BTreeMap<WorldEntityKind, WorldEntityKindDefinition>,
     /// Registered edge kinds by kind id.
@@ -678,7 +678,7 @@ impl Topology {
             .map(|edge| edge.to.clone())
             .collect::<Vec<_>>();
         for resource_entity_id in owned_resource_ids {
-            let _ = self.remove_entity(resource_entity_id.as_str());
+            self.remove_entity(resource_entity_id.as_str());
         }
 
         // agent metadata
@@ -686,7 +686,7 @@ impl Topology {
 
         // remove the runtime metadata when the last agent disappears
         if !self.runtime_has_agents(runtime_entity_id.as_str()) {
-            let _ = self.remove_entity(runtime_entity_id.as_str());
+            self.remove_entity(runtime_entity_id.as_str());
         }
 
         is_agent_removed

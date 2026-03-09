@@ -8,16 +8,28 @@ use std::os::windows::io::{RawHandle, RawSocket};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use destack_base::{Capture, CaptureMode};
 use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
 use tracing::error;
 
 use super::{
-    ResourceAffinity, ResourceHandle, ResourceId, ResourceKind, ResourceSnapshotAdapter,
-    ResourceSnapshotPolicy,
+    ResourceAffinity, ResourceBacking, ResourceCapture, ResourceHandle, ResourceId,
+    ResourceImageEntry, ResourceKind, ResourcePortability, ResourceProvider, ResourceRebindContext,
 };
+use crate::diagnostic::RuntimeResult;
 use crate::runtime::bindings::{BindingAffinity, BindingEngine};
 use crate::runtime::world::World;
 use crate::runtime::{ExecutionContext, Hooks};
+
+/// Durable resource-table state captured at one checkpoint.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ResourceTableSnapshot {
+    /// The next resource identifier to allocate.
+    pub next_id: u64,
+    /// Captured resource entries keyed by table id.
+    pub entries: Vec<ResourceImageEntry>,
+}
 
 /// Finalizer callback for resource cleanup.
 pub trait ResourceFinalizer: Send + Sync {
@@ -31,6 +43,12 @@ pub struct ResourceEntry {
     pub kind: ResourceKind,
     /// Optional label for diagnostics.
     pub label: Option<String>,
+    /// Backing model for this resource.
+    pub backing: ResourceBacking,
+    /// Capture model for this resource.
+    pub capture: ResourceCapture,
+    /// Portability model for this resource.
+    pub portability: ResourcePortability,
     /// Optional execution-affinity requirement for this resource.
     pub affinity: Option<ResourceAffinity>,
     /// Optional raw handle payload.
@@ -38,10 +56,8 @@ pub struct ResourceEntry {
     pub raw_handle: Option<RawHandle>,
     /// Opaque payload for resource-specific state.
     pub payload: Option<Box<dyn Any + Send + Sync>>,
-    /// Snapshot policy for this resource.
-    pub snapshot_policy: ResourceSnapshotPolicy,
-    /// Optional snapshot adapter for this resource.
-    pub snapshot_adapter: Option<Box<dyn ResourceSnapshotAdapter>>,
+    /// Optional provider for this resource.
+    pub provider: Option<Arc<dyn ResourceProvider>>,
     /// Optional finalizer invoked on removal.
     pub finalizer: Option<Box<dyn ResourceFinalizer>>,
 }
@@ -51,6 +67,9 @@ impl fmt::Debug for ResourceEntry {
         f.debug_struct("ResourceEntry")
             .field("kind", &self.kind)
             .field("label", &self.label)
+            .field("backing", &self.backing)
+            .field("capture", &self.capture)
+            .field("portability", &self.portability)
             .field("affinity", &self.affinity)
             .field("has_raw_handle", &{
                 #[cfg(windows)]
@@ -63,8 +82,7 @@ impl fmt::Debug for ResourceEntry {
                 }
             })
             .field("has_payload", &self.payload.is_some())
-            .field("snapshot_policy", &self.snapshot_policy)
-            .field("has_snapshot_adapter", &self.snapshot_adapter.is_some())
+            .field("has_provider", &self.provider.is_some())
             .field("has_finalizer", &self.finalizer.is_some())
             .finish()
     }
@@ -89,12 +107,14 @@ impl ResourceEntry {
         Self {
             kind,
             label: None,
+            backing: ResourceBacking::Host,
+            capture: ResourceCapture::None,
+            portability: ResourcePortability::Local,
             affinity: None,
             #[cfg(windows)]
             raw_handle: None,
             payload: None,
-            snapshot_policy: ResourceSnapshotPolicy::Uncheckpointable,
-            snapshot_adapter: None,
+            provider: None,
             finalizer: None,
         }
     }
@@ -180,6 +200,24 @@ impl ResourceEntry {
         self
     }
 
+    /// Attach one explicit resource backing model.
+    pub fn with_backing(mut self, backing: ResourceBacking) -> Self {
+        self.backing = backing;
+        self
+    }
+
+    /// Attach one explicit resource capture model.
+    pub fn with_capture(mut self, capture: ResourceCapture) -> Self {
+        self.capture = capture;
+        self
+    }
+
+    /// Attach one explicit resource portability model.
+    pub fn with_portability(mut self, portability: ResourcePortability) -> Self {
+        self.portability = portability;
+        self
+    }
+
     /// Attach one resource-affinity requirement derived from binding metadata.
     pub fn with_binding_affinity(
         mut self,
@@ -196,18 +234,9 @@ impl ResourceEntry {
         self
     }
 
-    /// Attach a snapshot policy.
-    pub fn with_snapshot_policy(mut self, policy: ResourceSnapshotPolicy) -> Self {
-        self.snapshot_policy = policy;
-        self
-    }
-
-    /// Attach a snapshot adapter.
-    pub fn with_snapshot_adapter(
-        mut self,
-        adapter: impl ResourceSnapshotAdapter + 'static,
-    ) -> Self {
-        self.snapshot_adapter = Some(Box::new(adapter));
+    /// Attach one resource provider.
+    pub fn with_provider(mut self, provider: Arc<dyn ResourceProvider>) -> Self {
+        self.provider = Some(provider);
         self
     }
 
@@ -313,17 +342,41 @@ impl ResourceEntry {
 }
 
 /// External resource table and finalizer registry.
-#[derive(Debug)]
 pub struct ResourceTable {
     /// Next resource identifier to allocate.
     next_id: AtomicU64,
     /// Stored resource entries.
     entries: RwLock<HashMap<ResourceId, ResourceEntry>>,
+    /// Registered resource providers keyed by resource kind.
+    providers: RwLock<HashMap<ResourceKind, Arc<dyn ResourceProvider>>>,
     /// Runtime hooks sink for non-binding resource mutations.
     hooks: RwLock<Option<Arc<Hooks>>>,
 }
 
+impl fmt::Debug for ResourceTable {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let entry_count = self.entries.read().len();
+        let provider_count = self.providers.read().len();
+
+        f.debug_struct("ResourceTable")
+            .field("next_id", &self.next_id.load(Ordering::Relaxed))
+            .field("entry_count", &entry_count)
+            .field("provider_count", &provider_count)
+            .field("has_hooks", &self.hooks.read().is_some())
+            .finish()
+    }
+}
+
 impl ResourceTable {
+    /// Register one resource provider for a resource kind.
+    pub fn register_provider(
+        &self,
+        resource_kind: ResourceKind,
+        provider: Arc<dyn ResourceProvider>,
+    ) {
+        let _ = self.providers.write().insert(resource_kind, provider);
+    }
+
     /// Configure one runtime hooks sink for resource lifecycle hooks.
     pub fn set_hooks(&self, hooks: Arc<Hooks>) {
         *self.hooks.write() = Some(hooks);
@@ -340,6 +393,9 @@ impl ResourceTable {
         let id = ResourceId(self.next_id.fetch_add(1, Ordering::Relaxed));
         let resource_kind = entry.kind;
         let resource_label = entry.label.clone();
+        let resource_backing = entry.backing;
+        let resource_capture = entry.capture;
+        let resource_portability = entry.portability;
         self.entries.write().insert(id, entry);
 
         // notify runtime hooks about the new resource
@@ -349,6 +405,9 @@ impl ResourceTable {
                 id,
                 resource_kind,
                 resource_label.as_deref(),
+                resource_backing,
+                resource_capture,
+                resource_portability,
                 engine,
             )
         {
@@ -369,6 +428,9 @@ impl ResourceTable {
         // persist the entry and advance the allocator when needed
         let resource_kind = entry.kind;
         let resource_label = entry.label.clone();
+        let resource_backing = entry.backing;
+        let resource_capture = entry.capture;
+        let resource_portability = entry.portability;
         self.entries.write().insert(resource_id, entry);
         self.next_id.fetch_max(resource_id.0 + 1, Ordering::Relaxed);
 
@@ -379,6 +441,9 @@ impl ResourceTable {
                 resource_id,
                 resource_kind,
                 resource_label.as_deref(),
+                resource_backing,
+                resource_capture,
+                resource_portability,
                 engine,
             )
         {
@@ -453,6 +518,200 @@ impl ResourceTable {
         entry.finalize(resource_id);
         true
     }
+
+    // restore barrier
+    fn restore_barrier(&self) -> RuntimeResult<()> {
+        if self.entries.read().is_empty() {
+            return Ok(());
+        }
+
+        Err(crate::diagnostic::RuntimeError::Internal {
+            message: "resource table restore requires one empty live table".to_string(),
+        }
+        .boxed())
+    }
+
+    // capture one attached resource entry
+    fn capture_entry(
+        &self,
+        _mode: CaptureMode,
+        resource_id: ResourceId,
+        entry: &ResourceEntry,
+    ) -> RuntimeResult<ResourceImageEntry> {
+        let snapshot = match entry.capture {
+            ResourceCapture::None => {
+                return Err(crate::diagnostic::RuntimeError::Internal {
+                    message: format!(
+                        "resource {} of kind {:?} does not support capture",
+                        resource_id.0, entry.kind
+                    ),
+                }
+                .boxed());
+            }
+            ResourceCapture::State | ResourceCapture::Recipe => {
+                let provider = entry
+                    .provider
+                    .clone()
+                    .or_else(|| self.providers.read().get(&entry.kind).cloned());
+                let Some(provider) = provider else {
+                    return Err(crate::diagnostic::RuntimeError::Internal {
+                        message: format!(
+                            "resource {} of kind {:?} is missing one resource provider",
+                            resource_id.0, entry.kind
+                        ),
+                    }
+                    .boxed());
+                };
+
+                Some(provider.snapshot(resource_id).map_err(|error| {
+                    crate::diagnostic::RuntimeError::Internal {
+                        message: format!(
+                            "resource {} of kind {:?} failed to capture: {error}",
+                            resource_id.0, entry.kind
+                        ),
+                    }
+                    .boxed()
+                })?)
+            }
+        };
+
+        Ok(ResourceImageEntry {
+            resource_id,
+            kind: entry.kind,
+            label: entry.label.clone(),
+            backing: entry.backing,
+            capture: entry.capture,
+            portability: entry.portability,
+            affinity: entry.affinity,
+            snapshot,
+        })
+    }
+
+    /// Capture one durable resource-table snapshot.
+    pub(crate) fn snapshot(&self, mode: CaptureMode) -> RuntimeResult<ResourceTableSnapshot> {
+        let entries = self.entries.read();
+        let entries = entries
+            .iter()
+            .map(|(resource_id, entry)| self.capture_entry(mode, *resource_id, entry))
+            .collect::<RuntimeResult<Vec<_>>>()?;
+
+        Ok(ResourceTableSnapshot {
+            next_id: self.next_id.load(Ordering::Relaxed),
+            entries,
+        })
+    }
+
+    /// Restore one durable resource-table snapshot.
+    pub(crate) fn restore_snapshot(
+        &self,
+        snapshot: &ResourceTableSnapshot,
+        rebind_context: Option<&ResourceRebindContext>,
+    ) -> RuntimeResult<()> {
+        self.restore_barrier()?;
+        self.next_id.store(snapshot.next_id, Ordering::Relaxed);
+
+        let mut entries = self.entries.write();
+        for image_entry in &snapshot.entries {
+            let mut entry = match image_entry.capture {
+                ResourceCapture::None => ResourceEntry::new(image_entry.kind),
+                ResourceCapture::State | ResourceCapture::Recipe => {
+                    let snapshot = image_entry.snapshot.as_ref().ok_or_else(|| {
+                        crate::diagnostic::RuntimeError::Internal {
+                            message: format!(
+                                "resource {} of kind {:?} is missing one captured payload",
+                                image_entry.resource_id.0, image_entry.kind
+                            ),
+                        }
+                        .boxed()
+                    })?;
+
+                    if image_entry.portability == ResourcePortability::External {
+                        let rebinder = rebind_context
+                            .and_then(|context| context.rebinder(image_entry.kind))
+                            .ok_or_else(|| {
+                                crate::diagnostic::RuntimeError::Internal {
+                                    message: format!(
+                                        "resource {} of kind {:?} requires one external rebinding hook",
+                                        image_entry.resource_id.0, image_entry.kind
+                                    ),
+                                }
+                                .boxed()
+                            })?;
+
+                        rebinder.rebind(snapshot).map_err(|error| {
+                            crate::diagnostic::RuntimeError::Internal {
+                                message: format!(
+                                    "resource {} of kind {:?} failed to rebind: {error}",
+                                    image_entry.resource_id.0, image_entry.kind
+                                ),
+                            }
+                            .boxed()
+                        })?
+                    } else {
+                        let provider = self
+                            .providers
+                            .read()
+                            .get(&image_entry.kind)
+                            .cloned()
+                            .ok_or_else(|| {
+                                crate::diagnostic::RuntimeError::Internal {
+                                    message: format!(
+                                        "resource {} of kind {:?} is missing one restore provider",
+                                        image_entry.resource_id.0, image_entry.kind
+                                    ),
+                                }
+                                .boxed()
+                            })?;
+
+                        provider.restore(snapshot).map_err(|error| {
+                            crate::diagnostic::RuntimeError::Internal {
+                                message: format!(
+                                    "resource {} of kind {:?} failed to restore: {error}",
+                                    image_entry.resource_id.0, image_entry.kind
+                                ),
+                            }
+                            .boxed()
+                        })?
+                    }
+                }
+            };
+
+            entry.kind = image_entry.kind;
+            entry.label = image_entry.label.clone();
+            entry.backing = image_entry.backing;
+            entry.capture = image_entry.capture;
+            entry.portability = image_entry.portability;
+            entry.affinity = image_entry.affinity;
+            entries.insert(image_entry.resource_id, entry);
+        }
+
+        Ok(())
+    }
+}
+
+impl Capture for ResourceTable {
+    type Image = ResourceTableSnapshot;
+    type Error = Box<crate::diagnostic::RuntimeError>;
+    type CaptureContext<'a> = ();
+    type RestoreContext<'a> = Option<&'a ResourceRebindContext>;
+
+    /// Capture one resource-table image.
+    fn capture_image(
+        &mut self,
+        mode: CaptureMode,
+        _context: Self::CaptureContext<'_>,
+    ) -> Result<Self::Image, Self::Error> {
+        self.snapshot(mode)
+    }
+
+    /// Restore one resource-table image.
+    fn restore_image(
+        &mut self,
+        image: &Self::Image,
+        context: Self::RestoreContext<'_>,
+    ) -> Result<(), Self::Error> {
+        self.restore_snapshot(image, context)
+    }
 }
 
 impl Default for ResourceTable {
@@ -460,6 +719,7 @@ impl Default for ResourceTable {
         Self {
             next_id: AtomicU64::new(1),
             entries: RwLock::new(HashMap::new()),
+            providers: RwLock::new(HashMap::new()),
             hooks: RwLock::new(None),
         }
     }
@@ -470,9 +730,16 @@ mod tests {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    use super::ResourceId;
+    use destack_base::CaptureMode;
 
-    use super::{ResourceEntry, ResourceFinalizer, ResourceKind, ResourceTable};
+    use super::ResourceId;
+    use crate::platform::diagnostic::PlatformError;
+    use crate::platform::resource::{
+        ResourceCapture, ResourcePortability, ResourceRebindContext, ResourceRebinder,
+        ResourceSnapshot,
+    };
+
+    use super::{ResourceEntry, ResourceFinalizer, ResourceKind, ResourceProvider, ResourceTable};
     use crate::runtime::world::World;
 
     /// Ensures entries can be inserted, removed, and finalized.
@@ -502,6 +769,72 @@ mod tests {
         assert!(!removed_again);
     }
 
+    /// Capturing and restoring one resource table should roundtrip provider-backed entries.
+    #[test]
+    fn test_snapshot_roundtrip_restores_provider_backed_resources() {
+        let world = World::default();
+        let table = ResourceTable::default();
+        let provider = Arc::new(TestResourceProvider);
+        table.register_provider(ResourceKind::Timer, provider);
+
+        let entry = ResourceEntry::new(ResourceKind::Timer)
+            .with_capture(ResourceCapture::State)
+            .with_portability(ResourcePortability::Portable);
+        let resource_id = table.insert(&world, entry, None);
+
+        let snapshot = table
+            .snapshot(CaptureMode::Fork)
+            .expect("capture resource table");
+        let restored = ResourceTable::default();
+        restored.register_provider(ResourceKind::Timer, Arc::new(TestResourceProvider));
+        restored
+            .restore_snapshot(&snapshot, None)
+            .expect("restore resource table");
+
+        assert!(restored.contains(resource_id));
+        let kind = restored.with_entry(resource_id, |entry| entry.kind);
+        assert_eq!(kind, Some(ResourceKind::Timer));
+    }
+
+    /// External resources should require explicit rebinding on restore.
+    #[test]
+    fn test_snapshot_restore_requires_external_rebinding() {
+        let world = World::default();
+        let table = ResourceTable::default();
+        let provider = Arc::new(TestResourceProvider);
+        table.register_provider(ResourceKind::Timer, provider);
+
+        let entry = ResourceEntry::new(ResourceKind::Timer)
+            .with_capture(ResourceCapture::Recipe)
+            .with_portability(ResourcePortability::External);
+        let _ = table.insert(&world, entry, None);
+
+        let snapshot = table
+            .snapshot(CaptureMode::Hibernate)
+            .expect("external resources should capture with one recipe");
+        let restored = ResourceTable::default();
+        let error = restored
+            .restore_snapshot(&snapshot, None)
+            .expect_err("external resources should require rebinding");
+        let message = error.to_string();
+
+        assert!(
+            message.contains("requires one external rebinding hook"),
+            "unexpected resource restore error: {message}"
+        );
+
+        let mut rebind_context = ResourceRebindContext::default();
+        rebind_context.register(ResourceKind::Timer, Arc::new(TestResourceRebinder));
+
+        restored
+            .restore_snapshot(&snapshot, Some(&rebind_context))
+            .expect("external resources should restore with rebinding");
+        assert_eq!(
+            restored.with_entry(ResourceId(1), |entry| entry.kind),
+            Some(ResourceKind::Timer)
+        );
+    }
+
     struct TestFinalizer {
         hits: Arc<AtomicUsize>,
     }
@@ -509,6 +842,44 @@ mod tests {
     impl ResourceFinalizer for TestFinalizer {
         fn finalize(self: Box<Self>, _resource_id: ResourceId) {
             self.hits.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+    struct TestResourceProvider;
+
+    impl ResourceProvider for TestResourceProvider {
+        fn snapshot(
+            &self,
+            resource_id: ResourceId,
+        ) -> Result<ResourceSnapshot, Box<PlatformError>> {
+            Ok(ResourceSnapshot::Snapshot {
+                resource_id,
+                kind: ResourceKind::Timer,
+                payload: vec![1, 2, 3],
+            })
+        }
+
+        fn restore(
+            &self,
+            snapshot: &ResourceSnapshot,
+        ) -> Result<ResourceEntry, Box<PlatformError>> {
+            let _ = snapshot;
+
+            Ok(ResourceEntry::new(ResourceKind::Timer)
+                .with_capture(ResourceCapture::State)
+                .with_portability(ResourcePortability::Portable))
+        }
+    }
+
+    struct TestResourceRebinder;
+
+    impl ResourceRebinder for TestResourceRebinder {
+        fn rebind(&self, snapshot: &ResourceSnapshot) -> Result<ResourceEntry, Box<PlatformError>> {
+            let _ = snapshot;
+
+            Ok(ResourceEntry::new(ResourceKind::Timer)
+                .with_capture(ResourceCapture::Recipe)
+                .with_portability(ResourcePortability::External))
         }
     }
 }

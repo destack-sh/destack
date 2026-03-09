@@ -54,6 +54,55 @@ impl std::fmt::Debug for PlatformAudioState {
 }
 
 impl PlatformAudioState {
+    /// Return whether any runtime-owned audio state was initialized.
+    pub(crate) fn is_initialized(&self) -> bool {
+        // shared audio event state
+        if self.audio_event_runtime_state.get().is_some() {
+            return true;
+        }
+
+        // windows monitor state
+        #[cfg(all(windows, feature = "audio-asio"))]
+        if self.asio_monitor_runtime_state.get().is_some() {
+            return true;
+        }
+
+        // windows monitor state
+        #[cfg(all(windows, feature = "audio-wasapi"))]
+        if self.wasapi_monitor_runtime_state.get().is_some() {
+            return true;
+        }
+
+        // linux monitor state
+        #[cfg(all(target_os = "linux", feature = "audio-alsa"))]
+        if self.alsa_monitor_runtime_state.get().is_some() {
+            return true;
+        }
+
+        // linux monitor state
+        #[cfg(all(target_os = "linux", feature = "audio-jack"))]
+        if self.jack_monitor_runtime_state.get().is_some() {
+            return true;
+        }
+
+        // macos monitor state
+        #[cfg(all(target_os = "macos", feature = "audio-coreaudio"))]
+        if self.coreaudio_monitor_runtime_state.get().is_some() {
+            return true;
+        }
+
+        // linux monitor state
+        #[cfg(all(
+            target_os = "linux",
+            any(feature = "audio-pipewire", feature = "audio-pulseaudio")
+        ))]
+        if self.pactl_monitor_runtime_state.get().is_some() {
+            return true;
+        }
+
+        false
+    }
+
     /// Return runtime-owned shared audio event state.
     pub(crate) fn audio_event_runtime_state(
         &self,

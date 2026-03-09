@@ -53,12 +53,13 @@ fn run_vm_random_call(
     let (tree, strings) = build_random_call_module(extern_name, stream_arg);
 
     // runtime and isolate setup
-    let mut isolate = Isolate::new(tree, strings).expect("isolate init");
+    let mut isolate = Isolate::build(tree, strings).expect("isolate init");
+    let mut heap = destack_vm::Heap::default();
     runtime.install_vm_defaults(&mut isolate);
 
     // execute entry function
     let output = runtime
-        .with_native_call_context(|_| isolate.run_function_by_name("main", &[]))
+        .with_native_call_context(|_| isolate.run_function_by_name(&mut heap, "main", &[]))
         .expect("vm execution");
     let (value, width) = output.value.as_uint_with_width().expect("u64 result");
     assert_eq!(width, 64);

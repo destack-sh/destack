@@ -1,18 +1,21 @@
+use serde::{Deserialize, Serialize};
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::Host;
 use crate::runtime::engine::{Engine, EngineOutput, Entry};
 use crate::runtime::poller::HostPoller;
 use crate::runtime::scheduler::Timer;
 use crate::runtime::time::WorldInstant;
-use crate::runtime::world::{Ingress, RuntimeId, Wake, World};
+use crate::runtime::world::{Ingress, RebindContext, RuntimeId, Wake, World};
 use crate::runtime::{DropCounts, DropReason};
+use destack_base::CaptureMode;
 use destack_heap as heap;
 use destack_workspace::RuntimeOptions;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use super::poller::poller_for_options;
-use super::{Agent, AgentId};
+use super::{Agent, AgentId, AgentImage};
 
 /// Runtime container that owns one or more agents in one shared world.
 pub struct Runtime {
@@ -34,6 +37,23 @@ pub struct Runtime {
     agents: BTreeMap<AgentId, Box<Agent>>,
     /// Default agent used by convenience accessors.
     primary_agent_id: AgentId,
+}
+
+/// Materialized runtime metadata captured in one world image.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RuntimeImage {
+    /// Runtime identifier in the world.
+    pub runtime_id: RuntimeId,
+    /// Primary agent identifier for this runtime.
+    pub primary_agent_id: AgentId,
+    /// Runtime display name.
+    pub name: String,
+    /// Runtime launch arguments.
+    pub platform_args: Vec<String>,
+    /// Runtime options captured for reconstruction.
+    pub options: RuntimeOptions,
+    /// Runtime drop counts.
+    pub drop_counts: DropCounts,
 }
 
 /// Result of one runtime scheduler tick.
@@ -166,7 +186,7 @@ impl Runtime {
         let agent =
             Agent::new_in_runtime(self.platform_args.clone(), &options, world, self.id, engine)?;
 
-        Ok(self.insert_agent(agent))
+        self.insert_agent(agent)
     }
 
     /// Attach a shared platform poller for all agents in this runtime.
@@ -300,15 +320,20 @@ impl Runtime {
     }
 
     /// Insert one agent and return its id.
-    fn insert_agent(&mut self, agent: Agent) -> AgentId {
+    fn insert_agent(&mut self, agent: Agent) -> RuntimeResult<AgentId> {
         // derive one stable id from the underlying runtime context
         let agent = Box::new(agent);
         let agent_id = agent.id;
 
-        // insert or replace one slot keyed by id
-        let _ = self.agents.insert(agent_id, agent);
+        // reject duplicate ids loudly: runtime ownership must stay one to one
+        if self.agents.insert(agent_id, agent).is_some() {
+            return Err(RuntimeError::Internal {
+                message: format!("runtime already contains agent {}", agent_id.0),
+            }
+            .boxed());
+        }
 
-        agent_id
+        Ok(agent_id)
     }
 
     /// Return the next virtual deadline across all agents and simulation.
@@ -494,5 +519,90 @@ impl Runtime {
         options.time = self.options.time.clone();
         options.random = self.options.random.clone();
         options.rules = self.options.rules.clone();
+    }
+
+    /// Capture one materialized runtime image and all owned agent images.
+    pub(crate) fn capture_image(
+        &mut self,
+        mode: CaptureMode,
+    ) -> RuntimeResult<(RuntimeImage, BTreeMap<AgentId, AgentImage>)> {
+        // runtime metadata
+        let runtime_image = RuntimeImage {
+            runtime_id: self.id,
+            primary_agent_id: self.primary_agent_id,
+            name: self.name.clone(),
+            platform_args: self.platform_args.iter().cloned().collect(),
+            options: self.options.clone(),
+            drop_counts: self.drop_counts,
+        };
+
+        // agent images
+        let mut agent_images = BTreeMap::new();
+        for agent in self.agents.values_mut() {
+            let image = agent.capture_image(mode)?;
+            if agent_images.insert(image.agent_id, image).is_some() {
+                return Err(RuntimeError::Internal {
+                    message: format!("runtime {} produced duplicate agent image", self.id.0),
+                }
+                .boxed());
+            }
+        }
+
+        Ok((runtime_image, agent_images))
+    }
+
+    /// Restore one runtime from one materialized runtime image.
+    pub(crate) fn from_image(
+        world: &World,
+        image: &RuntimeImage,
+        agent_images: &BTreeMap<AgentId, AgentImage>,
+        rebind_context: Option<&RebindContext>,
+    ) -> RuntimeResult<Self> {
+        // runtime-wide reconstructed state
+        let platform_args: Arc<[String]> = image.platform_args.clone().into();
+        let host = Host::from_runtime_options(&image.options, image.runtime_id);
+        let poller = poller_for_options(&image.options)?;
+        let mut agents = BTreeMap::new();
+
+        // agents
+        for agent_image in agent_images.values() {
+            let agent =
+                Agent::from_image(world, platform_args.clone(), agent_image, rebind_context)?;
+            if agents
+                .insert(agent_image.agent_id, Box::new(agent))
+                .is_some()
+            {
+                return Err(RuntimeError::Internal {
+                    message: format!(
+                        "runtime {} image contains duplicate agent {}",
+                        image.runtime_id.0, agent_image.agent_id.0
+                    ),
+                }
+                .boxed());
+            }
+        }
+
+        // validate the primary agent after reconstruction
+        if !agents.contains_key(&image.primary_agent_id) {
+            return Err(RuntimeError::Internal {
+                message: format!(
+                    "runtime {} image is missing primary agent {}",
+                    image.runtime_id.0, image.primary_agent_id.0
+                ),
+            }
+            .boxed());
+        }
+
+        Ok(Self {
+            id: image.runtime_id,
+            name: image.name.clone(),
+            platform_args,
+            options: image.options.clone(),
+            host,
+            poller,
+            drop_counts: image.drop_counts,
+            agents,
+            primary_agent_id: image.primary_agent_id,
+        })
     }
 }

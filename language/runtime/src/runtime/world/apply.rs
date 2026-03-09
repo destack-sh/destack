@@ -1,145 +1,118 @@
-use std::collections::BTreeMap;
-use std::fmt;
-use std::sync::atomic::Ordering;
-
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::policy::{Policy, PolicyState, Rule, RuleId};
 use crate::runtime::{AgentId, WorldResource, WorldResourceId};
 use destack_workspace::ExecutionMode;
+use std::collections::BTreeMap;
+use std::fmt;
 
 use super::topology::Topology;
 use super::{
-    World, WorldCommand, WorldEdge, WorldEdgeId, WorldEdgeKindDefinition, WorldEntity,
-    WorldEntityId, WorldEntityKindDefinition,
+    ObserveEvent, World, WorldCommand, WorldEdge, WorldEdgeId, WorldEdgeKindDefinition,
+    WorldEntity, WorldEntityId, WorldEntityKindDefinition,
 };
 
 impl World {
-    /// Apply one internal world control command and return the new revision.
-    pub(crate) fn apply_control_command(&self, command: WorldCommand) -> RuntimeResult<u64> {
-        self.apply_control_command_at_revision(None, command)
-    }
-
-    /// Apply one internal world control command at an expected revision.
-    pub(crate) fn apply_control_command_at_revision(
-        &self,
-        expected_revision: Option<u64>,
-        command: WorldCommand,
-    ) -> RuntimeResult<u64> {
-        self.apply_control_command_inner(expected_revision, command)
+    /// Apply one internal world control command.
+    pub(crate) fn apply_control_command(&self, command: WorldCommand) -> RuntimeResult<()> {
+        self.apply_control_command_inner(command)
     }
 
     /// Remove one agent from the world.
-    pub fn remove_agent(&self, agent_id: AgentId) -> RuntimeResult<u64> {
+    pub fn remove_agent(&self, agent_id: AgentId) -> RuntimeResult<()> {
         self.apply_control_command(WorldCommand::RemoveAgent { agent_id })
     }
 
     /// Create one world resource.
-    pub fn create_resource(&self, resource: WorldResource) -> RuntimeResult<u64> {
+    pub fn create_resource(&self, resource: WorldResource) -> RuntimeResult<()> {
         self.apply_control_command(WorldCommand::CreateResource { resource })
     }
 
     /// Destroy one world resource.
-    pub fn destroy_resource(&self, resource_id: WorldResourceId) -> RuntimeResult<u64> {
+    pub fn destroy_resource(&self, resource_id: WorldResourceId) -> RuntimeResult<()> {
         self.apply_control_command(WorldCommand::DestroyResource { resource_id })
     }
 
     /// Replace the active policy.
-    pub fn set_policy(&self, policy: Policy) -> RuntimeResult<u64> {
+    pub fn set_policy(&self, policy: Policy) -> RuntimeResult<()> {
         self.apply_control_command(WorldCommand::SetPolicy { policy })
     }
 
     /// Install one rule into the active policy.
-    pub fn install_rule(&self, rule: Rule) -> RuntimeResult<u64> {
+    pub fn install_rule(&self, rule: Rule) -> RuntimeResult<()> {
         self.apply_control_command(WorldCommand::InstallRule { rule })
     }
 
     /// Install many rules into the active policy in declaration order.
-    pub fn install_rules(&self, rules: impl IntoIterator<Item = Rule>) -> RuntimeResult<u64> {
-        let mut revision = self.revision();
-
+    pub fn install_rules(&self, rules: impl IntoIterator<Item = Rule>) -> RuntimeResult<()> {
         for rule in rules {
-            revision = self.install_rule(rule)?;
+            self.install_rule(rule)?;
         }
 
-        Ok(revision)
+        Ok(())
     }
 
     /// Remove one rule from the active policy.
-    pub fn remove_rule(&self, rule_id: RuleId) -> RuntimeResult<u64> {
+    pub fn remove_rule(&self, rule_id: RuleId) -> RuntimeResult<()> {
         self.apply_control_command(WorldCommand::RemoveRule { rule_id })
     }
 
     /// Enable one rule in the active policy.
-    pub fn enable_rule(&self, rule_id: RuleId) -> RuntimeResult<u64> {
+    pub fn enable_rule(&self, rule_id: RuleId) -> RuntimeResult<()> {
         self.apply_control_command(WorldCommand::EnableRule { rule_id })
     }
 
     /// Disable one rule in the active policy.
-    pub fn disable_rule(&self, rule_id: RuleId) -> RuntimeResult<u64> {
+    pub fn disable_rule(&self, rule_id: RuleId) -> RuntimeResult<()> {
         self.apply_control_command(WorldCommand::DisableRule { rule_id })
     }
 
     /// Replace one installed rule.
-    pub fn replace_rule(&self, rule_id: RuleId, rule: Rule) -> RuntimeResult<u64> {
+    pub fn replace_rule(&self, rule_id: RuleId, rule: Rule) -> RuntimeResult<()> {
         self.apply_control_command(WorldCommand::ReplaceRule { rule_id, rule })
     }
 
     /// Define one world entity kind.
-    pub fn define_entity_kind(&self, kind: WorldEntityKindDefinition) -> RuntimeResult<u64> {
+    pub fn define_entity_kind(&self, kind: WorldEntityKindDefinition) -> RuntimeResult<()> {
         self.apply_control_command(WorldCommand::DefineEntityKind { kind })
     }
 
     /// Define one world edge kind.
-    pub fn define_edge_kind(&self, kind: WorldEdgeKindDefinition) -> RuntimeResult<u64> {
+    pub fn define_edge_kind(&self, kind: WorldEdgeKindDefinition) -> RuntimeResult<()> {
         self.apply_control_command(WorldCommand::DefineEdgeKind { kind })
     }
 
     /// Upsert one world entity.
-    pub fn upsert_entity(&self, entity: WorldEntity) -> RuntimeResult<u64> {
+    pub fn upsert_entity(&self, entity: WorldEntity) -> RuntimeResult<()> {
         self.apply_control_command(WorldCommand::UpsertEntity { entity })
     }
 
     /// Remove one world entity.
-    pub fn remove_entity(&self, entity_id: WorldEntityId) -> RuntimeResult<u64> {
+    pub fn remove_entity(&self, entity_id: WorldEntityId) -> RuntimeResult<()> {
         self.apply_control_command(WorldCommand::RemoveEntity { entity_id })
     }
 
     /// Upsert one world edge.
-    pub fn upsert_edge(&self, edge: WorldEdge) -> RuntimeResult<u64> {
+    pub fn upsert_edge(&self, edge: WorldEdge) -> RuntimeResult<()> {
         self.apply_control_command(WorldCommand::UpsertEdge { edge })
     }
 
     /// Remove one world edge.
-    pub fn remove_edge(&self, edge_id: WorldEdgeId) -> RuntimeResult<u64> {
+    pub fn remove_edge(&self, edge_id: WorldEdgeId) -> RuntimeResult<()> {
         self.apply_control_command(WorldCommand::RemoveEdge { edge_id })
     }
 
-    /// Apply one internal world control command with optional revision gate.
-    fn apply_control_command_inner(
-        &self,
-        expected_revision: Option<u64>,
-        command: WorldCommand,
-    ) -> RuntimeResult<u64> {
-        // resolve replay state before mutating world state
-        let mode = self.replay.mode();
-        let command = self.replay.resolve_world_command(command)?;
-        let command_for_replay = command.clone();
+    /// Apply one internal world control command.
+    fn apply_control_command_inner(&self, command: WorldCommand) -> RuntimeResult<()> {
+        // keep control mutations inside the shared world activity gate
+        let _activity = self.enter_activity()?;
+
+        // resolve trace state before mutating world state
+        let mode = self.trace.mode();
+        let command = self.trace.resolve_world_command(command)?;
+        let command_for_trace = command.clone();
 
         // serialize one world control mutation at a time
         let _mutation_guard = self.mutation_lock.lock();
-
-        // enforce the expected revision before mutating any world state
-        if let Some(expected_revision) = expected_revision {
-            let actual_revision = self.revision.load(Ordering::SeqCst);
-            if actual_revision != expected_revision {
-                return Err(RuntimeError::Internal {
-                    message: format!(
-                        "world revision mismatch: expected {expected_revision}, actual {actual_revision}"
-                    ),
-                }
-                .boxed());
-            }
-        }
 
         // apply one command directly to world state
         let mut topology = self.topology.write();
@@ -154,15 +127,15 @@ impl World {
 
         // record mode: append command only after successful world mutation
         if mode == ExecutionMode::Record {
-            self.replay.record_world_command(&command_for_replay)?;
+            self.trace.record_world_command(&command_for_trace)?;
         }
 
-        let revision = self
-            .revision
-            .fetch_add(1, Ordering::SeqCst)
-            .saturating_add(1);
+        self.observe.record(ObserveEvent::Control {
+            branch_id: self.branch_id,
+            summary: format!("{command_for_trace:?}"),
+        });
 
-        Ok(revision)
+        Ok(())
     }
 
     /// Apply one internal world control command directly to world state.
@@ -206,7 +179,7 @@ impl World {
 
             WorldCommand::RemoveAgent { agent_id } => {
                 resources.retain(|resource_id, _| resource_id.agent_id != agent_id);
-                let _ = topology.remove_agent(agent_id);
+                topology.remove_agent(agent_id);
             }
 
             WorldCommand::CreateResource { resource } => {
@@ -217,11 +190,11 @@ impl World {
                         resource.label.as_deref(),
                     )
                     .map_err(Self::internal_error)?;
-                let _ = resources.insert(resource.id, resource);
+                resources.insert(resource.id, resource);
             }
 
             WorldCommand::DestroyResource { resource_id } => {
-                let _ = topology.detach_resource(resource_id);
+                topology.detach_resource(resource_id);
                 resources.remove(&resource_id);
             }
 
@@ -268,7 +241,7 @@ impl World {
             }
 
             WorldCommand::RemoveEntity { entity_id } => {
-                let _ = topology.remove_entity(entity_id.as_str());
+                topology.remove_entity(entity_id.as_str());
             }
 
             WorldCommand::UpsertEdge { edge } => {
@@ -276,7 +249,7 @@ impl World {
             }
 
             WorldCommand::RemoveEdge { edge_id } => {
-                let _ = topology.remove_edge(edge_id.as_str());
+                topology.remove_edge(edge_id.as_str());
             }
         }
 

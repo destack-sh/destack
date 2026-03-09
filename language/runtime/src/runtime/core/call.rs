@@ -14,7 +14,7 @@ use crate::runtime::bindings::{
 };
 use crate::runtime::policy::BindingDispatchDecision;
 use crate::runtime::random::RandomStreamId;
-use crate::runtime::replay::{EntropySubject, Replay};
+use crate::runtime::replay::{EntropySubject, Trace};
 use crate::runtime::scheduler::{
     EventLoop, EventLoopScope, MicrotaskId, TaskId, current_event_loop_scope,
 };
@@ -281,10 +281,10 @@ impl BindingCallContext {
         self.agent().platform_args()
     }
 
-    /// Borrow the replay state.
+    /// Borrow the trace state.
     #[inline]
-    pub fn replay(&self) -> &Replay {
-        self.world().replay()
+    pub fn trace(&self) -> &Trace {
+        self.world().trace()
     }
 
     /// Borrow the binding policy for this agent.
@@ -593,7 +593,7 @@ impl BindingCallContext {
         &self,
         spec: BindingDescriptor,
     ) -> RuntimeResult<BindingHookGuard<'_>> {
-        let _ = self.preflight_binding_call(spec)?;
+        self.preflight_binding_call(spec)?;
         let call_id = self
             .hooks()
             .on_before_binding(self.world(), spec, Some(self.engine))?;
@@ -675,7 +675,7 @@ impl BindingCallContext {
         )?;
 
         let requested = decision.replay_payload;
-        self.replay().payload_policy_for_requested(spec, requested)
+        self.trace().payload_policy_for_requested(spec, requested)
     }
 }
 

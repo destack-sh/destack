@@ -21,6 +21,16 @@ impl std::fmt::Debug for PlatformInputState {
 }
 
 impl PlatformInputState {
+    /// Return whether any runtime-owned input state was initialized.
+    pub(crate) fn is_initialized(&self) -> bool {
+        #[cfg(windows)]
+        if self.windows_raw_input_runtime_state.get().is_some() {
+            return true;
+        }
+
+        false
+    }
+
     /// Return runtime-owned windows raw-input state.
     #[cfg(windows)]
     pub(crate) fn windows_raw_input_runtime_state(

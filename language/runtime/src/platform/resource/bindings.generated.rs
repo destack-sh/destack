@@ -17,7 +17,7 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::replay::ReplayError;
+use crate::runtime::replay::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
@@ -180,7 +180,7 @@ fn encode_destack_resource_id_transfer_result(
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ResourceIdCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Binding descriptor for destack.resource.id.close.
@@ -321,7 +321,7 @@ fn destack_resource_id_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &id;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         RESOURCE_ID_CLOSE,
         binding.replay_payload_for(RESOURCE_ID_CLOSE)?,
         || unsafe { platform_runtime_native::destack_resource_close(binding, id) },
@@ -336,7 +336,7 @@ fn destack_resource_id_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     ResourceIdCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -417,7 +417,7 @@ fn destack_resource_id_close_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         RESOURCE_ID_CLOSE,
         binding.replay_payload_for(RESOURCE_ID_CLOSE)?,
         context,
@@ -434,7 +434,7 @@ fn destack_resource_id_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     ResourceIdCloseReplay { result }
                 };
                 return Ok(Some(payload));

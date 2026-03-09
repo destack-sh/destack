@@ -26,6 +26,21 @@ impl std::fmt::Debug for PlatformNetState {
 }
 
 impl PlatformNetState {
+    /// Return whether any runtime-owned network state was initialized.
+    pub(crate) fn is_initialized(&self) -> bool {
+        #[cfg(windows)]
+        if self.windows_uds_runtime_state.get().is_some() {
+            return true;
+        }
+
+        #[cfg(target_os = "macos")]
+        if self.macos_route_runtime_state.get().is_some() {
+            return true;
+        }
+
+        false
+    }
+
     /// Return runtime-owned windows UDS helper state.
     #[cfg(windows)]
     pub(crate) fn windows_uds_runtime_state(

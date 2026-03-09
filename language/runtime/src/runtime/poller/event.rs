@@ -1,9 +1,10 @@
 use super::PollerToken;
 use crate::platform::ResourceId;
+use serde::{Deserialize, Serialize};
 
 /// Flags attached to poller events.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PollerEventFlags(
     /// Raw flag bits.
     pub u32,
@@ -44,7 +45,7 @@ impl std::ops::BitOrAssign for PollerEventFlags {
 
 /// Bitmask describing the event state.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PollerEventMask(
     /// Raw mask bits.
     pub u32,
@@ -90,7 +91,7 @@ impl std::ops::BitOrAssign for PollerEventMask {
 }
 
 /// Source category for the event.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PollerEventSource {
     /// Event originated from I/O readiness.
     Io,
@@ -103,7 +104,7 @@ pub enum PollerEventSource {
 }
 
 /// Payload data attached to an event.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PollerEventPayload {
     /// I/O readiness payload from the underlying poller.
     Io {
@@ -130,7 +131,7 @@ pub enum PollerEventPayload {
 }
 
 /// Process termination or state change status.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PollerProcessStatus {
     /// Process exited normally with a code.
     Exited {
@@ -154,7 +155,7 @@ pub enum PollerProcessStatus {
 }
 
 /// Platform event emitted by the poller.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PollerEvent {
     /// Resource associated with the event.
     pub resource_id: ResourceId,

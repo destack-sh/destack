@@ -1,7 +1,19 @@
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
+
 use crate::runtime::time::{HostClock, HostClockSource, Nanos, VirtualClock, WorldInstant};
+use destack_base::{Capture, CaptureMode};
 use destack_workspace::TimeOptions;
+
+/// Materialized clock state captured in one world image.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClockImage {
+    /// Captured virtual wall-clock instant.
+    pub virtual_wall: WorldInstant,
+    /// Captured virtual monotonic instant.
+    pub virtual_mono: WorldInstant,
+}
 
 /// Runtime clock sources and time policies.
 #[derive(Debug, Clone)]
@@ -94,6 +106,20 @@ impl Clock {
         self.virtual_clock.advance_to(deadline)
     }
 
+    /// Capture one materialized clock image.
+    pub(crate) fn snapshot(&self) -> ClockImage {
+        ClockImage {
+            virtual_wall: WorldInstant::from_nanos(self.virtual_wall()),
+            virtual_mono: WorldInstant::from_nanos(self.virtual_mono()),
+        }
+    }
+
+    /// Restore one materialized clock image.
+    pub(crate) fn restore_snapshot(&self, snapshot: &ClockImage) {
+        self.virtual_clock
+            .restore_snapshot(snapshot.virtual_wall, snapshot.virtual_mono);
+    }
+
     /// Sleep for one host duration in nanoseconds.
     pub fn host_sleep_nanos(&self, duration_nanos: u64) {
         self.host_clock.sleep_nanos(duration_nanos);
@@ -102,6 +128,33 @@ impl Clock {
     /// Sleep until one host wall deadline in nanoseconds.
     pub fn host_sleep_until_nanos(&self, deadline_nanos: u64) {
         self.host_clock.sleep_until_nanos(deadline_nanos);
+    }
+}
+
+impl Capture for Clock {
+    type Image = ClockImage;
+    type Error = std::convert::Infallible;
+    type CaptureContext<'a> = ();
+    type RestoreContext<'a> = ();
+
+    /// Capture one clock image.
+    fn capture_image(
+        &mut self,
+        _mode: CaptureMode,
+        _context: Self::CaptureContext<'_>,
+    ) -> Result<Self::Image, Self::Error> {
+        Ok(self.snapshot())
+    }
+
+    /// Restore one clock image.
+    fn restore_image(
+        &mut self,
+        image: &Self::Image,
+        _context: Self::RestoreContext<'_>,
+    ) -> Result<(), Self::Error> {
+        self.restore_snapshot(image);
+
+        Ok(())
     }
 }
 

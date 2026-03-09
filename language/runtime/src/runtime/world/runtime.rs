@@ -17,12 +17,18 @@ impl World {
         options: &RuntimeOptions,
         engine: impl Engine + 'static,
     ) -> RuntimeResult<RuntimeId> {
+        let _activity = self.enter_activity()?;
         let runtime =
             Runtime::from_options_in_world(platform_args, options, self, Box::new(engine))?;
         let runtime_id = runtime.runtime_id();
 
         let mut runtimes = self.runtimes.write();
-        let _ = runtimes.insert(runtime_id, Box::new(runtime));
+        if runtimes.insert(runtime_id, Box::new(runtime)).is_some() {
+            return Err(RuntimeError::Internal {
+                message: format!("world already contains runtime {}", runtime_id.0),
+            }
+            .boxed());
+        }
 
         Ok(runtime_id)
     }
@@ -33,6 +39,7 @@ impl World {
         runtime_id: RuntimeId,
         engine: impl Engine + 'static,
     ) -> RuntimeResult<AgentId> {
+        let _activity = self.enter_activity()?;
         let mut runtimes = self.runtimes.write();
         let runtime = runtimes.get_mut(&runtime_id).ok_or_else(|| {
             RuntimeError::Internal {
@@ -51,17 +58,16 @@ impl World {
         entry: &Entry,
         args: &[heap::Value],
     ) -> RuntimeResult<EngineOutput> {
-        self.with_checkpoint_blocked(|| {
-            let mut runtimes = self.runtimes.write();
-            let runtime = runtimes.get_mut(&runtime_id).ok_or_else(|| {
-                RuntimeError::Internal {
-                    message: format!("runtime {} does not exist", runtime_id.0),
-                }
-                .boxed()
-            })?;
+        let _activity = self.enter_activity()?;
+        let mut runtimes = self.runtimes.write();
+        let runtime = runtimes.get_mut(&runtime_id).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: format!("runtime {} does not exist", runtime_id.0),
+            }
+            .boxed()
+        })?;
 
-            runtime.run_entrypoint(self, entry, args)
-        })
+        runtime.run_entrypoint(self, entry, args)
     }
 
     /// Return the stored runtime ids in stable order.

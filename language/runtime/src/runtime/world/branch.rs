@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 
-use super::{CheckpointId, World};
+use super::{RevisionId, World};
 
 /// Branch identifier for one world lineage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -27,6 +27,8 @@ impl BranchId {
 pub struct Branch {
     /// The branch identifier.
     pub id: BranchId,
+    /// The current head revision for this branch.
+    pub head_revision_id: RevisionId,
     /// The branch origin in the world lineage.
     pub origin: BranchOrigin,
     /// The branch name.
@@ -40,12 +42,10 @@ pub struct Branch {
 pub enum BranchOrigin {
     /// The root branch for one new world lineage.
     Root,
-    /// One child branch forked from one parent checkpoint.
+    /// One child branch forked from one parent revision.
     Fork {
-        /// The parent branch that owned the fork checkpoint.
-        parent_branch_id: BranchId,
-        /// The checkpoint where this branch forked.
-        checkpoint_id: CheckpointId,
+        /// The revision where this branch forked.
+        parent_revision_id: RevisionId,
     },
 }
 
