@@ -7,6 +7,7 @@ export LC_ALL="C"
 # test configuration
 DESTACK_VERSION_INPUT="${1:-}"
 DESTACK_ARTIFACTS_DIRECTORY="${2:-app/cli/install/artifacts}"
+DESTACK_RELEASE_TAG_INPUT="${DESTACK_RELEASE_TAG:-}"
 DESTACK_SCRIPT_DIRECTORY="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 DESTACK_INSTALL_SCRIPT_PATH="${DESTACK_SCRIPT_DIRECTORY}/install.sh"
 
@@ -14,6 +15,18 @@ DESTACK_INSTALL_SCRIPT_PATH="${DESTACK_SCRIPT_DIRECTORY}/install.sh"
 fail() {
     printf '%s\n' "error: $*" >&2
     exit 1
+}
+
+# resolve the release tag
+resolve_release_tag() {
+    local version_value="$1"
+
+    if [ -n "${DESTACK_RELEASE_TAG_INPUT}" ]; then
+        printf '%s\n' "${DESTACK_RELEASE_TAG_INPUT}"
+        return
+    fi
+
+    printf 'v%s\n' "${version_value}"
 }
 
 # resolve the release version
@@ -101,7 +114,8 @@ resolve_unix_target_triple() {
 main() {
     local version_value
     version_value="$(resolve_version)"
-    local release_tag="v${version_value}"
+    local release_tag
+    release_tag="$(resolve_release_tag "${version_value}")"
     local target_triple
     target_triple="$(resolve_unix_target_triple)"
     local temp_directory

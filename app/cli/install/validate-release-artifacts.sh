@@ -8,6 +8,8 @@ export LC_ALL="C"
 DESTACK_VERSION_INPUT="${1:-}"
 DESTACK_ARTIFACTS_DIRECTORY="${2:-app/cli/install/artifacts}"
 DESTACK_TARGETS_INPUT="${DESTACK_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
+DESTACK_RELEASE_TAG_INPUT="${DESTACK_RELEASE_TAG:-}"
+DESTACK_RELEASE_CHANNEL_INPUT="${DESTACK_RELEASE_CHANNEL:-stable}"
 DESTACK_CHECKSUMS_NAME="SHA256SUMS"
 DESTACK_MANIFEST_NAME="manifest.json"
 
@@ -15,6 +17,23 @@ DESTACK_MANIFEST_NAME="manifest.json"
 fail() {
     printf '%s\n' "error: $*" >&2
     exit 1
+}
+
+# resolve the release tag
+resolve_release_tag() {
+    local version_value="$1"
+
+    if [ -n "${DESTACK_RELEASE_TAG_INPUT}" ]; then
+        printf '%s\n' "${DESTACK_RELEASE_TAG_INPUT}"
+        return
+    fi
+
+    printf 'v%s\n' "${version_value}"
+}
+
+# resolve the release channel
+resolve_release_channel() {
+    printf '%s\n' "${DESTACK_RELEASE_CHANNEL_INPUT}"
 }
 
 # resolve the release version
@@ -107,6 +126,10 @@ validate_target_archive() {
 main() {
     local version_value
     version_value="$(resolve_version)"
+    local release_tag
+    release_tag="$(resolve_release_tag "${version_value}")"
+    local release_channel
+    release_channel="$(resolve_release_channel)"
     local checksums_path="${DESTACK_ARTIFACTS_DIRECTORY}/${DESTACK_CHECKSUMS_NAME}"
     if [ ! -f "${checksums_path}" ]; then
         fail "missing checksums file: ${checksums_path}"
@@ -126,7 +149,7 @@ main() {
         fail "python3 is required to validate ${DESTACK_MANIFEST_NAME}"
     fi
 
-    python3 - "${manifest_path}" "${checksums_path}" "${version_value}" ${DESTACK_TARGETS_INPUT} <<'PY'
+    python3 - "${manifest_path}" "${checksums_path}" "${version_value}" "${release_tag}" "${release_channel}" ${DESTACK_TARGETS_INPUT} <<'PY'
 import json
 import pathlib
 import sys
@@ -134,16 +157,23 @@ import sys
 manifest_path = pathlib.Path(sys.argv[1])
 checksums_path = pathlib.Path(sys.argv[2])
 version_value = sys.argv[3]
-targets = sys.argv[4:]
+release_tag = sys.argv[4]
+release_channel = sys.argv[5]
+targets = sys.argv[6:]
 
 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
 if manifest.get("version") != version_value:
     raise SystemExit(f"error: manifest version mismatch: {manifest.get('version')} != {version_value}")
 
-if manifest.get("releaseTag") != f"v{version_value}":
+if manifest.get("releaseTag") != release_tag:
     raise SystemExit(
-        f"error: manifest releaseTag mismatch: {manifest.get('releaseTag')} != v{version_value}"
+        f"error: manifest releaseTag mismatch: {manifest.get('releaseTag')} != {release_tag}"
+    )
+
+if manifest.get("channel") != release_channel:
+    raise SystemExit(
+        f"error: manifest channel mismatch: {manifest.get('channel')} != {release_channel}"
     )
 
 if manifest.get("checksumsFile") != "SHA256SUMS":

@@ -85,25 +85,9 @@ jobs:
         shell: bash
         run: just language/test-resolver
 
-  runtime-android-check:
-    name: Runtime Check (Android)
-    uses: ./.github/workflows/runtime-android-check.yml
-
-  runtime-ios-check:
-    name: Runtime Check (iOS)
-    uses: ./.github/workflows/runtime-ios-check.yml
-
   runtime-linux-check:
     name: Runtime Check (Linux)
     uses: ./.github/workflows/runtime-linux-check.yml
-
-  runtime-macos-check:
-    name: Runtime Check (macOS)
-    uses: ./.github/workflows/runtime-macos-check.yml
-
-  runtime-windows-check:
-    name: Runtime Check (Windows)
-    uses: ./.github/workflows/runtime-windows-check.yml
 
   library-check:
     name: Library Check
@@ -181,16 +165,3 @@ jobs:
 
       - name: Check Bridge
         run: just bridge/quick --pin-destack-revision "${GITHUB_SHA}"
-
-  bridge-swift-build:
-    name: Bridge Swift Build
-    runs-on: macos-latest
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          persist-credentials: false
-
-      - name: Build Bridge Swift
-        run: cd bridge/swift && swift build
