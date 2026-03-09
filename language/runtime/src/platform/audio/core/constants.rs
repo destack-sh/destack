@@ -1,5 +1,4 @@
-use std::sync::OnceLock;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use crate::platform::audio::{
     AudioBackendCapabilityFlags, AudioDeviceCapabilityFlags, AudioDeviceListFlags,
@@ -352,13 +351,9 @@ pub(crate) const NULL_DEVICE_SUPPORTED_CHANNEL_MASK: u64 = 0xff;
 /// Default stream gain for newly opened streams.
 pub(crate) const DEFAULT_STREAM_VOLUME: f64 = 1.0;
 
-/// Global monotonic epoch used by callback threads.
-pub(crate) static MONO_EPOCH: OnceLock<Instant> = OnceLock::new();
-
 /// Return one process monotonic timestamp in nanoseconds.
 pub(crate) fn host_monotonic_nanos() -> u64 {
-    let elapsed = MONO_EPOCH.get_or_init(Instant::now).elapsed();
-    elapsed.as_nanos().min(u64::MAX as u128) as u64
+    core_platform::monotonic_now_ns()
 }
 
 /// Return the configured monitor poll interval for audio event monitor workers.

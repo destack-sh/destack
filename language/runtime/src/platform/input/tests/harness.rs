@@ -61,6 +61,8 @@ pub(crate) struct InputDeviceRecord {
 pub(crate) struct InputEventRecord {
     /// Stable runtime device identifier.
     pub device_id: String,
+    /// Monotonic event timestamp in nanoseconds.
+    pub timestamp_ns: u64,
     /// Event kind selector.
     pub kind: InputEventKind,
     /// Event action selector.
@@ -78,6 +80,8 @@ pub(crate) struct InputEventRecord {
 pub(crate) struct InputMonitorEventRecord {
     /// Stable runtime device identifier.
     pub device_id: String,
+    /// Monotonic monitor timestamp in nanoseconds.
+    pub timestamp_ns: u64,
     /// Monitor event kind selector.
     pub kind: InputMonitorEventKind,
     /// Connected state after this monitor event.
@@ -155,6 +159,8 @@ pub(crate) struct InputGamepadStateRecord {
 pub(crate) struct InputKeyboardStateRecord {
     /// Stable runtime device identifier.
     pub device_id: String,
+    /// Monotonic snapshot timestamp in nanoseconds.
+    pub timestamp_ns: u64,
     /// Monotonic snapshot sequence number.
     pub sequence: u64,
     /// Keyboard modifier bitset for this snapshot.
@@ -170,6 +176,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
     match value {
         InputEvent::InputKeyEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::Key,
             action: value.payload.action,
             code: value.payload.backend_code,
@@ -178,6 +185,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
         }),
         InputEvent::InputPointerMotionEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::PointerMotion,
             action: InputEventAction::Move,
             code: 0,
@@ -186,6 +194,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
         }),
         InputEvent::InputPointerButtonEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::PointerButton,
             action: value.payload.action,
             code: value.payload.backend_code,
@@ -194,6 +203,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
         }),
         InputEvent::InputScrollEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::Scroll,
             action: InputEventAction::Scroll,
             code: 0,
@@ -202,6 +212,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
         }),
         InputEvent::InputTouchEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::Touch,
             action: value.payload.action,
             code: value.payload.contact_id,
@@ -210,6 +221,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
         }),
         InputEvent::InputGamepadEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::Gamepad,
             action: value.payload.action,
             code: value.payload.backend_code,
@@ -218,6 +230,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
         }),
         InputEvent::InputTextEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::Text,
             action: InputEventAction::Text,
             code: 0,
@@ -226,6 +239,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
         }),
         InputEvent::InputDeviceEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::Device,
             action: value.payload.action,
             code: value.payload.backend_code,
@@ -234,6 +248,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
         }),
         InputEvent::InputSensorEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::Sensor,
             action: value.payload.action,
             code: value.payload.backend_code,
@@ -242,6 +257,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
         }),
         InputEvent::InputCompositionEvent(value) => Ok(InputEventRecord {
             device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::Composition,
             action: value.payload.action,
             code: 0,
@@ -263,6 +279,7 @@ fn decode_vm_event(
                 .map_err(|error| RuntimeError::from(error).boxed())?
                 .as_str()
                 .to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::Key,
             action: value.payload.action,
             code: value.payload.backend_code,
@@ -275,6 +292,7 @@ fn decode_vm_event(
                 .map_err(|error| RuntimeError::from(error).boxed())?
                 .as_str()
                 .to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::PointerMotion,
             action: InputEventAction::Move,
             code: 0,
@@ -287,6 +305,7 @@ fn decode_vm_event(
                 .map_err(|error| RuntimeError::from(error).boxed())?
                 .as_str()
                 .to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::PointerButton,
             action: value.payload.action,
             code: value.payload.backend_code,
@@ -299,6 +318,7 @@ fn decode_vm_event(
                 .map_err(|error| RuntimeError::from(error).boxed())?
                 .as_str()
                 .to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::Scroll,
             action: InputEventAction::Scroll,
             code: 0,
@@ -311,6 +331,7 @@ fn decode_vm_event(
                 .map_err(|error| RuntimeError::from(error).boxed())?
                 .as_str()
                 .to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::Touch,
             action: value.payload.action,
             code: value.payload.contact_id,
@@ -323,6 +344,7 @@ fn decode_vm_event(
                 .map_err(|error| RuntimeError::from(error).boxed())?
                 .as_str()
                 .to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::Gamepad,
             action: value.payload.action,
             code: value.payload.backend_code,
@@ -335,6 +357,7 @@ fn decode_vm_event(
                 .map_err(|error| RuntimeError::from(error).boxed())?
                 .as_str()
                 .to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::Text,
             action: InputEventAction::Text,
             code: 0,
@@ -347,6 +370,7 @@ fn decode_vm_event(
                 .map_err(|error| RuntimeError::from(error).boxed())?
                 .as_str()
                 .to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::Device,
             action: value.payload.action,
             code: value.payload.backend_code,
@@ -359,6 +383,7 @@ fn decode_vm_event(
                 .map_err(|error| RuntimeError::from(error).boxed())?
                 .as_str()
                 .to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::Sensor,
             action: value.payload.action,
             code: value.payload.backend_code,
@@ -371,6 +396,7 @@ fn decode_vm_event(
                 .map_err(|error| RuntimeError::from(error).boxed())?
                 .as_str()
                 .to_string(),
+            timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::Composition,
             action: value.payload.action,
             code: 0,
@@ -601,12 +627,14 @@ impl<'call> InputHarnessContext<'call> {
             HarnessValue::Native(value) => match value {
                 InputMonitorEvent::InputMonitorChangeEvent(value) => Ok(InputMonitorEventRecord {
                     device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+                    timestamp_ns: value.metadata.timestamp_ns,
                     kind: InputMonitorEventKind::Change,
                     connected: value.metadata.connected,
                     sequence: value.metadata.sequence,
                 }),
                 InputMonitorEvent::InputMonitorConnectEvent(value) => Ok(InputMonitorEventRecord {
                     device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+                    timestamp_ns: value.metadata.timestamp_ns,
                     kind: InputMonitorEventKind::Connect,
                     connected: value.metadata.connected,
                     sequence: value.metadata.sequence,
@@ -614,6 +642,7 @@ impl<'call> InputHarnessContext<'call> {
                 InputMonitorEvent::InputMonitorDisconnectEvent(value) => {
                     Ok(InputMonitorEventRecord {
                         device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+                        timestamp_ns: value.metadata.timestamp_ns,
                         kind: InputMonitorEventKind::Disconnect,
                         connected: value.metadata.connected,
                         sequence: value.metadata.sequence,
@@ -637,6 +666,7 @@ impl<'call> InputHarnessContext<'call> {
                             .to_string();
                         Ok(InputMonitorEventRecord {
                             device_id,
+                            timestamp_ns: value.metadata.timestamp_ns,
                             kind: InputMonitorEventKind::Change,
                             connected: value.metadata.connected,
                             sequence: value.metadata.sequence,
@@ -650,6 +680,7 @@ impl<'call> InputHarnessContext<'call> {
                             .to_string();
                         Ok(InputMonitorEventRecord {
                             device_id,
+                            timestamp_ns: value.metadata.timestamp_ns,
                             kind: InputMonitorEventKind::Connect,
                             connected: value.metadata.connected,
                             sequence: value.metadata.sequence,
@@ -663,6 +694,7 @@ impl<'call> InputHarnessContext<'call> {
                             .to_string();
                         Ok(InputMonitorEventRecord {
                             device_id,
+                            timestamp_ns: value.metadata.timestamp_ns,
                             kind: InputMonitorEventKind::Disconnect,
                             connected: value.metadata.connected,
                             sequence: value.metadata.sequence,
@@ -865,6 +897,7 @@ impl<'call> InputHarnessContext<'call> {
 
                 Ok(InputKeyboardStateRecord {
                     device_id,
+                    timestamp_ns: value.timestamp_ns,
                     sequence: value.sequence,
                     modifiers: value.modifiers,
                     pressed_code_count: pressed_codes.len(),
@@ -889,6 +922,7 @@ impl<'call> InputHarnessContext<'call> {
 
                 Ok(InputKeyboardStateRecord {
                     device_id,
+                    timestamp_ns: value.timestamp_ns,
                     sequence: value.sequence,
                     modifiers: value.modifiers,
                     pressed_code_count: pressed_codes.len(),

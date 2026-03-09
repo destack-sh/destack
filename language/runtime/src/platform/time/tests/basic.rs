@@ -33,6 +33,23 @@ fn test_time_wall_and_mono_samples() {
     });
 }
 
+/// Sample runtime monotonic aliases and verify they share one clock domain.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_time_runtime_and_selected_monotonic_samples_share_one_domain() {
+    with_harness_context(|mut context| {
+        let mono_before = context.destack_time_mono_ns()?;
+        let selected_mono = context.destack_time_now_ns(ClockId::Monotonic)?;
+        let mono_after = context.destack_time_mono_ns()?;
+
+        // the explicit monotonic clock should land inside the same runtime monotonic sequence
+        assert!(selected_mono >= mono_before);
+        assert!(selected_mono <= mono_after);
+
+        Ok(())
+    });
+}
+
 /// Query clock metadata for wall and monotonic clocks.
 #[cfg(any(unix, windows))]
 #[test]

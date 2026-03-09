@@ -399,6 +399,10 @@ fn assert_event_record_shape(event: &InputEventRecord) {
         "event device id should not be empty"
     );
     assert!(
+        event.timestamp_ns > 0,
+        "event timestamp should be monotonic and nonzero"
+    );
+    assert!(
         event.sequence > 0,
         "event sequence should be monotonic and nonzero"
     );
@@ -504,6 +508,10 @@ fn assert_monitor_event_record_semantics(event: &InputMonitorEventRecord) {
         "monitor device id should not be empty"
     );
     assert!(
+        event.timestamp_ns > 0,
+        "monitor timestamp should be monotonic and nonzero"
+    );
+    assert!(
         event.sequence > 0,
         "monitor sequence should be monotonic and nonzero"
     );
@@ -524,6 +532,10 @@ fn assert_keyboard_state_record_semantics(state: &InputKeyboardStateRecord) {
     assert!(
         !state.device_id.is_empty(),
         "keyboard snapshot device id should not be empty"
+    );
+    assert!(
+        state.timestamp_ns > 0,
+        "keyboard snapshot timestamp should be monotonic and nonzero"
     );
     assert!(
         state.sequence > 0,

@@ -4,8 +4,7 @@ use destack_vm as vm;
 use destack_workspace::{ExecutionMode, RandomMode, RandomOptions, RuntimeOptions};
 
 #[cfg(test)]
-use crate::diagnostic::{DiagnosticId, RuntimeStatus};
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::{DiagnosticId, RuntimeError, RuntimeResult, RuntimeStatus};
 use crate::host::Host;
 #[cfg(test)]
 use crate::platform::PlatformError;

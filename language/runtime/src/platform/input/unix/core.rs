@@ -1438,23 +1438,9 @@ fn read_terminal_event(
     ))
 }
 
-/// Return one monotonic host timestamp in nanoseconds.
+/// Return one monotonic timestamp from the shared runtime clock domain.
 pub(super) fn monotonic_timestamp_ns() -> u64 {
-    // query one monotonic timespec from the host
-    let mut timestamp = libc::timespec {
-        tv_sec: 0,
-        tv_nsec: 0,
-    };
-    let status = unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &mut timestamp) };
-    if status < 0 || timestamp.tv_sec < 0 || timestamp.tv_nsec < 0 {
-        return 0;
-    }
-
-    // convert one timespec payload to nanoseconds
-    u64::try_from(timestamp.tv_sec)
-        .unwrap_or(0)
-        .saturating_mul(1_000_000_000)
-        .saturating_add(u64::try_from(timestamp.tv_nsec).unwrap_or(0))
+    core_platform::monotonic_now_ns()
 }
 
 /// Allocate the next sequence number for one Unix input stream.

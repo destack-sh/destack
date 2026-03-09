@@ -394,7 +394,4 @@ unsafe extern "C" {
 
     /// Return the current host time from CoreAudio's host-time clock.
     pub(super) fn AudioGetCurrentHostTime() -> u64;
-
-    /// Convert a CoreAudio host-time value into nanoseconds.
-    pub(super) fn AudioConvertHostTimeToNanos(in_host_time: u64) -> u64;
 }

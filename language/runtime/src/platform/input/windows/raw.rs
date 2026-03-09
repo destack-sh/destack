@@ -47,7 +47,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 
 use super::core as windows_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::{Host, process_ingress_loop as run_windows_ingress_loop};
+use crate::host::process_ingress_loop as run_windows_ingress_loop;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
     InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
@@ -664,9 +664,9 @@ struct RawGamepadDecoderEntry {
     mapping: InputGamepadMappingType,
 }
 
-/// Read one monotonic timestamp from QueryPerformanceCounter.
+/// Read one monotonic timestamp from the shared runtime clock domain.
 fn now_timestamp_ns() -> u64 {
-    core_platform::qpc_now_ns().unwrap_or(0)
+    core_platform::monotonic_now_ns()
 }
 
 /// Query one current pointer position snapshot.
@@ -2176,7 +2176,7 @@ fn ensure_raw_input_registration(hwnd: HWND) -> RuntimeResult<()> {
 
 /// Spawn the raw-input worker and wait for successful initialization.
 fn spawn_raw_input_service(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     runtime_state: &Arc<WindowsRawInputRuntimeState>,
 ) -> Result<RawInputService, String> {
     // reuse existing shared state so restarted workers keep servicing the same queues
@@ -2190,11 +2190,10 @@ fn spawn_raw_input_service(
     let (ready_tx, ready_rx) = mpsc::channel::<Result<u32, String>>();
     let thread_state = Arc::clone(&state);
     let thread_runtime_state = Arc::clone(runtime_state);
-    let thread_host = binding.host().clone();
     let handle = thread::Builder::new()
         .name("destack-input-raw".to_string())
         .spawn(move || {
-            raw_input_thread_main(thread_runtime_state, thread_state, thread_host, ready_tx);
+            raw_input_thread_main(thread_runtime_state, thread_state, ready_tx);
         })
         .map_err(|error| format!("failed to spawn raw input thread: {error}"))?;
 
@@ -2221,7 +2220,6 @@ fn spawn_raw_input_service(
 fn raw_input_thread_main(
     runtime_state: Arc<WindowsRawInputRuntimeState>,
     state: Arc<RawInputState>,
-    _host: Host,
     ready_tx: mpsc::Sender<Result<u32, String>>,
 ) {
     // resolve module instance and register a message-only window class
