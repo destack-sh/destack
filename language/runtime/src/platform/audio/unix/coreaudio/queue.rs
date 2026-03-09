@@ -10,7 +10,11 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 #[cfg(target_os = "macos")]
 use crate::platform::PlatformError;
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core::{AudioStreamHostState, MIN_STREAM_PERIOD_FRAMES, frame_bytes};
+use crate::platform::audio::core::codec::frame_bytes;
+#[cfg(target_os = "macos")]
+use crate::platform::audio::core::constants::MIN_STREAM_PERIOD_FRAMES;
+#[cfg(target_os = "macos")]
+use crate::platform::audio::core::model::AudioStreamHostState;
 #[cfg(target_os = "macos")]
 use crate::platform::diagnostic::PlatformErrorCode;
 

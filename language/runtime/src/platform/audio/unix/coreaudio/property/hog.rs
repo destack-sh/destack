@@ -3,7 +3,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 #[cfg(target_os = "macos")]
 use crate::platform::PlatformError;
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core::audio_would_block;
+use crate::platform::audio::core::error::audio_would_block;
 
 #[cfg(target_os = "macos")]
 use super::super::abi::{AudioDeviceID, CoreAudioStreamRuntime};

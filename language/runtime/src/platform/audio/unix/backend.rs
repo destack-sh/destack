@@ -15,9 +15,9 @@ use super::pipewire;
 use super::pulseaudio;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::backend::{backend_name, backend_not_supported};
-use crate::platform::audio::core::{
-    AudioBackendOpenFlags, AudioMonitorHandle, AudioStreamHostState, HostDeviceDescriptor,
-};
+use crate::platform::audio::core::constants::AudioBackendOpenFlags;
+use crate::platform::audio::core::model::{AudioStreamHostState, HostDeviceDescriptor};
+use crate::platform::audio::core::monitor::AudioMonitorHandle;
 use crate::platform::audio::{AudioBackend, AudioShareMode, AudioStreamConfig};
 use crate::platform::core as core_platform;
 use std::sync::Arc;

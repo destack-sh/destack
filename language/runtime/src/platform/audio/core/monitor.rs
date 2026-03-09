@@ -8,10 +8,11 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::{AudioBackend, AudioEventDeliveryMode, backend as audio_backend};
 use crate::runtime::{AgentId, ProcessSubscriberRegistry};
 
+use super::constants::host_monotonic_nanos;
 use super::event::publish::publish_device_events_from_snapshot;
 use super::event::queue::event_streams_snapshot;
 use super::event::snapshot::monitor_snapshot;
-use super::{AudioRuntimeState, host_monotonic_nanos, tracks_device_events};
+use super::runtime::{AudioRuntimeState, tracks_device_events};
 
 /// Shared monitor handle owned by one process-global audio backend monitor.
 pub(crate) trait AudioMonitorHandle: Send + Sync {

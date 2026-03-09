@@ -1,6 +1,6 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::NativeSlice;
-use crate::platform::audio::core::{
+use crate::platform::audio::core::event::{
     close_event_stream, open_event_stream, read_event, read_event_batch, try_read_event,
     try_read_event_batch,
 };

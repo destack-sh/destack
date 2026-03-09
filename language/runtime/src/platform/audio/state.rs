@@ -2,7 +2,8 @@ use std::sync::{Arc, OnceLock};
 
 use crate::runtime::BindingCallContext;
 
-use super::core::{AudioMonitorServiceRegistry, AudioRuntimeState};
+use super::core::monitor::AudioMonitorServiceRegistry;
+use super::core::runtime::AudioRuntimeState;
 
 /// Runtime-owned audio module state.
 #[derive(Default)]

@@ -15,14 +15,19 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::AudioDeviceDirection;
 #[cfg(not(target_os = "macos"))]
 use crate::platform::audio::backend::backend_not_supported;
-use crate::platform::audio::core::{
-    AudioBackendOpenFlags, AudioStreamHostState, HostDeviceDescriptor,
+#[cfg(not(target_os = "macos"))]
+use crate::platform::audio::core::constants::AudioBackendOpenFlags;
+#[cfg(target_os = "macos")]
+use crate::platform::audio::core::constants::{
+    AudioBackendOpenFlags, MIN_STREAM_PERIOD_FRAMES, resolved_max_queued_frames,
 };
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core::{
-    AudioHostStreamOps, AudioStreamRuntimeCapabilities, AudioStreamSync, MIN_STREAM_PERIOD_FRAMES,
-    initial_stream_state, resolved_max_queued_frames,
+use crate::platform::audio::core::model::{
+    AudioHostStreamOps, AudioStreamHostState, AudioStreamRuntimeCapabilities, AudioStreamSync,
+    HostDeviceDescriptor, initial_stream_state,
 };
+#[cfg(not(target_os = "macos"))]
+use crate::platform::audio::core::model::{AudioStreamHostState, HostDeviceDescriptor};
 use crate::platform::audio::{AudioShareMode, AudioStreamConfig};
 
 /// Build one initialized stream host state for one CoreAudio stream open request.
@@ -64,8 +69,8 @@ fn new_stream_state(
             wake: Condvar::new(),
         }),
         stream_handle_raw: std::sync::atomic::AtomicU64::new(0),
-        runtime_state: Mutex::new(None),
-        worker_handle: Mutex::new(None),
+        runtime_owner: Mutex::new(None),
+        worker_thread: Mutex::new(None),
     })
 }
 

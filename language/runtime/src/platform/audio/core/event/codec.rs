@@ -13,7 +13,7 @@ use crate::platform::audio::{
 };
 use crate::runtime::BindingCallContext;
 
-use crate::platform::audio::core::AudioEventRecord;
+use crate::platform::audio::core::model::AudioEventRecord;
 
 /// Convert one stored event record into an ABI event payload.
 pub(crate) fn abi_event(ctx: &BindingCallContext, event: AudioEventRecord) -> AudioEvent {

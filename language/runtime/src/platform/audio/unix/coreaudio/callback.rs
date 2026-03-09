@@ -6,11 +6,17 @@ use std::ptr;
 use std::sync::Arc;
 
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core::{
-    AudioStreamHostState, STREAM_STATUS_INPUT_OVERFLOW, STREAM_STATUS_OUTPUT_UNDERFLOW,
-    decode_scalar_sample, encode_scalar_sample, host_monotonic_nanos,
-    record_stream_callback_timing, sample_bytes,
+use crate::platform::audio::core::codec::{
+    decode_scalar_sample, encode_scalar_sample, sample_bytes,
 };
+#[cfg(target_os = "macos")]
+use crate::platform::audio::core::constants::{
+    STREAM_STATUS_INPUT_OVERFLOW, STREAM_STATUS_OUTPUT_UNDERFLOW, host_monotonic_nanos,
+};
+#[cfg(target_os = "macos")]
+use crate::platform::audio::core::model::AudioStreamHostState;
+#[cfg(target_os = "macos")]
+use crate::platform::audio::core::record_stream_callback_timing;
 
 #[cfg(target_os = "macos")]
 use super::abi::{

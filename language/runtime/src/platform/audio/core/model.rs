@@ -12,7 +12,8 @@ use crate::platform::audio::{
 };
 use crate::platform::resource;
 
-use super::{AudioRuntimeState, DEFAULT_STREAM_VOLUME, host_monotonic_nanos};
+use super::constants::{DEFAULT_STREAM_VOLUME, host_monotonic_nanos};
+use super::runtime::AudioRuntimeState;
 
 /// One normalized host device descriptor.
 #[derive(Debug, Clone)]
@@ -205,9 +206,9 @@ pub(crate) struct AudioStreamHostState {
     /// Bound stream handle once this host state is inserted into the resource table.
     pub(crate) stream_handle_raw: AtomicU64,
     /// Event-runtime owner used by cross-thread native event publishing.
-    pub(crate) runtime_state: Mutex<Option<Weak<AudioRuntimeState>>>,
+    pub(crate) runtime_owner: Mutex<Option<Weak<AudioRuntimeState>>>,
     /// Optional backend worker thread for this stream.
-    pub(crate) worker_handle: Mutex<Option<JoinHandle<()>>>,
+    pub(crate) worker_thread: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl std::fmt::Debug for AudioStreamHostState {
@@ -234,7 +235,7 @@ impl AudioStreamHostState {
         self.stream_handle_raw.store(handle.0.0, Ordering::Release);
 
         let mut owner = self
-            .runtime_state
+            .runtime_owner
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         *owner = Some(Arc::downgrade(runtime_state));
@@ -245,7 +246,7 @@ impl AudioStreamHostState {
         self.stream_handle_raw.store(0, Ordering::Release);
 
         let mut owner = self
-            .runtime_state
+            .runtime_owner
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         *owner = None;
@@ -297,7 +298,7 @@ impl AudioStreamHostState {
         self.sync.wake.notify_all();
 
         if let Some(worker) = self
-            .worker_handle
+            .worker_thread
             .lock()
             .unwrap_or_else(|error| error.into_inner())
             .take()

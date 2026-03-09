@@ -8,7 +8,7 @@ use std::sync::Arc;
 #[cfg(target_os = "macos")]
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core::{AudioHostStreamOps, AudioStreamHostState};
+use crate::platform::audio::core::model::{AudioHostStreamOps, AudioStreamHostState};
 
 #[cfg(target_os = "macos")]
 use super::abi::{

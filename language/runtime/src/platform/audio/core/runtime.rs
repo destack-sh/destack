@@ -9,11 +9,13 @@ use crate::platform::audio::{
 use crate::platform::resource::ResourceId;
 use crate::runtime::{AgentId, BindingCallContext, RuntimeEventLog, RuntimeStreamRegistry};
 
-use super::{
-    AudioDeviceMonitorBaseline, AudioEventRecord, AudioEventStream, AudioStreamMonitorBaseline,
+use super::constants::{
     EVENT_SUBSCRIBE_BACKEND, EVENT_SUBSCRIBE_DEFAULT_ROUTE, EVENT_SUBSCRIBE_DEVICE_HOTPLUG,
     EVENT_SUBSCRIBE_FORMAT_CHANGE, EVENT_SUBSCRIBE_INTERRUPTION, EVENT_SUBSCRIBE_REROUTE,
     EVENT_SUBSCRIBE_STREAM,
+};
+use super::model::{
+    AudioDeviceMonitorBaseline, AudioEventRecord, AudioEventStream, AudioStreamMonitorBaseline,
 };
 
 /// Mask for all recognized subscription flags.

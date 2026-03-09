@@ -17,16 +17,19 @@ use crate::platform::audio::{
 };
 use crate::runtime::BindingCallContext;
 
-use super::{
-    AudioStreamHostState, AudioStreamRuntimeCapabilities, AudioStreamStateInner, AudioStreamSync,
-    DEVICE_CAPABILITY_BIT_EXACT_PCM, HostDeviceDescriptor, MIN_STREAM_PERIOD_FRAMES,
-    STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT, STREAM_FLAG_MINIMIZE_LATENCY, STREAM_FLAG_NEVER_DROP_INPUT,
-    STREAM_FLAG_NO_AUTO_CONVERT, STREAM_FLAG_NON_INTERLEAVED, STREAM_FLAG_PRIME_OUTPUT_BUFFERS,
-    STREAM_FLAG_REPORT_XRUN, STREAM_FLAG_SCHEDULE_REALTIME, STREAM_REQUIRE_BIT_EXACT_PCM,
+use super::constants::{
+    DEVICE_CAPABILITY_BIT_EXACT_PCM, MIN_STREAM_PERIOD_FRAMES, STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT,
+    STREAM_FLAG_MINIMIZE_LATENCY, STREAM_FLAG_NEVER_DROP_INPUT, STREAM_FLAG_NO_AUTO_CONVERT,
+    STREAM_FLAG_NON_INTERLEAVED, STREAM_FLAG_PRIME_OUTPUT_BUFFERS, STREAM_FLAG_REPORT_XRUN,
+    STREAM_FLAG_SCHEDULE_REALTIME, STREAM_REQUIRE_BIT_EXACT_PCM,
     STREAM_REQUIRE_HARDWARE_TIMESTAMPS, STREAM_REQUIRE_NON_INTERLEAVED, STREAM_REQUIRE_PAUSE,
     STREAM_REQUIRE_SCHEDULED_WRITE, STREAM_STATUS_INPUT_OVERFLOW, STREAM_STATUS_OUTPUT_UNDERFLOW,
-    host_monotonic_nanos, initial_stream_state, publish_stream_event_native,
-    resolved_max_queued_frames, resolved_worker_poll_period,
+    host_monotonic_nanos, resolved_max_queued_frames, resolved_worker_poll_period,
+};
+use super::event::publish::publish_stream_event_native;
+use super::model::{
+    AudioStreamHostState, AudioStreamRuntimeCapabilities, AudioStreamStateInner, AudioStreamSync,
+    HostDeviceDescriptor, initial_stream_state,
 };
 
 /// Convert one frame count into nanoseconds for one sample rate.
@@ -536,13 +539,13 @@ pub(crate) fn open_null_stream(
         name: Mutex::new(String::new()),
         sync: sync.clone(),
         stream_handle_raw: std::sync::atomic::AtomicU64::new(0),
-        runtime_state: Mutex::new(None),
-        worker_handle: Mutex::new(None),
+        runtime_owner: Mutex::new(None),
+        worker_thread: Mutex::new(None),
     });
 
     let worker = build_synthetic_stream_worker(stream.clone());
     *stream
-        .worker_handle
+        .worker_thread
         .lock()
         .unwrap_or_else(|error| error.into_inner()) = Some(worker);
 

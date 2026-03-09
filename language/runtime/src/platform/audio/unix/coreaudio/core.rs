@@ -2,7 +2,7 @@
 use std::sync::OnceLock;
 
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core::host_monotonic_nanos;
+use crate::platform::audio::core::constants::host_monotonic_nanos;
 
 #[cfg(target_os = "macos")]
 use super::abi::AudioConvertHostTimeToNanos;

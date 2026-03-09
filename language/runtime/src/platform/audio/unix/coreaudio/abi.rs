@@ -4,7 +4,7 @@ use std::ffi::c_void;
 use std::sync::{Arc, Mutex};
 
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core::AudioStreamHostState;
+use crate::platform::audio::core::model::AudioStreamHostState;
 
 /// CoreAudio type alias `AudioObjectID`.
 #[cfg(target_os = "macos")]

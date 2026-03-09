@@ -1,12 +1,16 @@
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::audio::core::{
-    AudioEventStream, AudioRuntimeState, AudioStreamHostState, EVENT_SUBSCRIBE_BACKEND,
-    EVENT_SUBSCRIBE_INTERRUPTION, EVENT_SUBSCRIBE_STREAM, audio_stream_monitor_baseline,
-    event_subscription_enabled, host_monotonic_nanos, resolve_stream_host_state,
-    stream_state_snapshot,
+use crate::platform::audio::core::constants::{
+    EVENT_SUBSCRIBE_BACKEND, EVENT_SUBSCRIBE_INTERRUPTION, EVENT_SUBSCRIBE_STREAM,
+    host_monotonic_nanos,
 };
+use crate::platform::audio::core::error::resolve_stream_host_state;
+use crate::platform::audio::core::model::{
+    AudioEventStream, AudioStreamHostState, audio_stream_monitor_baseline,
+};
+use crate::platform::audio::core::runtime::{AudioRuntimeState, event_subscription_enabled};
+use crate::platform::audio::core::stream::stream_state_snapshot;
 use crate::platform::audio::{
     AudioEventKind, AudioEventSource, AudioStreamStateKind, AudioStreamStatusFlags,
 };
@@ -222,7 +226,7 @@ pub(crate) fn publish_stream_event_native(
     xrun_count_delta: u64,
 ) {
     let runtime_state = stream
-        .runtime_state
+        .runtime_owner
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
         .as_ref()

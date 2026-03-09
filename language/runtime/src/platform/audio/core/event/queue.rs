@@ -3,10 +3,11 @@ use std::sync::Arc;
 use crate::diagnostic::RuntimeResult;
 use crate::runtime::RuntimeEventLog;
 
-use crate::platform::audio::core::{
-    AudioEventRecord, AudioEventStream, AudioEventStreamState, AudioRuntimeState, audio_busy,
-    stream_accepts_record,
+use crate::platform::audio::core::error::audio_busy;
+use crate::platform::audio::core::model::{
+    AudioEventRecord, AudioEventStream, AudioEventStreamState,
 };
+use crate::platform::audio::core::runtime::{AudioRuntimeState, stream_accepts_record};
 
 /// Allocate one stable stream identifier.
 pub(crate) fn next_event_stream_id(runtime_state: &AudioRuntimeState) -> u64 {

@@ -13,7 +13,7 @@ use super::constants::{HRESULT_OK, IID_IMM_NOTIFICATION_CLIENT};
 use super::host::{create_device_enumerator, failed, hresult_error, initialize_com};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::core as audio_core;
-use crate::platform::audio::core::AudioMonitorHandle;
+use crate::platform::audio::core::monitor::AudioMonitorHandle;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{PlatformError, core as core_platform};
 

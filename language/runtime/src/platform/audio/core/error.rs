@@ -10,10 +10,12 @@ use crate::platform::resource::ResourceKind;
 use crate::platform::{PlatformError, resource};
 use crate::runtime::{BindingCallContext, NativeStringRef};
 
-use super::{
+use super::constants::{
     AUDIO_DEVICE_RESOURCE_LABEL, AUDIO_EVENT_RESOURCE_LABEL, AUDIO_STREAM_RESOURCE_LABEL,
-    AudioDeviceHostState, AudioEventStream, AudioStreamHostState, AudioStreamStateInner,
     KNOWN_STREAM_FLAGS_MASK, KNOWN_STREAM_REQUIREMENT_FLAGS_MASK, STREAM_FLAG_NON_INTERLEAVED,
+};
+use super::model::{
+    AudioDeviceHostState, AudioEventStream, AudioStreamHostState, AudioStreamStateInner,
 };
 
 /// Build one audio-not-found error.
@@ -340,9 +342,8 @@ pub(crate) fn ensure_stream_capability(
 mod tests {
     use crate::diagnostic::RuntimeError;
     use crate::platform::audio::AudioStreamStateKind;
-    use crate::platform::audio::core::{
-        initial_stream_state, stream_shutdown_error, stream_state_is_terminal,
-    };
+    use crate::platform::audio::core::error::{stream_shutdown_error, stream_state_is_terminal};
+    use crate::platform::audio::core::model::initial_stream_state;
     use crate::platform::diagnostic::PlatformErrorCode;
 
     /// Return one platform error code from one runtime error payload.
