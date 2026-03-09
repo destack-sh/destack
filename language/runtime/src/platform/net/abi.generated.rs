@@ -379,6 +379,44 @@ impl VmValueCodec for PacketFanoutMode {
     }
 }
 
+/// ABI enum for PacketTimestampClock.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PacketTimestampClock {
+    /// None.
+    None = 0,
+    /// Wall.
+    Wall = 1,
+    /// Monotonic.
+    Monotonic = 2,
+    /// HardwareRaw.
+    HardwareRaw = 3,
+}
+
+impl VmValueCodec for PacketTimestampClock {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            0u8 => Self::None,
+            1u8 => Self::Wall,
+            2u8 => Self::Monotonic,
+            3u8 => Self::HardwareRaw,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown PacketTimestampClock value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
 /// ABI enum for PacketTimestampMode.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1077,7 +1115,9 @@ pub struct PacketCaptureRecord {
     pub bytes: u64,
     /// Interface index that produced the packet.
     pub interface_index: u32,
-    /// Capture timestamp in nanoseconds.
+    /// Packet timestamp clock domain.
+    pub timestamp_clock: PacketTimestampClock,
+    /// Capture timestamp in nanoseconds for `timestampClock`.
     pub timestamp_ns: u64,
     /// Whether packet bytes were truncated.
     pub truncated: bool,
@@ -1100,21 +1140,24 @@ impl VmAggregateCodec for PacketCaptureRecord {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 5 fields",
             ))
             .boxed());
         }
         let field_bytes = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_interface_index =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_truncated = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_timestamp_clock =
+            <PacketTimestampClock as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_truncated = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             bytes: field_bytes,
             interface_index: field_interface_index,
+            timestamp_clock: field_timestamp_clock,
             timestamp_ns: field_timestamp_ns,
             truncated: field_truncated,
         })
@@ -1127,6 +1170,10 @@ impl VmAggregateCodec for PacketCaptureRecord {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.interface_index, context)?,
+            <PacketTimestampClock as VmAggregateCodec>::encode_with_context(
+                self.timestamp_clock,
+                context,
+            )?,
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.truncated, context)?,
         ];

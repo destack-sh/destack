@@ -2,15 +2,19 @@ use super::host;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::{OsPath, OsPathBytes, PathBytesAbi};
 use crate::platform::net::{
-    KeepAliveConfig, Linger, NetInterface, PacketBackend, PacketBackendCapabilityFlags,
-    PacketBackendDescriptor, PacketCaptureOptions, PacketCaptureRecord, PacketCaptureStats,
-    PacketFanoutOptions, PacketRingOptions, PacketTimestampMode, ResolveQuery, ReverseLookupFlags,
-    ReverseLookupName, RouteEntry, SocketAddress, SocketFamily, SocketMessageFlags,
-    SocketOptionLevel, SocketOptionName, SocketPair, SocketProtocol, SocketRecvBatchRequest,
-    SocketRecvFrom, SocketRecvMessage, SocketSendBatchEntry, SocketSendTo, SocketTimestampingMode,
-    SocketType, UdpMessageFlags, UdpReceive, UdpSourceMembershipV4, UdpSourceMembershipV6,
-    UdsAbstractAddress, UdsAddress, UdsPathAddress, UdsUnnamedAddress, host as host_net,
+    KeepAliveConfig, Linger, NetInterface, PACKET_BACKEND_CAP_CAPTURE, PACKET_BACKEND_CAP_FILTER,
+    PACKET_BACKEND_CAP_SEND, PACKET_BACKEND_CAP_TIMESTAMP, PacketBackend,
+    PacketBackendCapabilityFlags, PacketBackendDescriptor, PacketCaptureOptions,
+    PacketCaptureRecord, PacketCaptureStats, PacketFanoutOptions, PacketRingOptions,
+    PacketTimestampMode, ResolveQuery, ReverseLookupFlags, ReverseLookupName, RouteEntry,
+    SocketAddress, SocketFamily, SocketMessageFlags, SocketOptionLevel, SocketOptionName,
+    SocketPair, SocketProtocol, SocketRecvBatchRequest, SocketRecvFrom, SocketRecvMessage,
+    SocketSendBatchEntry, SocketSendTo, SocketTimestampingMode, SocketType, UdpMessageFlags,
+    UdpReceive, UdpSourceMembershipV4, UdpSourceMembershipV6, UdsAbstractAddress, UdsAddress,
+    UdsPathAddress, UdsUnnamedAddress, host as host_net,
 };
+#[cfg(target_os = "linux")]
+use crate::platform::net::{PACKET_BACKEND_CAP_FANOUT, PACKET_BACKEND_CAP_RING};
 use crate::platform::resource::{ListenerHandle, SocketHandle};
 use crate::platform::{NativeArray, PlatformError};
 
@@ -1275,7 +1279,14 @@ pub(crate) unsafe fn destack_net_packet_backend_list(
             name: binding.store_string("af_packet"),
             available: true,
             priority: 100,
-            capability_flags: PacketBackendCapabilityFlags(0),
+            capability_flags: PacketBackendCapabilityFlags(
+                PACKET_BACKEND_CAP_CAPTURE.0
+                    | PACKET_BACKEND_CAP_SEND.0
+                    | PACKET_BACKEND_CAP_TIMESTAMP.0
+                    | PACKET_BACKEND_CAP_FILTER.0
+                    | PACKET_BACKEND_CAP_FANOUT.0
+                    | PACKET_BACKEND_CAP_RING.0,
+            ),
         });
     }
 
@@ -1286,7 +1297,12 @@ pub(crate) unsafe fn destack_net_packet_backend_list(
             name: binding.store_string("bpf"),
             available: true,
             priority: 100,
-            capability_flags: PacketBackendCapabilityFlags(0),
+            capability_flags: PacketBackendCapabilityFlags(
+                PACKET_BACKEND_CAP_CAPTURE.0
+                    | PACKET_BACKEND_CAP_SEND.0
+                    | PACKET_BACKEND_CAP_TIMESTAMP.0
+                    | PACKET_BACKEND_CAP_FILTER.0,
+            ),
         });
     }
 
@@ -1297,7 +1313,11 @@ pub(crate) unsafe fn destack_net_packet_backend_list(
             name: binding.store_string("win_raw_socket"),
             available: true,
             priority: 100,
-            capability_flags: PacketBackendCapabilityFlags(0),
+            capability_flags: PacketBackendCapabilityFlags(
+                PACKET_BACKEND_CAP_CAPTURE.0
+                    | PACKET_BACKEND_CAP_SEND.0
+                    | PACKET_BACKEND_CAP_FILTER.0,
+            ),
         });
     }
 

@@ -1255,9 +1255,10 @@ fn encode_destack_net_raw_packet_receive_result(
     result.map(|value| {
         let field_0 = vm::Value::uint(value.bytes, 64);
         let field_1 = vm::Value::uint(value.interface_index as u64, 32);
-        let field_2 = vm::Value::uint(value.timestamp_ns, 64);
-        let field_3 = vm::Value::bool(value.truncated);
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+        let field_2 = vm::Value::uint(value.timestamp_clock as u8 as u64, 8);
+        let field_3 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_4 = vm::Value::bool(value.truncated);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
     })
 }
 
@@ -9440,11 +9441,13 @@ fn destack_net_raw_packet_receive_replay(
                 };
                 let result_recorded_bytes = result_value.bytes;
                 let result_recorded_interface_index = result_value.interface_index;
+                let result_recorded_timestamp_clock = result_value.timestamp_clock;
                 let result_recorded_timestamp_ns = result_value.timestamp_ns;
                 let result_recorded_truncated = result_value.truncated;
                 let result_recorded = PacketCaptureRecord {
                     bytes: result_recorded_bytes,
                     interface_index: result_recorded_interface_index,
+                    timestamp_clock: result_recorded_timestamp_clock,
                     timestamp_ns: result_recorded_timestamp_ns,
                     truncated: result_recorded_truncated,
                 };
@@ -9470,11 +9473,13 @@ fn destack_net_raw_packet_receive_replay(
                 Ok(value) => {
                     let value_native_bytes = value.bytes;
                     let value_native_interface_index = value.interface_index;
+                    let value_native_timestamp_clock = value.timestamp_clock;
                     let value_native_timestamp_ns = value.timestamp_ns;
                     let value_native_truncated = value.truncated;
                     let value_native = PacketCaptureRecord {
                         bytes: value_native_bytes,
                         interface_index: value_native_interface_index,
+                        timestamp_clock: value_native_timestamp_clock,
                         timestamp_ns: value_native_timestamp_ns,
                         truncated: value_native_truncated,
                     };
@@ -18013,11 +18018,13 @@ fn destack_net_raw_packet_receive_vm_replay(
                 let result_value: PacketCaptureRecordVm = value.clone();
                 let result_recorded_bytes = result_value.bytes;
                 let result_recorded_interface_index = result_value.interface_index;
+                let result_recorded_timestamp_clock = result_value.timestamp_clock;
                 let result_recorded_timestamp_ns = result_value.timestamp_ns;
                 let result_recorded_truncated = result_value.truncated;
                 let result_recorded = PacketCaptureRecord {
                     bytes: result_recorded_bytes,
                     interface_index: result_recorded_interface_index,
+                    timestamp_clock: result_recorded_timestamp_clock,
                     timestamp_ns: result_recorded_timestamp_ns,
                     truncated: result_recorded_truncated,
                 };
@@ -18044,11 +18051,13 @@ fn destack_net_raw_packet_receive_vm_replay(
                 Ok(value) => {
                     let vm_result_bytes = value.bytes;
                     let vm_result_interface_index = value.interface_index;
+                    let vm_result_timestamp_clock = value.timestamp_clock;
                     let vm_result_timestamp_ns = value.timestamp_ns;
                     let vm_result_truncated = value.truncated;
                     let vm_result = PacketCaptureRecordVm {
                         bytes: vm_result_bytes,
                         interface_index: vm_result_interface_index,
+                        timestamp_clock: vm_result_timestamp_clock,
                         timestamp_ns: vm_result_timestamp_ns,
                         truncated: vm_result_truncated,
                     };

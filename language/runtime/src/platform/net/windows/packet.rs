@@ -135,8 +135,6 @@ struct WindowsPacketState {
     interface_index: u32,
     /// Effective snap length used for receive truncation.
     snap_length: usize,
-    /// Timestamp mode for capture records.
-    timestamp_mode: PacketTimestampMode,
     /// Total packets observed by this endpoint.
     received_packets: u64,
     /// Total packets truncated to caller buffers or snap length.
@@ -855,7 +853,6 @@ pub(crate) unsafe fn destack_net_packet_open(
         WindowsPacketState {
             interface_index: options.interface_index,
             snap_length,
-            timestamp_mode: PacketTimestampMode::Software,
             received_packets: 0,
             dropped_packets: 0,
             interface_dropped_packets: 0,
@@ -960,15 +957,11 @@ pub(crate) unsafe fn destack_net_packet_receive(
 
     // compute packet metadata fields for the output record
     let truncated = bytes > written;
-    let timestamp_ns = if state.timestamp_mode == PacketTimestampMode::Disabled {
-        0
-    } else {
-        binding.world().mono_nanos()
-    };
     let record = PacketCaptureRecord {
         bytes: written as u64,
         interface_index: state.interface_index,
-        timestamp_ns,
+        timestamp_clock: PacketTimestampClock::None,
+        timestamp_ns: 0,
         truncated,
     };
 
@@ -1078,18 +1071,10 @@ pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
     // require backend enablement for Windows packet lanes
     require_windows_packet_backend(binding, "destack.net.packetSetTimestampMode")?;
 
-    // reject unsupported hardware timestamp mode on WinSock raw sockets
-    if mode == PacketTimestampMode::Hardware {
-        return windows_packet_not_supported("destack.net.packetSetTimestampMode");
-    }
+    let _ = (handle, mode);
 
-    // ensure one packet endpoint exists and store the timestamp mode
-    let _ = packet_socket_metadata(binding, handle)?;
-    update_packet_socket_state(handle, |state| {
-        state.timestamp_mode = mode;
-    })?;
-
-    Ok(())
+    // reject packet timestamping on raw WinSock packet backends
+    windows_packet_not_supported("destack.net.packetSetTimestampMode")
 }
 
 /// Clear packet fanout from a packet endpoint.
