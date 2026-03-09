@@ -228,13 +228,13 @@ jobs:
           persist-credentials: false
 
       - name: Download Release Schemas
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3
         with:
           name: release-schemas-${{ github.sha }}
           path: release-schemas
 
       - name: Download CLI Release Assets
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3
         with:
           name: release-cli-assets-${{ github.sha }}
           path: release-cli-assets
@@ -342,7 +342,7 @@ jobs:
         uses: dart-lang/setup-dart@e51d8e571e22473a2ddebf0ef8a2123f0ab2c02c
 
       - name: Download CLI Release Assets
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3
         with:
           name: release-cli-assets-${{ github.sha }}
           path: release-cli-assets
