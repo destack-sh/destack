@@ -5,7 +5,7 @@ use destack_mir as mir;
 use super::super::decode::{INVALID_VALUE_ID, ThreadedBlock, ThreadedFunction};
 use super::interpreter::ThreadedFunctionTable;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::snapshot::FrameSnapshot;
+use crate::snapshot::FrameImage;
 use destack_heap::{HeapCell, ManagedPointer, Value};
 
 /// Call frame in the interpreter.
@@ -298,9 +298,9 @@ impl Frame {
         }
     }
 
-    /// Capture one durable frame snapshot.
-    pub(crate) fn snapshot(&self) -> FrameSnapshot {
-        FrameSnapshot {
+    /// Capture one immutable frame image.
+    pub(crate) fn image(&self) -> FrameImage {
+        FrameImage {
             function: self.function,
             entry_block: self.entry_block,
             current_block: self.current_block,
@@ -316,17 +316,17 @@ impl Frame {
         }
     }
 
-    /// Restore one frame from a durable snapshot.
-    pub(crate) fn restore(
-        snapshot: &FrameSnapshot,
+    /// Create one frame from an immutable image.
+    pub(crate) fn from_image(
+        image: &FrameImage,
         threaded_functions: &ThreadedFunctionTable,
     ) -> RuntimeResult<Self> {
         // resolve the threaded function for this frame
         let threaded_index = threaded_functions
-            .index_for(snapshot.function)
+            .index_for(image.function)
             .ok_or_else(|| {
                 RuntimeError::new(Error::UndefinedFunction {
-                    function: snapshot.function,
+                    function: image.function,
                 })
             })?;
 
@@ -334,43 +334,40 @@ impl Frame {
             .get_ptr_by_index(threaded_index)
             .ok_or_else(|| {
                 RuntimeError::new(Error::UndefinedFunction {
-                    function: snapshot.function,
+                    function: image.function,
                 })
             })?;
 
         // resolve the current block pointer from the threaded function
         let threaded_ref = unsafe { threaded.as_ref() };
-        let block = threaded_ref
-            .blocks
-            .get(snapshot.block_index)
-            .ok_or_else(|| {
-                RuntimeError::new(Error::UndefinedBlock {
-                    block: snapshot.current_block,
-                })
-            })?;
+        let block = threaded_ref.blocks.get(image.block_index).ok_or_else(|| {
+            RuntimeError::new(Error::UndefinedBlock {
+                block: image.current_block,
+            })
+        })?;
 
         // validate the restored block identity
-        if block.mir_block != snapshot.current_block {
+        if block.mir_block != image.current_block {
             return Err(RuntimeError::new(Error::UndefinedBlock {
-                block: snapshot.current_block,
+                block: image.current_block,
             }));
         }
 
         Ok(Self {
-            function: snapshot.function,
+            function: image.function,
             threaded,
             block_ptr: NonNull::from(block),
-            entry_block: snapshot.entry_block,
-            current_block: snapshot.current_block,
-            block_index: snapshot.block_index,
-            resume_pc: snapshot.resume_pc,
-            value_base: snapshot.value_base,
-            value_count: snapshot.value_count,
-            local_base: snapshot.local_base,
-            local_count: snapshot.local_count,
-            stack_cells: snapshot.stack_cells.clone(),
-            closure_env: snapshot.closure_env,
-            return_destination: snapshot.return_destination,
+            entry_block: image.entry_block,
+            current_block: image.current_block,
+            block_index: image.block_index,
+            resume_pc: image.resume_pc,
+            value_base: image.value_base,
+            value_count: image.value_count,
+            local_base: image.local_base,
+            local_count: image.local_count,
+            stack_cells: image.stack_cells.clone(),
+            closure_env: image.closure_env,
+            return_destination: image.return_destination,
         })
     }
 }

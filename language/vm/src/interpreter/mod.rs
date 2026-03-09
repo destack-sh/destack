@@ -10,5 +10,5 @@ pub use decode::{
     ThreadedFunction, ThreadedHandler, ThreadedInstruction, ThreadedInstructionData, ThreadedState,
 };
 pub use destack_heap::GcStats;
-pub(crate) use state::InterpreterContext;
 pub use state::{Frame, Interpreter};
+pub(crate) use state::{InterpreterContext, ThreadedFunctionTable};

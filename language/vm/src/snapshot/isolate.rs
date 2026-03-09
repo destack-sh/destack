@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::isolate::GlobalStorage;
 use crate::options::IsolateOptions;
-use crate::snapshot::{InterpreterSnapshot, StringInternerSnapshot};
+use crate::snapshot::{InterpreterImage, StringInternerImage};
 
-/// Immutable VM construction state for one isolate.
+/// Immutable isolate image for one isolate.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IsolateImage {
     /// The MIR tree executed by this isolate.
@@ -15,17 +15,19 @@ pub struct IsolateImage {
     pub strings: ImmutableStringPool,
     /// The isolate configuration options.
     pub options: IsolateOptions,
-}
-
-/// Durable isolate snapshot for one isolate.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct IsolateSnapshot {
-    /// The isolate id captured in this snapshot.
+    /// The isolate id captured in this image.
     pub isolate_id: u64,
     /// The captured string interner state.
-    pub string_interner: StringInternerSnapshot,
+    pub string_interner: StringInternerImage,
     /// The captured global storage.
     pub globals: GlobalStorage,
     /// The captured interpreter state.
-    pub interpreter: InterpreterSnapshot,
+    pub interpreter: InterpreterImage,
+}
+
+/// Serialized isolate snapshot for one isolate.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IsolateSnapshot {
+    /// The captured isolate image.
+    pub image: IsolateImage,
 }

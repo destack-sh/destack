@@ -19,7 +19,7 @@ static ISOLATE_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 pub(crate) struct IsolateState {
     /// Unique id used to validate continuation ownership.
     pub(crate) isolate_id: u64,
-    /// Immutable isolate construction state.
+    /// Immutable isolate image metadata.
     pub(crate) image: Arc<IsolateImage>,
     /// String interner for literal storage.
     pub(crate) string_interner: StringInterner,
@@ -41,8 +41,12 @@ impl IsolateState {
         let function_name_map = build_function_name_map(&image.tree, &image.strings);
         let vtable_by_global = build_vtable_map(&image.tree);
 
-        // assign a unique isolate id
-        let isolate_id = ISOLATE_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+        // reuse the captured isolate id when present
+        let isolate_id = if image.isolate_id == 0 {
+            ISOLATE_ID_COUNTER.fetch_add(1, Ordering::Relaxed)
+        } else {
+            image.isolate_id
+        };
 
         Self {
             isolate_id,

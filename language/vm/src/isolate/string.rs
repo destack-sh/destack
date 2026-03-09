@@ -3,7 +3,7 @@ use std::fmt;
 use std::ops::Deref;
 
 use crate::diagnostic::Error;
-use crate::snapshot::StringInternerSnapshot;
+use crate::snapshot::StringInternerImage;
 
 use destack_heap::{
     Heap, ManagedHeap, ManagedPointer, RawCellStorage, RawHeap, RawPointer, STRING_FLAG_IS_ASCII,
@@ -108,8 +108,8 @@ impl StringInterner {
         }
     }
 
-    /// Capture one durable string interner snapshot.
-    pub(crate) fn snapshot(&self) -> StringInternerSnapshot {
+    /// Capture one immutable string interner image.
+    pub(crate) fn image(&self) -> StringInternerImage {
         let literals = self
             .literals
             .iter()
@@ -121,17 +121,17 @@ impl StringInterner {
             .map(|(pointer, buffer)| (*pointer, *buffer))
             .collect();
 
-        StringInternerSnapshot { literals, buffers }
+        StringInternerImage { literals, buffers }
     }
 
-    /// Restore this interner from one durable snapshot.
-    pub(crate) fn restore(&mut self, snapshot: &StringInternerSnapshot) {
-        self.literals = snapshot
+    /// Restore this interner from one immutable image.
+    pub(crate) fn restore_image(&mut self, image: &StringInternerImage) {
+        self.literals = image
             .literals
             .iter()
             .map(|(literal, pointer)| (literal.clone(), *pointer))
             .collect();
-        self.buffers = snapshot
+        self.buffers = image
             .buffers
             .iter()
             .map(|(pointer, buffer)| (*pointer, *buffer))

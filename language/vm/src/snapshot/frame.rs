@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// Durable call frame state.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FrameSnapshot {
+pub struct FrameImage {
     /// The function being executed.
     pub function: mir::LocalNodeId<mir::Function>,
     /// The entry block of the function.
