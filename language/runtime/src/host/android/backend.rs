@@ -1,6 +1,5 @@
-use super::{message as android_message, unregister_android_bindings};
+use super::message as android_message;
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::registry::HostCleanup;
 use crate::host::{HostBackend, Platform};
 
 /// Android host implementation.
@@ -17,10 +16,6 @@ impl AndroidHost {
 impl HostBackend for AndroidHost {
     fn platform(&self) -> Platform {
         Platform::Android
-    }
-
-    fn runtime_cleanup(&self) -> Option<HostCleanup> {
-        Some(unregister_android_bindings)
     }
 
     fn process_native_ingress(&self) -> RuntimeResult<bool> {
