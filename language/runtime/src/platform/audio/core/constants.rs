@@ -110,13 +110,7 @@ pub(crate) const BACKEND_CAPABILITY_SCHEDULED_WRITE: AudioBackendCapabilityFlags
 pub(crate) const DEVICE_CAPABILITY_SHARED_MODE: AudioDeviceCapabilityFlags =
     AudioDeviceCapabilityFlags(0x1);
 /// Device supports exclusive stream mode.
-#[cfg(any(
-    all(windows, feature = "audio-wasapi"),
-    all(windows, feature = "audio-asio"),
-    all(target_os = "macos", feature = "audio-coreaudio"),
-    all(target_os = "linux", feature = "audio-alsa"),
-    all(target_os = "android", feature = "audio-aaudio"),
-))]
+#[allow(dead_code)]
 pub(crate) const DEVICE_CAPABILITY_EXCLUSIVE_MODE: AudioDeviceCapabilityFlags =
     AudioDeviceCapabilityFlags(0x2);
 /// Device supports loopback capture.
@@ -396,6 +390,7 @@ pub(crate) fn resolved_default_event_poll_interval_ns(ctx: &BindingCallContext) 
         .clamp(MIN_EVENT_POLL_INTERVAL_NS, MAX_EVENT_POLL_INTERVAL_NS)
 }
 
+#[cfg(unix)]
 /// Return the configured wait-slice for blocking audio stream operations.
 pub(crate) fn resolved_stream_wait_slice_ns(ctx: &BindingCallContext) -> u64 {
     let configured = ctx.agent().options.audio.stream_wait_slice_ns;
@@ -404,6 +399,7 @@ pub(crate) fn resolved_stream_wait_slice_ns(ctx: &BindingCallContext) -> u64 {
         .clamp(MIN_EVENT_POLL_INTERVAL_NS, MAX_EVENT_POLL_INTERVAL_NS)
 }
 
+#[cfg(unix)]
 /// Return the configured maximum bytes accepted per audio stream read call.
 pub(crate) fn resolved_max_stream_read_bytes(ctx: &BindingCallContext) -> u32 {
     let configured = ctx.agent().options.audio.max_stream_read_bytes;

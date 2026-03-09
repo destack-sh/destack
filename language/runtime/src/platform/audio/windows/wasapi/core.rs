@@ -13,9 +13,9 @@ use super::host::{channel_layout, channel_mask, failed, hresult_error, initializ
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
-use crate::platform::core as core_platform;
-
-use crate::platform::audio as audio_types;
+use crate::platform::audio::core::codec::sample_format_bit;
+use crate::platform::audio::core::constants::MIN_STREAM_PERIOD_FRAMES;
+use crate::platform::{audio as audio_types, core as core_platform};
 use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
 use windows_sys::Win32::Media::Audio::{EDataFlow, IAudioClient, eCapture, eRender};
 use windows_sys::Win32::System::Com::CoUninitialize;
@@ -165,14 +165,14 @@ impl WasapiEndpointProfile {
             min_sample_rate: DEFAULT_MIN_SAMPLE_RATE,
             max_sample_rate: DEFAULT_MAX_SAMPLE_RATE,
             preferred_period_frames: DEFAULT_PREFERRED_PERIOD_FRAMES,
-            min_period_frames: audio_core::MIN_STREAM_PERIOD_FRAMES,
+            min_period_frames: MIN_STREAM_PERIOD_FRAMES,
             max_period_frames: DEFAULT_MAX_PERIOD_FRAMES,
             min_channels: 1,
             max_channels: WASAPI_MAX_PROBED_CHANNELS,
             preferred_layout: channel_layout(preferred_channel_count),
             preferred_channel_mask,
             supported_channel_mask: channel_mask(WASAPI_MAX_PROBED_CHANNELS),
-            format_mask: audio_types::sample_format_bit(audio_types::AudioSampleFormat::F32),
+            format_mask: sample_format_bit(audio_types::AudioSampleFormat::F32),
             supports_exclusive_mode: false,
             transport: "wasapi",
         }

@@ -1,5 +1,6 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::codec::sample_format_bit;
 use crate::platform::core as core_platform;
 
 use super::core::{channel_layout, channel_mask};
@@ -92,7 +93,7 @@ fn playback_descriptor(
         supported_channel_mask: channel_mask(channels.max(1)),
         min_period_frames: snapshot.period_frames,
         max_period_frames: snapshot.period_frames,
-        format_mask: audio_core::sample_format_bit(audio_types::AudioSampleFormat::F32),
+        format_mask: sample_format_bit(audio_types::AudioSampleFormat::F32),
         share_mode_mask: audio_core::SHARE_MODE_SHARED_BIT,
         is_null: false,
     }
@@ -131,7 +132,7 @@ fn capture_descriptor(
         supported_channel_mask: channel_mask(channels.max(1)),
         min_period_frames: snapshot.period_frames,
         max_period_frames: snapshot.period_frames,
-        format_mask: audio_core::sample_format_bit(audio_types::AudioSampleFormat::F32),
+        format_mask: sample_format_bit(audio_types::AudioSampleFormat::F32),
         share_mode_mask: audio_core::SHARE_MODE_SHARED_BIT,
         is_null: false,
     }
@@ -172,7 +173,7 @@ fn duplex_descriptor(
         supported_channel_mask: channel_mask(channels.max(1)),
         min_period_frames: snapshot.period_frames,
         max_period_frames: snapshot.period_frames,
-        format_mask: audio_core::sample_format_bit(audio_types::AudioSampleFormat::F32),
+        format_mask: sample_format_bit(audio_types::AudioSampleFormat::F32),
         share_mode_mask: audio_core::SHARE_MODE_SHARED_BIT,
         is_null: false,
     }

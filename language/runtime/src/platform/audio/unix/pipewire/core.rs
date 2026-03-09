@@ -6,7 +6,7 @@ use std::sync::Arc;
 use super::abi::{PipeWireApi, PipewireSampleSpec};
 use super::constants::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::codec::sample_format_bit;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{PlatformError, audio as audio_types, core as core_platform};
 
@@ -152,11 +152,11 @@ pub(super) fn pipewire_sample_format(format: audio_types::AudioSampleFormat) -> 
 
 /// Return one conservative PipeWire sample-format mask.
 pub(super) fn pipewire_format_mask() -> u32 {
-    audio_core::sample_format_bit(audio_types::AudioSampleFormat::U8)
-        | audio_core::sample_format_bit(audio_types::AudioSampleFormat::S16)
-        | audio_core::sample_format_bit(audio_types::AudioSampleFormat::S24)
-        | audio_core::sample_format_bit(audio_types::AudioSampleFormat::S32)
-        | audio_core::sample_format_bit(audio_types::AudioSampleFormat::F32)
+    sample_format_bit(audio_types::AudioSampleFormat::U8)
+        | sample_format_bit(audio_types::AudioSampleFormat::S16)
+        | sample_format_bit(audio_types::AudioSampleFormat::S24)
+        | sample_format_bit(audio_types::AudioSampleFormat::S32)
+        | sample_format_bit(audio_types::AudioSampleFormat::F32)
 }
 
 /// Load one PipeWire dynamic library and required symbol table.

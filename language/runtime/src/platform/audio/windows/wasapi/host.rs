@@ -18,11 +18,10 @@ use super::constants::{
 };
 use super::core::{ComApartment, ComPointer, WasapiEndpointProfile, WasapiEventHandle};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::codec::sample_format_bit;
+use crate::platform::audio::core::constants::MIN_STREAM_PERIOD_FRAMES;
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::{PlatformError, core as core_platform};
-
-use crate::platform::audio as audio_types;
+use crate::platform::{PlatformError, audio as audio_types, core as core_platform};
 use windows_sys::Win32::Foundation::{GetLastError, RPC_E_CHANGED_MODE};
 use windows_sys::Win32::Media::Audio::{
     AUDCLNT_SHAREMODE_EXCLUSIVE, AUDCLNT_SHAREMODE_SHARED, DigitalAudioDisplayDevice, EDataFlow,
@@ -315,7 +314,7 @@ pub(super) fn probe_endpoint_profile(endpoint: IMMDevice) -> WasapiEndpointProfi
     }
 
     if profile.format_mask == 0 {
-        profile.format_mask = audio_types::sample_format_bit(preferred_format);
+        profile.format_mask = sample_format_bit(preferred_format);
     }
 
     profile
@@ -755,12 +754,12 @@ fn probe_format_mask(
         };
 
         if is_exact_format_supported(audio_client, AUDCLNT_SHAREMODE_SHARED, &wave_format) {
-            format_mask |= audio_types::sample_format_bit(format);
+            format_mask |= sample_format_bit(format);
         }
     }
 
     if format_mask == 0 {
-        return audio_types::sample_format_bit(preferred_format);
+        return sample_format_bit(preferred_format);
     }
 
     format_mask
@@ -933,15 +932,15 @@ fn period_frames_range(audio_client: IAudioClient, sample_rate: u32) -> (u32, u3
     if failed(period_status) {
         return (
             DEFAULT_PREFERRED_PERIOD_FRAMES,
-            audio_core::MIN_STREAM_PERIOD_FRAMES,
+            MIN_STREAM_PERIOD_FRAMES,
             DEFAULT_MAX_PERIOD_FRAMES,
         );
     }
 
     let preferred_period_frames =
-        frames_from_hns(default_period_hns, sample_rate).max(audio_core::MIN_STREAM_PERIOD_FRAMES);
+        frames_from_hns(default_period_hns, sample_rate).max(MIN_STREAM_PERIOD_FRAMES);
     let minimum_period_frames =
-        frames_from_hns(minimum_period_hns, sample_rate).max(audio_core::MIN_STREAM_PERIOD_FRAMES);
+        frames_from_hns(minimum_period_hns, sample_rate).max(MIN_STREAM_PERIOD_FRAMES);
     let maximum_period_frames = preferred_period_frames
         .saturating_mul(8)
         .max(DEFAULT_MAX_PERIOD_FRAMES)
@@ -957,13 +956,13 @@ fn period_frames_range(audio_client: IAudioClient, sample_rate: u32) -> (u32, u3
 /// Convert one 100ns device period into one frame count.
 fn frames_from_hns(period_hns: i64, sample_rate: u32) -> u32 {
     if period_hns <= 0 || sample_rate == 0 {
-        return audio_core::MIN_STREAM_PERIOD_FRAMES;
+        return MIN_STREAM_PERIOD_FRAMES;
     }
 
     let numerator = (period_hns as u128).saturating_mul(sample_rate as u128);
     let rounded = numerator.saturating_add(9_999_999u128) / 10_000_000u128;
     rounded
-        .max(audio_core::MIN_STREAM_PERIOD_FRAMES as u128)
+        .max(MIN_STREAM_PERIOD_FRAMES as u128)
         .min(u32::MAX as u128) as u32
 }
 

@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::codec::clamp_audio_scalar;
 
 use super::abi::{AAudioStream, AAudioStreamBuilder};
 use super::constants::{
@@ -541,7 +542,7 @@ fn spawn_worker(
                 } else if (state.volume - 1.0).abs() > f64::EPSILON {
                     let gain = state.volume as f32;
                     for sample in &mut playback_packet {
-                        *sample = audio_core::clamp_audio_scalar(*sample * gain);
+                        *sample = clamp_audio_scalar(*sample * gain);
                     }
                 }
 

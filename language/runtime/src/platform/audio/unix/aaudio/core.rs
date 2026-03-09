@@ -4,7 +4,7 @@ use std::sync::Arc;
 use super::abi::AAudioApi;
 use super::constants::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::codec::sample_format_bit;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{PlatformError, audio as audio_types, core as core_platform};
 
@@ -125,10 +125,10 @@ pub(super) fn runtime_sample_format(
 
 /// Return one conservative AAudio sample-format mask.
 pub(super) fn aaudio_format_mask() -> u32 {
-    audio_core::sample_format_bit(audio_types::AudioSampleFormat::S16)
-        | audio_core::sample_format_bit(audio_types::AudioSampleFormat::S24)
-        | audio_core::sample_format_bit(audio_types::AudioSampleFormat::S32)
-        | audio_core::sample_format_bit(audio_types::AudioSampleFormat::F32)
+    sample_format_bit(audio_types::AudioSampleFormat::S16)
+        | sample_format_bit(audio_types::AudioSampleFormat::S24)
+        | sample_format_bit(audio_types::AudioSampleFormat::S32)
+        | sample_format_bit(audio_types::AudioSampleFormat::F32)
 }
 
 /// Return one AAudio sharing-mode selector for one runtime share mode.
