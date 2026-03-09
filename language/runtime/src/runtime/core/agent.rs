@@ -97,6 +97,21 @@ pub struct AgentImage {
     pub engine_image: EngineImage,
 }
 
+impl AgentImage {
+    /// Return whether the captured agent still has pending event-loop work.
+    pub fn has_pending_work(&self) -> bool {
+        !self.event_loop.tasks.is_empty()
+            || !self.event_loop.microtasks.is_empty()
+            || !self.event_loop.events.is_empty()
+            || !self.event_loop.host_events.is_empty()
+            || !self.event_loop.ready_timers.is_empty()
+            || !self.event_loop.timers.is_empty()
+            || !self.event_loop.timer_watches.is_empty()
+            || !self.event_loop.poller_event_watches.is_empty()
+            || !self.event_loop.host_event_watches.is_empty()
+    }
+}
+
 impl std::fmt::Debug for Agent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Agent")
@@ -241,10 +256,9 @@ impl Agent {
         };
 
         let capabilities = resolve_capability_profile(capability_profile).map_err(|message| {
-            RuntimeError::Internal {
-                message: format!(
-                    "runtime capability profile `{capability_profile}` is invalid: {message}"
-                ),
+            RuntimeError::CapabilityProfileInvalid {
+                profile: capability_profile.to_string(),
+                detail: message,
             }
             .boxed()
         })?;
@@ -260,9 +274,29 @@ impl Agent {
         self.platform_args.as_ref()
     }
 
+    /// Return this agent identifier.
+    pub fn agent_id(&self) -> AgentId {
+        self.id
+    }
+
     /// Return this agent name.
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    /// Return the owning runtime identifier.
+    pub fn runtime_id(&self) -> RuntimeId {
+        self.runtime_id
+    }
+
+    /// Return whether this agent still has pending scheduler work.
+    pub fn has_pending_work(&self) -> bool {
+        self.event_loop.has_pending_work()
+    }
+
+    /// Return the number of stored resources for this agent.
+    pub fn resource_count(&self) -> usize {
+        self.resources.len()
     }
 
     /// Register one new runtime and one primary agent in one world.
@@ -502,8 +536,10 @@ impl Agent {
             platform_state,
             event_loop,
             heap_image: self.heap.image().map_err(|error| {
-                RuntimeError::Internal {
-                    message: format!("runtime heap cannot capture for {mode:?}: {error}"),
+                RuntimeError::CaptureBarrier {
+                    component: "runtime.heap".to_string(),
+                    mode: format!("{mode:?}"),
+                    detail: error.to_string(),
                 }
                 .boxed()
             })?,

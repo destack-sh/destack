@@ -72,6 +72,162 @@ pub enum RuntimeError {
         /// Binding name for the failed payload.
         name: String,
     } = 112,
+    /// World branch identifier was not found in lineage.
+    BranchNotFound {
+        /// Missing branch identifier.
+        branch_id: u128,
+    } = 115,
+    /// World revision identifier was not found in lineage.
+    RevisionNotFound {
+        /// Missing revision identifier.
+        revision_id: u128,
+    } = 116,
+    /// World checkpoint identifier was not found in lineage.
+    CheckpointNotFound {
+        /// Missing checkpoint identifier.
+        checkpoint_id: u128,
+    } = 117,
+    /// World image identifier was not found in lineage.
+    ImageNotFound {
+        /// Missing image identifier.
+        image_id: u128,
+    } = 118,
+    /// Observation subscription identifier was not found.
+    ObservationSubscriptionNotFound {
+        /// Missing observation subscription identifier.
+        subscription_id: u64,
+    } = 141,
+    /// Control handle identifier was not found.
+    ControlHandleNotFound {
+        /// Missing control-handle identifier.
+        handle_id: u64,
+        /// Expected control-handle kind.
+        kind: String,
+    } = 142,
+    /// Control handle kind did not match the requested operation.
+    ControlHandleKindMismatch {
+        /// The control-handle identifier.
+        handle_id: u64,
+        /// The expected control-handle kind.
+        expected: String,
+        /// The actual control-handle kind.
+        actual: String,
+    } = 143,
+    /// World runtime identifier was not found.
+    RuntimeNotFound {
+        /// Missing runtime identifier.
+        runtime_id: u64,
+    } = 127,
+    /// Runtime agent identifier was not found.
+    AgentNotFound {
+        /// Missing agent identifier.
+        agent_id: u64,
+    } = 128,
+    /// World or runtime already contains the requested runtime identifier.
+    RuntimeAlreadyExists {
+        /// Conflicting runtime identifier.
+        runtime_id: u64,
+    } = 129,
+    /// Runtime already contains the requested agent identifier.
+    AgentAlreadyExists {
+        /// Conflicting agent identifier.
+        agent_id: u64,
+    } = 130,
+    /// Runtime image is missing its declared primary agent.
+    PrimaryAgentMissing {
+        /// Runtime identifier with the invalid primary-agent reference.
+        runtime_id: u64,
+        /// Missing primary agent identifier.
+        agent_id: u64,
+    } = 131,
+    /// Runtime cannot remove its last remaining agent.
+    LastAgentRemoval = 132,
+    /// Runtime cannot remove the primary agent until a replacement is selected.
+    PrimaryAgentRemoval = 133,
+    /// Runtime capability profile configuration is invalid.
+    CapabilityProfileInvalid {
+        /// Invalid capability profile name.
+        profile: String,
+        /// Human-readable validation detail.
+        detail: String,
+    } = 134,
+    /// World topology is missing one runtime identity record.
+    TopologyRuntimeMissing {
+        /// Missing runtime identifier.
+        runtime_id: u64,
+    } = 135,
+    /// World topology is missing one agent identity record.
+    TopologyAgentMissing {
+        /// Missing agent identifier.
+        agent_id: u64,
+    } = 136,
+    /// World-controlled virtual time cannot advance while host time is active.
+    HostTimeAdvance = 137,
+    /// Engine adapter received an entry for the wrong engine kind.
+    EngineEntryMismatch {
+        /// Engine kind that received the entry.
+        engine: String,
+        /// Entry kind that was requested.
+        entry: String,
+    } = 138,
+    /// Engine adapter received a continuation for the wrong engine kind.
+    EngineContinuationMismatch {
+        /// Engine kind that received the continuation.
+        engine: String,
+        /// Continuation kind that was requested.
+        continuation: String,
+    } = 139,
+    /// Runtime image contains duplicate agent records.
+    DuplicateAgentImage {
+        /// Runtime identifier owning the duplicate agent image.
+        runtime_id: u64,
+        /// Duplicate agent identifier.
+        agent_id: u64,
+    } = 140,
+    /// One revision points at one missing world image.
+    RevisionImageMissing {
+        /// Revision identifier with the dangling image reference.
+        revision_id: u128,
+        /// Missing image identifier.
+        image_id: u128,
+    } = 119,
+    /// One revision points at one missing trace image.
+    RevisionTraceImageMissing {
+        /// Revision identifier with the dangling trace-image reference.
+        revision_id: u128,
+        /// Missing trace-image identifier.
+        trace_image_id: u128,
+    } = 120,
+    /// Exclusive access cannot begin while shared activity is still active.
+    ExclusiveAccessActive {
+        /// Number of active shared operations.
+        active_operations: usize,
+    } = 121,
+    /// Exclusive access is already held.
+    ExclusiveAccessHeld = 122,
+    /// Shared activity was attempted while exclusive access is held.
+    ExclusiveAccessConflict = 123,
+    /// Snapshot branch metadata does not match the target world.
+    SnapshotBranchMismatch {
+        /// Captured snapshot branch identifier.
+        snapshot_branch_id: u128,
+        /// Active world branch identifier.
+        world_branch_id: u128,
+    } = 124,
+    /// Capture failed because one subsystem cannot honestly materialize the requested mode.
+    CaptureBarrier {
+        /// The component that rejected capture.
+        component: String,
+        /// The requested capture mode.
+        mode: String,
+        /// Human-readable barrier detail.
+        detail: String,
+    } = 125,
+    /// One captured image or snapshot is internally inconsistent.
+    InconsistentImage {
+        /// Human-readable inconsistency detail.
+        detail: String,
+    } = 126,
     /// Internal runtime error.
     Internal { message: String } = 113,
 }
@@ -120,6 +276,121 @@ impl RuntimeError {
             }
             RuntimeError::TraceDecodeFailed { name } => {
                 format!("failed to decode trace payload for {name}")
+            }
+            RuntimeError::BranchNotFound { branch_id } => {
+                format!("branch not found: {branch_id}")
+            }
+            RuntimeError::RevisionNotFound { revision_id } => {
+                format!("revision not found: {revision_id}")
+            }
+            RuntimeError::CheckpointNotFound { checkpoint_id } => {
+                format!("checkpoint not found: {checkpoint_id}")
+            }
+            RuntimeError::ImageNotFound { image_id } => {
+                format!("image not found: {image_id}")
+            }
+            RuntimeError::ObservationSubscriptionNotFound { subscription_id } => {
+                format!("observation subscription not found: {subscription_id}")
+            }
+            RuntimeError::ControlHandleNotFound { handle_id, kind } => {
+                format!("{kind} handle not found: {handle_id}")
+            }
+            RuntimeError::ControlHandleKindMismatch {
+                handle_id,
+                expected,
+                actual,
+            } => {
+                format!("control handle {handle_id} has kind {actual}, expected {expected}")
+            }
+            RuntimeError::RuntimeNotFound { runtime_id } => {
+                format!("runtime not found: {runtime_id}")
+            }
+            RuntimeError::AgentNotFound { agent_id } => {
+                format!("agent not found: {agent_id}")
+            }
+            RuntimeError::RuntimeAlreadyExists { runtime_id } => {
+                format!("runtime already exists: {runtime_id}")
+            }
+            RuntimeError::AgentAlreadyExists { agent_id } => {
+                format!("agent already exists: {agent_id}")
+            }
+            RuntimeError::PrimaryAgentMissing {
+                runtime_id,
+                agent_id,
+            } => {
+                format!("runtime {runtime_id} is missing primary agent {agent_id}")
+            }
+            RuntimeError::LastAgentRemoval => "runtime must keep at least one agent".to_string(),
+            RuntimeError::PrimaryAgentRemoval => {
+                "cannot remove primary agent: set a new primary agent first".to_string()
+            }
+            RuntimeError::CapabilityProfileInvalid { profile, detail } => {
+                format!("runtime capability profile `{profile}` is invalid: {detail}")
+            }
+            RuntimeError::TopologyRuntimeMissing { runtime_id } => {
+                format!("runtime {runtime_id} is not registered in world topology")
+            }
+            RuntimeError::TopologyAgentMissing { agent_id } => {
+                format!("agent {agent_id} is not registered in world topology")
+            }
+            RuntimeError::HostTimeAdvance => {
+                "cannot advance virtual time while world uses host time".to_string()
+            }
+            RuntimeError::EngineEntryMismatch { engine, entry } => {
+                format!("{engine} engine cannot run {entry} entry")
+            }
+            RuntimeError::EngineContinuationMismatch {
+                engine,
+                continuation,
+            } => {
+                format!("{engine} engine cannot handle {continuation} continuation")
+            }
+            RuntimeError::DuplicateAgentImage {
+                runtime_id,
+                agent_id,
+            } => {
+                format!("runtime {runtime_id} image contains duplicate agent {agent_id}")
+            }
+            RuntimeError::RevisionImageMissing {
+                revision_id,
+                image_id,
+            } => {
+                format!("revision {revision_id} is missing image {image_id}")
+            }
+            RuntimeError::RevisionTraceImageMissing {
+                revision_id,
+                trace_image_id,
+            } => {
+                format!("revision {revision_id} is missing trace image {trace_image_id}")
+            }
+            RuntimeError::ExclusiveAccessActive { active_operations } => {
+                format!(
+                    "world cannot acquire exclusive access while {active_operations} operation(s) are active"
+                )
+            }
+            RuntimeError::ExclusiveAccessHeld => {
+                "world is already under exclusive access".to_string()
+            }
+            RuntimeError::ExclusiveAccessConflict => {
+                "world is under exclusive access for capture or restore".to_string()
+            }
+            RuntimeError::SnapshotBranchMismatch {
+                snapshot_branch_id,
+                world_branch_id,
+            } => {
+                format!(
+                    "snapshot active branch {snapshot_branch_id} does not match world branch {world_branch_id}"
+                )
+            }
+            RuntimeError::CaptureBarrier {
+                component,
+                mode,
+                detail,
+            } => {
+                format!("{component} cannot capture for {mode}: {detail}")
+            }
+            RuntimeError::InconsistentImage { detail } => {
+                format!("captured image is inconsistent: {detail}")
             }
             RuntimeError::Internal { message } => format!("internal error: {message}"),
         }

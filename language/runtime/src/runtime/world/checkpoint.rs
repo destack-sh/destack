@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use destack_base::CaptureMode;
+use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -9,7 +11,7 @@ use crate::runtime::random::Random;
 use crate::runtime::replay::{Trace, TraceCheckpointIndex, TraceHeader, TraceImage};
 use crate::runtime::time::WorldInstant;
 
-use super::{BranchId, Image, Observe, RevisionId, World};
+use super::{BranchId, Image, Observation, RevisionId, World};
 
 /// Shared and exclusive access state for world-owned execution and capture operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -84,10 +86,7 @@ impl World {
                 };
                 Ok(ActivityGuard { world: self })
             }
-            AccessState::Exclusive => Err(RuntimeError::Internal {
-                message: "world is under exclusive access for capture or restore".to_string(),
-            }
-            .boxed()),
+            AccessState::Exclusive => Err(RuntimeError::ExclusiveAccessConflict.boxed()),
         }
     }
 
@@ -115,16 +114,10 @@ impl World {
                 *access_state = AccessState::Exclusive;
                 Ok(ExclusiveAccessLease { world: self })
             }
-            AccessState::Shared { active_operations } => Err(RuntimeError::Internal {
-                message: format!(
-                    "world cannot acquire exclusive access while {active_operations} operation(s) are active"
-                ),
+            AccessState::Shared { active_operations } => {
+                Err(RuntimeError::ExclusiveAccessActive { active_operations }.boxed())
             }
-            .boxed()),
-            AccessState::Exclusive => Err(RuntimeError::Internal {
-                message: "world is already under exclusive access".to_string(),
-            }
-            .boxed()),
+            AccessState::Exclusive => Err(RuntimeError::ExclusiveAccessHeld.boxed()),
         }
     }
 
@@ -146,8 +139,8 @@ impl World {
         let revision_id = {
             let lineage = self.lineage.read();
             let checkpoint = lineage.checkpoints.get(&checkpoint_id).ok_or_else(|| {
-                RuntimeError::Internal {
-                    message: format!("checkpoint {} does not exist", checkpoint_id.get()),
+                RuntimeError::CheckpointNotFound {
+                    checkpoint_id: checkpoint_id.get(),
                 }
                 .boxed()
             })?;
@@ -171,8 +164,8 @@ impl World {
     pub fn checkpoint_info(&self, checkpoint_id: CheckpointId) -> RuntimeResult<Checkpoint> {
         let lineage = self.lineage.read();
         let checkpoint = lineage.checkpoints.get(&checkpoint_id).ok_or_else(|| {
-            RuntimeError::Internal {
-                message: format!("checkpoint {} does not exist", checkpoint_id.get()),
+            RuntimeError::CheckpointNotFound {
+                checkpoint_id: checkpoint_id.get(),
             }
             .boxed()
         })?;
@@ -183,6 +176,24 @@ impl World {
     /// Return identifiers for all stored checkpoints in stable order.
     pub fn checkpoint_ids(&self) -> Vec<CheckpointId> {
         self.lineage.read().checkpoints.keys().copied().collect()
+    }
+
+    /// Replace labels for one specific checkpoint.
+    pub(crate) fn set_checkpoint_labels(
+        &self,
+        checkpoint_id: CheckpointId,
+        labels: BTreeMap<String, String>,
+    ) -> RuntimeResult<()> {
+        let mut lineage = self.lineage.write();
+        let checkpoint = lineage.checkpoints.get_mut(&checkpoint_id).ok_or_else(|| {
+            RuntimeError::CheckpointNotFound {
+                checkpoint_id: checkpoint_id.get(),
+            }
+            .boxed()
+        })?;
+        checkpoint.labels = labels;
+
+        Ok(())
     }
 
     /// Restore this branch to one specific revision.
@@ -210,9 +221,12 @@ impl World {
     fn checkpoint_inner(&self, name: String) -> RuntimeResult<CheckpointId> {
         // materialize one fork-safe revision
         let committed = self.materialize_revision(CaptureMode::Fork, Some(name))?;
-        let checkpoint = committed
-            .checkpoint
-            .expect("checkpoint commit must create one checkpoint");
+        let checkpoint = committed.checkpoint.ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "checkpoint commit did not produce checkpoint metadata".to_string(),
+            }
+            .boxed()
+        })?;
 
         // index the checkpoint in the trace trailer
         let (size_bytes, hash) = World::image_size_and_hash(&committed.image)?;
@@ -271,8 +285,8 @@ impl World {
         let revision_id = {
             let lineage = self.lineage.read();
             let checkpoint = lineage.checkpoints.get(&checkpoint_id).ok_or_else(|| {
-                RuntimeError::Internal {
-                    message: format!("checkpoint {} does not exist", checkpoint_id.get()),
+                RuntimeError::CheckpointNotFound {
+                    checkpoint_id: checkpoint_id.get(),
                 }
                 .boxed()
             })?;
@@ -318,35 +332,10 @@ impl World {
         };
 
         // child trace: clone header but switch to the child branch
-        let trace_header = self.forked_trace_header(child_branch.id);
+        let trace_header = self.fork_trace_header(child_branch.id);
 
         // child world: fresh mutable state over shared lineage backing
-        let child = Arc::new(World {
-            branch_id: child_branch.id,
-            runtimes: parking_lot::RwLock::new(Default::default()),
-            simulation: parking_lot::RwLock::new(Default::default()),
-            time_mode: self.time_mode,
-            random_mode: self.random_mode,
-            clock: self.clock.clone(),
-            random: Random::new(self.random.root_seed()),
-            trace: Trace::new(self.trace.mode(), trace_header),
-            observe: Observe::default(),
-            policy: parking_lot::RwLock::new(self.policy.read().clone()),
-            mutation_lock: parking_lot::Mutex::new(()),
-            next_runtime_id: std::sync::atomic::AtomicU64::new(
-                self.next_runtime_id
-                    .load(std::sync::atomic::Ordering::SeqCst),
-            ),
-            next_agent_id: std::sync::atomic::AtomicU64::new(
-                self.next_agent_id.load(std::sync::atomic::Ordering::SeqCst),
-            ),
-            lineage: self.lineage.clone(),
-            access_state: parking_lot::RwLock::new(AccessState::Shared {
-                active_operations: 0,
-            }),
-            topology: parking_lot::RwLock::new(self.topology.read().clone()),
-            resources: parking_lot::RwLock::new(self.resources.read().clone()),
-        });
+        let child = self.fork_child_world(child_branch.id, trace_header);
 
         // restore the child to the fork checkpoint
         child.restore_image(&image, None)?;
@@ -357,10 +346,34 @@ impl World {
     }
 
     /// Clone the current trace header for one child branch.
-    fn forked_trace_header(&self, branch_id: BranchId) -> TraceHeader {
+    fn fork_trace_header(&self, branch_id: BranchId) -> TraceHeader {
         let mut header = self.trace.log().header();
         header.branch_id = branch_id;
-
         header
+    }
+
+    /// Build one fresh child-world shell for one forked branch.
+    fn fork_child_world(&self, branch_id: BranchId, trace_header: TraceHeader) -> Arc<World> {
+        Arc::new(World {
+            branch_id,
+            runtimes: RwLock::new(Default::default()),
+            simulation: RwLock::new(Default::default()),
+            time_mode: self.time_mode,
+            random_mode: self.random_mode,
+            clock: self.clock.clone(),
+            random: Random::new(self.random.root_seed()),
+            trace: Trace::new(self.trace.mode(), trace_header),
+            observation: Observation::default(),
+            policy: RwLock::new(self.policy.read().clone()),
+            mutation_lock: Mutex::new(()),
+            next_runtime_id: AtomicU64::new(self.next_runtime_id.load(Ordering::SeqCst)),
+            next_agent_id: AtomicU64::new(self.next_agent_id.load(Ordering::SeqCst)),
+            lineage: self.lineage.clone(),
+            access_state: RwLock::new(AccessState::Shared {
+                active_operations: 0,
+            }),
+            topology: RwLock::new(self.topology.read().clone()),
+            resources: RwLock::new(self.resources.read().clone()),
+        })
     }
 }

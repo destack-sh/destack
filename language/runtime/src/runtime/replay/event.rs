@@ -20,6 +20,8 @@ pub(crate) enum TraceEvent {
     Entropy(EntropyEvent),
     /// External binding call and result.
     BindingCall(BindingCallEvent),
+    /// Explicit user or debugger marker.
+    Marker(String),
     /// Application of one world command.
     WorldCommand(WorldCommand),
 }
@@ -173,6 +175,9 @@ impl From<&RuntimeError> for TraceError {
             }
             RuntimeError::Internal { message } => Self::Internal {
                 message: message.clone(),
+            },
+            other => Self::Internal {
+                message: other.message(),
             },
         }
     }

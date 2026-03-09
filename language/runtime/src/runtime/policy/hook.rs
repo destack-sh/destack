@@ -12,7 +12,7 @@ use crate::platform::{
 use crate::runtime::AgentId;
 use crate::runtime::bindings::{BindingDescriptor, BindingEngine};
 use crate::runtime::world::{
-    ObserveEvent, RuntimeId, World, WorldEntityKind, WorldResource, WorldResourceId,
+    ObservationEvent, RuntimeId, World, WorldEntityKind, WorldResource, WorldResourceId,
 };
 use destack_source::matches as glob_matches;
 use destack_workspace::ExecutionMode;
@@ -488,25 +488,30 @@ impl Hooks {
     fn capture_barrier(&self) -> RuntimeResult<()> {
         // require no registered callbacks
         if !self.registry.read().callbacks.is_empty() {
-            return Err(RuntimeError::Internal {
-                message: "hooks cannot capture: callbacks are still registered".to_string(),
+            return Err(RuntimeError::CaptureBarrier {
+                component: "runtime.hooks".to_string(),
+                mode: "snapshot".to_string(),
+                detail: "callbacks are still registered".to_string(),
             }
             .boxed());
         }
 
         // require no registered custom effect handlers
         if !self.custom_effect_handlers.read().is_empty() {
-            return Err(RuntimeError::Internal {
-                message: "hooks cannot capture: custom effect handlers are still registered"
-                    .to_string(),
+            return Err(RuntimeError::CaptureBarrier {
+                component: "runtime.hooks".to_string(),
+                mode: "snapshot".to_string(),
+                detail: "custom effect handlers are still registered".to_string(),
             }
             .boxed());
         }
 
         // require no unapplied policy decisions
         if self.unapplied_policy_decisions.load(Ordering::Relaxed) != 0 {
-            return Err(RuntimeError::Internal {
-                message: "hooks cannot capture: policy decisions are still pending".to_string(),
+            return Err(RuntimeError::CaptureBarrier {
+                component: "runtime.hooks".to_string(),
+                mode: "snapshot".to_string(),
+                detail: "policy decisions are still pending".to_string(),
             }
             .boxed());
         }
@@ -731,7 +736,7 @@ impl Hooks {
             resource_portability,
         );
         world.create_resource(resource)?;
-        world.observe().record(ObserveEvent::Resource {
+        world.observation().record(ObservationEvent::Resource {
             branch_id: world.branch_id(),
             agent_id: self.agent_id,
             resource_id: WorldResourceId::new(self.agent_id, resource_id),
@@ -764,7 +769,7 @@ impl Hooks {
         let _resource_label = resource_label;
         let world_resource_id = WorldResourceId::new(self.agent_id, resource_id);
         world.destroy_resource(WorldResourceId::new(self.agent_id, resource_id))?;
-        world.observe().record(ObserveEvent::Resource {
+        world.observation().record(ObservationEvent::Resource {
             branch_id: world.branch_id(),
             agent_id: self.agent_id,
             resource_id: world_resource_id,

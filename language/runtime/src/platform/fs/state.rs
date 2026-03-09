@@ -1,6 +1,9 @@
 #[cfg(windows)]
 use std::sync::{Arc, OnceLock};
 
+use destack_base::{Capture, CaptureMode};
+use serde::{Deserialize, Serialize};
+
 #[cfg(windows)]
 use super::host::WindowsMmapRuntimeState;
 
@@ -21,14 +24,31 @@ impl std::fmt::Debug for PlatformFsState {
 }
 
 impl PlatformFsState {
-    /// Return whether any runtime-owned filesystem state was initialized.
-    pub(crate) fn is_initialized(&self) -> bool {
+    /// Return whether any runtime-owned filesystem state is active.
+    fn has_runtime_state(&self) -> bool {
         #[cfg(windows)]
         if self.windows_mmap_runtime_state.get().is_some() {
             return true;
         }
 
         false
+    }
+
+    /// Capture one filesystem-state image.
+    fn image(
+        &self,
+        mode: CaptureMode,
+    ) -> Result<PlatformFsImage, Box<crate::diagnostic::RuntimeError>> {
+        if !self.has_runtime_state() {
+            return Ok(PlatformFsImage);
+        }
+
+        Err(crate::diagnostic::RuntimeError::CaptureBarrier {
+            component: "platform.fs".to_string(),
+            mode: format!("{mode:?}"),
+            detail: "runtime state is active".to_string(),
+        }
+        .boxed())
     }
 
     /// Return runtime-owned windows mmap state.
@@ -41,5 +61,36 @@ impl PlatformFsState {
             self.windows_mmap_runtime_state
                 .get_or_init(|| Arc::new(initialize())),
         )
+    }
+}
+
+/// Materialized filesystem platform-state image.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct PlatformFsImage;
+
+impl Capture for PlatformFsState {
+    type Image = PlatformFsImage;
+    type Error = Box<crate::diagnostic::RuntimeError>;
+    type CaptureContext<'a> = ();
+    type RestoreContext<'a> = ();
+
+    /// Capture one filesystem platform-state image.
+    fn capture_image(
+        &mut self,
+        mode: CaptureMode,
+        _context: Self::CaptureContext<'_>,
+    ) -> Result<Self::Image, Self::Error> {
+        self.image(mode)
+    }
+
+    /// Restore one filesystem platform-state image.
+    fn restore_image(
+        &mut self,
+        _image: &Self::Image,
+        _context: Self::RestoreContext<'_>,
+    ) -> Result<(), Self::Error> {
+        *self = Self::default();
+
+        Ok(())
     }
 }

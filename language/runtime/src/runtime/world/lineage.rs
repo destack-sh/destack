@@ -4,7 +4,7 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::replay::{TraceImage, TraceSequence};
+use crate::runtime::replay::TraceImage;
 use crate::runtime::time::WorldInstant;
 
 use super::{
@@ -58,7 +58,7 @@ pub(super) struct Lineage {
 
 /// Fully resolved backing for one materialized revision.
 #[derive(Debug, Clone)]
-pub(super) struct RevisionBacking {
+pub(crate) struct RevisionBacking {
     /// The resolved revision metadata.
     pub revision: Revision,
     /// The resolved world image.
@@ -104,10 +104,16 @@ pub struct LineageSnapshot {
 }
 
 impl Lineage {
-    /// Create one bootstrap lineage before the root backing exists.
-    pub(super) fn bootstrap() -> Self {
+    /// Create one lineage with one fully materialized root revision.
+    pub(super) fn new_root(image: Arc<Image>, trace_image: Arc<TraceImage>) -> Self {
         let mut branches = BTreeMap::new();
         let mut revisions = BTreeMap::new();
+        let mut images = BTreeMap::new();
+        let mut trace_images = BTreeMap::new();
+
+        let wall = image.clock.virtual_wall;
+        let mono = image.clock.virtual_mono;
+        let sequence = trace_image.next_sequence;
 
         revisions.insert(
             ROOT_REVISION_ID,
@@ -115,11 +121,11 @@ impl Lineage {
                 id: ROOT_REVISION_ID,
                 branch_id: ROOT_BRANCH_ID,
                 parent_revision_id: None,
-                sequence: TraceSequence::new(0),
+                sequence,
                 image_id: ROOT_IMAGE_ID,
                 trace_image_id: ROOT_TRACE_IMAGE_ID,
-                wall: WorldInstant::new(0),
-                mono: WorldInstant::new(0),
+                wall,
+                mono,
                 labels: BTreeMap::new(),
             },
         );
@@ -135,6 +141,9 @@ impl Lineage {
             },
         );
 
+        images.insert(ROOT_IMAGE_ID, image);
+        trace_images.insert(ROOT_TRACE_IMAGE_ID, trace_image);
+
         Self {
             next_branch_id: INITIAL_BRANCH_ID,
             next_revision_id: INITIAL_REVISION_ID,
@@ -144,20 +153,9 @@ impl Lineage {
             branches,
             revisions,
             checkpoints: BTreeMap::new(),
-            images: BTreeMap::new(),
-            trace_images: BTreeMap::new(),
+            images,
+            trace_images,
         }
-    }
-
-    /// Create one lineage with one fully materialized root revision.
-    pub(super) fn bootstrap_root(image: Arc<Image>, trace_image: Arc<TraceImage>) -> Self {
-        let mut lineage = Self::bootstrap();
-        lineage.images.insert(ROOT_IMAGE_ID, image);
-        lineage
-            .trace_images
-            .insert(ROOT_TRACE_IMAGE_ID, trace_image);
-
-        lineage
     }
 
     /// Capture one durable lineage snapshot.
@@ -273,8 +271,8 @@ impl Lineage {
     ) -> RuntimeResult<Branch> {
         // resolve the parent revision before mutating lineage state
         let parent_revision = self.revisions.get(&parent_revision_id).ok_or_else(|| {
-            RuntimeError::Internal {
-                message: format!("revision {} does not exist", parent_revision_id.get()),
+            RuntimeError::RevisionNotFound {
+                revision_id: parent_revision_id.get(),
             }
             .boxed()
         })?;
@@ -303,8 +301,8 @@ impl Lineage {
         checkpoint_name: Option<String>,
     ) -> RuntimeResult<CommittedRevision> {
         let parent_branch = self.branches.get(&branch_id).cloned().ok_or_else(|| {
-            RuntimeError::Internal {
-                message: format!("branch {} does not exist", branch_id.get()),
+            RuntimeError::BranchNotFound {
+                branch_id: branch_id.get(),
             }
             .boxed()
         })?;
@@ -367,8 +365,8 @@ impl Lineage {
         revision_id: RevisionId,
     ) -> RuntimeResult<RevisionBacking> {
         let revision = self.revisions.get(&revision_id).cloned().ok_or_else(|| {
-            RuntimeError::Internal {
-                message: format!("revision {} does not exist", revision_id.get()),
+            RuntimeError::RevisionNotFound {
+                revision_id: revision_id.get(),
             }
             .boxed()
         })?;
@@ -377,12 +375,9 @@ impl Lineage {
             .get(&revision.image_id)
             .cloned()
             .ok_or_else(|| {
-                RuntimeError::Internal {
-                    message: format!(
-                        "revision {} is missing image {}",
-                        revision.id.get(),
-                        revision.image_id.get()
-                    ),
+                RuntimeError::RevisionImageMissing {
+                    revision_id: revision.id.get(),
+                    image_id: revision.image_id.get(),
                 }
                 .boxed()
             })?;
@@ -391,12 +386,9 @@ impl Lineage {
             .get(&revision.trace_image_id)
             .cloned()
             .ok_or_else(|| {
-                RuntimeError::Internal {
-                    message: format!(
-                        "revision {} is missing trace image {}",
-                        revision.id.get(),
-                        revision.trace_image_id.get()
-                    ),
+                RuntimeError::RevisionTraceImageMissing {
+                    revision_id: revision.id.get(),
+                    trace_image_id: revision.trace_image_id.get(),
                 }
                 .boxed()
             })?;

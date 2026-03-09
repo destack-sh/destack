@@ -3,7 +3,7 @@ use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-use destack_base::{Capture, CaptureMode, SnapshotCodec, fnv1a_128};
+use destack_base::{CaptureMode, fnv1a_128};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -22,8 +22,8 @@ use destack_workspace::{
 use postcard::to_allocvec;
 
 use super::{
-    BranchId, CheckpointId, Lineage, LineageSnapshot, RevisionId, RuntimeId, World, WorldResource,
-    WorldResourceId,
+    BranchId, CheckpointId, Lineage, LineageSnapshot, RevisionId, RuntimeId, World, WorldEdge,
+    WorldEntity, WorldResource, WorldResourceId,
 };
 
 /// Rebinding context for restoring one world image or snapshot.
@@ -127,6 +127,74 @@ pub struct Image {
     pub(crate) agents: BTreeMap<AgentId, AgentImage>,
 }
 
+impl Image {
+    /// Return one runtime image by id.
+    pub fn runtime(&self, runtime_id: RuntimeId) -> RuntimeResult<&RuntimeImage> {
+        self.runtimes.get(&runtime_id).ok_or_else(|| {
+            RuntimeError::RuntimeNotFound {
+                runtime_id: runtime_id.0,
+            }
+            .boxed()
+        })
+    }
+
+    /// Return labels for one runtime image.
+    pub fn runtime_labels(
+        &self,
+        runtime_id: RuntimeId,
+    ) -> RuntimeResult<&BTreeMap<String, String>> {
+        let entity_id = format!("runtime.{}", runtime_id.0);
+        let entity = self
+            .topology
+            .entities()
+            .get(entity_id.as_str())
+            .ok_or_else(|| RuntimeError::RuntimeNotFound {
+                runtime_id: runtime_id.0,
+            })?;
+
+        Ok(&entity.labels)
+    }
+
+    /// Return one agent image by id.
+    pub fn agent(&self, agent_id: AgentId) -> RuntimeResult<&AgentImage> {
+        self.agents.get(&agent_id).ok_or_else(|| {
+            RuntimeError::AgentNotFound {
+                agent_id: agent_id.0,
+            }
+            .boxed()
+        })
+    }
+
+    /// Return labels for one agent image.
+    pub fn agent_labels(&self, agent_id: AgentId) -> RuntimeResult<&BTreeMap<String, String>> {
+        let entity_id = format!("agent.{}", agent_id.0);
+        let entity = self
+            .topology
+            .entities()
+            .get(entity_id.as_str())
+            .ok_or_else(|| RuntimeError::AgentNotFound {
+                agent_id: agent_id.0,
+            })?;
+
+        Ok(&entity.labels)
+    }
+
+    /// Return one logical world resource by id.
+    pub fn resource(&self, resource_id: WorldResourceId) -> Option<&WorldResource> {
+        self.resources.get(&resource_id)
+    }
+
+    /// Return one topology entity by id.
+    pub fn entity(&self, entity_id: &str) -> Option<&WorldEntity> {
+        self.topology.entities().get(entity_id)
+    }
+
+    /// Return one topology edge by id.
+    pub fn edge(&self, edge_id: &str) -> Option<&WorldEdge> {
+        self.topology.edges().get(edge_id)
+    }
+}
+
 /// Serialized snapshot for one world image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Snapshot {
@@ -166,8 +234,8 @@ impl Snapshot {
     /// Encode one snapshot into bytes.
     pub fn encode(&self) -> RuntimeResult<Vec<u8>> {
         to_allocvec(self).map_err(|_| {
-            RuntimeError::Internal {
-                message: "failed to encode world snapshot".to_string(),
+            RuntimeError::InconsistentImage {
+                detail: "failed to encode world snapshot".to_string(),
             }
             .boxed()
         })
@@ -176,8 +244,8 @@ impl Snapshot {
     /// Decode one snapshot from bytes.
     pub fn decode(bytes: &[u8]) -> RuntimeResult<Self> {
         postcard::from_bytes(bytes).map_err(|_| {
-            RuntimeError::Internal {
-                message: "failed to decode world snapshot".to_string(),
+            RuntimeError::InconsistentImage {
+                detail: "failed to decode world snapshot".to_string(),
             }
             .boxed()
         })
@@ -239,8 +307,8 @@ impl World {
     pub fn image_info(&self, image_id: ImageId) -> RuntimeResult<Image> {
         let lineage = self.lineage.read();
         let image = lineage.images.get(&image_id).ok_or_else(|| {
-            RuntimeError::Internal {
-                message: format!("image {} does not exist", image_id.get()),
+            RuntimeError::ImageNotFound {
+                image_id: image_id.get(),
             }
             .boxed()
         })?;
@@ -258,14 +326,14 @@ impl World {
         let (image, revision_id, lineage_snapshot) = {
             let lineage = self.lineage.read();
             let image = lineage.images.get(&image_id).ok_or_else(|| {
-                RuntimeError::Internal {
-                    message: format!("image {} does not exist", image_id.get()),
+                RuntimeError::ImageNotFound {
+                    image_id: image_id.get(),
                 }
                 .boxed()
             })?;
             let revision_id = lineage.revision_id_for_image_id(image_id).ok_or_else(|| {
-                RuntimeError::Internal {
-                    message: format!("image {} does not belong to one revision", image_id.get()),
+                RuntimeError::InconsistentImage {
+                    detail: format!("image {} does not belong to one revision", image_id.get()),
                 }
                 .boxed()
             })?;
@@ -282,13 +350,36 @@ impl World {
         ))
     }
 
+    /// Restore one stored image into the active world.
+    pub fn restore_image_id(
+        &self,
+        image_id: ImageId,
+        rebind_context: Option<&RebindContext>,
+    ) -> RuntimeResult<()> {
+        // resolve the owning revision first
+        let (revision_id, image, trace_image) = {
+            let lineage = self.lineage.read();
+            let revision_id = lineage.revision_id_for_image_id(image_id).ok_or_else(|| {
+                RuntimeError::ImageNotFound {
+                    image_id: image_id.get(),
+                }
+                .boxed()
+            })?;
+            let backing = lineage.resolve_revision_backing(revision_id)?;
+
+            (revision_id, backing.image, backing.trace_image)
+        };
+
+        self.restore_revision_image(revision_id, &image, &trace_image, rebind_context)
+    }
+
     /// Create one serialized snapshot from one specific revision.
     pub fn snapshot_revision(&self, revision_id: RevisionId) -> RuntimeResult<Snapshot> {
         let image_id = {
             let lineage = self.lineage.read();
             let revision = lineage.revisions.get(&revision_id).ok_or_else(|| {
-                RuntimeError::Internal {
-                    message: format!("revision {} does not exist", revision_id.get()),
+                RuntimeError::RevisionNotFound {
+                    revision_id: revision_id.get(),
                 }
                 .boxed()
             })?;
@@ -304,8 +395,8 @@ impl World {
         let revision_id = {
             let lineage = self.lineage.read();
             let checkpoint = lineage.checkpoints.get(&checkpoint_id).ok_or_else(|| {
-                RuntimeError::Internal {
-                    message: format!("checkpoint {} does not exist", checkpoint_id.get()),
+                RuntimeError::CheckpointNotFound {
+                    checkpoint_id: checkpoint_id.get(),
                 }
                 .boxed()
             })?;
@@ -345,12 +436,9 @@ impl World {
         rebind_context: Option<&RebindContext>,
     ) -> RuntimeResult<()> {
         if snapshot.active_branch_id != self.branch_id {
-            return Err(RuntimeError::Internal {
-                message: format!(
-                    "snapshot active branch {} does not match world branch {}",
-                    snapshot.active_branch_id.get(),
-                    self.branch_id.get()
-                ),
+            return Err(RuntimeError::SnapshotBranchMismatch {
+                snapshot_branch_id: snapshot.active_branch_id.get(),
+                world_branch_id: self.branch_id.get(),
             }
             .boxed());
         }
@@ -441,8 +529,8 @@ impl World {
 
         // reject dangling agent images that do not belong to any restored runtime
         if let Some((runtime_id, _)) = agent_images_by_runtime.into_iter().next() {
-            return Err(RuntimeError::Internal {
-                message: format!("image contains agents for missing runtime {}", runtime_id.0),
+            return Err(RuntimeError::InconsistentImage {
+                detail: format!("image contains agents for missing runtime {}", runtime_id.0),
             }
             .boxed());
         }
@@ -455,8 +543,8 @@ impl World {
     /// Return the encoded size and hash for one image.
     pub(crate) fn image_size_and_hash(image: &Image) -> RuntimeResult<(u64, u128)> {
         let bytes = to_allocvec(image).map_err(|_| {
-            RuntimeError::Internal {
-                message: "failed to encode world image".to_string(),
+            RuntimeError::InconsistentImage {
+                detail: "failed to encode world image".to_string(),
             }
             .boxed()
         })?;
@@ -464,49 +552,5 @@ impl World {
         let hash = fnv1a_128(&bytes);
 
         Ok((size_bytes, hash))
-    }
-}
-
-impl Capture for World {
-    type Image = Image;
-    type Error = Box<RuntimeError>;
-    type CaptureContext<'a> = ();
-    type RestoreContext<'a> = Option<&'a RebindContext>;
-
-    /// Capture one world image under one exclusive-access lease.
-    fn capture_image(
-        &mut self,
-        mode: CaptureMode,
-        _context: Self::CaptureContext<'_>,
-    ) -> Result<Self::Image, Self::Error> {
-        let _exclusive_access = self.acquire_exclusive_access()?;
-        World::capture_image(self, mode)
-    }
-
-    /// Restore one world image under one exclusive-access lease.
-    fn restore_image(
-        &mut self,
-        image: &Self::Image,
-        context: Self::RestoreContext<'_>,
-    ) -> Result<(), Self::Error> {
-        let _exclusive_access = self.acquire_exclusive_access()?;
-        World::restore_image(self, image, context)
-    }
-}
-
-impl SnapshotCodec for World {
-    type Snapshot = Snapshot;
-
-    /// Encode one world image as one world snapshot.
-    fn encode_snapshot(_image: &Self::Image) -> Result<Self::Snapshot, Self::Error> {
-        Err(RuntimeError::Internal {
-            message: "world snapshot export requires world lineage context".to_string(),
-        }
-        .boxed())
-    }
-
-    /// Decode one world snapshot back into one world image.
-    fn decode_snapshot(snapshot: &Self::Snapshot) -> Result<Self::Image, Self::Error> {
-        Ok(snapshot.image.clone())
     }
 }

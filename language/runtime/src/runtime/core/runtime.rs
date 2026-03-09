@@ -139,8 +139,8 @@ impl Runtime {
             return Ok(());
         }
 
-        Err(RuntimeError::Internal {
-            message: format!("runtime agent {} does not exist", agent_id.0),
+        Err(RuntimeError::AgentNotFound {
+            agent_id: agent_id.0,
         }
         .boxed())
     }
@@ -148,6 +148,11 @@ impl Runtime {
     /// Return all active agent ids.
     pub fn agent_ids(&self) -> Vec<AgentId> {
         self.agents.keys().copied().collect()
+    }
+
+    /// Return the number of active agents.
+    pub fn agent_count(&self) -> usize {
+        self.agents.len()
     }
 
     /// Return one immutable agent by id.
@@ -189,6 +194,31 @@ impl Runtime {
         self.insert_agent(agent)
     }
 
+    /// Remove one agent from this runtime and return its boxed handle.
+    pub fn remove_agent(&mut self, agent_id: AgentId) -> RuntimeResult<Box<Agent>> {
+        // remove the target agent from the registry
+        let removed_agent = self.agents.remove(&agent_id).ok_or_else(|| {
+            RuntimeError::AgentNotFound {
+                agent_id: agent_id.0,
+            }
+            .boxed()
+        })?;
+
+        // reject removing the last remaining agent
+        if self.agents.is_empty() {
+            self.agents.insert(agent_id, removed_agent);
+            return Err(RuntimeError::LastAgentRemoval.boxed());
+        }
+
+        // reject implicit primary fallback to keep ownership explicit
+        if self.primary_agent_id == agent_id {
+            self.agents.insert(agent_id, removed_agent);
+            return Err(RuntimeError::PrimaryAgentRemoval.boxed());
+        }
+
+        Ok(removed_agent)
+    }
+
     /// Attach a shared platform poller for all agents in this runtime.
     pub fn set_poller(&mut self, poller: Box<dyn HostPoller>) {
         self.poller = Some(poller);
@@ -219,8 +249,8 @@ impl Runtime {
             .get_mut(&agent_id)
             .map(Box::as_mut)
             .ok_or_else(|| {
-                RuntimeError::Internal {
-                    message: format!("runtime agent {} does not exist", agent_id.0),
+                RuntimeError::AgentNotFound {
+                    agent_id: agent_id.0,
                 }
                 .boxed()
             })?;
@@ -238,8 +268,8 @@ impl Runtime {
         let agents = &mut self.agents;
         for agent_id in agent_ids {
             let agent = agents.get_mut(&agent_id).map(Box::as_mut).ok_or_else(|| {
-                RuntimeError::Internal {
-                    message: format!("runtime agent {} does not exist", agent_id.0),
+                RuntimeError::AgentNotFound {
+                    agent_id: agent_id.0,
                 }
                 .boxed()
             })?;
@@ -255,38 +285,6 @@ impl Runtime {
 
         Ok(TickOutcome::Idle)
     }
-
-    /// Remove one agent from this runtime and return its boxed handle.
-    pub fn remove_agent(&mut self, agent_id: AgentId) -> RuntimeResult<Box<Agent>> {
-        // remove the target agent from the registry
-        let removed_agent = self.agents.remove(&agent_id).ok_or_else(|| {
-            RuntimeError::Internal {
-                message: format!("runtime agent {} does not exist", agent_id.0),
-            }
-            .boxed()
-        })?;
-
-        // reject removing the last remaining agent
-        if self.agents.is_empty() {
-            self.agents.insert(agent_id, removed_agent);
-            return Err(RuntimeError::Internal {
-                message: "runtime must keep at least one agent".to_string(),
-            }
-            .boxed());
-        }
-
-        // reject implicit primary fallback to keep ownership explicit
-        if self.primary_agent_id == agent_id {
-            self.agents.insert(agent_id, removed_agent);
-            return Err(RuntimeError::Internal {
-                message: "cannot remove primary agent: set a new primary agent first".to_string(),
-            }
-            .boxed());
-        }
-
-        Ok(removed_agent)
-    }
-
     /// Create one runtime from one already-constructed primary agent.
     fn new(
         platform_args: Arc<[String]>,
@@ -327,8 +325,8 @@ impl Runtime {
 
         // reject duplicate ids loudly: runtime ownership must stay one to one
         if self.agents.insert(agent_id, agent).is_some() {
-            return Err(RuntimeError::Internal {
-                message: format!("runtime already contains agent {}", agent_id.0),
+            return Err(RuntimeError::AgentAlreadyExists {
+                agent_id: agent_id.0,
             }
             .boxed());
         }
@@ -431,8 +429,8 @@ impl Runtime {
                     // matched host ingress
                     for agent_id in targets {
                         let agent = self.agent_mut(agent_id).ok_or_else(|| {
-                            RuntimeError::Internal {
-                                message: format!("runtime agent {} does not exist", agent_id.0),
+                            RuntimeError::AgentNotFound {
+                                agent_id: agent_id.0,
                             }
                             .boxed()
                         })?;
@@ -466,8 +464,8 @@ impl Runtime {
                     // matched poller ingress
                     for agent_id in targets {
                         let agent = self.agent_mut(agent_id).ok_or_else(|| {
-                            RuntimeError::Internal {
-                                message: format!("runtime agent {} does not exist", agent_id.0),
+                            RuntimeError::AgentNotFound {
+                                agent_id: agent_id.0,
                             }
                             .boxed()
                         })?;
@@ -496,8 +494,8 @@ impl Runtime {
                     }
 
                     let agent = self.agent_mut(agent_id).ok_or_else(|| {
-                        RuntimeError::Internal {
-                            message: format!("runtime agent {} does not exist", agent_id.0),
+                        RuntimeError::AgentNotFound {
+                            agent_id: agent_id.0,
                         }
                         .boxed()
                     })?;
@@ -540,9 +538,11 @@ impl Runtime {
         let mut agent_images = BTreeMap::new();
         for agent in self.agents.values_mut() {
             let image = agent.capture_image(mode)?;
-            if agent_images.insert(image.agent_id, image).is_some() {
-                return Err(RuntimeError::Internal {
-                    message: format!("runtime {} produced duplicate agent image", self.id.0),
+            let agent_id = image.agent_id;
+            if agent_images.insert(agent_id, image).is_some() {
+                return Err(RuntimeError::DuplicateAgentImage {
+                    runtime_id: self.id.0,
+                    agent_id: agent_id.0,
                 }
                 .boxed());
             }
@@ -572,11 +572,9 @@ impl Runtime {
                 .insert(agent_image.agent_id, Box::new(agent))
                 .is_some()
             {
-                return Err(RuntimeError::Internal {
-                    message: format!(
-                        "runtime {} image contains duplicate agent {}",
-                        image.runtime_id.0, agent_image.agent_id.0
-                    ),
+                return Err(RuntimeError::DuplicateAgentImage {
+                    runtime_id: image.runtime_id.0,
+                    agent_id: agent_image.agent_id.0,
                 }
                 .boxed());
             }
@@ -584,11 +582,9 @@ impl Runtime {
 
         // validate the primary agent after reconstruction
         if !agents.contains_key(&image.primary_agent_id) {
-            return Err(RuntimeError::Internal {
-                message: format!(
-                    "runtime {} image is missing primary agent {}",
-                    image.runtime_id.0, image.primary_agent_id.0
-                ),
+            return Err(RuntimeError::PrimaryAgentMissing {
+                runtime_id: image.runtime_id.0,
+                agent_id: image.primary_agent_id.0,
             }
             .boxed());
         }

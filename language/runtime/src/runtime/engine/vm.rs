@@ -17,8 +17,9 @@ impl Engine for Isolate {
         args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
         let Entry::Vm { name } = entry else {
-            return Err(RuntimeError::Internal {
-                message: format!("vm engine cannot run non-vm entry '{}'", entry.name()),
+            return Err(RuntimeError::EngineEntryMismatch {
+                engine: "vm".to_string(),
+                entry: entry.name().to_string(),
             }
             .boxed());
         };
@@ -36,8 +37,9 @@ impl Engine for Isolate {
         value: heap::Value,
     ) -> RuntimeResult<EngineOutcome> {
         let EngineContinuation::Vm(continuation) = continuation else {
-            return Err(RuntimeError::Internal {
-                message: "vm engine cannot resume native continuation".to_string(),
+            return Err(RuntimeError::EngineContinuationMismatch {
+                engine: "vm".to_string(),
+                continuation: "native".to_string(),
             }
             .boxed());
         };
@@ -67,8 +69,9 @@ impl Engine for Isolate {
         continuation: &EngineContinuation,
     ) -> RuntimeResult<EngineContinuationImage> {
         let EngineContinuation::Vm(continuation) = continuation else {
-            return Err(RuntimeError::Internal {
-                message: "vm engine cannot capture native continuation images".to_string(),
+            return Err(RuntimeError::EngineContinuationMismatch {
+                engine: "vm".to_string(),
+                continuation: "native".to_string(),
             }
             .boxed());
         };
@@ -85,8 +88,9 @@ impl Engine for Isolate {
         image: &EngineContinuationImage,
     ) -> RuntimeResult<EngineContinuation> {
         let EngineContinuationImage::Vm(image) = image else {
-            return Err(RuntimeError::Internal {
-                message: "vm engine cannot restore native continuation images".to_string(),
+            return Err(RuntimeError::EngineContinuationMismatch {
+                engine: "vm".to_string(),
+                continuation: "native".to_string(),
             }
             .boxed());
         };
