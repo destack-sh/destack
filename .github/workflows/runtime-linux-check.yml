@@ -35,3 +35,8 @@ jobs:
 
       - name: Check Runtime (Linux Wayland)
         run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just language/check-runtime-linux-wayland
+
+      - name: Show sccache Stats
+        if: always()
+        shell: bash
+        run: sccache --show-stats || true

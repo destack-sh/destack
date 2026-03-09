@@ -37,3 +37,8 @@ jobs:
 
       - name: Check Runtime (Windows)
         run: just language/check-runtime-windows-msvc
+
+      - name: Show sccache Stats
+        if: always()
+        shell: bash
+        run: sccache --show-stats || true

@@ -66,5 +66,4 @@ if [ ! -s "${tier1_file}" ]; then
 	exit 1
 fi
 
-assert_job_has_tier1_lanes "release-build" "${tier1_file}" "${needs_file}" "${missing_file}"
-assert_job_has_tier1_lanes "cli-build" "${tier1_file}" "${needs_file}" "${missing_file}"
+assert_job_has_tier1_lanes "release-artifacts" "${tier1_file}" "${needs_file}" "${missing_file}"
