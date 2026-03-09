@@ -183,6 +183,7 @@ pub(crate) fn collect_binding_params(
         .iter()
         .map(|parameter_id| {
             let name = parameter_name(*parameter_id, tree, strings);
+            let is_optional = parameter_is_optional(*parameter_id, tree);
             let Some(type_id) = type_id_for_parameter(*parameter_id, module_id, types) else {
                 unsupported_binding_type(
                     "parameter",
@@ -193,6 +194,11 @@ pub(crate) fn collect_binding_params(
             let binding_type = binding_type_from_type_id(
                 type_id, types, modules, strings, profile_id, symbols, domain,
             );
+            let binding_type = if is_optional {
+                BindingType::Optional(Box::new(binding_type))
+            } else {
+                binding_type
+            };
 
             BindingParameter {
                 name,
@@ -201,6 +207,19 @@ pub(crate) fn collect_binding_params(
             }
         })
         .collect()
+}
+
+/// Return whether one parameter is optional at the call boundary.
+fn parameter_is_optional(
+    parameter_id: dir::LocalNodeId<dir::Parameter>,
+    tree: &dir::NodeTree,
+) -> bool {
+    let parameter = tree.get::<dir::Parameter>(parameter_id);
+
+    parameter
+        .modifiers()
+        .is_some_and(|modifiers| matches!(modifiers.kind, Some(dir::BindingKind::Maybe)))
+        || parameter.has_default()
 }
 
 /// Collect binding return metadata for a declaration.
@@ -856,44 +875,6 @@ fn binding_tagged_union_variant_name(binding_type: &BindingType) -> Option<Strin
     }
 }
 
-/// Resolve optional flags for fields in one struct declaration.
-fn struct_optional_fields(
-    struct_symbol: GlobalSymbolId,
-    declaration_id: dir::LocalNodeId<Declaration>,
-    module_id: ModuleId,
-    types: &dir::TypeTable,
-    symbols: &dir::SymbolTable,
-    strings: &StringPool,
-    type_name: &str,
-) -> BTreeMap<String, bool> {
-    let type_id = types
-        .get_type_id_for_symbol(symbols, struct_symbol)
-        .or_else(|| {
-            let declaration_node = dir::GlobalNodeIdAny {
-                module_id,
-                local_id: declaration_id.into(),
-            };
-            types.get_declared_or_inferred_type_id(declaration_node)
-        });
-    let Some(type_id) = type_id else {
-        return BTreeMap::new();
-    };
-
-    let dir::Type::Object { fields, .. } = types.get_type(type_id) else {
-        return BTreeMap::new();
-    };
-
-    let mut optional_fields = BTreeMap::new();
-    for field in fields {
-        let field_name = field_name_from_static_key(&field.key, strings).unwrap_or_else(|| {
-            unsupported_binding_type(type_name, "struct field name is not supported")
-        });
-        optional_fields.insert(field_name, field.is_optional);
-    }
-
-    optional_fields
-}
-
 /// Resolve a binding type directly from a type-alias expression node.
 fn binding_type_from_alias_expression(
     type_text: &str,
@@ -963,6 +944,11 @@ fn binding_type_from_object_type(
             symbols,
             domain.as_str(),
         );
+        let field_binding = if field.is_optional {
+            BindingType::Optional(Box::new(field_binding))
+        } else {
+            field_binding
+        };
         binding_fields.push(BindingField {
             name: field_name,
             documentation: None,
@@ -1019,8 +1005,8 @@ fn binding_type_from_tuple(
 /// Resolve struct fields into a binding type.
 fn binding_type_from_struct(
     name: String,
-    struct_symbol: GlobalSymbolId,
-    declaration_id: dir::LocalNodeId<Declaration>,
+    _struct_symbol: GlobalSymbolId,
+    _declaration_id: dir::LocalNodeId<Declaration>,
     members: &[dir::LocalNodeId<dir::Member>],
     tree: &dir::NodeTree,
     types: &dir::TypeTable,
@@ -1032,20 +1018,11 @@ fn binding_type_from_struct(
     profile_id: ProfileId,
     binding_symbols: &BindingTypeSymbols,
 ) -> BindingType {
-    let optional_fields = struct_optional_fields(
-        struct_symbol,
-        declaration_id,
-        module_id,
-        types,
-        symbols,
-        strings,
-        name.as_str(),
-    );
-
     let mut fields = Vec::new();
     for member_id in members {
         let member = tree.get::<dir::Member>(*member_id);
         let dir::Member::Field {
+            modifiers,
             key,
             value,
             default,
@@ -1079,11 +1056,10 @@ fn binding_type_from_struct(
             binding_symbols,
             domain.as_str(),
         );
-        let field_binding = if optional_fields
-            .get(field_name.as_str())
-            .copied()
-            .unwrap_or(false)
-        {
+        let is_optional = modifiers
+            .as_ref()
+            .is_some_and(|modifiers| matches!(modifiers.kind, Some(dir::BindingKind::Maybe)));
+        let field_binding = if is_optional {
             BindingType::Optional(Box::new(field_binding))
         } else {
             field_binding

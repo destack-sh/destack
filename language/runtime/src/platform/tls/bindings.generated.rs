@@ -2755,7 +2755,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             }
         );
     }
-    {}
     {
         binding!(
             registry,
