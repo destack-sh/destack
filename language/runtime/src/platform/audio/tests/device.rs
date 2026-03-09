@@ -13,15 +13,16 @@ use super::super::{
     AudioDeviceListRequest, AudioDeviceOpenFlags, AudioDeviceOpenOptions, AudioShareMode,
 };
 use super::core::{
-    backend_availability_rows, backend_availability_rows_with_capabilities, descriptor_count,
-    device_descriptor_direction_from_value, device_descriptor_stream_clock_domains_from_value,
-    device_direction_capability_rows, harness_device_options, harness_list_request, harness_string,
-    string_from_harness_value,
+    backend_availability_rows, backend_availability_rows_with_capabilities,
+    backend_descriptor_summaries, descriptor_count, device_descriptor_direction_from_value,
+    device_descriptor_stream_clock_domains_from_value, device_direction_capability_rows,
+    harness_device_options, harness_list_request, harness_string, string_from_harness_value,
 };
 use super::{
     assert_code_is_not_not_supported, assert_not_supported_result, assert_platform_error_code,
     error_code_from_runtime_error, with_harness_context,
 };
+use crate::platform::core::BackendSupport;
 use crate::platform::diagnostic::PlatformErrorCode;
 
 #[cfg(any(unix, windows))]
@@ -214,6 +215,91 @@ fn test_audio_backend_list_sets_capabilities_for_available_rows() {
                 assert_ne!(capability_flags.0 & BACKEND_CAPABILITY_SHARED_MODE.0, 0);
                 assert_eq!(capability_flags.0 & BACKEND_CAPABILITY_EXCLUSIVE_MODE.0, 0);
             }
+        }
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_backend_list_support_contract_matches_advertised_lanes() {
+    with_harness_context(|mut context| {
+        let rows = context.destack_audio_backend_list()?;
+        let rows = backend_descriptor_summaries(&mut context, rows)?;
+        let auto = rows
+            .iter()
+            .find(|row| row.backend == AudioBackend::Auto)
+            .expect("backend list should contain auto selector");
+        let null = rows
+            .iter()
+            .find(|row| row.backend == AudioBackend::Null)
+            .expect("backend list should contain null selector");
+        let has_available_host_backend = rows.iter().any(|row| {
+            row.backend != AudioBackend::Auto
+                && row.backend != AudioBackend::Null
+                && row.support == BackendSupport::Available
+        });
+
+        assert_eq!(auto.priority, u16::MAX);
+        assert_eq!(null.priority, 0);
+        assert_eq!(null.support, BackendSupport::Available);
+
+        if has_available_host_backend {
+            assert_eq!(auto.support, BackendSupport::Available);
+            assert_ne!(auto.capability_flags.0, 0);
+            assert_ne!(auto.supported_device_list_flags.0, 0);
+        } else {
+            assert_ne!(auto.support, BackendSupport::Available);
+            assert_eq!(auto.capability_flags.0, 0);
+            assert_eq!(auto.supported_device_list_flags.0, 0);
+            assert_eq!(auto.supported_device_open_flags.0, 0);
+            assert_eq!(auto.supported_stream_flags.0, 0);
+            assert_eq!(auto.supported_stream_requirement_flags.0, 0);
+            assert_eq!(auto.supported_event_subscription_flags.0, 0);
+            assert_eq!(auto.supported_stream_clock_domains.0, 0);
+        }
+
+        for row in rows {
+            if row.support == BackendSupport::Available {
+                continue;
+            }
+
+            assert_eq!(
+                row.capability_flags.0, 0,
+                "unavailable backend {:?} should not advertise capability lanes",
+                row.backend
+            );
+            assert_eq!(
+                row.supported_device_list_flags.0, 0,
+                "unavailable backend {:?} should not advertise device list lanes",
+                row.backend
+            );
+            assert_eq!(
+                row.supported_device_open_flags.0, 0,
+                "unavailable backend {:?} should not advertise device open lanes",
+                row.backend
+            );
+            assert_eq!(
+                row.supported_stream_flags.0, 0,
+                "unavailable backend {:?} should not advertise stream flags",
+                row.backend
+            );
+            assert_eq!(
+                row.supported_stream_requirement_flags.0, 0,
+                "unavailable backend {:?} should not advertise stream requirements",
+                row.backend
+            );
+            assert_eq!(
+                row.supported_event_subscription_flags.0, 0,
+                "unavailable backend {:?} should not advertise event lanes",
+                row.backend
+            );
+            assert_eq!(
+                row.supported_stream_clock_domains.0, 0,
+                "unavailable backend {:?} should not advertise stream clock lanes",
+                row.backend
+            );
         }
 
         Ok(())

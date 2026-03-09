@@ -50,7 +50,7 @@ use crate::platform::audio::{
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
-    VmSlice, resource,
+    VmSlice, core, resource,
 };
 use destack_vm as vm;
 
@@ -74,7 +74,7 @@ impl<'call> AudioHarnessContext<'call> {
 
     /// List host audio backends.
     ///
-    /// Enumerate available backend implementations and backend-level feature flags.
+    /// Enumerate backend selectors, support state, and backend-level feature flags.
     ///
     /// # Platform
     /// Unix and Windows.

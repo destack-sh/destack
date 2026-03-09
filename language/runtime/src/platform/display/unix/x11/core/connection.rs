@@ -7,6 +7,7 @@ use x11rb::protocol::xproto::{Atom, AtomEnum, ConnectionExt as XprotoConnectionE
 use x11rb::rust_connection::RustConnection;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::core::BackendSupport;
 use crate::platform::display::DisplayBackendCapabilityFlags;
 use crate::platform::{PlatformError, display as display_platform};
 use crate::runtime::BindingCallContext;
@@ -393,20 +394,28 @@ pub(crate) fn connection_state(
     Ok(snapshot)
 }
 
-/// Return backend descriptor availability and capability flags for x11.
+/// Return backend descriptor support and capability flags for x11.
 pub(crate) fn backend_descriptor_state(
     binding: &BindingCallContext,
-) -> (bool, DisplayBackendCapabilityFlags) {
+) -> (BackendSupport, DisplayBackendCapabilityFlags) {
     // treat x11 as unavailable when no display endpoint is configured
     if std::env::var_os("DISPLAY").is_none() {
-        return (false, DisplayBackendCapabilityFlags(0));
+        return (
+            BackendSupport::HostUnavailable,
+            DisplayBackendCapabilityFlags(0),
+        );
     }
 
     // resolve one shared x11 connection for capability probing
     let runtime_state = runtime_state(binding);
     let connection_state = match connection_state(&runtime_state, "destack.display.backend.list") {
         Ok(value) => value,
-        Err(_) => return (false, DisplayBackendCapabilityFlags(0)),
+        Err(_) => {
+            return (
+                BackendSupport::HostUnavailable,
+                DisplayBackendCapabilityFlags(0),
+            );
+        }
     };
 
     // publish baseline capability lanes supported without optional extensions
@@ -469,5 +478,8 @@ pub(crate) fn backend_descriptor_state(
         capability_flags |= display_platform::DISPLAY_BACKEND_CAP_WINDOW_HIT_TEST.0;
     }
 
-    (true, DisplayBackendCapabilityFlags(capability_flags))
+    (
+        BackendSupport::Available,
+        DisplayBackendCapabilityFlags(capability_flags),
+    )
 }

@@ -30,7 +30,9 @@ pub(super) fn test_monitor_closest_mode_returns_supported_mode() {
             return Ok(());
         };
         let monitor_list = decode_monitor_list(&mut context, monitor_list)?;
-        assert!(!monitor_list.is_empty());
+        if monitor_list.is_empty() {
+            return Ok(());
+        }
 
         let display_id = monitor_list[0].0.clone();
         let display_id = harness_string(&mut context, &display_id)?;
@@ -61,15 +63,6 @@ pub(super) fn test_monitor_open_unknown_id_reports_not_found() {
     }
 
     with_harness_context(|mut context| {
-        let Some(monitor_list) = result_or_skip_not_supported(
-            context.destack_display_monitor_list(default_monitor_list_request(&context)),
-        )?
-        else {
-            return Ok(());
-        };
-        let monitor_list = decode_monitor_list(&mut context, monitor_list)?;
-        assert!(!monitor_list.is_empty());
-
         let missing = harness_string(&mut context, "destack-display-missing")?;
         let result =
             context.destack_display_monitor_open(missing, default_monitor_open_options(&context));

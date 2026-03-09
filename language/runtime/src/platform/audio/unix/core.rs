@@ -3,6 +3,7 @@ use crate::platform::audio::core::constants::AudioBackendOpenFlags;
 use crate::platform::audio::core::model::{AudioStreamHostState, HostDeviceDescriptor};
 use crate::platform::audio::core::monitor::AudioMonitorHandle;
 use crate::platform::audio::{AudioBackend, AudioShareMode, AudioStreamConfig};
+use crate::platform::core::BackendSupport;
 
 use super::backend;
 
@@ -23,9 +24,9 @@ pub(crate) fn preferred_host_backends() -> &'static [AudioBackend] {
     UNIX_BACKEND_PRIORITY
 }
 
-/// Return whether one unix backend is available for this build.
-pub(crate) fn backend_supported(backend: AudioBackend) -> bool {
-    backend::backend_supported(backend)
+/// Return host backend support for one unix backend.
+pub(crate) fn backend_support(backend: AudioBackend) -> BackendSupport {
+    backend::backend_support(backend)
 }
 
 /// Return whether one unix backend supports stream creation.

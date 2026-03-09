@@ -14,17 +14,32 @@ use super::pipewire;
 #[cfg(all(target_os = "linux", feature = "audio-pulseaudio"))]
 use super::pulseaudio;
 use crate::diagnostic::RuntimeResult;
-use crate::platform::audio::backend::{backend_name, backend_not_supported};
+use crate::platform::audio::backend::backend_name;
 use crate::platform::audio::core::constants::AudioBackendOpenFlags;
 use crate::platform::audio::core::model::{AudioStreamHostState, HostDeviceDescriptor};
 use crate::platform::audio::core::monitor::AudioMonitorHandle;
 use crate::platform::audio::{AudioBackend, AudioShareMode, AudioStreamConfig};
-use crate::platform::core as core_platform;
+use crate::platform::core::{self as core_platform, BackendSupport, backend_support_error};
 use std::sync::Arc;
+
+/// Return whether one unix backend can exist on this target family.
+fn backend_supports_target(backend: AudioBackend) -> bool {
+    cfg!(target_os = "linux")
+        && matches!(
+            backend,
+            AudioBackend::Alsa
+                | AudioBackend::PulseAudio
+                | AudioBackend::PipeWire
+                | AudioBackend::Jack
+        )
+        || cfg!(any(target_os = "macos", target_os = "ios")) && backend == AudioBackend::CoreAudio
+        || cfg!(target_os = "android")
+            && matches!(backend, AudioBackend::AAudio | AudioBackend::OpenSLES)
+}
 
 /// Return whether one unix backend is enabled by compile-time feature selection.
 fn backend_feature_enabled(backend: AudioBackend) -> bool {
-    // backend families that are never host implemented
+    // selectors are not real host implementations
     if backend == AudioBackend::Auto || backend == AudioBackend::Null {
         return false;
     }
@@ -68,12 +83,8 @@ fn backend_feature_enabled(backend: AudioBackend) -> bool {
     false
 }
 
-/// Return whether one unix backend is implemented for this build.
-pub(crate) fn backend_supported(backend: AudioBackend) -> bool {
-    if !backend_feature_enabled(backend) {
-        return false;
-    }
-
+/// Return whether one enabled unix backend is reachable on the current host.
+fn backend_host_available(backend: AudioBackend) -> bool {
     match backend {
         #[cfg(all(target_os = "linux", feature = "audio-alsa"))]
         AudioBackend::Alsa => alsa::is_backend_supported(),
@@ -94,8 +105,29 @@ pub(crate) fn backend_supported(backend: AudioBackend) -> bool {
     }
 }
 
+/// Return host backend support for one unix backend.
+pub(crate) fn backend_support(backend: AudioBackend) -> BackendSupport {
+    // reject backend families that do not exist for this target
+    if !backend_supports_target(backend) {
+        return BackendSupport::UnsupportedTarget;
+    }
+
+    // report feature-gated backends separately from target support
+    if !backend_feature_enabled(backend) {
+        return BackendSupport::DisabledByBuild;
+    }
+
+    // report whether the host integration is reachable right now
+    if backend_host_available(backend) {
+        BackendSupport::Available
+    } else {
+        BackendSupport::HostUnavailable
+    }
+}
+
 /// Return whether one unix backend supports stream creation.
 pub(crate) fn backend_stream_supported(backend: AudioBackend) -> bool {
+    // stream support cannot exist when the backend is compiled out
     if !backend_feature_enabled(backend) {
         return false;
     }
@@ -104,12 +136,13 @@ pub(crate) fn backend_stream_supported(backend: AudioBackend) -> bool {
         #[cfg(any(target_os = "macos", target_os = "ios"))]
         #[cfg(feature = "audio-coreaudio")]
         AudioBackend::CoreAudio => coreaudio::is_stream_supported(),
-        _ => backend_supported(backend),
+        _ => backend_support(backend).is_available(),
     }
 }
 
 /// Return whether one unix backend supports a native device monitor.
 pub(crate) fn backend_supports_native_device_monitor(backend: AudioBackend) -> bool {
+    // native monitor support is backend-family specific
     if !backend_feature_enabled(backend) {
         return false;
     }
@@ -128,10 +161,13 @@ pub(crate) fn backend_supports_native_device_monitor(backend: AudioBackend) -> b
 pub(crate) fn enumerate_host_devices(
     backend: AudioBackend,
 ) -> RuntimeResult<Vec<HostDeviceDescriptor>> {
-    if !backend_supported(backend) {
-        return Err(backend_not_supported(
+    // fail early when the requested backend integration is unavailable
+    let support = backend_support(backend);
+    if !support.is_available() {
+        return Err(backend_support_error(
             "destack.audio.device.list",
             backend_name(backend),
+            support,
         ));
     }
 
@@ -151,7 +187,11 @@ pub(crate) fn enumerate_host_devices(
         AudioBackend::OpenSLES => opensles::enumerate_host_devices(),
         #[cfg(all(target_os = "linux", feature = "audio-jack"))]
         AudioBackend::Jack => jack::enumerate_host_devices(),
-        _ => Err(backend_not_supported("destack.audio.device.list", "unix")),
+        _ => Err(backend_support_error(
+            "destack.audio.device.list",
+            "unix",
+            BackendSupport::UnsupportedTarget,
+        )),
     }
 }
 
@@ -164,10 +204,12 @@ pub(crate) fn open_host_stream(
 ) -> RuntimeResult<Arc<AudioStreamHostState>> {
     let _ = (&config, &share_mode);
 
+    // fail before dispatching to one backend-specific stream opener
     if !backend_stream_supported(device_info.backend) {
-        return Err(backend_not_supported(
+        return Err(backend_support_error(
             "destack.audio.stream.open",
             backend_name(device_info.backend),
+            backend_support(device_info.backend),
         ));
     }
 
@@ -201,18 +243,26 @@ pub(crate) fn open_host_stream(
         AudioBackend::Jack => {
             jack::open_host_stream(device_info, config, share_mode, backend_flags)
         }
-        _ => Err(backend_not_supported("destack.audio.stream.open", "unix")),
+        _ => Err(backend_support_error(
+            "destack.audio.stream.open",
+            "unix",
+            BackendSupport::UnsupportedTarget,
+        )),
     }
 }
 
 /// Trigger one unix backend device rescan.
 pub(crate) fn rescan_host_backend(backend: AudioBackend) -> RuntimeResult<()> {
-    if backend_supported(backend) {
+    let support = backend_support(backend);
+
+    // report success when the backend integration exists for this host
+    if support.is_available() {
         Ok(())
     } else {
-        Err(backend_not_supported(
+        Err(backend_support_error(
             "destack.audio.device.rescan",
             backend_name(backend),
+            support,
         ))
     }
 }
@@ -222,6 +272,7 @@ pub(crate) fn resolve_host_device_by_id(
     backend: AudioBackend,
     id: &str,
 ) -> RuntimeResult<HostDeviceDescriptor> {
+    // search the refreshed device snapshot for one stable host id
     let devices = enumerate_host_devices(backend)?;
     devices
         .into_iter()
@@ -238,6 +289,7 @@ pub(crate) fn resolve_host_device_by_id(
 pub(crate) fn start_backend_native_device_events(
     backend: AudioBackend,
 ) -> RuntimeResult<Box<dyn AudioMonitorHandle>> {
+    // dispatch to the backend-specific native monitor implementation
     #[cfg(all(target_os = "linux", feature = "audio-alsa"))]
     if backend == AudioBackend::Alsa {
         return alsa::start_native_device_event_monitor();
@@ -264,8 +316,9 @@ pub(crate) fn start_backend_native_device_events(
         return jack::start_native_device_event_monitor();
     }
 
-    Err(backend_not_supported(
+    Err(backend_support_error(
         "destack.audio.event.open",
         backend_name(backend),
+        backend_support(backend),
     ))
 }

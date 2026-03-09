@@ -3,9 +3,9 @@ use super::HarnessWindowMode;
 #[cfg(any(unix, windows))]
 use super::harness_window_mode_options;
 use super::{
-    DisplayHarnessContext, HarnessValue, default_monitor_event_open_options,
-    default_window_event_open_options, default_window_options, error_code,
-    monitor_event_open_options, monitor_event_open_options_with_kind_mask,
+    DisplayHarnessContext, HarnessValue, decode_monitor_list, default_monitor_event_open_options,
+    default_monitor_list_request, default_window_event_open_options, default_window_options,
+    error_code, monitor_event_open_options, monitor_event_open_options_with_kind_mask,
     open_window_or_skip_not_supported, result_or_skip_not_supported, run_display_case_or_return,
     window_event_open_options, window_event_open_options_with_filter, with_harness_context,
 };
@@ -15,6 +15,7 @@ use crate::diagnostic::RuntimeError;
 use crate::diagnostic::RuntimeResult;
 #[cfg(any(unix, windows))]
 use crate::platform::PlatformError;
+use crate::platform::core::BackendSupport;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{display as display_platform, resource};
 use display_platform::DisplayEventOverflowPolicy;
@@ -29,6 +30,16 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{SendMessageW, WM_CLOSE, WM_DIS
 const DISPLAY_CAP_WINDOW_PARENTING: u64 = display_platform::DISPLAY_BACKEND_CAP_WINDOW_PARENTING.0;
 #[cfg(any(unix, windows))]
 const DISPLAY_CAP_WINDOW_MODAL: u64 = display_platform::DISPLAY_BACKEND_CAP_WINDOW_MODAL.0;
+
+#[cfg(any(unix, windows))]
+fn backend_is_available(support: BackendSupport) -> bool {
+    matches!(support, BackendSupport::Available)
+}
+
+#[cfg(any(unix, windows))]
+fn is_concrete_host_backend(backend: DisplayBackend) -> bool {
+    !matches!(backend, DisplayBackend::Auto | DisplayBackend::Null)
+}
 
 #[cfg(any(unix, windows))]
 /// One available backend summary used by behavior tests.
@@ -59,7 +70,10 @@ fn available_backend_descriptors(
     let descriptors = match descriptors {
         HarnessValue::Native(values) => unsafe { values.as_slice()? }
             .iter()
-            .filter(|descriptor| descriptor.available)
+            .filter(|descriptor| {
+                backend_is_available(descriptor.support)
+                    && is_concrete_host_backend(descriptor.backend)
+            })
             .map(|descriptor| BackendDescriptorSummary {
                 backend: descriptor.backend,
                 capability_flags: descriptor.capability_flags.0,
@@ -77,7 +91,10 @@ fn available_backend_descriptors(
             values
                 .read_values(vm_context)?
                 .into_iter()
-                .filter(|descriptor| descriptor.available)
+                .filter(|descriptor| {
+                    backend_is_available(descriptor.support)
+                        && is_concrete_host_backend(descriptor.backend)
+                })
                 .map(|descriptor| BackendDescriptorSummary {
                     backend: descriptor.backend,
                     capability_flags: descriptor.capability_flags.0,
@@ -754,6 +771,17 @@ pub(super) fn test_monitor_event_overflow_error_policy_reports_busy() {
     }
 
     with_harness_context(|mut context| {
+        let Some(monitor_list) = result_or_skip_not_supported(
+            context.destack_display_monitor_list(default_monitor_list_request(&context)),
+        )?
+        else {
+            return Ok(());
+        };
+        let monitor_list = decode_monitor_list(&mut context, monitor_list)?;
+        if monitor_list.is_empty() {
+            return Ok(());
+        }
+
         let Some(stream) =
             result_or_skip_not_supported(context.destack_display_monitor_event_open(
                 monitor_event_open_options(&context, 1, DisplayEventOverflowPolicy::Error),

@@ -3,7 +3,7 @@ pub mod abi;
 /// Audio bindings.
 pub mod audio;
 /// Cross-domain platform helpers.
-pub(crate) mod core;
+pub mod core;
 /// Cryptography bindings.
 pub mod crypto;
 /// Debug bindings.

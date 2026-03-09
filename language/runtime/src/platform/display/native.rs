@@ -1,4 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::core::BackendSupport;
 use crate::platform::display::{
     DisplayBackend, DisplayBackendCapabilityFlags, DisplayBackendDescriptor,
 };
@@ -55,7 +56,7 @@ fn display_backend_descriptors(binding: &BindingCallContext) -> Vec<DisplayBacke
     vec![DisplayBackendDescriptor {
         backend: DisplayBackend::Null,
         name: binding.store_string("null"),
-        available: false,
+        support: BackendSupport::UnsupportedTarget,
         priority: 0,
         capability_flags: DisplayBackendCapabilityFlags(0),
     }]

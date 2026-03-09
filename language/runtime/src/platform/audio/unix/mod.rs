@@ -27,7 +27,7 @@ mod stream;
 
 pub(crate) use clock::{destack_audio_clock_now, destack_audio_stream_clock};
 pub(crate) use core::{
-    backend_stream_supported, backend_supported, backend_supports_native_device_monitor,
+    backend_stream_supported, backend_support, backend_supports_native_device_monitor,
     enumerate_host_devices, preferred_host_backends, start_backend_native_device_events_impl,
 };
 pub(crate) use device::{

@@ -1,17 +1,21 @@
+use crate::platform::core::BackendSupport;
 use crate::platform::display::{self as display_platform, DisplayBackendCapabilityFlags};
 use crate::runtime::BindingCallContext;
 
 use super::connection_state;
 use crate::platform::display::unix::wayland::monitor;
 
-/// Return backend descriptor availability and capability flags for wayland.
+/// Return backend descriptor support and capability flags for wayland.
 pub(crate) fn backend_descriptor_state(
     context: &BindingCallContext,
-) -> (bool, DisplayBackendCapabilityFlags) {
+) -> (BackendSupport, DisplayBackendCapabilityFlags) {
     // reject when no wayland endpoint is configured
     if std::env::var_os("WAYLAND_DISPLAY").is_none() && std::env::var_os("WAYLAND_SOCKET").is_none()
     {
-        return (false, DisplayBackendCapabilityFlags(0));
+        return (
+            BackendSupport::HostUnavailable,
+            DisplayBackendCapabilityFlags(0),
+        );
     }
 
     // reject when connection and monitor enumeration are unavailable
@@ -22,7 +26,10 @@ pub(crate) fn backend_descriptor_state(
         .or_else(|_| monitor::enumerate_monitor_snapshots(context).map(|value| !value.is_empty()))
         .unwrap_or(false);
     if !available {
-        return (false, DisplayBackendCapabilityFlags(0));
+        return (
+            BackendSupport::HostUnavailable,
+            DisplayBackendCapabilityFlags(0),
+        );
     }
 
     // load optional protocol support from resolved wayland globals
@@ -159,5 +166,8 @@ pub(crate) fn backend_descriptor_state(
         capability_flags |= display_platform::DISPLAY_BACKEND_CAP_WINDOW_ROLE_OVERLAY.0;
     }
 
-    (true, DisplayBackendCapabilityFlags(capability_flags))
+    (
+        BackendSupport::Available,
+        DisplayBackendCapabilityFlags(capability_flags),
+    )
 }

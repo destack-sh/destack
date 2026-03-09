@@ -1,3 +1,7 @@
+#[path = "abi.generated.rs"]
+mod abi_generated;
+
+mod backend;
 mod convert;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 mod dll;
@@ -11,9 +15,11 @@ mod windows;
 use std::sync::OnceLock;
 use std::time::Instant;
 
+#[allow(unused_imports, unreachable_pub)]
+pub use abi_generated::*;
+pub(crate) use backend::{aggregate_backend_support, backend_support_error};
 #[cfg(unix)]
 pub(crate) use convert::duration_from_option_ns;
-#[cfg(unix)]
 #[allow(unused_imports)]
 pub(crate) use convert::u32_to_nonzero_usize;
 #[allow(unused_imports)]

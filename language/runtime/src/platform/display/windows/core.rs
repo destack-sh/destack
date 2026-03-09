@@ -1,12 +1,32 @@
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::core::{BackendSupport, aggregate_backend_support, backend_support_error};
+use crate::platform::display as display_platform;
 use crate::platform::display::{
     DisplayBackend, DisplayBackendCapabilityFlags, DisplayBackendDescriptor,
     DisplayBackendSelectionPolicy,
 };
-use crate::platform::{PlatformError, display as display_platform};
 use crate::runtime::BindingCallContext;
 
 const WINDOWS_BACKEND_PRIORITY: &[DisplayBackend] = &[DisplayBackend::Win32];
+const DISPLAY_BACKEND_SELECTORS: &[DisplayBackend] = &[
+    DisplayBackend::Auto,
+    DisplayBackend::Wayland,
+    DisplayBackend::X11,
+    DisplayBackend::Win32,
+    DisplayBackend::AppKit,
+    DisplayBackend::UIKit,
+    DisplayBackend::Android,
+    DisplayBackend::Null,
+];
+
+/// Descriptor support and capabilities for one backend row.
+#[derive(Clone, Copy)]
+struct DisplayBackendDescriptorState {
+    /// The host integration support state.
+    support: BackendSupport,
+    /// The advertised capability mask for this backend row.
+    capability_flags: DisplayBackendCapabilityFlags,
+}
 
 /// Return windows display backend priority order for auto-selection.
 pub(crate) fn preferred_host_backends() -> &'static [DisplayBackend] {
@@ -15,7 +35,6 @@ pub(crate) fn preferred_host_backends() -> &'static [DisplayBackend] {
 
 /// Return one backend name for diagnostics and descriptors.
 pub(crate) fn backend_name(backend: DisplayBackend) -> &'static str {
-    // map backend enum to stable diagnostics name
     match backend {
         DisplayBackend::Win32 => "win32",
         DisplayBackend::Wayland => "wayland",
@@ -28,20 +47,98 @@ pub(crate) fn backend_name(backend: DisplayBackend) -> &'static str {
     }
 }
 
-/// Return whether one backend is valid for the active windows target.
-pub(crate) fn backend_supported(backend: DisplayBackend) -> bool {
-    backend == DisplayBackend::Win32
+/// Return one cached descriptor state for the win32 backend row.
+fn backend_descriptor_state(backend: DisplayBackend) -> DisplayBackendDescriptorState {
+    DisplayBackendDescriptorState {
+        support: backend_support(backend),
+        capability_flags: backend_capabilities(backend),
+    }
 }
 
-/// Return whether one backend is currently available.
-pub(crate) fn backend_available(backend: DisplayBackend) -> bool {
-    backend_supported(backend)
+/// Return the first available windows host backend on the current host.
+fn active_host_backend() -> Option<DisplayBackend> {
+    preferred_host_backends()
+        .iter()
+        .copied()
+        .find(|backend| backend_support(*backend).is_available())
+}
+
+/// Return combined support for the default host backend lane.
+fn auto_backend_support() -> BackendSupport {
+    aggregate_backend_support(
+        preferred_host_backends()
+            .iter()
+            .copied()
+            .map(backend_support),
+    )
+}
+
+/// Return one selector descriptor state.
+fn selector_descriptor_state(
+    backend: DisplayBackend,
+    active_backend: Option<DisplayBackend>,
+) -> DisplayBackendDescriptorState {
+    // auto mirrors the active host backend capability row
+    if backend == DisplayBackend::Auto {
+        let capability_flags = active_backend
+            .map(backend_capabilities)
+            .unwrap_or(DisplayBackendCapabilityFlags(0));
+
+        return DisplayBackendDescriptorState {
+            support: auto_backend_support(),
+            capability_flags,
+        };
+    }
+
+    // win32 exposes its host capability row directly
+    if backend == DisplayBackend::Win32 {
+        return backend_descriptor_state(backend);
+    }
+
+    // unsupported selectors expose support only and no host capabilities
+    DisplayBackendDescriptorState {
+        support: backend_support(backend),
+        capability_flags: DisplayBackendCapabilityFlags(0),
+    }
+}
+
+/// Return one auto-selection priority for one descriptor row.
+fn backend_priority(backend: DisplayBackend) -> u16 {
+    if backend == DisplayBackend::Auto {
+        return u16::MAX;
+    }
+
+    preferred_host_backends()
+        .iter()
+        .position(|candidate| *candidate == backend)
+        .map(|index| u16::MAX.saturating_sub(index as u16 + 1))
+        .unwrap_or(0)
+}
+
+/// Return host backend support for one windows display backend.
+pub(crate) fn backend_support(backend: DisplayBackend) -> BackendSupport {
+    // auto reflects the combined preferred host lane
+    if backend == DisplayBackend::Auto {
+        return auto_backend_support();
+    }
+
+    // null is not a windows display host backend
+    if backend == DisplayBackend::Null {
+        return BackendSupport::UnsupportedTarget;
+    }
+
+    // win32 is the one windows host integration
+    if backend == DisplayBackend::Win32 {
+        return BackendSupport::Available;
+    }
+
+    BackendSupport::UnsupportedTarget
 }
 
 /// Return one backend capability mask for one windows backend.
 pub(crate) fn backend_capabilities(backend: DisplayBackend) -> DisplayBackendCapabilityFlags {
-    // return empty mask for unsupported backends
-    if !backend_supported(backend) {
+    // zero capability flags for unavailable backend rows
+    if !backend_support(backend).is_available() {
         return DisplayBackendCapabilityFlags(0);
     }
 
@@ -86,32 +183,22 @@ pub(crate) fn backend_capabilities(backend: DisplayBackend) -> DisplayBackendCap
     )
 }
 
-/// Build one not-supported error for one windows display backend operation.
-pub(crate) fn backend_not_supported(
-    operation: &'static str,
-    backend: DisplayBackend,
-) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::not_supported(format!(
-        "{operation}: backend {} is not implemented",
-        backend_name(backend)
-    )))
-    .boxed()
-}
-
 /// List windows display backend descriptors.
 pub(crate) fn backend_descriptors(binding: &BindingCallContext) -> Vec<DisplayBackendDescriptor> {
-    // allocate descriptor list for preferred backend order
-    let mut descriptors = Vec::with_capacity(preferred_host_backends().len());
+    // resolve the active host backend for auto rows
+    let active_backend = active_host_backend();
+    let mut descriptors = Vec::with_capacity(DISPLAY_BACKEND_SELECTORS.len());
 
-    // build one descriptor per preferred backend
-    for (index, backend) in preferred_host_backends().iter().copied().enumerate() {
-        let priority = u16::MAX.saturating_sub(index as u16);
+    // emit one stable descriptor row per selector
+    for backend in DISPLAY_BACKEND_SELECTORS.iter().copied() {
+        let state = selector_descriptor_state(backend, active_backend);
+
         descriptors.push(DisplayBackendDescriptor {
             backend,
             name: binding.store_string(backend_name(backend)),
-            available: backend_available(backend),
-            priority,
-            capability_flags: backend_capabilities(backend),
+            support: state.support,
+            priority: backend_priority(backend),
+            capability_flags: state.capability_flags,
         });
     }
 
@@ -128,7 +215,8 @@ pub(crate) fn resolve_backend(
         return resolve_auto_backend(operation);
     }
 
-    if backend_available(requested) {
+    let support = backend_support(requested);
+    if support.is_available() {
         return Ok(requested);
     }
 
@@ -136,20 +224,26 @@ pub(crate) fn resolve_backend(
         return resolve_auto_backend(operation);
     }
 
-    Err(backend_not_supported(operation, requested))
+    Err(backend_support_error(
+        operation,
+        backend_name(requested),
+        support,
+    ))
 }
 
 /// Resolve one default backend for operations without an explicit selector.
 pub(crate) fn resolve_default_backend(operation: &'static str) -> RuntimeResult<DisplayBackend> {
-    preferred_host_backends().first().copied().ok_or_else(|| {
-        RuntimeError::from(PlatformError::not_supported(format!(
-            "{operation}: no windows display backend is supported on this target",
-        )))
-        .boxed()
-    })
+    resolve_auto_backend(operation)
 }
 
 /// Resolve one auto-selected backend for one operation.
 fn resolve_auto_backend(operation: &'static str) -> RuntimeResult<DisplayBackend> {
-    resolve_default_backend(operation)
+    // return the first reachable host backend in priority order
+    active_host_backend().ok_or_else(|| {
+        backend_support_error(
+            operation,
+            backend_name(DisplayBackend::Auto),
+            auto_backend_support(),
+        )
+    })
 }

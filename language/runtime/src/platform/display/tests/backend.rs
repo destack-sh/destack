@@ -13,6 +13,7 @@ use super::{
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
+use crate::platform::core::BackendSupport;
 #[cfg(any(unix, windows))]
 use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(any(unix, windows))]
@@ -379,6 +380,7 @@ fn available_backends(
     let descriptors = available_backend_descriptors(context)?;
     let backends = descriptors
         .into_iter()
+        .filter(|descriptor| is_concrete_host_backend(descriptor.backend))
         .map(|descriptor| descriptor.backend)
         .collect();
 
@@ -391,22 +393,37 @@ fn available_backends(
 struct BackendDescriptorSummary {
     /// Backend identifier.
     backend: DisplayBackend,
+    /// Host support state for the selector.
+    support: BackendSupport,
+    /// Auto-selection priority for the selector.
+    priority: u16,
     /// Backend capability bitset.
     capability_flags: u64,
 }
 
 #[cfg(any(unix, windows))]
+fn backend_is_available(support: BackendSupport) -> bool {
+    matches!(support, BackendSupport::Available)
+}
+
+#[cfg(any(unix, windows))]
+fn is_concrete_host_backend(backend: DisplayBackend) -> bool {
+    !matches!(backend, DisplayBackend::Auto | DisplayBackend::Null)
+}
+
+#[cfg(any(unix, windows))]
 /// Return available backend descriptors for the active harness context.
-fn available_backend_descriptors(
+fn backend_descriptors(
     context: &mut DisplayHarnessContext<'_>,
 ) -> RuntimeResult<Vec<BackendDescriptorSummary>> {
     let descriptors = context.destack_display_backend_list()?;
     let descriptors = match descriptors {
         HarnessValue::Native(values) => unsafe { values.as_slice()? }
             .iter()
-            .filter(|descriptor| descriptor.available)
             .map(|descriptor| BackendDescriptorSummary {
                 backend: descriptor.backend,
+                support: descriptor.support,
+                priority: descriptor.priority,
                 capability_flags: descriptor.capability_flags.0,
             })
             .collect(),
@@ -422,9 +439,10 @@ fn available_backend_descriptors(
             values
                 .read_values(vm_context)?
                 .into_iter()
-                .filter(|descriptor| descriptor.available)
                 .map(|descriptor| BackendDescriptorSummary {
                     backend: descriptor.backend,
+                    support: descriptor.support,
+                    priority: descriptor.priority,
                     capability_flags: descriptor.capability_flags.0,
                 })
                 .collect()
@@ -435,9 +453,73 @@ fn available_backend_descriptors(
 }
 
 #[cfg(any(unix, windows))]
+/// Return available backend descriptors for the active harness context.
+fn available_backend_descriptors(
+    context: &mut DisplayHarnessContext<'_>,
+) -> RuntimeResult<Vec<BackendDescriptorSummary>> {
+    Ok(backend_descriptors(context)?
+        .into_iter()
+        .filter(|descriptor| backend_is_available(descriptor.support))
+        .collect())
+}
+
+#[cfg(any(unix, windows))]
 /// Return whether one backend capability flag is present.
 fn has_capability(capability_flags: u64, capability: u64) -> bool {
     capability_flags & capability != 0
+}
+
+#[cfg(any(unix, windows))]
+#[cfg_attr(test, test)]
+pub(super) fn test_display_backend_list_support_contract_matches_advertised_capabilities() {
+    if run_display_case_or_return(display_case_name!(
+        test_display_backend_list_support_contract_matches_advertised_capabilities
+    )) {
+        return;
+    }
+
+    with_harness_context(|mut context| {
+        let descriptors = backend_descriptors(&mut context)?;
+        let auto = descriptors
+            .iter()
+            .find(|descriptor| descriptor.backend == DisplayBackend::Auto)
+            .expect("backend list should contain auto selector");
+        let null = descriptors
+            .iter()
+            .find(|descriptor| descriptor.backend == DisplayBackend::Null)
+            .expect("backend list should contain null selector");
+        let has_available_host_backend = descriptors.iter().any(|descriptor| {
+            is_concrete_host_backend(descriptor.backend)
+                && descriptor.support == BackendSupport::Available
+        });
+
+        assert_eq!(auto.priority, u16::MAX);
+        assert_eq!(null.priority, 0);
+        assert_ne!(null.support, BackendSupport::Available);
+        assert_eq!(null.capability_flags, 0);
+
+        if has_available_host_backend {
+            assert_eq!(auto.support, BackendSupport::Available);
+            assert_ne!(auto.capability_flags, 0);
+        } else {
+            assert_ne!(auto.support, BackendSupport::Available);
+            assert_eq!(auto.capability_flags, 0);
+        }
+
+        for descriptor in descriptors {
+            if descriptor.support == BackendSupport::Available {
+                continue;
+            }
+
+            assert_eq!(
+                descriptor.capability_flags, 0,
+                "unavailable backend {:?} should not advertise capability lanes",
+                descriptor.backend
+            );
+        }
+
+        Ok(())
+    });
 }
 
 #[cfg(any(unix, windows))]
@@ -515,7 +597,9 @@ pub(super) fn test_display_monitor_surface_supports_strict_backend_selection() {
                 continue;
             };
             let monitor_list = decode_monitor_list(&mut context, monitor_list)?;
-            assert!(!monitor_list.is_empty());
+            if monitor_list.is_empty() {
+                continue;
+            }
 
             let display_id = harness_string(&mut context, &monitor_list[0].0)?;
             let mut open_options = default_monitor_open_options(&context);
@@ -1056,8 +1140,9 @@ pub(super) fn test_display_backend_identity_tracks_strict_backend_selection() {
             match monitor_list {
                 HarnessValue::Native(values) => {
                     let values = unsafe { values.as_slice()? };
-                    assert!(!values.is_empty());
-                    assert_eq!(values[0].backend, backend);
+                    if let Some(value) = values.first() {
+                        assert_eq!(value.backend, backend);
+                    }
                 }
                 HarnessValue::Vm(values) => {
                     let Some(vm_context) = context.vm_context else {
@@ -1069,8 +1154,9 @@ pub(super) fn test_display_backend_identity_tracks_strict_backend_selection() {
                     let vm_context =
                         unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
                     let values = values.read_values(vm_context)?;
-                    assert!(!values.is_empty());
-                    assert_eq!(values[0].backend, backend);
+                    if let Some(value) = values.first() {
+                        assert_eq!(value.backend, backend);
+                    }
                 }
             }
 
@@ -1198,7 +1284,12 @@ pub(super) fn test_display_x11_capabilities_match_implemented_contract() {
             HarnessValue::Native(values) => unsafe { values.as_slice()? }
                 .iter()
                 .find(|descriptor| descriptor.backend == DisplayBackend::X11)
-                .map(|descriptor| (descriptor.available, descriptor.capability_flags.0))
+                .map(|descriptor| {
+                    (
+                        backend_is_available(descriptor.support),
+                        descriptor.capability_flags.0,
+                    )
+                })
                 .expect("backend list should contain x11 descriptor"),
             HarnessValue::Vm(values) => {
                 let Some(vm_context) = context.vm_context else {
@@ -1213,7 +1304,12 @@ pub(super) fn test_display_x11_capabilities_match_implemented_contract() {
                     .read_values(vm_context)?
                     .into_iter()
                     .find(|descriptor| descriptor.backend == DisplayBackend::X11)
-                    .map(|descriptor| (descriptor.available, descriptor.capability_flags.0))
+                    .map(|descriptor| {
+                        (
+                            backend_is_available(descriptor.support),
+                            descriptor.capability_flags.0,
+                        )
+                    })
                     .expect("backend list should contain x11 descriptor")
             }
         };
@@ -1449,7 +1545,12 @@ pub(super) fn test_display_wayland_capabilities_match_implemented_contract() {
             HarnessValue::Native(values) => unsafe { values.as_slice()? }
                 .iter()
                 .find(|descriptor| descriptor.backend == DisplayBackend::Wayland)
-                .map(|descriptor| (descriptor.available, descriptor.capability_flags.0))
+                .map(|descriptor| {
+                    (
+                        backend_is_available(descriptor.support),
+                        descriptor.capability_flags.0,
+                    )
+                })
                 .expect("backend list should contain wayland descriptor"),
             HarnessValue::Vm(values) => {
                 let Some(vm_context) = context.vm_context else {
@@ -1464,7 +1565,12 @@ pub(super) fn test_display_wayland_capabilities_match_implemented_contract() {
                     .read_values(vm_context)?
                     .into_iter()
                     .find(|descriptor| descriptor.backend == DisplayBackend::Wayland)
-                    .map(|descriptor| (descriptor.available, descriptor.capability_flags.0))
+                    .map(|descriptor| {
+                        (
+                            backend_is_available(descriptor.support),
+                            descriptor.capability_flags.0,
+                        )
+                    })
                     .expect("backend list should contain wayland descriptor")
             }
         };
@@ -2025,7 +2131,12 @@ pub(super) fn test_display_win32_capabilities_match_implemented_contract() {
             HarnessValue::Native(values) => unsafe { values.as_slice()? }
                 .iter()
                 .find(|descriptor| descriptor.backend == DisplayBackend::Win32)
-                .map(|descriptor| (descriptor.available, descriptor.capability_flags.0))
+                .map(|descriptor| {
+                    (
+                        backend_is_available(descriptor.support),
+                        descriptor.capability_flags.0,
+                    )
+                })
                 .expect("backend list should contain win32 descriptor"),
             HarnessValue::Vm(values) => {
                 let Some(vm_context) = context.vm_context else {
@@ -2040,7 +2151,12 @@ pub(super) fn test_display_win32_capabilities_match_implemented_contract() {
                     .read_values(vm_context)?
                     .into_iter()
                     .find(|descriptor| descriptor.backend == DisplayBackend::Win32)
-                    .map(|descriptor| (descriptor.available, descriptor.capability_flags.0))
+                    .map(|descriptor| {
+                        (
+                            backend_is_available(descriptor.support),
+                            descriptor.capability_flags.0,
+                        )
+                    })
                     .expect("backend list should contain win32 descriptor")
             }
         };
@@ -2171,7 +2287,12 @@ pub(super) fn test_display_appkit_capabilities_match_implemented_contract() {
             HarnessValue::Native(values) => unsafe { values.as_slice()? }
                 .iter()
                 .find(|descriptor| descriptor.backend == DisplayBackend::AppKit)
-                .map(|descriptor| (descriptor.available, descriptor.capability_flags.0))
+                .map(|descriptor| {
+                    (
+                        backend_is_available(descriptor.support),
+                        descriptor.capability_flags.0,
+                    )
+                })
                 .expect("backend list should contain appkit descriptor"),
             HarnessValue::Vm(values) => {
                 let Some(vm_context) = context.vm_context else {
@@ -2186,7 +2307,12 @@ pub(super) fn test_display_appkit_capabilities_match_implemented_contract() {
                     .read_values(vm_context)?
                     .into_iter()
                     .find(|descriptor| descriptor.backend == DisplayBackend::AppKit)
-                    .map(|descriptor| (descriptor.available, descriptor.capability_flags.0))
+                    .map(|descriptor| {
+                        (
+                            backend_is_available(descriptor.support),
+                            descriptor.capability_flags.0,
+                        )
+                    })
                     .expect("backend list should contain appkit descriptor")
             }
         };

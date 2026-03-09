@@ -36,20 +36,12 @@ use crate::platform::audio::core::{
 };
 #[cfg(target_os = "macos")]
 use crate::platform::audio::{AudioBackend, AudioDeviceCapabilityFlags, AudioDeviceDirection};
-#[cfg(target_os = "macos")]
-use crate::platform::core as core_platform;
 
-/// Enumerate one normalized CoreAudio device list on macOS.
+/// Enumerate the normalized CoreAudio device list on macOS.
 #[cfg(target_os = "macos")]
 fn enumerate_host_devices_macos() -> RuntimeResult<Vec<HostDeviceDescriptor>> {
     // load the current system device list
     let device_ids = device_ids()?;
-    if device_ids.is_empty() {
-        return Err(core_platform::io_not_found(
-            "destack.audio.device.list",
-            "CoreAudio reported no devices",
-        ));
-    }
 
     // resolve system defaults once before per-device normalization
     let default_output = default_device_id(K_AUDIO_HARDWARE_PROPERTY_DEFAULT_OUTPUT_DEVICE);
@@ -59,7 +51,7 @@ fn enumerate_host_devices_macos() -> RuntimeResult<Vec<HostDeviceDescriptor>> {
     let supports_hog_mode = hog_mode_allowed();
     let mut descriptors = Vec::with_capacity(device_ids.len());
 
-    // normalize each CoreAudio device into one host descriptor row
+    // normalize each CoreAudio device into a host descriptor row
     for device_id in device_ids {
         // probe directional channel counts and skip unusable rows
         let playback_channels =
@@ -167,7 +159,7 @@ fn enumerate_host_devices_macos() -> RuntimeResult<Vec<HostDeviceDescriptor>> {
             supported_directions |= DIRECTION_MASK_DUPLEX;
         }
 
-        // emit one normalized descriptor row
+        // emit the normalized descriptor row
         descriptors.push(HostDeviceDescriptor {
             id: stable_id,
             group_id: stable_group_id,
@@ -201,14 +193,6 @@ fn enumerate_host_devices_macos() -> RuntimeResult<Vec<HostDeviceDescriptor>> {
             },
             is_null: false,
         });
-    }
-
-    // ensure one usable row exists after normalization
-    if descriptors.is_empty() {
-        return Err(core_platform::io_not_found(
-            "destack.audio.device.list",
-            "CoreAudio reported no usable devices",
-        ));
     }
 
     Ok(descriptors)
