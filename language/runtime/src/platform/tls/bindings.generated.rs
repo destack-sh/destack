@@ -378,30 +378,6 @@ fn encode_destack_tls_context_set_identity_pem_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.tls.context.setKeylogEnabled.
-#[inline]
-fn decode_destack_tls_context_set_keylog_enabled_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::TlsContextHandle, bool)> {
-    let handle_value = arg_value(args, 0, "handle", "TlsContextHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TlsContextHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::TlsContextHandle(handle_inner);
-    let enabled_value = arg_value(args, 1, "enabled", "boolean")?;
-    let enabled = decode_bool(enabled_value, "enabled", "boolean")?;
-    Ok((handle, enabled))
-}
-
-/// Encode the result for destack.tls.context.setKeylogEnabled.
-#[inline]
-fn encode_destack_tls_context_set_keylog_enabled_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
 /// Decode arguments for destack.tls.context.setSessionResumption.
 #[inline]
 fn decode_destack_tls_context_set_session_resumption_args(
@@ -901,20 +877,6 @@ pub const TLS_CONTEXT_SET_IDENTITY_PEM: BindingDescriptor = BindingDescriptor::e
     .with_namespace("tls")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.tls.context.setKeylogEnabled.
-pub const TLS_CONTEXT_SET_KEYLOG_ENABLED: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.tls.context.setKeylogEnabled",
-    "export function contextSetKeylogEnabled(handle: TlsContextHandle, enabled: boolean): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
-    BindingReplayKind::BindingCall,
-    &["tls.context", "tls.keylog"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("tls")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
 /// Binding descriptor for destack.tls.context.setSessionResumption.
 pub const TLS_CONTEXT_SET_SESSION_RESUMPTION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tls.context.setSessionResumption",
@@ -1133,7 +1095,6 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     TLS_CONTEXT_SET_GROUPS,
     TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE,
     TLS_CONTEXT_SET_IDENTITY_PEM,
-    TLS_CONTEXT_SET_KEYLOG_ENABLED,
     TLS_CONTEXT_SET_SESSION_RESUMPTION,
     TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS,
     TLS_CONTEXT_SET_TRUST_ANCHORS_PEM,
@@ -1182,11 +1143,6 @@ pub const TLS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             TLS_CONTEXT_SET_IDENTITY_PEM,
             "destack.tls.context.setIdentityPem",
             destack_tls_context_set_identity_pem as *const (),
-        ),
-        NativeBinding::new(
-            TLS_CONTEXT_SET_KEYLOG_ENABLED,
-            "destack.tls.context.setKeylogEnabled",
-            destack_tls_context_set_keylog_enabled as *const (),
         ),
         NativeBinding::new(
             TLS_CONTEXT_SET_SESSION_RESUMPTION,
@@ -1870,33 +1826,6 @@ pub unsafe extern "C" fn destack_tls_context_set_identity_pem(
                         handle,
                         certificatechainpem,
                         privatekeypem,
-                    )
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.tls.context.setKeylogEnabled")]
-pub unsafe extern "C" fn destack_tls_context_set_keylog_enabled(
-    handle: resource::TlsContextHandle,
-    enabled: bool,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = (&handle, &enabled);
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(TLS_CONTEXT_SET_KEYLOG_ENABLED)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_tls_context_set_keylog_enabled(
-                        context, handle, enabled,
-                    )
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_tls_context_set_keylog_enabled(
-                        context, handle, enabled,
                     )
                 },
             }
@@ -2821,40 +2750,6 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         }
                     };
                     encode_destack_tls_context_set_identity_pem_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            TLS_CONTEXT_SET_KEYLOG_ENABLED,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (handle, enabled) =
-                        decode_destack_tls_context_set_keylog_enabled_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) = binding
-                            .on_before_binding_resolve_world(TLS_CONTEXT_SET_KEYLOG_ENABLED)?;
-                        match world {
-                            RuntimeWorld::Host => {
-                                platform_vm::destack_tls_context_set_keylog_enabled(
-                                    binding, context, handle, enabled,
-                                )
-                            }
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_tls_context_set_keylog_enabled(
-                                    binding, context, handle, enabled,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_tls_context_set_keylog_enabled_result(context, result)
                 })
                 .map_err(Into::into)
             }

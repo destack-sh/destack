@@ -210,7 +210,6 @@ export type PlatformCapability =
     | "tls.hostname.verify"
     | "tls.identity.use"
     | "tls.identity.write"
-    | "tls.keylog"
     | "tls.policy"
     | "tls.resumption"
     | "tls.session"

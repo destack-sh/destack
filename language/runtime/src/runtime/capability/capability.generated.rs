@@ -425,8 +425,6 @@ pub enum PlatformCapability {
     TlsIdentityUse,
     /// `tls.identity.write`.
     TlsIdentityWrite,
-    /// `tls.keylog`.
-    TlsKeylog,
     /// `tls.policy`.
     TlsPolicy,
     /// `tls.resumption`.
@@ -664,7 +662,6 @@ impl PlatformCapability {
         Self::TlsHostnameVerify,
         Self::TlsIdentityUse,
         Self::TlsIdentityWrite,
-        Self::TlsKeylog,
         Self::TlsPolicy,
         Self::TlsResumption,
         Self::TlsSession,
@@ -891,7 +888,6 @@ impl PlatformCapability {
             Self::TlsHostnameVerify => "tls.hostname.verify",
             Self::TlsIdentityUse => "tls.identity.use",
             Self::TlsIdentityWrite => "tls.identity.write",
-            Self::TlsKeylog => "tls.keylog",
             Self::TlsPolicy => "tls.policy",
             Self::TlsResumption => "tls.resumption",
             Self::TlsSession => "tls.session",
@@ -1124,7 +1120,6 @@ impl PlatformCapability {
             "tls.hostname.verify" => Some(Self::TlsHostnameVerify),
             "tls.identity.use" => Some(Self::TlsIdentityUse),
             "tls.identity.write" => Some(Self::TlsIdentityWrite),
-            "tls.keylog" => Some(Self::TlsKeylog),
             "tls.policy" => Some(Self::TlsPolicy),
             "tls.resumption" => Some(Self::TlsResumption),
             "tls.session" => Some(Self::TlsSession),

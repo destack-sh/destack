@@ -63,17 +63,6 @@ fn test_tls_context_set_identity_pem_invalid_argument_value() {
     });
 }
 
-/// Return invalidArgumentValue when toggling keylog on one unknown context.
-#[cfg(any(unix, windows))]
-#[test]
-fn test_tls_context_set_keylog_enabled_invalid_argument_value() {
-    with_harness_context(|mut context| {
-        assert_invalid_argument_value(
-            context.destack_tls_context_set_keylog_enabled(placeholder_context_handle(), true),
-        )
-    });
-}
-
 /// Return invalidArgumentValue when setting resumption mode on one unknown context.
 #[cfg(any(unix, windows))]
 #[test]
