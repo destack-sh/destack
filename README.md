@@ -31,11 +31,11 @@ instead of wrangling many disparate languages, tools, libraries, approaches, run
 - [**Destack Library**](library/README.md): Rich standard library for most things most software needs.
 - [**Destack Services**](service/README.md): First-party services for most things most software needs.
 - [**Destack Apps**](app/README.md): First-party applications and programmer tools.
-- [**Destack Bridge**](bridge/README.md): Two-way bridges to the existing world.
 - [**Destack Templates**](template/README.md): Ready-to-clone starter kits for common use cases.
+- [**Destack Bridge**](bridge/README.md): Two-way bridges to the existing world.
 
-Destack is designed as a sort of meta framework for developing and maintaining your _own_ stack using foundational [building blocks](https://caseymuratori.com/blog_0016).
-Destack is more of a "software factory toolkit" than "ready-to-wear software"; we do provide some common apps with a plugin system, but Destack is optimized for programmers building their own software processes in one correct, optimal, integrated system.
+Destack is designed as a sort of meta framework for developing and maintaining your _own_ stack using [foundational building blocks](https://caseymuratori.com/blog_0016).
+Destack is more of a "software factory toolkit" than "ready-to-wear software"; we do provide some common apps with a common plugin system, but Destack is optimized for programmers building their own software processes in one correct, optimal, integrated system.
 
 ---
 
@@ -146,7 +146,7 @@ Library, services, and apps are already written in Destack as much as possible, 
 
 ## Platforms and Targets
 
-Destack supports the web, of course, and also runs natively on Linux, macOS, and Windows as Tier 1 targets, with mobile (iOS, Android) still coming online.
+Destack supports the web, of course, and also runs natively on Linux, macOS, and Windows as Tier 1 targets, with mobile (iOS, Android) still (very) experimental.
 See [TARGETS.md](TARGETS.md).
 
 | Tier | Target triples |
@@ -158,7 +158,6 @@ See [TARGETS.md](TARGETS.md).
 
 Destack is in [very active development](CONTRIBUTING.md) with a singular focus: a fully integrated software stack for optimal, correct, integrated software systems.
 We welcome feedback, issues, ideas, and small fixes, but please reach out first for non-trivial contributions.
-Large unsolicited PRs will be closed.
 See [TESTING.md](TESTING.md) and [CONTRIBUTING.md](CONTRIBUTING.md) for more.
 
 ## License
