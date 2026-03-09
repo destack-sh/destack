@@ -1,0 +1,12 @@
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use destack_base::LocalStringPool;
+use destack_mir::NodeTree;
+use destack_vm::Isolate;
+
+/// Build one empty VM engine for low-level runtime control operations.
+pub(crate) fn empty_vm_engine() -> RuntimeResult<Isolate> {
+    let tree = NodeTree::new();
+    let strings = LocalStringPool::new().into_immutable();
+
+    Isolate::build(tree, strings).map_err(Box::<RuntimeError>::from)
+}
