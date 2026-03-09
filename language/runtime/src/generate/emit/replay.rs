@@ -151,7 +151,7 @@ impl<'a> DomainWriter<'a> {
                 }
             }
 
-            output.push_str("    binding.replay().run_binding_without_context(\n");
+            output.push_str("    binding.trace().run_binding_without_context(\n");
             output.push_str(&format!("        {},\n", binding.const_name));
             output.push_str(&format!(
                 "        binding.replay_payload_for({})?,\n",
@@ -282,7 +282,7 @@ impl<'a> DomainWriter<'a> {
             output.push_str("            if let Err(error) = result {\n");
             output.push_str("                let payload = {\n");
             output.push_str(
-                "                    let result = Err(ReplayError::from(error.as_ref()));\n",
+                "                    let result = Err(TraceError::from(error.as_ref()));\n",
             );
             output.push_str(&format!("                    {replay_struct} {{\n"));
             if supports_args {
@@ -324,7 +324,7 @@ impl<'a> DomainWriter<'a> {
                         "                let {name}_current = &{recorded_name};\n"
                     ));
                     let mismatch_stmt = format!(
-                        "return Err(RuntimeError::ReplayMismatch {{ name: {}.name.to_string() }}.boxed());",
+                        "return Err(RuntimeError::TraceMismatch {{ name: {}.name.to_string() }}.boxed());",
                         binding.const_name
                     );
                     let compare_lines = render_replay_compare_lines(
@@ -396,7 +396,7 @@ fn replay_struct_name(const_name: &str) -> String {
 /// Render the replay result type for a binding entry.
 fn replay_result_type(domain: &str, entry: &BindingEntry) -> String {
     let inner = replay_type_for_binding(domain, &entry.return_binding);
-    format!("Result<{inner}, ReplayError>")
+    format!("Result<{inner}, TraceError>")
 }
 
 impl<'a> DomainWriter<'a> {
@@ -456,7 +456,7 @@ impl<'a> DomainWriter<'a> {
             }
             output.push_str(") -> RuntimeResult<vm::Value> {\n");
 
-            output.push_str("    let result = binding.replay().run_binding(\n");
+            output.push_str("    let result = binding.trace().run_binding(\n");
             output.push_str(&format!("        {},\n", binding.const_name));
             output.push_str(&format!(
                 "        binding.replay_payload_for({})?,\n",
@@ -561,7 +561,7 @@ impl<'a> DomainWriter<'a> {
             output.push_str("            if let Err(error) = result {\n");
             output.push_str("                let payload = {\n");
             output.push_str(
-                "                    let result = Err(ReplayError::from(error.as_ref()));\n",
+                "                    let result = Err(TraceError::from(error.as_ref()));\n",
             );
             output.push_str(&format!("                    {replay_struct} {{\n"));
             if supports_args {
@@ -603,7 +603,7 @@ impl<'a> DomainWriter<'a> {
                         "                let {name}_current = &{recorded_name};\n"
                     ));
                     let mismatch_stmt = format!(
-                        "return Err(RuntimeError::ReplayMismatch {{ name: {}.name.to_string() }}.boxed());",
+                        "return Err(RuntimeError::TraceMismatch {{ name: {}.name.to_string() }}.boxed());",
                         binding.const_name
                     );
                     let compare_lines = render_replay_compare_lines(

@@ -104,7 +104,7 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::replay::ReplayError;
+use crate::runtime::replay::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
@@ -5569,441 +5569,441 @@ fn encode_destack_display_window_state_result(
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayBackendListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<DisplayBackendDescriptorReplayRecord>, ReplayError>,
+    pub result: Result<Vec<DisplayBackendDescriptorReplayRecord>, TraceError>,
 }
 
 /// Replay payload for destack.display.monitor.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayMonitorCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.monitor.closestMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayMonitorClosestModeReplay {
     /// Replay result payload.
-    pub result: Result<DisplayMode, ReplayError>,
+    pub result: Result<DisplayMode, TraceError>,
 }
 
 /// Replay payload for destack.display.monitor.colorState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayMonitorColorStateReplay {
     /// Replay result payload.
-    pub result: Result<DisplayColorState, ReplayError>,
+    pub result: Result<DisplayColorState, TraceError>,
 }
 
 /// Replay payload for destack.display.monitor.currentMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayMonitorCurrentModeReplay {
     /// Replay result payload.
-    pub result: Result<DisplayMode, ReplayError>,
+    pub result: Result<DisplayMode, TraceError>,
 }
 
 /// Replay payload for destack.display.monitor.descriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayMonitorDescriptorReplay {
     /// Replay result payload.
-    pub result: Result<DisplayDescriptorReplayRecord, ReplayError>,
+    pub result: Result<DisplayDescriptorReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.display.monitor.desktopMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayMonitorDesktopModeReplay {
     /// Replay result payload.
-    pub result: Result<DisplayMode, ReplayError>,
+    pub result: Result<DisplayMode, TraceError>,
 }
 
 /// Replay payload for destack.display.monitor.eventClose.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayMonitorEventCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.monitor.eventOpen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayMonitorEventOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::DisplayEventHandle, ReplayError>,
+    pub result: Result<resource::DisplayEventHandle, TraceError>,
 }
 
 /// Replay payload for destack.display.monitor.eventRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayMonitorEventReadReplay {
     /// Replay result payload.
-    pub result: Result<DisplayMonitorEventReplayRecord, ReplayError>,
+    pub result: Result<DisplayMonitorEventReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.display.monitor.eventReadBatch.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayMonitorEventReadBatchReplay {
     /// Replay result payload.
-    pub result: Result<Vec<DisplayMonitorEventReplayRecord>, ReplayError>,
+    pub result: Result<Vec<DisplayMonitorEventReplayRecord>, TraceError>,
 }
 
 /// Replay payload for destack.display.monitor.eventTryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayMonitorEventTryReadReplay {
     /// Replay result payload.
-    pub result: Result<DisplayMonitorEventReplayRecord, ReplayError>,
+    pub result: Result<DisplayMonitorEventReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.display.monitor.eventTryReadBatch.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayMonitorEventTryReadBatchReplay {
     /// Replay result payload.
-    pub result: Result<Vec<DisplayMonitorEventReplayRecord>, ReplayError>,
+    pub result: Result<Vec<DisplayMonitorEventReplayRecord>, TraceError>,
 }
 
 /// Replay payload for destack.display.monitor.gammaRamp.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayMonitorGammaRampReplay {
     /// Replay result payload.
-    pub result: Result<DisplayGammaRampReplayRecord, ReplayError>,
+    pub result: Result<DisplayGammaRampReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.display.monitor.hdrMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayMonitorHdrModeReplay {
     /// Replay result payload.
-    pub result: Result<DisplayHdrMode, ReplayError>,
+    pub result: Result<DisplayHdrMode, TraceError>,
 }
 
 /// Replay payload for destack.display.monitor.list.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayMonitorListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<DisplayDescriptorReplayRecord>, ReplayError>,
+    pub result: Result<Vec<DisplayDescriptorReplayRecord>, TraceError>,
 }
 
 /// Replay payload for destack.display.monitor.modes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayMonitorModesReplay {
     /// Replay result payload.
-    pub result: Result<Vec<DisplayMode>, ReplayError>,
+    pub result: Result<Vec<DisplayMode>, TraceError>,
 }
 
 /// Replay payload for destack.display.monitor.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayMonitorOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::DisplayHandle, ReplayError>,
+    pub result: Result<resource::DisplayHandle, TraceError>,
 }
 
 /// Replay payload for destack.display.monitor.primary.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayMonitorPrimaryReplay {
     /// Replay result payload.
-    pub result: Result<Option<resource::DisplayHandle>, ReplayError>,
+    pub result: Result<Option<resource::DisplayHandle>, TraceError>,
 }
 
 /// Replay payload for destack.display.window.beginMoveDrag.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowBeginMoveDragReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.beginResizeDrag.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowBeginResizeDragReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.capabilities.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowCapabilitiesReplay {
     /// Replay result payload.
-    pub result: Result<DisplayBackendCapabilityFlags, ReplayError>,
+    pub result: Result<DisplayBackendCapabilityFlags, TraceError>,
 }
 
 /// Replay payload for destack.display.window.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.descriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowDescriptorReplay {
     /// Replay result payload.
-    pub result: Result<WindowDescriptorReplayRecord, ReplayError>,
+    pub result: Result<WindowDescriptorReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.display.window.eventClose.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowEventCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.eventOpen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowEventOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::WindowEventHandle, ReplayError>,
+    pub result: Result<resource::WindowEventHandle, TraceError>,
 }
 
 /// Replay payload for destack.display.window.eventRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowEventReadReplay {
     /// Replay result payload.
-    pub result: Result<WindowEventReplayRecord, ReplayError>,
+    pub result: Result<WindowEventReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.display.window.eventReadBatch.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowEventReadBatchReplay {
     /// Replay result payload.
-    pub result: Result<Vec<WindowEventReplayRecord>, ReplayError>,
+    pub result: Result<Vec<WindowEventReplayRecord>, TraceError>,
 }
 
 /// Replay payload for destack.display.window.eventTryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowEventTryReadReplay {
     /// Replay result payload.
-    pub result: Result<WindowEventReplayRecord, ReplayError>,
+    pub result: Result<WindowEventReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.display.window.eventTryReadBatch.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowEventTryReadBatchReplay {
     /// Replay result payload.
-    pub result: Result<Vec<WindowEventReplayRecord>, ReplayError>,
+    pub result: Result<Vec<WindowEventReplayRecord>, TraceError>,
 }
 
 /// Replay payload for destack.display.window.focus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowFocusReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.maximize.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowMaximizeReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.minimize.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowMinimizeReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.opacity.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowOpacityReplay {
     /// Replay result payload.
-    pub result: Result<f64, ReplayError>,
+    pub result: Result<f64, TraceError>,
 }
 
 /// Replay payload for destack.display.window.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::WindowHandle, ReplayError>,
+    pub result: Result<resource::WindowHandle, TraceError>,
 }
 
 /// Replay payload for destack.display.window.raise.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowRaiseReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.requestAttention.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowRequestAttentionReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.requestRefresh.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowRequestRefreshReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.restore.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowRestoreReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setAlwaysOnTop.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetAlwaysOnTopReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setAspectRatio.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetAspectRatioReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setChrome.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetChromeReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setCursorIcon.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetCursorIconReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setCursorMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetCursorModeReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setCursorPosition.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetCursorPositionReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setCursorVisible.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetCursorVisibleReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setDecorated.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetDecoratedReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setIcons.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetIconsReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setModal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetModalReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetModeReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setMousePassthrough.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetMousePassthroughReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setOpacity.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetOpacityReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setParent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetParentReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setPosition.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetPositionReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setResizable.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetResizableReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setSizeConstraints.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetSizeConstraintsReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setSizeLogical.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetSizeLogicalReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setSizePhysical.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetSizePhysicalReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setTaskbarVisible.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetTaskbarVisibleReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setTitle.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetTitleReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setTransientFor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetTransientForReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.setVisibility.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetVisibilityReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.display.window.state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowStateReplay {
     /// Replay result payload.
-    pub result: Result<WindowState, ReplayError>,
+    pub result: Result<WindowState, TraceError>,
 }
 
 /// Binding descriptor for destack.display.backend.list.
@@ -7540,7 +7540,7 @@ fn destack_display_backend_list_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<DisplayBackendDescriptor>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_BACKEND_LIST,
         binding.replay_payload_for(DISPLAY_BACKEND_LIST)?,
         || match world {
@@ -7587,7 +7587,7 @@ fn destack_display_backend_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayBackendListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7637,7 +7637,7 @@ fn destack_display_monitor_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_MONITOR_CLOSE,
         binding.replay_payload_for(DISPLAY_MONITOR_CLOSE)?,
         || match world {
@@ -7659,7 +7659,7 @@ fn destack_display_monitor_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7687,7 +7687,7 @@ fn destack_display_monitor_closest_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &requested);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_MONITOR_CLOSEST_MODE,
         binding.replay_payload_for(DISPLAY_MONITOR_CLOSEST_MODE)?,
         || match world {
@@ -7730,7 +7730,7 @@ fn destack_display_monitor_closest_mode_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorClosestModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7774,7 +7774,7 @@ fn destack_display_monitor_color_state_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_MONITOR_COLOR_STATE,
         binding.replay_payload_for(DISPLAY_MONITOR_COLOR_STATE)?,
         || match world {
@@ -7817,7 +7817,7 @@ fn destack_display_monitor_color_state_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorColorStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7863,7 +7863,7 @@ fn destack_display_monitor_current_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_MONITOR_CURRENT_MODE,
         binding.replay_payload_for(DISPLAY_MONITOR_CURRENT_MODE)?,
         || match world {
@@ -7904,7 +7904,7 @@ fn destack_display_monitor_current_mode_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorCurrentModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7948,7 +7948,7 @@ fn destack_display_monitor_descriptor_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_MONITOR_DESCRIPTOR,
         binding.replay_payload_for(DISPLAY_MONITOR_DESCRIPTOR)?,
         || match world {
@@ -8016,7 +8016,7 @@ fn destack_display_monitor_descriptor_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorDescriptorReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8088,7 +8088,7 @@ fn destack_display_monitor_desktop_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_MONITOR_DESKTOP_MODE,
         binding.replay_payload_for(DISPLAY_MONITOR_DESKTOP_MODE)?,
         || match world {
@@ -8129,7 +8129,7 @@ fn destack_display_monitor_desktop_mode_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorDesktopModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8172,7 +8172,7 @@ fn destack_display_monitor_event_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_MONITOR_EVENT_CLOSE,
         binding.replay_payload_for(DISPLAY_MONITOR_EVENT_CLOSE)?,
         || match world {
@@ -8194,7 +8194,7 @@ fn destack_display_monitor_event_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorEventCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8221,7 +8221,7 @@ fn destack_display_monitor_event_open_replay(
 ) -> RuntimeResult<()> {
     let _ = &options;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_MONITOR_EVENT_OPEN,
         binding.replay_payload_for(DISPLAY_MONITOR_EVENT_OPEN)?,
         || match world {
@@ -8251,7 +8251,7 @@ fn destack_display_monitor_event_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorEventOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8285,7 +8285,7 @@ fn destack_display_monitor_event_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_MONITOR_EVENT_READ,
         binding.replay_payload_for(DISPLAY_MONITOR_EVENT_READ)?,
         || match world {
@@ -8671,7 +8671,7 @@ fn destack_display_monitor_event_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorEventReadReplay {
                         result,
                     }
@@ -9070,7 +9070,7 @@ fn destack_display_monitor_event_read_batch_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxevents, &timeoutns);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_MONITOR_EVENT_READ_BATCH,
         binding.replay_payload_for(DISPLAY_MONITOR_EVENT_READ_BATCH)?,
         || match world {
@@ -9462,7 +9462,7 @@ fn destack_display_monitor_event_read_batch_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorEventReadBatchReplay {
                         result,
                     }
@@ -9864,7 +9864,7 @@ fn destack_display_monitor_event_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_MONITOR_EVENT_TRY_READ,
         binding.replay_payload_for(DISPLAY_MONITOR_EVENT_TRY_READ)?,
         || match world {
@@ -10250,7 +10250,7 @@ fn destack_display_monitor_event_try_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorEventTryReadReplay {
                         result,
                     }
@@ -10648,7 +10648,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxevents);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_MONITOR_EVENT_TRY_READ_BATCH,
         binding.replay_payload_for(DISPLAY_MONITOR_EVENT_TRY_READ_BATCH)?,
         || match world {
@@ -11040,7 +11040,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorEventTryReadBatchReplay {
                         result,
                     }
@@ -11442,7 +11442,7 @@ fn destack_display_monitor_gamma_ramp_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_MONITOR_GAMMA_RAMP,
         binding.replay_payload_for(DISPLAY_MONITOR_GAMMA_RAMP)?,
         || match world {
@@ -11495,7 +11495,7 @@ fn destack_display_monitor_gamma_ramp_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorGammaRampReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11550,7 +11550,7 @@ fn destack_display_monitor_hdr_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_MONITOR_HDR_MODE,
         binding.replay_payload_for(DISPLAY_MONITOR_HDR_MODE)?,
         || match world {
@@ -11578,7 +11578,7 @@ fn destack_display_monitor_hdr_mode_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorHdrModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11611,7 +11611,7 @@ fn destack_display_monitor_list_replay(
 ) -> RuntimeResult<()> {
     let _ = &request;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_MONITOR_LIST,
         binding.replay_payload_for(DISPLAY_MONITOR_LIST)?,
         || match world {
@@ -11696,7 +11696,7 @@ fn destack_display_monitor_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11781,7 +11781,7 @@ fn destack_display_monitor_modes_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_MONITOR_MODES,
         binding.replay_payload_for(DISPLAY_MONITOR_MODES)?,
         || match world {
@@ -11827,7 +11827,7 @@ fn destack_display_monitor_modes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorModesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11878,7 +11878,7 @@ fn destack_display_monitor_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&id, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_MONITOR_OPEN,
         binding.replay_payload_for(DISPLAY_MONITOR_OPEN)?,
         || match world {
@@ -11906,7 +11906,7 @@ fn destack_display_monitor_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11939,7 +11939,7 @@ fn destack_display_monitor_primary_replay(
 ) -> RuntimeResult<()> {
     let _ = &request;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_MONITOR_PRIMARY,
         binding.replay_payload_for(DISPLAY_MONITOR_PRIMARY)?,
         || match world {
@@ -11972,7 +11972,7 @@ fn destack_display_monitor_primary_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorPrimaryReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12009,7 +12009,7 @@ fn destack_display_window_begin_move_drag_replay(
 ) -> RuntimeResult<()> {
     let _ = &window;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_BEGIN_MOVE_DRAG,
         binding.replay_payload_for(DISPLAY_WINDOW_BEGIN_MOVE_DRAG)?,
         || match world {
@@ -12031,7 +12031,7 @@ fn destack_display_window_begin_move_drag_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowBeginMoveDragReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12058,7 +12058,7 @@ fn destack_display_window_begin_resize_drag_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &edge);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_BEGIN_RESIZE_DRAG,
         binding.replay_payload_for(DISPLAY_WINDOW_BEGIN_RESIZE_DRAG)?,
         || match world {
@@ -12082,7 +12082,7 @@ fn destack_display_window_begin_resize_drag_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowBeginResizeDragReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12109,7 +12109,7 @@ fn destack_display_window_capabilities_replay(
 ) -> RuntimeResult<()> {
     let _ = &window;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_CAPABILITIES,
         binding.replay_payload_for(DISPLAY_WINDOW_CAPABILITIES)?,
         || match world {
@@ -12139,7 +12139,7 @@ fn destack_display_window_capabilities_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowCapabilitiesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12171,7 +12171,7 @@ fn destack_display_window_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &window;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_CLOSE,
         binding.replay_payload_for(DISPLAY_WINDOW_CLOSE)?,
         || match world {
@@ -12193,7 +12193,7 @@ fn destack_display_window_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12220,7 +12220,7 @@ fn destack_display_window_descriptor_replay(
 ) -> RuntimeResult<()> {
     let _ = &window;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_DESCRIPTOR,
         binding.replay_payload_for(DISPLAY_WINDOW_DESCRIPTOR)?,
         || match world {
@@ -12353,7 +12353,7 @@ fn destack_display_window_descriptor_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowDescriptorReplay {
                         result,
                     }
@@ -12496,7 +12496,7 @@ fn destack_display_window_event_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_EVENT_CLOSE,
         binding.replay_payload_for(DISPLAY_WINDOW_EVENT_CLOSE)?,
         || match world {
@@ -12518,7 +12518,7 @@ fn destack_display_window_event_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowEventCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12545,7 +12545,7 @@ fn destack_display_window_event_open_replay(
 ) -> RuntimeResult<()> {
     let _ = &options;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_EVENT_OPEN,
         binding.replay_payload_for(DISPLAY_WINDOW_EVENT_OPEN)?,
         || match world {
@@ -12573,7 +12573,7 @@ fn destack_display_window_event_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowEventOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12607,7 +12607,7 @@ fn destack_display_window_event_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_EVENT_READ,
         binding.replay_payload_for(DISPLAY_WINDOW_EVENT_READ)?,
         || match world {
@@ -13722,7 +13722,7 @@ fn destack_display_window_event_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowEventReadReplay {
                         result,
                     }
@@ -14850,7 +14850,7 @@ fn destack_display_window_event_read_batch_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxevents, &timeoutns);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_EVENT_READ_BATCH,
         binding.replay_payload_for(DISPLAY_WINDOW_EVENT_READ_BATCH)?,
         || match world {
@@ -15971,7 +15971,7 @@ fn destack_display_window_event_read_batch_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowEventReadBatchReplay {
                         result,
                     }
@@ -17102,7 +17102,7 @@ fn destack_display_window_event_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_EVENT_TRY_READ,
         binding.replay_payload_for(DISPLAY_WINDOW_EVENT_TRY_READ)?,
         || match world {
@@ -18217,7 +18217,7 @@ fn destack_display_window_event_try_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowEventTryReadReplay {
                         result,
                     }
@@ -19344,7 +19344,7 @@ fn destack_display_window_event_try_read_batch_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxevents);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_EVENT_TRY_READ_BATCH,
         binding.replay_payload_for(DISPLAY_WINDOW_EVENT_TRY_READ_BATCH)?,
         || match world {
@@ -20465,7 +20465,7 @@ fn destack_display_window_event_try_read_batch_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowEventTryReadBatchReplay {
                         result,
                     }
@@ -21595,7 +21595,7 @@ fn destack_display_window_focus_replay(
 ) -> RuntimeResult<()> {
     let _ = &window;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_FOCUS,
         binding.replay_payload_for(DISPLAY_WINDOW_FOCUS)?,
         || match world {
@@ -21617,7 +21617,7 @@ fn destack_display_window_focus_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowFocusReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21643,7 +21643,7 @@ fn destack_display_window_maximize_replay(
 ) -> RuntimeResult<()> {
     let _ = &window;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_MAXIMIZE,
         binding.replay_payload_for(DISPLAY_WINDOW_MAXIMIZE)?,
         || match world {
@@ -21665,7 +21665,7 @@ fn destack_display_window_maximize_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowMaximizeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21691,7 +21691,7 @@ fn destack_display_window_minimize_replay(
 ) -> RuntimeResult<()> {
     let _ = &window;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_MINIMIZE,
         binding.replay_payload_for(DISPLAY_WINDOW_MINIMIZE)?,
         || match world {
@@ -21713,7 +21713,7 @@ fn destack_display_window_minimize_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowMinimizeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21740,7 +21740,7 @@ fn destack_display_window_opacity_replay(
 ) -> RuntimeResult<()> {
     let _ = &window;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_OPACITY,
         binding.replay_payload_for(DISPLAY_WINDOW_OPACITY)?,
         || match world {
@@ -21768,7 +21768,7 @@ fn destack_display_window_opacity_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowOpacityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21801,7 +21801,7 @@ fn destack_display_window_open_replay(
 ) -> RuntimeResult<()> {
     let _ = &options;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_OPEN,
         binding.replay_payload_for(DISPLAY_WINDOW_OPEN)?,
         || match world {
@@ -21829,7 +21829,7 @@ fn destack_display_window_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21861,7 +21861,7 @@ fn destack_display_window_raise_replay(
 ) -> RuntimeResult<()> {
     let _ = &window;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_RAISE,
         binding.replay_payload_for(DISPLAY_WINDOW_RAISE)?,
         || match world {
@@ -21883,7 +21883,7 @@ fn destack_display_window_raise_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowRaiseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21910,7 +21910,7 @@ fn destack_display_window_request_attention_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &level);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_REQUEST_ATTENTION,
         binding.replay_payload_for(DISPLAY_WINDOW_REQUEST_ATTENTION)?,
         || match world {
@@ -21934,7 +21934,7 @@ fn destack_display_window_request_attention_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowRequestAttentionReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21960,7 +21960,7 @@ fn destack_display_window_request_refresh_replay(
 ) -> RuntimeResult<()> {
     let _ = &window;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_REQUEST_REFRESH,
         binding.replay_payload_for(DISPLAY_WINDOW_REQUEST_REFRESH)?,
         || match world {
@@ -21982,7 +21982,7 @@ fn destack_display_window_request_refresh_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowRequestRefreshReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22008,7 +22008,7 @@ fn destack_display_window_restore_replay(
 ) -> RuntimeResult<()> {
     let _ = &window;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_RESTORE,
         binding.replay_payload_for(DISPLAY_WINDOW_RESTORE)?,
         || match world {
@@ -22030,7 +22030,7 @@ fn destack_display_window_restore_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowRestoreReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22057,7 +22057,7 @@ fn destack_display_window_set_always_on_top_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &alwaysontop);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_ALWAYS_ON_TOP,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_ALWAYS_ON_TOP)?,
         || match world {
@@ -22087,7 +22087,7 @@ fn destack_display_window_set_always_on_top_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetAlwaysOnTopReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22114,7 +22114,7 @@ fn destack_display_window_set_aspect_ratio_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &aspectratio);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_ASPECT_RATIO,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_ASPECT_RATIO)?,
         || match world {
@@ -22144,7 +22144,7 @@ fn destack_display_window_set_aspect_ratio_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetAspectRatioReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22171,7 +22171,7 @@ fn destack_display_window_set_chrome_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &chrome);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_CHROME,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_CHROME)?,
         || match world {
@@ -22195,7 +22195,7 @@ fn destack_display_window_set_chrome_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetChromeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22222,7 +22222,7 @@ fn destack_display_window_set_cursor_icon_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &icon);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_CURSOR_ICON,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_CURSOR_ICON)?,
         || match world {
@@ -22246,7 +22246,7 @@ fn destack_display_window_set_cursor_icon_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetCursorIconReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22273,7 +22273,7 @@ fn destack_display_window_set_cursor_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &mode);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_CURSOR_MODE,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_CURSOR_MODE)?,
         || match world {
@@ -22297,7 +22297,7 @@ fn destack_display_window_set_cursor_mode_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetCursorModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22324,7 +22324,7 @@ fn destack_display_window_set_cursor_position_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &position);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_CURSOR_POSITION,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_CURSOR_POSITION)?,
         || match world {
@@ -22350,7 +22350,7 @@ fn destack_display_window_set_cursor_position_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetCursorPositionReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22377,7 +22377,7 @@ fn destack_display_window_set_cursor_visible_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &visible);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_CURSOR_VISIBLE,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_CURSOR_VISIBLE)?,
         || match world {
@@ -22401,7 +22401,7 @@ fn destack_display_window_set_cursor_visible_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetCursorVisibleReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22428,7 +22428,7 @@ fn destack_display_window_set_decorated_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &decorated);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_DECORATED,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_DECORATED)?,
         || match world {
@@ -22452,7 +22452,7 @@ fn destack_display_window_set_decorated_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetDecoratedReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22479,7 +22479,7 @@ fn destack_display_window_set_icons_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &icons);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_ICONS,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_ICONS)?,
         || match world {
@@ -22501,7 +22501,7 @@ fn destack_display_window_set_icons_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetIconsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22528,7 +22528,7 @@ fn destack_display_window_set_modal_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &modal);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_MODAL,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_MODAL)?,
         || match world {
@@ -22550,7 +22550,7 @@ fn destack_display_window_set_modal_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetModalReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22577,7 +22577,7 @@ fn destack_display_window_set_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &mode);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_MODE,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_MODE)?,
         || match world {
@@ -22599,7 +22599,7 @@ fn destack_display_window_set_mode_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22626,7 +22626,7 @@ fn destack_display_window_set_mouse_passthrough_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &passthrough);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_MOUSE_PASSTHROUGH,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_MOUSE_PASSTHROUGH)?,
         || match world {
@@ -22656,7 +22656,7 @@ fn destack_display_window_set_mouse_passthrough_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetMousePassthroughReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22683,7 +22683,7 @@ fn destack_display_window_set_opacity_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &opacity);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_OPACITY,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_OPACITY)?,
         || match world {
@@ -22707,7 +22707,7 @@ fn destack_display_window_set_opacity_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetOpacityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22734,7 +22734,7 @@ fn destack_display_window_set_parent_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &parent);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_PARENT,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_PARENT)?,
         || match world {
@@ -22758,7 +22758,7 @@ fn destack_display_window_set_parent_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetParentReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22785,7 +22785,7 @@ fn destack_display_window_set_position_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &position);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_POSITION,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_POSITION)?,
         || match world {
@@ -22809,7 +22809,7 @@ fn destack_display_window_set_position_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetPositionReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22836,7 +22836,7 @@ fn destack_display_window_set_resizable_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &resizable);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_RESIZABLE,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_RESIZABLE)?,
         || match world {
@@ -22860,7 +22860,7 @@ fn destack_display_window_set_resizable_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetResizableReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22887,7 +22887,7 @@ fn destack_display_window_set_size_constraints_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &constraints);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_SIZE_CONSTRAINTS,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_SIZE_CONSTRAINTS)?,
         || match world {
@@ -22917,7 +22917,7 @@ fn destack_display_window_set_size_constraints_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetSizeConstraintsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22944,7 +22944,7 @@ fn destack_display_window_set_size_logical_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &size);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_SIZE_LOGICAL,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_SIZE_LOGICAL)?,
         || match world {
@@ -22968,7 +22968,7 @@ fn destack_display_window_set_size_logical_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetSizeLogicalReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22995,7 +22995,7 @@ fn destack_display_window_set_size_physical_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &size);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_SIZE_PHYSICAL,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_SIZE_PHYSICAL)?,
         || match world {
@@ -23019,7 +23019,7 @@ fn destack_display_window_set_size_physical_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetSizePhysicalReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23046,7 +23046,7 @@ fn destack_display_window_set_taskbar_visible_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &visible);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_TASKBAR_VISIBLE,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_TASKBAR_VISIBLE)?,
         || match world {
@@ -23072,7 +23072,7 @@ fn destack_display_window_set_taskbar_visible_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetTaskbarVisibleReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23099,7 +23099,7 @@ fn destack_display_window_set_title_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &title);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_TITLE,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_TITLE)?,
         || match world {
@@ -23121,7 +23121,7 @@ fn destack_display_window_set_title_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetTitleReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23148,7 +23148,7 @@ fn destack_display_window_set_transient_for_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &transientfor);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_TRANSIENT_FOR,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_TRANSIENT_FOR)?,
         || match world {
@@ -23178,7 +23178,7 @@ fn destack_display_window_set_transient_for_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetTransientForReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23205,7 +23205,7 @@ fn destack_display_window_set_visibility_replay(
 ) -> RuntimeResult<()> {
     let _ = (&window, &visibility);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_SET_VISIBILITY,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_VISIBILITY)?,
         || match world {
@@ -23229,7 +23229,7 @@ fn destack_display_window_set_visibility_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetVisibilityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23256,7 +23256,7 @@ fn destack_display_window_state_replay(
 ) -> RuntimeResult<()> {
     let _ = &window;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DISPLAY_WINDOW_STATE,
         binding.replay_payload_for(DISPLAY_WINDOW_STATE)?,
         || match world {
@@ -23383,7 +23383,7 @@ fn destack_display_window_state_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24553,7 +24553,7 @@ fn destack_display_backend_list_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_BACKEND_LIST,
         binding.replay_payload_for(DISPLAY_BACKEND_LIST)?,
         context,
@@ -24659,7 +24659,7 @@ fn destack_display_backend_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayBackendListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24727,7 +24727,7 @@ fn destack_display_monitor_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_MONITOR_CLOSE,
         binding.replay_payload_for(DISPLAY_MONITOR_CLOSE)?,
         context,
@@ -24751,7 +24751,7 @@ fn destack_display_monitor_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24780,7 +24780,7 @@ fn destack_display_monitor_closest_mode_vm_replay(
     handle: resource::DisplayHandle,
     requested: DisplayModeVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_MONITOR_CLOSEST_MODE,
         binding.replay_payload_for(DISPLAY_MONITOR_CLOSEST_MODE)?,
         context,
@@ -24818,7 +24818,7 @@ fn destack_display_monitor_closest_mode_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorClosestModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24860,7 +24860,7 @@ fn destack_display_monitor_color_state_vm_replay(
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_MONITOR_COLOR_STATE,
         binding.replay_payload_for(DISPLAY_MONITOR_COLOR_STATE)?,
         context,
@@ -24900,7 +24900,7 @@ fn destack_display_monitor_color_state_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorColorStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24943,7 +24943,7 @@ fn destack_display_monitor_current_mode_vm_replay(
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_MONITOR_CURRENT_MODE,
         binding.replay_payload_for(DISPLAY_MONITOR_CURRENT_MODE)?,
         context,
@@ -24981,7 +24981,7 @@ fn destack_display_monitor_current_mode_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorCurrentModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25023,7 +25023,7 @@ fn destack_display_monitor_descriptor_vm_replay(
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_MONITOR_DESCRIPTOR,
         binding.replay_payload_for(DISPLAY_MONITOR_DESCRIPTOR)?,
         context,
@@ -25098,7 +25098,7 @@ fn destack_display_monitor_descriptor_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorDescriptorReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25170,7 +25170,7 @@ fn destack_display_monitor_desktop_mode_vm_replay(
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_MONITOR_DESKTOP_MODE,
         binding.replay_payload_for(DISPLAY_MONITOR_DESKTOP_MODE)?,
         context,
@@ -25208,7 +25208,7 @@ fn destack_display_monitor_desktop_mode_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorDesktopModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25250,7 +25250,7 @@ fn destack_display_monitor_event_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_MONITOR_EVENT_CLOSE,
         binding.replay_payload_for(DISPLAY_MONITOR_EVENT_CLOSE)?,
         context,
@@ -25276,7 +25276,7 @@ fn destack_display_monitor_event_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorEventCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25304,7 +25304,7 @@ fn destack_display_monitor_event_open_vm_replay(
     world: RuntimeWorld,
     options: DisplayMonitorEventOpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_MONITOR_EVENT_OPEN,
         binding.replay_payload_for(DISPLAY_MONITOR_EVENT_OPEN)?,
         context,
@@ -25329,7 +25329,7 @@ fn destack_display_monitor_event_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorEventOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25361,7 +25361,7 @@ fn destack_display_monitor_event_read_vm_replay(
     handle: resource::DisplayEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_MONITOR_EVENT_READ,
         binding.replay_payload_for(DISPLAY_MONITOR_EVENT_READ)?,
         context,
@@ -25811,7 +25811,7 @@ fn destack_display_monitor_event_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorEventReadReplay {
                         result,
                     }
@@ -26231,7 +26231,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
     maxevents: u32,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_MONITOR_EVENT_READ_BATCH,
         binding.replay_payload_for(DISPLAY_MONITOR_EVENT_READ_BATCH)?,
         context,
@@ -26687,7 +26687,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorEventReadBatchReplay {
                         result,
                     }
@@ -27113,7 +27113,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
     world: RuntimeWorld,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_MONITOR_EVENT_TRY_READ,
         binding.replay_payload_for(DISPLAY_MONITOR_EVENT_TRY_READ)?,
         context,
@@ -27563,7 +27563,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorEventTryReadReplay {
                         result,
                     }
@@ -27982,7 +27982,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
     handle: resource::DisplayEventHandle,
     maxevents: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_MONITOR_EVENT_TRY_READ_BATCH,
         binding.replay_payload_for(DISPLAY_MONITOR_EVENT_TRY_READ_BATCH)?,
         context,
@@ -28438,7 +28438,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorEventTryReadBatchReplay {
                         result,
                     }
@@ -28864,7 +28864,7 @@ fn destack_display_monitor_gamma_ramp_vm_replay(
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_MONITOR_GAMMA_RAMP,
         binding.replay_payload_for(DISPLAY_MONITOR_GAMMA_RAMP)?,
         context,
@@ -28926,7 +28926,7 @@ fn destack_display_monitor_gamma_ramp_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorGammaRampReplay { result }
                 };
                 return Ok(Some(payload));
@@ -28982,7 +28982,7 @@ fn destack_display_monitor_hdr_mode_vm_replay(
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_MONITOR_HDR_MODE,
         binding.replay_payload_for(DISPLAY_MONITOR_HDR_MODE)?,
         context,
@@ -29007,7 +29007,7 @@ fn destack_display_monitor_hdr_mode_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorHdrModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29038,7 +29038,7 @@ fn destack_display_monitor_list_vm_replay(
     world: RuntimeWorld,
     request: DisplayMonitorListRequestVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_MONITOR_LIST,
         binding.replay_payload_for(DISPLAY_MONITOR_LIST)?,
         context,
@@ -29313,7 +29313,7 @@ fn destack_display_monitor_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29447,7 +29447,7 @@ fn destack_display_monitor_modes_vm_replay(
     world: RuntimeWorld,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_MONITOR_MODES,
         binding.replay_payload_for(DISPLAY_MONITOR_MODES)?,
         context,
@@ -29528,7 +29528,7 @@ fn destack_display_monitor_modes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorModesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29594,7 +29594,7 @@ fn destack_display_monitor_open_vm_replay(
     id: vm::StringHandle,
     options: DisplayMonitorOpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_MONITOR_OPEN,
         binding.replay_payload_for(DISPLAY_MONITOR_OPEN)?,
         context,
@@ -29619,7 +29619,7 @@ fn destack_display_monitor_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29650,7 +29650,7 @@ fn destack_display_monitor_primary_vm_replay(
     world: RuntimeWorld,
     request: DisplayMonitorListRequestVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_MONITOR_PRIMARY,
         binding.replay_payload_for(DISPLAY_MONITOR_PRIMARY)?,
         context,
@@ -29680,7 +29680,7 @@ fn destack_display_monitor_primary_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayMonitorPrimaryReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29716,7 +29716,7 @@ fn destack_display_window_begin_move_drag_vm_replay(
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_BEGIN_MOVE_DRAG,
         binding.replay_payload_for(DISPLAY_WINDOW_BEGIN_MOVE_DRAG)?,
         context,
@@ -29742,7 +29742,7 @@ fn destack_display_window_begin_move_drag_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowBeginMoveDragReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29771,7 +29771,7 @@ fn destack_display_window_begin_resize_drag_vm_replay(
     window: resource::WindowHandle,
     edge: WindowResizeEdge,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_BEGIN_RESIZE_DRAG,
         binding.replay_payload_for(DISPLAY_WINDOW_BEGIN_RESIZE_DRAG)?,
         context,
@@ -29797,7 +29797,7 @@ fn destack_display_window_begin_resize_drag_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowBeginResizeDragReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29825,7 +29825,7 @@ fn destack_display_window_capabilities_vm_replay(
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_CAPABILITIES,
         binding.replay_payload_for(DISPLAY_WINDOW_CAPABILITIES)?,
         context,
@@ -29852,7 +29852,7 @@ fn destack_display_window_capabilities_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowCapabilitiesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29883,7 +29883,7 @@ fn destack_display_window_close_vm_replay(
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_CLOSE,
         binding.replay_payload_for(DISPLAY_WINDOW_CLOSE)?,
         context,
@@ -29907,7 +29907,7 @@ fn destack_display_window_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29935,7 +29935,7 @@ fn destack_display_window_descriptor_vm_replay(
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_DESCRIPTOR,
         binding.replay_payload_for(DISPLAY_WINDOW_DESCRIPTOR)?,
         context,
@@ -30084,7 +30084,7 @@ fn destack_display_window_descriptor_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowDescriptorReplay {
                         result,
                     }
@@ -30233,7 +30233,7 @@ fn destack_display_window_event_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::WindowEventHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_EVENT_CLOSE,
         binding.replay_payload_for(DISPLAY_WINDOW_EVENT_CLOSE)?,
         context,
@@ -30257,7 +30257,7 @@ fn destack_display_window_event_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowEventCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -30285,7 +30285,7 @@ fn destack_display_window_event_open_vm_replay(
     world: RuntimeWorld,
     options: WindowEventOpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_EVENT_OPEN,
         binding.replay_payload_for(DISPLAY_WINDOW_EVENT_OPEN)?,
         context,
@@ -30310,7 +30310,7 @@ fn destack_display_window_event_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowEventOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -30342,7 +30342,7 @@ fn destack_display_window_event_read_vm_replay(
     handle: resource::WindowEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_EVENT_READ,
         binding.replay_payload_for(DISPLAY_WINDOW_EVENT_READ)?,
         context,
@@ -31572,7 +31572,7 @@ fn destack_display_window_event_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowEventReadReplay {
                         result,
                     }
@@ -32730,7 +32730,7 @@ fn destack_display_window_event_read_batch_vm_replay(
     maxevents: u32,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_EVENT_READ_BATCH,
         binding.replay_payload_for(DISPLAY_WINDOW_EVENT_READ_BATCH)?,
         context,
@@ -33966,7 +33966,7 @@ fn destack_display_window_event_read_batch_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowEventReadBatchReplay {
                         result,
                     }
@@ -35130,7 +35130,7 @@ fn destack_display_window_event_try_read_vm_replay(
     world: RuntimeWorld,
     handle: resource::WindowEventHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_EVENT_TRY_READ,
         binding.replay_payload_for(DISPLAY_WINDOW_EVENT_TRY_READ)?,
         context,
@@ -36360,7 +36360,7 @@ fn destack_display_window_event_try_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowEventTryReadReplay {
                         result,
                     }
@@ -37517,7 +37517,7 @@ fn destack_display_window_event_try_read_batch_vm_replay(
     handle: resource::WindowEventHandle,
     maxevents: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_EVENT_TRY_READ_BATCH,
         binding.replay_payload_for(DISPLAY_WINDOW_EVENT_TRY_READ_BATCH)?,
         context,
@@ -38753,7 +38753,7 @@ fn destack_display_window_event_try_read_batch_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowEventTryReadBatchReplay {
                         result,
                     }
@@ -39917,7 +39917,7 @@ fn destack_display_window_focus_vm_replay(
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_FOCUS,
         binding.replay_payload_for(DISPLAY_WINDOW_FOCUS)?,
         context,
@@ -39941,7 +39941,7 @@ fn destack_display_window_focus_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowFocusReplay { result }
                 };
                 return Ok(Some(payload));
@@ -39969,7 +39969,7 @@ fn destack_display_window_maximize_vm_replay(
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_MAXIMIZE,
         binding.replay_payload_for(DISPLAY_WINDOW_MAXIMIZE)?,
         context,
@@ -39993,7 +39993,7 @@ fn destack_display_window_maximize_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowMaximizeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -40021,7 +40021,7 @@ fn destack_display_window_minimize_vm_replay(
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_MINIMIZE,
         binding.replay_payload_for(DISPLAY_WINDOW_MINIMIZE)?,
         context,
@@ -40045,7 +40045,7 @@ fn destack_display_window_minimize_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowMinimizeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -40073,7 +40073,7 @@ fn destack_display_window_opacity_vm_replay(
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_OPACITY,
         binding.replay_payload_for(DISPLAY_WINDOW_OPACITY)?,
         context,
@@ -40098,7 +40098,7 @@ fn destack_display_window_opacity_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowOpacityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -40129,7 +40129,7 @@ fn destack_display_window_open_vm_replay(
     world: RuntimeWorld,
     options: WindowOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_OPEN,
         binding.replay_payload_for(DISPLAY_WINDOW_OPEN)?,
         context,
@@ -40154,7 +40154,7 @@ fn destack_display_window_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -40185,7 +40185,7 @@ fn destack_display_window_raise_vm_replay(
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_RAISE,
         binding.replay_payload_for(DISPLAY_WINDOW_RAISE)?,
         context,
@@ -40209,7 +40209,7 @@ fn destack_display_window_raise_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowRaiseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -40238,7 +40238,7 @@ fn destack_display_window_request_attention_vm_replay(
     window: resource::WindowHandle,
     level: WindowAttentionLevel,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_REQUEST_ATTENTION,
         binding.replay_payload_for(DISPLAY_WINDOW_REQUEST_ATTENTION)?,
         context,
@@ -40264,7 +40264,7 @@ fn destack_display_window_request_attention_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowRequestAttentionReplay { result }
                 };
                 return Ok(Some(payload));
@@ -40292,7 +40292,7 @@ fn destack_display_window_request_refresh_vm_replay(
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_REQUEST_REFRESH,
         binding.replay_payload_for(DISPLAY_WINDOW_REQUEST_REFRESH)?,
         context,
@@ -40318,7 +40318,7 @@ fn destack_display_window_request_refresh_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowRequestRefreshReplay { result }
                 };
                 return Ok(Some(payload));
@@ -40346,7 +40346,7 @@ fn destack_display_window_restore_vm_replay(
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_RESTORE,
         binding.replay_payload_for(DISPLAY_WINDOW_RESTORE)?,
         context,
@@ -40370,7 +40370,7 @@ fn destack_display_window_restore_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowRestoreReplay { result }
                 };
                 return Ok(Some(payload));
@@ -40399,7 +40399,7 @@ fn destack_display_window_set_always_on_top_vm_replay(
     window: resource::WindowHandle,
     alwaysontop: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_ALWAYS_ON_TOP,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_ALWAYS_ON_TOP)?,
         context,
@@ -40431,7 +40431,7 @@ fn destack_display_window_set_always_on_top_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetAlwaysOnTopReplay { result }
                 };
                 return Ok(Some(payload));
@@ -40460,7 +40460,7 @@ fn destack_display_window_set_aspect_ratio_vm_replay(
     window: resource::WindowHandle,
     aspectratio: Option<WindowAspectRatioVm>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_ASPECT_RATIO,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_ASPECT_RATIO)?,
         context,
@@ -40492,7 +40492,7 @@ fn destack_display_window_set_aspect_ratio_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetAspectRatioReplay { result }
                 };
                 return Ok(Some(payload));
@@ -40521,7 +40521,7 @@ fn destack_display_window_set_chrome_vm_replay(
     window: resource::WindowHandle,
     chrome: WindowChromeKind,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_CHROME,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_CHROME)?,
         context,
@@ -40545,7 +40545,7 @@ fn destack_display_window_set_chrome_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetChromeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -40574,7 +40574,7 @@ fn destack_display_window_set_cursor_icon_vm_replay(
     window: resource::WindowHandle,
     icon: WindowCursorIcon,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_CURSOR_ICON,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_CURSOR_ICON)?,
         context,
@@ -40600,7 +40600,7 @@ fn destack_display_window_set_cursor_icon_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetCursorIconReplay { result }
                 };
                 return Ok(Some(payload));
@@ -40629,7 +40629,7 @@ fn destack_display_window_set_cursor_mode_vm_replay(
     window: resource::WindowHandle,
     mode: WindowCursorMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_CURSOR_MODE,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_CURSOR_MODE)?,
         context,
@@ -40655,7 +40655,7 @@ fn destack_display_window_set_cursor_mode_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetCursorModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -40684,7 +40684,7 @@ fn destack_display_window_set_cursor_position_vm_replay(
     window: resource::WindowHandle,
     position: WindowPositionVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_CURSOR_POSITION,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_CURSOR_POSITION)?,
         context,
@@ -40710,7 +40710,7 @@ fn destack_display_window_set_cursor_position_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetCursorPositionReplay { result }
                 };
                 return Ok(Some(payload));
@@ -40739,7 +40739,7 @@ fn destack_display_window_set_cursor_visible_vm_replay(
     window: resource::WindowHandle,
     visible: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_CURSOR_VISIBLE,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_CURSOR_VISIBLE)?,
         context,
@@ -40765,7 +40765,7 @@ fn destack_display_window_set_cursor_visible_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetCursorVisibleReplay { result }
                 };
                 return Ok(Some(payload));
@@ -40794,7 +40794,7 @@ fn destack_display_window_set_decorated_vm_replay(
     window: resource::WindowHandle,
     decorated: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_DECORATED,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_DECORATED)?,
         context,
@@ -40820,7 +40820,7 @@ fn destack_display_window_set_decorated_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetDecoratedReplay { result }
                 };
                 return Ok(Some(payload));
@@ -40849,7 +40849,7 @@ fn destack_display_window_set_icons_vm_replay(
     window: resource::WindowHandle,
     icons: Option<WindowIconSetVm>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_ICONS,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_ICONS)?,
         context,
@@ -40873,7 +40873,7 @@ fn destack_display_window_set_icons_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetIconsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -40902,7 +40902,7 @@ fn destack_display_window_set_modal_vm_replay(
     window: resource::WindowHandle,
     modal: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_MODAL,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_MODAL)?,
         context,
@@ -40926,7 +40926,7 @@ fn destack_display_window_set_modal_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetModalReplay { result }
                 };
                 return Ok(Some(payload));
@@ -40955,7 +40955,7 @@ fn destack_display_window_set_mode_vm_replay(
     window: resource::WindowHandle,
     mode: WindowModeOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_MODE,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_MODE)?,
         context,
@@ -40979,7 +40979,7 @@ fn destack_display_window_set_mode_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -41008,7 +41008,7 @@ fn destack_display_window_set_mouse_passthrough_vm_replay(
     window: resource::WindowHandle,
     passthrough: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_MOUSE_PASSTHROUGH,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_MOUSE_PASSTHROUGH)?,
         context,
@@ -41040,7 +41040,7 @@ fn destack_display_window_set_mouse_passthrough_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetMousePassthroughReplay { result }
                 };
                 return Ok(Some(payload));
@@ -41069,7 +41069,7 @@ fn destack_display_window_set_opacity_vm_replay(
     window: resource::WindowHandle,
     opacity: f64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_OPACITY,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_OPACITY)?,
         context,
@@ -41093,7 +41093,7 @@ fn destack_display_window_set_opacity_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetOpacityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -41122,7 +41122,7 @@ fn destack_display_window_set_parent_vm_replay(
     window: resource::WindowHandle,
     parent: Option<resource::WindowHandle>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_PARENT,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_PARENT)?,
         context,
@@ -41146,7 +41146,7 @@ fn destack_display_window_set_parent_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetParentReplay { result }
                 };
                 return Ok(Some(payload));
@@ -41175,7 +41175,7 @@ fn destack_display_window_set_position_vm_replay(
     window: resource::WindowHandle,
     position: WindowPositionVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_POSITION,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_POSITION)?,
         context,
@@ -41201,7 +41201,7 @@ fn destack_display_window_set_position_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetPositionReplay { result }
                 };
                 return Ok(Some(payload));
@@ -41230,7 +41230,7 @@ fn destack_display_window_set_resizable_vm_replay(
     window: resource::WindowHandle,
     resizable: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_RESIZABLE,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_RESIZABLE)?,
         context,
@@ -41256,7 +41256,7 @@ fn destack_display_window_set_resizable_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetResizableReplay { result }
                 };
                 return Ok(Some(payload));
@@ -41285,7 +41285,7 @@ fn destack_display_window_set_size_constraints_vm_replay(
     window: resource::WindowHandle,
     constraints: Option<WindowSizeConstraintsVm>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_SIZE_CONSTRAINTS,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_SIZE_CONSTRAINTS)?,
         context,
@@ -41317,7 +41317,7 @@ fn destack_display_window_set_size_constraints_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetSizeConstraintsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -41346,7 +41346,7 @@ fn destack_display_window_set_size_logical_vm_replay(
     window: resource::WindowHandle,
     size: WindowLogicalSizeVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_SIZE_LOGICAL,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_SIZE_LOGICAL)?,
         context,
@@ -41372,7 +41372,7 @@ fn destack_display_window_set_size_logical_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetSizeLogicalReplay { result }
                 };
                 return Ok(Some(payload));
@@ -41401,7 +41401,7 @@ fn destack_display_window_set_size_physical_vm_replay(
     window: resource::WindowHandle,
     size: WindowPhysicalSizeVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_SIZE_PHYSICAL,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_SIZE_PHYSICAL)?,
         context,
@@ -41427,7 +41427,7 @@ fn destack_display_window_set_size_physical_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetSizePhysicalReplay { result }
                 };
                 return Ok(Some(payload));
@@ -41456,7 +41456,7 @@ fn destack_display_window_set_taskbar_visible_vm_replay(
     window: resource::WindowHandle,
     visible: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_TASKBAR_VISIBLE,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_TASKBAR_VISIBLE)?,
         context,
@@ -41482,7 +41482,7 @@ fn destack_display_window_set_taskbar_visible_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetTaskbarVisibleReplay { result }
                 };
                 return Ok(Some(payload));
@@ -41511,7 +41511,7 @@ fn destack_display_window_set_title_vm_replay(
     window: resource::WindowHandle,
     title: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_TITLE,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_TITLE)?,
         context,
@@ -41535,7 +41535,7 @@ fn destack_display_window_set_title_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetTitleReplay { result }
                 };
                 return Ok(Some(payload));
@@ -41564,7 +41564,7 @@ fn destack_display_window_set_transient_for_vm_replay(
     window: resource::WindowHandle,
     transientfor: Option<resource::WindowHandle>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_TRANSIENT_FOR,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_TRANSIENT_FOR)?,
         context,
@@ -41596,7 +41596,7 @@ fn destack_display_window_set_transient_for_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetTransientForReplay { result }
                 };
                 return Ok(Some(payload));
@@ -41625,7 +41625,7 @@ fn destack_display_window_set_visibility_vm_replay(
     window: resource::WindowHandle,
     visibility: WindowVisibility,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_SET_VISIBILITY,
         binding.replay_payload_for(DISPLAY_WINDOW_SET_VISIBILITY)?,
         context,
@@ -41651,7 +41651,7 @@ fn destack_display_window_set_visibility_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowSetVisibilityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -41679,7 +41679,7 @@ fn destack_display_window_state_vm_replay(
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DISPLAY_WINDOW_STATE,
         binding.replay_payload_for(DISPLAY_WINDOW_STATE)?,
         context,
@@ -41803,7 +41803,7 @@ fn destack_display_window_state_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowStateReplay { result }
                 };
                 return Ok(Some(payload));

@@ -658,7 +658,7 @@ impl<'a> DomainWriter<'a> {
             self.output
                 .push_str("use crate::runtime::BindingCallContext;\n");
             self.output
-                .push_str("use crate::runtime::replay::ReplayError;\n");
+                .push_str("use crate::runtime::replay::TraceError;\n");
         }
         self.output.push_str("use crate::binding;\n\n");
 
@@ -1284,8 +1284,7 @@ impl<'a> DomainWriter<'a> {
                     match kind {
                         CatalogEntropyKind::TimeReadMonotonic
                         | CatalogEntropyKind::TimeReadWall => {
-                            output
-                                .push_str("        let value = context.replay().run_time_read(\n");
+                            output.push_str("        let value = context.trace().run_time_read(\n");
                             output.push_str(&format!("            {kind_value},\n"));
                             output.push_str(&format!("            {subject_expr},\n"));
                             output.push_str("            || context.on_time_read(),\n");
@@ -1306,7 +1305,7 @@ impl<'a> DomainWriter<'a> {
                         }
                         CatalogEntropyKind::RandomStreamCreate => {
                             output.push_str(
-                                "        let value = context.replay().run_random_stream(\n",
+                                "        let value = context.trace().run_random_stream(\n",
                             );
                             output.push_str(&format!("            {subject_expr},\n"));
                             output.push_str("            || context.on_random_read(),\n");
@@ -1329,7 +1328,7 @@ impl<'a> DomainWriter<'a> {
                             let stream_expr =
                                 binding_random_stream_id_expr(entry, "context.random_stream_id()");
                             output
-                                .push_str("        let value = context.replay().run_random_u64(\n");
+                                .push_str("        let value = context.trace().run_random_u64(\n");
                             output.push_str(&format!("            {subject_expr},\n"));
                             output.push_str(&format!("            {stream_expr},\n"));
                             output.push_str("            || context.on_random_read(),\n");
@@ -1352,7 +1351,7 @@ impl<'a> DomainWriter<'a> {
                             let stream_expr =
                                 binding_random_stream_id_expr(entry, "context.random_stream_id()");
                             let buffer_name = binding_random_bytes_buffer_arg(entry);
-                            output.push_str("        context.replay().run_random_bytes(\n");
+                            output.push_str("        context.trace().run_random_bytes(\n");
                             output.push_str(&format!("            {subject_expr},\n"));
                             output.push_str(&format!("            {stream_expr},\n"));
                             output.push_str(&format!("            {buffer_name}.len,\n"));
@@ -1497,7 +1496,7 @@ impl<'a> DomainWriter<'a> {
                                 &invoke_args,
                             );
                             output.push_str(
-                                "                let result = binding.replay().run_time_read(\n",
+                                "                let result = binding.trace().run_time_read(\n",
                             );
                             output.push_str(&format!("                    {kind_value},\n"));
                             output.push_str(&format!("                    {subject_expr},\n"));
@@ -1519,7 +1518,7 @@ impl<'a> DomainWriter<'a> {
                                 &invoke_args,
                             );
                             output.push_str(
-                                "                let result = binding.replay().run_random_stream(\n",
+                                "                let result = binding.trace().run_random_stream(\n",
                             );
                             output.push_str(&format!("                    {subject_expr},\n"));
                             output.push_str("                    || binding.on_random_read(),\n");
@@ -1549,7 +1548,7 @@ impl<'a> DomainWriter<'a> {
                                 &invoke_args,
                             );
                             output.push_str(
-                                "                let result = binding.replay().run_random_u64(\n",
+                                "                let result = binding.trace().run_random_u64(\n",
                             );
                             output.push_str(&format!("                    {subject_expr},\n"));
                             output.push_str(&format!("                    {stream_expr},\n"));
@@ -1572,7 +1571,7 @@ impl<'a> DomainWriter<'a> {
                                 "                let context_ptr = context as *mut vm::ExternalCallContext<'_>;\n",
                             );
                             output.push_str(
-                                "                let result = binding.replay().run_random_bytes(\n",
+                                "                let result = binding.trace().run_random_bytes(\n",
                             );
                             output.push_str(&format!("                    {subject_expr},\n"));
                             output.push_str(&format!("                    {stream_expr},\n"));

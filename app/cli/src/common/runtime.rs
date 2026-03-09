@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
 use destack_workspace::{
-    DsConfigRuntimeOptionsJson, ExecutionModeJson, GcLoggingJson, GcOptionsJson, RandomModeJson,
+    DsConfigRuntimeOptionsJson, ExecutionModeJson, GcOptionsJson, RandomModeJson,
     RandomOptionsJson, ReplayOptionsJson, RuntimeAccessJson, RuntimeWorldJson,
     SchedulerOptionsJson, SchedulerPolicyJson, TimeModeJson, TimeOptionsJson,
 };
@@ -121,10 +121,6 @@ pub struct RuntimeArgs {
     /// Runtime GC initial heap size hint in bytes.
     #[arg(long = "runtime-gc-heap-initial-bytes")]
     pub gc_heap_initial_bytes: Option<u64>,
-
-    /// Runtime GC logging verbosity.
-    #[arg(long = "runtime-gc-logging", value_enum)]
-    pub gc_logging: Option<GcLoggingArg>,
 }
 
 impl RuntimeArgs {
@@ -158,7 +154,6 @@ impl RuntimeArgs {
             && self.gc_heap_growth_percent.is_none()
             && self.gc_heap_soft_limit_bytes.is_none()
             && self.gc_heap_initial_bytes.is_none()
-            && self.gc_logging.is_none()
     }
 
     /// Convert runtime arguments into runtime option overrides.
@@ -248,14 +243,12 @@ impl RuntimeArgs {
             || self.gc_heap_growth_percent.is_some()
             || self.gc_heap_soft_limit_bytes.is_some()
             || self.gc_heap_initial_bytes.is_some()
-            || self.gc_logging.is_some()
         {
             Some(GcOptionsJson {
                 enabled: self.gc_enabled,
                 heap_growth_percent: self.gc_heap_growth_percent,
                 heap_soft_limit_bytes: self.gc_heap_soft_limit_bytes,
                 heap_initial_bytes: self.gc_heap_initial_bytes,
-                logging: self.gc_logging.map(Into::into),
             })
         } else {
             None
@@ -390,27 +383,6 @@ impl From<RandomModeArg> for RandomModeJson {
         match value {
             RandomModeArg::Host => RandomModeJson::Host,
             RandomModeArg::Deterministic => RandomModeJson::Deterministic,
-        }
-    }
-}
-
-/// GC logging for CLI arguments.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum GcLoggingArg {
-    /// Disable GC logging.
-    Off,
-    /// Emit summary GC events.
-    Summary,
-    /// Emit verbose GC events.
-    Verbose,
-}
-
-impl From<GcLoggingArg> for GcLoggingJson {
-    fn from(value: GcLoggingArg) -> Self {
-        match value {
-            GcLoggingArg::Off => GcLoggingJson::Off,
-            GcLoggingArg::Summary => GcLoggingJson::Summary,
-            GcLoggingArg::Verbose => GcLoggingJson::Verbose,
         }
     }
 }

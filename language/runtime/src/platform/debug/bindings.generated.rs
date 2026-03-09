@@ -22,7 +22,7 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::replay::ReplayError;
+use crate::runtime::replay::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
@@ -380,77 +380,77 @@ fn encode_destack_debug_trace_stop_result(
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DebugCoreBreakNowReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.debug.core.mark.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DebugCoreMarkReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.debug.inspector.endpoint.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DebugInspectorEndpointReplay {
     /// Replay result payload.
-    pub result: Result<InspectorEndpointReplayRecord, ReplayError>,
+    pub result: Result<InspectorEndpointReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.debug.inspector.start.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DebugInspectorStartReplay {
     /// Replay result payload.
-    pub result: Result<resource::InspectorHandle, ReplayError>,
+    pub result: Result<resource::InspectorHandle, TraceError>,
 }
 
 /// Replay payload for destack.debug.inspector.stop.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DebugInspectorStopReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.debug.profile.snapshot.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DebugProfileSnapshotReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, ReplayError>,
+    pub result: Result<Vec<u8>, TraceError>,
 }
 
 /// Replay payload for destack.debug.profile.start.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DebugProfileStartReplay {
     /// Replay result payload.
-    pub result: Result<resource::ProfileHandle, ReplayError>,
+    pub result: Result<resource::ProfileHandle, TraceError>,
 }
 
 /// Replay payload for destack.debug.profile.stop.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DebugProfileStopReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.debug.trace.emit.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DebugTraceEmitReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.debug.trace.start.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DebugTraceStartReplay {
     /// Replay result payload.
-    pub result: Result<resource::TraceHandle, ReplayError>,
+    pub result: Result<resource::TraceHandle, TraceError>,
 }
 
 /// Replay payload for destack.debug.trace.stop.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DebugTraceStopReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Binding descriptor for destack.debug.core.breakNow.
@@ -792,7 +792,7 @@ pub const DEBUG_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for debug bindings.
 #[inline]
 fn destack_debug_core_break_now_replay(binding: &BindingCallContext) -> RuntimeResult<()> {
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DEBUG_CORE_BREAK_NOW,
         binding.replay_payload_for(DEBUG_CORE_BREAK_NOW)?,
         || unsafe { platform_runtime_native::destack_debug_break_now(binding) },
@@ -807,7 +807,7 @@ fn destack_debug_core_break_now_replay(binding: &BindingCallContext) -> RuntimeR
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugCoreBreakNowReplay { result }
                 };
                 return Ok(Some(payload));
@@ -832,7 +832,7 @@ fn destack_debug_core_mark_replay(
 ) -> RuntimeResult<()> {
     let _ = &label;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DEBUG_CORE_MARK,
         binding.replay_payload_for(DEBUG_CORE_MARK)?,
         || unsafe { platform_runtime_native::destack_debug_mark(binding, label) },
@@ -847,7 +847,7 @@ fn destack_debug_core_mark_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugCoreMarkReplay { result }
                 };
                 return Ok(Some(payload));
@@ -873,7 +873,7 @@ fn destack_debug_inspector_endpoint_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DEBUG_INSPECTOR_ENDPOINT,
         binding.replay_payload_for(DEBUG_INSPECTOR_ENDPOINT)?,
         || unsafe {
@@ -901,7 +901,7 @@ fn destack_debug_inspector_endpoint_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugInspectorEndpointReplay { result }
                 };
                 return Ok(Some(payload));
@@ -939,7 +939,7 @@ fn destack_debug_inspector_start_replay(
 ) -> RuntimeResult<()> {
     let _ = (&host, &port);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DEBUG_INSPECTOR_START,
         binding.replay_payload_for(DEBUG_INSPECTOR_START)?,
         || unsafe {
@@ -962,7 +962,7 @@ fn destack_debug_inspector_start_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugInspectorStartReplay { result }
                 };
                 return Ok(Some(payload));
@@ -993,7 +993,7 @@ fn destack_debug_inspector_stop_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DEBUG_INSPECTOR_STOP,
         binding.replay_payload_for(DEBUG_INSPECTOR_STOP)?,
         || unsafe { platform_runtime_native::destack_debug_inspector_stop(binding, handle) },
@@ -1008,7 +1008,7 @@ fn destack_debug_inspector_stop_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugInspectorStopReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1034,7 +1034,7 @@ fn destack_debug_profile_snapshot_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DEBUG_PROFILE_SNAPSHOT,
         binding.replay_payload_for(DEBUG_PROFILE_SNAPSHOT)?,
         || unsafe { platform_runtime_native::destack_debug_profile_snapshot(binding, out, handle) },
@@ -1061,7 +1061,7 @@ fn destack_debug_profile_snapshot_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugProfileSnapshotReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1098,7 +1098,7 @@ fn destack_debug_profile_start_replay(
 ) -> RuntimeResult<()> {
     let _ = &kind;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DEBUG_PROFILE_START,
         binding.replay_payload_for(DEBUG_PROFILE_START)?,
         || unsafe { platform_runtime_native::destack_debug_profile_start(binding, out, kind) },
@@ -1119,7 +1119,7 @@ fn destack_debug_profile_start_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugProfileStartReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1150,7 +1150,7 @@ fn destack_debug_profile_stop_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DEBUG_PROFILE_STOP,
         binding.replay_payload_for(DEBUG_PROFILE_STOP)?,
         || unsafe { platform_runtime_native::destack_debug_profile_stop(binding, handle) },
@@ -1165,7 +1165,7 @@ fn destack_debug_profile_stop_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugProfileStopReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1192,7 +1192,7 @@ fn destack_debug_trace_emit_replay(
 ) -> RuntimeResult<()> {
     let _ = (&category, &name, &payloadjson);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DEBUG_TRACE_EMIT,
         binding.replay_payload_for(DEBUG_TRACE_EMIT)?,
         || unsafe {
@@ -1209,7 +1209,7 @@ fn destack_debug_trace_emit_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugTraceEmitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1236,7 +1236,7 @@ fn destack_debug_trace_start_replay(
 ) -> RuntimeResult<()> {
     let _ = (&level, &destination);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DEBUG_TRACE_START,
         binding.replay_payload_for(DEBUG_TRACE_START)?,
         || unsafe {
@@ -1259,7 +1259,7 @@ fn destack_debug_trace_start_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugTraceStartReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1290,7 +1290,7 @@ fn destack_debug_trace_stop_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         DEBUG_TRACE_STOP,
         binding.replay_payload_for(DEBUG_TRACE_STOP)?,
         || unsafe { platform_runtime_native::destack_debug_trace_stop(binding, handle) },
@@ -1305,7 +1305,7 @@ fn destack_debug_trace_stop_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugTraceStopReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1478,7 +1478,7 @@ fn destack_debug_core_break_now_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DEBUG_CORE_BREAK_NOW,
         binding.replay_payload_for(DEBUG_CORE_BREAK_NOW)?,
         context,
@@ -1495,7 +1495,7 @@ fn destack_debug_core_break_now_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugCoreBreakNowReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1522,7 +1522,7 @@ fn destack_debug_core_mark_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     label: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DEBUG_CORE_MARK,
         binding.replay_payload_for(DEBUG_CORE_MARK)?,
         context,
@@ -1539,7 +1539,7 @@ fn destack_debug_core_mark_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugCoreMarkReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1566,7 +1566,7 @@ fn destack_debug_inspector_endpoint_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DEBUG_INSPECTOR_ENDPOINT,
         binding.replay_payload_for(DEBUG_INSPECTOR_ENDPOINT)?,
         context,
@@ -1594,7 +1594,7 @@ fn destack_debug_inspector_endpoint_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugInspectorEndpointReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1631,7 +1631,7 @@ fn destack_debug_inspector_start_vm_replay(
     host: vm::StringHandle,
     port: u16,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DEBUG_INSPECTOR_START,
         binding.replay_payload_for(DEBUG_INSPECTOR_START)?,
         context,
@@ -1649,7 +1649,7 @@ fn destack_debug_inspector_start_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugInspectorStartReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1679,7 +1679,7 @@ fn destack_debug_inspector_stop_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DEBUG_INSPECTOR_STOP,
         binding.replay_payload_for(DEBUG_INSPECTOR_STOP)?,
         context,
@@ -1696,7 +1696,7 @@ fn destack_debug_inspector_stop_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugInspectorStopReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1723,7 +1723,7 @@ fn destack_debug_profile_snapshot_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DEBUG_PROFILE_SNAPSHOT,
         binding.replay_payload_for(DEBUG_PROFILE_SNAPSHOT)?,
         context,
@@ -1741,7 +1741,7 @@ fn destack_debug_profile_snapshot_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugProfileSnapshotReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1771,7 +1771,7 @@ fn destack_debug_profile_start_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     kind: ProfileKind,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DEBUG_PROFILE_START,
         binding.replay_payload_for(DEBUG_PROFILE_START)?,
         context,
@@ -1789,7 +1789,7 @@ fn destack_debug_profile_start_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugProfileStartReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1819,7 +1819,7 @@ fn destack_debug_profile_stop_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DEBUG_PROFILE_STOP,
         binding.replay_payload_for(DEBUG_PROFILE_STOP)?,
         context,
@@ -1836,7 +1836,7 @@ fn destack_debug_profile_stop_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugProfileStopReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1865,7 +1865,7 @@ fn destack_debug_trace_emit_vm_replay(
     name: vm::StringHandle,
     payloadjson: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DEBUG_TRACE_EMIT,
         binding.replay_payload_for(DEBUG_TRACE_EMIT)?,
         context,
@@ -1890,7 +1890,7 @@ fn destack_debug_trace_emit_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugTraceEmitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1918,7 +1918,7 @@ fn destack_debug_trace_start_vm_replay(
     level: TraceLevel,
     destination: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DEBUG_TRACE_START,
         binding.replay_payload_for(DEBUG_TRACE_START)?,
         context,
@@ -1938,7 +1938,7 @@ fn destack_debug_trace_start_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugTraceStartReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1968,7 +1968,7 @@ fn destack_debug_trace_stop_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TraceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         DEBUG_TRACE_STOP,
         binding.replay_payload_for(DEBUG_TRACE_STOP)?,
         context,
@@ -1985,7 +1985,7 @@ fn destack_debug_trace_stop_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     DebugTraceStopReplay { result }
                 };
                 return Ok(Some(payload));

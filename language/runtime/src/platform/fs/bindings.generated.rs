@@ -37,7 +37,7 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::replay::ReplayError;
+use crate::runtime::replay::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
@@ -3663,812 +3663,812 @@ fn encode_destack_fs_xattr_setxattr_bytes_result(
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsAttrsAccessReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.attrs.accessat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsAttrsAccessatReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.attrs.chmod.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsAttrsChmodReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.attrs.chown.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsAttrsChownReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.attrs.fchmod.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsAttrsFchmodReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.attrs.fchmodat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsAttrsFchmodatReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.attrs.fchown.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsAttrsFchownReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.attrs.fchownat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsAttrsFchownatReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.attrs.futimes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsAttrsFutimesReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.attrs.lutimes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsAttrsLutimesReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.attrs.utimensat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsAttrsUtimensatReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.attrs.utimes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsAttrsUtimesReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.dir.closedir.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsDirClosedirReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.dir.dirfd.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsDirDirfdReplay {
     /// Replay result payload.
-    pub result: Result<resource::FileHandle, ReplayError>,
+    pub result: Result<resource::FileHandle, TraceError>,
 }
 
 /// Replay payload for destack.fs.dir.mkdir.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsDirMkdirReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.dir.mkdirat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsDirMkdiratReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.dir.mkdtemp.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsDirMkdtempReplay {
     /// Replay result payload.
-    pub result: Result<OsPathReplayRecord, ReplayError>,
+    pub result: Result<OsPathReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.fs.dir.opendir.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsDirOpendirReplay {
     /// Replay result payload.
-    pub result: Result<resource::DirectoryHandle, ReplayError>,
+    pub result: Result<resource::DirectoryHandle, TraceError>,
 }
 
 /// Replay payload for destack.fs.dir.readdir.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsDirReaddirReplay {
     /// Replay result payload.
-    pub result: Result<Vec<DirentReplayRecord>, ReplayError>,
+    pub result: Result<Vec<DirentReplayRecord>, TraceError>,
 }
 
 /// Replay payload for destack.fs.dir.readdirNext.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsDirReaddirNextReplay {
     /// Replay result payload.
-    pub result: Result<DirentNextReplayRecord, ReplayError>,
+    pub result: Result<DirentNextReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.fs.dir.rewinddir.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsDirRewinddirReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.dir.rmdir.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsDirRmdirReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.file.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.file.copyFileRange.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileCopyFileRangeReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.dup.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileDupReplay {
     /// Replay result payload.
-    pub result: Result<resource::FileHandle, ReplayError>,
+    pub result: Result<resource::FileHandle, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.dup2.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileDup2Replay {
     /// Replay result payload.
-    pub result: Result<resource::FileHandle, ReplayError>,
+    pub result: Result<resource::FileHandle, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.dup3.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileDup3Replay {
     /// Replay result payload.
-    pub result: Result<resource::FileHandle, ReplayError>,
+    pub result: Result<resource::FileHandle, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.fadvise.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileFadviseReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.file.fallocate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileFallocateReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.file.fdatasync.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileFdatasyncReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.file.fsync.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileFsyncReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.file.ftruncate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileFtruncateReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.file.getFdFlags.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileGetFdFlagsReplay {
     /// Replay result payload.
-    pub result: Result<FdFlags, ReplayError>,
+    pub result: Result<FdFlags, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.getStatusFlags.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileGetStatusFlagsReplay {
     /// Replay result payload.
-    pub result: Result<StatusFlags, ReplayError>,
+    pub result: Result<StatusFlags, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.lock.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileLockReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.file.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::FileHandle, ReplayError>,
+    pub result: Result<resource::FileHandle, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.openat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileOpenatReplay {
     /// Replay result payload.
-    pub result: Result<resource::FileHandle, ReplayError>,
+    pub result: Result<resource::FileHandle, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.openat2.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileOpenat2Replay {
     /// Replay result payload.
-    pub result: Result<resource::FileHandle, ReplayError>,
+    pub result: Result<resource::FileHandle, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.pread.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFilePreadReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.preadv.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFilePreadvReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.preadv2.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFilePreadv2Replay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.pwrite.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFilePwriteReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.pwritev.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFilePwritevReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.pwritev2.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFilePwritev2Replay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileReadReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.readv.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileReadvReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.seek.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileSeekReplay {
     /// Replay result payload.
-    pub result: Result<FileOffset, ReplayError>,
+    pub result: Result<FileOffset, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.sendfile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileSendfileReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.setFdFlags.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileSetFdFlagsReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.file.setStatusFlags.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileSetStatusFlagsReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.file.splice.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileSpliceReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.syncFileRange.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileSyncFileRangeReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.file.syncfs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileSyncfsReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.file.tee.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileTeeReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.truncate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileTruncateReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.file.vmsplice.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileVmspliceReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.write.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileWriteReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.fs.file.writev.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsFileWritevReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.fs.mmap.madvise.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsMmapMadviseReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.mmap.mmapAnonymous.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsMmapMmapAnonymousReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, ReplayError>,
+    pub result: Result<Vec<u8>, TraceError>,
 }
 
 /// Replay payload for destack.fs.mmap.mmapFile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsMmapMmapFileReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, ReplayError>,
+    pub result: Result<Vec<u8>, TraceError>,
 }
 
 /// Replay payload for destack.fs.mmap.mprotect.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsMmapMprotectReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.mmap.msync.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsMmapMsyncReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.mmap.munmap.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsMmapMunmapReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.path.copyfile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsPathCopyfileReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.path.link.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsPathLinkReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.path.linkat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsPathLinkatReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.path.mkfifo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsPathMkfifoReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.path.mkfifoat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsPathMkfifoatReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.path.mknod.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsPathMknodReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.path.mknodat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsPathMknodatReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.path.readlink.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsPathReadlinkReplay {
     /// Replay result payload.
-    pub result: Result<OsPathReplayRecord, ReplayError>,
+    pub result: Result<OsPathReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.fs.path.readlinkat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsPathReadlinkatReplay {
     /// Replay result payload.
-    pub result: Result<OsPathReplayRecord, ReplayError>,
+    pub result: Result<OsPathReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.fs.path.realpath.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsPathRealpathReplay {
     /// Replay result payload.
-    pub result: Result<OsPathReplayRecord, ReplayError>,
+    pub result: Result<OsPathReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.fs.path.rename.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsPathRenameReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.path.renameat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsPathRenameatReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.path.renameat2.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsPathRenameat2Replay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.path.symlink.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsPathSymlinkReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.path.symlinkat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsPathSymlinkatReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.path.unlink.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsPathUnlinkReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.path.unlinkat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsPathUnlinkatReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.stat.fstat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsStatFstatReplay {
     /// Replay result payload.
-    pub result: Result<Stat, ReplayError>,
+    pub result: Result<Stat, TraceError>,
 }
 
 /// Replay payload for destack.fs.stat.fstatfs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsStatFstatfsReplay {
     /// Replay result payload.
-    pub result: Result<StatFs, ReplayError>,
+    pub result: Result<StatFs, TraceError>,
 }
 
 /// Replay payload for destack.fs.stat.lstat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsStatLstatReplay {
     /// Replay result payload.
-    pub result: Result<Stat, ReplayError>,
+    pub result: Result<Stat, TraceError>,
 }
 
 /// Replay payload for destack.fs.stat.path.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsStatPathReplay {
     /// Replay result payload.
-    pub result: Result<Stat, ReplayError>,
+    pub result: Result<Stat, TraceError>,
 }
 
 /// Replay payload for destack.fs.stat.pathat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsStatPathatReplay {
     /// Replay result payload.
-    pub result: Result<Stat, ReplayError>,
+    pub result: Result<Stat, TraceError>,
 }
 
 /// Replay payload for destack.fs.stat.pathfs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsStatPathfsReplay {
     /// Replay result payload.
-    pub result: Result<StatFs, ReplayError>,
+    pub result: Result<StatFs, TraceError>,
 }
 
 /// Replay payload for destack.fs.stat.pathx.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsStatPathxReplay {
     /// Replay result payload.
-    pub result: Result<Statx, ReplayError>,
+    pub result: Result<Statx, TraceError>,
 }
 
 /// Replay payload for destack.fs.watch.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsWatchOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::WatchHandle, ReplayError>,
+    pub result: Result<resource::WatchHandle, TraceError>,
 }
 
 /// Replay payload for destack.fs.watch.openClose.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsWatchOpenCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.watch.openRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsWatchOpenReadReplay {
     /// Replay result payload.
-    pub result: Result<WatchBatchReplayRecord, ReplayError>,
+    pub result: Result<WatchBatchReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.fs.watch.openat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsWatchOpenatReplay {
     /// Replay result payload.
-    pub result: Result<resource::WatchHandle, ReplayError>,
+    pub result: Result<resource::WatchHandle, TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.fgetxattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrFgetxattrReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, ReplayError>,
+    pub result: Result<Vec<u8>, TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.fgetxattrBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrFgetxattrBytesReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, ReplayError>,
+    pub result: Result<Vec<u8>, TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.flistxattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrFlistxattrReplay {
     /// Replay result payload.
-    pub result: Result<Vec<String>, ReplayError>,
+    pub result: Result<Vec<String>, TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.flistxattrBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrFlistxattrBytesReplay {
     /// Replay result payload.
-    pub result: Result<Vec<Vec<u8>>, ReplayError>,
+    pub result: Result<Vec<Vec<u8>>, TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.fremovexattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrFremovexattrReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.fremovexattrBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrFremovexattrBytesReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.fsetxattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrFsetxattrReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.fsetxattrBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrFsetxattrBytesReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.getxattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrGetxattrReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, ReplayError>,
+    pub result: Result<Vec<u8>, TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.getxattrBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrGetxattrBytesReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, ReplayError>,
+    pub result: Result<Vec<u8>, TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.lgetxattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrLgetxattrReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, ReplayError>,
+    pub result: Result<Vec<u8>, TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.lgetxattrBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrLgetxattrBytesReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, ReplayError>,
+    pub result: Result<Vec<u8>, TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.listxattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrListxattrReplay {
     /// Replay result payload.
-    pub result: Result<Vec<String>, ReplayError>,
+    pub result: Result<Vec<String>, TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.listxattrBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrListxattrBytesReplay {
     /// Replay result payload.
-    pub result: Result<Vec<Vec<u8>>, ReplayError>,
+    pub result: Result<Vec<Vec<u8>>, TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.llistxattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrLlistxattrReplay {
     /// Replay result payload.
-    pub result: Result<Vec<String>, ReplayError>,
+    pub result: Result<Vec<String>, TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.llistxattrBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrLlistxattrBytesReplay {
     /// Replay result payload.
-    pub result: Result<Vec<Vec<u8>>, ReplayError>,
+    pub result: Result<Vec<Vec<u8>>, TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.lremovexattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrLremovexattrReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.lremovexattrBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrLremovexattrBytesReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.lsetxattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrLsetxattrReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.lsetxattrBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrLsetxattrBytesReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.removexattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrRemovexattrReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.removexattrBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrRemovexattrBytesReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.setxattr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrSetxattrReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.fs.xattr.setxattrBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct FsXattrSetxattrBytesReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Binding descriptor for destack.fs.attrs.access.
@@ -7447,7 +7447,7 @@ fn destack_fs_attrs_access_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &mode);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_ATTRS_ACCESS,
         binding.replay_payload_for(FS_ATTRS_ACCESS)?,
         || match world {
@@ -7469,7 +7469,7 @@ fn destack_fs_attrs_access_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsAccessReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7498,7 +7498,7 @@ fn destack_fs_attrs_accessat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &mode, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_ATTRS_ACCESSAT,
         binding.replay_payload_for(FS_ATTRS_ACCESSAT)?,
         || match world {
@@ -7520,7 +7520,7 @@ fn destack_fs_attrs_accessat_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsAccessatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7547,7 +7547,7 @@ fn destack_fs_attrs_chmod_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &mode);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_ATTRS_CHMOD,
         binding.replay_payload_for(FS_ATTRS_CHMOD)?,
         || match world {
@@ -7567,7 +7567,7 @@ fn destack_fs_attrs_chmod_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsChmodReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7595,7 +7595,7 @@ fn destack_fs_attrs_chown_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &uid, &gid);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_ATTRS_CHOWN,
         binding.replay_payload_for(FS_ATTRS_CHOWN)?,
         || match world {
@@ -7617,7 +7617,7 @@ fn destack_fs_attrs_chown_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsChownReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7644,7 +7644,7 @@ fn destack_fs_attrs_fchmod_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mode);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_ATTRS_FCHMOD,
         binding.replay_payload_for(FS_ATTRS_FCHMOD)?,
         || match world {
@@ -7666,7 +7666,7 @@ fn destack_fs_attrs_fchmod_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsFchmodReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7695,7 +7695,7 @@ fn destack_fs_attrs_fchmodat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &mode, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_ATTRS_FCHMODAT,
         binding.replay_payload_for(FS_ATTRS_FCHMODAT)?,
         || match world {
@@ -7717,7 +7717,7 @@ fn destack_fs_attrs_fchmodat_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsFchmodatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7745,7 +7745,7 @@ fn destack_fs_attrs_fchown_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &uid, &gid);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_ATTRS_FCHOWN,
         binding.replay_payload_for(FS_ATTRS_FCHOWN)?,
         || match world {
@@ -7767,7 +7767,7 @@ fn destack_fs_attrs_fchown_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsFchownReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7797,7 +7797,7 @@ fn destack_fs_attrs_fchownat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &uid, &gid, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_ATTRS_FCHOWNAT,
         binding.replay_payload_for(FS_ATTRS_FCHOWNAT)?,
         || match world {
@@ -7819,7 +7819,7 @@ fn destack_fs_attrs_fchownat_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsFchownatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7847,7 +7847,7 @@ fn destack_fs_attrs_futimes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &atimens, &mtimens);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_ATTRS_FUTIMES,
         binding.replay_payload_for(FS_ATTRS_FUTIMES)?,
         || match world {
@@ -7869,7 +7869,7 @@ fn destack_fs_attrs_futimes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsFutimesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7897,7 +7897,7 @@ fn destack_fs_attrs_lutimes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &atimens, &mtimens);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_ATTRS_LUTIMES,
         binding.replay_payload_for(FS_ATTRS_LUTIMES)?,
         || match world {
@@ -7919,7 +7919,7 @@ fn destack_fs_attrs_lutimes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsLutimesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7949,7 +7949,7 @@ fn destack_fs_attrs_utimensat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &atimens, &mtimens, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_ATTRS_UTIMENSAT,
         binding.replay_payload_for(FS_ATTRS_UTIMENSAT)?,
         || match world {
@@ -7973,7 +7973,7 @@ fn destack_fs_attrs_utimensat_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsUtimensatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8001,7 +8001,7 @@ fn destack_fs_attrs_utimes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &atimens, &mtimens);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_ATTRS_UTIMES,
         binding.replay_payload_for(FS_ATTRS_UTIMES)?,
         || match world {
@@ -8023,7 +8023,7 @@ fn destack_fs_attrs_utimes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsUtimesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8049,7 +8049,7 @@ fn destack_fs_dir_closedir_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_DIR_CLOSEDIR,
         binding.replay_payload_for(FS_DIR_CLOSEDIR)?,
         || match world {
@@ -8069,7 +8069,7 @@ fn destack_fs_dir_closedir_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirClosedirReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8096,7 +8096,7 @@ fn destack_fs_dir_dirfd_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_DIR_DIRFD,
         binding.replay_payload_for(FS_DIR_DIRFD)?,
         || match world {
@@ -8124,7 +8124,7 @@ fn destack_fs_dir_dirfd_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirDirfdReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8157,7 +8157,7 @@ fn destack_fs_dir_mkdir_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &mode);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_DIR_MKDIR,
         binding.replay_payload_for(FS_DIR_MKDIR)?,
         || match world {
@@ -8177,7 +8177,7 @@ fn destack_fs_dir_mkdir_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirMkdirReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8205,7 +8205,7 @@ fn destack_fs_dir_mkdirat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &mode);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_DIR_MKDIRAT,
         binding.replay_payload_for(FS_DIR_MKDIRAT)?,
         || match world {
@@ -8227,7 +8227,7 @@ fn destack_fs_dir_mkdirat_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirMkdiratReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8254,7 +8254,7 @@ fn destack_fs_dir_mkdtemp_replay(
 ) -> RuntimeResult<()> {
     let _ = &template;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_DIR_MKDTEMP,
         binding.replay_payload_for(FS_DIR_MKDTEMP)?,
         || match world {
@@ -8329,7 +8329,7 @@ fn destack_fs_dir_mkdtemp_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirMkdtempReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8407,7 +8407,7 @@ fn destack_fs_dir_opendir_replay(
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_DIR_OPENDIR,
         binding.replay_payload_for(FS_DIR_OPENDIR)?,
         || match world {
@@ -8435,7 +8435,7 @@ fn destack_fs_dir_opendir_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirOpendirReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8468,7 +8468,7 @@ fn destack_fs_dir_readdir_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_DIR_READDIR,
         binding.replay_payload_for(FS_DIR_READDIR)?,
         || match world {
@@ -8532,7 +8532,7 @@ fn destack_fs_dir_readdir_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirReaddirReplay {
                         result,
                     }
@@ -8606,7 +8606,7 @@ fn destack_fs_dir_readdir_next_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_DIR_READDIR_NEXT,
         binding.replay_payload_for(FS_DIR_READDIR_NEXT)?,
         || match world {
@@ -8681,7 +8681,7 @@ fn destack_fs_dir_readdir_next_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirReaddirNextReplay {
                         result,
                     }
@@ -8766,7 +8766,7 @@ fn destack_fs_dir_rewinddir_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_DIR_REWINDDIR,
         binding.replay_payload_for(FS_DIR_REWINDDIR)?,
         || match world {
@@ -8786,7 +8786,7 @@ fn destack_fs_dir_rewinddir_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirRewinddirReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8812,7 +8812,7 @@ fn destack_fs_dir_rmdir_replay(
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_DIR_RMDIR,
         binding.replay_payload_for(FS_DIR_RMDIR)?,
         || match world {
@@ -8832,7 +8832,7 @@ fn destack_fs_dir_rmdir_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirRmdirReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8858,7 +8858,7 @@ fn destack_fs_file_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_CLOSE,
         binding.replay_payload_for(FS_FILE_CLOSE)?,
         || match world {
@@ -8878,7 +8878,7 @@ fn destack_fs_file_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8909,7 +8909,7 @@ fn destack_fs_file_copy_file_range_replay(
 ) -> RuntimeResult<()> {
     let _ = (&src, &srcoffset, &dst, &dstoffset, &length);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_COPY_FILE_RANGE,
         binding.replay_payload_for(FS_FILE_COPY_FILE_RANGE)?,
         || match world {
@@ -8941,7 +8941,7 @@ fn destack_fs_file_copy_file_range_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileCopyFileRangeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8974,7 +8974,7 @@ fn destack_fs_file_dup_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_DUP,
         binding.replay_payload_for(FS_FILE_DUP)?,
         || match world {
@@ -9000,7 +9000,7 @@ fn destack_fs_file_dup_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileDupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9034,7 +9034,7 @@ fn destack_fs_file_dup2_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_DUP2,
         binding.replay_payload_for(FS_FILE_DUP2)?,
         || match world {
@@ -9062,7 +9062,7 @@ fn destack_fs_file_dup2_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileDup2Replay { result }
                 };
                 return Ok(Some(payload));
@@ -9097,7 +9097,7 @@ fn destack_fs_file_dup3_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_DUP3,
         binding.replay_payload_for(FS_FILE_DUP3)?,
         || match world {
@@ -9125,7 +9125,7 @@ fn destack_fs_file_dup3_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileDup3Replay { result }
                 };
                 return Ok(Some(payload));
@@ -9160,7 +9160,7 @@ fn destack_fs_file_fadvise_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length, &advice);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_FADVISE,
         binding.replay_payload_for(FS_FILE_FADVISE)?,
         || match world {
@@ -9184,7 +9184,7 @@ fn destack_fs_file_fadvise_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileFadviseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9213,7 +9213,7 @@ fn destack_fs_file_fallocate_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_FALLOCATE,
         binding.replay_payload_for(FS_FILE_FALLOCATE)?,
         || match world {
@@ -9237,7 +9237,7 @@ fn destack_fs_file_fallocate_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileFallocateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9263,7 +9263,7 @@ fn destack_fs_file_fdatasync_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_FDATASYNC,
         binding.replay_payload_for(FS_FILE_FDATASYNC)?,
         || match world {
@@ -9283,7 +9283,7 @@ fn destack_fs_file_fdatasync_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileFdatasyncReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9309,7 +9309,7 @@ fn destack_fs_file_fsync_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_FSYNC,
         binding.replay_payload_for(FS_FILE_FSYNC)?,
         || match world {
@@ -9329,7 +9329,7 @@ fn destack_fs_file_fsync_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileFsyncReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9356,7 +9356,7 @@ fn destack_fs_file_ftruncate_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &size);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_FTRUNCATE,
         binding.replay_payload_for(FS_FILE_FTRUNCATE)?,
         || match world {
@@ -9378,7 +9378,7 @@ fn destack_fs_file_ftruncate_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileFtruncateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9405,7 +9405,7 @@ fn destack_fs_file_get_fd_flags_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_GET_FD_FLAGS,
         binding.replay_payload_for(FS_FILE_GET_FD_FLAGS)?,
         || match world {
@@ -9433,7 +9433,7 @@ fn destack_fs_file_get_fd_flags_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileGetFdFlagsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9466,7 +9466,7 @@ fn destack_fs_file_get_status_flags_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_GET_STATUS_FLAGS,
         binding.replay_payload_for(FS_FILE_GET_STATUS_FLAGS)?,
         || match world {
@@ -9494,7 +9494,7 @@ fn destack_fs_file_get_status_flags_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileGetStatusFlagsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9527,7 +9527,7 @@ fn destack_fs_file_lock_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_LOCK,
         binding.replay_payload_for(FS_FILE_LOCK)?,
         || match world {
@@ -9549,7 +9549,7 @@ fn destack_fs_file_lock_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileLockReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9578,7 +9578,7 @@ fn destack_fs_file_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &flags, &mode);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_OPEN,
         binding.replay_payload_for(FS_FILE_OPEN)?,
         || match world {
@@ -9606,7 +9606,7 @@ fn destack_fs_file_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9642,7 +9642,7 @@ fn destack_fs_file_openat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &flags, &mode);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_OPENAT,
         binding.replay_payload_for(FS_FILE_OPENAT)?,
         || match world {
@@ -9670,7 +9670,7 @@ fn destack_fs_file_openat_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileOpenatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9705,7 +9705,7 @@ fn destack_fs_file_openat2_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &how);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_OPENAT2,
         binding.replay_payload_for(FS_FILE_OPENAT2)?,
         || match world {
@@ -9733,7 +9733,7 @@ fn destack_fs_file_openat2_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileOpenat2Replay { result }
                 };
                 return Ok(Some(payload));
@@ -9768,7 +9768,7 @@ fn destack_fs_file_pread_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_PREAD,
         binding.replay_payload_for(FS_FILE_PREAD)?,
         || match world {
@@ -9796,7 +9796,7 @@ fn destack_fs_file_pread_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFilePreadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9831,7 +9831,7 @@ fn destack_fs_file_preadv_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers, &offset);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_PREADV,
         binding.replay_payload_for(FS_FILE_PREADV)?,
         || match world {
@@ -9859,7 +9859,7 @@ fn destack_fs_file_preadv_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFilePreadvReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9895,7 +9895,7 @@ fn destack_fs_file_preadv2_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers, &offset, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_PREADV2,
         binding.replay_payload_for(FS_FILE_PREADV2)?,
         || match world {
@@ -9925,7 +9925,7 @@ fn destack_fs_file_preadv2_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFilePreadv2Replay { result }
                 };
                 return Ok(Some(payload));
@@ -9960,7 +9960,7 @@ fn destack_fs_file_pwrite_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_PWRITE,
         binding.replay_payload_for(FS_FILE_PWRITE)?,
         || match world {
@@ -9988,7 +9988,7 @@ fn destack_fs_file_pwrite_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFilePwriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10023,7 +10023,7 @@ fn destack_fs_file_pwritev_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers, &offset);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_PWRITEV,
         binding.replay_payload_for(FS_FILE_PWRITEV)?,
         || match world {
@@ -10053,7 +10053,7 @@ fn destack_fs_file_pwritev_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFilePwritevReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10089,7 +10089,7 @@ fn destack_fs_file_pwritev2_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers, &offset, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_PWRITEV2,
         binding.replay_payload_for(FS_FILE_PWRITEV2)?,
         || match world {
@@ -10119,7 +10119,7 @@ fn destack_fs_file_pwritev2_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFilePwritev2Replay { result }
                 };
                 return Ok(Some(payload));
@@ -10153,7 +10153,7 @@ fn destack_fs_file_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_READ,
         binding.replay_payload_for(FS_FILE_READ)?,
         || match world {
@@ -10181,7 +10181,7 @@ fn destack_fs_file_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10215,7 +10215,7 @@ fn destack_fs_file_readv_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_READV,
         binding.replay_payload_for(FS_FILE_READV)?,
         || match world {
@@ -10243,7 +10243,7 @@ fn destack_fs_file_readv_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileReadvReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10278,7 +10278,7 @@ fn destack_fs_file_seek_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &whence);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_SEEK,
         binding.replay_payload_for(FS_FILE_SEEK)?,
         || match world {
@@ -10306,7 +10306,7 @@ fn destack_fs_file_seek_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileSeekReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10342,7 +10342,7 @@ fn destack_fs_file_sendfile_replay(
 ) -> RuntimeResult<()> {
     let _ = (&socket, &file, &offset, &length);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_SENDFILE,
         binding.replay_payload_for(FS_FILE_SENDFILE)?,
         || match world {
@@ -10372,7 +10372,7 @@ fn destack_fs_file_sendfile_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileSendfileReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10405,7 +10405,7 @@ fn destack_fs_file_set_fd_flags_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_SET_FD_FLAGS,
         binding.replay_payload_for(FS_FILE_SET_FD_FLAGS)?,
         || match world {
@@ -10427,7 +10427,7 @@ fn destack_fs_file_set_fd_flags_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileSetFdFlagsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10454,7 +10454,7 @@ fn destack_fs_file_set_status_flags_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_SET_STATUS_FLAGS,
         binding.replay_payload_for(FS_FILE_SET_STATUS_FLAGS)?,
         || match world {
@@ -10476,7 +10476,7 @@ fn destack_fs_file_set_status_flags_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileSetStatusFlagsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10515,7 +10515,7 @@ fn destack_fs_file_splice_replay(
         &flags,
     );
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_SPLICE,
         binding.replay_payload_for(FS_FILE_SPLICE)?,
         || match world {
@@ -10561,7 +10561,7 @@ fn destack_fs_file_splice_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileSpliceReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10596,7 +10596,7 @@ fn destack_fs_file_sync_file_range_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_SYNC_FILE_RANGE,
         binding.replay_payload_for(FS_FILE_SYNC_FILE_RANGE)?,
         || match world {
@@ -10620,7 +10620,7 @@ fn destack_fs_file_sync_file_range_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileSyncFileRangeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10646,7 +10646,7 @@ fn destack_fs_file_syncfs_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_SYNCFS,
         binding.replay_payload_for(FS_FILE_SYNCFS)?,
         || match world {
@@ -10666,7 +10666,7 @@ fn destack_fs_file_syncfs_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileSyncfsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10696,7 +10696,7 @@ fn destack_fs_file_tee_replay(
 ) -> RuntimeResult<()> {
     let _ = (&sourcepipe, &targetpipe, &length, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_TEE,
         binding.replay_payload_for(FS_FILE_TEE)?,
         || match world {
@@ -10726,7 +10726,7 @@ fn destack_fs_file_tee_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileTeeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10759,7 +10759,7 @@ fn destack_fs_file_truncate_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &size);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_TRUNCATE,
         binding.replay_payload_for(FS_FILE_TRUNCATE)?,
         || match world {
@@ -10781,7 +10781,7 @@ fn destack_fs_file_truncate_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileTruncateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10810,7 +10810,7 @@ fn destack_fs_file_vmsplice_replay(
 ) -> RuntimeResult<()> {
     let _ = (&pipe, &buffers, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_VMSPLICE,
         binding.replay_payload_for(FS_FILE_VMSPLICE)?,
         || match world {
@@ -10838,7 +10838,7 @@ fn destack_fs_file_vmsplice_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileVmspliceReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10872,7 +10872,7 @@ fn destack_fs_file_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_WRITE,
         binding.replay_payload_for(FS_FILE_WRITE)?,
         || match world {
@@ -10900,7 +10900,7 @@ fn destack_fs_file_write_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10934,7 +10934,7 @@ fn destack_fs_file_writev_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_FILE_WRITEV,
         binding.replay_payload_for(FS_FILE_WRITEV)?,
         || match world {
@@ -10962,7 +10962,7 @@ fn destack_fs_file_writev_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileWritevReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10995,7 +10995,7 @@ fn destack_fs_mmap_madvise_replay(
 ) -> RuntimeResult<()> {
     let _ = (&mapping, &advice);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_MMAP_MADVISE,
         binding.replay_payload_for(FS_MMAP_MADVISE)?,
         || match world {
@@ -11017,7 +11017,7 @@ fn destack_fs_mmap_madvise_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsMmapMadviseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11046,7 +11046,7 @@ fn destack_fs_mmap_mmap_anonymous_replay(
 ) -> RuntimeResult<()> {
     let _ = (&length, &prot, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_MMAP_MMAP_ANONYMOUS,
         binding.replay_payload_for(FS_MMAP_MMAP_ANONYMOUS)?,
         || match world {
@@ -11082,7 +11082,7 @@ fn destack_fs_mmap_mmap_anonymous_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsMmapMmapAnonymousReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11124,7 +11124,7 @@ fn destack_fs_mmap_mmap_file_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length, &prot, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_MMAP_MMAP_FILE,
         binding.replay_payload_for(FS_MMAP_MMAP_FILE)?,
         || match world {
@@ -11162,7 +11162,7 @@ fn destack_fs_mmap_mmap_file_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsMmapMmapFileReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11200,7 +11200,7 @@ fn destack_fs_mmap_mprotect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&mapping, &prot);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_MMAP_MPROTECT,
         binding.replay_payload_for(FS_MMAP_MPROTECT)?,
         || match world {
@@ -11222,7 +11222,7 @@ fn destack_fs_mmap_mprotect_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsMmapMprotectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11249,7 +11249,7 @@ fn destack_fs_mmap_msync_replay(
 ) -> RuntimeResult<()> {
     let _ = (&mapping, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_MMAP_MSYNC,
         binding.replay_payload_for(FS_MMAP_MSYNC)?,
         || match world {
@@ -11271,7 +11271,7 @@ fn destack_fs_mmap_msync_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsMmapMsyncReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11297,7 +11297,7 @@ fn destack_fs_mmap_munmap_replay(
 ) -> RuntimeResult<()> {
     let _ = &mapping;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_MMAP_MUNMAP,
         binding.replay_payload_for(FS_MMAP_MUNMAP)?,
         || match world {
@@ -11317,7 +11317,7 @@ fn destack_fs_mmap_munmap_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsMmapMunmapReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11345,7 +11345,7 @@ fn destack_fs_path_copyfile_replay(
 ) -> RuntimeResult<()> {
     let _ = (&from, &to, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_PATH_COPYFILE,
         binding.replay_payload_for(FS_PATH_COPYFILE)?,
         || match world {
@@ -11367,7 +11367,7 @@ fn destack_fs_path_copyfile_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathCopyfileReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11394,7 +11394,7 @@ fn destack_fs_path_link_replay(
 ) -> RuntimeResult<()> {
     let _ = (&existingpath, &newpath);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_PATH_LINK,
         binding.replay_payload_for(FS_PATH_LINK)?,
         || match world {
@@ -11416,7 +11416,7 @@ fn destack_fs_path_link_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathLinkReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11446,7 +11446,7 @@ fn destack_fs_path_linkat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&existingdir, &existingpath, &newdir, &newpath, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_PATH_LINKAT,
         binding.replay_payload_for(FS_PATH_LINKAT)?,
         || match world {
@@ -11482,7 +11482,7 @@ fn destack_fs_path_linkat_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathLinkatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11509,7 +11509,7 @@ fn destack_fs_path_mkfifo_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &mode);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_PATH_MKFIFO,
         binding.replay_payload_for(FS_PATH_MKFIFO)?,
         || match world {
@@ -11531,7 +11531,7 @@ fn destack_fs_path_mkfifo_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathMkfifoReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11559,7 +11559,7 @@ fn destack_fs_path_mkfifoat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &mode);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_PATH_MKFIFOAT,
         binding.replay_payload_for(FS_PATH_MKFIFOAT)?,
         || match world {
@@ -11581,7 +11581,7 @@ fn destack_fs_path_mkfifoat_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathMkfifoatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11609,7 +11609,7 @@ fn destack_fs_path_mknod_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &mode, &device);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_PATH_MKNOD,
         binding.replay_payload_for(FS_PATH_MKNOD)?,
         || match world {
@@ -11631,7 +11631,7 @@ fn destack_fs_path_mknod_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathMknodReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11660,7 +11660,7 @@ fn destack_fs_path_mknodat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &mode, &device);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_PATH_MKNODAT,
         binding.replay_payload_for(FS_PATH_MKNODAT)?,
         || match world {
@@ -11682,7 +11682,7 @@ fn destack_fs_path_mknodat_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathMknodatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11709,7 +11709,7 @@ fn destack_fs_path_readlink_replay(
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_PATH_READLINK,
         binding.replay_payload_for(FS_PATH_READLINK)?,
         || match world {
@@ -11784,7 +11784,7 @@ fn destack_fs_path_readlink_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathReadlinkReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11863,7 +11863,7 @@ fn destack_fs_path_readlinkat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_PATH_READLINKAT,
         binding.replay_payload_for(FS_PATH_READLINKAT)?,
         || match world {
@@ -11938,7 +11938,7 @@ fn destack_fs_path_readlinkat_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathReadlinkatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12016,7 +12016,7 @@ fn destack_fs_path_realpath_replay(
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_PATH_REALPATH,
         binding.replay_payload_for(FS_PATH_REALPATH)?,
         || match world {
@@ -12091,7 +12091,7 @@ fn destack_fs_path_realpath_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathRealpathReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12169,7 +12169,7 @@ fn destack_fs_path_rename_replay(
 ) -> RuntimeResult<()> {
     let _ = (&from, &to);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_PATH_RENAME,
         binding.replay_payload_for(FS_PATH_RENAME)?,
         || match world {
@@ -12189,7 +12189,7 @@ fn destack_fs_path_rename_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathRenameReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12218,7 +12218,7 @@ fn destack_fs_path_renameat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&fromdir, &from, &todir, &to);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_PATH_RENAMEAT,
         binding.replay_payload_for(FS_PATH_RENAMEAT)?,
         || match world {
@@ -12240,7 +12240,7 @@ fn destack_fs_path_renameat_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathRenameatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12270,7 +12270,7 @@ fn destack_fs_path_renameat2_replay(
 ) -> RuntimeResult<()> {
     let _ = (&fromdir, &from, &todir, &to, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_PATH_RENAMEAT2,
         binding.replay_payload_for(FS_PATH_RENAMEAT2)?,
         || match world {
@@ -12294,7 +12294,7 @@ fn destack_fs_path_renameat2_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathRenameat2Replay { result }
                 };
                 return Ok(Some(payload));
@@ -12322,7 +12322,7 @@ fn destack_fs_path_symlink_replay(
 ) -> RuntimeResult<()> {
     let _ = (&target, &path, &kind);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_PATH_SYMLINK,
         binding.replay_payload_for(FS_PATH_SYMLINK)?,
         || match world {
@@ -12344,7 +12344,7 @@ fn destack_fs_path_symlink_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathSymlinkReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12373,7 +12373,7 @@ fn destack_fs_path_symlinkat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&target, &dir, &path, &kind);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_PATH_SYMLINKAT,
         binding.replay_payload_for(FS_PATH_SYMLINKAT)?,
         || match world {
@@ -12395,7 +12395,7 @@ fn destack_fs_path_symlinkat_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathSymlinkatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12421,7 +12421,7 @@ fn destack_fs_path_unlink_replay(
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_PATH_UNLINK,
         binding.replay_payload_for(FS_PATH_UNLINK)?,
         || match world {
@@ -12441,7 +12441,7 @@ fn destack_fs_path_unlink_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathUnlinkReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12469,7 +12469,7 @@ fn destack_fs_path_unlinkat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_PATH_UNLINKAT,
         binding.replay_payload_for(FS_PATH_UNLINKAT)?,
         || match world {
@@ -12491,7 +12491,7 @@ fn destack_fs_path_unlinkat_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathUnlinkatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12518,7 +12518,7 @@ fn destack_fs_stat_fstat_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_STAT_FSTAT,
         binding.replay_payload_for(FS_STAT_FSTAT)?,
         || match world {
@@ -12575,7 +12575,7 @@ fn destack_fs_stat_fstat_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsStatFstatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12637,7 +12637,7 @@ fn destack_fs_stat_fstatfs_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_STAT_FSTATFS,
         binding.replay_payload_for(FS_STAT_FSTATFS)?,
         || match world {
@@ -12686,7 +12686,7 @@ fn destack_fs_stat_fstatfs_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsStatFstatfsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12740,7 +12740,7 @@ fn destack_fs_stat_lstat_replay(
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_STAT_LSTAT,
         binding.replay_payload_for(FS_STAT_LSTAT)?,
         || match world {
@@ -12795,7 +12795,7 @@ fn destack_fs_stat_lstat_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsStatLstatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12857,7 +12857,7 @@ fn destack_fs_stat_path_replay(
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_STAT_PATH,
         binding.replay_payload_for(FS_STAT_PATH)?,
         || match world {
@@ -12912,7 +12912,7 @@ fn destack_fs_stat_path_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsStatPathReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12976,7 +12976,7 @@ fn destack_fs_stat_pathat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_STAT_PATHAT,
         binding.replay_payload_for(FS_STAT_PATHAT)?,
         || match world {
@@ -13033,7 +13033,7 @@ fn destack_fs_stat_pathat_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsStatPathatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13095,7 +13095,7 @@ fn destack_fs_stat_pathfs_replay(
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_STAT_PATHFS,
         binding.replay_payload_for(FS_STAT_PATHFS)?,
         || match world {
@@ -13142,7 +13142,7 @@ fn destack_fs_stat_pathfs_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsStatPathfsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13199,7 +13199,7 @@ fn destack_fs_stat_pathx_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &flags, &mask);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_STAT_PATHX,
         binding.replay_payload_for(FS_STAT_PATHX)?,
         || match world {
@@ -13264,7 +13264,7 @@ fn destack_fs_stat_pathx_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsStatPathxReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13335,7 +13335,7 @@ fn destack_fs_watch_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_WATCH_OPEN,
         binding.replay_payload_for(FS_WATCH_OPEN)?,
         || match world {
@@ -13363,7 +13363,7 @@ fn destack_fs_watch_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsWatchOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13395,7 +13395,7 @@ fn destack_fs_watch_open_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_WATCH_OPEN_CLOSE,
         binding.replay_payload_for(FS_WATCH_OPEN_CLOSE)?,
         || match world {
@@ -13417,7 +13417,7 @@ fn destack_fs_watch_open_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsWatchOpenCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13444,7 +13444,7 @@ fn destack_fs_watch_open_read_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_WATCH_OPEN_READ,
         binding.replay_payload_for(FS_WATCH_OPEN_READ)?,
         || match world {
@@ -13748,7 +13748,7 @@ fn destack_fs_watch_open_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsWatchOpenReadReplay {
                         result,
                     }
@@ -14064,7 +14064,7 @@ fn destack_fs_watch_openat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&directory, &path, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_WATCH_OPENAT,
         binding.replay_payload_for(FS_WATCH_OPENAT)?,
         || match world {
@@ -14094,7 +14094,7 @@ fn destack_fs_watch_openat_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsWatchOpenatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14128,7 +14128,7 @@ fn destack_fs_xattr_fgetxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_FGETXATTR,
         binding.replay_payload_for(FS_XATTR_FGETXATTR)?,
         || match world {
@@ -14162,7 +14162,7 @@ fn destack_fs_xattr_fgetxattr_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrFgetxattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14201,7 +14201,7 @@ fn destack_fs_xattr_fgetxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_FGETXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_FGETXATTR_BYTES)?,
         || match world {
@@ -14235,7 +14235,7 @@ fn destack_fs_xattr_fgetxattr_bytes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrFgetxattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14273,7 +14273,7 @@ fn destack_fs_xattr_flistxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_FLISTXATTR,
         binding.replay_payload_for(FS_XATTR_FLISTXATTR)?,
         || match world {
@@ -14308,7 +14308,7 @@ fn destack_fs_xattr_flistxattr_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrFlistxattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14346,7 +14346,7 @@ fn destack_fs_xattr_flistxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_FLISTXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_FLISTXATTR_BYTES)?,
         || match world {
@@ -14393,7 +14393,7 @@ fn destack_fs_xattr_flistxattr_bytes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrFlistxattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14440,7 +14440,7 @@ fn destack_fs_xattr_fremovexattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_FREMOVEXATTR,
         binding.replay_payload_for(FS_XATTR_FREMOVEXATTR)?,
         || match world {
@@ -14462,7 +14462,7 @@ fn destack_fs_xattr_fremovexattr_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrFremovexattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14489,7 +14489,7 @@ fn destack_fs_xattr_fremovexattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_FREMOVEXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_FREMOVEXATTR_BYTES)?,
         || match world {
@@ -14511,7 +14511,7 @@ fn destack_fs_xattr_fremovexattr_bytes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrFremovexattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14540,7 +14540,7 @@ fn destack_fs_xattr_fsetxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name, &argument_value, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_FSETXATTR,
         binding.replay_payload_for(FS_XATTR_FSETXATTR)?,
         || match world {
@@ -14568,7 +14568,7 @@ fn destack_fs_xattr_fsetxattr_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrFsetxattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14597,7 +14597,7 @@ fn destack_fs_xattr_fsetxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name, &argument_value, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_FSETXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_FSETXATTR_BYTES)?,
         || match world {
@@ -14631,7 +14631,7 @@ fn destack_fs_xattr_fsetxattr_bytes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrFsetxattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14659,7 +14659,7 @@ fn destack_fs_xattr_getxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_GETXATTR,
         binding.replay_payload_for(FS_XATTR_GETXATTR)?,
         || match world {
@@ -14693,7 +14693,7 @@ fn destack_fs_xattr_getxattr_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrGetxattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14732,7 +14732,7 @@ fn destack_fs_xattr_getxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_GETXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_GETXATTR_BYTES)?,
         || match world {
@@ -14766,7 +14766,7 @@ fn destack_fs_xattr_getxattr_bytes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrGetxattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14805,7 +14805,7 @@ fn destack_fs_xattr_lgetxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_LGETXATTR,
         binding.replay_payload_for(FS_XATTR_LGETXATTR)?,
         || match world {
@@ -14839,7 +14839,7 @@ fn destack_fs_xattr_lgetxattr_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrLgetxattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14878,7 +14878,7 @@ fn destack_fs_xattr_lgetxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_LGETXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_LGETXATTR_BYTES)?,
         || match world {
@@ -14912,7 +14912,7 @@ fn destack_fs_xattr_lgetxattr_bytes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrLgetxattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14950,7 +14950,7 @@ fn destack_fs_xattr_listxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_LISTXATTR,
         binding.replay_payload_for(FS_XATTR_LISTXATTR)?,
         || match world {
@@ -14985,7 +14985,7 @@ fn destack_fs_xattr_listxattr_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrListxattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15023,7 +15023,7 @@ fn destack_fs_xattr_listxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_LISTXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_LISTXATTR_BYTES)?,
         || match world {
@@ -15070,7 +15070,7 @@ fn destack_fs_xattr_listxattr_bytes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrListxattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15117,7 +15117,7 @@ fn destack_fs_xattr_llistxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_LLISTXATTR,
         binding.replay_payload_for(FS_XATTR_LLISTXATTR)?,
         || match world {
@@ -15152,7 +15152,7 @@ fn destack_fs_xattr_llistxattr_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrLlistxattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15190,7 +15190,7 @@ fn destack_fs_xattr_llistxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_LLISTXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_LLISTXATTR_BYTES)?,
         || match world {
@@ -15237,7 +15237,7 @@ fn destack_fs_xattr_llistxattr_bytes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrLlistxattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15284,7 +15284,7 @@ fn destack_fs_xattr_lremovexattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_LREMOVEXATTR,
         binding.replay_payload_for(FS_XATTR_LREMOVEXATTR)?,
         || match world {
@@ -15306,7 +15306,7 @@ fn destack_fs_xattr_lremovexattr_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrLremovexattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15333,7 +15333,7 @@ fn destack_fs_xattr_lremovexattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_LREMOVEXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_LREMOVEXATTR_BYTES)?,
         || match world {
@@ -15355,7 +15355,7 @@ fn destack_fs_xattr_lremovexattr_bytes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrLremovexattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15384,7 +15384,7 @@ fn destack_fs_xattr_lsetxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name, &argument_value, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_LSETXATTR,
         binding.replay_payload_for(FS_XATTR_LSETXATTR)?,
         || match world {
@@ -15412,7 +15412,7 @@ fn destack_fs_xattr_lsetxattr_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrLsetxattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15441,7 +15441,7 @@ fn destack_fs_xattr_lsetxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name, &argument_value, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_LSETXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_LSETXATTR_BYTES)?,
         || match world {
@@ -15475,7 +15475,7 @@ fn destack_fs_xattr_lsetxattr_bytes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrLsetxattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15502,7 +15502,7 @@ fn destack_fs_xattr_removexattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_REMOVEXATTR,
         binding.replay_payload_for(FS_XATTR_REMOVEXATTR)?,
         || match world {
@@ -15524,7 +15524,7 @@ fn destack_fs_xattr_removexattr_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrRemovexattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15551,7 +15551,7 @@ fn destack_fs_xattr_removexattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_REMOVEXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_REMOVEXATTR_BYTES)?,
         || match world {
@@ -15573,7 +15573,7 @@ fn destack_fs_xattr_removexattr_bytes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrRemovexattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15602,7 +15602,7 @@ fn destack_fs_xattr_setxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name, &argument_value, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_SETXATTR,
         binding.replay_payload_for(FS_XATTR_SETXATTR)?,
         || match world {
@@ -15630,7 +15630,7 @@ fn destack_fs_xattr_setxattr_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrSetxattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15659,7 +15659,7 @@ fn destack_fs_xattr_setxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name, &argument_value, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         FS_XATTR_SETXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_SETXATTR_BYTES)?,
         || match world {
@@ -15693,7 +15693,7 @@ fn destack_fs_xattr_setxattr_bytes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrSetxattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17586,7 +17586,7 @@ fn destack_fs_attrs_access_vm_replay(
     path: OsPathVm,
     mode: AccessMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_ATTRS_ACCESS,
         binding.replay_payload_for(FS_ATTRS_ACCESS)?,
         context,
@@ -17608,7 +17608,7 @@ fn destack_fs_attrs_access_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsAccessReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17639,7 +17639,7 @@ fn destack_fs_attrs_accessat_vm_replay(
     mode: AccessMode,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_ATTRS_ACCESSAT,
         binding.replay_payload_for(FS_ATTRS_ACCESSAT)?,
         context,
@@ -17663,7 +17663,7 @@ fn destack_fs_attrs_accessat_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsAccessatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17692,7 +17692,7 @@ fn destack_fs_attrs_chmod_vm_replay(
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_ATTRS_CHMOD,
         binding.replay_payload_for(FS_ATTRS_CHMOD)?,
         context,
@@ -17714,7 +17714,7 @@ fn destack_fs_attrs_chmod_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsChmodReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17744,7 +17744,7 @@ fn destack_fs_attrs_chown_vm_replay(
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_ATTRS_CHOWN,
         binding.replay_payload_for(FS_ATTRS_CHOWN)?,
         context,
@@ -17766,7 +17766,7 @@ fn destack_fs_attrs_chown_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsChownReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17795,7 +17795,7 @@ fn destack_fs_attrs_fchmod_vm_replay(
     handle: resource::FileHandle,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_ATTRS_FCHMOD,
         binding.replay_payload_for(FS_ATTRS_FCHMOD)?,
         context,
@@ -17817,7 +17817,7 @@ fn destack_fs_attrs_fchmod_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsFchmodReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17848,7 +17848,7 @@ fn destack_fs_attrs_fchmodat_vm_replay(
     mode: FileMode,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_ATTRS_FCHMODAT,
         binding.replay_payload_for(FS_ATTRS_FCHMODAT)?,
         context,
@@ -17872,7 +17872,7 @@ fn destack_fs_attrs_fchmodat_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsFchmodatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17902,7 +17902,7 @@ fn destack_fs_attrs_fchown_vm_replay(
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_ATTRS_FCHOWN,
         binding.replay_payload_for(FS_ATTRS_FCHOWN)?,
         context,
@@ -17926,7 +17926,7 @@ fn destack_fs_attrs_fchown_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsFchownReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17958,7 +17958,7 @@ fn destack_fs_attrs_fchownat_vm_replay(
     gid: u32,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_ATTRS_FCHOWNAT,
         binding.replay_payload_for(FS_ATTRS_FCHOWNAT)?,
         context,
@@ -17982,7 +17982,7 @@ fn destack_fs_attrs_fchownat_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsFchownatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18012,7 +18012,7 @@ fn destack_fs_attrs_futimes_vm_replay(
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_ATTRS_FUTIMES,
         binding.replay_payload_for(FS_ATTRS_FUTIMES)?,
         context,
@@ -18036,7 +18036,7 @@ fn destack_fs_attrs_futimes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsFutimesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18066,7 +18066,7 @@ fn destack_fs_attrs_lutimes_vm_replay(
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_ATTRS_LUTIMES,
         binding.replay_payload_for(FS_ATTRS_LUTIMES)?,
         context,
@@ -18090,7 +18090,7 @@ fn destack_fs_attrs_lutimes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsLutimesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18122,7 +18122,7 @@ fn destack_fs_attrs_utimensat_vm_replay(
     mtimens: u64,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_ATTRS_UTIMENSAT,
         binding.replay_payload_for(FS_ATTRS_UTIMENSAT)?,
         context,
@@ -18146,7 +18146,7 @@ fn destack_fs_attrs_utimensat_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsUtimensatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18176,7 +18176,7 @@ fn destack_fs_attrs_utimes_vm_replay(
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_ATTRS_UTIMES,
         binding.replay_payload_for(FS_ATTRS_UTIMES)?,
         context,
@@ -18200,7 +18200,7 @@ fn destack_fs_attrs_utimes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsAttrsUtimesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18228,7 +18228,7 @@ fn destack_fs_dir_closedir_vm_replay(
     world: RuntimeWorld,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_DIR_CLOSEDIR,
         binding.replay_payload_for(FS_DIR_CLOSEDIR)?,
         context,
@@ -18250,7 +18250,7 @@ fn destack_fs_dir_closedir_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirClosedirReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18278,7 +18278,7 @@ fn destack_fs_dir_dirfd_vm_replay(
     world: RuntimeWorld,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_DIR_DIRFD,
         binding.replay_payload_for(FS_DIR_DIRFD)?,
         context,
@@ -18301,7 +18301,7 @@ fn destack_fs_dir_dirfd_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirDirfdReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18333,7 +18333,7 @@ fn destack_fs_dir_mkdir_vm_replay(
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_DIR_MKDIR,
         binding.replay_payload_for(FS_DIR_MKDIR)?,
         context,
@@ -18355,7 +18355,7 @@ fn destack_fs_dir_mkdir_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirMkdirReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18385,7 +18385,7 @@ fn destack_fs_dir_mkdirat_vm_replay(
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_DIR_MKDIRAT,
         binding.replay_payload_for(FS_DIR_MKDIRAT)?,
         context,
@@ -18409,7 +18409,7 @@ fn destack_fs_dir_mkdirat_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirMkdiratReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18437,7 +18437,7 @@ fn destack_fs_dir_mkdtemp_vm_replay(
     world: RuntimeWorld,
     template: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_DIR_MKDTEMP,
         binding.replay_payload_for(FS_DIR_MKDTEMP)?,
         context,
@@ -18510,7 +18510,7 @@ fn destack_fs_dir_mkdtemp_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirMkdtempReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18588,7 +18588,7 @@ fn destack_fs_dir_opendir_vm_replay(
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_DIR_OPENDIR,
         binding.replay_payload_for(FS_DIR_OPENDIR)?,
         context,
@@ -18611,7 +18611,7 @@ fn destack_fs_dir_opendir_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirOpendirReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18642,7 +18642,7 @@ fn destack_fs_dir_readdir_vm_replay(
     world: RuntimeWorld,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_DIR_READDIR,
         binding.replay_payload_for(FS_DIR_READDIR)?,
         context,
@@ -18720,7 +18720,7 @@ fn destack_fs_dir_readdir_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirReaddirReplay {
                         result,
                     }
@@ -18795,7 +18795,7 @@ fn destack_fs_dir_readdir_next_vm_replay(
     world: RuntimeWorld,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_DIR_READDIR_NEXT,
         binding.replay_payload_for(FS_DIR_READDIR_NEXT)?,
         context,
@@ -18879,7 +18879,7 @@ fn destack_fs_dir_readdir_next_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirReaddirNextReplay {
                         result,
                     }
@@ -18965,7 +18965,7 @@ fn destack_fs_dir_rewinddir_vm_replay(
     world: RuntimeWorld,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_DIR_REWINDDIR,
         binding.replay_payload_for(FS_DIR_REWINDDIR)?,
         context,
@@ -18987,7 +18987,7 @@ fn destack_fs_dir_rewinddir_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirRewinddirReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19015,7 +19015,7 @@ fn destack_fs_dir_rmdir_vm_replay(
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_DIR_RMDIR,
         binding.replay_payload_for(FS_DIR_RMDIR)?,
         context,
@@ -19037,7 +19037,7 @@ fn destack_fs_dir_rmdir_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsDirRmdirReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19065,7 +19065,7 @@ fn destack_fs_file_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_CLOSE,
         binding.replay_payload_for(FS_FILE_CLOSE)?,
         context,
@@ -19087,7 +19087,7 @@ fn destack_fs_file_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19119,7 +19119,7 @@ fn destack_fs_file_copy_file_range_vm_replay(
     dstoffset: FileOffset,
     length: FileSize,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_COPY_FILE_RANGE,
         binding.replay_payload_for(FS_FILE_COPY_FILE_RANGE)?,
         context,
@@ -19144,7 +19144,7 @@ fn destack_fs_file_copy_file_range_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileCopyFileRangeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19175,7 +19175,7 @@ fn destack_fs_file_dup_vm_replay(
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_DUP,
         binding.replay_payload_for(FS_FILE_DUP)?,
         context,
@@ -19198,7 +19198,7 @@ fn destack_fs_file_dup_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileDupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19230,7 +19230,7 @@ fn destack_fs_file_dup2_vm_replay(
     handle: resource::FileHandle,
     target: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_DUP2,
         binding.replay_payload_for(FS_FILE_DUP2)?,
         context,
@@ -19253,7 +19253,7 @@ fn destack_fs_file_dup2_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileDup2Replay { result }
                 };
                 return Ok(Some(payload));
@@ -19286,7 +19286,7 @@ fn destack_fs_file_dup3_vm_replay(
     target: resource::FileHandle,
     flags: OpenFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_DUP3,
         binding.replay_payload_for(FS_FILE_DUP3)?,
         context,
@@ -19311,7 +19311,7 @@ fn destack_fs_file_dup3_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileDup3Replay { result }
                 };
                 return Ok(Some(payload));
@@ -19345,7 +19345,7 @@ fn destack_fs_file_fadvise_vm_replay(
     length: FileSize,
     advice: FileAdvice,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_FADVISE,
         binding.replay_payload_for(FS_FILE_FADVISE)?,
         context,
@@ -19369,7 +19369,7 @@ fn destack_fs_file_fadvise_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileFadviseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19400,7 +19400,7 @@ fn destack_fs_file_fallocate_vm_replay(
     length: FileSize,
     flags: AllocFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_FALLOCATE,
         binding.replay_payload_for(FS_FILE_FALLOCATE)?,
         context,
@@ -19424,7 +19424,7 @@ fn destack_fs_file_fallocate_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileFallocateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19452,7 +19452,7 @@ fn destack_fs_file_fdatasync_vm_replay(
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_FDATASYNC,
         binding.replay_payload_for(FS_FILE_FDATASYNC)?,
         context,
@@ -19474,7 +19474,7 @@ fn destack_fs_file_fdatasync_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileFdatasyncReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19502,7 +19502,7 @@ fn destack_fs_file_fsync_vm_replay(
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_FSYNC,
         binding.replay_payload_for(FS_FILE_FSYNC)?,
         context,
@@ -19524,7 +19524,7 @@ fn destack_fs_file_fsync_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileFsyncReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19553,7 +19553,7 @@ fn destack_fs_file_ftruncate_vm_replay(
     handle: resource::FileHandle,
     size: FileOffset,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_FTRUNCATE,
         binding.replay_payload_for(FS_FILE_FTRUNCATE)?,
         context,
@@ -19575,7 +19575,7 @@ fn destack_fs_file_ftruncate_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileFtruncateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19603,7 +19603,7 @@ fn destack_fs_file_get_fd_flags_vm_replay(
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_GET_FD_FLAGS,
         binding.replay_payload_for(FS_FILE_GET_FD_FLAGS)?,
         context,
@@ -19626,7 +19626,7 @@ fn destack_fs_file_get_fd_flags_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileGetFdFlagsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19657,7 +19657,7 @@ fn destack_fs_file_get_status_flags_vm_replay(
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_GET_STATUS_FLAGS,
         binding.replay_payload_for(FS_FILE_GET_STATUS_FLAGS)?,
         context,
@@ -19682,7 +19682,7 @@ fn destack_fs_file_get_status_flags_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileGetStatusFlagsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19714,7 +19714,7 @@ fn destack_fs_file_lock_vm_replay(
     handle: resource::FileHandle,
     flags: FileLockFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_LOCK,
         binding.replay_payload_for(FS_FILE_LOCK)?,
         context,
@@ -19736,7 +19736,7 @@ fn destack_fs_file_lock_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileLockReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19766,7 +19766,7 @@ fn destack_fs_file_open_vm_replay(
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_OPEN,
         binding.replay_payload_for(FS_FILE_OPEN)?,
         context,
@@ -19789,7 +19789,7 @@ fn destack_fs_file_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19823,7 +19823,7 @@ fn destack_fs_file_openat_vm_replay(
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_OPENAT,
         binding.replay_payload_for(FS_FILE_OPENAT)?,
         context,
@@ -19848,7 +19848,7 @@ fn destack_fs_file_openat_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileOpenatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19881,7 +19881,7 @@ fn destack_fs_file_openat2_vm_replay(
     path: OsPathVm,
     how: OpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_OPENAT2,
         binding.replay_payload_for(FS_FILE_OPENAT2)?,
         context,
@@ -19904,7 +19904,7 @@ fn destack_fs_file_openat2_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileOpenat2Replay { result }
                 };
                 return Ok(Some(payload));
@@ -19937,7 +19937,7 @@ fn destack_fs_file_pread_vm_replay(
     buffer: VmSlice<u8>,
     offset: FileOffset,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_PREAD,
         binding.replay_payload_for(FS_FILE_PREAD)?,
         context,
@@ -19962,7 +19962,7 @@ fn destack_fs_file_pread_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFilePreadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19995,7 +19995,7 @@ fn destack_fs_file_preadv_vm_replay(
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_PREADV,
         binding.replay_payload_for(FS_FILE_PREADV)?,
         context,
@@ -20020,7 +20020,7 @@ fn destack_fs_file_preadv_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFilePreadvReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20054,7 +20054,7 @@ fn destack_fs_file_preadv2_vm_replay(
     offset: FileOffset,
     flags: ReadWriteFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_PREADV2,
         binding.replay_payload_for(FS_FILE_PREADV2)?,
         context,
@@ -20079,7 +20079,7 @@ fn destack_fs_file_preadv2_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFilePreadv2Replay { result }
                 };
                 return Ok(Some(payload));
@@ -20112,7 +20112,7 @@ fn destack_fs_file_pwrite_vm_replay(
     buffer: VmSlice<u8>,
     offset: FileOffset,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_PWRITE,
         binding.replay_payload_for(FS_FILE_PWRITE)?,
         context,
@@ -20137,7 +20137,7 @@ fn destack_fs_file_pwrite_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFilePwriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20170,7 +20170,7 @@ fn destack_fs_file_pwritev_vm_replay(
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_PWRITEV,
         binding.replay_payload_for(FS_FILE_PWRITEV)?,
         context,
@@ -20195,7 +20195,7 @@ fn destack_fs_file_pwritev_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFilePwritevReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20229,7 +20229,7 @@ fn destack_fs_file_pwritev2_vm_replay(
     offset: FileOffset,
     flags: ReadWriteFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_PWRITEV2,
         binding.replay_payload_for(FS_FILE_PWRITEV2)?,
         context,
@@ -20254,7 +20254,7 @@ fn destack_fs_file_pwritev2_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFilePwritev2Replay { result }
                 };
                 return Ok(Some(payload));
@@ -20286,7 +20286,7 @@ fn destack_fs_file_read_vm_replay(
     handle: resource::FileHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_READ,
         binding.replay_payload_for(FS_FILE_READ)?,
         context,
@@ -20309,7 +20309,7 @@ fn destack_fs_file_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20341,7 +20341,7 @@ fn destack_fs_file_readv_vm_replay(
     handle: resource::FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_READV,
         binding.replay_payload_for(FS_FILE_READV)?,
         context,
@@ -20364,7 +20364,7 @@ fn destack_fs_file_readv_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileReadvReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20397,7 +20397,7 @@ fn destack_fs_file_seek_vm_replay(
     offset: FileOffset,
     whence: SeekWhence,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_SEEK,
         binding.replay_payload_for(FS_FILE_SEEK)?,
         context,
@@ -20422,7 +20422,7 @@ fn destack_fs_file_seek_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileSeekReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20456,7 +20456,7 @@ fn destack_fs_file_sendfile_vm_replay(
     offset: FileOffset,
     length: FileSize,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_SENDFILE,
         binding.replay_payload_for(FS_FILE_SENDFILE)?,
         context,
@@ -20481,7 +20481,7 @@ fn destack_fs_file_sendfile_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileSendfileReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20513,7 +20513,7 @@ fn destack_fs_file_set_fd_flags_vm_replay(
     handle: resource::FileHandle,
     flags: FdFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_SET_FD_FLAGS,
         binding.replay_payload_for(FS_FILE_SET_FD_FLAGS)?,
         context,
@@ -20537,7 +20537,7 @@ fn destack_fs_file_set_fd_flags_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileSetFdFlagsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20566,7 +20566,7 @@ fn destack_fs_file_set_status_flags_vm_replay(
     handle: resource::FileHandle,
     flags: StatusFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_SET_STATUS_FLAGS,
         binding.replay_payload_for(FS_FILE_SET_STATUS_FLAGS)?,
         context,
@@ -20590,7 +20590,7 @@ fn destack_fs_file_set_status_flags_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileSetStatusFlagsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20623,7 +20623,7 @@ fn destack_fs_file_splice_vm_replay(
     length: FileSize,
     flags: SpliceFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_SPLICE,
         binding.replay_payload_for(FS_FILE_SPLICE)?,
         context,
@@ -20662,7 +20662,7 @@ fn destack_fs_file_splice_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileSpliceReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20696,7 +20696,7 @@ fn destack_fs_file_sync_file_range_vm_replay(
     length: FileSize,
     flags: SyncFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_SYNC_FILE_RANGE,
         binding.replay_payload_for(FS_FILE_SYNC_FILE_RANGE)?,
         context,
@@ -20720,7 +20720,7 @@ fn destack_fs_file_sync_file_range_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileSyncFileRangeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20748,7 +20748,7 @@ fn destack_fs_file_syncfs_vm_replay(
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_SYNCFS,
         binding.replay_payload_for(FS_FILE_SYNCFS)?,
         context,
@@ -20770,7 +20770,7 @@ fn destack_fs_file_syncfs_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileSyncfsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20801,7 +20801,7 @@ fn destack_fs_file_tee_vm_replay(
     length: FileSize,
     flags: SpliceFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_TEE,
         binding.replay_payload_for(FS_FILE_TEE)?,
         context,
@@ -20826,7 +20826,7 @@ fn destack_fs_file_tee_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileTeeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20858,7 +20858,7 @@ fn destack_fs_file_truncate_vm_replay(
     path: OsPathVm,
     size: FileOffset,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_TRUNCATE,
         binding.replay_payload_for(FS_FILE_TRUNCATE)?,
         context,
@@ -20880,7 +20880,7 @@ fn destack_fs_file_truncate_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileTruncateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20910,7 +20910,7 @@ fn destack_fs_file_vmsplice_vm_replay(
     buffers: VmSlice<VmSlice<u8>>,
     flags: SpliceFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_VMSPLICE,
         binding.replay_payload_for(FS_FILE_VMSPLICE)?,
         context,
@@ -20935,7 +20935,7 @@ fn destack_fs_file_vmsplice_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileVmspliceReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20967,7 +20967,7 @@ fn destack_fs_file_write_vm_replay(
     handle: resource::FileHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_WRITE,
         binding.replay_payload_for(FS_FILE_WRITE)?,
         context,
@@ -20990,7 +20990,7 @@ fn destack_fs_file_write_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21022,7 +21022,7 @@ fn destack_fs_file_writev_vm_replay(
     handle: resource::FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_FILE_WRITEV,
         binding.replay_payload_for(FS_FILE_WRITEV)?,
         context,
@@ -21045,7 +21045,7 @@ fn destack_fs_file_writev_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsFileWritevReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21077,7 +21077,7 @@ fn destack_fs_mmap_madvise_vm_replay(
     mapping: VmSlice<u8>,
     advice: MmapAdvice,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_MMAP_MADVISE,
         binding.replay_payload_for(FS_MMAP_MADVISE)?,
         context,
@@ -21101,7 +21101,7 @@ fn destack_fs_mmap_madvise_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsMmapMadviseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21131,7 +21131,7 @@ fn destack_fs_mmap_mmap_anonymous_vm_replay(
     prot: MmapProt,
     flags: MmapFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_MMAP_MMAP_ANONYMOUS,
         binding.replay_payload_for(FS_MMAP_MMAP_ANONYMOUS)?,
         context,
@@ -21156,7 +21156,7 @@ fn destack_fs_mmap_mmap_anonymous_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsMmapMmapAnonymousReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21191,7 +21191,7 @@ fn destack_fs_mmap_mmap_file_vm_replay(
     prot: MmapProt,
     flags: MmapFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_MMAP_MMAP_FILE,
         binding.replay_payload_for(FS_MMAP_MMAP_FILE)?,
         context,
@@ -21216,7 +21216,7 @@ fn destack_fs_mmap_mmap_file_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsMmapMmapFileReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21248,7 +21248,7 @@ fn destack_fs_mmap_mprotect_vm_replay(
     mapping: VmSlice<u8>,
     prot: MmapProt,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_MMAP_MPROTECT,
         binding.replay_payload_for(FS_MMAP_MPROTECT)?,
         context,
@@ -21270,7 +21270,7 @@ fn destack_fs_mmap_mprotect_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsMmapMprotectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21299,7 +21299,7 @@ fn destack_fs_mmap_msync_vm_replay(
     mapping: VmSlice<u8>,
     flags: MmapSyncFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_MMAP_MSYNC,
         binding.replay_payload_for(FS_MMAP_MSYNC)?,
         context,
@@ -21321,7 +21321,7 @@ fn destack_fs_mmap_msync_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsMmapMsyncReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21349,7 +21349,7 @@ fn destack_fs_mmap_munmap_vm_replay(
     world: RuntimeWorld,
     mapping: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_MMAP_MUNMAP,
         binding.replay_payload_for(FS_MMAP_MUNMAP)?,
         context,
@@ -21371,7 +21371,7 @@ fn destack_fs_mmap_munmap_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsMmapMunmapReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21401,7 +21401,7 @@ fn destack_fs_path_copyfile_vm_replay(
     to: OsPathVm,
     flags: CopyFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_PATH_COPYFILE,
         binding.replay_payload_for(FS_PATH_COPYFILE)?,
         context,
@@ -21425,7 +21425,7 @@ fn destack_fs_path_copyfile_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathCopyfileReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21454,7 +21454,7 @@ fn destack_fs_path_link_vm_replay(
     existingpath: OsPathVm,
     newpath: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_PATH_LINK,
         binding.replay_payload_for(FS_PATH_LINK)?,
         context,
@@ -21478,7 +21478,7 @@ fn destack_fs_path_link_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathLinkReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21510,7 +21510,7 @@ fn destack_fs_path_linkat_vm_replay(
     newpath: OsPathVm,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_PATH_LINKAT,
         binding.replay_payload_for(FS_PATH_LINKAT)?,
         context,
@@ -21546,7 +21546,7 @@ fn destack_fs_path_linkat_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathLinkatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21575,7 +21575,7 @@ fn destack_fs_path_mkfifo_vm_replay(
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_PATH_MKFIFO,
         binding.replay_payload_for(FS_PATH_MKFIFO)?,
         context,
@@ -21597,7 +21597,7 @@ fn destack_fs_path_mkfifo_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathMkfifoReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21627,7 +21627,7 @@ fn destack_fs_path_mkfifoat_vm_replay(
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_PATH_MKFIFOAT,
         binding.replay_payload_for(FS_PATH_MKFIFOAT)?,
         context,
@@ -21651,7 +21651,7 @@ fn destack_fs_path_mkfifoat_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathMkfifoatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21681,7 +21681,7 @@ fn destack_fs_path_mknod_vm_replay(
     mode: FileMode,
     device: NodeDevice,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_PATH_MKNOD,
         binding.replay_payload_for(FS_PATH_MKNOD)?,
         context,
@@ -21705,7 +21705,7 @@ fn destack_fs_path_mknod_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathMknodReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21736,7 +21736,7 @@ fn destack_fs_path_mknodat_vm_replay(
     mode: FileMode,
     device: NodeDevice,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_PATH_MKNODAT,
         binding.replay_payload_for(FS_PATH_MKNODAT)?,
         context,
@@ -21760,7 +21760,7 @@ fn destack_fs_path_mknodat_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathMknodatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21788,7 +21788,7 @@ fn destack_fs_path_readlink_vm_replay(
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_PATH_READLINK,
         binding.replay_payload_for(FS_PATH_READLINK)?,
         context,
@@ -21861,7 +21861,7 @@ fn destack_fs_path_readlink_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathReadlinkReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21940,7 +21940,7 @@ fn destack_fs_path_readlinkat_vm_replay(
     dir: resource::DirectoryHandle,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_PATH_READLINKAT,
         binding.replay_payload_for(FS_PATH_READLINKAT)?,
         context,
@@ -22013,7 +22013,7 @@ fn destack_fs_path_readlinkat_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathReadlinkatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22091,7 +22091,7 @@ fn destack_fs_path_realpath_vm_replay(
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_PATH_REALPATH,
         binding.replay_payload_for(FS_PATH_REALPATH)?,
         context,
@@ -22164,7 +22164,7 @@ fn destack_fs_path_realpath_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathRealpathReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22243,7 +22243,7 @@ fn destack_fs_path_rename_vm_replay(
     from: OsPathVm,
     to: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_PATH_RENAME,
         binding.replay_payload_for(FS_PATH_RENAME)?,
         context,
@@ -22265,7 +22265,7 @@ fn destack_fs_path_rename_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathRenameReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22296,7 +22296,7 @@ fn destack_fs_path_renameat_vm_replay(
     todir: resource::DirectoryHandle,
     to: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_PATH_RENAMEAT,
         binding.replay_payload_for(FS_PATH_RENAMEAT)?,
         context,
@@ -22320,7 +22320,7 @@ fn destack_fs_path_renameat_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathRenameatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22352,7 +22352,7 @@ fn destack_fs_path_renameat2_vm_replay(
     to: OsPathVm,
     flags: RenameFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_PATH_RENAMEAT2,
         binding.replay_payload_for(FS_PATH_RENAMEAT2)?,
         context,
@@ -22376,7 +22376,7 @@ fn destack_fs_path_renameat2_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathRenameat2Replay { result }
                 };
                 return Ok(Some(payload));
@@ -22406,7 +22406,7 @@ fn destack_fs_path_symlink_vm_replay(
     path: OsPathVm,
     kind: SymlinkType,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_PATH_SYMLINK,
         binding.replay_payload_for(FS_PATH_SYMLINK)?,
         context,
@@ -22430,7 +22430,7 @@ fn destack_fs_path_symlink_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathSymlinkReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22461,7 +22461,7 @@ fn destack_fs_path_symlinkat_vm_replay(
     path: OsPathVm,
     kind: SymlinkType,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_PATH_SYMLINKAT,
         binding.replay_payload_for(FS_PATH_SYMLINKAT)?,
         context,
@@ -22485,7 +22485,7 @@ fn destack_fs_path_symlinkat_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathSymlinkatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22513,7 +22513,7 @@ fn destack_fs_path_unlink_vm_replay(
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_PATH_UNLINK,
         binding.replay_payload_for(FS_PATH_UNLINK)?,
         context,
@@ -22535,7 +22535,7 @@ fn destack_fs_path_unlink_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathUnlinkReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22565,7 +22565,7 @@ fn destack_fs_path_unlinkat_vm_replay(
     path: OsPathVm,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_PATH_UNLINKAT,
         binding.replay_payload_for(FS_PATH_UNLINKAT)?,
         context,
@@ -22589,7 +22589,7 @@ fn destack_fs_path_unlinkat_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsPathUnlinkatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22617,7 +22617,7 @@ fn destack_fs_stat_fstat_vm_replay(
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_STAT_FSTAT,
         binding.replay_payload_for(FS_STAT_FSTAT)?,
         context,
@@ -22669,7 +22669,7 @@ fn destack_fs_stat_fstat_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsStatFstatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22729,7 +22729,7 @@ fn destack_fs_stat_fstatfs_vm_replay(
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_STAT_FSTATFS,
         binding.replay_payload_for(FS_STAT_FSTATFS)?,
         context,
@@ -22773,7 +22773,7 @@ fn destack_fs_stat_fstatfs_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsStatFstatfsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22825,7 +22825,7 @@ fn destack_fs_stat_lstat_vm_replay(
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_STAT_LSTAT,
         binding.replay_payload_for(FS_STAT_LSTAT)?,
         context,
@@ -22877,7 +22877,7 @@ fn destack_fs_stat_lstat_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsStatLstatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22937,7 +22937,7 @@ fn destack_fs_stat_path_vm_replay(
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_STAT_PATH,
         binding.replay_payload_for(FS_STAT_PATH)?,
         context,
@@ -22989,7 +22989,7 @@ fn destack_fs_stat_path_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsStatPathReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23051,7 +23051,7 @@ fn destack_fs_stat_pathat_vm_replay(
     path: OsPathVm,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_STAT_PATHAT,
         binding.replay_payload_for(FS_STAT_PATHAT)?,
         context,
@@ -23105,7 +23105,7 @@ fn destack_fs_stat_pathat_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsStatPathatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23165,7 +23165,7 @@ fn destack_fs_stat_pathfs_vm_replay(
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_STAT_PATHFS,
         binding.replay_payload_for(FS_STAT_PATHFS)?,
         context,
@@ -23209,7 +23209,7 @@ fn destack_fs_stat_pathfs_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsStatPathfsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23264,7 +23264,7 @@ fn destack_fs_stat_pathx_vm_replay(
     flags: StatxFlags,
     mask: StatxMask,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_STAT_PATHX,
         binding.replay_payload_for(FS_STAT_PATHX)?,
         context,
@@ -23326,7 +23326,7 @@ fn destack_fs_stat_pathx_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsStatPathxReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23395,7 +23395,7 @@ fn destack_fs_watch_open_vm_replay(
     path: OsPathVm,
     options: WatchOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_WATCH_OPEN,
         binding.replay_payload_for(FS_WATCH_OPEN)?,
         context,
@@ -23418,7 +23418,7 @@ fn destack_fs_watch_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsWatchOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23449,7 +23449,7 @@ fn destack_fs_watch_open_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::WatchHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_WATCH_OPEN_CLOSE,
         binding.replay_payload_for(FS_WATCH_OPEN_CLOSE)?,
         context,
@@ -23471,7 +23471,7 @@ fn destack_fs_watch_open_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsWatchOpenCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23499,7 +23499,7 @@ fn destack_fs_watch_open_read_vm_replay(
     world: RuntimeWorld,
     handle: resource::WatchHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_WATCH_OPEN_READ,
         binding.replay_payload_for(FS_WATCH_OPEN_READ)?,
         context,
@@ -23834,7 +23834,7 @@ fn destack_fs_watch_open_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsWatchOpenReadReplay {
                         result,
                     }
@@ -24147,7 +24147,7 @@ fn destack_fs_watch_openat_vm_replay(
     path: OsPathVm,
     options: WatchOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_WATCH_OPENAT,
         binding.replay_payload_for(FS_WATCH_OPENAT)?,
         context,
@@ -24172,7 +24172,7 @@ fn destack_fs_watch_openat_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsWatchOpenatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24204,7 +24204,7 @@ fn destack_fs_xattr_fgetxattr_vm_replay(
     handle: resource::FileHandle,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_FGETXATTR,
         binding.replay_payload_for(FS_XATTR_FGETXATTR)?,
         context,
@@ -24227,7 +24227,7 @@ fn destack_fs_xattr_fgetxattr_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrFgetxattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24259,7 +24259,7 @@ fn destack_fs_xattr_fgetxattr_bytes_vm_replay(
     handle: resource::FileHandle,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_FGETXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_FGETXATTR_BYTES)?,
         context,
@@ -24284,7 +24284,7 @@ fn destack_fs_xattr_fgetxattr_bytes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrFgetxattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24315,7 +24315,7 @@ fn destack_fs_xattr_flistxattr_vm_replay(
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_FLISTXATTR,
         binding.replay_payload_for(FS_XATTR_FLISTXATTR)?,
         context,
@@ -24350,7 +24350,7 @@ fn destack_fs_xattr_flistxattr_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrFlistxattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24389,7 +24389,7 @@ fn destack_fs_xattr_flistxattr_bytes_vm_replay(
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_FLISTXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_FLISTXATTR_BYTES)?,
         context,
@@ -24425,7 +24425,7 @@ fn destack_fs_xattr_flistxattr_bytes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrFlistxattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24471,7 +24471,7 @@ fn destack_fs_xattr_fremovexattr_vm_replay(
     handle: resource::FileHandle,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_FREMOVEXATTR,
         binding.replay_payload_for(FS_XATTR_FREMOVEXATTR)?,
         context,
@@ -24495,7 +24495,7 @@ fn destack_fs_xattr_fremovexattr_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrFremovexattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24524,7 +24524,7 @@ fn destack_fs_xattr_fremovexattr_bytes_vm_replay(
     handle: resource::FileHandle,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_FREMOVEXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_FREMOVEXATTR_BYTES)?,
         context,
@@ -24548,7 +24548,7 @@ fn destack_fs_xattr_fremovexattr_bytes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrFremovexattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24579,7 +24579,7 @@ fn destack_fs_xattr_fsetxattr_vm_replay(
     argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_FSETXATTR,
         binding.replay_payload_for(FS_XATTR_FSETXATTR)?,
         context,
@@ -24613,7 +24613,7 @@ fn destack_fs_xattr_fsetxattr_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrFsetxattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24644,7 +24644,7 @@ fn destack_fs_xattr_fsetxattr_bytes_vm_replay(
     argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_FSETXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_FSETXATTR_BYTES)?,
         context,
@@ -24678,7 +24678,7 @@ fn destack_fs_xattr_fsetxattr_bytes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrFsetxattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24707,7 +24707,7 @@ fn destack_fs_xattr_getxattr_vm_replay(
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_GETXATTR,
         binding.replay_payload_for(FS_XATTR_GETXATTR)?,
         context,
@@ -24730,7 +24730,7 @@ fn destack_fs_xattr_getxattr_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrGetxattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24762,7 +24762,7 @@ fn destack_fs_xattr_getxattr_bytes_vm_replay(
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_GETXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_GETXATTR_BYTES)?,
         context,
@@ -24787,7 +24787,7 @@ fn destack_fs_xattr_getxattr_bytes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrGetxattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24819,7 +24819,7 @@ fn destack_fs_xattr_lgetxattr_vm_replay(
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_LGETXATTR,
         binding.replay_payload_for(FS_XATTR_LGETXATTR)?,
         context,
@@ -24842,7 +24842,7 @@ fn destack_fs_xattr_lgetxattr_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrLgetxattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24874,7 +24874,7 @@ fn destack_fs_xattr_lgetxattr_bytes_vm_replay(
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_LGETXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_LGETXATTR_BYTES)?,
         context,
@@ -24899,7 +24899,7 @@ fn destack_fs_xattr_lgetxattr_bytes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrLgetxattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24930,7 +24930,7 @@ fn destack_fs_xattr_listxattr_vm_replay(
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_LISTXATTR,
         binding.replay_payload_for(FS_XATTR_LISTXATTR)?,
         context,
@@ -24965,7 +24965,7 @@ fn destack_fs_xattr_listxattr_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrListxattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25004,7 +25004,7 @@ fn destack_fs_xattr_listxattr_bytes_vm_replay(
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_LISTXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_LISTXATTR_BYTES)?,
         context,
@@ -25038,7 +25038,7 @@ fn destack_fs_xattr_listxattr_bytes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrListxattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25083,7 +25083,7 @@ fn destack_fs_xattr_llistxattr_vm_replay(
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_LLISTXATTR,
         binding.replay_payload_for(FS_XATTR_LLISTXATTR)?,
         context,
@@ -25118,7 +25118,7 @@ fn destack_fs_xattr_llistxattr_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrLlistxattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25157,7 +25157,7 @@ fn destack_fs_xattr_llistxattr_bytes_vm_replay(
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_LLISTXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_LLISTXATTR_BYTES)?,
         context,
@@ -25191,7 +25191,7 @@ fn destack_fs_xattr_llistxattr_bytes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrLlistxattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25237,7 +25237,7 @@ fn destack_fs_xattr_lremovexattr_vm_replay(
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_LREMOVEXATTR,
         binding.replay_payload_for(FS_XATTR_LREMOVEXATTR)?,
         context,
@@ -25261,7 +25261,7 @@ fn destack_fs_xattr_lremovexattr_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrLremovexattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25290,7 +25290,7 @@ fn destack_fs_xattr_lremovexattr_bytes_vm_replay(
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_LREMOVEXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_LREMOVEXATTR_BYTES)?,
         context,
@@ -25314,7 +25314,7 @@ fn destack_fs_xattr_lremovexattr_bytes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrLremovexattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25345,7 +25345,7 @@ fn destack_fs_xattr_lsetxattr_vm_replay(
     argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_LSETXATTR,
         binding.replay_payload_for(FS_XATTR_LSETXATTR)?,
         context,
@@ -25379,7 +25379,7 @@ fn destack_fs_xattr_lsetxattr_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrLsetxattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25410,7 +25410,7 @@ fn destack_fs_xattr_lsetxattr_bytes_vm_replay(
     argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_LSETXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_LSETXATTR_BYTES)?,
         context,
@@ -25444,7 +25444,7 @@ fn destack_fs_xattr_lsetxattr_bytes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrLsetxattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25473,7 +25473,7 @@ fn destack_fs_xattr_removexattr_vm_replay(
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_REMOVEXATTR,
         binding.replay_payload_for(FS_XATTR_REMOVEXATTR)?,
         context,
@@ -25495,7 +25495,7 @@ fn destack_fs_xattr_removexattr_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrRemovexattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25524,7 +25524,7 @@ fn destack_fs_xattr_removexattr_bytes_vm_replay(
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_REMOVEXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_REMOVEXATTR_BYTES)?,
         context,
@@ -25548,7 +25548,7 @@ fn destack_fs_xattr_removexattr_bytes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrRemovexattrBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25579,7 +25579,7 @@ fn destack_fs_xattr_setxattr_vm_replay(
     argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_SETXATTR,
         binding.replay_payload_for(FS_XATTR_SETXATTR)?,
         context,
@@ -25613,7 +25613,7 @@ fn destack_fs_xattr_setxattr_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrSetxattrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25644,7 +25644,7 @@ fn destack_fs_xattr_setxattr_bytes_vm_replay(
     argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         FS_XATTR_SETXATTR_BYTES,
         binding.replay_payload_for(FS_XATTR_SETXATTR_BYTES)?,
         context,
@@ -25678,7 +25678,7 @@ fn destack_fs_xattr_setxattr_bytes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     FsXattrSetxattrBytesReplay { result }
                 };
                 return Ok(Some(payload));

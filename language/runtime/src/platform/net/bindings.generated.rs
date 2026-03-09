@@ -39,7 +39,7 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::replay::ReplayError;
+use crate::runtime::replay::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
@@ -3798,721 +3798,721 @@ fn encode_destack_net_uds_uds_socket_pair_result(
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetAddressLocalAddressReplay {
     /// Replay result payload.
-    pub result: Result<SocketAddressReplayRecord, ReplayError>,
+    pub result: Result<SocketAddressReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.net.address.peerAddress.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetAddressPeerAddressReplay {
     /// Replay result payload.
-    pub result: Result<SocketAddressReplayRecord, ReplayError>,
+    pub result: Result<SocketAddressReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.net.interface.interfaceIndex.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetInterfaceInterfaceIndexReplay {
     /// Replay result payload.
-    pub result: Result<u32, ReplayError>,
+    pub result: Result<u32, TraceError>,
 }
 
 /// Replay payload for destack.net.interface.interfaceName.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetInterfaceInterfaceNameReplay {
     /// Replay result payload.
-    pub result: Result<String, ReplayError>,
+    pub result: Result<String, TraceError>,
 }
 
 /// Replay payload for destack.net.interface.listInterfaces.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetInterfaceListInterfacesReplay {
     /// Replay result payload.
-    pub result: Result<Vec<NetInterfaceReplayRecord>, ReplayError>,
+    pub result: Result<Vec<NetInterfaceReplayRecord>, TraceError>,
 }
 
 /// Replay payload for destack.net.listener.accept.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetListenerAcceptReplay {
     /// Replay result payload.
-    pub result: Result<resource::SocketHandle, ReplayError>,
+    pub result: Result<resource::SocketHandle, TraceError>,
 }
 
 /// Replay payload for destack.net.listener.bind.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetListenerBindReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.listener.closeListener.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetListenerCloseListenerReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.listener.listen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetListenerListenReplay {
     /// Replay result payload.
-    pub result: Result<resource::ListenerHandle, ReplayError>,
+    pub result: Result<resource::ListenerHandle, TraceError>,
 }
 
 /// Replay payload for destack.net.options.getBroadcast.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsGetBroadcastReplay {
     /// Replay result payload.
-    pub result: Result<bool, ReplayError>,
+    pub result: Result<bool, TraceError>,
 }
 
 /// Replay payload for destack.net.options.getLinger.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsGetLingerReplay {
     /// Replay result payload.
-    pub result: Result<Linger, ReplayError>,
+    pub result: Result<Linger, TraceError>,
 }
 
 /// Replay payload for destack.net.options.getOnlyV6.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsGetOnlyV6Replay {
     /// Replay result payload.
-    pub result: Result<bool, ReplayError>,
+    pub result: Result<bool, TraceError>,
 }
 
 /// Replay payload for destack.net.options.getPacketMark.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsGetPacketMarkReplay {
     /// Replay result payload.
-    pub result: Result<u32, ReplayError>,
+    pub result: Result<u32, TraceError>,
 }
 
 /// Replay payload for destack.net.options.getReadTimeout.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsGetReadTimeoutReplay {
     /// Replay result payload.
-    pub result: Result<u32, ReplayError>,
+    pub result: Result<u32, TraceError>,
 }
 
 /// Replay payload for destack.net.options.getRecvBuffer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsGetRecvBufferReplay {
     /// Replay result payload.
-    pub result: Result<u32, ReplayError>,
+    pub result: Result<u32, TraceError>,
 }
 
 /// Replay payload for destack.net.options.getSendBuffer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsGetSendBufferReplay {
     /// Replay result payload.
-    pub result: Result<u32, ReplayError>,
+    pub result: Result<u32, TraceError>,
 }
 
 /// Replay payload for destack.net.options.getSockOptRaw.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsGetSockOptRawReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, ReplayError>,
+    pub result: Result<Vec<u8>, TraceError>,
 }
 
 /// Replay payload for destack.net.options.getTimestamping.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsGetTimestampingReplay {
     /// Replay result payload.
-    pub result: Result<SocketTimestampingMode, ReplayError>,
+    pub result: Result<SocketTimestampingMode, TraceError>,
 }
 
 /// Replay payload for destack.net.options.getTos.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsGetTosReplay {
     /// Replay result payload.
-    pub result: Result<u32, ReplayError>,
+    pub result: Result<u32, TraceError>,
 }
 
 /// Replay payload for destack.net.options.getTtl.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsGetTtlReplay {
     /// Replay result payload.
-    pub result: Result<u32, ReplayError>,
+    pub result: Result<u32, TraceError>,
 }
 
 /// Replay payload for destack.net.options.getWriteTimeout.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsGetWriteTimeoutReplay {
     /// Replay result payload.
-    pub result: Result<u32, ReplayError>,
+    pub result: Result<u32, TraceError>,
 }
 
 /// Replay payload for destack.net.options.setBroadcast.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsSetBroadcastReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.options.setLinger.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsSetLingerReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.options.setOnlyV6.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsSetOnlyV6Replay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.options.setPacketMark.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsSetPacketMarkReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.options.setReadTimeout.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsSetReadTimeoutReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.options.setRecvBuffer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsSetRecvBufferReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.options.setSendBuffer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsSetSendBufferReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.options.setSockOptRaw.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsSetSockOptRawReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.options.setTimestamping.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsSetTimestampingReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.options.setTos.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsSetTosReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.options.setTtl.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsSetTtlReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.options.setWriteTimeout.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetOptionsSetWriteTimeoutReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.raw.packetBackendList.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetRawPacketBackendListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<PacketBackendDescriptorReplayRecord>, ReplayError>,
+    pub result: Result<Vec<PacketBackendDescriptorReplayRecord>, TraceError>,
 }
 
 /// Replay payload for destack.net.raw.packetClearFanout.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetRawPacketClearFanoutReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.raw.packetClearFilter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetRawPacketClearFilterReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.raw.packetClearRing.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetRawPacketClearRingReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.raw.packetOpen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetRawPacketOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::SocketHandle, ReplayError>,
+    pub result: Result<resource::SocketHandle, TraceError>,
 }
 
 /// Replay payload for destack.net.raw.packetReceive.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetRawPacketReceiveReplay {
     /// Replay result payload.
-    pub result: Result<PacketCaptureRecord, ReplayError>,
+    pub result: Result<PacketCaptureRecord, TraceError>,
 }
 
 /// Replay payload for destack.net.raw.packetSend.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetRawPacketSendReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.net.raw.packetSetFanout.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetRawPacketSetFanoutReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.raw.packetSetFilter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetRawPacketSetFilterReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.raw.packetSetRxRing.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetRawPacketSetRxRingReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.raw.packetSetTimestampMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetRawPacketSetTimestampModeReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.raw.packetSetTxRing.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetRawPacketSetTxRingReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.raw.packetStats.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetRawPacketStatsReplay {
     /// Replay result payload.
-    pub result: Result<PacketCaptureStats, ReplayError>,
+    pub result: Result<PacketCaptureStats, TraceError>,
 }
 
 /// Replay payload for destack.net.raw.setHeaderIncluded.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetRawSetHeaderIncludedReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.raw.socket.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetRawSocketReplay {
     /// Replay result payload.
-    pub result: Result<resource::SocketHandle, ReplayError>,
+    pub result: Result<resource::SocketHandle, TraceError>,
 }
 
 /// Replay payload for destack.net.resolve.lookup.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetResolveLookupReplay {
     /// Replay result payload.
-    pub result: Result<Vec<SocketAddressReplayRecord>, ReplayError>,
+    pub result: Result<Vec<SocketAddressReplayRecord>, TraceError>,
 }
 
 /// Replay payload for destack.net.resolve.reverseLookup.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetResolveReverseLookupReplay {
     /// Replay result payload.
-    pub result: Result<Vec<ReverseLookupNameReplayRecord>, ReplayError>,
+    pub result: Result<Vec<ReverseLookupNameReplayRecord>, TraceError>,
 }
 
 /// Replay payload for destack.net.reuse.getReuseAddr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetReuseGetReuseAddrReplay {
     /// Replay result payload.
-    pub result: Result<bool, ReplayError>,
+    pub result: Result<bool, TraceError>,
 }
 
 /// Replay payload for destack.net.reuse.getReusePort.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetReuseGetReusePortReplay {
     /// Replay result payload.
-    pub result: Result<bool, ReplayError>,
+    pub result: Result<bool, TraceError>,
 }
 
 /// Replay payload for destack.net.reuse.setReuseAddr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetReuseSetReuseAddrReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.reuse.setReusePort.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetReuseSetReusePortReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.route.routeAdd.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetRouteRouteAddReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.route.routeDelete.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetRouteRouteDeleteReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.route.routeList.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetRouteRouteListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<RouteEntryReplayRecord>, ReplayError>,
+    pub result: Result<Vec<RouteEntryReplayRecord>, TraceError>,
 }
 
 /// Replay payload for destack.net.socket.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetSocketCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.socket.connect.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetSocketConnectReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.socket.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetSocketOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::SocketHandle, ReplayError>,
+    pub result: Result<resource::SocketHandle, TraceError>,
 }
 
 /// Replay payload for destack.net.socket.openPair.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetSocketOpenPairReplay {
     /// Replay result payload.
-    pub result: Result<SocketPair, ReplayError>,
+    pub result: Result<SocketPair, TraceError>,
 }
 
 /// Replay payload for destack.net.socket.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetSocketReadReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.net.socket.readv.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetSocketReadvReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.net.socket.recvFrom.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetSocketRecvFromReplay {
     /// Replay result payload.
-    pub result: Result<SocketRecvFromReplayRecord, ReplayError>,
+    pub result: Result<SocketRecvFromReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.net.socket.recvMmsg.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetSocketRecvMmsgReplay {
     /// Replay result payload.
-    pub result: Result<Vec<SocketRecvMessageReplayRecord>, ReplayError>,
+    pub result: Result<Vec<SocketRecvMessageReplayRecord>, TraceError>,
 }
 
 /// Replay payload for destack.net.socket.recvMsg.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetSocketRecvMsgReplay {
     /// Replay result payload.
-    pub result: Result<SocketRecvMessageReplayRecord, ReplayError>,
+    pub result: Result<SocketRecvMessageReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.net.socket.sendMmsg.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetSocketSendMmsgReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.net.socket.sendMsg.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetSocketSendMsgReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.net.socket.sendTo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetSocketSendToReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.net.socket.setNonblocking.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetSocketSetNonblockingReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.socket.shutdown.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetSocketShutdownReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.socket.write.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetSocketWriteReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.net.socket.writev.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetSocketWritevReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.net.tcp.getKeepAlive.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetTcpGetKeepAliveReplay {
     /// Replay result payload.
-    pub result: Result<KeepAliveConfig, ReplayError>,
+    pub result: Result<KeepAliveConfig, TraceError>,
 }
 
 /// Replay payload for destack.net.tcp.getNoDelay.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetTcpGetNoDelayReplay {
     /// Replay result payload.
-    pub result: Result<bool, ReplayError>,
+    pub result: Result<bool, TraceError>,
 }
 
 /// Replay payload for destack.net.tcp.setKeepAlive.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetTcpSetKeepAliveReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.tcp.setNoDelay.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetTcpSetNoDelayReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.udp.bind.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpBindReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.udp.connect.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpConnectReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.udp.getMulticastInterfaceV4.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpGetMulticastInterfaceV4Replay {
     /// Replay result payload.
-    pub result: Result<String, ReplayError>,
+    pub result: Result<String, TraceError>,
 }
 
 /// Replay payload for destack.net.udp.getMulticastInterfaceV6.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpGetMulticastInterfaceV6Replay {
     /// Replay result payload.
-    pub result: Result<u32, ReplayError>,
+    pub result: Result<u32, TraceError>,
 }
 
 /// Replay payload for destack.net.udp.getMulticastLoop.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpGetMulticastLoopReplay {
     /// Replay result payload.
-    pub result: Result<bool, ReplayError>,
+    pub result: Result<bool, TraceError>,
 }
 
 /// Replay payload for destack.net.udp.getMulticastTtl.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpGetMulticastTtlReplay {
     /// Replay result payload.
-    pub result: Result<u32, ReplayError>,
+    pub result: Result<u32, TraceError>,
 }
 
 /// Replay payload for destack.net.udp.joinMulticastSourceV4.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpJoinMulticastSourceV4Replay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.udp.joinMulticastSourceV6.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpJoinMulticastSourceV6Replay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.udp.joinMulticastV4.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpJoinMulticastV4Replay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.udp.joinMulticastV6.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpJoinMulticastV6Replay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.udp.leaveMulticastSourceV4.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpLeaveMulticastSourceV4Replay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.udp.leaveMulticastSourceV6.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpLeaveMulticastSourceV6Replay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.udp.leaveMulticastV4.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpLeaveMulticastV4Replay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.udp.leaveMulticastV6.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpLeaveMulticastV6Replay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.udp.recvFrom.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpRecvFromReplay {
     /// Replay result payload.
-    pub result: Result<UdpReceiveReplayRecord, ReplayError>,
+    pub result: Result<UdpReceiveReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.net.udp.sendTo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpSendToReplay {
     /// Replay result payload.
-    pub result: Result<u64, ReplayError>,
+    pub result: Result<u64, TraceError>,
 }
 
 /// Replay payload for destack.net.udp.setMulticastInterfaceV4.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpSetMulticastInterfaceV4Replay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.udp.setMulticastInterfaceV6.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpSetMulticastInterfaceV6Replay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.udp.setMulticastLoop.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpSetMulticastLoopReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.udp.setMulticastTtl.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpSetMulticastTtlReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.udp.socket.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdpSocketReplay {
     /// Replay result payload.
-    pub result: Result<resource::SocketHandle, ReplayError>,
+    pub result: Result<resource::SocketHandle, TraceError>,
 }
 
 /// Replay payload for destack.net.uds.udsAccept.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdsUdsAcceptReplay {
     /// Replay result payload.
-    pub result: Result<resource::SocketHandle, ReplayError>,
+    pub result: Result<resource::SocketHandle, TraceError>,
 }
 
 /// Replay payload for destack.net.uds.udsCloseListener.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdsUdsCloseListenerReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.net.uds.udsConnect.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdsUdsConnectReplay {
     /// Replay result payload.
-    pub result: Result<resource::SocketHandle, ReplayError>,
+    pub result: Result<resource::SocketHandle, TraceError>,
 }
 
 /// Replay payload for destack.net.uds.udsListen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdsUdsListenReplay {
     /// Replay result payload.
-    pub result: Result<resource::ListenerHandle, ReplayError>,
+    pub result: Result<resource::ListenerHandle, TraceError>,
 }
 
 /// Replay payload for destack.net.uds.udsSocketPair.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct NetUdsUdsSocketPairReplay {
     /// Replay result payload.
-    pub result: Result<SocketPair, ReplayError>,
+    pub result: Result<SocketPair, TraceError>,
 }
 
 /// Binding descriptor for destack.net.address.localAddress.
@@ -7098,7 +7098,7 @@ fn destack_net_address_local_address_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_ADDRESS_LOCAL_ADDRESS,
         binding.replay_payload_for(NET_ADDRESS_LOCAL_ADDRESS)?,
         || match world {
@@ -7139,7 +7139,7 @@ fn destack_net_address_local_address_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetAddressLocalAddressReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7184,7 +7184,7 @@ fn destack_net_address_peer_address_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_ADDRESS_PEER_ADDRESS,
         binding.replay_payload_for(NET_ADDRESS_PEER_ADDRESS)?,
         || match world {
@@ -7225,7 +7225,7 @@ fn destack_net_address_peer_address_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetAddressPeerAddressReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7270,7 +7270,7 @@ fn destack_net_interface_interface_index_replay(
 ) -> RuntimeResult<()> {
     let _ = &name;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_INTERFACE_INTERFACE_INDEX,
         binding.replay_payload_for(NET_INTERFACE_INTERFACE_INDEX)?,
         || match world {
@@ -7298,7 +7298,7 @@ fn destack_net_interface_interface_index_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetInterfaceInterfaceIndexReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7331,7 +7331,7 @@ fn destack_net_interface_interface_name_replay(
 ) -> RuntimeResult<()> {
     let _ = &index;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_INTERFACE_INTERFACE_NAME,
         binding.replay_payload_for(NET_INTERFACE_INTERFACE_NAME)?,
         || match world {
@@ -7359,7 +7359,7 @@ fn destack_net_interface_interface_name_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetInterfaceInterfaceNameReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7389,7 +7389,7 @@ fn destack_net_interface_list_interfaces_replay(
     world: RuntimeWorld,
     out: *mut NativeArray<NetInterface>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_INTERFACE_LIST_INTERFACES,
         binding.replay_payload_for(NET_INTERFACE_LIST_INTERFACES)?,
         || match world {
@@ -7455,7 +7455,7 @@ fn destack_net_interface_list_interfaces_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetInterfaceListInterfacesReplay {
                         result,
                     }
@@ -7529,7 +7529,7 @@ fn destack_net_listener_accept_replay(
 ) -> RuntimeResult<()> {
     let _ = (&listener, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_LISTENER_ACCEPT,
         binding.replay_payload_for(NET_LISTENER_ACCEPT)?,
         || match world {
@@ -7557,7 +7557,7 @@ fn destack_net_listener_accept_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetListenerAcceptReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7590,7 +7590,7 @@ fn destack_net_listener_bind_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &address);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_LISTENER_BIND,
         binding.replay_payload_for(NET_LISTENER_BIND)?,
         || match world {
@@ -7612,7 +7612,7 @@ fn destack_net_listener_bind_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetListenerBindReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7638,7 +7638,7 @@ fn destack_net_listener_close_listener_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_LISTENER_CLOSE_LISTENER,
         binding.replay_payload_for(NET_LISTENER_CLOSE_LISTENER)?,
         || match world {
@@ -7660,7 +7660,7 @@ fn destack_net_listener_close_listener_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetListenerCloseListenerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7688,7 +7688,7 @@ fn destack_net_listener_listen_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &backlog);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_LISTENER_LISTEN,
         binding.replay_payload_for(NET_LISTENER_LISTEN)?,
         || match world {
@@ -7716,7 +7716,7 @@ fn destack_net_listener_listen_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetListenerListenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7749,7 +7749,7 @@ fn destack_net_options_get_broadcast_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_GET_BROADCAST,
         binding.replay_payload_for(NET_OPTIONS_GET_BROADCAST)?,
         || match world {
@@ -7777,7 +7777,7 @@ fn destack_net_options_get_broadcast_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetBroadcastReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7810,7 +7810,7 @@ fn destack_net_options_get_linger_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_GET_LINGER,
         binding.replay_payload_for(NET_OPTIONS_GET_LINGER)?,
         || match world {
@@ -7843,7 +7843,7 @@ fn destack_net_options_get_linger_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetLingerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7881,7 +7881,7 @@ fn destack_net_options_get_only_v6_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_GET_ONLY_V6,
         binding.replay_payload_for(NET_OPTIONS_GET_ONLY_V6)?,
         || match world {
@@ -7909,7 +7909,7 @@ fn destack_net_options_get_only_v6_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetOnlyV6Replay { result }
                 };
                 return Ok(Some(payload));
@@ -7942,7 +7942,7 @@ fn destack_net_options_get_packet_mark_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_GET_PACKET_MARK,
         binding.replay_payload_for(NET_OPTIONS_GET_PACKET_MARK)?,
         || match world {
@@ -7970,7 +7970,7 @@ fn destack_net_options_get_packet_mark_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetPacketMarkReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8003,7 +8003,7 @@ fn destack_net_options_get_read_timeout_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_GET_READ_TIMEOUT,
         binding.replay_payload_for(NET_OPTIONS_GET_READ_TIMEOUT)?,
         || match world {
@@ -8031,7 +8031,7 @@ fn destack_net_options_get_read_timeout_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetReadTimeoutReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8064,7 +8064,7 @@ fn destack_net_options_get_recv_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_GET_RECV_BUFFER,
         binding.replay_payload_for(NET_OPTIONS_GET_RECV_BUFFER)?,
         || match world {
@@ -8092,7 +8092,7 @@ fn destack_net_options_get_recv_buffer_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetRecvBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8125,7 +8125,7 @@ fn destack_net_options_get_send_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_GET_SEND_BUFFER,
         binding.replay_payload_for(NET_OPTIONS_GET_SEND_BUFFER)?,
         || match world {
@@ -8153,7 +8153,7 @@ fn destack_net_options_get_send_buffer_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetSendBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8189,7 +8189,7 @@ fn destack_net_options_get_sock_opt_raw_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &level, &name, &maxbytes);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_GET_SOCK_OPT_RAW,
         binding.replay_payload_for(NET_OPTIONS_GET_SOCK_OPT_RAW)?,
         || match world {
@@ -8227,7 +8227,7 @@ fn destack_net_options_get_sock_opt_raw_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetSockOptRawReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8265,7 +8265,7 @@ fn destack_net_options_get_timestamping_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_GET_TIMESTAMPING,
         binding.replay_payload_for(NET_OPTIONS_GET_TIMESTAMPING)?,
         || match world {
@@ -8293,7 +8293,7 @@ fn destack_net_options_get_timestamping_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetTimestampingReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8326,7 +8326,7 @@ fn destack_net_options_get_tos_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_GET_TOS,
         binding.replay_payload_for(NET_OPTIONS_GET_TOS)?,
         || match world {
@@ -8354,7 +8354,7 @@ fn destack_net_options_get_tos_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetTosReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8387,7 +8387,7 @@ fn destack_net_options_get_ttl_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_GET_TTL,
         binding.replay_payload_for(NET_OPTIONS_GET_TTL)?,
         || match world {
@@ -8415,7 +8415,7 @@ fn destack_net_options_get_ttl_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetTtlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8448,7 +8448,7 @@ fn destack_net_options_get_write_timeout_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_GET_WRITE_TIMEOUT,
         binding.replay_payload_for(NET_OPTIONS_GET_WRITE_TIMEOUT)?,
         || match world {
@@ -8476,7 +8476,7 @@ fn destack_net_options_get_write_timeout_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetWriteTimeoutReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8509,7 +8509,7 @@ fn destack_net_options_set_broadcast_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_SET_BROADCAST,
         binding.replay_payload_for(NET_OPTIONS_SET_BROADCAST)?,
         || match world {
@@ -8531,7 +8531,7 @@ fn destack_net_options_set_broadcast_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetBroadcastReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8558,7 +8558,7 @@ fn destack_net_options_set_linger_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &linger);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_SET_LINGER,
         binding.replay_payload_for(NET_OPTIONS_SET_LINGER)?,
         || match world {
@@ -8580,7 +8580,7 @@ fn destack_net_options_set_linger_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetLingerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8607,7 +8607,7 @@ fn destack_net_options_set_only_v6_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_SET_ONLY_V6,
         binding.replay_payload_for(NET_OPTIONS_SET_ONLY_V6)?,
         || match world {
@@ -8629,7 +8629,7 @@ fn destack_net_options_set_only_v6_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetOnlyV6Replay { result }
                 };
                 return Ok(Some(payload));
@@ -8656,7 +8656,7 @@ fn destack_net_options_set_packet_mark_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mark);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_SET_PACKET_MARK,
         binding.replay_payload_for(NET_OPTIONS_SET_PACKET_MARK)?,
         || match world {
@@ -8678,7 +8678,7 @@ fn destack_net_options_set_packet_mark_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetPacketMarkReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8705,7 +8705,7 @@ fn destack_net_options_set_read_timeout_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutms);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_SET_READ_TIMEOUT,
         binding.replay_payload_for(NET_OPTIONS_SET_READ_TIMEOUT)?,
         || match world {
@@ -8727,7 +8727,7 @@ fn destack_net_options_set_read_timeout_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetReadTimeoutReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8754,7 +8754,7 @@ fn destack_net_options_set_recv_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &size);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_SET_RECV_BUFFER,
         binding.replay_payload_for(NET_OPTIONS_SET_RECV_BUFFER)?,
         || match world {
@@ -8776,7 +8776,7 @@ fn destack_net_options_set_recv_buffer_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetRecvBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8803,7 +8803,7 @@ fn destack_net_options_set_send_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &size);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_SET_SEND_BUFFER,
         binding.replay_payload_for(NET_OPTIONS_SET_SEND_BUFFER)?,
         || match world {
@@ -8825,7 +8825,7 @@ fn destack_net_options_set_send_buffer_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetSendBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8854,7 +8854,7 @@ fn destack_net_options_set_sock_opt_raw_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &level, &name, &argument_value);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_SET_SOCK_OPT_RAW,
         binding.replay_payload_for(NET_OPTIONS_SET_SOCK_OPT_RAW)?,
         || match world {
@@ -8888,7 +8888,7 @@ fn destack_net_options_set_sock_opt_raw_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetSockOptRawReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8915,7 +8915,7 @@ fn destack_net_options_set_timestamping_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mode);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_SET_TIMESTAMPING,
         binding.replay_payload_for(NET_OPTIONS_SET_TIMESTAMPING)?,
         || match world {
@@ -8937,7 +8937,7 @@ fn destack_net_options_set_timestamping_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetTimestampingReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8964,7 +8964,7 @@ fn destack_net_options_set_tos_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &tos);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_SET_TOS,
         binding.replay_payload_for(NET_OPTIONS_SET_TOS)?,
         || match world {
@@ -8986,7 +8986,7 @@ fn destack_net_options_set_tos_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetTosReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9013,7 +9013,7 @@ fn destack_net_options_set_ttl_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &ttl);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_SET_TTL,
         binding.replay_payload_for(NET_OPTIONS_SET_TTL)?,
         || match world {
@@ -9035,7 +9035,7 @@ fn destack_net_options_set_ttl_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetTtlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9062,7 +9062,7 @@ fn destack_net_options_set_write_timeout_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutms);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_OPTIONS_SET_WRITE_TIMEOUT,
         binding.replay_payload_for(NET_OPTIONS_SET_WRITE_TIMEOUT)?,
         || match world {
@@ -9086,7 +9086,7 @@ fn destack_net_options_set_write_timeout_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetWriteTimeoutReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9110,7 +9110,7 @@ fn destack_net_raw_packet_backend_list_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<PacketBackendDescriptor>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_RAW_PACKET_BACKEND_LIST,
         binding.replay_payload_for(NET_RAW_PACKET_BACKEND_LIST)?,
         || match world {
@@ -9157,7 +9157,7 @@ fn destack_net_raw_packet_backend_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketBackendListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9207,7 +9207,7 @@ fn destack_net_raw_packet_clear_fanout_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_RAW_PACKET_CLEAR_FANOUT,
         binding.replay_payload_for(NET_RAW_PACKET_CLEAR_FANOUT)?,
         || match world {
@@ -9229,7 +9229,7 @@ fn destack_net_raw_packet_clear_fanout_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketClearFanoutReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9255,7 +9255,7 @@ fn destack_net_raw_packet_clear_filter_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_RAW_PACKET_CLEAR_FILTER,
         binding.replay_payload_for(NET_RAW_PACKET_CLEAR_FILTER)?,
         || match world {
@@ -9277,7 +9277,7 @@ fn destack_net_raw_packet_clear_filter_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketClearFilterReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9303,7 +9303,7 @@ fn destack_net_raw_packet_clear_ring_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_RAW_PACKET_CLEAR_RING,
         binding.replay_payload_for(NET_RAW_PACKET_CLEAR_RING)?,
         || match world {
@@ -9325,7 +9325,7 @@ fn destack_net_raw_packet_clear_ring_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketClearRingReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9352,7 +9352,7 @@ fn destack_net_raw_packet_open_replay(
 ) -> RuntimeResult<()> {
     let _ = &options;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_RAW_PACKET_OPEN,
         binding.replay_payload_for(NET_RAW_PACKET_OPEN)?,
         || match world {
@@ -9380,7 +9380,7 @@ fn destack_net_raw_packet_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9414,7 +9414,7 @@ fn destack_net_raw_packet_receive_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &argument_payload);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_RAW_PACKET_RECEIVE,
         binding.replay_payload_for(NET_RAW_PACKET_RECEIVE)?,
         || match world {
@@ -9456,7 +9456,7 @@ fn destack_net_raw_packet_receive_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketReceiveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9499,7 +9499,7 @@ fn destack_net_raw_packet_send_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &argument_payload);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_RAW_PACKET_SEND,
         binding.replay_payload_for(NET_RAW_PACKET_SEND)?,
         || match world {
@@ -9532,7 +9532,7 @@ fn destack_net_raw_packet_send_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketSendReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9565,7 +9565,7 @@ fn destack_net_raw_packet_set_fanout_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_RAW_PACKET_SET_FANOUT,
         binding.replay_payload_for(NET_RAW_PACKET_SET_FANOUT)?,
         || match world {
@@ -9587,7 +9587,7 @@ fn destack_net_raw_packet_set_fanout_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketSetFanoutReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9614,7 +9614,7 @@ fn destack_net_raw_packet_set_filter_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &filterprogram);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_RAW_PACKET_SET_FILTER,
         binding.replay_payload_for(NET_RAW_PACKET_SET_FILTER)?,
         || match world {
@@ -9640,7 +9640,7 @@ fn destack_net_raw_packet_set_filter_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketSetFilterReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9667,7 +9667,7 @@ fn destack_net_raw_packet_set_rx_ring_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_RAW_PACKET_SET_RX_RING,
         binding.replay_payload_for(NET_RAW_PACKET_SET_RX_RING)?,
         || match world {
@@ -9689,7 +9689,7 @@ fn destack_net_raw_packet_set_rx_ring_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketSetRxRingReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9716,7 +9716,7 @@ fn destack_net_raw_packet_set_timestamp_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mode);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_RAW_PACKET_SET_TIMESTAMP_MODE,
         binding.replay_payload_for(NET_RAW_PACKET_SET_TIMESTAMP_MODE)?,
         || match world {
@@ -9740,7 +9740,7 @@ fn destack_net_raw_packet_set_timestamp_mode_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketSetTimestampModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9767,7 +9767,7 @@ fn destack_net_raw_packet_set_tx_ring_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_RAW_PACKET_SET_TX_RING,
         binding.replay_payload_for(NET_RAW_PACKET_SET_TX_RING)?,
         || match world {
@@ -9789,7 +9789,7 @@ fn destack_net_raw_packet_set_tx_ring_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketSetTxRingReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9816,7 +9816,7 @@ fn destack_net_raw_packet_stats_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_RAW_PACKET_STATS,
         binding.replay_payload_for(NET_RAW_PACKET_STATS)?,
         || match world {
@@ -9852,7 +9852,7 @@ fn destack_net_raw_packet_stats_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketStatsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9892,7 +9892,7 @@ fn destack_net_raw_set_header_included_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_RAW_SET_HEADER_INCLUDED,
         binding.replay_payload_for(NET_RAW_SET_HEADER_INCLUDED)?,
         || match world {
@@ -9916,7 +9916,7 @@ fn destack_net_raw_set_header_included_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawSetHeaderIncludedReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9944,7 +9944,7 @@ fn destack_net_raw_socket_replay(
 ) -> RuntimeResult<()> {
     let _ = (&family, &protocol);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_RAW_SOCKET,
         binding.replay_payload_for(NET_RAW_SOCKET)?,
         || match world {
@@ -9972,7 +9972,7 @@ fn destack_net_raw_socket_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawSocketReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10005,7 +10005,7 @@ fn destack_net_resolve_lookup_replay(
 ) -> RuntimeResult<()> {
     let _ = &query;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_RESOLVE_LOOKUP,
         binding.replay_payload_for(NET_RESOLVE_LOOKUP)?,
         || match world {
@@ -10059,7 +10059,7 @@ fn destack_net_resolve_lookup_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetResolveLookupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10114,7 +10114,7 @@ fn destack_net_resolve_reverse_lookup_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_RESOLVE_REVERSE_LOOKUP,
         binding.replay_payload_for(NET_RESOLVE_REVERSE_LOOKUP)?,
         || match world {
@@ -10155,7 +10155,7 @@ fn destack_net_resolve_reverse_lookup_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetResolveReverseLookupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10200,7 +10200,7 @@ fn destack_net_reuse_get_reuse_addr_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_REUSE_GET_REUSE_ADDR,
         binding.replay_payload_for(NET_REUSE_GET_REUSE_ADDR)?,
         || match world {
@@ -10228,7 +10228,7 @@ fn destack_net_reuse_get_reuse_addr_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetReuseGetReuseAddrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10261,7 +10261,7 @@ fn destack_net_reuse_get_reuse_port_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_REUSE_GET_REUSE_PORT,
         binding.replay_payload_for(NET_REUSE_GET_REUSE_PORT)?,
         || match world {
@@ -10289,7 +10289,7 @@ fn destack_net_reuse_get_reuse_port_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetReuseGetReusePortReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10322,7 +10322,7 @@ fn destack_net_reuse_set_reuse_addr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_REUSE_SET_REUSE_ADDR,
         binding.replay_payload_for(NET_REUSE_SET_REUSE_ADDR)?,
         || match world {
@@ -10344,7 +10344,7 @@ fn destack_net_reuse_set_reuse_addr_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetReuseSetReuseAddrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10371,7 +10371,7 @@ fn destack_net_reuse_set_reuse_port_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_REUSE_SET_REUSE_PORT,
         binding.replay_payload_for(NET_REUSE_SET_REUSE_PORT)?,
         || match world {
@@ -10393,7 +10393,7 @@ fn destack_net_reuse_set_reuse_port_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetReuseSetReusePortReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10419,7 +10419,7 @@ fn destack_net_route_route_add_replay(
 ) -> RuntimeResult<()> {
     let _ = &route;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_ROUTE_ROUTE_ADD,
         binding.replay_payload_for(NET_ROUTE_ROUTE_ADD)?,
         || match world {
@@ -10439,7 +10439,7 @@ fn destack_net_route_route_add_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRouteRouteAddReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10465,7 +10465,7 @@ fn destack_net_route_route_delete_replay(
 ) -> RuntimeResult<()> {
     let _ = &route;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_ROUTE_ROUTE_DELETE,
         binding.replay_payload_for(NET_ROUTE_ROUTE_DELETE)?,
         || match world {
@@ -10487,7 +10487,7 @@ fn destack_net_route_route_delete_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRouteRouteDeleteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10514,7 +10514,7 @@ fn destack_net_route_route_list_replay(
 ) -> RuntimeResult<()> {
     let _ = &family;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_ROUTE_ROUTE_LIST,
         binding.replay_payload_for(NET_ROUTE_ROUTE_LIST)?,
         || match world {
@@ -10610,7 +10610,7 @@ fn destack_net_route_route_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRouteRouteListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10704,7 +10704,7 @@ fn destack_net_socket_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_SOCKET_CLOSE,
         binding.replay_payload_for(NET_SOCKET_CLOSE)?,
         || match world {
@@ -10724,7 +10724,7 @@ fn destack_net_socket_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10751,7 +10751,7 @@ fn destack_net_socket_connect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &address);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_SOCKET_CONNECT,
         binding.replay_payload_for(NET_SOCKET_CONNECT)?,
         || match world {
@@ -10773,7 +10773,7 @@ fn destack_net_socket_connect_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketConnectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10802,7 +10802,7 @@ fn destack_net_socket_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&family, &sockettype, &protocol);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_SOCKET_OPEN,
         binding.replay_payload_for(NET_SOCKET_OPEN)?,
         || match world {
@@ -10832,7 +10832,7 @@ fn destack_net_socket_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10867,7 +10867,7 @@ fn destack_net_socket_open_pair_replay(
 ) -> RuntimeResult<()> {
     let _ = (&family, &sockettype, &protocol);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_SOCKET_OPEN_PAIR,
         binding.replay_payload_for(NET_SOCKET_OPEN_PAIR)?,
         || match world {
@@ -10902,7 +10902,7 @@ fn destack_net_socket_open_pair_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketOpenPairReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10941,7 +10941,7 @@ fn destack_net_socket_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_SOCKET_READ,
         binding.replay_payload_for(NET_SOCKET_READ)?,
         || match world {
@@ -10969,7 +10969,7 @@ fn destack_net_socket_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11003,7 +11003,7 @@ fn destack_net_socket_readv_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_SOCKET_READV,
         binding.replay_payload_for(NET_SOCKET_READV)?,
         || match world {
@@ -11031,7 +11031,7 @@ fn destack_net_socket_readv_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketReadvReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11066,7 +11066,7 @@ fn destack_net_socket_recv_from_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &recvflags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_SOCKET_RECV_FROM,
         binding.replay_payload_for(NET_SOCKET_RECV_FROM)?,
         || match world {
@@ -11120,7 +11120,7 @@ fn destack_net_socket_recv_from_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketRecvFromReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11186,7 +11186,7 @@ fn destack_net_socket_recv_mmsg_replay(
         &maxcontrolbytes,
     );
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_SOCKET_RECV_MMSG,
         binding.replay_payload_for(NET_SOCKET_RECV_MMSG)?,
         || match world {
@@ -11326,7 +11326,7 @@ fn destack_net_socket_recv_mmsg_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketRecvMmsgReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11455,7 +11455,7 @@ fn destack_net_socket_recv_msg_replay(
         &maxcontrolbytes,
     );
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_SOCKET_RECV_MSG,
         binding.replay_payload_for(NET_SOCKET_RECV_MSG)?,
         || match world {
@@ -11568,7 +11568,7 @@ fn destack_net_socket_recv_msg_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketRecvMsgReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11669,7 +11669,7 @@ fn destack_net_socket_send_mmsg_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &messages);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_SOCKET_SEND_MMSG,
         binding.replay_payload_for(NET_SOCKET_SEND_MMSG)?,
         || match world {
@@ -11697,7 +11697,7 @@ fn destack_net_socket_send_mmsg_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketSendMmsgReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11732,7 +11732,7 @@ fn destack_net_socket_send_msg_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &message);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_SOCKET_SEND_MSG,
         binding.replay_payload_for(NET_SOCKET_SEND_MSG)?,
         || match world {
@@ -11762,7 +11762,7 @@ fn destack_net_socket_send_msg_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketSendMsgReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11797,7 +11797,7 @@ fn destack_net_socket_send_to_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &message);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_SOCKET_SEND_TO,
         binding.replay_payload_for(NET_SOCKET_SEND_TO)?,
         || match world {
@@ -11827,7 +11827,7 @@ fn destack_net_socket_send_to_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketSendToReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11860,7 +11860,7 @@ fn destack_net_socket_set_nonblocking_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_SOCKET_SET_NONBLOCKING,
         binding.replay_payload_for(NET_SOCKET_SET_NONBLOCKING)?,
         || match world {
@@ -11882,7 +11882,7 @@ fn destack_net_socket_set_nonblocking_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketSetNonblockingReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11909,7 +11909,7 @@ fn destack_net_socket_shutdown_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &how);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_SOCKET_SHUTDOWN,
         binding.replay_payload_for(NET_SOCKET_SHUTDOWN)?,
         || match world {
@@ -11931,7 +11931,7 @@ fn destack_net_socket_shutdown_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketShutdownReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11959,7 +11959,7 @@ fn destack_net_socket_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_SOCKET_WRITE,
         binding.replay_payload_for(NET_SOCKET_WRITE)?,
         || match world {
@@ -11987,7 +11987,7 @@ fn destack_net_socket_write_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12021,7 +12021,7 @@ fn destack_net_socket_writev_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_SOCKET_WRITEV,
         binding.replay_payload_for(NET_SOCKET_WRITEV)?,
         || match world {
@@ -12049,7 +12049,7 @@ fn destack_net_socket_writev_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketWritevReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12082,7 +12082,7 @@ fn destack_net_tcp_get_keep_alive_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_TCP_GET_KEEP_ALIVE,
         binding.replay_payload_for(NET_TCP_GET_KEEP_ALIVE)?,
         || match world {
@@ -12119,7 +12119,7 @@ fn destack_net_tcp_get_keep_alive_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetTcpGetKeepAliveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12161,7 +12161,7 @@ fn destack_net_tcp_get_no_delay_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_TCP_GET_NO_DELAY,
         binding.replay_payload_for(NET_TCP_GET_NO_DELAY)?,
         || match world {
@@ -12189,7 +12189,7 @@ fn destack_net_tcp_get_no_delay_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetTcpGetNoDelayReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12222,7 +12222,7 @@ fn destack_net_tcp_set_keep_alive_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &config);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_TCP_SET_KEEP_ALIVE,
         binding.replay_payload_for(NET_TCP_SET_KEEP_ALIVE)?,
         || match world {
@@ -12244,7 +12244,7 @@ fn destack_net_tcp_set_keep_alive_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetTcpSetKeepAliveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12271,7 +12271,7 @@ fn destack_net_tcp_set_no_delay_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_TCP_SET_NO_DELAY,
         binding.replay_payload_for(NET_TCP_SET_NO_DELAY)?,
         || match world {
@@ -12293,7 +12293,7 @@ fn destack_net_tcp_set_no_delay_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetTcpSetNoDelayReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12320,7 +12320,7 @@ fn destack_net_udp_bind_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &address);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_BIND,
         binding.replay_payload_for(NET_UDP_BIND)?,
         || match world {
@@ -12342,7 +12342,7 @@ fn destack_net_udp_bind_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpBindReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12369,7 +12369,7 @@ fn destack_net_udp_connect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &address);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_CONNECT,
         binding.replay_payload_for(NET_UDP_CONNECT)?,
         || match world {
@@ -12391,7 +12391,7 @@ fn destack_net_udp_connect_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpConnectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12418,7 +12418,7 @@ fn destack_net_udp_get_multicast_interface_v4_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_GET_MULTICAST_INTERFACE_V4,
         binding.replay_payload_for(NET_UDP_GET_MULTICAST_INTERFACE_V4)?,
         || match world {
@@ -12448,7 +12448,7 @@ fn destack_net_udp_get_multicast_interface_v4_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpGetMulticastInterfaceV4Replay { result }
                 };
                 return Ok(Some(payload));
@@ -12481,7 +12481,7 @@ fn destack_net_udp_get_multicast_interface_v6_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_GET_MULTICAST_INTERFACE_V6,
         binding.replay_payload_for(NET_UDP_GET_MULTICAST_INTERFACE_V6)?,
         || match world {
@@ -12511,7 +12511,7 @@ fn destack_net_udp_get_multicast_interface_v6_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpGetMulticastInterfaceV6Replay { result }
                 };
                 return Ok(Some(payload));
@@ -12544,7 +12544,7 @@ fn destack_net_udp_get_multicast_loop_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_GET_MULTICAST_LOOP,
         binding.replay_payload_for(NET_UDP_GET_MULTICAST_LOOP)?,
         || match world {
@@ -12572,7 +12572,7 @@ fn destack_net_udp_get_multicast_loop_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpGetMulticastLoopReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12605,7 +12605,7 @@ fn destack_net_udp_get_multicast_ttl_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_GET_MULTICAST_TTL,
         binding.replay_payload_for(NET_UDP_GET_MULTICAST_TTL)?,
         || match world {
@@ -12633,7 +12633,7 @@ fn destack_net_udp_get_multicast_ttl_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpGetMulticastTtlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12666,7 +12666,7 @@ fn destack_net_udp_join_multicast_source_v4_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &membership);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_JOIN_MULTICAST_SOURCE_V4,
         binding.replay_payload_for(NET_UDP_JOIN_MULTICAST_SOURCE_V4)?,
         || match world {
@@ -12690,7 +12690,7 @@ fn destack_net_udp_join_multicast_source_v4_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpJoinMulticastSourceV4Replay { result }
                 };
                 return Ok(Some(payload));
@@ -12717,7 +12717,7 @@ fn destack_net_udp_join_multicast_source_v6_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &membership);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_JOIN_MULTICAST_SOURCE_V6,
         binding.replay_payload_for(NET_UDP_JOIN_MULTICAST_SOURCE_V6)?,
         || match world {
@@ -12741,7 +12741,7 @@ fn destack_net_udp_join_multicast_source_v6_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpJoinMulticastSourceV6Replay { result }
                 };
                 return Ok(Some(payload));
@@ -12769,7 +12769,7 @@ fn destack_net_udp_join_multicast_v4_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &group, &interfaceaddress);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_JOIN_MULTICAST_V4,
         binding.replay_payload_for(NET_UDP_JOIN_MULTICAST_V4)?,
         || match world {
@@ -12801,7 +12801,7 @@ fn destack_net_udp_join_multicast_v4_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpJoinMulticastV4Replay { result }
                 };
                 return Ok(Some(payload));
@@ -12829,7 +12829,7 @@ fn destack_net_udp_join_multicast_v6_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &group, &interfaceindex);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_JOIN_MULTICAST_V6,
         binding.replay_payload_for(NET_UDP_JOIN_MULTICAST_V6)?,
         || match world {
@@ -12861,7 +12861,7 @@ fn destack_net_udp_join_multicast_v6_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpJoinMulticastV6Replay { result }
                 };
                 return Ok(Some(payload));
@@ -12888,7 +12888,7 @@ fn destack_net_udp_leave_multicast_source_v4_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &membership);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_LEAVE_MULTICAST_SOURCE_V4,
         binding.replay_payload_for(NET_UDP_LEAVE_MULTICAST_SOURCE_V4)?,
         || match world {
@@ -12912,7 +12912,7 @@ fn destack_net_udp_leave_multicast_source_v4_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpLeaveMulticastSourceV4Replay { result }
                 };
                 return Ok(Some(payload));
@@ -12939,7 +12939,7 @@ fn destack_net_udp_leave_multicast_source_v6_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &membership);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_LEAVE_MULTICAST_SOURCE_V6,
         binding.replay_payload_for(NET_UDP_LEAVE_MULTICAST_SOURCE_V6)?,
         || match world {
@@ -12963,7 +12963,7 @@ fn destack_net_udp_leave_multicast_source_v6_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpLeaveMulticastSourceV6Replay { result }
                 };
                 return Ok(Some(payload));
@@ -12991,7 +12991,7 @@ fn destack_net_udp_leave_multicast_v4_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &group, &interfaceaddress);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_LEAVE_MULTICAST_V4,
         binding.replay_payload_for(NET_UDP_LEAVE_MULTICAST_V4)?,
         || match world {
@@ -13023,7 +13023,7 @@ fn destack_net_udp_leave_multicast_v4_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpLeaveMulticastV4Replay { result }
                 };
                 return Ok(Some(payload));
@@ -13051,7 +13051,7 @@ fn destack_net_udp_leave_multicast_v6_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &group, &interfaceindex);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_LEAVE_MULTICAST_V6,
         binding.replay_payload_for(NET_UDP_LEAVE_MULTICAST_V6)?,
         || match world {
@@ -13083,7 +13083,7 @@ fn destack_net_udp_leave_multicast_v6_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpLeaveMulticastV6Replay { result }
                 };
                 return Ok(Some(payload));
@@ -13112,7 +13112,7 @@ fn destack_net_udp_recv_from_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &recvflags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_RECV_FROM,
         binding.replay_payload_for(NET_UDP_RECV_FROM)?,
         || match world {
@@ -13166,7 +13166,7 @@ fn destack_net_udp_recv_from_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpRecvFromReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13225,7 +13225,7 @@ fn destack_net_udp_send_to_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &address, &buffer, &sendflags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_SEND_TO,
         binding.replay_payload_for(NET_UDP_SEND_TO)?,
         || match world {
@@ -13257,7 +13257,7 @@ fn destack_net_udp_send_to_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpSendToReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13290,7 +13290,7 @@ fn destack_net_udp_set_multicast_interface_v4_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &interfaceaddress);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_SET_MULTICAST_INTERFACE_V4,
         binding.replay_payload_for(NET_UDP_SET_MULTICAST_INTERFACE_V4)?,
         || match world {
@@ -13320,7 +13320,7 @@ fn destack_net_udp_set_multicast_interface_v4_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpSetMulticastInterfaceV4Replay { result }
                 };
                 return Ok(Some(payload));
@@ -13347,7 +13347,7 @@ fn destack_net_udp_set_multicast_interface_v6_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &interfaceindex);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_SET_MULTICAST_INTERFACE_V6,
         binding.replay_payload_for(NET_UDP_SET_MULTICAST_INTERFACE_V6)?,
         || match world {
@@ -13377,7 +13377,7 @@ fn destack_net_udp_set_multicast_interface_v6_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpSetMulticastInterfaceV6Replay { result }
                 };
                 return Ok(Some(payload));
@@ -13404,7 +13404,7 @@ fn destack_net_udp_set_multicast_loop_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_SET_MULTICAST_LOOP,
         binding.replay_payload_for(NET_UDP_SET_MULTICAST_LOOP)?,
         || match world {
@@ -13426,7 +13426,7 @@ fn destack_net_udp_set_multicast_loop_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpSetMulticastLoopReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13453,7 +13453,7 @@ fn destack_net_udp_set_multicast_ttl_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &ttl);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_SET_MULTICAST_TTL,
         binding.replay_payload_for(NET_UDP_SET_MULTICAST_TTL)?,
         || match world {
@@ -13475,7 +13475,7 @@ fn destack_net_udp_set_multicast_ttl_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpSetMulticastTtlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13502,7 +13502,7 @@ fn destack_net_udp_socket_replay(
 ) -> RuntimeResult<()> {
     let _ = &family;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDP_SOCKET,
         binding.replay_payload_for(NET_UDP_SOCKET)?,
         || match world {
@@ -13530,7 +13530,7 @@ fn destack_net_udp_socket_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpSocketReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13563,7 +13563,7 @@ fn destack_net_uds_uds_accept_replay(
 ) -> RuntimeResult<()> {
     let _ = &listener;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDS_UDS_ACCEPT,
         binding.replay_payload_for(NET_UDS_UDS_ACCEPT)?,
         || match world {
@@ -13591,7 +13591,7 @@ fn destack_net_uds_uds_accept_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdsUdsAcceptReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13623,7 +13623,7 @@ fn destack_net_uds_uds_close_listener_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDS_UDS_CLOSE_LISTENER,
         binding.replay_payload_for(NET_UDS_UDS_CLOSE_LISTENER)?,
         || match world {
@@ -13645,7 +13645,7 @@ fn destack_net_uds_uds_close_listener_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdsUdsCloseListenerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13672,7 +13672,7 @@ fn destack_net_uds_uds_connect_replay(
 ) -> RuntimeResult<()> {
     let _ = &address;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDS_UDS_CONNECT,
         binding.replay_payload_for(NET_UDS_UDS_CONNECT)?,
         || match world {
@@ -13700,7 +13700,7 @@ fn destack_net_uds_uds_connect_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdsUdsConnectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13734,7 +13734,7 @@ fn destack_net_uds_uds_listen_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &backlog);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDS_UDS_LISTEN,
         binding.replay_payload_for(NET_UDS_UDS_LISTEN)?,
         || match world {
@@ -13762,7 +13762,7 @@ fn destack_net_uds_uds_listen_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdsUdsListenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13795,7 +13795,7 @@ fn destack_net_uds_uds_socket_pair_replay(
 ) -> RuntimeResult<()> {
     let _ = &sockettype;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         NET_UDS_UDS_SOCKET_PAIR,
         binding.replay_payload_for(NET_UDS_UDS_SOCKET_PAIR)?,
         || match world {
@@ -13828,7 +13828,7 @@ fn destack_net_uds_uds_socket_pair_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdsUdsSocketPairReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15544,7 +15544,7 @@ fn destack_net_address_local_address_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_ADDRESS_LOCAL_ADDRESS,
         binding.replay_payload_for(NET_ADDRESS_LOCAL_ADDRESS)?,
         context,
@@ -15574,7 +15574,7 @@ fn destack_net_address_local_address_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetAddressLocalAddressReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15612,7 +15612,7 @@ fn destack_net_address_peer_address_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_ADDRESS_PEER_ADDRESS,
         binding.replay_payload_for(NET_ADDRESS_PEER_ADDRESS)?,
         context,
@@ -15642,7 +15642,7 @@ fn destack_net_address_peer_address_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetAddressPeerAddressReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15680,7 +15680,7 @@ fn destack_net_interface_interface_index_vm_replay(
     world: RuntimeWorld,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_INTERFACE_INTERFACE_INDEX,
         binding.replay_payload_for(NET_INTERFACE_INTERFACE_INDEX)?,
         context,
@@ -15703,7 +15703,7 @@ fn destack_net_interface_interface_index_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetInterfaceInterfaceIndexReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15734,7 +15734,7 @@ fn destack_net_interface_interface_name_vm_replay(
     world: RuntimeWorld,
     index: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_INTERFACE_INTERFACE_NAME,
         binding.replay_payload_for(NET_INTERFACE_INTERFACE_NAME)?,
         context,
@@ -15762,7 +15762,7 @@ fn destack_net_interface_interface_name_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetInterfaceInterfaceNameReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15793,7 +15793,7 @@ fn destack_net_interface_list_interfaces_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_INTERFACE_LIST_INTERFACES,
         binding.replay_payload_for(NET_INTERFACE_LIST_INTERFACES)?,
         context,
@@ -15963,7 +15963,7 @@ fn destack_net_interface_list_interfaces_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetInterfaceListInterfacesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16078,7 +16078,7 @@ fn destack_net_listener_accept_vm_replay(
     listener: resource::ListenerHandle,
     flags: AcceptFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_LISTENER_ACCEPT,
         binding.replay_payload_for(NET_LISTENER_ACCEPT)?,
         context,
@@ -16103,7 +16103,7 @@ fn destack_net_listener_accept_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetListenerAcceptReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16135,7 +16135,7 @@ fn destack_net_listener_bind_vm_replay(
     handle: resource::SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_LISTENER_BIND,
         binding.replay_payload_for(NET_LISTENER_BIND)?,
         context,
@@ -16157,7 +16157,7 @@ fn destack_net_listener_bind_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetListenerBindReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16185,7 +16185,7 @@ fn destack_net_listener_close_listener_vm_replay(
     world: RuntimeWorld,
     handle: resource::ListenerHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_LISTENER_CLOSE_LISTENER,
         binding.replay_payload_for(NET_LISTENER_CLOSE_LISTENER)?,
         context,
@@ -16207,7 +16207,7 @@ fn destack_net_listener_close_listener_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetListenerCloseListenerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16236,7 +16236,7 @@ fn destack_net_listener_listen_vm_replay(
     address: SocketAddressVm,
     backlog: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_LISTENER_LISTEN,
         binding.replay_payload_for(NET_LISTENER_LISTEN)?,
         context,
@@ -16261,7 +16261,7 @@ fn destack_net_listener_listen_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetListenerListenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16292,7 +16292,7 @@ fn destack_net_options_get_broadcast_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_GET_BROADCAST,
         binding.replay_payload_for(NET_OPTIONS_GET_BROADCAST)?,
         context,
@@ -16315,7 +16315,7 @@ fn destack_net_options_get_broadcast_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetBroadcastReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16346,7 +16346,7 @@ fn destack_net_options_get_linger_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_GET_LINGER,
         binding.replay_payload_for(NET_OPTIONS_GET_LINGER)?,
         context,
@@ -16374,7 +16374,7 @@ fn destack_net_options_get_linger_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetLingerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16410,7 +16410,7 @@ fn destack_net_options_get_only_v6_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_GET_ONLY_V6,
         binding.replay_payload_for(NET_OPTIONS_GET_ONLY_V6)?,
         context,
@@ -16433,7 +16433,7 @@ fn destack_net_options_get_only_v6_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetOnlyV6Replay { result }
                 };
                 return Ok(Some(payload));
@@ -16464,7 +16464,7 @@ fn destack_net_options_get_packet_mark_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_GET_PACKET_MARK,
         binding.replay_payload_for(NET_OPTIONS_GET_PACKET_MARK)?,
         context,
@@ -16489,7 +16489,7 @@ fn destack_net_options_get_packet_mark_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetPacketMarkReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16520,7 +16520,7 @@ fn destack_net_options_get_read_timeout_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_GET_READ_TIMEOUT,
         binding.replay_payload_for(NET_OPTIONS_GET_READ_TIMEOUT)?,
         context,
@@ -16545,7 +16545,7 @@ fn destack_net_options_get_read_timeout_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetReadTimeoutReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16576,7 +16576,7 @@ fn destack_net_options_get_recv_buffer_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_GET_RECV_BUFFER,
         binding.replay_payload_for(NET_OPTIONS_GET_RECV_BUFFER)?,
         context,
@@ -16601,7 +16601,7 @@ fn destack_net_options_get_recv_buffer_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetRecvBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16632,7 +16632,7 @@ fn destack_net_options_get_send_buffer_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_GET_SEND_BUFFER,
         binding.replay_payload_for(NET_OPTIONS_GET_SEND_BUFFER)?,
         context,
@@ -16657,7 +16657,7 @@ fn destack_net_options_get_send_buffer_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetSendBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16691,7 +16691,7 @@ fn destack_net_options_get_sock_opt_raw_vm_replay(
     name: SocketOptionName,
     maxbytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_GET_SOCK_OPT_RAW,
         binding.replay_payload_for(NET_OPTIONS_GET_SOCK_OPT_RAW)?,
         context,
@@ -16716,7 +16716,7 @@ fn destack_net_options_get_sock_opt_raw_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetSockOptRawReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16747,7 +16747,7 @@ fn destack_net_options_get_timestamping_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_GET_TIMESTAMPING,
         binding.replay_payload_for(NET_OPTIONS_GET_TIMESTAMPING)?,
         context,
@@ -16772,7 +16772,7 @@ fn destack_net_options_get_timestamping_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetTimestampingReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16803,7 +16803,7 @@ fn destack_net_options_get_tos_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_GET_TOS,
         binding.replay_payload_for(NET_OPTIONS_GET_TOS)?,
         context,
@@ -16826,7 +16826,7 @@ fn destack_net_options_get_tos_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetTosReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16857,7 +16857,7 @@ fn destack_net_options_get_ttl_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_GET_TTL,
         binding.replay_payload_for(NET_OPTIONS_GET_TTL)?,
         context,
@@ -16880,7 +16880,7 @@ fn destack_net_options_get_ttl_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetTtlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16911,7 +16911,7 @@ fn destack_net_options_get_write_timeout_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_GET_WRITE_TIMEOUT,
         binding.replay_payload_for(NET_OPTIONS_GET_WRITE_TIMEOUT)?,
         context,
@@ -16936,7 +16936,7 @@ fn destack_net_options_get_write_timeout_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsGetWriteTimeoutReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16968,7 +16968,7 @@ fn destack_net_options_set_broadcast_vm_replay(
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_SET_BROADCAST,
         binding.replay_payload_for(NET_OPTIONS_SET_BROADCAST)?,
         context,
@@ -16992,7 +16992,7 @@ fn destack_net_options_set_broadcast_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetBroadcastReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17021,7 +17021,7 @@ fn destack_net_options_set_linger_vm_replay(
     handle: resource::SocketHandle,
     linger: LingerVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_SET_LINGER,
         binding.replay_payload_for(NET_OPTIONS_SET_LINGER)?,
         context,
@@ -17045,7 +17045,7 @@ fn destack_net_options_set_linger_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetLingerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17074,7 +17074,7 @@ fn destack_net_options_set_only_v6_vm_replay(
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_SET_ONLY_V6,
         binding.replay_payload_for(NET_OPTIONS_SET_ONLY_V6)?,
         context,
@@ -17098,7 +17098,7 @@ fn destack_net_options_set_only_v6_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetOnlyV6Replay { result }
                 };
                 return Ok(Some(payload));
@@ -17127,7 +17127,7 @@ fn destack_net_options_set_packet_mark_vm_replay(
     handle: resource::SocketHandle,
     mark: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_SET_PACKET_MARK,
         binding.replay_payload_for(NET_OPTIONS_SET_PACKET_MARK)?,
         context,
@@ -17151,7 +17151,7 @@ fn destack_net_options_set_packet_mark_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetPacketMarkReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17180,7 +17180,7 @@ fn destack_net_options_set_read_timeout_vm_replay(
     handle: resource::SocketHandle,
     timeoutms: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_SET_READ_TIMEOUT,
         binding.replay_payload_for(NET_OPTIONS_SET_READ_TIMEOUT)?,
         context,
@@ -17204,7 +17204,7 @@ fn destack_net_options_set_read_timeout_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetReadTimeoutReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17233,7 +17233,7 @@ fn destack_net_options_set_recv_buffer_vm_replay(
     handle: resource::SocketHandle,
     size: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_SET_RECV_BUFFER,
         binding.replay_payload_for(NET_OPTIONS_SET_RECV_BUFFER)?,
         context,
@@ -17257,7 +17257,7 @@ fn destack_net_options_set_recv_buffer_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetRecvBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17286,7 +17286,7 @@ fn destack_net_options_set_send_buffer_vm_replay(
     handle: resource::SocketHandle,
     size: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_SET_SEND_BUFFER,
         binding.replay_payload_for(NET_OPTIONS_SET_SEND_BUFFER)?,
         context,
@@ -17310,7 +17310,7 @@ fn destack_net_options_set_send_buffer_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetSendBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17341,7 +17341,7 @@ fn destack_net_options_set_sock_opt_raw_vm_replay(
     name: SocketOptionName,
     argument_value: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_SET_SOCK_OPT_RAW,
         binding.replay_payload_for(NET_OPTIONS_SET_SOCK_OPT_RAW)?,
         context,
@@ -17375,7 +17375,7 @@ fn destack_net_options_set_sock_opt_raw_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetSockOptRawReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17404,7 +17404,7 @@ fn destack_net_options_set_timestamping_vm_replay(
     handle: resource::SocketHandle,
     mode: SocketTimestampingMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_SET_TIMESTAMPING,
         binding.replay_payload_for(NET_OPTIONS_SET_TIMESTAMPING)?,
         context,
@@ -17428,7 +17428,7 @@ fn destack_net_options_set_timestamping_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetTimestampingReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17457,7 +17457,7 @@ fn destack_net_options_set_tos_vm_replay(
     handle: resource::SocketHandle,
     tos: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_SET_TOS,
         binding.replay_payload_for(NET_OPTIONS_SET_TOS)?,
         context,
@@ -17479,7 +17479,7 @@ fn destack_net_options_set_tos_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetTosReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17508,7 +17508,7 @@ fn destack_net_options_set_ttl_vm_replay(
     handle: resource::SocketHandle,
     ttl: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_SET_TTL,
         binding.replay_payload_for(NET_OPTIONS_SET_TTL)?,
         context,
@@ -17530,7 +17530,7 @@ fn destack_net_options_set_ttl_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetTtlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17559,7 +17559,7 @@ fn destack_net_options_set_write_timeout_vm_replay(
     handle: resource::SocketHandle,
     timeoutms: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_OPTIONS_SET_WRITE_TIMEOUT,
         binding.replay_payload_for(NET_OPTIONS_SET_WRITE_TIMEOUT)?,
         context,
@@ -17583,7 +17583,7 @@ fn destack_net_options_set_write_timeout_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetOptionsSetWriteTimeoutReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17610,7 +17610,7 @@ fn destack_net_raw_packet_backend_list_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_RAW_PACKET_BACKEND_LIST,
         binding.replay_payload_for(NET_RAW_PACKET_BACKEND_LIST)?,
         context,
@@ -17713,7 +17713,7 @@ fn destack_net_raw_packet_backend_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketBackendListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17781,7 +17781,7 @@ fn destack_net_raw_packet_clear_fanout_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_RAW_PACKET_CLEAR_FANOUT,
         binding.replay_payload_for(NET_RAW_PACKET_CLEAR_FANOUT)?,
         context,
@@ -17805,7 +17805,7 @@ fn destack_net_raw_packet_clear_fanout_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketClearFanoutReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17833,7 +17833,7 @@ fn destack_net_raw_packet_clear_filter_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_RAW_PACKET_CLEAR_FILTER,
         binding.replay_payload_for(NET_RAW_PACKET_CLEAR_FILTER)?,
         context,
@@ -17857,7 +17857,7 @@ fn destack_net_raw_packet_clear_filter_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketClearFilterReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17885,7 +17885,7 @@ fn destack_net_raw_packet_clear_ring_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_RAW_PACKET_CLEAR_RING,
         binding.replay_payload_for(NET_RAW_PACKET_CLEAR_RING)?,
         context,
@@ -17909,7 +17909,7 @@ fn destack_net_raw_packet_clear_ring_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketClearRingReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17937,7 +17937,7 @@ fn destack_net_raw_packet_open_vm_replay(
     world: RuntimeWorld,
     options: PacketCaptureOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_RAW_PACKET_OPEN,
         binding.replay_payload_for(NET_RAW_PACKET_OPEN)?,
         context,
@@ -17960,7 +17960,7 @@ fn destack_net_raw_packet_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17992,7 +17992,7 @@ fn destack_net_raw_packet_receive_vm_replay(
     handle: resource::SocketHandle,
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_RAW_PACKET_RECEIVE,
         binding.replay_payload_for(NET_RAW_PACKET_RECEIVE)?,
         context,
@@ -18029,7 +18029,7 @@ fn destack_net_raw_packet_receive_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketReceiveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18070,7 +18070,7 @@ fn destack_net_raw_packet_send_vm_replay(
     handle: resource::SocketHandle,
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_RAW_PACKET_SEND,
         binding.replay_payload_for(NET_RAW_PACKET_SEND)?,
         context,
@@ -18098,7 +18098,7 @@ fn destack_net_raw_packet_send_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketSendReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18130,7 +18130,7 @@ fn destack_net_raw_packet_set_fanout_vm_replay(
     handle: resource::SocketHandle,
     options: PacketFanoutOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_RAW_PACKET_SET_FANOUT,
         binding.replay_payload_for(NET_RAW_PACKET_SET_FANOUT)?,
         context,
@@ -18154,7 +18154,7 @@ fn destack_net_raw_packet_set_fanout_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketSetFanoutReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18183,7 +18183,7 @@ fn destack_net_raw_packet_set_filter_vm_replay(
     handle: resource::SocketHandle,
     filterprogram: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_RAW_PACKET_SET_FILTER,
         binding.replay_payload_for(NET_RAW_PACKET_SET_FILTER)?,
         context,
@@ -18210,7 +18210,7 @@ fn destack_net_raw_packet_set_filter_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketSetFilterReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18239,7 +18239,7 @@ fn destack_net_raw_packet_set_rx_ring_vm_replay(
     handle: resource::SocketHandle,
     options: PacketRingOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_RAW_PACKET_SET_RX_RING,
         binding.replay_payload_for(NET_RAW_PACKET_SET_RX_RING)?,
         context,
@@ -18263,7 +18263,7 @@ fn destack_net_raw_packet_set_rx_ring_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketSetRxRingReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18292,7 +18292,7 @@ fn destack_net_raw_packet_set_timestamp_mode_vm_replay(
     handle: resource::SocketHandle,
     mode: PacketTimestampMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_RAW_PACKET_SET_TIMESTAMP_MODE,
         binding.replay_payload_for(NET_RAW_PACKET_SET_TIMESTAMP_MODE)?,
         context,
@@ -18318,7 +18318,7 @@ fn destack_net_raw_packet_set_timestamp_mode_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketSetTimestampModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18347,7 +18347,7 @@ fn destack_net_raw_packet_set_tx_ring_vm_replay(
     handle: resource::SocketHandle,
     options: PacketRingOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_RAW_PACKET_SET_TX_RING,
         binding.replay_payload_for(NET_RAW_PACKET_SET_TX_RING)?,
         context,
@@ -18371,7 +18371,7 @@ fn destack_net_raw_packet_set_tx_ring_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketSetTxRingReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18399,7 +18399,7 @@ fn destack_net_raw_packet_stats_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_RAW_PACKET_STATS,
         binding.replay_payload_for(NET_RAW_PACKET_STATS)?,
         context,
@@ -18430,7 +18430,7 @@ fn destack_net_raw_packet_stats_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawPacketStatsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18469,7 +18469,7 @@ fn destack_net_raw_set_header_included_vm_replay(
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_RAW_SET_HEADER_INCLUDED,
         binding.replay_payload_for(NET_RAW_SET_HEADER_INCLUDED)?,
         context,
@@ -18495,7 +18495,7 @@ fn destack_net_raw_set_header_included_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawSetHeaderIncludedReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18524,7 +18524,7 @@ fn destack_net_raw_socket_vm_replay(
     family: SocketFamily,
     protocol: i32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_RAW_SOCKET,
         binding.replay_payload_for(NET_RAW_SOCKET)?,
         context,
@@ -18549,7 +18549,7 @@ fn destack_net_raw_socket_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRawSocketReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18580,7 +18580,7 @@ fn destack_net_resolve_lookup_vm_replay(
     world: RuntimeWorld,
     query: ResolveQueryVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_RESOLVE_LOOKUP,
         binding.replay_payload_for(NET_RESOLVE_LOOKUP)?,
         context,
@@ -18650,7 +18650,7 @@ fn destack_net_resolve_lookup_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetResolveLookupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18708,7 +18708,7 @@ fn destack_net_resolve_reverse_lookup_vm_replay(
     address: SocketAddressVm,
     flags: ReverseLookupFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_RESOLVE_REVERSE_LOOKUP,
         binding.replay_payload_for(NET_RESOLVE_REVERSE_LOOKUP)?,
         context,
@@ -18782,7 +18782,7 @@ fn destack_net_resolve_reverse_lookup_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetResolveReverseLookupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18841,7 +18841,7 @@ fn destack_net_reuse_get_reuse_addr_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_REUSE_GET_REUSE_ADDR,
         binding.replay_payload_for(NET_REUSE_GET_REUSE_ADDR)?,
         context,
@@ -18864,7 +18864,7 @@ fn destack_net_reuse_get_reuse_addr_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetReuseGetReuseAddrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18895,7 +18895,7 @@ fn destack_net_reuse_get_reuse_port_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_REUSE_GET_REUSE_PORT,
         binding.replay_payload_for(NET_REUSE_GET_REUSE_PORT)?,
         context,
@@ -18918,7 +18918,7 @@ fn destack_net_reuse_get_reuse_port_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetReuseGetReusePortReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18950,7 +18950,7 @@ fn destack_net_reuse_set_reuse_addr_vm_replay(
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_REUSE_SET_REUSE_ADDR,
         binding.replay_payload_for(NET_REUSE_SET_REUSE_ADDR)?,
         context,
@@ -18974,7 +18974,7 @@ fn destack_net_reuse_set_reuse_addr_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetReuseSetReuseAddrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19003,7 +19003,7 @@ fn destack_net_reuse_set_reuse_port_vm_replay(
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_REUSE_SET_REUSE_PORT,
         binding.replay_payload_for(NET_REUSE_SET_REUSE_PORT)?,
         context,
@@ -19027,7 +19027,7 @@ fn destack_net_reuse_set_reuse_port_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetReuseSetReusePortReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19055,7 +19055,7 @@ fn destack_net_route_route_add_vm_replay(
     world: RuntimeWorld,
     route: RouteEntryVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_ROUTE_ROUTE_ADD,
         binding.replay_payload_for(NET_ROUTE_ROUTE_ADD)?,
         context,
@@ -19077,7 +19077,7 @@ fn destack_net_route_route_add_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRouteRouteAddReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19105,7 +19105,7 @@ fn destack_net_route_route_delete_vm_replay(
     world: RuntimeWorld,
     route: RouteEntryVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_ROUTE_ROUTE_DELETE,
         binding.replay_payload_for(NET_ROUTE_ROUTE_DELETE)?,
         context,
@@ -19127,7 +19127,7 @@ fn destack_net_route_route_delete_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRouteRouteDeleteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19155,7 +19155,7 @@ fn destack_net_route_route_list_vm_replay(
     world: RuntimeWorld,
     family: SocketFamily,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_ROUTE_ROUTE_LIST,
         binding.replay_payload_for(NET_ROUTE_ROUTE_LIST)?,
         context,
@@ -19382,7 +19382,7 @@ fn destack_net_route_route_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetRouteRouteListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19495,7 +19495,7 @@ fn destack_net_socket_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_SOCKET_CLOSE,
         binding.replay_payload_for(NET_SOCKET_CLOSE)?,
         context,
@@ -19517,7 +19517,7 @@ fn destack_net_socket_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19546,7 +19546,7 @@ fn destack_net_socket_connect_vm_replay(
     handle: resource::SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_SOCKET_CONNECT,
         binding.replay_payload_for(NET_SOCKET_CONNECT)?,
         context,
@@ -19570,7 +19570,7 @@ fn destack_net_socket_connect_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketConnectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19600,7 +19600,7 @@ fn destack_net_socket_open_vm_replay(
     sockettype: SocketType,
     protocol: SocketProtocol,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_SOCKET_OPEN,
         binding.replay_payload_for(NET_SOCKET_OPEN)?,
         context,
@@ -19625,7 +19625,7 @@ fn destack_net_socket_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19658,7 +19658,7 @@ fn destack_net_socket_open_pair_vm_replay(
     sockettype: SocketType,
     protocol: SocketProtocol,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_SOCKET_OPEN_PAIR,
         binding.replay_payload_for(NET_SOCKET_OPEN_PAIR)?,
         context,
@@ -19688,7 +19688,7 @@ fn destack_net_socket_open_pair_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketOpenPairReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19725,7 +19725,7 @@ fn destack_net_socket_read_vm_replay(
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_SOCKET_READ,
         binding.replay_payload_for(NET_SOCKET_READ)?,
         context,
@@ -19748,7 +19748,7 @@ fn destack_net_socket_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19780,7 +19780,7 @@ fn destack_net_socket_readv_vm_replay(
     handle: resource::SocketHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_SOCKET_READV,
         binding.replay_payload_for(NET_SOCKET_READV)?,
         context,
@@ -19803,7 +19803,7 @@ fn destack_net_socket_readv_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketReadvReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19836,7 +19836,7 @@ fn destack_net_socket_recv_from_vm_replay(
     buffer: VmSlice<u8>,
     recvflags: SocketMessageFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_SOCKET_RECV_FROM,
         binding.replay_payload_for(NET_SOCKET_RECV_FROM)?,
         context,
@@ -19876,7 +19876,7 @@ fn destack_net_socket_recv_from_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketRecvFromReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19926,7 +19926,7 @@ fn destack_net_socket_recv_mmsg_vm_replay(
     wantcredentials: bool,
     maxcontrolbytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_SOCKET_RECV_MMSG,
         binding.replay_payload_for(NET_SOCKET_RECV_MMSG)?,
         context,
@@ -20203,7 +20203,7 @@ fn destack_net_socket_recv_mmsg_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketRecvMmsgReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20342,7 +20342,7 @@ fn destack_net_socket_recv_msg_vm_replay(
     wantcredentials: bool,
     maxcontrolbytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_SOCKET_RECV_MSG,
         binding.replay_payload_for(NET_SOCKET_RECV_MSG)?,
         context,
@@ -20437,7 +20437,7 @@ fn destack_net_socket_recv_msg_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketRecvMsgReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20521,7 +20521,7 @@ fn destack_net_socket_send_mmsg_vm_replay(
     handle: resource::SocketHandle,
     messages: VmSlice<SocketSendBatchEntryVm>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_SOCKET_SEND_MMSG,
         binding.replay_payload_for(NET_SOCKET_SEND_MMSG)?,
         context,
@@ -20546,7 +20546,7 @@ fn destack_net_socket_send_mmsg_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketSendMmsgReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20579,7 +20579,7 @@ fn destack_net_socket_send_msg_vm_replay(
     buffer: VmSlice<u8>,
     message: SocketSendMessageVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_SOCKET_SEND_MSG,
         binding.replay_payload_for(NET_SOCKET_SEND_MSG)?,
         context,
@@ -20604,7 +20604,7 @@ fn destack_net_socket_send_msg_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketSendMsgReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20637,7 +20637,7 @@ fn destack_net_socket_send_to_vm_replay(
     buffer: VmSlice<u8>,
     message: SocketSendToVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_SOCKET_SEND_TO,
         binding.replay_payload_for(NET_SOCKET_SEND_TO)?,
         context,
@@ -20662,7 +20662,7 @@ fn destack_net_socket_send_to_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketSendToReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20694,7 +20694,7 @@ fn destack_net_socket_set_nonblocking_vm_replay(
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_SOCKET_SET_NONBLOCKING,
         binding.replay_payload_for(NET_SOCKET_SET_NONBLOCKING)?,
         context,
@@ -20718,7 +20718,7 @@ fn destack_net_socket_set_nonblocking_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketSetNonblockingReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20747,7 +20747,7 @@ fn destack_net_socket_shutdown_vm_replay(
     handle: resource::SocketHandle,
     how: SocketShutdown,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_SOCKET_SHUTDOWN,
         binding.replay_payload_for(NET_SOCKET_SHUTDOWN)?,
         context,
@@ -20769,7 +20769,7 @@ fn destack_net_socket_shutdown_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketShutdownReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20798,7 +20798,7 @@ fn destack_net_socket_write_vm_replay(
     handle: resource::SocketHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_SOCKET_WRITE,
         binding.replay_payload_for(NET_SOCKET_WRITE)?,
         context,
@@ -20821,7 +20821,7 @@ fn destack_net_socket_write_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20853,7 +20853,7 @@ fn destack_net_socket_writev_vm_replay(
     handle: resource::SocketHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_SOCKET_WRITEV,
         binding.replay_payload_for(NET_SOCKET_WRITEV)?,
         context,
@@ -20878,7 +20878,7 @@ fn destack_net_socket_writev_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetSocketWritevReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20909,7 +20909,7 @@ fn destack_net_tcp_get_keep_alive_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_TCP_GET_KEEP_ALIVE,
         binding.replay_payload_for(NET_TCP_GET_KEEP_ALIVE)?,
         context,
@@ -20941,7 +20941,7 @@ fn destack_net_tcp_get_keep_alive_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetTcpGetKeepAliveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20981,7 +20981,7 @@ fn destack_net_tcp_get_no_delay_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_TCP_GET_NO_DELAY,
         binding.replay_payload_for(NET_TCP_GET_NO_DELAY)?,
         context,
@@ -21004,7 +21004,7 @@ fn destack_net_tcp_get_no_delay_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetTcpGetNoDelayReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21036,7 +21036,7 @@ fn destack_net_tcp_set_keep_alive_vm_replay(
     handle: resource::SocketHandle,
     config: KeepAliveConfigVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_TCP_SET_KEEP_ALIVE,
         binding.replay_payload_for(NET_TCP_SET_KEEP_ALIVE)?,
         context,
@@ -21060,7 +21060,7 @@ fn destack_net_tcp_set_keep_alive_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetTcpSetKeepAliveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21089,7 +21089,7 @@ fn destack_net_tcp_set_no_delay_vm_replay(
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_TCP_SET_NO_DELAY,
         binding.replay_payload_for(NET_TCP_SET_NO_DELAY)?,
         context,
@@ -21113,7 +21113,7 @@ fn destack_net_tcp_set_no_delay_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetTcpSetNoDelayReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21142,7 +21142,7 @@ fn destack_net_udp_bind_vm_replay(
     handle: resource::SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_BIND,
         binding.replay_payload_for(NET_UDP_BIND)?,
         context,
@@ -21166,7 +21166,7 @@ fn destack_net_udp_bind_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpBindReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21195,7 +21195,7 @@ fn destack_net_udp_connect_vm_replay(
     handle: resource::SocketHandle,
     address: SocketAddressVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_CONNECT,
         binding.replay_payload_for(NET_UDP_CONNECT)?,
         context,
@@ -21219,7 +21219,7 @@ fn destack_net_udp_connect_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpConnectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21247,7 +21247,7 @@ fn destack_net_udp_get_multicast_interface_v4_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_GET_MULTICAST_INTERFACE_V4,
         binding.replay_payload_for(NET_UDP_GET_MULTICAST_INTERFACE_V4)?,
         context,
@@ -21279,7 +21279,7 @@ fn destack_net_udp_get_multicast_interface_v4_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpGetMulticastInterfaceV4Replay { result }
                 };
                 return Ok(Some(payload));
@@ -21311,7 +21311,7 @@ fn destack_net_udp_get_multicast_interface_v6_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_GET_MULTICAST_INTERFACE_V6,
         binding.replay_payload_for(NET_UDP_GET_MULTICAST_INTERFACE_V6)?,
         context,
@@ -21338,7 +21338,7 @@ fn destack_net_udp_get_multicast_interface_v6_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpGetMulticastInterfaceV6Replay { result }
                 };
                 return Ok(Some(payload));
@@ -21369,7 +21369,7 @@ fn destack_net_udp_get_multicast_loop_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_GET_MULTICAST_LOOP,
         binding.replay_payload_for(NET_UDP_GET_MULTICAST_LOOP)?,
         context,
@@ -21394,7 +21394,7 @@ fn destack_net_udp_get_multicast_loop_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpGetMulticastLoopReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21425,7 +21425,7 @@ fn destack_net_udp_get_multicast_ttl_vm_replay(
     world: RuntimeWorld,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_GET_MULTICAST_TTL,
         binding.replay_payload_for(NET_UDP_GET_MULTICAST_TTL)?,
         context,
@@ -21450,7 +21450,7 @@ fn destack_net_udp_get_multicast_ttl_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpGetMulticastTtlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21482,7 +21482,7 @@ fn destack_net_udp_join_multicast_source_v4_vm_replay(
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV4Vm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_JOIN_MULTICAST_SOURCE_V4,
         binding.replay_payload_for(NET_UDP_JOIN_MULTICAST_SOURCE_V4)?,
         context,
@@ -21508,7 +21508,7 @@ fn destack_net_udp_join_multicast_source_v4_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpJoinMulticastSourceV4Replay { result }
                 };
                 return Ok(Some(payload));
@@ -21537,7 +21537,7 @@ fn destack_net_udp_join_multicast_source_v6_vm_replay(
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV6Vm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_JOIN_MULTICAST_SOURCE_V6,
         binding.replay_payload_for(NET_UDP_JOIN_MULTICAST_SOURCE_V6)?,
         context,
@@ -21563,7 +21563,7 @@ fn destack_net_udp_join_multicast_source_v6_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpJoinMulticastSourceV6Replay { result }
                 };
                 return Ok(Some(payload));
@@ -21593,7 +21593,7 @@ fn destack_net_udp_join_multicast_v4_vm_replay(
     group: vm::StringHandle,
     interfaceaddress: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_JOIN_MULTICAST_V4,
         binding.replay_payload_for(NET_UDP_JOIN_MULTICAST_V4)?,
         context,
@@ -21625,7 +21625,7 @@ fn destack_net_udp_join_multicast_v4_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpJoinMulticastV4Replay { result }
                 };
                 return Ok(Some(payload));
@@ -21655,7 +21655,7 @@ fn destack_net_udp_join_multicast_v6_vm_replay(
     group: vm::StringHandle,
     interfaceindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_JOIN_MULTICAST_V6,
         binding.replay_payload_for(NET_UDP_JOIN_MULTICAST_V6)?,
         context,
@@ -21687,7 +21687,7 @@ fn destack_net_udp_join_multicast_v6_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpJoinMulticastV6Replay { result }
                 };
                 return Ok(Some(payload));
@@ -21716,7 +21716,7 @@ fn destack_net_udp_leave_multicast_source_v4_vm_replay(
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV4Vm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_LEAVE_MULTICAST_SOURCE_V4,
         binding.replay_payload_for(NET_UDP_LEAVE_MULTICAST_SOURCE_V4)?,
         context,
@@ -21742,7 +21742,7 @@ fn destack_net_udp_leave_multicast_source_v4_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpLeaveMulticastSourceV4Replay { result }
                 };
                 return Ok(Some(payload));
@@ -21771,7 +21771,7 @@ fn destack_net_udp_leave_multicast_source_v6_vm_replay(
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV6Vm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_LEAVE_MULTICAST_SOURCE_V6,
         binding.replay_payload_for(NET_UDP_LEAVE_MULTICAST_SOURCE_V6)?,
         context,
@@ -21797,7 +21797,7 @@ fn destack_net_udp_leave_multicast_source_v6_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpLeaveMulticastSourceV6Replay { result }
                 };
                 return Ok(Some(payload));
@@ -21827,7 +21827,7 @@ fn destack_net_udp_leave_multicast_v4_vm_replay(
     group: vm::StringHandle,
     interfaceaddress: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_LEAVE_MULTICAST_V4,
         binding.replay_payload_for(NET_UDP_LEAVE_MULTICAST_V4)?,
         context,
@@ -21859,7 +21859,7 @@ fn destack_net_udp_leave_multicast_v4_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpLeaveMulticastV4Replay { result }
                 };
                 return Ok(Some(payload));
@@ -21889,7 +21889,7 @@ fn destack_net_udp_leave_multicast_v6_vm_replay(
     group: vm::StringHandle,
     interfaceindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_LEAVE_MULTICAST_V6,
         binding.replay_payload_for(NET_UDP_LEAVE_MULTICAST_V6)?,
         context,
@@ -21921,7 +21921,7 @@ fn destack_net_udp_leave_multicast_v6_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpLeaveMulticastV6Replay { result }
                 };
                 return Ok(Some(payload));
@@ -21951,7 +21951,7 @@ fn destack_net_udp_recv_from_vm_replay(
     buffer: VmSlice<u8>,
     recvflags: UdpMessageFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_RECV_FROM,
         binding.replay_payload_for(NET_UDP_RECV_FROM)?,
         context,
@@ -21991,7 +21991,7 @@ fn destack_net_udp_recv_from_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpRecvFromReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22040,7 +22040,7 @@ fn destack_net_udp_send_to_vm_replay(
     buffer: VmSlice<u8>,
     sendflags: UdpMessageFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_SEND_TO,
         binding.replay_payload_for(NET_UDP_SEND_TO)?,
         context,
@@ -22065,7 +22065,7 @@ fn destack_net_udp_send_to_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpSendToReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22097,7 +22097,7 @@ fn destack_net_udp_set_multicast_interface_v4_vm_replay(
     handle: resource::SocketHandle,
     interfaceaddress: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_SET_MULTICAST_INTERFACE_V4,
         binding.replay_payload_for(NET_UDP_SET_MULTICAST_INTERFACE_V4)?,
         context,
@@ -22129,7 +22129,7 @@ fn destack_net_udp_set_multicast_interface_v4_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpSetMulticastInterfaceV4Replay { result }
                 };
                 return Ok(Some(payload));
@@ -22158,7 +22158,7 @@ fn destack_net_udp_set_multicast_interface_v6_vm_replay(
     handle: resource::SocketHandle,
     interfaceindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_SET_MULTICAST_INTERFACE_V6,
         binding.replay_payload_for(NET_UDP_SET_MULTICAST_INTERFACE_V6)?,
         context,
@@ -22190,7 +22190,7 @@ fn destack_net_udp_set_multicast_interface_v6_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpSetMulticastInterfaceV6Replay { result }
                 };
                 return Ok(Some(payload));
@@ -22219,7 +22219,7 @@ fn destack_net_udp_set_multicast_loop_vm_replay(
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_SET_MULTICAST_LOOP,
         binding.replay_payload_for(NET_UDP_SET_MULTICAST_LOOP)?,
         context,
@@ -22243,7 +22243,7 @@ fn destack_net_udp_set_multicast_loop_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpSetMulticastLoopReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22272,7 +22272,7 @@ fn destack_net_udp_set_multicast_ttl_vm_replay(
     handle: resource::SocketHandle,
     ttl: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_SET_MULTICAST_TTL,
         binding.replay_payload_for(NET_UDP_SET_MULTICAST_TTL)?,
         context,
@@ -22296,7 +22296,7 @@ fn destack_net_udp_set_multicast_ttl_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpSetMulticastTtlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22324,7 +22324,7 @@ fn destack_net_udp_socket_vm_replay(
     world: RuntimeWorld,
     family: SocketFamily,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDP_SOCKET,
         binding.replay_payload_for(NET_UDP_SOCKET)?,
         context,
@@ -22347,7 +22347,7 @@ fn destack_net_udp_socket_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdpSocketReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22378,7 +22378,7 @@ fn destack_net_uds_uds_accept_vm_replay(
     world: RuntimeWorld,
     listener: resource::ListenerHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDS_UDS_ACCEPT,
         binding.replay_payload_for(NET_UDS_UDS_ACCEPT)?,
         context,
@@ -22401,7 +22401,7 @@ fn destack_net_uds_uds_accept_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdsUdsAcceptReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22432,7 +22432,7 @@ fn destack_net_uds_uds_close_listener_vm_replay(
     world: RuntimeWorld,
     handle: resource::ListenerHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDS_UDS_CLOSE_LISTENER,
         binding.replay_payload_for(NET_UDS_UDS_CLOSE_LISTENER)?,
         context,
@@ -22456,7 +22456,7 @@ fn destack_net_uds_uds_close_listener_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdsUdsCloseListenerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22484,7 +22484,7 @@ fn destack_net_uds_uds_connect_vm_replay(
     world: RuntimeWorld,
     address: UdsAddressVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDS_UDS_CONNECT,
         binding.replay_payload_for(NET_UDS_UDS_CONNECT)?,
         context,
@@ -22507,7 +22507,7 @@ fn destack_net_uds_uds_connect_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdsUdsConnectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22539,7 +22539,7 @@ fn destack_net_uds_uds_listen_vm_replay(
     address: UdsAddressVm,
     backlog: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDS_UDS_LISTEN,
         binding.replay_payload_for(NET_UDS_UDS_LISTEN)?,
         context,
@@ -22564,7 +22564,7 @@ fn destack_net_uds_uds_listen_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdsUdsListenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22595,7 +22595,7 @@ fn destack_net_uds_uds_socket_pair_vm_replay(
     world: RuntimeWorld,
     sockettype: SocketType,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         NET_UDS_UDS_SOCKET_PAIR,
         binding.replay_payload_for(NET_UDS_UDS_SOCKET_PAIR)?,
         context,
@@ -22625,7 +22625,7 @@ fn destack_net_uds_uds_socket_pair_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     NetUdsUdsSocketPairReplay { result }
                 };
                 return Ok(Some(payload));
