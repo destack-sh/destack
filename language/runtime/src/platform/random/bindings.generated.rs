@@ -26,7 +26,7 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::replay::ReplayError;
+use crate::runtime::replay::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
@@ -453,35 +453,35 @@ fn encode_destack_random_stream_split_result(
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct RandomSecureMetadataReplay {
     /// Replay result payload.
-    pub result: Result<SecureRandomMetadataReplayRecord, ReplayError>,
+    pub result: Result<SecureRandomMetadataReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.random.stream.export.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct RandomStreamExportReplay {
     /// Replay result payload.
-    pub result: Result<RandomStreamStateReplayRecord, ReplayError>,
+    pub result: Result<RandomStreamStateReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.random.stream.import.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct RandomStreamImportReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.random.stream.jump.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct RandomStreamJumpReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.random.stream.split.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct RandomStreamSplitReplay {
     /// Replay result payload.
-    pub result: Result<RandomStream, ReplayError>,
+    pub result: Result<RandomStream, TraceError>,
 }
 
 /// Binding descriptor for destack.random.secure.bytes.
@@ -887,7 +887,7 @@ fn destack_random_secure_metadata_replay(
     binding: &BindingCallContext,
     out: *mut SecureRandomMetadata,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         RANDOM_SECURE_METADATA,
         binding.replay_payload_for(RANDOM_SECURE_METADATA)?,
         || unsafe { platform_runtime_native::destack_random_secure_metadata(binding, out) },
@@ -924,7 +924,7 @@ fn destack_random_secure_metadata_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     RandomSecureMetadataReplay { result }
                 };
                 return Ok(Some(payload));
@@ -971,7 +971,7 @@ fn destack_random_stream_export_replay(
 ) -> RuntimeResult<()> {
     let _ = &stream;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         RANDOM_STREAM_EXPORT,
         binding.replay_payload_for(RANDOM_STREAM_EXPORT)?,
         || unsafe { platform_runtime_native::destack_random_stream_export(binding, out, stream) },
@@ -1003,7 +1003,7 @@ fn destack_random_stream_export_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     RandomStreamExportReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1045,7 +1045,7 @@ fn destack_random_stream_import_replay(
 ) -> RuntimeResult<()> {
     let _ = (&stream, &state);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         RANDOM_STREAM_IMPORT,
         binding.replay_payload_for(RANDOM_STREAM_IMPORT)?,
         || unsafe { platform_runtime_native::destack_random_stream_import(binding, stream, state) },
@@ -1060,7 +1060,7 @@ fn destack_random_stream_import_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     RandomStreamImportReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1086,7 +1086,7 @@ fn destack_random_stream_jump_replay(
 ) -> RuntimeResult<()> {
     let _ = (&stream, &jump);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         RANDOM_STREAM_JUMP,
         binding.replay_payload_for(RANDOM_STREAM_JUMP)?,
         || unsafe { platform_runtime_native::destack_random_stream_jump(binding, stream, jump) },
@@ -1101,7 +1101,7 @@ fn destack_random_stream_jump_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     RandomStreamJumpReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1127,7 +1127,7 @@ fn destack_random_stream_split_replay(
 ) -> RuntimeResult<()> {
     let _ = &parent;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         RANDOM_STREAM_SPLIT,
         binding.replay_payload_for(RANDOM_STREAM_SPLIT)?,
         || unsafe { platform_runtime_native::destack_random_stream_split(binding, out, parent) },
@@ -1148,7 +1148,7 @@ fn destack_random_stream_split_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     RandomStreamSplitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1178,7 +1178,7 @@ pub unsafe extern "C" fn destack_random_secure_bytes(buffer: NativeSlice<u8>) ->
     native_call(|context| {
         let _ = &buffer;
 
-        context.replay().run_random_bytes(
+        context.trace().run_random_bytes(
             context.entropy_subject(RANDOM_SECURE_BYTES),
             context.random_stream_id(),
             buffer.len,
@@ -1212,7 +1212,7 @@ pub unsafe extern "C" fn destack_random_secure_bytes_try(buffer: NativeSlice<u8>
     native_call(|context| {
         let _ = &buffer;
 
-        context.replay().run_random_bytes(
+        context.trace().run_random_bytes(
             context.entropy_subject(RANDOM_SECURE_BYTES_TRY),
             context.random_stream_id(),
             buffer.len,
@@ -1264,7 +1264,7 @@ pub unsafe extern "C" fn destack_random_stream_create(out: *mut RandomStream) ->
         }
         let _ = &out;
 
-        let value = context.replay().run_random_stream(
+        let value = context.trace().run_random_stream(
             context.entropy_subject(RANDOM_STREAM_CREATE),
             || context.on_random_read(),
             || {
@@ -1305,7 +1305,7 @@ pub unsafe extern "C" fn destack_random_stream_fill_bytes(
     native_call(|context| {
         let _ = &buffer;
 
-        context.replay().run_random_bytes(
+        context.trace().run_random_bytes(
             context.entropy_subject(RANDOM_STREAM_FILL_BYTES),
             context.random_stream_id(),
             buffer.len,
@@ -1342,7 +1342,7 @@ pub unsafe extern "C" fn destack_random_stream_fill_bytes_from(
     native_call(|context| {
         let _ = (&stream, &buffer);
 
-        context.replay().run_random_bytes(
+        context.trace().run_random_bytes(
             context.entropy_subject(RANDOM_STREAM_FILL_BYTES_FROM),
             RandomStreamId::new(stream.0),
             buffer.len,
@@ -1398,7 +1398,7 @@ pub unsafe extern "C" fn destack_random_stream_in(
         }
         let _ = (&out, &domain);
 
-        let value = context.replay().run_random_stream(
+        let value = context.trace().run_random_stream(
             context.entropy_subject(RANDOM_STREAM_IN),
             || context.on_random_read(),
             || {
@@ -1439,7 +1439,7 @@ pub unsafe extern "C" fn destack_random_stream_next_u64(out: *mut u64) -> Runtim
         }
         let _ = &out;
 
-        let value = context.replay().run_random_u64(
+        let value = context.trace().run_random_u64(
             context.entropy_subject(RANDOM_STREAM_NEXT_U64),
             context.random_stream_id(),
             || context.on_random_read(),
@@ -1469,7 +1469,7 @@ pub unsafe extern "C" fn destack_random_stream_next_u64_from(
         }
         let _ = (&out, &stream);
 
-        let value = context.replay().run_random_u64(
+        let value = context.trace().run_random_u64(
             context.entropy_subject(RANDOM_STREAM_NEXT_U64_FROM),
             RandomStreamId::new(stream.0),
             || context.on_random_read(),
@@ -1513,7 +1513,7 @@ fn destack_random_secure_metadata_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         RANDOM_SECURE_METADATA,
         binding.replay_payload_for(RANDOM_SECURE_METADATA)?,
         context,
@@ -1551,7 +1551,7 @@ fn destack_random_secure_metadata_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     RandomSecureMetadataReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1599,7 +1599,7 @@ fn destack_random_stream_export_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     stream: RandomStream,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         RANDOM_STREAM_EXPORT,
         binding.replay_payload_for(RANDOM_STREAM_EXPORT)?,
         context,
@@ -1622,7 +1622,7 @@ fn destack_random_stream_export_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     RandomStreamExportReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1658,7 +1658,7 @@ fn destack_random_stream_import_vm_replay(
     stream: RandomStream,
     state: RandomStreamStateVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         RANDOM_STREAM_IMPORT,
         binding.replay_payload_for(RANDOM_STREAM_IMPORT)?,
         context,
@@ -1677,7 +1677,7 @@ fn destack_random_stream_import_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     RandomStreamImportReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1705,7 +1705,7 @@ fn destack_random_stream_jump_vm_replay(
     stream: RandomStream,
     jump: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         RANDOM_STREAM_JUMP,
         binding.replay_payload_for(RANDOM_STREAM_JUMP)?,
         context,
@@ -1722,7 +1722,7 @@ fn destack_random_stream_jump_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     RandomStreamJumpReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1749,7 +1749,7 @@ fn destack_random_stream_split_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     parent: RandomStream,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         RANDOM_STREAM_SPLIT,
         binding.replay_payload_for(RANDOM_STREAM_SPLIT)?,
         context,
@@ -1767,7 +1767,7 @@ fn destack_random_stream_split_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     RandomStreamSplitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1805,7 +1805,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let context_ptr = context as *mut vm::ExternalCallContext<'_>;
-                    let result = binding.replay().run_random_bytes(
+                    let result = binding.trace().run_random_bytes(
                         binding.entropy_subject(RANDOM_SECURE_BYTES),
                         binding.random_stream_id(),
                         buffer.len,
@@ -1842,7 +1842,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let context_ptr = context as *mut vm::ExternalCallContext<'_>;
-                    let result = binding.replay().run_random_bytes(
+                    let result = binding.trace().run_random_bytes(
                         binding.entropy_subject(RANDOM_SECURE_BYTES_TRY),
                         binding.random_stream_id(),
                         buffer.len,
@@ -1890,7 +1890,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|binding| {
                     // execute binding
-                    let result = binding.replay().run_random_stream(
+                    let result = binding.trace().run_random_stream(
                         binding.entropy_subject(RANDOM_STREAM_CREATE),
                         || binding.on_random_read(),
                         || {
@@ -1939,7 +1939,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let context_ptr = context as *mut vm::ExternalCallContext<'_>;
-                    let result = binding.replay().run_random_bytes(
+                    let result = binding.trace().run_random_bytes(
                         binding.entropy_subject(RANDOM_STREAM_FILL_BYTES),
                         binding.random_stream_id(),
                         buffer.len,
@@ -1977,7 +1977,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let context_ptr = context as *mut vm::ExternalCallContext<'_>;
-                    let result = binding.replay().run_random_bytes(
+                    let result = binding.trace().run_random_bytes(
                         binding.entropy_subject(RANDOM_STREAM_FILL_BYTES_FROM),
                         RandomStreamId::new(stream.0),
                         buffer.len,
@@ -2028,7 +2028,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                 let (domain,) = decode_destack_random_stream_in_args(context, args)?;
 
                 // execute binding
-                let result = binding.replay().run_random_stream(
+                let result = binding.trace().run_random_stream(
                     binding.entropy_subject(RANDOM_STREAM_IN),
                     || binding.on_random_read(),
                     || {
@@ -2072,7 +2072,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|binding| {
                     // execute binding
-                    let result = binding.replay().run_random_u64(
+                    let result = binding.trace().run_random_u64(
                         binding.entropy_subject(RANDOM_STREAM_NEXT_U64),
                         binding.random_stream_id(),
                         || binding.on_random_read(),
@@ -2099,7 +2099,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (stream,) = decode_destack_random_stream_next_u64_from_args(context, args)?;
 
                     // execute binding
-                    let result = binding.replay().run_random_u64(
+                    let result = binding.trace().run_random_u64(
                         binding.entropy_subject(RANDOM_STREAM_NEXT_U64_FROM),
                         RandomStreamId::new(stream.0),
                         || binding.on_random_read(),

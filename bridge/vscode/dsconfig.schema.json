@@ -2155,39 +2155,8 @@
           ],
           "format": "uint64",
           "minimum": 0
-        },
-        "logging": {
-          "description": "GC logging verbosity.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/GcLoggingJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
         }
       }
-    },
-    "GcLoggingJson": {
-      "description": "GC logging for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Disable GC logging.",
-          "type": "string",
-          "const": "off"
-        },
-        {
-          "description": "Emit summary GC events.",
-          "type": "string",
-          "const": "summary"
-        },
-        {
-          "description": "Emit verbose GC events.",
-          "type": "string",
-          "const": "verbose"
-        }
-      ]
     },
     "RuntimeDiagnosticOptionsJson": {
       "description": "Runtime diagnostics configuration for JSON deserialization.",

@@ -51,7 +51,7 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::replay::ReplayError;
+use crate::runtime::replay::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
@@ -6815,875 +6815,875 @@ fn encode_destack_gpu_sync_queue_work_done_result(
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuAdapterCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.adapter.features.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuAdapterFeaturesReplay {
     /// Replay result payload.
-    pub result: Result<Vec<GpuFeatureId>, ReplayError>,
+    pub result: Result<Vec<GpuFeatureId>, TraceError>,
 }
 
 /// Replay payload for destack.gpu.adapter.formatCapabilities.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuAdapterFormatCapabilitiesReplay {
     /// Replay result payload.
-    pub result: Result<GpuAdapterFormatCapabilities, ReplayError>,
+    pub result: Result<GpuAdapterFormatCapabilities, TraceError>,
 }
 
 /// Replay payload for destack.gpu.adapter.hasFeature.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuAdapterHasFeatureReplay {
     /// Replay result payload.
-    pub result: Result<bool, ReplayError>,
+    pub result: Result<bool, TraceError>,
 }
 
 /// Replay payload for destack.gpu.adapter.info.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuAdapterInfoReplay {
     /// Replay result payload.
-    pub result: Result<GpuAdapterInfoReplayRecord, ReplayError>,
+    pub result: Result<GpuAdapterInfoReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.gpu.adapter.limits.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuAdapterLimitsReplay {
     /// Replay result payload.
-    pub result: Result<GpuAdapterLimits, ReplayError>,
+    pub result: Result<GpuAdapterLimits, TraceError>,
 }
 
 /// Replay payload for destack.gpu.adapter.list.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuAdapterListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<GpuAdapterInfoReplayRecord>, ReplayError>,
+    pub result: Result<Vec<GpuAdapterInfoReplayRecord>, TraceError>,
 }
 
 /// Replay payload for destack.gpu.adapter.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuAdapterOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuAdapterHandle, ReplayError>,
+    pub result: Result<resource::GpuAdapterHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.bind.groupCreate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuBindGroupCreateReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuBindGroupHandle, ReplayError>,
+    pub result: Result<resource::GpuBindGroupHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.bind.groupDestroy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuBindGroupDestroyReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.bind.groupLayoutCreate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuBindGroupLayoutCreateReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuBindGroupLayoutHandle, ReplayError>,
+    pub result: Result<resource::GpuBindGroupLayoutHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.bind.groupLayoutDestroy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuBindGroupLayoutDestroyReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.bind.pipelineLayoutCreate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuBindPipelineLayoutCreateReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuPipelineLayoutHandle, ReplayError>,
+    pub result: Result<resource::GpuPipelineLayoutHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.bind.pipelineLayoutDestroy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuBindPipelineLayoutDestroyReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.bindComputePipeline.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandBindComputePipelineReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.bindRenderPipeline.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandBindRenderPipelineReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.clearBuffer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandClearBufferReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.computePassBegin.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandComputePassBeginReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuComputePassHandle, ReplayError>,
+    pub result: Result<resource::GpuComputePassHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.computePassEnd.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandComputePassEndReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.computePassInsertDebugMarker.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandComputePassInsertDebugMarkerReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.computePassPopDebugGroup.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandComputePassPopDebugGroupReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.computePassPushDebugGroup.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandComputePassPushDebugGroupReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.copyBuffer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandCopyBufferReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.copyBufferToTexture.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandCopyBufferToTextureReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.copyTextureToBuffer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandCopyTextureToBufferReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.copyTextureToTexture.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandCopyTextureToTextureReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.dispatch.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandDispatchReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.dispatchIndirect.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandDispatchIndirectReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.draw.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandDrawReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.drawIndexed.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandDrawIndexedReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.drawIndexedIndirect.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandDrawIndexedIndirectReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.drawIndirect.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandDrawIndirectReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.encoderClose.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandEncoderCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.encoderFinish.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandEncoderFinishReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.encoderOpen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandEncoderOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuCommandListHandle, ReplayError>,
+    pub result: Result<resource::GpuCommandListHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.executeBundles.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandExecuteBundlesReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.insertDebugMarker.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandInsertDebugMarkerReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.multiDrawIndexedIndirect.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandMultiDrawIndexedIndirectReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.multiDrawIndexedIndirectCount.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandMultiDrawIndexedIndirectCountReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.multiDrawIndirect.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandMultiDrawIndirectReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.multiDrawIndirectCount.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandMultiDrawIndirectCountReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.popDebugGroup.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandPopDebugGroupReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.pushDebugGroup.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandPushDebugGroupReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.queueSubmit.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandQueueSubmitReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.queueWaitIdle.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandQueueWaitIdleReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.queueWriteBuffer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandQueueWriteBufferReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.queueWriteTexture.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandQueueWriteTextureReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderBundleDestroy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderBundleDestroyReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderBundleDraw.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderBundleDrawReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderBundleDrawIndexed.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderBundleDrawIndexedReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderBundleDrawIndexedIndirect.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderBundleDrawIndexedIndirectReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderBundleDrawIndirect.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderBundleDrawIndirectReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderBundleEncoderClose.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderBundleEncoderCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderBundleEncoderFinish.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderBundleEncoderFinishReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuRenderBundleHandle, ReplayError>,
+    pub result: Result<resource::GpuRenderBundleHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderBundleEncoderOpen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderBundleEncoderOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuRenderBundleEncoderHandle, ReplayError>,
+    pub result: Result<resource::GpuRenderBundleEncoderHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderBundleInsertDebugMarker.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderBundleInsertDebugMarkerReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderBundlePopDebugGroup.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderBundlePopDebugGroupReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderBundlePushDebugGroup.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderBundlePushDebugGroupReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderBundleSetBindGroup.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderBundleSetBindGroupReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderBundleSetIndexBuffer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderBundleSetIndexBufferReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderBundleSetPipeline.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderBundleSetPipelineReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderBundleSetVertexBuffer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderBundleSetVertexBufferReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderPassBegin.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderPassBeginReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuRenderPassHandle, ReplayError>,
+    pub result: Result<resource::GpuRenderPassHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderPassEnd.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderPassEndReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderPassInsertDebugMarker.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderPassInsertDebugMarkerReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderPassPopDebugGroup.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderPassPopDebugGroupReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.renderPassPushDebugGroup.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandRenderPassPushDebugGroupReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.setBlendConstant.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandSetBlendConstantReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.setComputeBindGroup.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandSetComputeBindGroupReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.setIndexBuffer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandSetIndexBufferReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.setRenderBindGroup.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandSetRenderBindGroupReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.setScissor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandSetScissorReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.setStencilReference.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandSetStencilReferenceReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.setVertexBuffer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandSetVertexBufferReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.command.setViewport.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuCommandSetViewportReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.debug.setLabel.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuDebugSetLabelReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.device.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuDeviceCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.device.features.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuDeviceFeaturesReplay {
     /// Replay result payload.
-    pub result: Result<Vec<GpuFeatureId>, ReplayError>,
+    pub result: Result<Vec<GpuFeatureId>, TraceError>,
 }
 
 /// Replay payload for destack.gpu.device.hasFeature.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuDeviceHasFeatureReplay {
     /// Replay result payload.
-    pub result: Result<bool, ReplayError>,
+    pub result: Result<bool, TraceError>,
 }
 
 /// Replay payload for destack.gpu.device.info.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuDeviceInfoReplay {
     /// Replay result payload.
-    pub result: Result<GpuDeviceInfoReplayRecord, ReplayError>,
+    pub result: Result<GpuDeviceInfoReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.gpu.device.limits.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuDeviceLimitsReplay {
     /// Replay result payload.
-    pub result: Result<GpuAdapterLimits, ReplayError>,
+    pub result: Result<GpuAdapterLimits, TraceError>,
 }
 
 /// Replay payload for destack.gpu.device.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuDeviceOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuDeviceHandle, ReplayError>,
+    pub result: Result<resource::GpuDeviceHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.device.poll.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuDevicePollReplay {
     /// Replay result payload.
-    pub result: Result<u32, ReplayError>,
+    pub result: Result<u32, TraceError>,
 }
 
 /// Replay payload for destack.gpu.device.popErrorScope.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuDevicePopErrorScopeReplay {
     /// Replay result payload.
-    pub result: Result<GpuCapturedErrorReplayRecord, ReplayError>,
+    pub result: Result<GpuCapturedErrorReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.gpu.device.pushErrorScope.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuDevicePushErrorScopeReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.device.queue.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuDeviceQueueReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuQueueHandle, ReplayError>,
+    pub result: Result<resource::GpuQueueHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.device.status.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuDeviceStatusReplay {
     /// Replay result payload.
-    pub result: Result<GpuDeviceStatusReplayRecord, ReplayError>,
+    pub result: Result<GpuDeviceStatusReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.gpu.pipeline.bindGroupLayout.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuPipelineBindGroupLayoutReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuBindGroupLayoutHandle, ReplayError>,
+    pub result: Result<resource::GpuBindGroupLayoutHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.pipeline.computeCreate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuPipelineComputeCreateReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuPipelineHandle, ReplayError>,
+    pub result: Result<resource::GpuPipelineHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.pipeline.destroy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuPipelineDestroyReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.pipeline.renderCreate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuPipelineRenderCreateReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuPipelineHandle, ReplayError>,
+    pub result: Result<resource::GpuPipelineHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.pipeline.shaderCompilationInfo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuPipelineShaderCompilationInfoReplay {
     /// Replay result payload.
-    pub result: Result<GpuCompilationInfoReplayRecord, ReplayError>,
+    pub result: Result<GpuCompilationInfoReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.gpu.pipeline.shaderCreate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuPipelineShaderCreateReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuShaderHandle, ReplayError>,
+    pub result: Result<resource::GpuShaderHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.pipeline.shaderDestroy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuPipelineShaderDestroyReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.resource.bufferCreate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuResourceBufferCreateReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuBufferHandle, ReplayError>,
+    pub result: Result<resource::GpuBufferHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.resource.bufferDestroy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuResourceBufferDestroyReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.resource.bufferInfo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuResourceBufferInfoReplay {
     /// Replay result payload.
-    pub result: Result<GpuBufferInfo, ReplayError>,
+    pub result: Result<GpuBufferInfo, TraceError>,
 }
 
 /// Replay payload for destack.gpu.resource.bufferMap.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuResourceBufferMapReplay {
     /// Replay result payload.
-    pub result: Result<GpuMappedBufferRange, ReplayError>,
+    pub result: Result<GpuMappedBufferRange, TraceError>,
 }
 
 /// Replay payload for destack.gpu.resource.bufferRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuResourceBufferReadReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, ReplayError>,
+    pub result: Result<Vec<u8>, TraceError>,
 }
 
 /// Replay payload for destack.gpu.resource.bufferUnmap.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuResourceBufferUnmapReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.resource.bufferWrite.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuResourceBufferWriteReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.resource.samplerCreate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuResourceSamplerCreateReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuSamplerHandle, ReplayError>,
+    pub result: Result<resource::GpuSamplerHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.resource.samplerDestroy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuResourceSamplerDestroyReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.resource.textureCreate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuResourceTextureCreateReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuTextureHandle, ReplayError>,
+    pub result: Result<resource::GpuTextureHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.resource.textureDestroy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuResourceTextureDestroyReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.resource.textureInfo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuResourceTextureInfoReplay {
     /// Replay result payload.
-    pub result: Result<GpuTextureInfo, ReplayError>,
+    pub result: Result<GpuTextureInfo, TraceError>,
 }
 
 /// Replay payload for destack.gpu.resource.textureViewCreate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuResourceTextureViewCreateReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuTextureViewHandle, ReplayError>,
+    pub result: Result<resource::GpuTextureViewHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.resource.textureViewDestroy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuResourceTextureViewDestroyReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.sync.commandBeginComputePipelineStatisticsQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuSyncCommandBeginComputePipelineStatisticsQueryReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.sync.commandBeginOcclusionQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuSyncCommandBeginOcclusionQueryReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuSyncCommandBeginRenderPipelineStatisticsQueryReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.sync.commandEndComputePipelineStatisticsQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuSyncCommandEndComputePipelineStatisticsQueryReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.sync.commandEndOcclusionQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuSyncCommandEndOcclusionQueryReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.sync.commandEndRenderPipelineStatisticsQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuSyncCommandEndRenderPipelineStatisticsQueryReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.sync.commandResolveQueries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuSyncCommandResolveQueriesReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.sync.commandWriteTimestamp.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuSyncCommandWriteTimestampReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.sync.fenceCreate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuSyncFenceCreateReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuFenceHandle, ReplayError>,
+    pub result: Result<resource::GpuFenceHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.sync.fenceDestroy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuSyncFenceDestroyReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.sync.querySetCreate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuSyncQuerySetCreateReplay {
     /// Replay result payload.
-    pub result: Result<resource::GpuQuerySetHandle, ReplayError>,
+    pub result: Result<resource::GpuQuerySetHandle, TraceError>,
 }
 
 /// Replay payload for destack.gpu.sync.querySetDestroy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuSyncQuerySetDestroyReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.sync.querySetInfo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuSyncQuerySetInfoReplay {
     /// Replay result payload.
-    pub result: Result<GpuQuerySetInfo, ReplayError>,
+    pub result: Result<GpuQuerySetInfo, TraceError>,
 }
 
 /// Replay payload for destack.gpu.sync.queueSignal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuSyncQueueSignalReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.sync.queueTimestampPeriod.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuSyncQueueTimestampPeriodReplay {
     /// Replay result payload.
-    pub result: Result<f64, ReplayError>,
+    pub result: Result<f64, TraceError>,
 }
 
 /// Replay payload for destack.gpu.sync.queueWait.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuSyncQueueWaitReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.gpu.sync.queueWorkDone.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct GpuSyncQueueWorkDoneReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Binding descriptor for destack.gpu.adapter.close.
@@ -10570,7 +10570,7 @@ fn destack_gpu_adapter_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_ADAPTER_CLOSE,
         binding.replay_payload_for(GPU_ADAPTER_CLOSE)?,
         || match world {
@@ -10592,7 +10592,7 @@ fn destack_gpu_adapter_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuAdapterCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10619,7 +10619,7 @@ fn destack_gpu_adapter_features_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_ADAPTER_FEATURES,
         binding.replay_payload_for(GPU_ADAPTER_FEATURES)?,
         || match world {
@@ -10653,7 +10653,7 @@ fn destack_gpu_adapter_features_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuAdapterFeaturesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10692,7 +10692,7 @@ fn destack_gpu_adapter_format_capabilities_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &format);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_ADAPTER_FORMAT_CAPABILITIES,
         binding.replay_payload_for(GPU_ADAPTER_FORMAT_CAPABILITIES)?,
         || match world {
@@ -10737,7 +10737,7 @@ fn destack_gpu_adapter_format_capabilities_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuAdapterFormatCapabilitiesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10784,7 +10784,7 @@ fn destack_gpu_adapter_has_feature_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &feature);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_ADAPTER_HAS_FEATURE,
         binding.replay_payload_for(GPU_ADAPTER_HAS_FEATURE)?,
         || match world {
@@ -10814,7 +10814,7 @@ fn destack_gpu_adapter_has_feature_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuAdapterHasFeatureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10847,7 +10847,7 @@ fn destack_gpu_adapter_info_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_ADAPTER_INFO,
         binding.replay_payload_for(GPU_ADAPTER_INFO)?,
         || match world {
@@ -11031,7 +11031,7 @@ fn destack_gpu_adapter_info_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuAdapterInfoReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11213,7 +11213,7 @@ fn destack_gpu_adapter_limits_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_ADAPTER_LIMITS,
         binding.replay_payload_for(GPU_ADAPTER_LIMITS)?,
         || match world {
@@ -11343,7 +11343,7 @@ fn destack_gpu_adapter_limits_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuAdapterLimitsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11474,7 +11474,7 @@ fn destack_gpu_adapter_list_replay(
 ) -> RuntimeResult<()> {
     let _ = &request;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_ADAPTER_LIST,
         binding.replay_payload_for(GPU_ADAPTER_LIST)?,
         || match world {
@@ -11602,7 +11602,7 @@ fn destack_gpu_adapter_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuAdapterListReplay {
                         result,
                     }
@@ -11739,7 +11739,7 @@ fn destack_gpu_adapter_open_replay(
 ) -> RuntimeResult<()> {
     let _ = &id;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_ADAPTER_OPEN,
         binding.replay_payload_for(GPU_ADAPTER_OPEN)?,
         || match world {
@@ -11767,7 +11767,7 @@ fn destack_gpu_adapter_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuAdapterOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11803,7 +11803,7 @@ fn destack_gpu_bind_group_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &layout, &entries, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_BIND_GROUP_CREATE,
         binding.replay_payload_for(GPU_BIND_GROUP_CREATE)?,
         || match world {
@@ -11835,7 +11835,7 @@ fn destack_gpu_bind_group_create_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuBindGroupCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11867,7 +11867,7 @@ fn destack_gpu_bind_group_destroy_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_BIND_GROUP_DESTROY,
         binding.replay_payload_for(GPU_BIND_GROUP_DESTROY)?,
         || match world {
@@ -11889,7 +11889,7 @@ fn destack_gpu_bind_group_destroy_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuBindGroupDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11918,7 +11918,7 @@ fn destack_gpu_bind_group_layout_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &entries, &flags);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_BIND_GROUP_LAYOUT_CREATE,
         binding.replay_payload_for(GPU_BIND_GROUP_LAYOUT_CREATE)?,
         || match world {
@@ -11950,7 +11950,7 @@ fn destack_gpu_bind_group_layout_create_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuBindGroupLayoutCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11982,7 +11982,7 @@ fn destack_gpu_bind_group_layout_destroy_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_BIND_GROUP_LAYOUT_DESTROY,
         binding.replay_payload_for(GPU_BIND_GROUP_LAYOUT_DESTROY)?,
         || match world {
@@ -12004,7 +12004,7 @@ fn destack_gpu_bind_group_layout_destroy_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuBindGroupLayoutDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12032,7 +12032,7 @@ fn destack_gpu_bind_pipeline_layout_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_BIND_PIPELINE_LAYOUT_CREATE,
         binding.replay_payload_for(GPU_BIND_PIPELINE_LAYOUT_CREATE)?,
         || match world {
@@ -12062,7 +12062,7 @@ fn destack_gpu_bind_pipeline_layout_create_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuBindPipelineLayoutCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12094,7 +12094,7 @@ fn destack_gpu_bind_pipeline_layout_destroy_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_BIND_PIPELINE_LAYOUT_DESTROY,
         binding.replay_payload_for(GPU_BIND_PIPELINE_LAYOUT_DESTROY)?,
         || match world {
@@ -12116,7 +12116,7 @@ fn destack_gpu_bind_pipeline_layout_destroy_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuBindPipelineLayoutDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12143,7 +12143,7 @@ fn destack_gpu_command_bind_compute_pipeline_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &pipeline);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_BIND_COMPUTE_PIPELINE,
         binding.replay_payload_for(GPU_COMMAND_BIND_COMPUTE_PIPELINE)?,
         || match world {
@@ -12169,7 +12169,7 @@ fn destack_gpu_command_bind_compute_pipeline_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandBindComputePipelineReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12196,7 +12196,7 @@ fn destack_gpu_command_bind_render_pipeline_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &pipeline);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_BIND_RENDER_PIPELINE,
         binding.replay_payload_for(GPU_COMMAND_BIND_RENDER_PIPELINE)?,
         || match world {
@@ -12220,7 +12220,7 @@ fn destack_gpu_command_bind_render_pipeline_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandBindRenderPipelineReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12249,7 +12249,7 @@ fn destack_gpu_command_clear_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &size);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_CLEAR_BUFFER,
         binding.replay_payload_for(GPU_COMMAND_CLEAR_BUFFER)?,
         || match world {
@@ -12275,7 +12275,7 @@ fn destack_gpu_command_clear_buffer_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandClearBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12303,7 +12303,7 @@ fn destack_gpu_command_compute_pass_begin_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_COMPUTE_PASS_BEGIN,
         binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_BEGIN)?,
         || match world {
@@ -12335,7 +12335,7 @@ fn destack_gpu_command_compute_pass_begin_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandComputePassBeginReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12367,7 +12367,7 @@ fn destack_gpu_command_compute_pass_end_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_COMPUTE_PASS_END,
         binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_END)?,
         || match world {
@@ -12389,7 +12389,7 @@ fn destack_gpu_command_compute_pass_end_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandComputePassEndReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12416,7 +12416,7 @@ fn destack_gpu_command_compute_pass_insert_debug_marker_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &marker);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER,
         binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER)?,
         || match world {
@@ -12442,7 +12442,7 @@ fn destack_gpu_command_compute_pass_insert_debug_marker_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandComputePassInsertDebugMarkerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12468,7 +12468,7 @@ fn destack_gpu_command_compute_pass_pop_debug_group_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP,
         binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP)?,
         || match world {
@@ -12492,7 +12492,7 @@ fn destack_gpu_command_compute_pass_pop_debug_group_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandComputePassPopDebugGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12519,7 +12519,7 @@ fn destack_gpu_command_compute_pass_push_debug_group_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &label);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP,
         binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP)?,
         || match world {
@@ -12545,7 +12545,7 @@ fn destack_gpu_command_compute_pass_push_debug_group_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandComputePassPushDebugGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12576,7 +12576,7 @@ fn destack_gpu_command_copy_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &src, &srcoffset, &dst, &dstoffset, &argument_bytes);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_COPY_BUFFER,
         binding.replay_payload_for(GPU_COMMAND_COPY_BUFFER)?,
         || match world {
@@ -12614,7 +12614,7 @@ fn destack_gpu_command_copy_buffer_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandCopyBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12643,7 +12643,7 @@ fn destack_gpu_command_copy_buffer_to_texture_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &source, &destination, &size);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_COPY_BUFFER_TO_TEXTURE,
         binding.replay_payload_for(GPU_COMMAND_COPY_BUFFER_TO_TEXTURE)?,
         || match world {
@@ -12677,7 +12677,7 @@ fn destack_gpu_command_copy_buffer_to_texture_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandCopyBufferToTextureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12706,7 +12706,7 @@ fn destack_gpu_command_copy_texture_to_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &source, &destination, &size);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_COPY_TEXTURE_TO_BUFFER,
         binding.replay_payload_for(GPU_COMMAND_COPY_TEXTURE_TO_BUFFER)?,
         || match world {
@@ -12740,7 +12740,7 @@ fn destack_gpu_command_copy_texture_to_buffer_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandCopyTextureToBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12769,7 +12769,7 @@ fn destack_gpu_command_copy_texture_to_texture_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &source, &destination, &size);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE,
         binding.replay_payload_for(GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE)?,
         || match world {
@@ -12803,7 +12803,7 @@ fn destack_gpu_command_copy_texture_to_texture_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandCopyTextureToTextureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12832,7 +12832,7 @@ fn destack_gpu_command_dispatch_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &groupx, &groupy, &groupz);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_DISPATCH,
         binding.replay_payload_for(GPU_COMMAND_DISPATCH)?,
         || match world {
@@ -12858,7 +12858,7 @@ fn destack_gpu_command_dispatch_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandDispatchReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12886,7 +12886,7 @@ fn destack_gpu_command_dispatch_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_DISPATCH_INDIRECT,
         binding.replay_payload_for(GPU_COMMAND_DISPATCH_INDIRECT)?,
         || match world {
@@ -12912,7 +12912,7 @@ fn destack_gpu_command_dispatch_indirect_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandDispatchIndirectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12948,7 +12948,7 @@ fn destack_gpu_command_draw_replay(
         &firstinstance,
     );
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_DRAW,
         binding.replay_payload_for(GPU_COMMAND_DRAW)?,
         || match world {
@@ -12984,7 +12984,7 @@ fn destack_gpu_command_draw_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandDrawReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13022,7 +13022,7 @@ fn destack_gpu_command_draw_indexed_replay(
         &firstinstance,
     );
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_DRAW_INDEXED,
         binding.replay_payload_for(GPU_COMMAND_DRAW_INDEXED)?,
         || match world {
@@ -13060,7 +13060,7 @@ fn destack_gpu_command_draw_indexed_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandDrawIndexedReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13090,7 +13090,7 @@ fn destack_gpu_command_draw_indexed_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_DRAW_INDEXED_INDIRECT,
         binding.replay_payload_for(GPU_COMMAND_DRAW_INDEXED_INDIRECT)?,
         || match world {
@@ -13116,7 +13116,7 @@ fn destack_gpu_command_draw_indexed_indirect_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandDrawIndexedIndirectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13146,7 +13146,7 @@ fn destack_gpu_command_draw_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_DRAW_INDIRECT,
         binding.replay_payload_for(GPU_COMMAND_DRAW_INDIRECT)?,
         || match world {
@@ -13172,7 +13172,7 @@ fn destack_gpu_command_draw_indirect_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandDrawIndirectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13198,7 +13198,7 @@ fn destack_gpu_command_encoder_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_ENCODER_CLOSE,
         binding.replay_payload_for(GPU_COMMAND_ENCODER_CLOSE)?,
         || match world {
@@ -13220,7 +13220,7 @@ fn destack_gpu_command_encoder_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandEncoderCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13246,7 +13246,7 @@ fn destack_gpu_command_encoder_finish_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_ENCODER_FINISH,
         binding.replay_payload_for(GPU_COMMAND_ENCODER_FINISH)?,
         || match world {
@@ -13268,7 +13268,7 @@ fn destack_gpu_command_encoder_finish_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandEncoderFinishReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13296,7 +13296,7 @@ fn destack_gpu_command_encoder_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_ENCODER_OPEN,
         binding.replay_payload_for(GPU_COMMAND_ENCODER_OPEN)?,
         || match world {
@@ -13326,7 +13326,7 @@ fn destack_gpu_command_encoder_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandEncoderOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13359,7 +13359,7 @@ fn destack_gpu_command_execute_bundles_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &bundles);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_EXECUTE_BUNDLES,
         binding.replay_payload_for(GPU_COMMAND_EXECUTE_BUNDLES)?,
         || match world {
@@ -13383,7 +13383,7 @@ fn destack_gpu_command_execute_bundles_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandExecuteBundlesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13410,7 +13410,7 @@ fn destack_gpu_command_insert_debug_marker_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &marker);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_INSERT_DEBUG_MARKER,
         binding.replay_payload_for(GPU_COMMAND_INSERT_DEBUG_MARKER)?,
         || match world {
@@ -13434,7 +13434,7 @@ fn destack_gpu_command_insert_debug_marker_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandInsertDebugMarkerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13464,7 +13464,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT,
         binding.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT)?,
         || match world {
@@ -13490,7 +13490,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandMultiDrawIndexedIndirectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13530,7 +13530,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_count_replay(
         &stride,
     );
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT,
         binding.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT)?,
         || match world {
@@ -13570,7 +13570,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_count_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandMultiDrawIndexedIndirectCountReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13600,7 +13600,7 @@ fn destack_gpu_command_multi_draw_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_MULTI_DRAW_INDIRECT,
         binding.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDIRECT)?,
         || match world {
@@ -13626,7 +13626,7 @@ fn destack_gpu_command_multi_draw_indirect_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandMultiDrawIndirectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13666,7 +13666,7 @@ fn destack_gpu_command_multi_draw_indirect_count_replay(
         &stride,
     );
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT,
         binding.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT)?,
         || match world {
@@ -13706,7 +13706,7 @@ fn destack_gpu_command_multi_draw_indirect_count_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandMultiDrawIndirectCountReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13732,7 +13732,7 @@ fn destack_gpu_command_pop_debug_group_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_POP_DEBUG_GROUP,
         binding.replay_payload_for(GPU_COMMAND_POP_DEBUG_GROUP)?,
         || match world {
@@ -13754,7 +13754,7 @@ fn destack_gpu_command_pop_debug_group_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandPopDebugGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13781,7 +13781,7 @@ fn destack_gpu_command_push_debug_group_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &label);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_PUSH_DEBUG_GROUP,
         binding.replay_payload_for(GPU_COMMAND_PUSH_DEBUG_GROUP)?,
         || match world {
@@ -13805,7 +13805,7 @@ fn destack_gpu_command_push_debug_group_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandPushDebugGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13833,7 +13833,7 @@ fn destack_gpu_command_queue_submit_replay(
 ) -> RuntimeResult<()> {
     let _ = (&queue, &commandlists, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_QUEUE_SUBMIT,
         binding.replay_payload_for(GPU_COMMAND_QUEUE_SUBMIT)?,
         || match world {
@@ -13860,7 +13860,7 @@ fn destack_gpu_command_queue_submit_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandQueueSubmitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13887,7 +13887,7 @@ fn destack_gpu_command_queue_wait_idle_replay(
 ) -> RuntimeResult<()> {
     let _ = (&queue, &timeoutns);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_QUEUE_WAIT_IDLE,
         binding.replay_payload_for(GPU_COMMAND_QUEUE_WAIT_IDLE)?,
         || match world {
@@ -13909,7 +13909,7 @@ fn destack_gpu_command_queue_wait_idle_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandQueueWaitIdleReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13940,7 +13940,7 @@ fn destack_gpu_command_queue_write_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&queue, &buffer, &bufferoffset, &data, &dataoffset, &size);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_QUEUE_WRITE_BUFFER,
         binding.replay_payload_for(GPU_COMMAND_QUEUE_WRITE_BUFFER)?,
         || match world {
@@ -13978,7 +13978,7 @@ fn destack_gpu_command_queue_write_buffer_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandQueueWriteBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14008,7 +14008,7 @@ fn destack_gpu_command_queue_write_texture_replay(
 ) -> RuntimeResult<()> {
     let _ = (&queue, &destination, &data, &layout, &size);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_QUEUE_WRITE_TEXTURE,
         binding.replay_payload_for(GPU_COMMAND_QUEUE_WRITE_TEXTURE)?,
         || match world {
@@ -14044,7 +14044,7 @@ fn destack_gpu_command_queue_write_texture_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandQueueWriteTextureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14070,7 +14070,7 @@ fn destack_gpu_command_render_bundle_destroy_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_BUNDLE_DESTROY,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DESTROY)?,
         || match world {
@@ -14092,7 +14092,7 @@ fn destack_gpu_command_render_bundle_destroy_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14128,7 +14128,7 @@ fn destack_gpu_command_render_bundle_draw_replay(
         &firstinstance,
     );
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_BUNDLE_DRAW,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW)?,
         || match world {
@@ -14164,7 +14164,7 @@ fn destack_gpu_command_render_bundle_draw_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleDrawReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14202,7 +14202,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_replay(
         &firstinstance,
     );
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED)?,
         || match world {
@@ -14240,7 +14240,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleDrawIndexedReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14270,7 +14270,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT)?,
         || match world {
@@ -14296,7 +14296,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_indirect_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleDrawIndexedIndirectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14326,7 +14326,7 @@ fn destack_gpu_command_render_bundle_draw_indirect_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT)?,
         || match world {
@@ -14352,7 +14352,7 @@ fn destack_gpu_command_render_bundle_draw_indirect_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleDrawIndirectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14378,7 +14378,7 @@ fn destack_gpu_command_render_bundle_encoder_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE)?,
         || match world {
@@ -14400,7 +14400,7 @@ fn destack_gpu_command_render_bundle_encoder_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleEncoderCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14427,7 +14427,7 @@ fn destack_gpu_command_render_bundle_encoder_finish_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH)?,
         || match world {
@@ -14457,7 +14457,7 @@ fn destack_gpu_command_render_bundle_encoder_finish_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleEncoderFinishReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14491,7 +14491,7 @@ fn destack_gpu_command_render_bundle_encoder_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN)?,
         || match world {
@@ -14523,7 +14523,7 @@ fn destack_gpu_command_render_bundle_encoder_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleEncoderOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14556,7 +14556,7 @@ fn destack_gpu_command_render_bundle_insert_debug_marker_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &marker);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER)?,
         || match world {
@@ -14582,7 +14582,7 @@ fn destack_gpu_command_render_bundle_insert_debug_marker_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleInsertDebugMarkerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14608,7 +14608,7 @@ fn destack_gpu_command_render_bundle_pop_debug_group_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP)?,
         || match world {
@@ -14632,7 +14632,7 @@ fn destack_gpu_command_render_bundle_pop_debug_group_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundlePopDebugGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14659,7 +14659,7 @@ fn destack_gpu_command_render_bundle_push_debug_group_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &label);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP)?,
         || match world {
@@ -14683,7 +14683,7 @@ fn destack_gpu_command_render_bundle_push_debug_group_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundlePushDebugGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14712,7 +14712,7 @@ fn destack_gpu_command_render_bundle_set_bind_group_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &index, &bindgroup, &dynamicoffsets);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP)?,
         || match world {
@@ -14746,7 +14746,7 @@ fn destack_gpu_command_render_bundle_set_bind_group_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleSetBindGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14776,7 +14776,7 @@ fn destack_gpu_command_render_bundle_set_index_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &format, &offset, &size);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER)?,
         || match world {
@@ -14802,7 +14802,7 @@ fn destack_gpu_command_render_bundle_set_index_buffer_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleSetIndexBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14829,7 +14829,7 @@ fn destack_gpu_command_render_bundle_set_pipeline_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &pipeline);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE)?,
         || match world {
@@ -14853,7 +14853,7 @@ fn destack_gpu_command_render_bundle_set_pipeline_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleSetPipelineReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14883,7 +14883,7 @@ fn destack_gpu_command_render_bundle_set_vertex_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &slot, &buffer, &offset, &size);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER)?,
         || match world {
@@ -14909,7 +14909,7 @@ fn destack_gpu_command_render_bundle_set_vertex_buffer_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleSetVertexBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14937,7 +14937,7 @@ fn destack_gpu_command_render_pass_begin_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_PASS_BEGIN,
         binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_BEGIN)?,
         || match world {
@@ -14969,7 +14969,7 @@ fn destack_gpu_command_render_pass_begin_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderPassBeginReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15001,7 +15001,7 @@ fn destack_gpu_command_render_pass_end_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_PASS_END,
         binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_END)?,
         || match world {
@@ -15023,7 +15023,7 @@ fn destack_gpu_command_render_pass_end_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderPassEndReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15050,7 +15050,7 @@ fn destack_gpu_command_render_pass_insert_debug_marker_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &marker);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER,
         binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER)?,
         || match world {
@@ -15076,7 +15076,7 @@ fn destack_gpu_command_render_pass_insert_debug_marker_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderPassInsertDebugMarkerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15102,7 +15102,7 @@ fn destack_gpu_command_render_pass_pop_debug_group_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP,
         binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?,
         || match world {
@@ -15126,7 +15126,7 @@ fn destack_gpu_command_render_pass_pop_debug_group_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderPassPopDebugGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15153,7 +15153,7 @@ fn destack_gpu_command_render_pass_push_debug_group_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &label);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP,
         binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP)?,
         || match world {
@@ -15179,7 +15179,7 @@ fn destack_gpu_command_render_pass_push_debug_group_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderPassPushDebugGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15209,7 +15209,7 @@ fn destack_gpu_command_set_blend_constant_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &r, &g, &b, &a);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_SET_BLEND_CONSTANT,
         binding.replay_payload_for(GPU_COMMAND_SET_BLEND_CONSTANT)?,
         || match world {
@@ -15233,7 +15233,7 @@ fn destack_gpu_command_set_blend_constant_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandSetBlendConstantReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15262,7 +15262,7 @@ fn destack_gpu_command_set_compute_bind_group_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &index, &bindgroup, &dynamicoffsets);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_SET_COMPUTE_BIND_GROUP,
         binding.replay_payload_for(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?,
         || match world {
@@ -15296,7 +15296,7 @@ fn destack_gpu_command_set_compute_bind_group_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandSetComputeBindGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15326,7 +15326,7 @@ fn destack_gpu_command_set_index_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &format, &offset, &size);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_SET_INDEX_BUFFER,
         binding.replay_payload_for(GPU_COMMAND_SET_INDEX_BUFFER)?,
         || match world {
@@ -15352,7 +15352,7 @@ fn destack_gpu_command_set_index_buffer_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandSetIndexBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15381,7 +15381,7 @@ fn destack_gpu_command_set_render_bind_group_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &index, &bindgroup, &dynamicoffsets);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_SET_RENDER_BIND_GROUP,
         binding.replay_payload_for(GPU_COMMAND_SET_RENDER_BIND_GROUP)?,
         || match world {
@@ -15415,7 +15415,7 @@ fn destack_gpu_command_set_render_bind_group_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandSetRenderBindGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15445,7 +15445,7 @@ fn destack_gpu_command_set_scissor_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &x, &y, &width, &height);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_SET_SCISSOR,
         binding.replay_payload_for(GPU_COMMAND_SET_SCISSOR)?,
         || match world {
@@ -15471,7 +15471,7 @@ fn destack_gpu_command_set_scissor_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandSetScissorReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15498,7 +15498,7 @@ fn destack_gpu_command_set_stencil_reference_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &reference);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_SET_STENCIL_REFERENCE,
         binding.replay_payload_for(GPU_COMMAND_SET_STENCIL_REFERENCE)?,
         || match world {
@@ -15524,7 +15524,7 @@ fn destack_gpu_command_set_stencil_reference_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandSetStencilReferenceReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15554,7 +15554,7 @@ fn destack_gpu_command_set_vertex_buffer_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &slot, &buffer, &offset, &size);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_SET_VERTEX_BUFFER,
         binding.replay_payload_for(GPU_COMMAND_SET_VERTEX_BUFFER)?,
         || match world {
@@ -15580,7 +15580,7 @@ fn destack_gpu_command_set_vertex_buffer_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandSetVertexBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15612,7 +15612,7 @@ fn destack_gpu_command_set_viewport_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &x, &y, &width, &height, &mindepth, &maxdepth);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_COMMAND_SET_VIEWPORT,
         binding.replay_payload_for(GPU_COMMAND_SET_VIEWPORT)?,
         || match world {
@@ -15638,7 +15638,7 @@ fn destack_gpu_command_set_viewport_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandSetViewportReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15665,7 +15665,7 @@ fn destack_gpu_debug_set_label_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &label);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_DEBUG_SET_LABEL,
         binding.replay_payload_for(GPU_DEBUG_SET_LABEL)?,
         || match world {
@@ -15687,7 +15687,7 @@ fn destack_gpu_debug_set_label_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDebugSetLabelReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15713,7 +15713,7 @@ fn destack_gpu_device_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_DEVICE_CLOSE,
         binding.replay_payload_for(GPU_DEVICE_CLOSE)?,
         || match world {
@@ -15735,7 +15735,7 @@ fn destack_gpu_device_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDeviceCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15762,7 +15762,7 @@ fn destack_gpu_device_features_replay(
 ) -> RuntimeResult<()> {
     let _ = &device;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_DEVICE_FEATURES,
         binding.replay_payload_for(GPU_DEVICE_FEATURES)?,
         || match world {
@@ -15796,7 +15796,7 @@ fn destack_gpu_device_features_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDeviceFeaturesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15835,7 +15835,7 @@ fn destack_gpu_device_has_feature_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &feature);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_DEVICE_HAS_FEATURE,
         binding.replay_payload_for(GPU_DEVICE_HAS_FEATURE)?,
         || match world {
@@ -15865,7 +15865,7 @@ fn destack_gpu_device_has_feature_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDeviceHasFeatureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15898,7 +15898,7 @@ fn destack_gpu_device_info_replay(
 ) -> RuntimeResult<()> {
     let _ = &device;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_DEVICE_INFO,
         binding.replay_payload_for(GPU_DEVICE_INFO)?,
         || match world {
@@ -16006,7 +16006,7 @@ fn destack_gpu_device_info_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDeviceInfoReplay {
                         result,
                     }
@@ -16124,7 +16124,7 @@ fn destack_gpu_device_limits_replay(
 ) -> RuntimeResult<()> {
     let _ = &device;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_DEVICE_LIMITS,
         binding.replay_payload_for(GPU_DEVICE_LIMITS)?,
         || match world {
@@ -16254,7 +16254,7 @@ fn destack_gpu_device_limits_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDeviceLimitsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16386,7 +16386,7 @@ fn destack_gpu_device_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&adapter, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_DEVICE_OPEN,
         binding.replay_payload_for(GPU_DEVICE_OPEN)?,
         || match world {
@@ -16414,7 +16414,7 @@ fn destack_gpu_device_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDeviceOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16449,7 +16449,7 @@ fn destack_gpu_device_poll_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &wait, &timeoutns);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_DEVICE_POLL,
         binding.replay_payload_for(GPU_DEVICE_POLL)?,
         || match world {
@@ -16479,7 +16479,7 @@ fn destack_gpu_device_poll_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDevicePollReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16513,7 +16513,7 @@ fn destack_gpu_device_pop_error_scope_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &timeoutns);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_DEVICE_POP_ERROR_SCOPE,
         binding.replay_payload_for(GPU_DEVICE_POP_ERROR_SCOPE)?,
         || match world {
@@ -16558,7 +16558,7 @@ fn destack_gpu_device_pop_error_scope_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDevicePopErrorScopeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16606,7 +16606,7 @@ fn destack_gpu_device_push_error_scope_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &filter);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_DEVICE_PUSH_ERROR_SCOPE,
         binding.replay_payload_for(GPU_DEVICE_PUSH_ERROR_SCOPE)?,
         || match world {
@@ -16630,7 +16630,7 @@ fn destack_gpu_device_push_error_scope_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDevicePushErrorScopeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16657,7 +16657,7 @@ fn destack_gpu_device_queue_replay(
 ) -> RuntimeResult<()> {
     let _ = &device;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_DEVICE_QUEUE,
         binding.replay_payload_for(GPU_DEVICE_QUEUE)?,
         || match world {
@@ -16685,7 +16685,7 @@ fn destack_gpu_device_queue_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDeviceQueueReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16718,7 +16718,7 @@ fn destack_gpu_device_status_replay(
 ) -> RuntimeResult<()> {
     let _ = &device;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_DEVICE_STATUS,
         binding.replay_payload_for(GPU_DEVICE_STATUS)?,
         || match world {
@@ -16755,7 +16755,7 @@ fn destack_gpu_device_status_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDeviceStatusReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16798,7 +16798,7 @@ fn destack_gpu_pipeline_bind_group_layout_replay(
 ) -> RuntimeResult<()> {
     let _ = (&pipeline, &groupindex);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_PIPELINE_BIND_GROUP_LAYOUT,
         binding.replay_payload_for(GPU_PIPELINE_BIND_GROUP_LAYOUT)?,
         || match world {
@@ -16830,7 +16830,7 @@ fn destack_gpu_pipeline_bind_group_layout_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuPipelineBindGroupLayoutReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16864,7 +16864,7 @@ fn destack_gpu_pipeline_compute_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_PIPELINE_COMPUTE_CREATE,
         binding.replay_payload_for(GPU_PIPELINE_COMPUTE_CREATE)?,
         || match world {
@@ -16894,7 +16894,7 @@ fn destack_gpu_pipeline_compute_create_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuPipelineComputeCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16926,7 +16926,7 @@ fn destack_gpu_pipeline_destroy_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_PIPELINE_DESTROY,
         binding.replay_payload_for(GPU_PIPELINE_DESTROY)?,
         || match world {
@@ -16948,7 +16948,7 @@ fn destack_gpu_pipeline_destroy_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuPipelineDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16976,7 +16976,7 @@ fn destack_gpu_pipeline_render_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_PIPELINE_RENDER_CREATE,
         binding.replay_payload_for(GPU_PIPELINE_RENDER_CREATE)?,
         || match world {
@@ -17006,7 +17006,7 @@ fn destack_gpu_pipeline_render_create_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuPipelineRenderCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17040,7 +17040,7 @@ fn destack_gpu_pipeline_shader_compilation_info_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_PIPELINE_SHADER_COMPILATION_INFO,
         binding.replay_payload_for(GPU_PIPELINE_SHADER_COMPILATION_INFO)?,
         || match world {
@@ -17102,7 +17102,7 @@ fn destack_gpu_pipeline_shader_compilation_info_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuPipelineShaderCompilationInfoReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17164,7 +17164,7 @@ fn destack_gpu_pipeline_shader_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options, &argument_bytes);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_PIPELINE_SHADER_CREATE,
         binding.replay_payload_for(GPU_PIPELINE_SHADER_CREATE)?,
         || match world {
@@ -17204,7 +17204,7 @@ fn destack_gpu_pipeline_shader_create_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuPipelineShaderCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17236,7 +17236,7 @@ fn destack_gpu_pipeline_shader_destroy_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_PIPELINE_SHADER_DESTROY,
         binding.replay_payload_for(GPU_PIPELINE_SHADER_DESTROY)?,
         || match world {
@@ -17258,7 +17258,7 @@ fn destack_gpu_pipeline_shader_destroy_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuPipelineShaderDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17286,7 +17286,7 @@ fn destack_gpu_resource_buffer_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_RESOURCE_BUFFER_CREATE,
         binding.replay_payload_for(GPU_RESOURCE_BUFFER_CREATE)?,
         || match world {
@@ -17314,7 +17314,7 @@ fn destack_gpu_resource_buffer_create_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceBufferCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17346,7 +17346,7 @@ fn destack_gpu_resource_buffer_destroy_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_RESOURCE_BUFFER_DESTROY,
         binding.replay_payload_for(GPU_RESOURCE_BUFFER_DESTROY)?,
         || match world {
@@ -17368,7 +17368,7 @@ fn destack_gpu_resource_buffer_destroy_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceBufferDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17395,7 +17395,7 @@ fn destack_gpu_resource_buffer_info_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_RESOURCE_BUFFER_INFO,
         binding.replay_payload_for(GPU_RESOURCE_BUFFER_INFO)?,
         || match world {
@@ -17430,7 +17430,7 @@ fn destack_gpu_resource_buffer_info_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceBufferInfoReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17473,7 +17473,7 @@ fn destack_gpu_resource_buffer_map_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length, &mode);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_RESOURCE_BUFFER_MAP,
         binding.replay_payload_for(GPU_RESOURCE_BUFFER_MAP)?,
         || match world {
@@ -17510,7 +17510,7 @@ fn destack_gpu_resource_buffer_map_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceBufferMapReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17552,7 +17552,7 @@ fn destack_gpu_resource_buffer_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_RESOURCE_BUFFER_READ,
         binding.replay_payload_for(GPU_RESOURCE_BUFFER_READ)?,
         || match world {
@@ -17588,7 +17588,7 @@ fn destack_gpu_resource_buffer_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceBufferReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17625,7 +17625,7 @@ fn destack_gpu_resource_buffer_unmap_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_RESOURCE_BUFFER_UNMAP,
         binding.replay_payload_for(GPU_RESOURCE_BUFFER_UNMAP)?,
         || match world {
@@ -17647,7 +17647,7 @@ fn destack_gpu_resource_buffer_unmap_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceBufferUnmapReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17675,7 +17675,7 @@ fn destack_gpu_resource_buffer_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &argument_bytes);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_RESOURCE_BUFFER_WRITE,
         binding.replay_payload_for(GPU_RESOURCE_BUFFER_WRITE)?,
         || match world {
@@ -17702,7 +17702,7 @@ fn destack_gpu_resource_buffer_write_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceBufferWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17730,7 +17730,7 @@ fn destack_gpu_resource_sampler_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_RESOURCE_SAMPLER_CREATE,
         binding.replay_payload_for(GPU_RESOURCE_SAMPLER_CREATE)?,
         || match world {
@@ -17760,7 +17760,7 @@ fn destack_gpu_resource_sampler_create_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceSamplerCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17792,7 +17792,7 @@ fn destack_gpu_resource_sampler_destroy_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_RESOURCE_SAMPLER_DESTROY,
         binding.replay_payload_for(GPU_RESOURCE_SAMPLER_DESTROY)?,
         || match world {
@@ -17814,7 +17814,7 @@ fn destack_gpu_resource_sampler_destroy_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceSamplerDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17842,7 +17842,7 @@ fn destack_gpu_resource_texture_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_RESOURCE_TEXTURE_CREATE,
         binding.replay_payload_for(GPU_RESOURCE_TEXTURE_CREATE)?,
         || match world {
@@ -17872,7 +17872,7 @@ fn destack_gpu_resource_texture_create_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceTextureCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17904,7 +17904,7 @@ fn destack_gpu_resource_texture_destroy_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_RESOURCE_TEXTURE_DESTROY,
         binding.replay_payload_for(GPU_RESOURCE_TEXTURE_DESTROY)?,
         || match world {
@@ -17926,7 +17926,7 @@ fn destack_gpu_resource_texture_destroy_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceTextureDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17953,7 +17953,7 @@ fn destack_gpu_resource_texture_info_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_RESOURCE_TEXTURE_INFO,
         binding.replay_payload_for(GPU_RESOURCE_TEXTURE_INFO)?,
         || match world {
@@ -17998,7 +17998,7 @@ fn destack_gpu_resource_texture_info_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceTextureInfoReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18049,7 +18049,7 @@ fn destack_gpu_resource_texture_view_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&texture, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_RESOURCE_TEXTURE_VIEW_CREATE,
         binding.replay_payload_for(GPU_RESOURCE_TEXTURE_VIEW_CREATE)?,
         || match world {
@@ -18079,7 +18079,7 @@ fn destack_gpu_resource_texture_view_create_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceTextureViewCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18111,7 +18111,7 @@ fn destack_gpu_resource_texture_view_destroy_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_RESOURCE_TEXTURE_VIEW_DESTROY,
         binding.replay_payload_for(GPU_RESOURCE_TEXTURE_VIEW_DESTROY)?,
         || match world {
@@ -18133,7 +18133,7 @@ fn destack_gpu_resource_texture_view_destroy_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceTextureViewDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18161,7 +18161,7 @@ fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_replay(
 ) -> RuntimeResult<()> {
     let _ = (&computepass, &queryset, &queryindex);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY,
         binding.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
         || match world {
@@ -18179,7 +18179,7 @@ fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncCommandBeginComputePipelineStatisticsQueryReplay {
                         result,
                     }
@@ -18209,7 +18209,7 @@ fn destack_gpu_sync_command_begin_occlusion_query_replay(
 ) -> RuntimeResult<()> {
     let _ = (&renderpass, &queryset, &queryindex);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY,
         binding.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY)?,
         || match world {
@@ -18235,7 +18235,7 @@ fn destack_gpu_sync_command_begin_occlusion_query_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncCommandBeginOcclusionQueryReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18263,7 +18263,7 @@ fn destack_gpu_sync_command_begin_render_pipeline_statistics_query_replay(
 ) -> RuntimeResult<()> {
     let _ = (&renderpass, &queryset, &queryindex);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY,
         binding.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?,
         || match world {
@@ -18281,7 +18281,7 @@ fn destack_gpu_sync_command_begin_render_pipeline_statistics_query_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncCommandBeginRenderPipelineStatisticsQueryReplay {
                         result,
                     }
@@ -18309,7 +18309,7 @@ fn destack_gpu_sync_command_end_compute_pipeline_statistics_query_replay(
 ) -> RuntimeResult<()> {
     let _ = &computepass;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY,
         binding.replay_payload_for(GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
         || match world {
@@ -18327,7 +18327,7 @@ fn destack_gpu_sync_command_end_compute_pipeline_statistics_query_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncCommandEndComputePipelineStatisticsQueryReplay {
                         result,
                     }
@@ -18355,7 +18355,7 @@ fn destack_gpu_sync_command_end_occlusion_query_replay(
 ) -> RuntimeResult<()> {
     let _ = &renderpass;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_SYNC_COMMAND_END_OCCLUSION_QUERY,
         binding.replay_payload_for(GPU_SYNC_COMMAND_END_OCCLUSION_QUERY)?,
         || match world {
@@ -18379,7 +18379,7 @@ fn destack_gpu_sync_command_end_occlusion_query_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncCommandEndOcclusionQueryReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18405,7 +18405,7 @@ fn destack_gpu_sync_command_end_render_pipeline_statistics_query_replay(
 ) -> RuntimeResult<()> {
     let _ = &renderpass;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
         binding.replay_payload_for(GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY)?,
         || match world {
@@ -18423,7 +18423,7 @@ fn destack_gpu_sync_command_end_render_pipeline_statistics_query_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncCommandEndRenderPipelineStatisticsQueryReplay {
                         result,
                     }
@@ -18463,7 +18463,7 @@ fn destack_gpu_sync_command_resolve_queries_replay(
         &destinationoffset,
     );
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_SYNC_COMMAND_RESOLVE_QUERIES,
         binding.replay_payload_for(GPU_SYNC_COMMAND_RESOLVE_QUERIES)?,
         || match world {
@@ -18501,7 +18501,7 @@ fn destack_gpu_sync_command_resolve_queries_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncCommandResolveQueriesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18529,7 +18529,7 @@ fn destack_gpu_sync_command_write_timestamp_replay(
 ) -> RuntimeResult<()> {
     let _ = (&commandlist, &queryset, &queryindex);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_SYNC_COMMAND_WRITE_TIMESTAMP,
         binding.replay_payload_for(GPU_SYNC_COMMAND_WRITE_TIMESTAMP)?,
         || match world {
@@ -18561,7 +18561,7 @@ fn destack_gpu_sync_command_write_timestamp_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncCommandWriteTimestampReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18589,7 +18589,7 @@ fn destack_gpu_sync_fence_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_SYNC_FENCE_CREATE,
         binding.replay_payload_for(GPU_SYNC_FENCE_CREATE)?,
         || match world {
@@ -18617,7 +18617,7 @@ fn destack_gpu_sync_fence_create_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncFenceCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18649,7 +18649,7 @@ fn destack_gpu_sync_fence_destroy_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_SYNC_FENCE_DESTROY,
         binding.replay_payload_for(GPU_SYNC_FENCE_DESTROY)?,
         || match world {
@@ -18671,7 +18671,7 @@ fn destack_gpu_sync_fence_destroy_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncFenceDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18699,7 +18699,7 @@ fn destack_gpu_sync_query_set_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &options);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_SYNC_QUERY_SET_CREATE,
         binding.replay_payload_for(GPU_SYNC_QUERY_SET_CREATE)?,
         || match world {
@@ -18729,7 +18729,7 @@ fn destack_gpu_sync_query_set_create_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncQuerySetCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18761,7 +18761,7 @@ fn destack_gpu_sync_query_set_destroy_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_SYNC_QUERY_SET_DESTROY,
         binding.replay_payload_for(GPU_SYNC_QUERY_SET_DESTROY)?,
         || match world {
@@ -18783,7 +18783,7 @@ fn destack_gpu_sync_query_set_destroy_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncQuerySetDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18810,7 +18810,7 @@ fn destack_gpu_sync_query_set_info_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_SYNC_QUERY_SET_INFO,
         binding.replay_payload_for(GPU_SYNC_QUERY_SET_INFO)?,
         || match world {
@@ -18846,7 +18846,7 @@ fn destack_gpu_sync_query_set_info_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncQuerySetInfoReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18887,7 +18887,7 @@ fn destack_gpu_sync_queue_signal_replay(
 ) -> RuntimeResult<()> {
     let _ = (&queue, &fence, &argument_value);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_SYNC_QUEUE_SIGNAL,
         binding.replay_payload_for(GPU_SYNC_QUEUE_SIGNAL)?,
         || match world {
@@ -18914,7 +18914,7 @@ fn destack_gpu_sync_queue_signal_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncQueueSignalReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18941,7 +18941,7 @@ fn destack_gpu_sync_queue_timestamp_period_replay(
 ) -> RuntimeResult<()> {
     let _ = &queue;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_SYNC_QUEUE_TIMESTAMP_PERIOD,
         binding.replay_payload_for(GPU_SYNC_QUEUE_TIMESTAMP_PERIOD)?,
         || match world {
@@ -18969,7 +18969,7 @@ fn destack_gpu_sync_queue_timestamp_period_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncQueueTimestampPeriodReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19004,7 +19004,7 @@ fn destack_gpu_sync_queue_wait_replay(
 ) -> RuntimeResult<()> {
     let _ = (&queue, &fence, &argument_value, &timeoutns);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_SYNC_QUEUE_WAIT,
         binding.replay_payload_for(GPU_SYNC_QUEUE_WAIT)?,
         || match world {
@@ -19038,7 +19038,7 @@ fn destack_gpu_sync_queue_wait_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncQueueWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19065,7 +19065,7 @@ fn destack_gpu_sync_queue_work_done_replay(
 ) -> RuntimeResult<()> {
     let _ = (&queue, &timeoutns);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         GPU_SYNC_QUEUE_WORK_DONE,
         binding.replay_payload_for(GPU_SYNC_QUEUE_WORK_DONE)?,
         || match world {
@@ -19087,7 +19087,7 @@ fn destack_gpu_sync_queue_work_done_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncQueueWorkDoneReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21518,7 +21518,7 @@ fn destack_gpu_adapter_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_ADAPTER_CLOSE,
         binding.replay_payload_for(GPU_ADAPTER_CLOSE)?,
         context,
@@ -21540,7 +21540,7 @@ fn destack_gpu_adapter_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuAdapterCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21568,7 +21568,7 @@ fn destack_gpu_adapter_features_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_ADAPTER_FEATURES,
         binding.replay_payload_for(GPU_ADAPTER_FEATURES)?,
         context,
@@ -21604,7 +21604,7 @@ fn destack_gpu_adapter_features_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuAdapterFeaturesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21642,7 +21642,7 @@ fn destack_gpu_adapter_format_capabilities_vm_replay(
     handle: resource::GpuAdapterHandle,
     format: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_ADAPTER_FORMAT_CAPABILITIES,
         binding.replay_payload_for(GPU_ADAPTER_FORMAT_CAPABILITIES)?,
         context,
@@ -21682,7 +21682,7 @@ fn destack_gpu_adapter_format_capabilities_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuAdapterFormatCapabilitiesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21727,7 +21727,7 @@ fn destack_gpu_adapter_has_feature_vm_replay(
     handle: resource::GpuAdapterHandle,
     feature: GpuFeatureId,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_ADAPTER_HAS_FEATURE,
         binding.replay_payload_for(GPU_ADAPTER_HAS_FEATURE)?,
         context,
@@ -21752,7 +21752,7 @@ fn destack_gpu_adapter_has_feature_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuAdapterHasFeatureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21783,7 +21783,7 @@ fn destack_gpu_adapter_info_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_ADAPTER_INFO,
         binding.replay_payload_for(GPU_ADAPTER_INFO)?,
         context,
@@ -21992,7 +21992,7 @@ fn destack_gpu_adapter_info_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuAdapterInfoReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22175,7 +22175,7 @@ fn destack_gpu_adapter_limits_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_ADAPTER_LIMITS,
         binding.replay_payload_for(GPU_ADAPTER_LIMITS)?,
         context,
@@ -22300,7 +22300,7 @@ fn destack_gpu_adapter_limits_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuAdapterLimitsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22423,7 +22423,7 @@ fn destack_gpu_adapter_list_vm_replay(
     world: RuntimeWorld,
     request: GpuAdapterRequestVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_ADAPTER_LIST,
         binding.replay_payload_for(GPU_ADAPTER_LIST)?,
         context,
@@ -22674,7 +22674,7 @@ fn destack_gpu_adapter_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuAdapterListReplay {
                         result,
                     }
@@ -22820,7 +22820,7 @@ fn destack_gpu_adapter_open_vm_replay(
     world: RuntimeWorld,
     id: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_ADAPTER_OPEN,
         binding.replay_payload_for(GPU_ADAPTER_OPEN)?,
         context,
@@ -22843,7 +22843,7 @@ fn destack_gpu_adapter_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuAdapterOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22877,7 +22877,7 @@ fn destack_gpu_bind_group_create_vm_replay(
     entries: VmSlice<GpuBindGroupEntryVm>,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_BIND_GROUP_CREATE,
         binding.replay_payload_for(GPU_BIND_GROUP_CREATE)?,
         context,
@@ -22902,7 +22902,7 @@ fn destack_gpu_bind_group_create_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuBindGroupCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22933,7 +22933,7 @@ fn destack_gpu_bind_group_destroy_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuBindGroupHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_BIND_GROUP_DESTROY,
         binding.replay_payload_for(GPU_BIND_GROUP_DESTROY)?,
         context,
@@ -22957,7 +22957,7 @@ fn destack_gpu_bind_group_destroy_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuBindGroupDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -22987,7 +22987,7 @@ fn destack_gpu_bind_group_layout_create_vm_replay(
     entries: VmSlice<GpuBindGroupLayoutEntryVm>,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_BIND_GROUP_LAYOUT_CREATE,
         binding.replay_payload_for(GPU_BIND_GROUP_LAYOUT_CREATE)?,
         context,
@@ -23014,7 +23014,7 @@ fn destack_gpu_bind_group_layout_create_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuBindGroupLayoutCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23045,7 +23045,7 @@ fn destack_gpu_bind_group_layout_destroy_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuBindGroupLayoutHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_BIND_GROUP_LAYOUT_DESTROY,
         binding.replay_payload_for(GPU_BIND_GROUP_LAYOUT_DESTROY)?,
         context,
@@ -23071,7 +23071,7 @@ fn destack_gpu_bind_group_layout_destroy_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuBindGroupLayoutDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23100,7 +23100,7 @@ fn destack_gpu_bind_pipeline_layout_create_vm_replay(
     device: resource::GpuDeviceHandle,
     options: GpuPipelineLayoutOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_BIND_PIPELINE_LAYOUT_CREATE,
         binding.replay_payload_for(GPU_BIND_PIPELINE_LAYOUT_CREATE)?,
         context,
@@ -23125,7 +23125,7 @@ fn destack_gpu_bind_pipeline_layout_create_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuBindPipelineLayoutCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23156,7 +23156,7 @@ fn destack_gpu_bind_pipeline_layout_destroy_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuPipelineLayoutHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_BIND_PIPELINE_LAYOUT_DESTROY,
         binding.replay_payload_for(GPU_BIND_PIPELINE_LAYOUT_DESTROY)?,
         context,
@@ -23182,7 +23182,7 @@ fn destack_gpu_bind_pipeline_layout_destroy_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuBindPipelineLayoutDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23211,7 +23211,7 @@ fn destack_gpu_command_bind_compute_pipeline_vm_replay(
     handle: resource::GpuComputePassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_BIND_COMPUTE_PIPELINE,
         binding.replay_payload_for(GPU_COMMAND_BIND_COMPUTE_PIPELINE)?,
         context,
@@ -23237,7 +23237,7 @@ fn destack_gpu_command_bind_compute_pipeline_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandBindComputePipelineReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23266,7 +23266,7 @@ fn destack_gpu_command_bind_render_pipeline_vm_replay(
     handle: resource::GpuRenderPassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_BIND_RENDER_PIPELINE,
         binding.replay_payload_for(GPU_COMMAND_BIND_RENDER_PIPELINE)?,
         context,
@@ -23292,7 +23292,7 @@ fn destack_gpu_command_bind_render_pipeline_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandBindRenderPipelineReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23323,7 +23323,7 @@ fn destack_gpu_command_clear_buffer_vm_replay(
     offset: u64,
     size: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_CLEAR_BUFFER,
         binding.replay_payload_for(GPU_COMMAND_CLEAR_BUFFER)?,
         context,
@@ -23347,7 +23347,7 @@ fn destack_gpu_command_clear_buffer_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandClearBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23376,7 +23376,7 @@ fn destack_gpu_command_compute_pass_begin_vm_replay(
     handle: resource::GpuCommandListHandle,
     options: GpuComputePassOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_COMPUTE_PASS_BEGIN,
         binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_BEGIN)?,
         context,
@@ -23403,7 +23403,7 @@ fn destack_gpu_command_compute_pass_begin_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandComputePassBeginReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23434,7 +23434,7 @@ fn destack_gpu_command_compute_pass_end_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_COMPUTE_PASS_END,
         binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_END)?,
         context,
@@ -23460,7 +23460,7 @@ fn destack_gpu_command_compute_pass_end_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandComputePassEndReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23489,7 +23489,7 @@ fn destack_gpu_command_compute_pass_insert_debug_marker_vm_replay(
     handle: resource::GpuComputePassHandle,
     marker: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER,
         binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER)?,
         context,
@@ -23517,7 +23517,7 @@ fn destack_gpu_command_compute_pass_insert_debug_marker_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandComputePassInsertDebugMarkerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23546,7 +23546,7 @@ fn destack_gpu_command_compute_pass_pop_debug_group_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuComputePassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP,
         binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP)?,
         context,
@@ -23572,7 +23572,7 @@ fn destack_gpu_command_compute_pass_pop_debug_group_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandComputePassPopDebugGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23601,7 +23601,7 @@ fn destack_gpu_command_compute_pass_push_debug_group_vm_replay(
     handle: resource::GpuComputePassHandle,
     label: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP,
         binding.replay_payload_for(GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP)?,
         context,
@@ -23627,7 +23627,7 @@ fn destack_gpu_command_compute_pass_push_debug_group_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandComputePassPushDebugGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23660,7 +23660,7 @@ fn destack_gpu_command_copy_buffer_vm_replay(
     dstoffset: u64,
     argument_bytes: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_COPY_BUFFER,
         binding.replay_payload_for(GPU_COMMAND_COPY_BUFFER)?,
         context,
@@ -23698,7 +23698,7 @@ fn destack_gpu_command_copy_buffer_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandCopyBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23729,7 +23729,7 @@ fn destack_gpu_command_copy_buffer_to_texture_vm_replay(
     destination: GpuTextureCopyVm,
     size: GpuExtent3DVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_COPY_BUFFER_TO_TEXTURE,
         binding.replay_payload_for(GPU_COMMAND_COPY_BUFFER_TO_TEXTURE)?,
         context,
@@ -23765,7 +23765,7 @@ fn destack_gpu_command_copy_buffer_to_texture_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandCopyBufferToTextureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23796,7 +23796,7 @@ fn destack_gpu_command_copy_texture_to_buffer_vm_replay(
     destination: GpuBufferCopyVm,
     size: GpuExtent3DVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_COPY_TEXTURE_TO_BUFFER,
         binding.replay_payload_for(GPU_COMMAND_COPY_TEXTURE_TO_BUFFER)?,
         context,
@@ -23832,7 +23832,7 @@ fn destack_gpu_command_copy_texture_to_buffer_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandCopyTextureToBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23863,7 +23863,7 @@ fn destack_gpu_command_copy_texture_to_texture_vm_replay(
     destination: GpuTextureCopyVm,
     size: GpuExtent3DVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE,
         binding.replay_payload_for(GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE)?,
         context,
@@ -23899,7 +23899,7 @@ fn destack_gpu_command_copy_texture_to_texture_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandCopyTextureToTextureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23930,7 +23930,7 @@ fn destack_gpu_command_dispatch_vm_replay(
     groupy: u32,
     groupz: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_DISPATCH,
         binding.replay_payload_for(GPU_COMMAND_DISPATCH)?,
         context,
@@ -23954,7 +23954,7 @@ fn destack_gpu_command_dispatch_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandDispatchReplay { result }
                 };
                 return Ok(Some(payload));
@@ -23984,7 +23984,7 @@ fn destack_gpu_command_dispatch_indirect_vm_replay(
     buffer: resource::GpuBufferHandle,
     offset: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_DISPATCH_INDIRECT,
         binding.replay_payload_for(GPU_COMMAND_DISPATCH_INDIRECT)?,
         context,
@@ -24010,7 +24010,7 @@ fn destack_gpu_command_dispatch_indirect_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandDispatchIndirectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24042,7 +24042,7 @@ fn destack_gpu_command_draw_vm_replay(
     firstvertex: u32,
     firstinstance: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_DRAW,
         binding.replay_payload_for(GPU_COMMAND_DRAW)?,
         context,
@@ -24078,7 +24078,7 @@ fn destack_gpu_command_draw_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandDrawReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24111,7 +24111,7 @@ fn destack_gpu_command_draw_indexed_vm_replay(
     basevertex: i32,
     firstinstance: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_DRAW_INDEXED,
         binding.replay_payload_for(GPU_COMMAND_DRAW_INDEXED)?,
         context,
@@ -24149,7 +24149,7 @@ fn destack_gpu_command_draw_indexed_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandDrawIndexedReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24181,7 +24181,7 @@ fn destack_gpu_command_draw_indexed_indirect_vm_replay(
     drawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_DRAW_INDEXED_INDIRECT,
         binding.replay_payload_for(GPU_COMMAND_DRAW_INDEXED_INDIRECT)?,
         context,
@@ -24207,7 +24207,7 @@ fn destack_gpu_command_draw_indexed_indirect_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandDrawIndexedIndirectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24239,7 +24239,7 @@ fn destack_gpu_command_draw_indirect_vm_replay(
     drawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_DRAW_INDIRECT,
         binding.replay_payload_for(GPU_COMMAND_DRAW_INDIRECT)?,
         context,
@@ -24263,7 +24263,7 @@ fn destack_gpu_command_draw_indirect_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandDrawIndirectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24291,7 +24291,7 @@ fn destack_gpu_command_encoder_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_ENCODER_CLOSE,
         binding.replay_payload_for(GPU_COMMAND_ENCODER_CLOSE)?,
         context,
@@ -24315,7 +24315,7 @@ fn destack_gpu_command_encoder_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandEncoderCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24343,7 +24343,7 @@ fn destack_gpu_command_encoder_finish_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_ENCODER_FINISH,
         binding.replay_payload_for(GPU_COMMAND_ENCODER_FINISH)?,
         context,
@@ -24367,7 +24367,7 @@ fn destack_gpu_command_encoder_finish_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandEncoderFinishReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24396,7 +24396,7 @@ fn destack_gpu_command_encoder_open_vm_replay(
     device: resource::GpuDeviceHandle,
     options: GpuCommandEncoderOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_ENCODER_OPEN,
         binding.replay_payload_for(GPU_COMMAND_ENCODER_OPEN)?,
         context,
@@ -24421,7 +24421,7 @@ fn destack_gpu_command_encoder_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandEncoderOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24453,7 +24453,7 @@ fn destack_gpu_command_execute_bundles_vm_replay(
     handle: resource::GpuRenderPassHandle,
     bundles: VmSlice<resource::GpuRenderBundleHandle>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_EXECUTE_BUNDLES,
         binding.replay_payload_for(GPU_COMMAND_EXECUTE_BUNDLES)?,
         context,
@@ -24479,7 +24479,7 @@ fn destack_gpu_command_execute_bundles_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandExecuteBundlesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24508,7 +24508,7 @@ fn destack_gpu_command_insert_debug_marker_vm_replay(
     handle: resource::GpuCommandListHandle,
     marker: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_INSERT_DEBUG_MARKER,
         binding.replay_payload_for(GPU_COMMAND_INSERT_DEBUG_MARKER)?,
         context,
@@ -24534,7 +24534,7 @@ fn destack_gpu_command_insert_debug_marker_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandInsertDebugMarkerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24566,7 +24566,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_vm_replay(
     drawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT,
         binding.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT)?,
         context,
@@ -24592,7 +24592,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandMultiDrawIndexedIndirectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24626,7 +24626,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_count_vm_replay(
     maxdrawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT,
         binding.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT)?,
         context,
@@ -24670,7 +24670,7 @@ fn destack_gpu_command_multi_draw_indexed_indirect_count_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandMultiDrawIndexedIndirectCountReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24703,7 +24703,7 @@ fn destack_gpu_command_multi_draw_indirect_vm_replay(
     drawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_MULTI_DRAW_INDIRECT,
         binding.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDIRECT)?,
         context,
@@ -24729,7 +24729,7 @@ fn destack_gpu_command_multi_draw_indirect_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandMultiDrawIndirectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24763,7 +24763,7 @@ fn destack_gpu_command_multi_draw_indirect_count_vm_replay(
     maxdrawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT,
         binding.replay_payload_for(GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT)?,
         context,
@@ -24805,7 +24805,7 @@ fn destack_gpu_command_multi_draw_indirect_count_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandMultiDrawIndirectCountReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24833,7 +24833,7 @@ fn destack_gpu_command_pop_debug_group_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_POP_DEBUG_GROUP,
         binding.replay_payload_for(GPU_COMMAND_POP_DEBUG_GROUP)?,
         context,
@@ -24859,7 +24859,7 @@ fn destack_gpu_command_pop_debug_group_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandPopDebugGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24888,7 +24888,7 @@ fn destack_gpu_command_push_debug_group_vm_replay(
     handle: resource::GpuCommandListHandle,
     label: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_PUSH_DEBUG_GROUP,
         binding.replay_payload_for(GPU_COMMAND_PUSH_DEBUG_GROUP)?,
         context,
@@ -24914,7 +24914,7 @@ fn destack_gpu_command_push_debug_group_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandPushDebugGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -24944,7 +24944,7 @@ fn destack_gpu_command_queue_submit_vm_replay(
     commandlists: VmSlice<resource::GpuCommandListHandle>,
     options: GpuSubmitOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_QUEUE_SUBMIT,
         binding.replay_payload_for(GPU_COMMAND_QUEUE_SUBMIT)?,
         context,
@@ -24976,7 +24976,7 @@ fn destack_gpu_command_queue_submit_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandQueueSubmitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25005,7 +25005,7 @@ fn destack_gpu_command_queue_wait_idle_vm_replay(
     queue: resource::GpuQueueHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_QUEUE_WAIT_IDLE,
         binding.replay_payload_for(GPU_COMMAND_QUEUE_WAIT_IDLE)?,
         context,
@@ -25029,7 +25029,7 @@ fn destack_gpu_command_queue_wait_idle_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandQueueWaitIdleReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25062,7 +25062,7 @@ fn destack_gpu_command_queue_write_buffer_vm_replay(
     dataoffset: u64,
     size: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_QUEUE_WRITE_BUFFER,
         binding.replay_payload_for(GPU_COMMAND_QUEUE_WRITE_BUFFER)?,
         context,
@@ -25100,7 +25100,7 @@ fn destack_gpu_command_queue_write_buffer_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandQueueWriteBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25132,7 +25132,7 @@ fn destack_gpu_command_queue_write_texture_vm_replay(
     layout: GpuBufferCopyLayoutVm,
     size: GpuExtent3DVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_QUEUE_WRITE_TEXTURE,
         binding.replay_payload_for(GPU_COMMAND_QUEUE_WRITE_TEXTURE)?,
         context,
@@ -25168,7 +25168,7 @@ fn destack_gpu_command_queue_write_texture_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandQueueWriteTextureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25196,7 +25196,7 @@ fn destack_gpu_command_render_bundle_destroy_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_BUNDLE_DESTROY,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DESTROY)?,
         context,
@@ -25220,7 +25220,7 @@ fn destack_gpu_command_render_bundle_destroy_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25252,7 +25252,7 @@ fn destack_gpu_command_render_bundle_draw_vm_replay(
     firstvertex: u32,
     firstinstance: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_BUNDLE_DRAW,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW)?,
         context,
@@ -25288,7 +25288,7 @@ fn destack_gpu_command_render_bundle_draw_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleDrawReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25321,7 +25321,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_vm_replay(
     basevertex: i32,
     firstinstance: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED)?,
         context,
@@ -25361,7 +25361,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleDrawIndexedReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25393,7 +25393,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_indirect_vm_replay(
     drawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT)?,
         context,
@@ -25419,7 +25419,7 @@ fn destack_gpu_command_render_bundle_draw_indexed_indirect_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleDrawIndexedIndirectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25452,7 +25452,7 @@ fn destack_gpu_command_render_bundle_draw_indirect_vm_replay(
     drawcount: u32,
     stride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT)?,
         context,
@@ -25478,7 +25478,7 @@ fn destack_gpu_command_render_bundle_draw_indirect_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleDrawIndirectReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25506,7 +25506,7 @@ fn destack_gpu_command_render_bundle_encoder_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE)?,
         context,
@@ -25532,7 +25532,7 @@ fn destack_gpu_command_render_bundle_encoder_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleEncoderCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25560,7 +25560,7 @@ fn destack_gpu_command_render_bundle_encoder_finish_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH)?,
         context,
@@ -25587,7 +25587,7 @@ fn destack_gpu_command_render_bundle_encoder_finish_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleEncoderFinishReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25619,7 +25619,7 @@ fn destack_gpu_command_render_bundle_encoder_open_vm_replay(
     device: resource::GpuDeviceHandle,
     options: GpuRenderBundleEncoderOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN)?,
         context,
@@ -25646,7 +25646,7 @@ fn destack_gpu_command_render_bundle_encoder_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleEncoderOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25678,7 +25678,7 @@ fn destack_gpu_command_render_bundle_insert_debug_marker_vm_replay(
     handle: resource::GpuRenderBundleEncoderHandle,
     marker: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER)?,
         context,
@@ -25704,7 +25704,7 @@ fn destack_gpu_command_render_bundle_insert_debug_marker_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleInsertDebugMarkerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25733,7 +25733,7 @@ fn destack_gpu_command_render_bundle_pop_debug_group_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP)?,
         context,
@@ -25759,7 +25759,7 @@ fn destack_gpu_command_render_bundle_pop_debug_group_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundlePopDebugGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25788,7 +25788,7 @@ fn destack_gpu_command_render_bundle_push_debug_group_vm_replay(
     handle: resource::GpuRenderBundleEncoderHandle,
     label: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP)?,
         context,
@@ -25814,7 +25814,7 @@ fn destack_gpu_command_render_bundle_push_debug_group_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundlePushDebugGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25845,7 +25845,7 @@ fn destack_gpu_command_render_bundle_set_bind_group_vm_replay(
     bindgroup: resource::GpuBindGroupHandle,
     dynamicoffsets: VmSlice<u32>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP)?,
         context,
@@ -25881,7 +25881,7 @@ fn destack_gpu_command_render_bundle_set_bind_group_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleSetBindGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25913,7 +25913,7 @@ fn destack_gpu_command_render_bundle_set_index_buffer_vm_replay(
     offset: u64,
     size: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER)?,
         context,
@@ -25939,7 +25939,7 @@ fn destack_gpu_command_render_bundle_set_index_buffer_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleSetIndexBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -25968,7 +25968,7 @@ fn destack_gpu_command_render_bundle_set_pipeline_vm_replay(
     handle: resource::GpuRenderBundleEncoderHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE)?,
         context,
@@ -25994,7 +25994,7 @@ fn destack_gpu_command_render_bundle_set_pipeline_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleSetPipelineReplay { result }
                 };
                 return Ok(Some(payload));
@@ -26026,7 +26026,7 @@ fn destack_gpu_command_render_bundle_set_vertex_buffer_vm_replay(
     offset: u64,
     size: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER,
         binding.replay_payload_for(GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER)?,
         context,
@@ -26052,7 +26052,7 @@ fn destack_gpu_command_render_bundle_set_vertex_buffer_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderBundleSetVertexBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -26082,7 +26082,7 @@ fn destack_gpu_command_render_pass_begin_vm_replay(
     handle: resource::GpuCommandListHandle,
     options: GpuRenderPassOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_PASS_BEGIN,
         binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_BEGIN)?,
         context,
@@ -26109,7 +26109,7 @@ fn destack_gpu_command_render_pass_begin_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderPassBeginReplay { result }
                 };
                 return Ok(Some(payload));
@@ -26140,7 +26140,7 @@ fn destack_gpu_command_render_pass_end_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_PASS_END,
         binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_END)?,
         context,
@@ -26166,7 +26166,7 @@ fn destack_gpu_command_render_pass_end_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderPassEndReplay { result }
                 };
                 return Ok(Some(payload));
@@ -26195,7 +26195,7 @@ fn destack_gpu_command_render_pass_insert_debug_marker_vm_replay(
     handle: resource::GpuRenderPassHandle,
     marker: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER,
         binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER)?,
         context,
@@ -26221,7 +26221,7 @@ fn destack_gpu_command_render_pass_insert_debug_marker_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderPassInsertDebugMarkerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -26250,7 +26250,7 @@ fn destack_gpu_command_render_pass_pop_debug_group_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP,
         binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?,
         context,
@@ -26276,7 +26276,7 @@ fn destack_gpu_command_render_pass_pop_debug_group_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderPassPopDebugGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -26305,7 +26305,7 @@ fn destack_gpu_command_render_pass_push_debug_group_vm_replay(
     handle: resource::GpuRenderPassHandle,
     label: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP,
         binding.replay_payload_for(GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP)?,
         context,
@@ -26331,7 +26331,7 @@ fn destack_gpu_command_render_pass_push_debug_group_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandRenderPassPushDebugGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -26363,7 +26363,7 @@ fn destack_gpu_command_set_blend_constant_vm_replay(
     b: f64,
     a: f64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_SET_BLEND_CONSTANT,
         binding.replay_payload_for(GPU_COMMAND_SET_BLEND_CONSTANT)?,
         context,
@@ -26389,7 +26389,7 @@ fn destack_gpu_command_set_blend_constant_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandSetBlendConstantReplay { result }
                 };
                 return Ok(Some(payload));
@@ -26420,7 +26420,7 @@ fn destack_gpu_command_set_compute_bind_group_vm_replay(
     bindgroup: resource::GpuBindGroupHandle,
     dynamicoffsets: VmSlice<u32>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_SET_COMPUTE_BIND_GROUP,
         binding.replay_payload_for(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?,
         context,
@@ -26456,7 +26456,7 @@ fn destack_gpu_command_set_compute_bind_group_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandSetComputeBindGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -26488,7 +26488,7 @@ fn destack_gpu_command_set_index_buffer_vm_replay(
     offset: u64,
     size: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_SET_INDEX_BUFFER,
         binding.replay_payload_for(GPU_COMMAND_SET_INDEX_BUFFER)?,
         context,
@@ -26514,7 +26514,7 @@ fn destack_gpu_command_set_index_buffer_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandSetIndexBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -26545,7 +26545,7 @@ fn destack_gpu_command_set_render_bind_group_vm_replay(
     bindgroup: resource::GpuBindGroupHandle,
     dynamicoffsets: VmSlice<u32>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_SET_RENDER_BIND_GROUP,
         binding.replay_payload_for(GPU_COMMAND_SET_RENDER_BIND_GROUP)?,
         context,
@@ -26581,7 +26581,7 @@ fn destack_gpu_command_set_render_bind_group_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandSetRenderBindGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -26613,7 +26613,7 @@ fn destack_gpu_command_set_scissor_vm_replay(
     width: u32,
     height: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_SET_SCISSOR,
         binding.replay_payload_for(GPU_COMMAND_SET_SCISSOR)?,
         context,
@@ -26637,7 +26637,7 @@ fn destack_gpu_command_set_scissor_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandSetScissorReplay { result }
                 };
                 return Ok(Some(payload));
@@ -26666,7 +26666,7 @@ fn destack_gpu_command_set_stencil_reference_vm_replay(
     handle: resource::GpuRenderPassHandle,
     reference: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_SET_STENCIL_REFERENCE,
         binding.replay_payload_for(GPU_COMMAND_SET_STENCIL_REFERENCE)?,
         context,
@@ -26692,7 +26692,7 @@ fn destack_gpu_command_set_stencil_reference_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandSetStencilReferenceReplay { result }
                 };
                 return Ok(Some(payload));
@@ -26724,7 +26724,7 @@ fn destack_gpu_command_set_vertex_buffer_vm_replay(
     offset: u64,
     size: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_SET_VERTEX_BUFFER,
         binding.replay_payload_for(GPU_COMMAND_SET_VERTEX_BUFFER)?,
         context,
@@ -26750,7 +26750,7 @@ fn destack_gpu_command_set_vertex_buffer_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandSetVertexBufferReplay { result }
                 };
                 return Ok(Some(payload));
@@ -26784,7 +26784,7 @@ fn destack_gpu_command_set_viewport_vm_replay(
     mindepth: f64,
     maxdepth: f64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_COMMAND_SET_VIEWPORT,
         binding.replay_payload_for(GPU_COMMAND_SET_VIEWPORT)?,
         context,
@@ -26808,7 +26808,7 @@ fn destack_gpu_command_set_viewport_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuCommandSetViewportReplay { result }
                 };
                 return Ok(Some(payload));
@@ -26837,7 +26837,7 @@ fn destack_gpu_debug_set_label_vm_replay(
     handle: resource::ResourceId,
     label: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_DEBUG_SET_LABEL,
         binding.replay_payload_for(GPU_DEBUG_SET_LABEL)?,
         context,
@@ -26861,7 +26861,7 @@ fn destack_gpu_debug_set_label_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDebugSetLabelReplay { result }
                 };
                 return Ok(Some(payload));
@@ -26889,7 +26889,7 @@ fn destack_gpu_device_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_DEVICE_CLOSE,
         binding.replay_payload_for(GPU_DEVICE_CLOSE)?,
         context,
@@ -26911,7 +26911,7 @@ fn destack_gpu_device_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDeviceCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -26939,7 +26939,7 @@ fn destack_gpu_device_features_vm_replay(
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_DEVICE_FEATURES,
         binding.replay_payload_for(GPU_DEVICE_FEATURES)?,
         context,
@@ -26975,7 +26975,7 @@ fn destack_gpu_device_features_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDeviceFeaturesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -27013,7 +27013,7 @@ fn destack_gpu_device_has_feature_vm_replay(
     device: resource::GpuDeviceHandle,
     feature: GpuFeatureId,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_DEVICE_HAS_FEATURE,
         binding.replay_payload_for(GPU_DEVICE_HAS_FEATURE)?,
         context,
@@ -27038,7 +27038,7 @@ fn destack_gpu_device_has_feature_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDeviceHasFeatureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -27069,7 +27069,7 @@ fn destack_gpu_device_info_vm_replay(
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_DEVICE_INFO,
         binding.replay_payload_for(GPU_DEVICE_INFO)?,
         context,
@@ -27179,7 +27179,7 @@ fn destack_gpu_device_info_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDeviceInfoReplay {
                         result,
                     }
@@ -27298,7 +27298,7 @@ fn destack_gpu_device_limits_vm_replay(
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_DEVICE_LIMITS,
         binding.replay_payload_for(GPU_DEVICE_LIMITS)?,
         context,
@@ -27423,7 +27423,7 @@ fn destack_gpu_device_limits_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDeviceLimitsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -27547,7 +27547,7 @@ fn destack_gpu_device_open_vm_replay(
     adapter: resource::GpuAdapterHandle,
     options: GpuDeviceOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_DEVICE_OPEN,
         binding.replay_payload_for(GPU_DEVICE_OPEN)?,
         context,
@@ -27572,7 +27572,7 @@ fn destack_gpu_device_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDeviceOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -27605,7 +27605,7 @@ fn destack_gpu_device_poll_vm_replay(
     wait: bool,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_DEVICE_POLL,
         binding.replay_payload_for(GPU_DEVICE_POLL)?,
         context,
@@ -27630,7 +27630,7 @@ fn destack_gpu_device_poll_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDevicePollReplay { result }
                 };
                 return Ok(Some(payload));
@@ -27662,7 +27662,7 @@ fn destack_gpu_device_pop_error_scope_vm_replay(
     device: resource::GpuDeviceHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_DEVICE_POP_ERROR_SCOPE,
         binding.replay_payload_for(GPU_DEVICE_POP_ERROR_SCOPE)?,
         context,
@@ -27707,7 +27707,7 @@ fn destack_gpu_device_pop_error_scope_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDevicePopErrorScopeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -27756,7 +27756,7 @@ fn destack_gpu_device_push_error_scope_vm_replay(
     device: resource::GpuDeviceHandle,
     filter: GpuErrorFilter,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_DEVICE_PUSH_ERROR_SCOPE,
         binding.replay_payload_for(GPU_DEVICE_PUSH_ERROR_SCOPE)?,
         context,
@@ -27782,7 +27782,7 @@ fn destack_gpu_device_push_error_scope_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDevicePushErrorScopeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -27810,7 +27810,7 @@ fn destack_gpu_device_queue_vm_replay(
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_DEVICE_QUEUE,
         binding.replay_payload_for(GPU_DEVICE_QUEUE)?,
         context,
@@ -27833,7 +27833,7 @@ fn destack_gpu_device_queue_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDeviceQueueReplay { result }
                 };
                 return Ok(Some(payload));
@@ -27864,7 +27864,7 @@ fn destack_gpu_device_status_vm_replay(
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_DEVICE_STATUS,
         binding.replay_payload_for(GPU_DEVICE_STATUS)?,
         context,
@@ -27901,7 +27901,7 @@ fn destack_gpu_device_status_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuDeviceStatusReplay { result }
                 };
                 return Ok(Some(payload));
@@ -27943,7 +27943,7 @@ fn destack_gpu_pipeline_bind_group_layout_vm_replay(
     pipeline: resource::GpuPipelineHandle,
     groupindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_PIPELINE_BIND_GROUP_LAYOUT,
         binding.replay_payload_for(GPU_PIPELINE_BIND_GROUP_LAYOUT)?,
         context,
@@ -27970,7 +27970,7 @@ fn destack_gpu_pipeline_bind_group_layout_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuPipelineBindGroupLayoutReplay { result }
                 };
                 return Ok(Some(payload));
@@ -28002,7 +28002,7 @@ fn destack_gpu_pipeline_compute_create_vm_replay(
     device: resource::GpuDeviceHandle,
     options: GpuComputePipelineOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_PIPELINE_COMPUTE_CREATE,
         binding.replay_payload_for(GPU_PIPELINE_COMPUTE_CREATE)?,
         context,
@@ -28029,7 +28029,7 @@ fn destack_gpu_pipeline_compute_create_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuPipelineComputeCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -28060,7 +28060,7 @@ fn destack_gpu_pipeline_destroy_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuPipelineHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_PIPELINE_DESTROY,
         binding.replay_payload_for(GPU_PIPELINE_DESTROY)?,
         context,
@@ -28084,7 +28084,7 @@ fn destack_gpu_pipeline_destroy_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuPipelineDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -28113,7 +28113,7 @@ fn destack_gpu_pipeline_render_create_vm_replay(
     device: resource::GpuDeviceHandle,
     options: GpuRenderPipelineOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_PIPELINE_RENDER_CREATE,
         binding.replay_payload_for(GPU_PIPELINE_RENDER_CREATE)?,
         context,
@@ -28138,7 +28138,7 @@ fn destack_gpu_pipeline_render_create_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuPipelineRenderCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -28170,7 +28170,7 @@ fn destack_gpu_pipeline_shader_compilation_info_vm_replay(
     handle: resource::GpuShaderHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_PIPELINE_SHADER_COMPILATION_INFO,
         binding.replay_payload_for(GPU_PIPELINE_SHADER_COMPILATION_INFO)?,
         context,
@@ -28301,7 +28301,7 @@ fn destack_gpu_pipeline_shader_compilation_info_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuPipelineShaderCompilationInfoReplay { result }
                 };
                 return Ok(Some(payload));
@@ -28381,7 +28381,7 @@ fn destack_gpu_pipeline_shader_create_vm_replay(
     options: GpuShaderOptionsVm,
     argument_bytes: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_PIPELINE_SHADER_CREATE,
         binding.replay_payload_for(GPU_PIPELINE_SHADER_CREATE)?,
         context,
@@ -28414,7 +28414,7 @@ fn destack_gpu_pipeline_shader_create_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuPipelineShaderCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -28445,7 +28445,7 @@ fn destack_gpu_pipeline_shader_destroy_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuShaderHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_PIPELINE_SHADER_DESTROY,
         binding.replay_payload_for(GPU_PIPELINE_SHADER_DESTROY)?,
         context,
@@ -28467,7 +28467,7 @@ fn destack_gpu_pipeline_shader_destroy_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuPipelineShaderDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -28496,7 +28496,7 @@ fn destack_gpu_resource_buffer_create_vm_replay(
     device: resource::GpuDeviceHandle,
     options: GpuBufferOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_RESOURCE_BUFFER_CREATE,
         binding.replay_payload_for(GPU_RESOURCE_BUFFER_CREATE)?,
         context,
@@ -28521,7 +28521,7 @@ fn destack_gpu_resource_buffer_create_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceBufferCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -28552,7 +28552,7 @@ fn destack_gpu_resource_buffer_destroy_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_RESOURCE_BUFFER_DESTROY,
         binding.replay_payload_for(GPU_RESOURCE_BUFFER_DESTROY)?,
         context,
@@ -28574,7 +28574,7 @@ fn destack_gpu_resource_buffer_destroy_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceBufferDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -28602,7 +28602,7 @@ fn destack_gpu_resource_buffer_info_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_RESOURCE_BUFFER_INFO,
         binding.replay_payload_for(GPU_RESOURCE_BUFFER_INFO)?,
         context,
@@ -28632,7 +28632,7 @@ fn destack_gpu_resource_buffer_info_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceBufferInfoReplay { result }
                 };
                 return Ok(Some(payload));
@@ -28673,7 +28673,7 @@ fn destack_gpu_resource_buffer_map_vm_replay(
     length: u64,
     mode: GpuMapMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_RESOURCE_BUFFER_MAP,
         binding.replay_payload_for(GPU_RESOURCE_BUFFER_MAP)?,
         context,
@@ -28705,7 +28705,7 @@ fn destack_gpu_resource_buffer_map_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceBufferMapReplay { result }
                 };
                 return Ok(Some(payload));
@@ -28745,7 +28745,7 @@ fn destack_gpu_resource_buffer_read_vm_replay(
     offset: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_RESOURCE_BUFFER_READ,
         binding.replay_payload_for(GPU_RESOURCE_BUFFER_READ)?,
         context,
@@ -28770,7 +28770,7 @@ fn destack_gpu_resource_buffer_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceBufferReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -28801,7 +28801,7 @@ fn destack_gpu_resource_buffer_unmap_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_RESOURCE_BUFFER_UNMAP,
         binding.replay_payload_for(GPU_RESOURCE_BUFFER_UNMAP)?,
         context,
@@ -28823,7 +28823,7 @@ fn destack_gpu_resource_buffer_unmap_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceBufferUnmapReplay { result }
                 };
                 return Ok(Some(payload));
@@ -28853,7 +28853,7 @@ fn destack_gpu_resource_buffer_write_vm_replay(
     offset: u64,
     argument_bytes: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_RESOURCE_BUFFER_WRITE,
         binding.replay_payload_for(GPU_RESOURCE_BUFFER_WRITE)?,
         context,
@@ -28885,7 +28885,7 @@ fn destack_gpu_resource_buffer_write_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceBufferWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -28914,7 +28914,7 @@ fn destack_gpu_resource_sampler_create_vm_replay(
     device: resource::GpuDeviceHandle,
     options: GpuSamplerOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_RESOURCE_SAMPLER_CREATE,
         binding.replay_payload_for(GPU_RESOURCE_SAMPLER_CREATE)?,
         context,
@@ -28939,7 +28939,7 @@ fn destack_gpu_resource_sampler_create_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceSamplerCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -28970,7 +28970,7 @@ fn destack_gpu_resource_sampler_destroy_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuSamplerHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_RESOURCE_SAMPLER_DESTROY,
         binding.replay_payload_for(GPU_RESOURCE_SAMPLER_DESTROY)?,
         context,
@@ -28994,7 +28994,7 @@ fn destack_gpu_resource_sampler_destroy_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceSamplerDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29023,7 +29023,7 @@ fn destack_gpu_resource_texture_create_vm_replay(
     device: resource::GpuDeviceHandle,
     options: GpuTextureOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_RESOURCE_TEXTURE_CREATE,
         binding.replay_payload_for(GPU_RESOURCE_TEXTURE_CREATE)?,
         context,
@@ -29048,7 +29048,7 @@ fn destack_gpu_resource_texture_create_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceTextureCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29079,7 +29079,7 @@ fn destack_gpu_resource_texture_destroy_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuTextureHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_RESOURCE_TEXTURE_DESTROY,
         binding.replay_payload_for(GPU_RESOURCE_TEXTURE_DESTROY)?,
         context,
@@ -29103,7 +29103,7 @@ fn destack_gpu_resource_texture_destroy_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceTextureDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29131,7 +29131,7 @@ fn destack_gpu_resource_texture_info_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuTextureHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_RESOURCE_TEXTURE_INFO,
         binding.replay_payload_for(GPU_RESOURCE_TEXTURE_INFO)?,
         context,
@@ -29171,7 +29171,7 @@ fn destack_gpu_resource_texture_info_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceTextureInfoReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29220,7 +29220,7 @@ fn destack_gpu_resource_texture_view_create_vm_replay(
     texture: resource::GpuTextureHandle,
     options: GpuTextureViewOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_RESOURCE_TEXTURE_VIEW_CREATE,
         binding.replay_payload_for(GPU_RESOURCE_TEXTURE_VIEW_CREATE)?,
         context,
@@ -29245,7 +29245,7 @@ fn destack_gpu_resource_texture_view_create_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceTextureViewCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29276,7 +29276,7 @@ fn destack_gpu_resource_texture_view_destroy_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuTextureViewHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_RESOURCE_TEXTURE_VIEW_DESTROY,
         binding.replay_payload_for(GPU_RESOURCE_TEXTURE_VIEW_DESTROY)?,
         context,
@@ -29300,7 +29300,7 @@ fn destack_gpu_resource_texture_view_destroy_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuResourceTextureViewDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29330,7 +29330,7 @@ fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_vm_replay(
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY,
         binding.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
         context,
@@ -29366,7 +29366,7 @@ fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncCommandBeginComputePipelineStatisticsQueryReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29398,7 +29398,7 @@ fn destack_gpu_sync_command_begin_occlusion_query_vm_replay(
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY,
         binding.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY)?,
         context,
@@ -29424,7 +29424,7 @@ fn destack_gpu_sync_command_begin_occlusion_query_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncCommandBeginOcclusionQueryReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29454,7 +29454,7 @@ fn destack_gpu_sync_command_begin_render_pipeline_statistics_query_vm_replay(
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY,
         binding.replay_payload_for(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?,
         context,
@@ -29482,7 +29482,7 @@ fn destack_gpu_sync_command_begin_render_pipeline_statistics_query_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncCommandBeginRenderPipelineStatisticsQueryReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29512,7 +29512,7 @@ fn destack_gpu_sync_command_end_compute_pipeline_statistics_query_vm_replay(
     world: RuntimeWorld,
     computepass: resource::GpuComputePassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY,
         binding.replay_payload_for(GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY)?,
         context,
@@ -29544,7 +29544,7 @@ fn destack_gpu_sync_command_end_compute_pipeline_statistics_query_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncCommandEndComputePipelineStatisticsQueryReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29574,7 +29574,7 @@ fn destack_gpu_sync_command_end_occlusion_query_vm_replay(
     world: RuntimeWorld,
     renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_SYNC_COMMAND_END_OCCLUSION_QUERY,
         binding.replay_payload_for(GPU_SYNC_COMMAND_END_OCCLUSION_QUERY)?,
         context,
@@ -29600,7 +29600,7 @@ fn destack_gpu_sync_command_end_occlusion_query_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncCommandEndOcclusionQueryReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29628,7 +29628,7 @@ fn destack_gpu_sync_command_end_render_pipeline_statistics_query_vm_replay(
     world: RuntimeWorld,
     renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
         binding.replay_payload_for(GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY)?,
         context,
@@ -29656,7 +29656,7 @@ fn destack_gpu_sync_command_end_render_pipeline_statistics_query_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncCommandEndRenderPipelineStatisticsQueryReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29691,7 +29691,7 @@ fn destack_gpu_sync_command_resolve_queries_vm_replay(
     destination: resource::GpuBufferHandle,
     destinationoffset: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_SYNC_COMMAND_RESOLVE_QUERIES,
         binding.replay_payload_for(GPU_SYNC_COMMAND_RESOLVE_QUERIES)?,
         context,
@@ -29731,7 +29731,7 @@ fn destack_gpu_sync_command_resolve_queries_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncCommandResolveQueriesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29761,7 +29761,7 @@ fn destack_gpu_sync_command_write_timestamp_vm_replay(
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_SYNC_COMMAND_WRITE_TIMESTAMP,
         binding.replay_payload_for(GPU_SYNC_COMMAND_WRITE_TIMESTAMP)?,
         context,
@@ -29795,7 +29795,7 @@ fn destack_gpu_sync_command_write_timestamp_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncCommandWriteTimestampReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29824,7 +29824,7 @@ fn destack_gpu_sync_fence_create_vm_replay(
     device: resource::GpuDeviceHandle,
     options: GpuFenceOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_SYNC_FENCE_CREATE,
         binding.replay_payload_for(GPU_SYNC_FENCE_CREATE)?,
         context,
@@ -29849,7 +29849,7 @@ fn destack_gpu_sync_fence_create_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncFenceCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29880,7 +29880,7 @@ fn destack_gpu_sync_fence_destroy_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuFenceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_SYNC_FENCE_DESTROY,
         binding.replay_payload_for(GPU_SYNC_FENCE_DESTROY)?,
         context,
@@ -29902,7 +29902,7 @@ fn destack_gpu_sync_fence_destroy_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncFenceDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29931,7 +29931,7 @@ fn destack_gpu_sync_query_set_create_vm_replay(
     device: resource::GpuDeviceHandle,
     options: GpuQuerySetOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_SYNC_QUERY_SET_CREATE,
         binding.replay_payload_for(GPU_SYNC_QUERY_SET_CREATE)?,
         context,
@@ -29956,7 +29956,7 @@ fn destack_gpu_sync_query_set_create_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncQuerySetCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -29987,7 +29987,7 @@ fn destack_gpu_sync_query_set_destroy_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuQuerySetHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_SYNC_QUERY_SET_DESTROY,
         binding.replay_payload_for(GPU_SYNC_QUERY_SET_DESTROY)?,
         context,
@@ -30011,7 +30011,7 @@ fn destack_gpu_sync_query_set_destroy_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncQuerySetDestroyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -30039,7 +30039,7 @@ fn destack_gpu_sync_query_set_info_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuQuerySetHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_SYNC_QUERY_SET_INFO,
         binding.replay_payload_for(GPU_SYNC_QUERY_SET_INFO)?,
         context,
@@ -30070,7 +30070,7 @@ fn destack_gpu_sync_query_set_info_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncQuerySetInfoReplay { result }
                 };
                 return Ok(Some(payload));
@@ -30110,7 +30110,7 @@ fn destack_gpu_sync_queue_signal_vm_replay(
     fence: resource::GpuFenceHandle,
     argument_value: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_SYNC_QUEUE_SIGNAL,
         binding.replay_payload_for(GPU_SYNC_QUEUE_SIGNAL)?,
         context,
@@ -30142,7 +30142,7 @@ fn destack_gpu_sync_queue_signal_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncQueueSignalReplay { result }
                 };
                 return Ok(Some(payload));
@@ -30170,7 +30170,7 @@ fn destack_gpu_sync_queue_timestamp_period_vm_replay(
     world: RuntimeWorld,
     queue: resource::GpuQueueHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_SYNC_QUEUE_TIMESTAMP_PERIOD,
         binding.replay_payload_for(GPU_SYNC_QUEUE_TIMESTAMP_PERIOD)?,
         context,
@@ -30195,7 +30195,7 @@ fn destack_gpu_sync_queue_timestamp_period_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncQueueTimestampPeriodReplay { result }
                 };
                 return Ok(Some(payload));
@@ -30229,7 +30229,7 @@ fn destack_gpu_sync_queue_wait_vm_replay(
     argument_value: u64,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_SYNC_QUEUE_WAIT,
         binding.replay_payload_for(GPU_SYNC_QUEUE_WAIT)?,
         context,
@@ -30263,7 +30263,7 @@ fn destack_gpu_sync_queue_wait_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncQueueWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -30292,7 +30292,7 @@ fn destack_gpu_sync_queue_work_done_vm_replay(
     queue: resource::GpuQueueHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         GPU_SYNC_QUEUE_WORK_DONE,
         binding.replay_payload_for(GPU_SYNC_QUEUE_WORK_DONE)?,
         context,
@@ -30316,7 +30316,7 @@ fn destack_gpu_sync_queue_work_done_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     GpuSyncQueueWorkDoneReplay { result }
                 };
                 return Ok(Some(payload));

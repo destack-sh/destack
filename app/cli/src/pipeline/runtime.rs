@@ -61,7 +61,7 @@ pub fn create_isolate(
     let strings = mir.strings.clone().into_immutable();
 
     // construct the isolate from mir state
-    Isolate::with_options(tree, strings, options)
+    Isolate::build_with_options(tree, strings, options)
         .map_err(|error| CliError::message(error.to_string()))
 }
 

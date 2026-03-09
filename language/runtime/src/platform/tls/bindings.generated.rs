@@ -23,7 +23,7 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::replay::ReplayError;
+use crate::runtime::replay::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
@@ -727,56 +727,56 @@ fn encode_destack_tls_session_write_result(
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TlsContextCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.tls.context.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TlsContextOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::TlsContextHandle, ReplayError>,
+    pub result: Result<resource::TlsContextHandle, TraceError>,
 }
 
 /// Replay payload for destack.tls.session.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TlsSessionCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.tls.session.handshake.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TlsSessionHandshakeReplay {
     /// Replay result payload.
-    pub result: Result<TlsHandshakeStatus, ReplayError>,
+    pub result: Result<TlsHandshakeStatus, TraceError>,
 }
 
 /// Replay payload for destack.tls.session.negotiatedAlpn.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TlsSessionNegotiatedAlpnReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, ReplayError>,
+    pub result: Result<Vec<u8>, TraceError>,
 }
 
 /// Replay payload for destack.tls.session.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TlsSessionOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::TlsSessionHandle, ReplayError>,
+    pub result: Result<resource::TlsSessionHandle, TraceError>,
 }
 
 /// Replay payload for destack.tls.session.resumptionState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TlsSessionResumptionStateReplay {
     /// Replay result payload.
-    pub result: Result<TlsSessionResumptionState, ReplayError>,
+    pub result: Result<TlsSessionResumptionState, TraceError>,
 }
 
 /// Replay payload for destack.tls.session.shutdown.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TlsSessionShutdownReplay {
     /// Replay result payload.
-    pub result: Result<(), ReplayError>,
+    pub result: Result<(), TraceError>,
 }
 
 /// Binding descriptor for destack.tls.context.close.
@@ -1221,7 +1221,7 @@ fn destack_tls_context_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         TLS_CONTEXT_CLOSE,
         binding.replay_payload_for(TLS_CONTEXT_CLOSE)?,
         || match world {
@@ -1243,7 +1243,7 @@ fn destack_tls_context_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     TlsContextCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1270,7 +1270,7 @@ fn destack_tls_context_open_replay(
 ) -> RuntimeResult<()> {
     let _ = &options;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         TLS_CONTEXT_OPEN,
         binding.replay_payload_for(TLS_CONTEXT_OPEN)?,
         || match world {
@@ -1298,7 +1298,7 @@ fn destack_tls_context_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     TlsContextOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1330,7 +1330,7 @@ fn destack_tls_session_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         TLS_SESSION_CLOSE,
         binding.replay_payload_for(TLS_SESSION_CLOSE)?,
         || match world {
@@ -1352,7 +1352,7 @@ fn destack_tls_session_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     TlsSessionCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1379,7 +1379,7 @@ fn destack_tls_session_handshake_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         TLS_SESSION_HANDSHAKE,
         binding.replay_payload_for(TLS_SESSION_HANDSHAKE)?,
         || match world {
@@ -1407,7 +1407,7 @@ fn destack_tls_session_handshake_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     TlsSessionHandshakeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1440,7 +1440,7 @@ fn destack_tls_session_negotiated_alpn_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         TLS_SESSION_NEGOTIATED_ALPN,
         binding.replay_payload_for(TLS_SESSION_NEGOTIATED_ALPN)?,
         || match world {
@@ -1476,7 +1476,7 @@ fn destack_tls_session_negotiated_alpn_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     TlsSessionNegotiatedAlpnReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1516,7 +1516,7 @@ fn destack_tls_session_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&argument_context, &socket, &servername);
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         TLS_SESSION_OPEN,
         binding.replay_payload_for(TLS_SESSION_OPEN)?,
         || match world {
@@ -1556,7 +1556,7 @@ fn destack_tls_session_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     TlsSessionOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1589,7 +1589,7 @@ fn destack_tls_session_resumption_state_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         TLS_SESSION_RESUMPTION_STATE,
         binding.replay_payload_for(TLS_SESSION_RESUMPTION_STATE)?,
         || match world {
@@ -1619,7 +1619,7 @@ fn destack_tls_session_resumption_state_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     TlsSessionResumptionStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1651,7 +1651,7 @@ fn destack_tls_session_shutdown_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_without_context(
+    binding.trace().run_binding_without_context(
         TLS_SESSION_SHUTDOWN,
         binding.replay_payload_for(TLS_SESSION_SHUTDOWN)?,
         || match world {
@@ -1673,7 +1673,7 @@ fn destack_tls_session_shutdown_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     TlsSessionShutdownReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2151,7 +2151,7 @@ fn destack_tls_context_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         TLS_CONTEXT_CLOSE,
         binding.replay_payload_for(TLS_CONTEXT_CLOSE)?,
         context,
@@ -2173,7 +2173,7 @@ fn destack_tls_context_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     TlsContextCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2201,7 +2201,7 @@ fn destack_tls_context_open_vm_replay(
     world: RuntimeWorld,
     options: TlsContextOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         TLS_CONTEXT_OPEN,
         binding.replay_payload_for(TLS_CONTEXT_OPEN)?,
         context,
@@ -2224,7 +2224,7 @@ fn destack_tls_context_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     TlsContextOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2255,7 +2255,7 @@ fn destack_tls_session_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         TLS_SESSION_CLOSE,
         binding.replay_payload_for(TLS_SESSION_CLOSE)?,
         context,
@@ -2277,7 +2277,7 @@ fn destack_tls_session_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     TlsSessionCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2305,7 +2305,7 @@ fn destack_tls_session_handshake_vm_replay(
     world: RuntimeWorld,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         TLS_SESSION_HANDSHAKE,
         binding.replay_payload_for(TLS_SESSION_HANDSHAKE)?,
         context,
@@ -2330,7 +2330,7 @@ fn destack_tls_session_handshake_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     TlsSessionHandshakeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2361,7 +2361,7 @@ fn destack_tls_session_negotiated_alpn_vm_replay(
     world: RuntimeWorld,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         TLS_SESSION_NEGOTIATED_ALPN,
         binding.replay_payload_for(TLS_SESSION_NEGOTIATED_ALPN)?,
         context,
@@ -2388,7 +2388,7 @@ fn destack_tls_session_negotiated_alpn_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     TlsSessionNegotiatedAlpnReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2421,7 +2421,7 @@ fn destack_tls_session_open_vm_replay(
     socket: resource::SocketHandle,
     servername: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         TLS_SESSION_OPEN,
         binding.replay_payload_for(TLS_SESSION_OPEN)?,
         context,
@@ -2454,7 +2454,7 @@ fn destack_tls_session_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     TlsSessionOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2485,7 +2485,7 @@ fn destack_tls_session_resumption_state_vm_replay(
     world: RuntimeWorld,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         TLS_SESSION_RESUMPTION_STATE,
         binding.replay_payload_for(TLS_SESSION_RESUMPTION_STATE)?,
         context,
@@ -2512,7 +2512,7 @@ fn destack_tls_session_resumption_state_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     TlsSessionResumptionStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2543,7 +2543,7 @@ fn destack_tls_session_shutdown_vm_replay(
     world: RuntimeWorld,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding(
+    let result = binding.trace().run_binding(
         TLS_SESSION_SHUTDOWN,
         binding.replay_payload_for(TLS_SESSION_SHUTDOWN)?,
         context,
@@ -2567,7 +2567,7 @@ fn destack_tls_session_shutdown_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(ReplayError::from(error.as_ref()));
+                    let result = Err(TraceError::from(error.as_ref()));
                     TlsSessionShutdownReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2755,6 +2755,7 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             }
         );
     }
+    {}
     {
         binding!(
             registry,
