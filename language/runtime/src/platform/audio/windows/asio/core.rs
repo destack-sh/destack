@@ -15,11 +15,10 @@ use super::constants::{
 use super::host::enumerate_registered_drivers;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::codec::sample_format_bit;
 use crate::platform::diagnostic::PlatformErrorCode;
-
-use crate::platform::audio as audio_types;
+use crate::platform::{PlatformError, audio as audio_types};
 use windows_sys::Win32::Foundation::RPC_E_CHANGED_MODE;
 use windows_sys::Win32::System::Com::{COINIT_APARTMENTTHREADED, CoInitializeEx, CoUninitialize};
 use windows_sys::core::{GUID, HRESULT};
@@ -120,7 +119,7 @@ impl AsioDeviceProfile {
             preferred_period_frames: ASIO_FALLBACK_PREFERRED_PERIOD_FRAMES,
             min_period_frames: ASIO_FALLBACK_MIN_PERIOD_FRAMES,
             max_period_frames: ASIO_FALLBACK_MAX_PERIOD_FRAMES,
-            format_mask: audio_types::sample_format_bit(audio_types::AudioSampleFormat::F32),
+            format_mask: sample_format_bit(audio_types::AudioSampleFormat::F32),
         }
     }
 }

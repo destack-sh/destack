@@ -5,7 +5,7 @@ use std::sync::OnceLock;
 use super::abi::*;
 use super::constants::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::codec::sample_format_bit;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{PlatformError, audio as audio_types};
 
@@ -94,7 +94,7 @@ pub(super) fn channel_mask(channel_count: u16) -> u64 {
 
 /// Return one conservative OpenSL ES sample-format mask.
 pub(super) fn opensles_format_mask() -> u32 {
-    audio_core::sample_format_bit(audio_types::AudioSampleFormat::S16)
+    sample_format_bit(audio_types::AudioSampleFormat::S16)
 }
 
 /// Return one OpenSL ES PCM channel mask from one channel count.

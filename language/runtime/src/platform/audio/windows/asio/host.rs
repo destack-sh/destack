@@ -21,11 +21,10 @@ use super::core::{
     AsioSampleEncoding, AsioSession, ComApartment, asio_error, initialize_com_apartment, succeeded,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::codec::sample_format_bit;
+use crate::platform::audio::core::constants::MIN_STREAM_PERIOD_FRAMES;
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::{PlatformError, core as core_platform};
-
-use crate::platform::audio as audio_types;
+use crate::platform::{PlatformError, audio as audio_types, core as core_platform};
 use windows_sys::Win32::Foundation::HWND;
 use windows_sys::Win32::System::Com::CLSIDFromString;
 use windows_sys::Win32::System::Registry::{
@@ -328,7 +327,7 @@ pub(super) fn probe_device_profile(row: &AsioDriverRow) -> AsioDeviceProfile {
         };
     }
 
-    let minimum_period = minimum_period.max(audio_core::MIN_STREAM_PERIOD_FRAMES as i32) as u32;
+    let minimum_period = minimum_period.max(MIN_STREAM_PERIOD_FRAMES as i32) as u32;
     let maximum_period = maximum_period.max(minimum_period as i32) as u32;
     let preferred_period = preferred_period
         .max(minimum_period as i32)
@@ -340,14 +339,14 @@ pub(super) fn probe_device_profile(row: &AsioDriverRow) -> AsioDeviceProfile {
     if output_channels > 0
         && let Ok(channel) = query_channel_descriptor(&session, false, 0)
     {
-        format_mask |= audio_types::sample_format_bit(channel.encoding.format);
+        format_mask |= sample_format_bit(channel.encoding.format);
     }
 
     // probe one representative input lane sample type
     if input_channels > 0
         && let Ok(channel) = query_channel_descriptor(&session, true, 0)
     {
-        format_mask |= audio_types::sample_format_bit(channel.encoding.format);
+        format_mask |= sample_format_bit(channel.encoding.format);
     }
 
     if format_mask == 0 {

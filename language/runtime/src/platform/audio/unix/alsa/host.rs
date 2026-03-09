@@ -6,6 +6,7 @@ use std::sync::Arc;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::codec::sample_format_bit;
 
 use super::abi::{AlsaHardwareParams, AlsaPcm, AlsaUnsignedFrames};
 use super::constants::*;
@@ -655,12 +656,12 @@ fn probe_device_profile(device_name: &str, stream_selector: c_int) -> Option<Als
             (library.api.snd_pcm_hw_params_test_format)(raw_pcm, parameters.raw, format_value)
         };
         if alsa_succeeded(status) {
-            format_mask |= audio_core::sample_format_bit(candidate.runtime_format);
+            format_mask |= sample_format_bit(candidate.runtime_format);
         }
     }
 
     if format_mask == 0 {
-        format_mask = audio_core::sample_format_bit(audio_types::AudioSampleFormat::F32);
+        format_mask = sample_format_bit(audio_types::AudioSampleFormat::F32);
     }
 
     let preferred_sample_rate = ALSA_PROBED_SAMPLE_RATES

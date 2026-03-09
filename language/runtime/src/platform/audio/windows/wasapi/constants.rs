@@ -1,5 +1,3 @@
-use crate::platform::audio::core as audio_core;
-
 use crate::platform::audio as audio_types;
 use windows_sys::Win32::UI::Shell::PropertiesSystem::PROPERTYKEY;
 use windows_sys::core::{GUID, HRESULT};

@@ -1,5 +1,6 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::constants::MIN_STREAM_PERIOD_FRAMES;
 use crate::platform::core as core_platform;
 
 use super::constants::{
@@ -337,7 +338,7 @@ fn duplex_descriptor_from_endpoint_ids(
         .map(|descriptor| descriptor.min_period_frames)
         .zip(capture_descriptor.map(|descriptor| descriptor.min_period_frames))
         .map(|(playback, capture): (u32, u32)| playback.max(capture))
-        .unwrap_or(audio_core::MIN_STREAM_PERIOD_FRAMES);
+        .unwrap_or(MIN_STREAM_PERIOD_FRAMES);
     let maximum_period_frames = playback_descriptor
         .map(|descriptor| descriptor.max_period_frames)
         .zip(capture_descriptor.map(|descriptor| descriptor.max_period_frames))

@@ -1,3 +1,5 @@
+use std::sync::{Condvar, Mutex};
+
 use super::abi::{
     audio_client_get_buffer_size, audio_client_initialize, audio_client_set_event_handle,
 };
@@ -13,11 +15,10 @@ use super::host::{
 use super::ids::{parse_duplex_stable_id, parse_endpoint_stable_id};
 use super::transfer::spawn_worker;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::constants::MIN_STREAM_PERIOD_FRAMES;
+use crate::platform::{PlatformError, audio as audio_types};
 use std::sync::Arc;
-
-use crate::platform::audio as audio_types;
 use windows_sys::Win32::Media::Audio::{
     AUDCLNT_SHAREMODE_EXCLUSIVE, AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
     AUDCLNT_STREAMFLAGS_LOOPBACK, IAudioClient, IMMDevice, IMMDeviceEnumerator,
@@ -113,12 +114,8 @@ fn open_runtime(
 
         let period_frames = config
             .period_frames
-            .max(audio_core::MIN_STREAM_PERIOD_FRAMES)
-            .min(
-                opened
-                    .buffer_frames
-                    .max(audio_core::MIN_STREAM_PERIOD_FRAMES),
-            );
+            .max(MIN_STREAM_PERIOD_FRAMES)
+            .min(opened.buffer_frames.max(MIN_STREAM_PERIOD_FRAMES));
         let poll_period =
             audio_core::resolved_worker_poll_period(period_frames, config.sample_rate);
 
@@ -177,10 +174,10 @@ fn open_runtime(
         let smallest_buffer = render_opened
             .buffer_frames
             .min(capture_opened.buffer_frames)
-            .max(audio_core::MIN_STREAM_PERIOD_FRAMES);
+            .max(MIN_STREAM_PERIOD_FRAMES);
         let period_frames = config
             .period_frames
-            .max(audio_core::MIN_STREAM_PERIOD_FRAMES)
+            .max(MIN_STREAM_PERIOD_FRAMES)
             .min(smallest_buffer);
         let poll_period =
             audio_core::resolved_worker_poll_period(period_frames, config.sample_rate);

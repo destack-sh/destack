@@ -10,9 +10,11 @@ pub(crate) mod runtime;
 pub(crate) mod stream;
 
 pub(crate) use clock::{clock_now_for_domain, stream_clock_snapshot};
+#[allow(unused_imports)]
 pub(crate) use codec::{
     all_sample_format_mask, decode_audio_bytes, encode_audio_bytes, frame_bytes, sample_bytes,
 };
+#[allow(unused_imports)]
 pub(crate) use constants::{
     AUDIO_DEVICE_RESOURCE_LABEL, AUDIO_STREAM_RESOURCE_LABEL,
     BACKEND_CAPABILITY_BACKEND_DISCONNECT_EVENTS, BACKEND_CAPABILITY_DEFAULT_ROUTE_EVENTS,
@@ -24,9 +26,9 @@ pub(crate) use constants::{
     DEVICE_CAPABILITY_REROUTE_EVENTS, DEVICE_CAPABILITY_SCHEDULED_WRITE,
     DEVICE_CAPABILITY_SHARED_MODE, DEVICE_CAPABILITY_STREAM_MUTE, DEVICE_CAPABILITY_STREAM_VOLUME,
     DIRECTION_MASK_CAPTURE, DIRECTION_MASK_DUPLEX, DIRECTION_MASK_LOOPBACK,
-    DIRECTION_MASK_PLAYBACK, SHARE_MODE_EXCLUSIVE_BIT, SHARE_MODE_SHARED_BIT,
-    STREAM_STATUS_INPUT_UNDERFLOW, STREAM_STATUS_OUTPUT_OVERFLOW, host_monotonic_nanos,
-    resolved_max_stream_read_bytes, resolved_stream_wait_slice_ns,
+    DIRECTION_MASK_PLAYBACK, MIN_STREAM_PERIOD_FRAMES, SHARE_MODE_EXCLUSIVE_BIT,
+    SHARE_MODE_SHARED_BIT, STREAM_STATUS_INPUT_UNDERFLOW, STREAM_STATUS_OUTPUT_OVERFLOW,
+    host_monotonic_nanos,
 };
 pub(crate) use device::{
     descriptor_from_device_state, descriptor_from_info, ensure_device_open_flags_supported,
@@ -47,14 +49,12 @@ pub(crate) use event::{publish_stream_event_native, refresh_device_subscriptions
 pub(crate) use model::{AudioDeviceHostState, HostDeviceDescriptor};
 pub(crate) use monitor::AudioMonitorHandle;
 pub(crate) use runtime::runtime_state;
+#[allow(unused_imports)]
 pub(crate) use stream::{
     host_stream_flush, host_stream_pause, host_stream_start, host_stream_stop, open_null_stream,
     record_stream_callback_timing, satisfied_stream_requirements, stream_availability_snapshot,
     stream_descriptor, stream_state_snapshot, stream_timing_snapshot,
 };
-
-#[cfg(any(target_os = "android", target_os = "linux", windows))]
-pub(crate) use codec::{clamp_audio_scalar, sample_format_bit};
 
 #[cfg(windows)]
 pub(crate) use codec::{decode_scalar_sample, encode_scalar_sample};
@@ -67,7 +67,7 @@ pub(crate) use constants::{
 #[cfg(any(test, target_os = "android", target_os = "linux", windows))]
 pub(crate) use constants::DEVICE_CAPABILITY_BACKEND_DISCONNECT_EVENTS;
 
-#[cfg(any(test, target_os = "android", target_os = "linux", windows))]
+#[cfg(test)]
 pub(crate) use constants::{
     DEVICE_LIST_INCLUDE_DISCONNECTED, DEVICE_OPEN_FOLLOW_DEFAULT_ROUTE, DEVICE_OPEN_LOW_LATENCY,
     DEVICE_OPEN_RAW, DEVICE_OPEN_REALTIME_THREAD, STREAM_FLAG_MINIMIZE_LATENCY,
@@ -87,6 +87,9 @@ pub(crate) use constants::{
 #[cfg(target_os = "linux")]
 pub(crate) use constants::{BACKEND_OPEN_ALSA_NO_RESAMPLE, BACKEND_OPEN_JACK_NO_AUTOCONNECT};
 
+#[cfg(unix)]
+pub(crate) use constants::{resolved_max_stream_read_bytes, resolved_stream_wait_slice_ns};
+
 #[cfg(windows)]
 pub(crate) use constants::{EVENT_POLL_INTERVAL_NS, MAX_STREAM_READ_BYTES};
 
@@ -97,6 +100,7 @@ pub(crate) use constants::{STREAM_STATUS_INPUT_OVERFLOW, STREAM_STATUS_OUTPUT_UN
 pub(crate) use error::audio_not_found;
 
 #[cfg(any(target_os = "android", target_os = "linux", windows))]
+#[allow(unused_imports)]
 pub(crate) use model::{
     AudioHostStreamOps, AudioStreamHostState, AudioStreamRuntimeCapabilities,
     AudioStreamStateInner, AudioStreamSync, initial_stream_state,

@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::sync::{Arc, Condvar, Mutex};
 
 use super::abi::{
     AsioBufferInfo, AsioCallbacks, asio_driver_can_sample_rate, asio_driver_create_buffers,
@@ -18,6 +18,7 @@ use super::ids::parse_stable_id;
 use super::transfer::{asio_buffer_switch, asio_message, asio_sample_rate_did_change};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::constants::MIN_STREAM_PERIOD_FRAMES;
 use crate::platform::{PlatformError, audio as audio_types};
 
 /// Open one ASIO stream host state.
@@ -217,7 +218,7 @@ fn open_runtime(
         ));
     }
 
-    let min_size = min_size.max(audio_core::MIN_STREAM_PERIOD_FRAMES as i32) as u32;
+    let min_size = min_size.max(MIN_STREAM_PERIOD_FRAMES as i32) as u32;
     let max_size = max_size.max(min_size as i32) as u32;
     let preferred_size = preferred_size.max(min_size as i32).min(max_size as i32) as u32;
 

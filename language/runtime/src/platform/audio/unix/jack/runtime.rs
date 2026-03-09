@@ -4,6 +4,7 @@ use std::sync::{Arc, Condvar, Mutex, Weak};
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::codec::clamp_audio_scalar;
 use crate::platform::core as core_platform;
 
 use super::abi::{JackClient, JackPort};
@@ -649,7 +650,7 @@ fn process_playback_callback(
     } else if (state.volume - 1.0).abs() > f64::EPSILON {
         let gain = state.volume as f32;
         for sample in &mut packet {
-            *sample = audio_core::clamp_audio_scalar(*sample * gain);
+            *sample = clamp_audio_scalar(*sample * gain);
         }
     }
 
@@ -709,7 +710,7 @@ fn process_capture_callback(
         let buffer = unsafe { std::slice::from_raw_parts(buffer.cast::<f32>(), frame_count) };
         for frame_index in 0..frame_count {
             packet[frame_index * channel_count + channel_index] =
-                audio_core::clamp_audio_scalar(buffer[frame_index]);
+                clamp_audio_scalar(buffer[frame_index]);
         }
     }
 

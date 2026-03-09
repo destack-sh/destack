@@ -1,5 +1,4 @@
 use super::constants::ASIO_REGISTRY_PATH;
-use super::core::is_backend_supported as backend_supported;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::core as audio_core;
 use crate::platform::audio::core::monitor::AudioMonitorHandle;
@@ -7,9 +6,9 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{PlatformError, core as core_platform};
 
 use std::ptr;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, SyncSender};
-use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
 use crate::platform::audio as audio_types;

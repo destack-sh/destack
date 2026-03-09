@@ -2,6 +2,7 @@ use std::ffi::{c_int, c_void};
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::audio::core::codec::clamp_audio_scalar;
 use crate::platform::audio::{AudioStreamStateKind, AudioStreamStatusFlags, core as audio_core};
 
 use super::abi::{AlsaPcm, AlsaSignedFrames, AlsaUnsignedFrames};
@@ -155,7 +156,7 @@ fn process_playback_transfer(
         } else if (state.volume - 1.0).abs() > f64::EPSILON {
             let gain = state.volume as f32;
             for sample in &mut samples {
-                *sample = audio_core::clamp_audio_scalar(*sample * gain);
+                *sample = clamp_audio_scalar(*sample * gain);
             }
         }
     }
