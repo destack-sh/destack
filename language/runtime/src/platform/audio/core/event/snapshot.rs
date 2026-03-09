@@ -6,9 +6,9 @@ use crate::platform::audio::{
     AudioDeviceListRequest,
 };
 
-use super::super::{
+use super::super::device::enumerate_devices_for_request;
+use super::super::model::{
     AudioDeviceMonitorBaseline, HostDeviceDescriptor, audio_device_monitor_baseline,
-    enumerate_devices_for_request,
 };
 
 /// One monitor snapshot used to compare device publication state.

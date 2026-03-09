@@ -11,7 +11,7 @@ use crate::platform::audio as audio_types;
 use crate::platform::audio::backend::backend_not_supported;
 #[cfg(target_os = "linux")]
 use crate::platform::audio::core as audio_core;
-use crate::platform::audio::core::AudioMonitorHandle;
+use crate::platform::audio::core::monitor::AudioMonitorHandle;
 
 #[cfg(target_os = "linux")]
 use std::ffi::c_int;

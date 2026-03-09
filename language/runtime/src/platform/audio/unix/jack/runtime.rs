@@ -320,8 +320,8 @@ pub(super) fn open_stream(
             wake: Condvar::new(),
         }),
         stream_handle_raw: std::sync::atomic::AtomicU64::new(0),
-        runtime_state: Mutex::new(None),
-        worker_handle: Mutex::new(None),
+        runtime_owner: Mutex::new(None),
+        worker_thread: Mutex::new(None),
     });
 
     // publish one weak binding handle for callback-side queue access

@@ -2,7 +2,7 @@
 use std::ptr;
 
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core::frame_bytes;
+use crate::platform::audio::core::codec::frame_bytes;
 
 #[cfg(target_os = "macos")]
 use super::abi::{

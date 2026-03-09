@@ -1,15 +1,17 @@
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-use crate::platform::audio::core::AudioMonitorServiceRegistry;
+use crate::platform::audio::core::constants::{
+    EVENT_SUBSCRIBE_DEFAULT_ROUTE, EVENT_SUBSCRIBE_DEVICE_HOTPLUG, EVENT_SUBSCRIBE_FORMAT_CHANGE,
+    EVENT_SUBSCRIBE_REROUTE, host_monotonic_nanos,
+};
 use crate::platform::audio::core::event::queue::event_streams_snapshot;
 use crate::platform::audio::core::event::snapshot::{MonitorSnapshot, monitor_snapshot};
-use crate::platform::audio::core::{
-    AudioEventStream, AudioRuntimeState, EVENT_SUBSCRIBE_DEFAULT_ROUTE,
-    EVENT_SUBSCRIBE_DEVICE_HOTPLUG, EVENT_SUBSCRIBE_FORMAT_CHANGE, EVENT_SUBSCRIBE_REROUTE,
-    audio_device_monitor_baseline, event_subscription_enabled, host_monotonic_nanos, runtime_state,
-    tracks_device_events,
+use crate::platform::audio::core::model::{AudioEventStream, audio_device_monitor_baseline};
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+use crate::platform::audio::core::monitor::AudioMonitorServiceRegistry;
+use crate::platform::audio::core::runtime::{
+    AudioRuntimeState, event_subscription_enabled, runtime_state, tracks_device_events,
 };
 use crate::platform::audio::{
     AudioBackend, AudioEventDeliveryMode, AudioEventKind, AudioEventSource,

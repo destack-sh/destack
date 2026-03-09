@@ -24,7 +24,7 @@ use super::property::{
 use crate::diagnostic::RuntimeResult;
 #[cfg(not(target_os = "macos"))]
 use crate::platform::audio::backend::backend_not_supported;
-use crate::platform::audio::core::HostDeviceDescriptor;
+use crate::platform::audio::core::model::HostDeviceDescriptor;
 #[cfg(target_os = "macos")]
 use crate::platform::audio::core::{
     DEVICE_CAPABILITY_DEVICE_CLOCK, DEVICE_CAPABILITY_EXCLUSIVE_MODE,

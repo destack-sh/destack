@@ -21,9 +21,9 @@ use crate::platform::PlatformError;
 use crate::platform::audio::AudioBackend;
 #[cfg(not(target_os = "macos"))]
 use crate::platform::audio::backend::backend_not_supported;
-use crate::platform::audio::core::AudioMonitorHandle;
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core::publish_device_snapshot_native;
+use crate::platform::audio::core::event::publish::publish_device_snapshot_native;
+use crate::platform::audio::core::monitor::AudioMonitorHandle;
 #[cfg(target_os = "macos")]
 use crate::platform::diagnostic::PlatformErrorCode;
 

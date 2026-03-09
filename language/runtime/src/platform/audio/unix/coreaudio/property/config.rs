@@ -5,7 +5,7 @@ use crate::platform::PlatformError;
 #[cfg(target_os = "macos")]
 use crate::platform::audio as audio_types;
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core::frame_bytes;
+use crate::platform::audio::core::codec::frame_bytes;
 
 #[cfg(target_os = "macos")]
 use super::super::abi::{AudioDeviceID, AudioStreamBasicDescription};

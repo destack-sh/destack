@@ -3,9 +3,9 @@ use crate::platform::audio::{
 };
 use crate::platform::resource::AudioStreamHandle;
 
-use super::super::super::AudioEventRecord;
 use super::super::queue::publish_event_record;
-use crate::platform::audio::core::AudioRuntimeState;
+use crate::platform::audio::core::model::AudioEventRecord;
+use crate::platform::audio::core::runtime::AudioRuntimeState;
 
 /// Publish one device-level event record.
 pub(crate) fn publish_device_event(

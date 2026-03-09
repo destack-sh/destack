@@ -6,7 +6,7 @@ use crate::platform::audio::{
 };
 use crate::runtime::BindingCallContext;
 
-use super::AudioStreamHostState;
+use super::model::AudioStreamHostState;
 
 /// Return whether one stream exposes one requested clock domain.
 fn stream_supports_clock_domain(

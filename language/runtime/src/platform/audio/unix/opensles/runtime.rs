@@ -365,13 +365,13 @@ pub(super) fn open_stream(
             wake: Condvar::new(),
         }),
         stream_handle_raw: std::sync::atomic::AtomicU64::new(0),
-        runtime_state: Mutex::new(None),
-        worker_handle: Mutex::new(None),
+        runtime_owner: Mutex::new(None),
+        worker_thread: Mutex::new(None),
     });
 
     let worker = spawn_worker(stream_state.clone(), runtime);
     *stream_state
-        .worker_handle
+        .worker_thread
         .lock()
         .unwrap_or_else(|error| error.into_inner()) = Some(worker);
 

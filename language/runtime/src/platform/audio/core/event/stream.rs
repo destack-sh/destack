@@ -6,14 +6,17 @@ use crate::platform::resource::{AudioEventHandle, ResourceEntry, ResourceKind};
 use crate::platform::{NativeSlice, PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
-use super::super::{
-    AUDIO_EVENT_RESOURCE_LABEL, AudioEventStream, MAX_EVENT_POLL_INTERVAL_NS,
-    MIN_EVENT_POLL_INTERVAL_NS, audio_stream_monitor_baseline, audio_would_block,
-    host_monotonic_nanos, initial_audio_event_stream_state, resolve_event_stream,
-    resolve_stream_host_state, resolved_default_event_poll_interval_ns,
-    resolved_default_event_queue_capacity, stream_state_snapshot,
-    supported_backend_event_subscription_flags,
+use super::super::constants::{
+    AUDIO_EVENT_RESOURCE_LABEL, MAX_EVENT_POLL_INTERVAL_NS, MIN_EVENT_POLL_INTERVAL_NS,
+    host_monotonic_nanos, resolved_default_event_poll_interval_ns,
+    resolved_default_event_queue_capacity,
 };
+use super::super::device::supported_backend_event_subscription_flags;
+use super::super::error::{audio_would_block, resolve_event_stream, resolve_stream_host_state};
+use super::super::model::{
+    AudioEventStream, audio_stream_monitor_baseline, initial_audio_event_stream_state,
+};
+use super::super::stream::stream_state_snapshot;
 use super::codec::abi_event;
 use super::publish::{refresh_device_events_for_stream, refresh_stream_events_for_stream};
 use super::queue::{
@@ -22,9 +25,10 @@ use super::queue::{
 };
 use super::snapshot::initial_device_monitor_baseline;
 use crate::platform::audio::backend as audio_backend;
-use crate::platform::audio::core::{
-    AudioMonitorServiceRegistry, AudioRuntimeState, KNOWN_EVENT_SUBSCRIPTION_FLAGS_MASK,
-    STREAM_EVENT_SUBSCRIPTION_FLAGS_MASK, native_only_supported_subscription_flags, runtime_state,
+use crate::platform::audio::core::monitor::AudioMonitorServiceRegistry;
+use crate::platform::audio::core::runtime::{
+    AudioRuntimeState, KNOWN_EVENT_SUBSCRIPTION_FLAGS_MASK, STREAM_EVENT_SUBSCRIPTION_FLAGS_MASK,
+    native_only_supported_subscription_flags, runtime_state,
 };
 
 /// Normalize one event subscription options payload.
