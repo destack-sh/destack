@@ -2,7 +2,7 @@
 set -euo pipefail
 
 script_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repository_root="$(cd "${script_directory}/../.." && pwd)"
+repository_root="$(cd "${script_directory}/.." && pwd)"
 
 targets_file="${repository_root}/TARGETS.md"
 ci_file="${repository_root}/.github/workflows/ci.yml"

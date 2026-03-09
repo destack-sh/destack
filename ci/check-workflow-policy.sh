@@ -2,7 +2,7 @@
 set -euo pipefail
 
 script_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repository_root="$(cd "${script_directory}/../.." && pwd)"
+repository_root="$(cd "${script_directory}/.." && pwd)"
 cd "${repository_root}"
 
 ci_file="${repository_root}/.github/workflows/ci.yml"
@@ -12,7 +12,7 @@ runtime_workflow_files=("${repository_root}/.github/workflows/runtime-"*.yml)
 workflow_files=("${repository_root}/.github/workflows/"*.yml)
 
 # shellcheck disable=SC1091
-source "${repository_root}/scripts/toolchain/versions.sh"
+source "${repository_root}/toolchain/versions.sh"
 
 recipe_list="$(just --list --unsorted)"
 
@@ -41,8 +41,8 @@ if rg -n "run: just runtime-" "${runtime_workflow_files[@]}"; then
 	exit 1
 fi
 
-if rg -n "run: \\./scripts/toolchain/runtime-" "${runtime_workflow_files[@]}"; then
-	echo "runtime workflows must not call scripts/toolchain directly" >&2
+if rg -n "run: \\./toolchain/runtime-" "${runtime_workflow_files[@]}"; then
+	echo "runtime workflows must not call toolchain directly" >&2
 	exit 1
 fi
 
@@ -139,7 +139,7 @@ fi
 
 # cross compiler env should resolve via toolchain wrappers, not inline zig cc commands
 if rg -n "CC_[A-Za-z0-9_]+.*zig cc -target" "${repository_root}/justfile" "${repository_root}/language/justfile" "${repository_root}/.github/workflows/"*.yml; then
-	echo "inline zig cc toolchain env is not allowed, use scripts/toolchain wrappers" >&2
+	echo "inline zig cc toolchain env is not allowed, use toolchain wrappers" >&2
 	exit 1
 fi
 
