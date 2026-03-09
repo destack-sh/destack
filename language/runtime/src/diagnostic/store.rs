@@ -3,8 +3,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use destack_workspace::{RuntimeDiagnosticLevel, RuntimeDiagnosticOptions};
 use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 
-use super::RuntimeError;
+use super::{RuntimeError, RuntimeResult};
 
 /// Default diagnostics ring-buffer capacity when runtime options do not provide one.
 const DEFAULT_DIAGNOSTIC_CAPACITY: usize = 1024;
@@ -67,6 +68,21 @@ pub struct DiagnosticEntry {
     pub message: String,
     /// Optional host error code associated with this diagnostic.
     pub os_code: Option<u32>,
+}
+
+/// Durable diagnostics store state captured at one checkpoint.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DiagnosticSnapshot {
+    /// The number of allocated error slots.
+    pub error_slot_count: usize,
+    /// Generation counters for each allocated error slot.
+    pub error_generations: Vec<u32>,
+    /// Free error slots for reuse.
+    pub free_error_slots: Vec<u32>,
+    /// Dropped diagnostics count since the previous drain point.
+    pub dropped_since_drain: u64,
+    /// The next diagnostic sequence to assign.
+    pub next_diagnostic_sequence: u64,
 }
 
 /// Shared storage state for diagnostics and runtime errors.
@@ -238,6 +254,67 @@ impl DiagnosticStore {
     /// Return whether no runtime diagnostics are currently queued.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    /// Capture one durable diagnostics snapshot.
+    pub(crate) fn snapshot(&self) -> RuntimeResult<DiagnosticSnapshot> {
+        let state = self.state.lock();
+
+        // require no live stored errors
+        if state.errors.iter().any(Option::is_some) {
+            return Err(RuntimeError::Internal {
+                message: "diagnostics cannot capture: stored errors are still present".to_string(),
+            }
+            .boxed());
+        }
+
+        // require no queued diagnostic entries
+        if !state.diagnostic_entries.is_empty() {
+            return Err(RuntimeError::Internal {
+                message: "diagnostics cannot capture: entries are still queued".to_string(),
+            }
+            .boxed());
+        }
+
+        Ok(DiagnosticSnapshot {
+            error_slot_count: state.errors.len(),
+            error_generations: state.error_generations.clone(),
+            free_error_slots: state.free_error_slots.clone(),
+            dropped_since_drain: state.dropped_since_drain,
+            next_diagnostic_sequence: state.next_diagnostic_sequence,
+        })
+    }
+
+    /// Restore one durable diagnostics snapshot.
+    pub(crate) fn restore_snapshot(&self, snapshot: &DiagnosticSnapshot) -> RuntimeResult<()> {
+        let mut state = self.state.lock();
+
+        // require no live stored errors
+        if state.errors.iter().any(Option::is_some) {
+            return Err(RuntimeError::Internal {
+                message: "diagnostics cannot restore: stored errors are still present".to_string(),
+            }
+            .boxed());
+        }
+
+        // require no queued diagnostic entries
+        if !state.diagnostic_entries.is_empty() {
+            return Err(RuntimeError::Internal {
+                message: "diagnostics cannot restore: entries are still queued".to_string(),
+            }
+            .boxed());
+        }
+
+        state.errors = std::iter::repeat_with(|| None)
+            .take(snapshot.error_slot_count)
+            .collect();
+        state.error_generations = snapshot.error_generations.clone();
+        state.free_error_slots = snapshot.free_error_slots.clone();
+        state.diagnostic_entries.clear();
+        state.dropped_since_drain = snapshot.dropped_since_drain;
+        state.next_diagnostic_sequence = snapshot.next_diagnostic_sequence;
+
+        Ok(())
     }
 }
 

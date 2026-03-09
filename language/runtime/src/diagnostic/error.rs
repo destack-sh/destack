@@ -45,30 +45,30 @@ pub enum RuntimeError {
     } = 103,
     /// Event loop became idle before completing a task.
     EventLoopIdle { task_id: u64 } = 104,
-    /// Replay log ended before the requested event.
-    ReplayLogExhausted {
+    /// Trace ended before the requested event.
+    TraceExhausted {
         /// Sequence number of the missing event.
         sequence: u64,
     } = 107,
-    /// Replay log did not match the current execution.
-    ReplayMismatch {
+    /// Trace did not match the current execution.
+    TraceMismatch {
         /// Binding name for the mismatch.
         name: String,
     } = 108,
-    /// Replay payload policy is not supported by a binding.
-    ReplayPayloadUnsupported {
+    /// Trace payload policy is not supported by a binding.
+    TracePayloadUnsupported {
         /// Binding name for the mismatch.
         name: String,
     } = 109,
     /// Binding call context was not available.
     BindingCallContextMissing = 110,
-    /// Replay payload failed to encode.
-    ReplayEncodeFailed {
+    /// Trace payload failed to encode.
+    TraceEncodeFailed {
         /// Binding name for the failed payload.
         name: String,
     } = 111,
-    /// Replay payload failed to decode.
-    ReplayDecodeFailed {
+    /// Trace payload failed to decode.
+    TraceDecodeFailed {
         /// Binding name for the failed payload.
         name: String,
     } = 112,
@@ -105,21 +105,21 @@ impl RuntimeError {
             RuntimeError::EventLoopIdle { task_id } => {
                 format!("event loop idle before completing task {task_id}")
             }
-            RuntimeError::ReplayLogExhausted { sequence } => {
-                format!("replay log exhausted at {sequence}")
+            RuntimeError::TraceExhausted { sequence } => {
+                format!("trace exhausted at {sequence}")
             }
-            RuntimeError::ReplayMismatch { name } => {
-                format!("replay mismatch for {name}")
+            RuntimeError::TraceMismatch { name } => {
+                format!("trace mismatch for {name}")
             }
-            RuntimeError::ReplayPayloadUnsupported { name } => {
-                format!("replay payload unsupported for {name}")
+            RuntimeError::TracePayloadUnsupported { name } => {
+                format!("trace payload unsupported for {name}")
             }
             RuntimeError::BindingCallContextMissing => "binding call context missing".to_string(),
-            RuntimeError::ReplayEncodeFailed { name } => {
-                format!("failed to encode replay payload for {name}")
+            RuntimeError::TraceEncodeFailed { name } => {
+                format!("failed to encode trace payload for {name}")
             }
-            RuntimeError::ReplayDecodeFailed { name } => {
-                format!("failed to decode replay payload for {name}")
+            RuntimeError::TraceDecodeFailed { name } => {
+                format!("failed to decode trace payload for {name}")
             }
             RuntimeError::Internal { message } => format!("internal error: {message}"),
         }
