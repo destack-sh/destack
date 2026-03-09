@@ -1,6 +1,11 @@
 # parser bench fixtures
 language/test/fixtures/parser/oxc/**.js linguist-generated
 
+# all other generated files
+*.generated.rs linguist-generated
+*.generated.ts linguist-generated
+*.generated.js linguist-generated
+
 # tree sitter generated parser sources
 language/grammar/destack/destack/src/parser.c linguist-generated -diff
 language/grammar/destack/typescript/src/parser.c linguist-generated -diff

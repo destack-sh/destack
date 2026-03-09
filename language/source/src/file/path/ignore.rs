@@ -290,9 +290,14 @@ mod tests {
         let fs = TemporaryPhysicalFileSystem::new_with_prefix("file_ignore");
         fs.create_dir_all(Path::new("project"))
             .expect("create ignore directory");
+        let ignore_file = r"target/
+*.log
+!keep.log
+# comment
+";
         fs.write_bytes(
             "project/.gitignore",
-            b"target/\n*.log\n!keep.log\n# comment\n",
+            ignore_file.as_bytes(),
         )
         .expect("write ignore file");
 
@@ -323,9 +328,16 @@ mod tests {
         let fs = TemporaryPhysicalFileSystem::new_with_prefix("file_gitattributes");
         fs.create_dir_all(Path::new("project"))
             .expect("create attributes directory");
+        let attributes_file = r"generated/parser.c linguist-generated
+generated/keep.c linguist-generated
+generated/keep.c -linguist-generated
+*.generated.rs linguist-generated
+vendor.txt linguist-vendored
+archive.tar export-ignore
+";
         fs.write_bytes(
             "project/.gitattributes",
-            b"generated/parser.c linguist-generated\ngenerated/keep.c linguist-generated\ngenerated/keep.c -linguist-generated\nvendor.txt linguist-vendored\narchive.tar export-ignore\n",
+            attributes_file.as_bytes(),
         )
         .expect("write attributes file");
 
@@ -337,6 +349,9 @@ mod tests {
 
         let kept_file = fs.path_for("project/generated/keep.c");
         assert!(!ignore_set.is_ignored(fs.root(), &kept_file, false));
+
+        let generated_rust_file = fs.path_for("project/runtime/bindings.generated.rs");
+        assert!(ignore_set.is_ignored(fs.root(), &generated_rust_file, false));
 
         let vendor_file = fs.path_for("project/vendor.txt");
         assert!(ignore_set.is_ignored(fs.root(), &vendor_file, false));
