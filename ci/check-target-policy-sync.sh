@@ -5,7 +5,6 @@ script_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repository_root="$(cd "${script_directory}/.." && pwd)"
 
 targets_file="${repository_root}/TARGETS.md"
-ci_file="${repository_root}/.github/workflows/ci.yml"
 nightly_file="${repository_root}/.github/workflows/nightly.yml"
 release_file="${repository_root}/.github/workflows/release.yml"
 
@@ -96,19 +95,16 @@ ensure_workflow_files_exist() {
 }
 
 policy_lanes_file="$(mktemp)"
-ci_policy_lanes_file="$(mktemp)"
 release_policy_lanes_file="$(mktemp)"
-ci_lanes_file="$(mktemp)"
 nightly_lanes_file="$(mktemp)"
 release_lanes_file="$(mktemp)"
 missing_file="$(mktemp)"
 extra_file="$(mktemp)"
 
-trap 'rm -f "${policy_lanes_file}" "${ci_policy_lanes_file}" "${release_policy_lanes_file}" "${ci_lanes_file}" "${nightly_lanes_file}" "${release_lanes_file}" "${missing_file}" "${extra_file}"' EXIT
+trap 'rm -f "${policy_lanes_file}" "${release_policy_lanes_file}" "${nightly_lanes_file}" "${release_lanes_file}" "${missing_file}" "${extra_file}"' EXIT
 
 # policy lanes
 extract_policy_lanes '^(Tier 1|Tier 2|Tier 3)$' >"${policy_lanes_file}"
-extract_policy_lanes '^(Tier 1|Tier 2)$' >"${ci_policy_lanes_file}"
 extract_policy_lanes '^(Tier 1|Tier 2)$' >"${release_policy_lanes_file}"
 
 if [ ! -s "${policy_lanes_file}" ]; then
@@ -117,16 +113,12 @@ if [ ! -s "${policy_lanes_file}" ]; then
 fi
 
 # workflow lanes
-extract_workflow_lanes "${ci_file}" >"${ci_lanes_file}"
 extract_workflow_lanes "${nightly_file}" >"${nightly_lanes_file}"
 extract_workflow_lanes "${release_file}" >"${release_lanes_file}"
 
 # make sure every policy lane has a reusable runtime workflow
 ensure_workflow_files_exist "${policy_lanes_file}"
 
-# keep ci and release aligned with Tier 1 and Tier 2 policy lanes
-check_exact_lane_mapping "ci.yml" "${ci_policy_lanes_file}" "${ci_lanes_file}" "${missing_file}" "${extra_file}"
+# keep nightly and release aligned with the full supported runtime lane set
+check_exact_lane_mapping "nightly.yml" "${release_policy_lanes_file}" "${nightly_lanes_file}" "${missing_file}" "${extra_file}"
 check_exact_lane_mapping "release.yml" "${release_policy_lanes_file}" "${release_lanes_file}" "${missing_file}" "${extra_file}"
-
-# keep nightly aligned with the full policy lane set, including Tier 3
-check_exact_lane_mapping "nightly.yml" "${policy_lanes_file}" "${nightly_lanes_file}" "${missing_file}" "${extra_file}"

@@ -7,8 +7,8 @@ Because of the breadth and depth of the project, testing is non-trivial, and som
 
 | Gate | Purpose | Local command | CI usage |
 |------|---------|---------------|----------|
-| **Quick** | Fast, deterministic confidence for normal development and pull requests | `just quick` | Pull request and `main` push verification, split across `Hygiene Check`, area `Check` jobs, and tiered runtime `Check` jobs |
-| **Full** | Deep verification for broad local validation and release depth | `just full` | Nightly integration and release verification |
+| **Quick** | Fast, deterministic confidence for normal development and mainline verification | `just quick` | `main` push verification, split across `Hygiene Check`, area `Check` jobs, the Windows resolver check, and the Linux runtime checks |
+| **Full** | Deep verification for broad local validation and release depth | `just full` | Scheduled nightly verification, signed nightly canary packaging, and release verification |
 
 When you need to tune test concurrency, set `DESTACK_TEST_THREADS`.
 That knob drives Rust `libtest` concurrency and also feeds custom language harness jobs by default.
@@ -51,6 +51,8 @@ This table is the operational testing view: which workflows run, which commands 
 Native Linux, macOS, and Windows lanes run on matching GitHub Actions runners.
 iOS and Android lanes use SDK-backed cross compilation.
 See [`TARGETS.md`](TARGETS.md) for the canonical support policy.
+Mainline CI keeps only the Linux runtime lane and the Windows resolver lane.
+Nightly and release both run the full platform coverage.
 
 | Target triple | Tier | Primary workflow | Command | Backing implementation |
 |---------------|------|------------------|---------|------------------------|

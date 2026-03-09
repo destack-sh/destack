@@ -2,7 +2,8 @@
 
 Destack releases are tag driven.
 The canonical release tag format is `vX.Y.Z`.
-Release CI reuses the repository `full` verification depth and then adds artifact packaging, signatures, installer checks, updater checks, and publishing.
+Release CI reuses the same release-blocking verification coverage as the scheduled nightly lane and then adds artifact packaging, signatures, installer checks, updater checks, and publishing.
+Nightly runs that same release-blocking verification coverage, adds nightly-only canary lanes like fuzz and bench, signs the canary artifacts with the current release key, and publishes a rolling GitHub prerelease from `main`.
 
 ## Model
 
@@ -23,6 +24,29 @@ Public project maturity is tracked separately through the single `Status` label 
 | `just publish --dry-run` | Dry run the full multi-registry publish fanout |
 | `just publish-release` | Publish live using the normal staged release path |
 | `just publish-release-local` | Publish live using local CLI binary staging |
+
+## Version Policy
+
+Use stable semver releases deliberately.
+Nightly is the high-frequency canary channel for `main`.
+Stable releases should be less frequent and intentional.
+
+### Patch
+
+Use `patch` for the normal stable release path.
+This is the default for `just release` and `just bump`.
+Ship patch releases for fixes, polish, infrastructure changes, compatibility work, and smaller user-visible additions.
+
+### Minor
+
+Use `minor` when the release is a clear external milestone.
+This includes notable new user-facing features, new public package surfaces, major capability expansion, or a release you want users to treat as a meaningful step forward.
+Minor releases should happen much less often than nightly and somewhat less often than patch.
+
+### Major
+
+Use `major` only for explicit epoch boundaries.
+While Destack remains in `0.x`, major releases should be rare.
 
 ## Standard Flow
 
@@ -72,6 +96,22 @@ just publish-release-local
 
 `publish-release-local` prefers `release-cli-assets` or `DESTACK_CLI_ARTIFACTS` when present.
 Otherwise it builds and stages CLI binaries for the configured `DESTACK_RELEASE_TARGETS`, or the host target when that fallback is supported.
+
+## Nightly
+
+Nightly is the canary channel for `main`.
+It runs the same release-blocking verification coverage as release and packages the same CLI artifacts.
+Nightly signs `manifest.json`, `SHA256SUMS`, `install.sh`, and `install.ps1` with the current release signing key.
+Nightly then updates the rolling `nightly` GitHub prerelease from `main`.
+Nightly workflow artifacts remain available for debugging:
+
+- `nightly-schemas-${sha}`
+- `nightly-cli-assets-${sha}`
+
+The nightly prerelease is a canary channel, not a stable semver release.
+Its packaged manifest carries `channel = nightly` and uses the rolling `nightly` release tag.
+Nightly should be the fast path for “latest verified main”.
+Stable should be the intentional promotion path for a verified commit you want users to adopt.
 
 ## CI Release Flow
 

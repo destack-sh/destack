@@ -143,25 +143,26 @@ if rg -n "CC_[A-Za-z0-9_]+.*zig cc -target" "${repository_root}/justfile" "${rep
 	exit 1
 fi
 
-# tier 1 runtime workflow files should exist
-if [ ! -f "${repository_root}/.github/workflows/runtime-linux-check.yml" ] || [ ! -f "${repository_root}/.github/workflows/runtime-windows-check.yml" ]; then
-	echo "missing required tier 1 runtime workflows" >&2
+# scheduled and release runtime workflow files should exist
+if [ ! -f "${repository_root}/.github/workflows/runtime-linux-check.yml" ] \
+	|| [ ! -f "${repository_root}/.github/workflows/runtime-macos-check.yml" ] \
+	|| [ ! -f "${repository_root}/.github/workflows/runtime-windows-check.yml" ] \
+	|| [ ! -f "${repository_root}/.github/workflows/runtime-ios-check.yml" ] \
+	|| [ ! -f "${repository_root}/.github/workflows/runtime-android-check.yml" ]; then
+	echo "missing required runtime workflows" >&2
 	exit 1
 fi
 
-# ci should call all tier 1 runtime lanes
+# mainline ci should keep the cheap runtime and windows resolver baseline
 if ! rg -n "^  runtime-linux-check:" "${ci_file}" >/dev/null; then
-	echo "ci.yml missing runtime-linux-check tier 1 lane" >&2
+	echo "ci.yml missing runtime-linux-check mainline lane" >&2
 	exit 1
 fi
-if ! rg -n "^  runtime-macos-check:" "${ci_file}" >/dev/null; then
-	echo "ci.yml missing runtime-macos-check tier 1 lane" >&2
+if ! rg -n "^  language-resolver-windows-check:" "${ci_file}" >/dev/null; then
+	echo "ci.yml missing language-resolver-windows-check mainline lane" >&2
 	exit 1
 fi
-if ! rg -n "^  runtime-windows-check:" "${ci_file}" >/dev/null; then
-	echo "ci.yml missing runtime-windows-check tier 1 lane" >&2
-	exit 1
-fi
+
 # runtime linux tier 1 lane should test both host architectures
 if ! rg -n "arch: x86_64" "${repository_root}/.github/workflows/runtime-linux-check.yml" >/dev/null; then
 	echo "runtime-linux-check.yml missing x86_64 host lane" >&2
@@ -172,7 +173,50 @@ if ! rg -n "arch: aarch64" "${repository_root}/.github/workflows/runtime-linux-c
 	exit 1
 fi
 
-# tier 1 rows in target policy should include linux and windows gnu
+# nightly and release should keep the full platform coverage
+for workflow_file in "${nightly_file}" "${release_file}"; do
+	if ! rg -n "^  runtime-android-check:" "${workflow_file}" >/dev/null; then
+		echo "$(basename "${workflow_file}") missing runtime-android-check full lane" >&2
+		exit 1
+	fi
+	if ! rg -n "^  runtime-ios-check:" "${workflow_file}" >/dev/null; then
+		echo "$(basename "${workflow_file}") missing runtime-ios-check full lane" >&2
+		exit 1
+	fi
+	if ! rg -n "^  runtime-linux-check:" "${workflow_file}" >/dev/null; then
+		echo "$(basename "${workflow_file}") missing runtime-linux-check full lane" >&2
+		exit 1
+	fi
+	if ! rg -n "^  runtime-macos-check:" "${workflow_file}" >/dev/null; then
+		echo "$(basename "${workflow_file}") missing runtime-macos-check full lane" >&2
+		exit 1
+	fi
+	if ! rg -n "^  runtime-windows-check:" "${workflow_file}" >/dev/null; then
+		echo "$(basename "${workflow_file}") missing runtime-windows-check full lane" >&2
+		exit 1
+	fi
+	if ! rg -n "^  language-resolver-windows-check:" "${workflow_file}" >/dev/null; then
+		echo "$(basename "${workflow_file}") missing language-resolver-windows-check full lane" >&2
+		exit 1
+	fi
+	if ! rg -n "^  bridge-swift-build:" "${workflow_file}" >/dev/null; then
+		echo "$(basename "${workflow_file}") missing bridge-swift-build full lane" >&2
+		exit 1
+	fi
+done
+
+# nightly should publish the rolling canary prerelease from main
+if ! rg -n "^  nightly-release-create:" "${nightly_file}" >/dev/null; then
+	echo "nightly.yml missing nightly-release-create canary lane" >&2
+	exit 1
+fi
+
+if ! rg -n "if: github.ref == 'refs/heads/main'" "${nightly_file}" >/dev/null; then
+	echo "nightly.yml must guard prerelease publication to main" >&2
+	exit 1
+fi
+
+# tier 1 rows in target policy should keep the supported host targets
 if ! rg -n '^\| `x86_64-unknown-linux-gnu` \| Tier 1 \|' "${repository_root}/TARGETS.md" >/dev/null; then
 	echo "TARGETS.md must keep x86_64-unknown-linux-gnu in Tier 1" >&2
 	exit 1

@@ -64,9 +64,10 @@ Release artifacts also include a machine-readable update manifest.
 - `manifest.json`
 
 The manifest maps target triples to archive names and sha256 hashes.
+It also records the release tag and channel that the updater should bind to.
 Future in-cli auto-update uses this file as the canonical release metadata source.
 
-Release CI publishes detached signatures for all metadata and installer scripts.
+Release and nightly CI both publish detached signatures for all metadata and installer scripts.
 
 - `manifest.json.asc`
 - `SHA256SUMS.asc`
@@ -76,6 +77,9 @@ Release CI publishes detached signatures for all metadata and installer scripts.
 
 The cli `destack update` standalone lane verifies `manifest.json.asc`, `SHA256SUMS.asc`, and the installer script signature against this key during update apply.
 Use `destack update --check --verify` to run metadata signature verification without applying the update.
+
+Stable releases use a `vX.Y.Z` release tag and `channel = stable`.
+Nightly uses the rolling `nightly` prerelease tag and `channel = nightly`.
 
 ## release wiring
 

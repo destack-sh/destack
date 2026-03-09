@@ -8,6 +8,8 @@ export LC_ALL="C"
 DESTACK_VERSION_INPUT="${1:-}"
 DESTACK_OUTPUT_DIRECTORY="${2:-}"
 DESTACK_TARGETS_INPUT="${DESTACK_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
+DESTACK_RELEASE_TAG_INPUT="${DESTACK_RELEASE_TAG:-}"
+DESTACK_RELEASE_CHANNEL_INPUT="${DESTACK_RELEASE_CHANNEL:-stable}"
 DESTACK_BINARY_NAMES="destack ds dsc dsx"
 DESTACK_MANIFEST_NAME="manifest.json"
 
@@ -42,6 +44,23 @@ resolve_version() {
     fi
 
     fail "release version not provided and VERSION.txt is missing"
+}
+
+# resolve the release tag
+resolve_release_tag() {
+    local version_value="$1"
+
+    if [ -n "${DESTACK_RELEASE_TAG_INPUT}" ]; then
+        printf '%s\n' "${DESTACK_RELEASE_TAG_INPUT}"
+        return
+    fi
+
+    printf 'v%s\n' "${version_value}"
+}
+
+# resolve the release channel
+resolve_release_channel() {
+    printf '%s\n' "${DESTACK_RELEASE_CHANNEL_INPUT}"
 }
 
 # resolve the output directory
@@ -184,7 +203,9 @@ write_checksums() {
 # write the release update manifest
 write_manifest() {
     local version_value="$1"
-    local output_directory="$2"
+    local release_tag="$2"
+    local release_channel="$3"
+    local output_directory="$4"
     local checksums_path="${output_directory}/SHA256SUMS"
     local manifest_path="${output_directory}/${DESTACK_MANIFEST_NAME}"
     local targets_count
@@ -194,7 +215,8 @@ write_manifest() {
     {
         printf '{\n'
         printf '  "version": "%s",\n' "${version_value}"
-        printf '  "releaseTag": "v%s",\n' "${version_value}"
+        printf '  "releaseTag": "%s",\n' "${release_tag}"
+        printf '  "channel": "%s",\n' "${release_channel}"
         printf '  "checksumsFile": "SHA256SUMS",\n'
         printf '  "assets": [\n'
 
@@ -251,6 +273,10 @@ main() {
 
     local version_value
     version_value="$(resolve_version)"
+    local release_tag
+    release_tag="$(resolve_release_tag "${version_value}")"
+    local release_channel
+    release_channel="$(resolve_release_channel)"
     local output_directory
     output_directory="$(resolve_output_directory)"
     local temp_directory
@@ -266,7 +292,7 @@ main() {
     done
 
     write_checksums "${output_directory}"
-    write_manifest "${version_value}" "${output_directory}"
+    write_manifest "${version_value}" "${release_tag}" "${release_channel}" "${output_directory}"
 }
 
 main "$@"

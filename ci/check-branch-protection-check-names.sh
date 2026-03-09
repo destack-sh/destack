@@ -7,8 +7,6 @@ repository_root="$(cd "${script_directory}/.." && pwd)"
 required_checks_file="${script_directory}/required-checks.txt"
 ci_file="${repository_root}/.github/workflows/ci.yml"
 runtime_linux_file="${repository_root}/.github/workflows/runtime-linux-check.yml"
-runtime_macos_file="${repository_root}/.github/workflows/runtime-macos-check.yml"
-runtime_windows_file="${repository_root}/.github/workflows/runtime-windows-check.yml"
 targets_file="${repository_root}/TARGETS.md"
 
 read_required_checks() {
@@ -16,21 +14,9 @@ read_required_checks() {
 }
 
 read_workflow_checks() {
-	local macos_check
-	local windows_check
-
 	# ci hygiene check name comes from the root ci workflow
 	if ! rg -n '^    name: Hygiene Check$' "${ci_file}" >/dev/null; then
 		echo "ci.yml is missing \"Hygiene Check\" job name" >&2
-		exit 1
-	fi
-
-	# runtime host check names come from reusable runtime workflows
-	macos_check="$(rg -o '^    name: Runtime Check \(macOS\)$' "${runtime_macos_file}" | sed 's/^    name: //')"
-	windows_check="$(rg -o '^    name: Runtime Check \(Windows\)$' "${runtime_windows_file}" | sed 's/^    name: //')"
-
-	if [ -z "${macos_check}" ] || [ -z "${windows_check}" ]; then
-		echo "runtime workflow job names are missing required check labels" >&2
 		exit 1
 	fi
 
@@ -45,8 +31,7 @@ read_workflow_checks() {
 
 	# emit derived workflow check contexts
 	echo "Hygiene Check"
-	echo "${macos_check}"
-	echo "${windows_check}"
+	echo "Language Resolver Check (Windows)"
 	while IFS= read -r linux_arch; do
 		echo "Runtime Check (Linux, ${linux_arch})"
 	done <"${linux_arches_file}"
@@ -56,7 +41,7 @@ read_workflow_checks() {
 
 read_targets_tier1_checks() {
 	awk -F'|' '
-    $0 ~ /^### Tier 1 required checks$/ { in_checks = 1; next }
+    $0 ~ /^### Mainline required checks$/ { in_checks = 1; next }
     in_checks && $0 ~ /^### / { in_checks = 0 }
     in_checks && $0 ~ /^\| `[^`]+` \|$/ {
         check_name = $2
@@ -119,7 +104,7 @@ compare_check_sets \
 	"${extra_file}"
 
 compare_check_sets \
-	"branch protection required checks vs TARGETS.md tier 1 required checks" \
+	"branch protection required checks vs TARGETS.md mainline required checks" \
 	"${required_checks_sorted_file}" \
 	"${targets_checks_sorted_file}" \
 	"${missing_file}" \

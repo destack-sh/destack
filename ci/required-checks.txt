@@ -1,5 +1,4 @@
 Hygiene Check
+Language Resolver Check (Windows)
 Runtime Check (Linux, x86_64)
 Runtime Check (Linux, aarch64)
-Runtime Check (macOS)
-Runtime Check (Windows)

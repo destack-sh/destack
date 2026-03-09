@@ -8,8 +8,8 @@ See [TESTING.md](TESTING.md) for the operational gate, workflow, and script mapp
 
 | Tier | Guarantee |
 |-----------|--------|
-| Tier 1 | Required on every pull request, release blocking, host checks are expected to pass with check, clippy, and tests. |
-| Tier 2 | Required compile checks on pull requests, deeper host or integration checks may run on scheduled lanes. |
+| Tier 1 | Release blocking, exercised on scheduled full lanes, and expected to pass with check, clippy, and tests on supported hosts. |
+| Tier 2 | Validated on scheduled full lanes and release, with compile checks or host checks as appropriate. |
 | Tier 3 | Best effort compile only, no release blocking guarantees. |
 
 ## Runtime
@@ -39,14 +39,13 @@ Run these commands from repository root when setting up or validating runtime ta
 | Run Android runtime target lane | `just language/check-runtime-android` |
 | Install Android SDK and NDK into the active sdk root | `just language/install-runtime-android-ndk` |
 
-### Tier 1 required checks
+### Mainline required checks
 
-Tier 1 branch protection should require these CI checks on `main`.
+These are the cheap required checks for direct pushes and optional branch protection on `main`.
 
 | Check |
 |-----------|
 | `Hygiene Check` |
+| `Language Resolver Check (Windows)` |
 | `Runtime Check (Linux, x86_64)` |
 | `Runtime Check (Linux, aarch64)` |
-| `Runtime Check (macOS)` |
-| `Runtime Check (Windows)` |
