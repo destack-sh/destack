@@ -1,7 +1,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use destack_base::ImmutableStringPool;
+use destack_base::{Capture, CaptureMode, ImmutableStringPool, SnapshotCodec};
 use destack_mir as mir;
 
 use super::{ExternalCallContext, ExternalHandler, IsolateState, StringRef};
@@ -9,7 +9,7 @@ use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::execute::{Continuation, ExecutionOutcome, ExecutionOutput};
 use crate::interpreter::{Interpreter, InterpreterContext};
 use crate::options::IsolateOptions;
-use crate::snapshot::{IsolateImage, IsolateSnapshot};
+use crate::snapshot::{ContinuationImage, IsolateImage, IsolateSnapshot};
 use destack_heap::{GcStats, Heap, ManagedPointer, RawPointer, Value};
 
 /// VM isolate with globals and execution state.
@@ -31,8 +31,10 @@ impl fmt::Debug for Isolate {
 impl Isolate {
     /// Create a new isolate from one shared immutable image.
     pub fn new(image: Arc<IsolateImage>) -> RuntimeResult<Self> {
-        let state = IsolateState::new(image);
-        let interpreter = Interpreter::new(&state);
+        let mut state = IsolateState::new(image.clone());
+        state.string_interner.restore_image(&image.string_interner);
+        state.globals = image.globals.clone();
+        let interpreter = Interpreter::from_image(&state, &image.interpreter)?;
 
         Ok(Self { state, interpreter })
     }
@@ -52,6 +54,10 @@ impl Isolate {
             tree,
             strings,
             options,
+            isolate_id: 0,
+            string_interner: Default::default(),
+            globals: super::GlobalStorage::new(),
+            interpreter: Default::default(),
         });
 
         Self::new(image)
@@ -66,11 +72,6 @@ impl Isolate {
     /// Get the isolate options.
     pub fn options(&self) -> &IsolateOptions {
         &self.state.image.options
-    }
-
-    /// Return the shared immutable isolate construction image.
-    pub fn image(&self) -> &Arc<IsolateImage> {
-        &self.state.image
     }
 
     /// Get mutable isolate options.
@@ -209,6 +210,19 @@ impl Isolate {
         self.with_interpreter(heap, |context| context.resume(continuation, resume_value))
     }
 
+    /// Capture one continuation as one immutable image.
+    pub fn continuation_image(&self, continuation: &Continuation) -> ContinuationImage {
+        continuation.image()
+    }
+
+    /// Restore one continuation from one immutable image.
+    pub fn restore_continuation_image(
+        &self,
+        image: &ContinuationImage,
+    ) -> RuntimeResult<Continuation> {
+        Continuation::from_image(image, &self.interpreter.state.threaded_functions)
+    }
+
     /// Allocate an aggregate on the heap and return it as a Value.
     pub fn allocate_aggregate(&mut self, heap: &mut Heap, values: Vec<Value>) -> Value {
         self.state.allocate_aggregate(heap, values)
@@ -263,14 +277,17 @@ impl Isolate {
         })
     }
 
-    /// Capture one durable VM snapshot.
-    pub fn snapshot(&mut self) -> RuntimeResult<IsolateSnapshot> {
+    /// Capture one immutable VM image.
+    pub fn image(&mut self) -> RuntimeResult<IsolateImage> {
         // capture the mutable isolate state
-        let string_interner = self.state.string_interner.snapshot();
+        let string_interner = self.state.string_interner.image();
         let globals = self.state.globals.clone();
-        let interpreter = self.interpreter.snapshot();
+        let interpreter = self.interpreter.image();
 
-        Ok(IsolateSnapshot {
+        Ok(IsolateImage {
+            tree: self.state.image.tree.clone(),
+            strings: self.state.image.strings.clone(),
+            options: self.state.image.options.clone(),
             isolate_id: self.state.isolate_id,
             string_interner,
             globals,
@@ -278,19 +295,45 @@ impl Isolate {
         })
     }
 
-    /// Restore this isolate from one durable VM snapshot.
-    pub fn restore(&mut self, heap: &mut Heap, snapshot: &IsolateSnapshot) -> RuntimeResult<()> {
+    /// Restore this isolate from one immutable VM image.
+    pub fn restore_image(&mut self, heap: &mut Heap, image: &IsolateImage) -> RuntimeResult<()> {
+        let stored_image = Arc::make_mut(&mut self.state.image);
+        stored_image.tree = image.tree.clone();
+        stored_image.strings = image.strings.clone();
+        stored_image.options = image.options.clone();
+        stored_image.isolate_id = image.isolate_id;
+        stored_image.string_interner = image.string_interner.clone();
+        stored_image.globals = image.globals.clone();
+        stored_image.interpreter = image.interpreter.clone();
+
         // restore isolate-owned mutable state first
-        self.state.isolate_id = snapshot.isolate_id;
+        self.state.isolate_id = image.isolate_id;
         self.state
             .string_interner
-            .restore(&snapshot.string_interner);
-        self.state.globals = snapshot.globals.clone();
+            .restore_image(&image.string_interner);
+        self.state.globals = image.globals.clone();
 
         // rebuild interpreter state over the restored isolate
-        self.interpreter = Interpreter::restore(&self.state, heap, &snapshot.interpreter)?;
+        let _ = heap;
+        self.interpreter = Interpreter::from_image(&self.state, &image.interpreter)?;
 
         Ok(())
+    }
+
+    /// Capture one serialized VM snapshot.
+    pub fn snapshot(&mut self) -> RuntimeResult<IsolateSnapshot> {
+        Ok(IsolateSnapshot {
+            image: self.image()?,
+        })
+    }
+
+    /// Restore this isolate from one serialized VM snapshot.
+    pub fn restore_snapshot(
+        &mut self,
+        heap: &mut Heap,
+        snapshot: &IsolateSnapshot,
+    ) -> RuntimeResult<()> {
+        self.restore_image(heap, &snapshot.image)
     }
 
     // interpret a closure with access to the interpreter context
@@ -323,5 +366,46 @@ impl Isolate {
                 }
             })
             .collect()
+    }
+}
+
+impl Capture for Isolate {
+    type Image = IsolateImage;
+    type Error = Box<RuntimeError>;
+    type CaptureContext<'a> = ();
+    type RestoreContext<'a> = &'a mut Heap;
+
+    /// Capture one isolate image for the given mode.
+    fn capture_image(
+        &mut self,
+        _mode: CaptureMode,
+        _context: Self::CaptureContext<'_>,
+    ) -> Result<Self::Image, Self::Error> {
+        Isolate::image(self).map_err(Box::<RuntimeError>::from)
+    }
+
+    /// Restore one isolate image.
+    fn restore_image(
+        &mut self,
+        image: &Self::Image,
+        heap: Self::RestoreContext<'_>,
+    ) -> Result<(), Self::Error> {
+        Isolate::restore_image(self, heap, image).map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl SnapshotCodec for Isolate {
+    type Snapshot = IsolateSnapshot;
+
+    /// Encode one isolate image as one snapshot.
+    fn encode_snapshot(image: &Self::Image) -> Result<Self::Snapshot, Self::Error> {
+        Ok(IsolateSnapshot {
+            image: image.clone(),
+        })
+    }
+
+    /// Decode one isolate snapshot back into one image.
+    fn decode_snapshot(snapshot: &Self::Snapshot) -> Result<Self::Image, Self::Error> {
+        Ok(snapshot.image.clone())
     }
 }

@@ -17,9 +17,9 @@ pub use destack_heap::string::{
     STRING_FLAG_IS_STATIC, STRING_TYPE_ALIAS, StringLayout, string_layout_matches,
 };
 pub use destack_heap::{
-    GcStats, GlobalPointer, Heap, HeapSnapshot, LocalPointer, ManagedHeap, ManagedPointer, RawCell,
-    RawCellStorage, RawHeap, RawPointer, ReferenceAddressSpace, ReferenceMeta, SlotStorage,
-    StackPointer, Value, ValueTag,
+    GcStats, GlobalPointer, Heap, HeapImage, HeapSnapshot, LocalPointer, ManagedHeap,
+    ManagedPointer, RawCell, RawCellStorage, RawHeap, RawPointer, ReferenceAddressSpace,
+    ReferenceMeta, SlotStorage, StackPointer, Value, ValueTag,
 };
 
 #[cfg(test)]

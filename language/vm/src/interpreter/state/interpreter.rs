@@ -8,7 +8,7 @@ use destack_mir as mir;
 use crate::diagnostic::{Error, FrameInfo, RuntimeError, RuntimeResult};
 use crate::execute::Continuation;
 use crate::isolate::{ExternalFnPtr, GlobalStorage, IsolateState};
-use crate::snapshot::InterpreterSnapshot;
+use crate::snapshot::InterpreterImage;
 use crate::telemetry::Statistics;
 use destack_heap::{
     GcStats, Heap, ManagedPointer, RawPointer, ReferenceMeta, Value, string_layout_matches,
@@ -80,11 +80,11 @@ impl Interpreter {
         &self.state.call_stack
     }
 
-    /// Capture one durable interpreter snapshot.
-    pub(crate) fn snapshot(&self) -> InterpreterSnapshot {
-        let call_stack = self.state.call_stack.iter().map(Frame::snapshot).collect();
+    /// Capture one immutable interpreter image.
+    pub(crate) fn image(&self) -> InterpreterImage {
+        let call_stack = self.state.call_stack.iter().map(Frame::image).collect();
 
-        InterpreterSnapshot {
+        InterpreterImage {
             call_stack,
             value_stack: self.state.value_stack.clone(),
             local_stack: self.state.local_stack.clone(),
@@ -92,26 +92,25 @@ impl Interpreter {
         }
     }
 
-    /// Restore one interpreter from a durable snapshot.
-    pub(crate) fn restore(
+    /// Create one interpreter from an immutable image.
+    pub(crate) fn from_image(
         isolate: &IsolateState,
-        _heap: &mut Heap,
-        snapshot: &InterpreterSnapshot,
+        image: &InterpreterImage,
     ) -> RuntimeResult<Self> {
         // rebuild the threaded decode tables from the current isolate
         let mut interpreter = Self::new(isolate);
 
         // restore the mutable execution state
-        let call_stack = snapshot
+        let call_stack = image
             .call_stack
             .iter()
-            .map(|frame| Frame::restore(frame, &interpreter.state.threaded_functions))
+            .map(|frame| Frame::from_image(frame, &interpreter.state.threaded_functions))
             .collect::<RuntimeResult<Vec<_>>>()?;
 
         interpreter.state.call_stack = call_stack;
-        interpreter.state.value_stack = snapshot.value_stack.clone();
-        interpreter.state.local_stack = snapshot.local_stack.clone();
-        interpreter.state.statistics = snapshot.statistics.clone();
+        interpreter.state.value_stack = image.value_stack.clone();
+        interpreter.state.local_stack = image.local_stack.clone();
+        interpreter.state.statistics = image.statistics.clone();
 
         #[cfg(feature = "stats")]
         {

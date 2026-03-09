@@ -1,14 +1,14 @@
 use destack_heap::Value;
 use serde::{Deserialize, Serialize};
 
-use crate::snapshot::FrameSnapshot;
+use crate::snapshot::FrameImage;
 use crate::telemetry::Statistics;
 
-/// Durable interpreter state.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct InterpreterSnapshot {
+/// Immutable interpreter image.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InterpreterImage {
     /// The captured call stack.
-    pub call_stack: Vec<FrameSnapshot>,
+    pub call_stack: Vec<FrameImage>,
     /// The captured SSA value stack.
     pub value_stack: Vec<Value>,
     /// The captured local stack.
