@@ -6,14 +6,14 @@ use crate::platform::PlatformError;
 use crate::platform::audio::core::error::audio_would_block;
 
 #[cfg(target_os = "macos")]
-use super::super::abi::{AudioDeviceID, CoreAudioStreamRuntime};
+use super::access::{get_scalar_optional, set_data};
 #[cfg(target_os = "macos")]
-use super::super::constants::{
+use crate::platform::audio::unix::coreaudio::abi::{AudioDeviceID, CoreAudioStreamRuntime};
+#[cfg(target_os = "macos")]
+use crate::platform::audio::unix::coreaudio::constants::{
     K_AUDIO_DEVICE_PROPERTY_HOG_MODE, K_AUDIO_HARDWARE_PROPERTY_HOG_MODE_IS_ALLOWED,
     K_AUDIO_OBJECT_PROPERTY_SCOPE_GLOBAL, K_AUDIO_OBJECT_SYSTEM_OBJECT,
 };
-#[cfg(target_os = "macos")]
-use super::access::{get_scalar_optional, set_data};
 
 /// Return whether CoreAudio hog mode is globally allowed on this host.
 #[cfg(target_os = "macos")]
@@ -27,7 +27,7 @@ pub(crate) fn hog_mode_allowed() -> bool {
         != 0
 }
 
-/// Return the current hog-mode owner process identifier for one device.
+/// Return the current hog-mode owner process identifier for a device.
 #[cfg(target_os = "macos")]
 pub(crate) fn hog_owner_pid(device_id: AudioDeviceID) -> RuntimeResult<i32> {
     get_scalar_optional::<i32>(
@@ -65,7 +65,7 @@ pub(crate) fn toggle_hog_mode(
     Ok(owner_pid)
 }
 
-/// Acquire CoreAudio hog mode for one device when available.
+/// Acquire CoreAudio hog mode for a device when available.
 #[cfg(target_os = "macos")]
 pub(crate) fn enable_hog_mode(device_id: AudioDeviceID) -> RuntimeResult<bool> {
     // reject exclusive mode when the host disables hog mode globally

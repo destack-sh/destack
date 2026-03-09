@@ -30,7 +30,7 @@ use crate::platform::audio::core::model::{
 use crate::platform::audio::core::model::{AudioStreamHostState, HostDeviceDescriptor};
 use crate::platform::audio::{AudioShareMode, AudioStreamConfig};
 
-/// Build one initialized stream host state for one CoreAudio stream open request.
+/// Build an initialized stream host state for a CoreAudio stream open request.
 #[cfg(target_os = "macos")]
 fn new_stream_state(
     device_info: &HostDeviceDescriptor,
@@ -41,7 +41,7 @@ fn new_stream_state(
     // install host stream operations for queue lifecycle control
     let host_ops: Arc<dyn AudioHostStreamOps> = Arc::new(CoreAudioHostStreamOps { runtime });
 
-    // build one stream host state with initialized runtime state
+    // build the stream host state
     Arc::new(AudioStreamHostState {
         device: device_info.clone(),
         direction: device_info.direction,
@@ -74,7 +74,7 @@ fn new_stream_state(
     })
 }
 
-/// Open one CoreAudio stream on macOS.
+/// Open a CoreAudio stream on macOS.
 #[cfg(target_os = "macos")]
 fn open_host_stream_macos(
     device_info: &HostDeviceDescriptor,
@@ -112,7 +112,7 @@ fn open_host_stream_macos(
             | AudioDeviceDirection::Loopback
     );
 
-    // create and attach one playback queue when needed
+    // create and attach the playback queue when needed
     if needs_playback_queue {
         let queue_handle = match create_playback_queue(&stream_state, device_id) {
             Ok(queue_handle) => queue_handle,
@@ -129,7 +129,7 @@ fn open_host_stream_macos(
         queue_handles.push(queue_handle);
     }
 
-    // create and attach one capture queue when needed
+    // create and attach the capture queue when needed
     if needs_capture_queue {
         match create_capture_queue(&stream_state, device_id) {
             Ok(queue_handle) => {
@@ -159,7 +159,7 @@ pub(crate) fn is_stream_supported() -> bool {
     cfg!(target_os = "macos")
 }
 
-/// Open one CoreAudio stream.
+/// Open a CoreAudio stream.
 pub(crate) fn open_host_stream(
     device_info: &HostDeviceDescriptor,
     config: AudioStreamConfig,

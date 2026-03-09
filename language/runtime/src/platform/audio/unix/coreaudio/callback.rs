@@ -93,7 +93,7 @@ pub(super) fn fill_playback_bytes(
     stream.sync.wake.notify_all();
 }
 
-/// Ingest one input byte buffer into queued capture samples.
+/// Ingest an input byte buffer into queued capture samples.
 #[cfg(target_os = "macos")]
 pub(super) fn ingest_capture_bytes(
     stream: &Arc<AudioStreamHostState>,
@@ -157,7 +157,7 @@ pub(super) fn ingest_capture_bytes(
     stream.sync.wake.notify_all();
 }
 
-/// Return whether one stream host state has entered shutdown state.
+/// Return whether a stream host state has entered shutdown state.
 #[cfg(target_os = "macos")]
 pub(super) fn stream_shutdown(stream: &Arc<AudioStreamHostState>) -> bool {
     let state = stream
@@ -168,7 +168,7 @@ pub(super) fn stream_shutdown(stream: &Arc<AudioStreamHostState>) -> bool {
     state.shutdown
 }
 
-/// Rebuild one temporary callback context reference from one raw callback pointer.
+/// Rebuild a temporary callback context reference from a raw callback pointer.
 #[cfg(target_os = "macos")]
 pub(super) unsafe fn callback_context(
     in_user_data: *mut c_void,
@@ -178,17 +178,17 @@ pub(super) unsafe fn callback_context(
     }
 
     let context_ptr = in_user_data as *const CoreAudioStreamContext;
-    // keep one strong reference while callback runs
+    // keep a strong reference while the callback runs
     unsafe {
         Arc::increment_strong_count(context_ptr);
     }
 
-    // reconstruct one temporary arc for this callback invocation
+    // reconstruct a temporary arc for this callback invocation
     let context = unsafe { Arc::from_raw(context_ptr) };
     Some(context)
 }
 
-/// Handle one CoreAudio output queue callback.
+/// Handle a CoreAudio output queue callback.
 #[cfg(target_os = "macos")]
 pub(super) unsafe extern "C" fn output_callback(
     in_user_data: *mut c_void,
@@ -205,7 +205,7 @@ pub(super) unsafe extern "C" fn output_callback(
     let buffer = unsafe { &mut *in_buffer };
 
     if !buffer.audio_data.is_null() && buffer.audio_data_bytes_capacity > 0 {
-        // capture one host-time-aligned callback timestamp for playback correlation
+        // capture the host-time-aligned callback timestamp for playback correlation
         let callback_host_time = unsafe { AudioGetCurrentHostTime() };
         let callback_mono_ns = coreaudio_host_time_to_mono_ns(callback_host_time);
 
@@ -228,7 +228,7 @@ pub(super) unsafe extern "C" fn output_callback(
     let _ = unsafe { AudioQueueEnqueueBuffer(in_aq, in_buffer, 0, ptr::null()) };
 }
 
-/// Handle one CoreAudio input queue callback.
+/// Handle a CoreAudio input queue callback.
 #[cfg(target_os = "macos")]
 pub(super) unsafe extern "C" fn input_callback(
     in_user_data: *mut c_void,
@@ -248,7 +248,7 @@ pub(super) unsafe extern "C" fn input_callback(
     let buffer = unsafe { &mut *in_buffer };
 
     if !buffer.audio_data.is_null() && buffer.audio_data_byte_size > 0 {
-        // resolve one capture-side callback timestamp in runtime monotonic space
+        // resolve the capture-side callback timestamp in runtime monotonic space
         let capture_timestamp_ns = if !in_start_time.is_null()
             && (unsafe { (*in_start_time).flags } & K_AUDIO_TIME_STAMP_HOST_TIME_VALID) != 0
         {
@@ -278,7 +278,7 @@ pub(super) unsafe extern "C" fn input_callback(
     let _ = unsafe { AudioQueueEnqueueBuffer(in_aq, in_buffer, 0, ptr::null()) };
 }
 
-/// Handle one no-op callback for CoreAudio loopback probing.
+/// Handle a no-op callback for CoreAudio loopback probing.
 #[cfg(target_os = "macos")]
 pub(super) unsafe extern "C" fn loopback_probe_input_callback(
     _in_user_data: *mut c_void,

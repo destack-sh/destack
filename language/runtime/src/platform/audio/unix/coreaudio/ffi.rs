@@ -1,13 +1,13 @@
 #[cfg(target_os = "macos")]
 #[link(name = "CoreAudio", kind = "framework")]
 unsafe extern "C" {
-    /// Return whether one object has one property address.
+    /// Return whether an object has a property address.
     pub(super) fn AudioObjectHasProperty(
         in_object_id: AudioObjectID,
         in_address: *const AudioObjectPropertyAddress,
     ) -> u8;
 
-    /// Return the property payload byte size for one address.
+    /// Return the property payload byte size for an address.
     pub(super) fn AudioObjectGetPropertyDataSize(
         in_object_id: AudioObjectID,
         in_address: *const AudioObjectPropertyAddress,
@@ -16,7 +16,7 @@ unsafe extern "C" {
         out_data_size: *mut u32,
     ) -> OSStatus;
 
-    /// Return one property payload for one address.
+    /// Return a property payload for an address.
     pub(super) fn AudioObjectGetPropertyData(
         in_object_id: AudioObjectID,
         in_address: *const AudioObjectPropertyAddress,
@@ -26,7 +26,7 @@ unsafe extern "C" {
         out_data: *mut c_void,
     ) -> OSStatus;
 
-    /// Set one property payload for one address.
+    /// Set a property payload for an address.
     pub(super) fn AudioObjectSetPropertyData(
         in_object_id: AudioObjectID,
         in_address: *const AudioObjectPropertyAddress,
@@ -40,7 +40,7 @@ unsafe extern "C" {
 #[cfg(target_os = "macos")]
 #[link(name = "CoreFoundation", kind = "framework")]
 unsafe extern "C" {
-    /// Return one utf8 conversion for one CFString.
+    /// Return a utf8 conversion for a CFString.
     pub(super) fn CFStringGetCString(
         the_string: CFStringRef,
         buffer: *mut libc::c_char,
@@ -48,16 +48,16 @@ unsafe extern "C" {
         encoding: CFStringEncoding,
     ) -> u8;
 
-    /// Return one UTF-16 code-unit count for one CFString.
+    /// Return the UTF-16 code-unit count for a CFString.
     pub(super) fn CFStringGetLength(the_string: CFStringRef) -> CFIndex;
 
-    /// Return one maximum byte count for one encoding conversion.
+    /// Return the maximum byte count for an encoding conversion.
     pub(super) fn CFStringGetMaximumSizeForEncoding(
         length: CFIndex,
         encoding: CFStringEncoding,
     ) -> CFIndex;
 
-    /// Release one CoreFoundation object.
+    /// Release a CoreFoundation object.
     pub(super) fn CFRelease(cf: CFTypeRef);
 }
 
@@ -79,7 +79,7 @@ pub(super) type AudioQueueInputCallback = unsafe extern "C" fn(
 #[cfg(target_os = "macos")]
 #[link(name = "AudioToolbox", kind = "framework")]
 unsafe extern "C" {
-    /// Create one output queue.
+    /// Create an output queue.
     pub(super) fn AudioQueueNewOutput(
         in_format: *const AudioStreamBasicDescription,
         in_callback_proc: Option<AudioQueueOutputCallback>,
@@ -90,7 +90,7 @@ unsafe extern "C" {
         out_aq: *mut AudioQueueRef,
     ) -> OSStatus;
 
-    /// Create one input queue.
+    /// Create an input queue.
     pub(super) fn AudioQueueNewInput(
         in_format: *const AudioStreamBasicDescription,
         in_callback_proc: Option<AudioQueueInputCallback>,
@@ -101,17 +101,17 @@ unsafe extern "C" {
         out_aq: *mut AudioQueueRef,
     ) -> OSStatus;
 
-    /// Dispose one audio queue.
+    /// Dispose an audio queue.
     pub(super) fn AudioQueueDispose(in_aq: AudioQueueRef, in_immediate: u8) -> OSStatus;
 
-    /// Allocate one queue buffer.
+    /// Allocate a queue buffer.
     pub(super) fn AudioQueueAllocateBuffer(
         in_aq: AudioQueueRef,
         in_buffer_byte_size: u32,
         out_buffer: *mut AudioQueueBufferRef,
     ) -> OSStatus;
 
-    /// Enqueue one queue buffer.
+    /// Enqueue a queue buffer.
     pub(super) fn AudioQueueEnqueueBuffer(
         in_aq: AudioQueueRef,
         in_buffer: AudioQueueBufferRef,
@@ -119,19 +119,19 @@ unsafe extern "C" {
         in_packet_descs: *const c_void,
     ) -> OSStatus;
 
-    /// Start one queue.
+    /// Start a queue.
     pub(super) fn AudioQueueStart(in_aq: AudioQueueRef, in_start_time: *const c_void) -> OSStatus;
 
-    /// Pause one queue.
+    /// Pause a queue.
     pub(super) fn AudioQueuePause(in_aq: AudioQueueRef) -> OSStatus;
 
-    /// Stop one queue.
+    /// Stop a queue.
     pub(super) fn AudioQueueStop(in_aq: AudioQueueRef, in_immediate: u8) -> OSStatus;
 
-    /// Reset one queue and discard queued data.
+    /// Reset a queue and discard queued data.
     pub(super) fn AudioQueueReset(in_aq: AudioQueueRef) -> OSStatus;
 
-    /// Set one queue property.
+    /// Set a queue property.
     pub(super) fn AudioQueueSetProperty(
         in_aq: AudioQueueRef,
         in_id: AudioQueuePropertyID,
@@ -142,6 +142,6 @@ unsafe extern "C" {
     /// Return the current host time from CoreAudio's host-time clock.
     pub(super) fn AudioGetCurrentHostTime() -> u64;
 
-    /// Convert one CoreAudio host-time value into nanoseconds.
+    /// Convert a CoreAudio host-time value into nanoseconds.
     pub(super) fn AudioConvertHostTimeToNanos(in_host_time: u64) -> u64;
 }

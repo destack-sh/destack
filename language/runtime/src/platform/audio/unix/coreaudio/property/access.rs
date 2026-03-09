@@ -11,18 +11,18 @@ use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 
 #[cfg(target_os = "macos")]
-use super::super::abi::{
+use crate::platform::audio::unix::coreaudio::abi::{
     AudioObjectGetPropertyData, AudioObjectGetPropertyDataSize, AudioObjectHasProperty,
     AudioObjectID, AudioObjectPropertyScope, AudioObjectPropertySelector,
     AudioObjectSetPropertyData, CFRelease, CFStringGetCString, CFStringGetLength,
     CFStringGetMaximumSizeForEncoding, CFStringRef, CFTypeRef, OSStatus,
 };
 #[cfg(target_os = "macos")]
-use super::super::constants::{K_CF_STRING_ENCODING_UTF8, K_NO_ERR};
+use crate::platform::audio::unix::coreaudio::constants::{K_CF_STRING_ENCODING_UTF8, K_NO_ERR};
 #[cfg(target_os = "macos")]
-use super::super::format::property_address;
+use crate::platform::audio::unix::coreaudio::format::property_address;
 
-/// Build one CoreAudio runtime error from one osstatus failure.
+/// Build a CoreAudio runtime error from an osstatus failure.
 #[cfg(target_os = "macos")]
 pub(crate) fn error(
     operation: &'static str,
@@ -40,7 +40,7 @@ pub(crate) fn error(
     .boxed()
 }
 
-/// Return whether one CoreAudio object exposes one property at one scope.
+/// Return whether a CoreAudio object exposes a property at a scope.
 #[cfg(target_os = "macos")]
 pub(crate) fn has_property(
     object_id: AudioObjectID,
@@ -51,7 +51,7 @@ pub(crate) fn has_property(
     unsafe { AudioObjectHasProperty(object_id, &address) != 0 }
 }
 
-/// Read one CoreAudio property payload size.
+/// Read the CoreAudio property payload size.
 #[cfg(target_os = "macos")]
 pub(crate) fn get_data_size(
     object_id: AudioObjectID,
@@ -70,7 +70,7 @@ pub(crate) fn get_data_size(
     Ok(size)
 }
 
-/// Read one CoreAudio property payload into one byte buffer.
+/// Read the CoreAudio property payload into a byte buffer.
 #[cfg(target_os = "macos")]
 pub(crate) fn get_data(
     object_id: AudioObjectID,
@@ -101,7 +101,7 @@ pub(crate) fn get_data(
     Ok(())
 }
 
-/// Write one CoreAudio property payload from one byte buffer.
+/// Write the CoreAudio property payload from a byte buffer.
 #[cfg(target_os = "macos")]
 pub(crate) fn set_data(
     object_id: AudioObjectID,
@@ -127,7 +127,7 @@ pub(crate) fn set_data(
     Ok(())
 }
 
-/// Read one typed scalar CoreAudio property when available.
+/// Read a typed scalar CoreAudio property when available.
 #[cfg(target_os = "macos")]
 pub(crate) fn get_scalar_optional<T: Copy>(
     object_id: AudioObjectID,
@@ -158,7 +158,7 @@ pub(crate) fn get_scalar_optional<T: Copy>(
     Some(unsafe { value.assume_init() })
 }
 
-/// Read one CoreAudio CFString property into one UTF-8 string.
+/// Read a CoreAudio CFString property into a UTF-8 string.
 #[cfg(target_os = "macos")]
 pub(crate) fn get_cfstring_optional(
     object_id: AudioObjectID,

@@ -35,7 +35,7 @@ pub(super) fn probe_loopback_support(device_id: AudioDeviceID) -> bool {
         return false;
     }
 
-    // build one conservative probe configuration for output loopback capture
+    // build a conservative probe configuration for output loopback capture
     let channels = output_channels.clamp(1, 2);
     let sample_rate = get_scalar_optional::<f64>(
         device_id,
@@ -62,7 +62,7 @@ pub(super) fn probe_loopback_support(device_id: AudioDeviceID) -> bool {
         }
     };
 
-    // create one temporary input queue bound to the target output device
+    // create a temporary input queue bound to the target output device
     let mut queue = ptr::null_mut();
     let create_status = unsafe {
         AudioQueueNewInput(
@@ -87,7 +87,7 @@ pub(super) fn probe_loopback_support(device_id: AudioDeviceID) -> bool {
         return false;
     }
 
-    // compute and allocate one probe buffer
+    // compute and allocate the probe buffer
     let bytes_per_frame = match frame_bytes(config.format, config.channels) {
         Ok(value) => value as u32,
         Err(_) => {
@@ -107,7 +107,7 @@ pub(super) fn probe_loopback_support(device_id: AudioDeviceID) -> bool {
         return false;
     }
 
-    // enqueue one buffer and attempt one start/stop cycle
+    // enqueue a buffer and attempt a start/stop cycle
     let buffer_mut = unsafe { &mut *buffer };
     buffer_mut.audio_data_byte_size = buffer_mut.audio_data_bytes_capacity;
     let enqueue_status = unsafe { AudioQueueEnqueueBuffer(queue, buffer, 0, ptr::null()) };

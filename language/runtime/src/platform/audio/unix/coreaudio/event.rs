@@ -41,7 +41,7 @@ const fn monitor_selectors() -> [AudioObjectPropertySelector; 4] {
     ]
 }
 
-/// Build one backend-unavailable error for CoreAudio monitor registration.
+/// Build a backend-unavailable error for CoreAudio monitor registration.
 #[cfg(target_os = "macos")]
 fn monitor_registration_error(
     operation: &'static str,
@@ -59,7 +59,7 @@ fn monitor_registration_error(
     .boxed()
 }
 
-/// Register one CoreAudio property listener for one selector.
+/// Register a CoreAudio property listener for a selector.
 #[cfg(target_os = "macos")]
 fn add_property_listener_with_user_data(
     selector: AudioObjectPropertySelector,
@@ -85,7 +85,7 @@ fn add_property_listener_with_user_data(
     ))
 }
 
-/// Unregister one CoreAudio property listener for one selector.
+/// Unregister a CoreAudio property listener for a selector.
 #[cfg(target_os = "macos")]
 fn remove_property_listener_with_user_data(
     selector: AudioObjectPropertySelector,
@@ -102,7 +102,7 @@ fn remove_property_listener_with_user_data(
     };
 }
 
-/// Handle one CoreAudio backend device-property notification.
+/// Handle a CoreAudio backend device-property notification.
 #[cfg(target_os = "macos")]
 unsafe extern "C" fn coreaudio_device_property_listener(
     _in_object_id: AudioObjectID,
