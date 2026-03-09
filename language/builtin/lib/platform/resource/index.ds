@@ -1,2 +1,4 @@
+export declare namespace resource {}
+
 export * from "./handles.ds";
 export * from "./id.ds";
