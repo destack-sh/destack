@@ -759,7 +759,7 @@ builtin_lib_sources_targeted!(
             LIB_PLATFORM_RUNTIME_OBSERVE_DS,
             "lib",
             "platform/runtime",
-            "observe.ds"
+            "observation.ds"
         ),
         (
             LIB_PLATFORM_RUNTIME_SNAPSHOT_DS,

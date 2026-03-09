@@ -1,7 +1,7 @@
 import type { PlatformError } from "../error/index.ds";
 
 /// Low-level debug control bindings.
-declare namespace debug {
+export declare namespace debug {
     /// Mark a debug timeline point.
     ///
     /// Record one low-level debug or instrumentation marker with a user-provided label.

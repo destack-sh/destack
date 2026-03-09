@@ -9,14 +9,28 @@ export newtype RuntimeHandle = ResourceId;
 /// Handle for one live agent control object.
 export newtype AgentHandle = ResourceId;
 
-/// Handle for one pinned runtime view.
-export newtype RuntimeViewHandle = ResourceId;
+/// Stable runtime identifier in one world.
+export newtype RuntimeId = uint64;
+
+/// Stable agent identifier in one world.
+export newtype AgentId = uint64;
+
+/// Stable world resource identifier.
+export struct WorldResourceId {
+    /// Owning agent identifier.
+    agentId: AgentId;
+    /// Resource identifier in the owning local resource table.
+    resourceId: ResourceId;
+}
+
+/// Handle for one pinned world view.
+export newtype WorldViewHandle = ResourceId;
 
 /// Handle for one runtime trace cursor.
 export newtype TraceCursorHandle = ResourceId;
 
 /// Handle for one runtime observation subscription.
-export newtype ObserveHandle = ResourceId;
+export newtype ObservationHandle = ResourceId;
 
 /// Stable branch identifier in one world lineage.
 export newtype BranchId = uint64;
@@ -123,7 +137,7 @@ export enum TraceEventKind {
 }
 
 /// Observation event class.
-export enum ObserveEventKind {
+export enum ObservationEventKind {
     /// Trace-adjacent event.
     Trace = 1,
     /// Topology change event.
@@ -188,12 +202,10 @@ export struct WorldDescriptor {
 
 /// Descriptor for one live runtime.
 export struct RuntimeDescriptor {
-    /// Runtime handle.
-    handle: RuntimeHandle;
-    /// Owning world handle.
-    world: WorldHandle;
-    /// Primary agent handle.
-    primaryAgent: AgentHandle;
+    /// Runtime identifier.
+    id: RuntimeId;
+    /// Primary agent identifier.
+    primaryAgentId: AgentId;
     /// Optional runtime name.
     name?: string;
     /// Agent count in this runtime.
@@ -204,10 +216,10 @@ export struct RuntimeDescriptor {
 
 /// Descriptor for one live agent.
 export struct AgentDescriptor {
-    /// Agent handle.
-    handle: AgentHandle;
-    /// Owning runtime handle.
-    runtime: RuntimeHandle;
+    /// Agent identifier.
+    id: AgentId;
+    /// Owning runtime identifier.
+    runtimeId: RuntimeId;
     /// Optional agent name.
     name?: string;
     /// Whether the agent has pending work.
@@ -236,7 +248,7 @@ export struct RevisionDescriptor {
     id: RevisionId;
     /// Owning branch identifier.
     branchId: BranchId;
-    /// Optional parent revision.
+    /// Parent revision when present.
     parentRevision?: RevisionId;
     /// Trace sequence captured by this revision.
     sequence: TraceSequence;
@@ -246,8 +258,8 @@ export struct RevisionDescriptor {
     monoNs: uint64;
     /// Virtual time in nanoseconds.
     virtualNs: uint64;
-    /// Optional materialized image reference.
-    imageId?: ImageId;
+    /// Materialized image reference.
+    imageId: ImageId;
 }
 
 /// Descriptor for one checkpoint.
@@ -284,20 +296,60 @@ export struct SnapshotDescriptor {
     sizeBytes?: uint64;
 }
 
-/// Open options for one runtime view.
-export struct RuntimeViewOptions {
-    /// Optional pinned revision.
+/// Open options for one pinned world view.
+export struct WorldViewOptions {
+    /// Explicit revision to pin when present.
     revisionId?: RevisionId;
 }
 
-/// One diff class between two runtime views.
-export enum ViewDiffKind {
-    /// The target became visible in the right view only.
-    Added = 1,
-    /// The target became invisible in the right view.
-    Removed = 2,
-    /// The target exists in both views but changed.
-    Changed = 3,
+/// Filter for runtime lists.
+export struct RuntimeFilter {
+    /// Optional exact runtime name.
+    name?: string;
+    /// Optional label selector clauses.
+    labels?: Array<RuntimeLabelSelector>;
+}
+
+/// Filter for agent lists.
+export struct AgentFilter {
+    /// Optional owning runtime selector.
+    runtimeId?: RuntimeId;
+    /// Optional exact agent name.
+    name?: string;
+    /// Optional pending-work selector.
+    hasPendingWork?: boolean;
+    /// Optional label selector clauses.
+    labels?: Array<RuntimeLabelSelector>;
+}
+
+/// Filter for branch lists.
+export struct BranchFilter {
+    /// Optional exact branch name.
+    name?: string;
+    /// Optional label selector clauses.
+    labels?: Array<RuntimeLabelSelector>;
+}
+
+/// Filter for revision lists.
+export struct RevisionFilter {
+    /// Optional owning branch selector.
+    branchId?: BranchId;
+}
+
+/// Filter for checkpoint lists.
+export struct CheckpointFilter {
+    /// Optional anchored revision selector.
+    revisionId?: RevisionId;
+    /// Optional exact checkpoint name.
+    name?: string;
+    /// Optional label selector clauses.
+    labels?: Array<RuntimeLabelSelector>;
+}
+
+/// Filter for image lists.
+export struct ImageFilter {
+    /// Optional owning revision selector.
+    revisionId?: RevisionId;
 }
 
 /// Filter for topology entities.
@@ -322,8 +374,10 @@ export struct TopologyEdgeFilter {
 
 /// Filter for runtime resources.
 export struct ResourceFilter {
+    /// Optional owning runtime selector.
+    runtimeId?: RuntimeId;
     /// Optional owning agent selector.
-    owner?: AgentHandle;
+    agentId?: AgentId;
     /// Optional resource kind selector.
     kind?: string;
     /// Optional exact resource label selector.
@@ -357,9 +411,7 @@ export struct TopologyEdge {
 /// Runtime resource summary.
 export struct ResourceDescriptor {
     /// Resource identifier.
-    id: ResourceId;
-    /// Owning agent handle.
-    owner: AgentHandle;
+    id: WorldResourceId;
     /// Logical world entity identifier for this resource.
     entityId: TopologyEntityId;
     /// Resource kind label.
@@ -386,42 +438,48 @@ export struct EventLoopDescriptor {
 export struct HeapDescriptor {
     /// Total heap bytes.
     heapBytes: uint64;
+    /// Total captured page count.
+    pageCount: uint32;
     /// Shared page count.
     sharedPageCount: uint32;
-    /// Dirty page count.
-    dirtyPageCount: uint32;
     /// Completed GC cycle count.
     gcCycles: uint64;
 }
 
-/// VM summary for one agent.
-export struct VmDescriptor {
-    /// Continuation count.
-    continuationCount: uint32;
-    /// Frame count.
-    frameCount: uint32;
+/// Engine view kind for one agent.
+export enum EngineDescriptorKind {
+    /// VM isolate-backed execution.
+    Isolate = 1,
+    /// Native engine-backed execution.
+    Native = 2,
+}
+
+/// Engine summary for one agent.
+export struct EngineDescriptor {
+    /// Engine implementation kind.
+    kind: EngineDescriptorKind;
+    /// Call stack depth.
+    callStackDepth?: uint32;
+    /// Value stack length.
+    valueStackDepth?: uint32;
+    /// Local stack length.
+    localStackDepth?: uint32;
     /// Image backing size in bytes.
-    imageBytes: uint64;
+    imageBytes?: uint64;
 }
 
 /// Trace descriptor for one world.
 export struct TraceDescriptor {
     /// Active branch identifier.
     branchId: BranchId;
-    /// Next sequence number to be written.
-    nextSequence: TraceSequence;
-    /// Stored checkpoint count.
-    checkpointCount: uint32;
+    /// Current trace sequence boundary.
+    sequence: TraceSequence;
 }
 
 /// Open options for one trace cursor.
 export struct TraceCursorOptions {
-    /// Optional branch selector.
-    branchId?: BranchId;
     /// Optional starting sequence.
     startSequence?: TraceSequence;
-    /// Whether the cursor should follow future events.
-    follow?: boolean;
 }
 
 /// One trace record.
@@ -430,20 +488,12 @@ export struct TraceRecord {
     sequence: TraceSequence;
     /// Event class.
     kind: TraceEventKind;
-    /// Optional runtime association.
-    runtime?: RuntimeHandle;
-    /// Optional agent association.
-    agent?: AgentHandle;
-    /// Optional topology entity association.
-    entityId?: TopologyEntityId;
-    /// Optional topology edge association.
-    edgeId?: TopologyEdgeId;
     /// Optional encoded payload.
     payload?: Array<uint8>;
 }
 
 /// Open options for one observation subscription.
-export struct ObserveOptions {
+export struct ObservationOptions {
     /// Include trace-adjacent events.
     trace?: boolean;
     /// Include topology change events.
@@ -459,47 +509,11 @@ export struct ObserveOptions {
 }
 
 /// One observation record.
-export struct ObserveRecord {
+export struct ObservationRecord {
     /// Observation class.
-    kind: ObserveEventKind;
+    kind: ObservationEventKind;
     /// Optional associated trace sequence.
     sequence?: TraceSequence;
-    /// Optional topology entity association.
-    entityId?: TopologyEntityId;
     /// Optional encoded payload.
     payload?: Array<uint8>;
-}
-
-/// One runtime view diff record.
-export struct ViewDiffRecord {
-    /// Diff class.
-    kind: ViewDiffKind;
-    /// Optional topology entity association.
-    entityId?: TopologyEntityId;
-    /// Optional topology edge association.
-    edgeId?: TopologyEdgeId;
-    /// Optional runtime association.
-    runtime?: RuntimeHandle;
-    /// Optional agent association.
-    agent?: AgentHandle;
-    /// Optional resource association.
-    resource?: ResourceId;
-    /// Optional changed field path.
-    field?: string;
-}
-
-/// One provenance or explanation step.
-export struct ExplanationStep {
-    /// Human-readable explanation message.
-    message: string;
-    /// Optional associated trace sequence.
-    sequence?: TraceSequence;
-    /// Optional associated branch identifier.
-    branchId?: BranchId;
-    /// Optional associated revision identifier.
-    revisionId?: RevisionId;
-    /// Optional associated topology entity identifier.
-    entityId?: TopologyEntityId;
-    /// Optional associated topology edge identifier.
-    edgeId?: TopologyEdgeId;
 }

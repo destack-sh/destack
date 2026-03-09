@@ -1,11 +1,15 @@
 import type { PlatformError } from "../error/index.ds";
 import {
     BranchDescriptor,
+    BranchFilter,
     BranchId,
+    CheckpointFilter,
     CheckpointDescriptor,
     CheckpointId,
+    ImageFilter,
     ImageDescriptor,
     ImageId,
+    RevisionFilter,
     RevisionDescriptor,
     RevisionId,
     RuntimeLabel,
@@ -40,7 +44,7 @@ declare namespace runtime {
         scope: "runtime",
         blocking: "never",
 
-        affinity: "any",
+        affinity: "owner",
     })
     export function worldBranch(world: WorldHandle): Result<BranchId, PlatformError>;
 
@@ -70,7 +74,7 @@ declare namespace runtime {
         scope: "runtime",
         blocking: "never",
 
-        affinity: "any",
+        affinity: "owner",
     })
     export function worldRevision(world: WorldHandle): Result<RevisionId, PlatformError>;
 
@@ -100,7 +104,7 @@ declare namespace runtime {
         scope: "runtime",
         blocking: "never",
 
-        affinity: "any",
+        affinity: "owner",
     })
     export function branchDescribe(
         world: WorldHandle,
@@ -133,10 +137,11 @@ declare namespace runtime {
         scope: "runtime",
         blocking: "never",
 
-        affinity: "any",
+        affinity: "owner",
     })
     export function branchList(
         world: WorldHandle,
+        filter?: BranchFilter,
         after?: BranchId,
         limit?: uint32,
     ): Result<Array<BranchDescriptor>, PlatformError>;
@@ -167,7 +172,7 @@ declare namespace runtime {
         scope: "runtime",
         blocking: "never",
 
-        affinity: "any",
+        affinity: "owner",
     })
     export function revisionDescribe(
         world: WorldHandle,
@@ -200,11 +205,11 @@ declare namespace runtime {
         scope: "runtime",
         blocking: "never",
 
-        affinity: "any",
+        affinity: "owner",
     })
     export function revisionList(
         world: WorldHandle,
-        branchId?: BranchId,
+        filter?: RevisionFilter,
         after?: RevisionId,
         limit?: uint32,
     ): Result<Array<RevisionDescriptor>, PlatformError>;
@@ -235,7 +240,7 @@ declare namespace runtime {
         scope: "runtime",
         blocking: "sometimes",
 
-        affinity: "any",
+        affinity: "owner",
     })
     export function checkpointCreate(
         world: WorldHandle,
@@ -269,7 +274,7 @@ declare namespace runtime {
         scope: "runtime",
         blocking: "never",
 
-        affinity: "any",
+        affinity: "owner",
     })
     export function checkpointDescribe(
         world: WorldHandle,
@@ -302,10 +307,11 @@ declare namespace runtime {
         scope: "runtime",
         blocking: "never",
 
-        affinity: "any",
+        affinity: "owner",
     })
     export function checkpointList(
         world: WorldHandle,
+        filter?: CheckpointFilter,
         after?: CheckpointId,
         limit?: uint32,
     ): Result<Array<CheckpointDescriptor>, PlatformError>;
@@ -336,7 +342,7 @@ declare namespace runtime {
         scope: "runtime",
         blocking: "sometimes",
 
-        affinity: "any",
+        affinity: "owner",
     })
     export function worldRewindRevision(
         world: WorldHandle,
@@ -369,7 +375,7 @@ declare namespace runtime {
         scope: "runtime",
         blocking: "sometimes",
 
-        affinity: "any",
+        affinity: "owner",
     })
     export function worldRewindCheckpoint(
         world: WorldHandle,
@@ -402,7 +408,7 @@ declare namespace runtime {
         scope: "runtime",
         blocking: "sometimes",
 
-        affinity: "any",
+        affinity: "owner",
     })
     export function worldFork(
         world: WorldHandle,
@@ -437,7 +443,7 @@ declare namespace runtime {
         scope: "runtime",
         blocking: "sometimes",
 
-        affinity: "any",
+        affinity: "owner",
     })
     export function imageCapture(world: WorldHandle): Result<ImageId, PlatformError>;
 
@@ -467,7 +473,7 @@ declare namespace runtime {
         scope: "runtime",
         blocking: "never",
 
-        affinity: "any",
+        affinity: "owner",
     })
     export function imageDescribe(
         world: WorldHandle,
@@ -500,10 +506,11 @@ declare namespace runtime {
         scope: "runtime",
         blocking: "never",
 
-        affinity: "any",
+        affinity: "owner",
     })
     export function imageList(
         world: WorldHandle,
+        filter?: ImageFilter,
         after?: ImageId,
         limit?: uint32,
     ): Result<Array<ImageDescriptor>, PlatformError>;

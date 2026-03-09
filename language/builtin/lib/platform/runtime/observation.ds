@@ -1,13 +1,13 @@
 import type { PlatformError } from "../error/index.ds";
 import {
-    ObserveHandle,
-    ObserveOptions,
-    ObserveRecord,
+    ObservationHandle,
+    ObservationOptions,
+    ObservationRecord,
     WorldHandle,
 } from "./types.ds";
 
 /// Low-level runtime observation bindings.
-declare namespace runtime {
+export declare namespace runtime {
     /// Open one runtime observation subscription.
     ///
     /// Create one low-level subscription for live runtime observation events from one world.
@@ -21,25 +21,24 @@ declare namespace runtime {
     /// Returns invalidArgument, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `runtime.observe.read`.
+    /// Requires `runtime.observation.read`.
     ///
     /// # Replay
     /// Deterministic.
-    @binding("destack.runtime.observe.open", {
+    @binding("destack.runtime.observation.open", {
         effect: "deterministic",
         replay: "nonrecordable",
-        capabilities: ["runtime.observe.read"],
+        capabilities: ["runtime.observation.read"],
         platforms: ["windows", "unix", "wasi"],
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
-        affinity: "any",
+        affinity: "owner",
     })
-    export function observeOpen(
+    export function observationOpen(
         world: WorldHandle,
-        options?: ObserveOptions,
-    ): Result<ObserveHandle, PlatformError>;
+        options?: ObservationOptions,
+    ): Result<ObservationHandle, PlatformError>;
 
     /// Close one runtime observation subscription.
     ///
@@ -54,22 +53,21 @@ declare namespace runtime {
     /// Returns invalidArgument, ioNotFound, notSupported.
     ///
     /// # Security
-    /// Requires `runtime.observe.read`.
+    /// Requires `runtime.observation.read`.
     ///
     /// # Replay
     /// Deterministic.
-    @binding("destack.runtime.observe.close", {
+    @binding("destack.runtime.observation.close", {
         effect: "deterministic",
         replay: "nonrecordable",
-        capabilities: ["runtime.observe.read"],
+        capabilities: ["runtime.observation.read"],
         platforms: ["windows", "unix", "wasi"],
         simulation: "unsupported",
         scope: "runtime",
         blocking: "never",
-
-        affinity: "any",
+        affinity: "owner",
     })
-    export function observeClose(handle: ObserveHandle): Result<void, PlatformError>;
+    export function observationClose(handle: ObservationHandle): Result<void, PlatformError>;
 
     /// Read the next batch of observation records.
     ///
@@ -84,23 +82,22 @@ declare namespace runtime {
     /// Returns invalidArgument, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `runtime.observe.read`.
+    /// Requires `runtime.observation.read`.
     ///
     /// # Replay
     /// Deterministic.
-    @binding("destack.runtime.observe.next", {
+    @binding("destack.runtime.observation.next", {
         effect: "deterministic",
         replay: "nonrecordable",
-        capabilities: ["runtime.observe.read"],
+        capabilities: ["runtime.observation.read"],
         platforms: ["windows", "unix", "wasi"],
         simulation: "unsupported",
         scope: "runtime",
         blocking: "sometimes",
-
-        affinity: "any",
+        affinity: "owner",
     })
-    export function observeNext(
-        handle: ObserveHandle,
+    export function observationNext(
+        handle: ObservationHandle,
         limit?: uint32,
-    ): Result<Array<ObserveRecord>, PlatformError>;
+    ): Result<Array<ObservationRecord>, PlatformError>;
 }
