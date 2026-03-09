@@ -9,7 +9,7 @@ use super::constants::{K_AUDIO_DEVICE_PROPERTY_DEVICE_UID, K_AUDIO_OBJECT_PROPER
 #[cfg(target_os = "macos")]
 use super::property::{device_ids, get_cfstring_optional};
 
-/// Resolve one CoreAudio device identifier from one stable runtime device id.
+/// Resolve a CoreAudio device identifier from a stable runtime device id.
 #[cfg(target_os = "macos")]
 pub(super) fn device_id_from_stable_id(stable_id: &str) -> RuntimeResult<AudioDeviceID> {
     let device_ids = device_ids()?;

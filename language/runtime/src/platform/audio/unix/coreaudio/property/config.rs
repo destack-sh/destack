@@ -8,15 +8,15 @@ use crate::platform::audio as audio_types;
 use crate::platform::audio::core::codec::frame_bytes;
 
 #[cfg(target_os = "macos")]
-use super::super::abi::{AudioDeviceID, AudioStreamBasicDescription};
+use super::device::{get_buffer_frame_size_range, get_sample_rate_range, get_stream_channel_count};
 #[cfg(target_os = "macos")]
-use super::super::constants::{
+use crate::platform::audio::unix::coreaudio::abi::{AudioDeviceID, AudioStreamBasicDescription};
+#[cfg(target_os = "macos")]
+use crate::platform::audio::unix::coreaudio::constants::{
     K_AUDIO_FORMAT_FLAG_IS_FLOAT, K_AUDIO_FORMAT_FLAG_IS_PACKED,
     K_AUDIO_FORMAT_FLAG_IS_SIGNED_INTEGER, K_AUDIO_FORMAT_LINEAR_PCM,
     K_AUDIO_OBJECT_PROPERTY_SCOPE_INPUT, K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT,
 };
-#[cfg(target_os = "macos")]
-use super::device::{get_buffer_frame_size_range, get_sample_rate_range, get_stream_channel_count};
 
 /// Intersect two optional closed integer ranges.
 #[cfg(target_os = "macos")]
@@ -40,7 +40,7 @@ pub(crate) fn merge_intersected_range(
     }
 }
 
-/// Validate one stream configuration against CoreAudio device limits.
+/// Validate a stream configuration against CoreAudio device limits.
 #[cfg(target_os = "macos")]
 pub(crate) fn validate_open_stream_config(
     device_id: AudioDeviceID,
@@ -138,7 +138,7 @@ pub(crate) fn validate_open_stream_config(
     Ok(())
 }
 
-/// Return bits-per-channel for one runtime sample format.
+/// Return bits per channel for a runtime sample format.
 #[cfg(target_os = "macos")]
 pub(crate) fn bits_per_channel(format: audio_types::AudioSampleFormat) -> Option<u32> {
     match format {
@@ -151,7 +151,7 @@ pub(crate) fn bits_per_channel(format: audio_types::AudioSampleFormat) -> Option
     }
 }
 
-/// Return CoreAudio PCM format flags for one runtime sample format.
+/// Return CoreAudio PCM format flags for a runtime sample format.
 #[cfg(target_os = "macos")]
 pub(crate) fn format_flags(format: audio_types::AudioSampleFormat) -> Option<u32> {
     let base = K_AUDIO_FORMAT_FLAG_IS_PACKED;
@@ -166,7 +166,7 @@ pub(crate) fn format_flags(format: audio_types::AudioSampleFormat) -> Option<u32
     }
 }
 
-/// Build one CoreAudio stream description from one runtime stream config.
+/// Build a CoreAudio stream description from a runtime stream config.
 #[cfg(target_os = "macos")]
 pub(crate) fn stream_description(
     config: audio_types::AudioStreamConfig,

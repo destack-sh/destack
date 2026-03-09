@@ -74,7 +74,7 @@ pub(super) fn bind_queue_device(
     Ok(())
 }
 
-/// Compute one stream buffer size in bytes for one stream period.
+/// Compute the stream buffer size in bytes for a stream period.
 #[cfg(target_os = "macos")]
 pub(super) fn buffer_bytes(stream: &Arc<AudioStreamHostState>) -> RuntimeResult<u32> {
     Ok(stream
@@ -84,14 +84,14 @@ pub(super) fn buffer_bytes(stream: &Arc<AudioStreamHostState>) -> RuntimeResult<
         .max(stream.channels as u32))
 }
 
-/// Dispose one CoreAudio queue handle and release callback context ownership.
+/// Dispose a CoreAudio queue handle and release callback context ownership.
 #[cfg(target_os = "macos")]
 pub(super) fn dispose_queue_handle(queue_handle: CoreAudioQueueHandle) {
     unsafe {
         let _ = AudioQueueStop(queue_handle.queue, 1);
         let _ = AudioQueueDispose(queue_handle.queue, 1);
 
-        // release one callback-owned strong reference from raw pointer storage
+        // release the callback-owned strong reference from raw pointer storage
         Arc::decrement_strong_count(queue_handle.context_raw);
     }
 }

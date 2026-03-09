@@ -2,22 +2,23 @@
 use std::mem::size_of;
 
 #[cfg(target_os = "macos")]
-use super::super::abi::{
+use super::access::{error, get_data, get_data_size, get_scalar_optional};
+#[cfg(target_os = "macos")]
+use crate::diagnostic::RuntimeResult;
+#[cfg(target_os = "macos")]
+use crate::platform::audio::unix::coreaudio::abi::{
     AudioBuffer, AudioBufferList, AudioDeviceID, AudioObjectPropertyScope,
     AudioObjectPropertySelector, AudioValueRange,
 };
 #[cfg(target_os = "macos")]
-use super::super::constants::{
+use crate::platform::audio::unix::coreaudio::constants::{
     K_AUDIO_DEVICE_PROPERTY_AVAILABLE_NOMINAL_SAMPLE_RATES,
-    K_AUDIO_DEVICE_PROPERTY_BUFFER_FRAME_SIZE_RANGE, K_AUDIO_HARDWARE_PROPERTY_DEVICES,
-    K_AUDIO_OBJECT_PROPERTY_SCOPE_GLOBAL, K_AUDIO_OBJECT_SYSTEM_OBJECT,
+    K_AUDIO_DEVICE_PROPERTY_BUFFER_FRAME_SIZE_RANGE, K_AUDIO_DEVICE_PROPERTY_STREAM_CONFIGURATION,
+    K_AUDIO_HARDWARE_PROPERTY_DEVICES, K_AUDIO_OBJECT_PROPERTY_SCOPE_GLOBAL,
+    K_AUDIO_OBJECT_SYSTEM_OBJECT,
 };
-#[cfg(target_os = "macos")]
-use super::access::{error, get_data, get_data_size, get_scalar_optional};
-#[cfg(target_os = "macos")]
-use crate::diagnostic::RuntimeResult;
 
-/// Return one channel count for one CoreAudio stream configuration scope.
+/// Return the channel count for a CoreAudio stream configuration scope.
 #[cfg(target_os = "macos")]
 pub(crate) fn get_stream_channel_count(
     device_id: AudioDeviceID,
@@ -25,7 +26,7 @@ pub(crate) fn get_stream_channel_count(
 ) -> Option<u16> {
     let size = get_data_size(
         device_id,
-        super::super::constants::K_AUDIO_DEVICE_PROPERTY_STREAM_CONFIGURATION,
+        K_AUDIO_DEVICE_PROPERTY_STREAM_CONFIGURATION,
         scope,
     )
     .ok()?;
@@ -36,7 +37,7 @@ pub(crate) fn get_stream_channel_count(
     let mut bytes = vec![0u8; size as usize];
     get_data(
         device_id,
-        super::super::constants::K_AUDIO_DEVICE_PROPERTY_STREAM_CONFIGURATION,
+        K_AUDIO_DEVICE_PROPERTY_STREAM_CONFIGURATION,
         scope,
         &mut bytes,
     )
@@ -66,7 +67,7 @@ pub(crate) fn get_stream_channel_count(
     Some(channels.min(u16::MAX as u64) as u16)
 }
 
-/// Return one sample-rate range reported by CoreAudio for one scope.
+/// Return the sample-rate range reported by CoreAudio for a scope.
 #[cfg(target_os = "macos")]
 pub(crate) fn get_sample_rate_range(
     device_id: AudioDeviceID,
@@ -116,7 +117,7 @@ pub(crate) fn get_sample_rate_range(
     Some((min_rate, max_rate))
 }
 
-/// Return one period-frame range reported by CoreAudio for one scope.
+/// Return the period-frame range reported by CoreAudio for a scope.
 #[cfg(target_os = "macos")]
 pub(crate) fn get_buffer_frame_size_range(
     device_id: AudioDeviceID,
@@ -132,7 +133,7 @@ pub(crate) fn get_buffer_frame_size_range(
     Some((minimum.min(maximum), minimum.max(maximum)))
 }
 
-/// Convert one finite CoreAudio sample-rate scalar into one u32 value.
+/// Convert a finite CoreAudio sample-rate scalar into a u32 value.
 #[cfg(target_os = "macos")]
 pub(crate) fn rate_to_u32(rate: f64) -> Option<u32> {
     if !rate.is_finite() || rate < 1.0 || rate > u32::MAX as f64 {
@@ -142,7 +143,7 @@ pub(crate) fn rate_to_u32(rate: f64) -> Option<u32> {
     Some(rate.round() as u32)
 }
 
-/// Convert one finite CoreAudio frame-count scalar into one u32 value.
+/// Convert a finite CoreAudio frame-count scalar into a u32 value.
 #[cfg(target_os = "macos")]
 pub(crate) fn frames_to_u32(frames: f64) -> Option<u32> {
     if !frames.is_finite() || frames < 1.0 || frames > u32::MAX as f64 {
@@ -152,7 +153,7 @@ pub(crate) fn frames_to_u32(frames: f64) -> Option<u32> {
     Some(frames.round() as u32)
 }
 
-/// Return one default CoreAudio device identifier for one selector.
+/// Return the default CoreAudio device identifier for a selector.
 #[cfg(target_os = "macos")]
 pub(crate) fn default_device_id(selector: AudioObjectPropertySelector) -> Option<AudioDeviceID> {
     get_scalar_optional(

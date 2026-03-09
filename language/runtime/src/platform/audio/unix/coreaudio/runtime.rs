@@ -28,7 +28,7 @@ use super::property::{error, release_hog_mode, stream_description};
 #[cfg(target_os = "macos")]
 use super::queue::{bind_queue_device, buffer_bytes, dispose_queue_handle};
 
-/// Dispose all queue handles in one queue-handle list.
+/// Dispose all queue handles in a queue-handle list.
 #[cfg(target_os = "macos")]
 pub(super) fn dispose_queue_list(queue_handles: Vec<CoreAudioQueueHandle>) {
     for queue_handle in queue_handles {
@@ -36,7 +36,7 @@ pub(super) fn dispose_queue_list(queue_handles: Vec<CoreAudioQueueHandle>) {
     }
 }
 
-/// Drain queue handles from one runtime queue registry.
+/// Drain queue handles from the runtime queue registry.
 #[cfg(target_os = "macos")]
 pub(super) fn take_runtime_queues(runtime: &CoreAudioStreamRuntime) -> Vec<CoreAudioQueueHandle> {
     let mut queue_handles = runtime
@@ -61,7 +61,7 @@ impl Drop for CoreAudioStreamRuntime {
     }
 }
 
-/// Apply one queue operation to all active queue handles.
+/// Apply a queue operation to all active queue handles.
 #[cfg(target_os = "macos")]
 pub(super) fn apply_queue_operation(
     runtime: &CoreAudioStreamRuntime,
@@ -132,7 +132,7 @@ impl AudioHostStreamOps for CoreAudioHostStreamOps {
     }
 }
 
-/// Create and prime one CoreAudio playback queue.
+/// Build the callback context for a CoreAudio queue.
 #[cfg(target_os = "macos")]
 fn build_queue_context(
     stream: &Arc<AudioStreamHostState>,
@@ -144,7 +144,7 @@ fn build_queue_context(
     (context_owner, context_raw)
 }
 
-/// Build one queue handle value from one queue pointer and one callback context owner.
+/// Build a queue handle from a queue pointer and callback context owner.
 #[cfg(target_os = "macos")]
 fn build_queue_handle(
     queue: AudioQueueRef,
@@ -158,7 +158,7 @@ fn build_queue_handle(
     }
 }
 
-/// Allocate and enqueue one initial queue-buffer set for one stream.
+/// Allocate and enqueue the initial queue-buffer set for a stream.
 #[cfg(target_os = "macos")]
 fn initialize_queue_buffers(
     stream: &Arc<AudioStreamHostState>,
@@ -217,7 +217,7 @@ fn initialize_queue_buffers(
     Ok(())
 }
 
-/// Create one CoreAudio queue, bind it to one device, and prime initial buffers.
+/// Create a CoreAudio queue, bind it to a device, and prime initial buffers.
 #[cfg(target_os = "macos")]
 fn create_queue(
     stream: &Arc<AudioStreamHostState>,
@@ -266,7 +266,7 @@ fn create_queue(
     Ok(build_queue_handle(queue, &context_owner, context_raw))
 }
 
-/// Create and prime one CoreAudio playback queue.
+/// Create and prime a CoreAudio playback queue.
 #[cfg(target_os = "macos")]
 pub(super) fn create_playback_queue(
     stream: &Arc<AudioStreamHostState>,
@@ -293,7 +293,7 @@ pub(super) fn create_playback_queue(
     )
 }
 
-/// Create and prime one CoreAudio capture queue.
+/// Create and prime a CoreAudio capture queue.
 #[cfg(target_os = "macos")]
 pub(super) fn create_capture_queue(
     stream: &Arc<AudioStreamHostState>,

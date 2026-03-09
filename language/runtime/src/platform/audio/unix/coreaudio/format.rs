@@ -23,7 +23,7 @@ pub(super) const fn fourcc(code: [u8; 4]) -> u32 {
     ((code[0] as u32) << 24) | ((code[1] as u32) << 16) | ((code[2] as u32) << 8) | code[3] as u32
 }
 
-/// Build one CoreAudio property address for one selector and scope.
+/// Build a CoreAudio property address for a selector and scope.
 #[cfg(target_os = "macos")]
 pub(super) fn property_address(
     selector: AudioObjectPropertySelector,
@@ -36,7 +36,7 @@ pub(super) fn property_address(
     }
 }
 
-/// Return one normalized transport name for one CoreAudio transport type.
+/// Return a normalized transport name for a CoreAudio transport type.
 #[cfg(target_os = "macos")]
 pub(super) fn transport_name(transport_type: u32) -> &'static str {
     match transport_type {
@@ -59,7 +59,7 @@ pub(super) fn transport_name(transport_type: u32) -> &'static str {
     }
 }
 
-/// Return one canonical channel layout for one channel count.
+/// Return a canonical channel layout for a channel count.
 #[cfg(target_os = "macos")]
 pub(super) fn channel_layout(channels: u16) -> audio_types::AudioChannelLayout {
     match channels {
@@ -74,7 +74,7 @@ pub(super) fn channel_layout(channels: u16) -> audio_types::AudioChannelLayout {
     }
 }
 
-/// Return one fallback packed channel mask for one channel count.
+/// Return a fallback packed channel mask for a channel count.
 #[cfg(target_os = "macos")]
 pub(super) fn channel_mask(channels: u16) -> u64 {
     if channels == 0 {
@@ -88,7 +88,7 @@ pub(super) fn channel_mask(channels: u16) -> u64 {
     (1u64 << channels) - 1
 }
 
-/// Return one CoreAudio scope for one runtime audio direction.
+/// Return the CoreAudio scope for a runtime audio direction.
 #[cfg(target_os = "macos")]
 pub(super) fn scope_for_direction(
     direction: audio_types::AudioDeviceDirection,
@@ -102,7 +102,7 @@ pub(super) fn scope_for_direction(
     }
 }
 
-/// Derive one runtime direction from playback and capture channel counts.
+/// Derive a runtime direction from playback and capture channel counts.
 #[cfg(target_os = "macos")]
 pub(super) fn direction_from_channels(
     playback_channels: u16,

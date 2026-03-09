@@ -11,13 +11,13 @@ use super::abi::AudioConvertHostTimeToNanos;
 #[cfg(target_os = "macos")]
 static COREAUDIO_HOST_TIME_OFFSET_NS: OnceLock<i128> = OnceLock::new();
 
-/// Convert one CoreAudio host-time value into runtime monotonic nanoseconds.
+/// Convert a CoreAudio host-time value into runtime monotonic nanoseconds.
 #[cfg(target_os = "macos")]
 pub(super) fn coreaudio_host_time_to_mono_ns(host_time: u64) -> u64 {
-    // map one native host-time clock sample into nanoseconds
+    // map the native host-time sample into nanoseconds
     let host_time_ns = unsafe { AudioConvertHostTimeToNanos(host_time) };
 
-    // resolve one stable offset from host-time to runtime monotonic
+    // resolve the stable offset from host-time to runtime monotonic
     let offset_ns = COREAUDIO_HOST_TIME_OFFSET_NS.get_or_init(|| {
         let mono_now = host_monotonic_nanos() as i128;
         mono_now - host_time_ns as i128
