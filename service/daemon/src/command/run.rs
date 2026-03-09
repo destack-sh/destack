@@ -368,7 +368,7 @@ fn create_isolate(
     let tree = mir.tree.read().clone();
     let strings = mir.strings.clone().into_immutable();
 
-    Ok(Isolate::with_options(tree, strings, options).map_err(|error| error.to_string())?)
+    Ok(Isolate::build_with_options(tree, strings, options).map_err(|error| error.to_string())?)
 }
 
 /// Create isolate options from target configuration.
