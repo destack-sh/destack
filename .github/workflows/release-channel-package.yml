@@ -48,7 +48,7 @@ jobs:
         run: just app/generate-schema
 
       - name: Upload Schemas
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: ${{ inputs.artifact_prefix }}-schemas-${{ github.sha }}
           path: |
@@ -126,7 +126,7 @@ jobs:
           Copy-Item "target/${{ matrix.target }}/release/dsx.exe" "release-binaries/${{ matrix.target }}/dsx.exe" -Force
 
       - name: Upload CLI Binaries
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: ${{ inputs.artifact_prefix }}-cli-binaries-${{ matrix.target }}-${{ github.sha }}
           path: release-binaries/${{ matrix.target }}
@@ -211,7 +211,7 @@ jobs:
           DESTACK_RELEASE_TAG: ${{ inputs.release_tag }}
 
       - name: Upload CLI Assets
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: ${{ inputs.artifact_prefix }}-cli-assets-${{ github.sha }}
           path: ${{ inputs.artifact_prefix }}-cli-assets/*
