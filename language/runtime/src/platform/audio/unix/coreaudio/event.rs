@@ -12,6 +12,8 @@ use super::constants::{
 };
 #[cfg(target_os = "macos")]
 use super::format::property_address;
+#[cfg(target_os = "macos")]
+use crate::diagnostic::RuntimeError;
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "macos")]
 use crate::platform::PlatformError;
@@ -45,8 +47,8 @@ fn monitor_registration_error(
     operation: &'static str,
     status: i32,
     message: impl Into<String>,
-) -> Box<crate::diagnostic::RuntimeError> {
-    crate::diagnostic::RuntimeError::from(PlatformError::io_with(
+) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
         Some(PlatformErrorCode::AudioUnavailable),
         None,
         None,
