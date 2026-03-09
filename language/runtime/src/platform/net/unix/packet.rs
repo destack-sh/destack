@@ -4,28 +4,26 @@ use super::core::*;
 use super::os;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::OsPath;
 use crate::platform::net::{core as core_net, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, *};
 use crate::runtime::{BindingCallContext, NativeSlice};
+use std::collections::HashMap;
 
 use std::ffi::{CStr, CString};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::os::unix::io::RawFd;
+use std::sync::LazyLock;
+
+use parking_lot::Mutex;
 
 /// One sockaddr storage length in bytes.
 #[cfg(target_os = "linux")]
 const SOCKADDR_LL_LENGTH: libc::socklen_t =
     std::mem::size_of::<libc::sockaddr_ll>() as libc::socklen_t;
-/// One packet control-plane timestamp in nanoseconds per second.
-#[cfg(any(target_os = "linux", target_os = "macos"))]
-const NANOSECONDS_PER_SECOND: u64 = 1_000_000_000;
-/// One microsecond in nanoseconds.
-#[cfg(target_os = "macos")]
-const NANOSECONDS_PER_MICROSECOND: u64 = 1_000;
 /// One BPF packet-alignment width in bytes.
 #[cfg(target_os = "macos")]
 const MACOS_BPF_ALIGNMENT: usize = std::mem::size_of::<u32>();
@@ -84,6 +82,234 @@ fn packet_not_supported(operation: &'static str) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
 
+/// Runtime packet metadata for one Unix packet endpoint.
+#[derive(Clone, Copy)]
+struct UnixPacketState {
+    /// Timestamp mode for packet capture records.
+    timestamp_mode: PacketTimestampMode,
+}
+
+/// Finalizer for packet endpoints that also clears packet metadata rows.
+#[derive(Debug)]
+struct UnixPacketFinalizer {
+    /// Raw Unix packet descriptor.
+    fd: RawFd,
+}
+
+impl ResourceFinalizer for UnixPacketFinalizer {
+    /// Close the packet descriptor and clear packet metadata for the resource.
+    fn finalize(self: Box<Self>, resource_id: ResourceId) {
+        // close the descriptor first
+        unsafe {
+            libc::close(self.fd);
+        }
+
+        // clear the packet metadata row
+        PACKET_SOCKET_STATES.lock().remove(&resource_id);
+    }
+}
+
+/// Packet-state table for Unix packet endpoints.
+static PACKET_SOCKET_STATES: LazyLock<Mutex<HashMap<ResourceId, UnixPacketState>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// Resolve one packet-state row for one packet endpoint handle.
+fn packet_socket_state(handle: SocketHandle) -> RuntimeResult<UnixPacketState> {
+    PACKET_SOCKET_STATES
+        .lock()
+        .get(&handle.0)
+        .copied()
+        .ok_or_else(|| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                "handle",
+                "socket handle is not one packet endpoint",
+            ))
+            .boxed()
+        })
+}
+
+/// Update one packet-state row in place.
+fn update_packet_socket_state(
+    handle: SocketHandle,
+    update: impl FnOnce(&mut UnixPacketState),
+) -> RuntimeResult<()> {
+    let mut states = PACKET_SOCKET_STATES.lock();
+    let state = states.get_mut(&handle.0).ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "socket handle is not one packet endpoint",
+        ))
+        .boxed()
+    })?;
+    update(state);
+
+    Ok(())
+}
+
+/// Convert one positive second count into nanoseconds.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+fn seconds_to_nanos(seconds: i128, operation: &'static str) -> RuntimeResult<u64> {
+    if seconds < 0 {
+        return Err(core_platform::io_operation_error(
+            operation,
+            Some(PlatformErrorCode::IoInvalidData),
+            "packet timestamp reported negative seconds",
+        ));
+    }
+
+    let seconds = u128::try_from(seconds).map_err(|_| {
+        core_platform::io_operation_error(
+            operation,
+            Some(PlatformErrorCode::IoInvalidData),
+            "packet timestamp seconds are out of range",
+        )
+    })?;
+    let nanos = seconds.checked_mul(1_000_000_000u128).ok_or_else(|| {
+        core_platform::io_operation_error(
+            operation,
+            Some(PlatformErrorCode::IoInvalidData),
+            "packet timestamp seconds overflow nanoseconds",
+        )
+    })?;
+
+    Ok(nanos.min(u64::MAX as u128) as u64)
+}
+
+/// Convert one host `timespec` packet timestamp into nanoseconds.
+#[cfg(target_os = "linux")]
+fn timespec_to_nanos(spec: libc::timespec, operation: &'static str) -> RuntimeResult<u64> {
+    if spec.tv_nsec < 0 || spec.tv_nsec >= 1_000_000_000 {
+        return Err(core_platform::io_operation_error(
+            operation,
+            Some(PlatformErrorCode::IoInvalidData),
+            "packet timestamp reported invalid nanoseconds",
+        ));
+    }
+
+    let seconds_nanos = seconds_to_nanos(spec.tv_sec as i128, operation)?;
+    let nanos = u64::try_from(spec.tv_nsec).map_err(|_| {
+        core_platform::io_operation_error(
+            operation,
+            Some(PlatformErrorCode::IoInvalidData),
+            "packet timestamp nanoseconds are out of range",
+        )
+    })?;
+
+    Ok(seconds_nanos.saturating_add(nanos))
+}
+
+/// Convert one host `timeval` packet timestamp into nanoseconds.
+#[cfg(target_os = "macos")]
+fn timeval_to_nanos(
+    seconds: i128,
+    microseconds: i128,
+    operation: &'static str,
+) -> RuntimeResult<u64> {
+    if microseconds < 0 || microseconds >= 1_000_000 {
+        return Err(core_platform::io_operation_error(
+            operation,
+            Some(PlatformErrorCode::IoInvalidData),
+            "packet timestamp reported invalid microseconds",
+        ));
+    }
+
+    let seconds_nanos = seconds_to_nanos(seconds, operation)?;
+    let microseconds = u64::try_from(microseconds).map_err(|_| {
+        core_platform::io_operation_error(
+            operation,
+            Some(PlatformErrorCode::IoInvalidData),
+            "packet timestamp microseconds are out of range",
+        )
+    })?;
+    let nanos = microseconds.saturating_mul(1_000);
+
+    Ok(seconds_nanos.saturating_add(nanos))
+}
+
+/// Resolve one Linux packet timestamp from `recvmsg` control data.
+#[cfg(target_os = "linux")]
+fn linux_packet_timestamp_ns(
+    message: &libc::msghdr,
+    timestamp_mode: PacketTimestampMode,
+) -> RuntimeResult<(PacketTimestampClock, u64)> {
+    // suppress packet timestamps when the mode is disabled
+    if timestamp_mode == PacketTimestampMode::Disabled {
+        return Ok((PacketTimestampClock::None, 0));
+    }
+
+    // scan the ancillary payload for the kernel software timestamp
+    let mut cmsg = unsafe { libc::CMSG_FIRSTHDR(message) };
+    while !cmsg.is_null() {
+        let header = unsafe { &*cmsg };
+        if header.cmsg_level == libc::SOL_SOCKET && header.cmsg_type == libc::SCM_TIMESTAMPNS {
+            let timestamp = unsafe { *(libc::CMSG_DATA(cmsg) as *const libc::timespec) };
+            let timestamp_wall_ns = timespec_to_nanos(timestamp, "destack.net.packetReceive")?;
+
+            return Ok((PacketTimestampClock::Wall, timestamp_wall_ns));
+        }
+
+        cmsg = unsafe { libc::CMSG_NXTHDR(message, cmsg) };
+    }
+
+    Err(core_platform::io_operation_error(
+        "destack.net.packetReceive",
+        Some(PlatformErrorCode::IoInvalidData),
+        "recvmsg did not include the requested packet timestamp",
+    ))
+}
+
+/// Resolve one captured macOS BPF packet timestamp.
+#[cfg(target_os = "macos")]
+fn macos_packet_timestamp_ns(
+    header: &libc::bpf_hdr,
+    timestamp_mode: PacketTimestampMode,
+) -> RuntimeResult<(PacketTimestampClock, u64)> {
+    // suppress packet timestamps when the mode is disabled
+    if timestamp_mode == PacketTimestampMode::Disabled {
+        return Ok((PacketTimestampClock::None, 0));
+    }
+
+    let timestamp_wall_ns = timeval_to_nanos(
+        header.bh_tstamp.tv_sec as i128,
+        header.bh_tstamp.tv_usec as i128,
+        "destack.net.packetReceive",
+    )?;
+
+    Ok((PacketTimestampClock::Wall, timestamp_wall_ns))
+}
+
+/// Configure Linux packet timestamping for one packet endpoint.
+#[cfg(target_os = "linux")]
+fn configure_linux_packet_timestamp_mode(
+    fd: RawFd,
+    mode: PacketTimestampMode,
+) -> RuntimeResult<()> {
+    // map runtime timestamp mode to Linux software timestamp support
+    let enable_value: libc::c_int = match mode {
+        PacketTimestampMode::Disabled => 0,
+        PacketTimestampMode::Software => 1,
+        PacketTimestampMode::Hardware => {
+            return packet_not_supported("destack.net.packetSetTimestampMode");
+        }
+    };
+
+    // apply the socket option directly to the packet descriptor
+    let rc = unsafe {
+        libc::setsockopt(
+            fd,
+            libc::SOL_SOCKET,
+            libc::SO_TIMESTAMPNS,
+            &enable_value as *const _ as *const libc::c_void,
+            std::mem::size_of::<libc::c_int>() as libc::socklen_t,
+        )
+    };
+    if rc != 0 {
+        return Err(core_platform::net_error("setsockopt(SO_TIMESTAMPNS)"));
+    }
+
+    Ok(())
+}
+
 /// Return one ioWouldBlock packet error.
 #[cfg(target_os = "macos")]
 fn packet_would_block(operation: &'static str) -> RuntimeResult<()> {
@@ -111,36 +337,62 @@ fn packet_fanout_mode(mode: PacketFanoutMode) -> u32 {
     }
 }
 
-/// Read one monotonic host timestamp as nanoseconds.
-#[cfg(target_os = "linux")]
-fn monotonic_timestamp_nanoseconds() -> RuntimeResult<u64> {
-    // query one monotonic host clock timestamp
-    let mut timestamp = std::mem::MaybeUninit::<libc::timespec>::uninit();
-    let rc = unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, timestamp.as_mut_ptr()) };
-    if rc != 0 {
-        return Err(core_platform::net_error("clock_gettime"));
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Convert one valid timespec packet timestamp into nanoseconds.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_timespec_to_nanos_converts_valid_packet_timestamp() {
+        let spec = libc::timespec {
+            tv_sec: 12,
+            tv_nsec: 345,
+        };
+
+        let nanos = timespec_to_nanos(spec, "destack.net.packetReceive")
+            .expect("timespec packet timestamp should convert");
+
+        assert_eq!(nanos, 12_000_000_345);
     }
 
-    // convert timespec fields into nanoseconds
-    let timestamp = unsafe { timestamp.assume_init() };
-    let seconds = u64::try_from(timestamp.tv_sec).map_err(|_| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "timestamp",
-            "clock seconds out of range",
-        ))
-        .boxed()
-    })?;
-    let nanoseconds = u64::try_from(timestamp.tv_nsec).map_err(|_| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "timestamp",
-            "clock nanoseconds out of range",
-        ))
-        .boxed()
-    })?;
+    /// Return zero packet timestamp output when Linux timestamp mode is disabled.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_linux_packet_timestamp_ns_returns_zero_when_disabled() {
+        let message: libc::msghdr = unsafe { std::mem::zeroed() };
 
-    Ok(seconds
-        .saturating_mul(NANOSECONDS_PER_SECOND)
-        .saturating_add(nanoseconds))
+        let (timestamp_clock, timestamp_ns) =
+            linux_packet_timestamp_ns(&message, PacketTimestampMode::Disabled)
+                .expect("disabled Linux packet timestamp mode should succeed");
+
+        assert_eq!(timestamp_clock, PacketTimestampClock::None);
+        assert_eq!(timestamp_ns, 0);
+    }
+
+    /// Convert one valid timeval packet timestamp into nanoseconds.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn test_timeval_to_nanos_converts_valid_packet_timestamp() {
+        let nanos = timeval_to_nanos(12, 345, "destack.net.packetReceive")
+            .expect("timeval packet timestamp should convert");
+
+        assert_eq!(nanos, 12_000_345);
+    }
+
+    /// Return zero packet timestamp output when macOS timestamp mode is disabled.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn test_macos_packet_timestamp_ns_returns_zero_when_disabled() {
+        let header: libc::bpf_hdr = unsafe { std::mem::zeroed() };
+
+        let (timestamp_clock, timestamp_ns) =
+            macos_packet_timestamp_ns(&header, PacketTimestampMode::Disabled)
+                .expect("disabled macOS packet timestamp mode should succeed");
+
+        assert_eq!(timestamp_clock, PacketTimestampClock::None);
+        assert_eq!(timestamp_ns, 0);
+    }
 }
 
 /// Round one BPF payload length to the next kernel alignment boundary.
@@ -480,15 +732,28 @@ pub(crate) unsafe fn destack_net_packet_open(
             }
         }
 
+        // enable software timestamps by default so packet capture records stay populated
+        if let Err(error) = configure_linux_packet_timestamp_mode(fd, PacketTimestampMode::Software)
+        {
+            let _ = unsafe { libc::close(fd) };
+            return Err(error);
+        }
+
         // register one packet socket resource
         let entry = ResourceEntry::new(ResourceKind::Socket)
             .with_socket(fd)
-            .with_finalizer(SocketFinalizer { fd });
+            .with_finalizer(UnixPacketFinalizer { fd });
         let resource_id =
             binding
                 .agent()
                 .resources
                 .insert(binding.world(), entry, Some(binding.engine()));
+        PACKET_SOCKET_STATES.lock().insert(
+            resource_id,
+            UnixPacketState {
+                timestamp_mode: PacketTimestampMode::Software,
+            },
+        );
         unsafe {
             *out = SocketHandle(resource_id);
         }
@@ -567,12 +832,18 @@ pub(crate) unsafe fn destack_net_packet_open(
         // register one packet socket resource
         let entry = ResourceEntry::new(ResourceKind::Socket)
             .with_socket(descriptor)
-            .with_finalizer(SocketFinalizer { fd: descriptor });
+            .with_finalizer(UnixPacketFinalizer { fd: descriptor });
         let resource_id =
             binding
                 .agent()
                 .resources
                 .insert(binding.world(), entry, Some(binding.engine()));
+        PACKET_SOCKET_STATES.lock().insert(
+            resource_id,
+            UnixPacketState {
+                timestamp_mode: PacketTimestampMode::Software,
+            },
+        );
         unsafe {
             *out = SocketHandle(resource_id);
         }
@@ -622,25 +893,39 @@ pub(crate) unsafe fn destack_net_packet_receive(
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
 
-        // resolve the packet descriptor and payload buffer
+        // resolve the packet descriptor, endpoint state, and payload buffer
         let fd = socket_descriptor(binding, handle)?;
+        let state = packet_socket_state(handle)?;
         let buffer = unsafe { payload.as_mut_slice()? };
 
-        // read one packet and capture source interface metadata
+        // build one recvmsg payload with source-address and optional timestamp control
         let mut source = unsafe { std::mem::zeroed::<libc::sockaddr_ll>() };
-        let mut source_length = SOCKADDR_LL_LENGTH;
-        let bytes = unsafe {
-            libc::recvfrom(
-                fd,
-                buffer.as_mut_ptr() as *mut libc::c_void,
-                buffer.len(),
-                libc::MSG_TRUNC,
-                &mut source as *mut _ as *mut libc::sockaddr,
-                &mut source_length,
-            )
+        let mut iovec = libc::iovec {
+            iov_base: buffer.as_mut_ptr() as *mut libc::c_void,
+            iov_len: buffer.len(),
         };
+        let mut control = if state.timestamp_mode == PacketTimestampMode::Software {
+            vec![
+                0u8;
+                unsafe { libc::CMSG_SPACE(std::mem::size_of::<libc::timespec>() as u32) } as usize
+            ]
+        } else {
+            Vec::new()
+        };
+        let mut message: libc::msghdr = unsafe { std::mem::zeroed() };
+        message.msg_name = &mut source as *mut _ as *mut libc::c_void;
+        message.msg_namelen = SOCKADDR_LL_LENGTH;
+        message.msg_iov = &mut iovec;
+        message.msg_iovlen = 1;
+        if !control.is_empty() {
+            message.msg_control = control.as_mut_ptr() as *mut libc::c_void;
+            message.msg_controllen = control.len();
+        }
+
+        // receive one packet and preserve kernel-provided timestamp control data
+        let bytes = unsafe { libc::recvmsg(fd, &mut message, libc::MSG_TRUNC) };
         if bytes < 0 {
-            return Err(core_platform::net_error("recvfrom"));
+            return Err(core_platform::net_error("recvmsg"));
         }
 
         // map packet receive metadata into runtime output
@@ -653,13 +938,15 @@ pub(crate) unsafe fn destack_net_packet_receive(
         })?;
         let written_bytes = total_bytes.min(buffer.len() as u64);
         let interface_index = u32::try_from(source.sll_ifindex).unwrap_or(0);
-        let timestamp_ns = monotonic_timestamp_nanoseconds()?;
-        let truncated = total_bytes > written_bytes;
+        let (timestamp_clock, timestamp_ns) =
+            linux_packet_timestamp_ns(&message, state.timestamp_mode)?;
+        let truncated = total_bytes > written_bytes || (message.msg_flags & libc::MSG_TRUNC) != 0;
 
         unsafe {
             *out = PacketCaptureRecord {
                 bytes: written_bytes,
                 interface_index,
+                timestamp_clock,
                 timestamp_ns,
                 truncated,
             };
@@ -675,8 +962,9 @@ pub(crate) unsafe fn destack_net_packet_receive(
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
 
-        // resolve the packet descriptor and payload buffer
+        // resolve the packet descriptor, endpoint state, and payload buffer
         let descriptor = socket_descriptor(binding, handle)?;
+        let state = packet_socket_state(handle)?;
         let payload = unsafe { payload.as_mut_slice()? };
 
         // read one full BPF packet buffer from the descriptor
@@ -749,12 +1037,9 @@ pub(crate) unsafe fn destack_net_packet_receive(
             let written = captured_length.min(payload.len());
             payload[..written].copy_from_slice(&buffer[packet_offset..packet_offset + written]);
 
-            // map one BPF timestamp into nanoseconds
-            let seconds = u64::try_from(header.bh_tstamp.tv_sec).unwrap_or(0);
-            let microseconds = u64::try_from(header.bh_tstamp.tv_usec).unwrap_or(0);
-            let timestamp_ns = seconds
-                .saturating_mul(NANOSECONDS_PER_SECOND)
-                .saturating_add(microseconds.saturating_mul(NANOSECONDS_PER_MICROSECOND));
+            // convert the BPF packet timestamp into the shared runtime monotonic domain
+            let (timestamp_clock, timestamp_ns) =
+                macos_packet_timestamp_ns(&header, state.timestamp_mode)?;
             let truncated = original_length > written || captured_length > written;
             let interface_index = macos_bpf_interface_index(descriptor);
 
@@ -762,6 +1047,7 @@ pub(crate) unsafe fn destack_net_packet_receive(
                 *out = PacketCaptureRecord {
                     bytes: written as u64,
                     interface_index,
+                    timestamp_clock,
                     timestamp_ns,
                     truncated,
                 };
@@ -923,44 +1209,31 @@ pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
 
     #[cfg(target_os = "linux")]
     {
-        // map runtime timestamp mode to SO_TIMESTAMPNS support
-        let enable_value: libc::c_int = match mode {
-            PacketTimestampMode::Disabled => 0,
-            PacketTimestampMode::Software => 1,
-            PacketTimestampMode::Hardware => {
-                return packet_not_supported("destack.net.packetSetTimestampMode");
-            }
-        };
-
-        // apply timestamp option on the packet socket
+        // apply Linux packet timestamp mode and persist it in endpoint state
         let fd = socket_descriptor(binding, handle)?;
-        let rc = unsafe {
-            libc::setsockopt(
-                fd,
-                libc::SOL_SOCKET,
-                libc::SO_TIMESTAMPNS,
-                &enable_value as *const _ as *const libc::c_void,
-                std::mem::size_of::<libc::c_int>() as libc::socklen_t,
-            )
-        };
-        if rc != 0 {
-            return Err(core_platform::net_error("setsockopt(SO_TIMESTAMPNS)"));
-        }
+        let _ = packet_socket_state(handle)?;
+        configure_linux_packet_timestamp_mode(fd, mode)?;
+        update_packet_socket_state(handle, |state| {
+            state.timestamp_mode = mode;
+        })?;
 
         Ok(())
     }
 
     #[cfg(target_os = "macos")]
     {
-        // validate descriptor ownership
+        // validate descriptor ownership and persist the requested software-timestamp mode
         let _ = socket_descriptor(binding, handle)?;
-
-        // support software timestamps and reject unsupported modes
-        if mode == PacketTimestampMode::Software {
-            return Ok(());
+        let _ = packet_socket_state(handle)?;
+        if mode == PacketTimestampMode::Hardware {
+            return packet_not_supported("destack.net.packetSetTimestampMode");
         }
 
-        packet_not_supported("destack.net.packetSetTimestampMode")
+        update_packet_socket_state(handle, |state| {
+            state.timestamp_mode = mode;
+        })?;
+
+        Ok(())
     }
 }
 

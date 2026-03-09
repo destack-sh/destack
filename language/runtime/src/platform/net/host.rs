@@ -18,7 +18,13 @@ pub(crate) use unsupported::*;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
-use crate::platform::net::{PacketBackend, PacketBackendCapabilityFlags, PacketBackendDescriptor};
+use crate::platform::net::{
+    PACKET_BACKEND_CAP_CAPTURE, PACKET_BACKEND_CAP_FILTER, PACKET_BACKEND_CAP_SEND,
+    PACKET_BACKEND_CAP_TIMESTAMP, PacketBackend, PacketBackendCapabilityFlags,
+    PacketBackendDescriptor,
+};
+#[cfg(target_os = "linux")]
+use crate::platform::net::{PACKET_BACKEND_CAP_FANOUT, PACKET_BACKEND_CAP_RING};
 use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// List host packet backends.
@@ -39,7 +45,14 @@ pub(crate) unsafe fn destack_net_packet_backend_list(
             name: binding.store_string("af_packet"),
             available: true,
             priority: 100,
-            capability_flags: PacketBackendCapabilityFlags(0),
+            capability_flags: PacketBackendCapabilityFlags(
+                PACKET_BACKEND_CAP_CAPTURE.0
+                    | PACKET_BACKEND_CAP_SEND.0
+                    | PACKET_BACKEND_CAP_TIMESTAMP.0
+                    | PACKET_BACKEND_CAP_FILTER.0
+                    | PACKET_BACKEND_CAP_FANOUT.0
+                    | PACKET_BACKEND_CAP_RING.0,
+            ),
         });
     }
 
@@ -50,7 +63,12 @@ pub(crate) unsafe fn destack_net_packet_backend_list(
             name: binding.store_string("bpf"),
             available: true,
             priority: 100,
-            capability_flags: PacketBackendCapabilityFlags(0),
+            capability_flags: PacketBackendCapabilityFlags(
+                PACKET_BACKEND_CAP_CAPTURE.0
+                    | PACKET_BACKEND_CAP_SEND.0
+                    | PACKET_BACKEND_CAP_TIMESTAMP.0
+                    | PACKET_BACKEND_CAP_FILTER.0,
+            ),
         });
     }
 
@@ -61,7 +79,11 @@ pub(crate) unsafe fn destack_net_packet_backend_list(
             name: binding.store_string("win_raw_socket"),
             available: true,
             priority: 100,
-            capability_flags: PacketBackendCapabilityFlags(0),
+            capability_flags: PacketBackendCapabilityFlags(
+                PACKET_BACKEND_CAP_CAPTURE.0
+                    | PACKET_BACKEND_CAP_SEND.0
+                    | PACKET_BACKEND_CAP_FILTER.0,
+            ),
         });
     }
 
