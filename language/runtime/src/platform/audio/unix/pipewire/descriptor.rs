@@ -9,6 +9,7 @@ use super::constants::{
 use super::core::{channel_layout, channel_mask, pipewire_format_mask, require_pipewire_library};
 use super::host::probe_endpoints;
 use super::ids::{capture_stable_id, duplex_stable_id, loopback_stable_id, playback_stable_id};
+use crate::platform::audio as audio_types;
 
 /// Enumerate PipeWire devices from one probed endpoint snapshot.
 pub(super) fn enumerate_devices() -> RuntimeResult<Vec<audio_core::HostDeviceDescriptor>> {
@@ -50,14 +51,14 @@ pub(super) fn enumerate_devices() -> RuntimeResult<Vec<audio_core::HostDeviceDes
 }
 
 /// Build one shared capability flag mask for one PipeWire stream lane.
-fn base_capability_flags() -> audio_core::AudioDeviceCapabilityFlags {
+fn base_capability_flags() -> audio_types::AudioDeviceCapabilityFlags {
     let flags = audio_core::DEVICE_CAPABILITY_SHARED_MODE.0
         | audio_core::DEVICE_CAPABILITY_STREAM_VOLUME.0
         | audio_core::DEVICE_CAPABILITY_STREAM_MUTE.0
         | audio_core::DEVICE_CAPABILITY_REROUTE_EVENTS.0
         | audio_core::DEVICE_CAPABILITY_BACKEND_DISCONNECT_EVENTS.0;
 
-    audio_core::AudioDeviceCapabilityFlags(flags)
+    audio_types::AudioDeviceCapabilityFlags(flags)
 }
 
 /// Build one playback descriptor row for one endpoint name.
@@ -70,8 +71,8 @@ fn playback_descriptor(name: &str, is_default: bool) -> audio_core::HostDeviceDe
         group_id: format!("pipewire-group:{name}"),
         name: format!("PipeWire Playback ({name})"),
         transport: String::from("pipewire"),
-        backend: audio_core::AudioBackend::PipeWire,
-        direction: audio_core::AudioDeviceDirection::Playback,
+        backend: audio_types::AudioBackend::PipeWire,
+        direction: audio_types::AudioDeviceDirection::Playback,
         supported_directions: audio_core::DIRECTION_MASK_PLAYBACK,
         connected: true,
         is_raw: false,
@@ -106,8 +107,8 @@ fn capture_descriptor(name: &str, is_default: bool) -> audio_core::HostDeviceDes
         group_id: format!("pipewire-group:{name}"),
         name: format!("PipeWire Capture ({name})"),
         transport: String::from("pipewire"),
-        backend: audio_core::AudioBackend::PipeWire,
-        direction: audio_core::AudioDeviceDirection::Capture,
+        backend: audio_types::AudioBackend::PipeWire,
+        direction: audio_types::AudioDeviceDirection::Capture,
         supported_directions: audio_core::DIRECTION_MASK_CAPTURE,
         connected: true,
         is_raw: false,
@@ -135,7 +136,7 @@ fn capture_descriptor(name: &str, is_default: bool) -> audio_core::HostDeviceDes
 /// Build one loopback descriptor row for one monitor endpoint name.
 fn loopback_descriptor(name: &str, is_default: bool) -> audio_core::HostDeviceDescriptor {
     let (preferred_layout, preferred_mask, supported_mask, format_mask) = descriptor_profile();
-    let capability_flags = audio_core::AudioDeviceCapabilityFlags(
+    let capability_flags = audio_types::AudioDeviceCapabilityFlags(
         base_capability_flags().0 | audio_core::DEVICE_CAPABILITY_LOOPBACK.0,
     );
 
@@ -144,8 +145,8 @@ fn loopback_descriptor(name: &str, is_default: bool) -> audio_core::HostDeviceDe
         group_id: format!("pipewire-group:{name}"),
         name: format!("PipeWire Loopback ({name})"),
         transport: String::from("pipewire"),
-        backend: audio_core::AudioBackend::PipeWire,
-        direction: audio_core::AudioDeviceDirection::Loopback,
+        backend: audio_types::AudioBackend::PipeWire,
+        direction: audio_types::AudioDeviceDirection::Loopback,
         supported_directions: audio_core::DIRECTION_MASK_LOOPBACK,
         connected: true,
         is_raw: false,
@@ -173,7 +174,7 @@ fn loopback_descriptor(name: &str, is_default: bool) -> audio_core::HostDeviceDe
 /// Build one duplex descriptor row for one playback and capture endpoint pair.
 fn duplex_descriptor(playback_name: &str, capture_name: &str) -> audio_core::HostDeviceDescriptor {
     let (preferred_layout, preferred_mask, supported_mask, format_mask) = descriptor_profile();
-    let capability_flags = audio_core::AudioDeviceCapabilityFlags(
+    let capability_flags = audio_types::AudioDeviceCapabilityFlags(
         base_capability_flags().0 | audio_core::DEVICE_CAPABILITY_FULL_DUPLEX.0,
     );
 
@@ -182,8 +183,8 @@ fn duplex_descriptor(playback_name: &str, capture_name: &str) -> audio_core::Hos
         group_id: format!("pipewire-group:{playback_name}|{capture_name}"),
         name: format!("PipeWire Duplex ({playback_name}, {capture_name})"),
         transport: String::from("pipewire"),
-        backend: audio_core::AudioBackend::PipeWire,
-        direction: audio_core::AudioDeviceDirection::Duplex,
+        backend: audio_types::AudioBackend::PipeWire,
+        direction: audio_types::AudioDeviceDirection::Duplex,
         supported_directions: audio_core::DIRECTION_MASK_PLAYBACK
             | audio_core::DIRECTION_MASK_CAPTURE
             | audio_core::DIRECTION_MASK_DUPLEX,
@@ -211,7 +212,7 @@ fn duplex_descriptor(playback_name: &str, capture_name: &str) -> audio_core::Hos
 }
 
 /// Build one shared descriptor profile for PipeWire rows.
-fn descriptor_profile() -> (audio_core::AudioChannelLayout, u64, u64, u32) {
+fn descriptor_profile() -> (audio_types::AudioChannelLayout, u64, u64, u32) {
     let channels = 2u16;
     let preferred_layout = channel_layout(channels);
     let preferred_mask = channel_mask(channels);

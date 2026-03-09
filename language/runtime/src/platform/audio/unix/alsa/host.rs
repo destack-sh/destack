@@ -14,6 +14,7 @@ use super::core::{
     alsa_succeeded, c_string,
 };
 use super::ffi::{alsa_library, alsa_library_error};
+use crate::platform::audio as audio_types;
 
 /// One configured ALSA PCM handle with negotiated runtime parameters.
 #[derive(Debug)]
@@ -265,14 +266,14 @@ fn format_value(library: &AlsaLibrary, format_name: &str) -> Option<c_int> {
 }
 
 /// Return ALSA format tokens for one runtime sample format.
-fn format_tokens(format: audio_core::AudioSampleFormat) -> &'static [&'static str] {
+fn format_tokens(format: audio_types::AudioSampleFormat) -> &'static [&'static str] {
     match format {
-        audio_core::AudioSampleFormat::U8 => &["U8"],
-        audio_core::AudioSampleFormat::S16 => &["S16_LE"],
-        audio_core::AudioSampleFormat::S24 => &["S24_LE", "S32_LE"],
-        audio_core::AudioSampleFormat::S32 => &["S32_LE"],
-        audio_core::AudioSampleFormat::F32 => &["FLOAT_LE"],
-        audio_core::AudioSampleFormat::F64 => &["FLOAT64_LE"],
+        audio_types::AudioSampleFormat::U8 => &["U8"],
+        audio_types::AudioSampleFormat::S16 => &["S16_LE"],
+        audio_types::AudioSampleFormat::S24 => &["S24_LE", "S32_LE"],
+        audio_types::AudioSampleFormat::S32 => &["S32_LE"],
+        audio_types::AudioSampleFormat::F32 => &["FLOAT_LE"],
+        audio_types::AudioSampleFormat::F64 => &["FLOAT64_LE"],
     }
 }
 
@@ -280,7 +281,7 @@ fn format_tokens(format: audio_core::AudioSampleFormat) -> &'static [&'static st
 fn configure_pcm(
     library: &Arc<AlsaLibrary>,
     raw_pcm: *mut AlsaPcm,
-    config: audio_core::AudioStreamConfig,
+    config: audio_types::AudioStreamConfig,
     backend_flags: audio_core::AudioBackendOpenFlags,
 ) -> RuntimeResult<(u32, u16, u32, bool, bool)> {
     // enforce backend no-resample mode when the caller requests it
@@ -490,7 +491,7 @@ pub(super) fn open_configured_pcm(
     operation: &'static str,
     device_name: &str,
     stream_selector: c_int,
-    config: audio_core::AudioStreamConfig,
+    config: audio_types::AudioStreamConfig,
     backend_flags: audio_core::AudioBackendOpenFlags,
 ) -> RuntimeResult<ConfiguredAlsaPcm> {
     let library = require_alsa_library(operation)?;
@@ -659,7 +660,7 @@ fn probe_device_profile(device_name: &str, stream_selector: c_int) -> Option<Als
     }
 
     if format_mask == 0 {
-        format_mask = audio_core::sample_format_bit(audio_core::AudioSampleFormat::F32);
+        format_mask = audio_core::sample_format_bit(audio_types::AudioSampleFormat::F32);
     }
 
     let preferred_sample_rate = ALSA_PROBED_SAMPLE_RATES

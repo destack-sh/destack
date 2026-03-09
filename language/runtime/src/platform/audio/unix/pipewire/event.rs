@@ -1,32 +1,18 @@
-#[cfg(not(target_os = "linux"))]
-use super::super::backend::backend_not_supported;
 #[cfg(target_os = "linux")]
 use super::super::pactl;
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "linux")]
 use crate::platform::audio::AudioBackend;
-use crate::runtime::BindingCallContext;
-
-/// Return whether PipeWire native device-event monitoring is available.
-pub(crate) fn native_device_events_supported() -> bool {
-    #[cfg(target_os = "linux")]
-    {
-        pactl::native_device_events_supported(AudioBackend::PipeWire)
-    }
-
-    #[cfg(not(target_os = "linux"))]
-    {
-        false
-    }
-}
+#[cfg(not(target_os = "linux"))]
+use crate::platform::audio::backend::backend_not_supported;
+use crate::platform::audio::core as audio_core;
 
 /// Start PipeWire native device-event monitoring.
-pub(crate) fn start_native_device_event_monitor(
-    _binding: &BindingCallContext,
-) -> RuntimeResult<()> {
+pub(crate) fn start_native_device_event_monitor()
+-> RuntimeResult<Box<dyn audio_core::AudioMonitorHandle>> {
     #[cfg(target_os = "linux")]
     {
-        pactl::start_native_device_event_monitor(_binding, AudioBackend::PipeWire, "pipewire")
+        pactl::start_native_device_event_monitor(AudioBackend::PipeWire, "pipewire")
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -35,13 +21,5 @@ pub(crate) fn start_native_device_event_monitor(
             "destack.audio.event.open",
             "pipewire",
         ))
-    }
-}
-
-/// Stop PipeWire native device-event monitoring.
-pub(crate) fn stop_native_device_event_monitor(_binding: &BindingCallContext) {
-    #[cfg(target_os = "linux")]
-    {
-        pactl::stop_native_device_event_monitor(_binding, AudioBackend::PipeWire);
     }
 }

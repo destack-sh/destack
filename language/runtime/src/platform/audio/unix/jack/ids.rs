@@ -1,16 +1,14 @@
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
-use crate::platform::audio::core as audio_core;
-
 use super::constants::{
     JACK_CAPTURE_STABLE_ID_PREFIX, JACK_DUPLEX_STABLE_ID_PREFIX, JACK_PLAYBACK_STABLE_ID_PREFIX,
 };
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::{PlatformError, audio as audio_types};
 
 /// One parsed JACK stable-id payload.
 #[derive(Debug, Clone)]
 pub(super) struct ParsedJackStableId {
     /// Requested direction lane encoded by the stable-id prefix.
-    pub(super) lane: audio_core::AudioDeviceDirection,
+    pub(super) lane: audio_types::AudioDeviceDirection,
     /// Playback endpoint token.
     pub(super) playback_name: String,
     /// Capture endpoint token for duplex rows.
@@ -44,7 +42,7 @@ pub(super) fn parse_jack_stable_id(stable_id: &str) -> RuntimeResult<ParsedJackS
         }
 
         return Ok(ParsedJackStableId {
-            lane: audio_core::AudioDeviceDirection::Playback,
+            lane: audio_types::AudioDeviceDirection::Playback,
             playback_name: device_name.to_string(),
             capture_name: None,
         });
@@ -60,7 +58,7 @@ pub(super) fn parse_jack_stable_id(stable_id: &str) -> RuntimeResult<ParsedJackS
         }
 
         return Ok(ParsedJackStableId {
-            lane: audio_core::AudioDeviceDirection::Capture,
+            lane: audio_types::AudioDeviceDirection::Capture,
             playback_name: device_name.to_string(),
             capture_name: None,
         });
@@ -84,7 +82,7 @@ pub(super) fn parse_jack_stable_id(stable_id: &str) -> RuntimeResult<ParsedJackS
         }
 
         return Ok(ParsedJackStableId {
-            lane: audio_core::AudioDeviceDirection::Duplex,
+            lane: audio_types::AudioDeviceDirection::Duplex,
             playback_name: playback_name.to_string(),
             capture_name: Some(capture_name.to_string()),
         });
@@ -100,7 +98,7 @@ pub(super) fn parse_jack_stable_id(stable_id: &str) -> RuntimeResult<ParsedJackS
 /// Validate one JACK stable-id lane against one requested stream direction.
 pub(super) fn validate_jack_stable_id_direction(
     parsed: &ParsedJackStableId,
-    direction: audio_core::AudioDeviceDirection,
+    direction: audio_types::AudioDeviceDirection,
 ) -> RuntimeResult<()> {
     if parsed.lane != direction {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(

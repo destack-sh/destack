@@ -3,7 +3,7 @@ use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
 use std::ffi::{c_int, c_void};
 use std::ptr;
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::time::Duration;
 
 use super::abi::{PipewireSampleSpec, PipewireSimple};
@@ -16,6 +16,7 @@ use super::core::{
     pipewire_succeeded, require_pipewire_library,
 };
 use super::ids::{parse_pipewire_stable_id, validate_pipewire_stable_id_direction};
+use crate::platform::audio as audio_types;
 
 /// One owned PipeWire simple-stream handle.
 #[derive(Debug)]
@@ -47,9 +48,9 @@ struct PipewireStreamRuntime {
     /// Shared PipeWire symbol table.
     library: Arc<PipeWireLibrary>,
     /// Opened playback lane when present.
-    playback: Option<audio_core::Mutex<PipewireSimpleHandle>>,
+    playback: Option<Mutex<PipewireSimpleHandle>>,
     /// Opened capture lane when present.
-    capture: Option<audio_core::Mutex<PipewireSimpleHandle>>,
+    capture: Option<Mutex<PipewireSimpleHandle>>,
     /// Negotiated stream sample rate.
     sample_rate: u32,
     /// Negotiated stream channel count.
@@ -57,16 +58,16 @@ struct PipewireStreamRuntime {
     /// Negotiated stream period size in frames.
     period_frames: u32,
     /// Negotiated stream sample format.
-    format: audio_core::AudioSampleFormat,
+    format: audio_types::AudioSampleFormat,
     /// Stream frame size in bytes.
     frame_bytes: usize,
     /// Worker cycle sleep period.
     poll_period: Duration,
-    /// Weak link to one stream binding.
-    binding: audio_core::Mutex<Weak<audio_core::AudioStreamBinding>>,
+    /// Weak link to one stream host state.
+    stream_state: Mutex<Weak<audio_core::AudioStreamHostState>>,
 }
 
-/// One host-operations payload for one PipeWire stream binding.
+/// One host-operations payload for one PipeWire stream host state.
 #[derive(Debug)]
 struct PipewireHostStreamOps {
     /// Shared PipeWire runtime payload.
@@ -97,14 +98,14 @@ impl audio_core::AudioHostStreamOps for PipewireHostStreamOps {
     }
 }
 
-/// Open one PipeWire stream binding.
+/// Open one PipeWire stream host state.
 pub(super) fn open_stream(
     device_info: &audio_core::HostDeviceDescriptor,
-    config: audio_core::AudioStreamConfig,
-    share_mode: audio_core::AudioShareMode,
-) -> RuntimeResult<Arc<audio_core::AudioStreamBinding>> {
+    config: audio_types::AudioStreamConfig,
+    share_mode: audio_types::AudioShareMode,
+) -> RuntimeResult<Arc<audio_core::AudioStreamHostState>> {
     // reject unsupported share-mode requests
-    if share_mode != audio_core::AudioShareMode::Shared {
+    if share_mode != audio_types::AudioShareMode::Shared {
         return Err(pipewire_not_supported(
             "destack.audio.stream.open",
             "PipeWire exclusive mode is not supported",
@@ -141,13 +142,13 @@ pub(super) fn open_stream(
 
     let needs_playback = matches!(
         device_info.direction,
-        audio_core::AudioDeviceDirection::Playback | audio_core::AudioDeviceDirection::Duplex
+        audio_types::AudioDeviceDirection::Playback | audio_types::AudioDeviceDirection::Duplex
     );
     let needs_capture = matches!(
         device_info.direction,
-        audio_core::AudioDeviceDirection::Capture
-            | audio_core::AudioDeviceDirection::Duplex
-            | audio_core::AudioDeviceDirection::Loopback
+        audio_types::AudioDeviceDirection::Capture
+            | audio_types::AudioDeviceDirection::Duplex
+            | audio_types::AudioDeviceDirection::Loopback
     );
 
     // open one playback stream lane when one playback direction is requested
@@ -199,22 +200,22 @@ pub(super) fn open_stream(
 
     let runtime = Arc::new(PipewireStreamRuntime {
         library,
-        playback: playback.map(audio_core::Mutex::new),
-        capture: capture.map(audio_core::Mutex::new),
+        playback: playback.map(Mutex::new),
+        capture: capture.map(Mutex::new),
         sample_rate: sample_spec.rate,
         channels,
         period_frames,
         format: config.format,
         frame_bytes,
         poll_period,
-        binding: audio_core::Mutex::new(Weak::new()),
+        stream_state: Mutex::new(Weak::new()),
     });
 
     let host_ops: Arc<dyn audio_core::AudioHostStreamOps> = Arc::new(PipewireHostStreamOps {
         runtime: runtime.clone(),
     });
 
-    let stream_binding = Arc::new(audio_core::AudioStreamBinding {
+    let stream_state = Arc::new(audio_core::AudioStreamHostState {
         device: device_info.clone(),
         direction: device_info.direction,
         requested: config,
@@ -231,29 +232,29 @@ pub(super) fn open_stream(
             supports_mute: true,
             supports_hardware_timestamps: false,
         },
-        host_ops: audio_core::Mutex::new(Some(host_ops)),
-        name: audio_core::Mutex::new(String::new()),
+        host_ops: Mutex::new(Some(host_ops)),
+        name: Mutex::new(String::new()),
         sync: Arc::new(audio_core::AudioStreamSync {
-            state: audio_core::Mutex::new(audio_core::initial_stream_state()),
-            wake: audio_core::Condvar::new(),
+            state: Mutex::new(audio_core::initial_stream_state()),
+            wake: Condvar::new(),
         }),
         stream_handle_raw: std::sync::atomic::AtomicU64::new(0),
-        event_runtime_state: audio_core::Mutex::new(None),
-        null_worker: audio_core::Mutex::new(None),
+        runtime_state: Mutex::new(None),
+        worker_handle: Mutex::new(None),
     });
 
     *runtime
-        .binding
+        .stream_state
         .lock()
-        .unwrap_or_else(|error| error.into_inner()) = Arc::downgrade(&stream_binding);
+        .unwrap_or_else(|error| error.into_inner()) = Arc::downgrade(&stream_state);
 
-    let worker = spawn_worker(stream_binding.clone(), runtime);
-    *stream_binding
-        .null_worker
+    let worker = spawn_worker(stream_state.clone(), runtime);
+    *stream_state
+        .worker_handle
         .lock()
         .unwrap_or_else(|error| error.into_inner()) = Some(worker);
 
-    Ok(stream_binding)
+    Ok(stream_state)
 }
 
 /// Open one PipeWire simple stream handle.
@@ -362,7 +363,7 @@ fn drain_runtime_playback(
 
 /// Spawn one PipeWire transfer worker thread.
 fn spawn_worker(
-    binding: Arc<audio_core::AudioStreamBinding>,
+    binding: Arc<audio_core::AudioStreamHostState>,
     runtime: Arc<PipewireStreamRuntime>,
 ) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
@@ -385,7 +386,7 @@ fn spawn_worker(
                 continue;
             }
 
-            state.status_flags = audio_core::AudioStreamStatusFlags(0);
+            state.status_flags = audio_types::AudioStreamStatusFlags(0);
             let scalar_period = runtime
                 .period_frames
                 .saturating_mul(runtime.channels as u32) as usize;
@@ -419,7 +420,7 @@ fn spawn_worker(
                 if underflow {
                     state.xrun_count = state.xrun_count.saturating_add(1);
                     state.output_underflow_count = state.output_underflow_count.saturating_add(1);
-                    state.status_flags = audio_core::AudioStreamStatusFlags(
+                    state.status_flags = audio_types::AudioStreamStatusFlags(
                         state.status_flags.0 | audio_core::STREAM_STATUS_OUTPUT_UNDERFLOW.0,
                     );
                 }
@@ -513,7 +514,7 @@ fn spawn_worker(
 
                     state.xrun_count = state.xrun_count.saturating_add(1);
                     state.input_overflow_count = state.input_overflow_count.saturating_add(1);
-                    state.status_flags = audio_core::AudioStreamStatusFlags(
+                    state.status_flags = audio_types::AudioStreamStatusFlags(
                         state.status_flags.0 | audio_core::STREAM_STATUS_INPUT_OVERFLOW.0,
                     );
                 }
@@ -525,6 +526,6 @@ fn spawn_worker(
 }
 
 /// Mark one stream as backend-disconnected and wake blocked callers.
-fn mark_backend_disconnected(binding: &audio_core::AudioStreamBinding, message: String) {
+fn mark_backend_disconnected(binding: &audio_core::AudioStreamHostState, message: String) {
     audio_core::mark_stream_backend_disconnected(binding, message);
 }

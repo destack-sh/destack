@@ -2824,6 +2824,13 @@ fn list_linux_hidraw_paths() -> RuntimeResult<Vec<String>> {
 
 #[cfg(test)]
 mod tests {
+    use crate::platform::input::host::unix::linux::{
+        ABS_RY, ABS_Z, BTN_GAMEPAD_START, BTN_MOUSE_START, BTN_TRIGGER_HAPPY_END, EV_ABS, EV_KEY,
+        EV_REL, EV_SYN, KEY_CAPSLOCK, KEY_LEFTSHIFT, LinuxInputEvent, MODIFIER_CAPS_LOCK,
+        MODIFIER_SHIFT, REL_WHEEL, input_event_kind, is_button_code, map_linux_event,
+        should_skip_linux_event, update_linux_modifiers,
+    };
+    use crate::platform::input::{InputDeviceKind, InputEvent, InputEventAction, InputEventKind};
     use crate::tests::runtime::TestRuntime;
 
     /// Map Linux wheel events with scroll action semantics.

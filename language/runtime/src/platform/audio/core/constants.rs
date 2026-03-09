@@ -11,7 +11,8 @@ use crate::platform::audio::{
 use crate::platform::core as core_platform;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
-use super::AudioBackendOpenFlags;
+/// Compatibility alias for backend-specific stream open flags.
+pub(crate) type AudioBackendOpenFlags = AudioDeviceOpenFlags;
 
 /// Resource label for audio device handles.
 pub(crate) const AUDIO_DEVICE_RESOURCE_LABEL: &str = "audio.device";
@@ -367,6 +368,7 @@ pub(crate) fn host_monotonic_nanos() -> u64 {
 }
 
 /// Return the configured monitor poll interval for audio event monitor workers.
+#[cfg(any(target_os = "linux", windows))]
 pub(crate) fn resolved_event_monitor_poll_interval_ns(default_ns: u64) -> u64 {
     let configured = with_binding_call_context(|context| {
         Ok(context.agent().options.audio.event_monitor_poll_interval_ns)
@@ -380,31 +382,31 @@ pub(crate) fn resolved_event_monitor_poll_interval_ns(default_ns: u64) -> u64 {
 }
 
 /// Return the configured default queue capacity for audio event subscriptions.
-pub(crate) fn resolved_default_event_queue_capacity(binding: &BindingCallContext) -> u32 {
-    let configured = binding.agent().options.audio.event_queue_capacity;
+pub(crate) fn resolved_default_event_queue_capacity(ctx: &BindingCallContext) -> u32 {
+    let configured = ctx.agent().options.audio.event_queue_capacity;
     let configured = core_platform::option_u64_to_u32(configured);
     configured.unwrap_or(DEFAULT_EVENT_QUEUE_CAPACITY).max(1)
 }
 
 /// Return the configured default poll interval for audio event subscriptions.
-pub(crate) fn resolved_default_event_poll_interval_ns(binding: &BindingCallContext) -> u64 {
-    let configured = binding.agent().options.audio.default_event_poll_interval_ns;
+pub(crate) fn resolved_default_event_poll_interval_ns(ctx: &BindingCallContext) -> u64 {
+    let configured = ctx.agent().options.audio.default_event_poll_interval_ns;
     configured
         .unwrap_or(EVENT_POLL_INTERVAL_NS)
         .clamp(MIN_EVENT_POLL_INTERVAL_NS, MAX_EVENT_POLL_INTERVAL_NS)
 }
 
 /// Return the configured wait-slice for blocking audio stream operations.
-pub(crate) fn resolved_stream_wait_slice_ns(binding: &BindingCallContext) -> u64 {
-    let configured = binding.agent().options.audio.stream_wait_slice_ns;
+pub(crate) fn resolved_stream_wait_slice_ns(ctx: &BindingCallContext) -> u64 {
+    let configured = ctx.agent().options.audio.stream_wait_slice_ns;
     configured
-        .unwrap_or(resolved_default_event_poll_interval_ns(binding))
+        .unwrap_or(resolved_default_event_poll_interval_ns(ctx))
         .clamp(MIN_EVENT_POLL_INTERVAL_NS, MAX_EVENT_POLL_INTERVAL_NS)
 }
 
 /// Return the configured maximum bytes accepted per audio stream read call.
-pub(crate) fn resolved_max_stream_read_bytes(binding: &BindingCallContext) -> u32 {
-    let configured = binding.agent().options.audio.max_stream_read_bytes;
+pub(crate) fn resolved_max_stream_read_bytes(ctx: &BindingCallContext) -> u32 {
+    let configured = ctx.agent().options.audio.max_stream_read_bytes;
     let configured = core_platform::option_u64_to_u32(configured);
     configured
         .unwrap_or(MAX_STREAM_READ_BYTES)

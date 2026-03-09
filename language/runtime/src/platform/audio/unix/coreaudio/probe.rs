@@ -2,7 +2,7 @@
 use std::ptr;
 
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::frame_bytes;
 
 #[cfg(target_os = "macos")]
 use super::abi::{
@@ -24,6 +24,7 @@ use super::property::{
 };
 #[cfg(target_os = "macos")]
 use super::queue::bind_queue_device;
+use crate::platform::audio as audio_types;
 
 #[cfg(target_os = "macos")]
 pub(super) fn probe_loopback_support(device_id: AudioDeviceID) -> bool {
@@ -43,14 +44,14 @@ pub(super) fn probe_loopback_support(device_id: AudioDeviceID) -> bool {
     )
     .and_then(rate_to_u32)
     .unwrap_or(K_FALLBACK_SAMPLE_RATE);
-    let config = audio_core::AudioStreamConfig {
+    let config = audio_types::AudioStreamConfig {
         sample_rate,
         channels,
         channel_layout: channel_layout(channels),
         channel_mask: channel_mask(channels),
-        format: audio_core::AudioSampleFormat::F32,
+        format: audio_types::AudioSampleFormat::F32,
         period_frames: COREAUDIO_LOOPBACK_PROBE_FRAMES,
-        transfer_mode: audio_core::AudioStreamTransferMode::Push,
+        transfer_mode: audio_types::AudioStreamTransferMode::Push,
     };
 
     // reject probing when we cannot derive a valid stream description
@@ -87,7 +88,7 @@ pub(super) fn probe_loopback_support(device_id: AudioDeviceID) -> bool {
     }
 
     // compute and allocate one probe buffer
-    let bytes_per_frame = match audio_core::frame_bytes(config.format, config.channels) {
+    let bytes_per_frame = match frame_bytes(config.format, config.channels) {
         Ok(value) => value as u32,
         Err(_) => {
             unsafe {

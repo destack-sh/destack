@@ -1,6 +1,6 @@
 use std::ffi::c_void;
 use std::ptr;
-use std::sync::Arc;
+use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
 use crate::diagnostic::RuntimeResult;
@@ -26,6 +26,7 @@ use super::core::{
     realize_object,
 };
 use super::ids::{parse_opensles_stable_id, validate_opensles_stable_id_direction};
+use crate::platform::audio as audio_types;
 
 /// One playback queue operation tag.
 const PLAYBACK_QUEUE_OPERATION: &str = "destack.audio.stream.playbackQueue";
@@ -44,7 +45,7 @@ struct OpenslesPlaybackLane {
     /// Owned queue interface pointer.
     queue_interface: SLAndroidSimpleBufferQueueItf,
     /// Queue buffers and recycling state.
-    queue: audio_core::Mutex<QueueBuffers>,
+    queue: Mutex<QueueBuffers>,
 }
 
 unsafe impl Send for OpenslesPlaybackLane {}
@@ -62,7 +63,7 @@ struct OpenslesCaptureLane {
     /// Owned queue interface pointer.
     queue_interface: SLAndroidSimpleBufferQueueItf,
     /// Queue buffers and recycling state.
-    queue: audio_core::Mutex<QueueBuffers>,
+    queue: Mutex<QueueBuffers>,
 }
 
 unsafe impl Send for OpenslesCaptureLane {}
@@ -90,7 +91,7 @@ struct OpenedLane<T> {
     /// Negotiated period in frames.
     period_frames: u32,
     /// Negotiated runtime sample format.
-    format: audio_core::AudioSampleFormat,
+    format: audio_types::AudioSampleFormat,
 }
 
 /// One OpenSL ES stream runtime payload.
@@ -107,12 +108,12 @@ struct OpenslesStreamRuntime {
     /// Negotiated stream period size in frames.
     period_frames: u32,
     /// Negotiated stream sample format.
-    format: audio_core::AudioSampleFormat,
+    format: audio_types::AudioSampleFormat,
     /// Worker cycle sleep period.
     poll_period: Duration,
 }
 
-/// One host-operations payload for one OpenSL ES stream binding.
+/// One host-operations payload for one OpenSL ES stream host state.
 #[derive(Debug)]
 struct OpenslesHostStreamOps {
     /// Shared OpenSL ES runtime payload.
@@ -212,14 +213,14 @@ impl audio_core::AudioHostStreamOps for OpenslesHostStreamOps {
     }
 }
 
-/// Open one OpenSL ES stream binding.
+/// Open one OpenSL ES stream host state.
 pub(super) fn open_stream(
     device_info: &audio_core::HostDeviceDescriptor,
-    config: audio_core::AudioStreamConfig,
-    share_mode: audio_core::AudioShareMode,
-) -> RuntimeResult<Arc<audio_core::AudioStreamBinding>> {
+    config: audio_types::AudioStreamConfig,
+    share_mode: audio_types::AudioShareMode,
+) -> RuntimeResult<Arc<audio_core::AudioStreamHostState>> {
     // reject unsupported direction requests
-    if device_info.direction == audio_core::AudioDeviceDirection::Loopback {
+    if device_info.direction == audio_types::AudioDeviceDirection::Loopback {
         return Err(opensles_not_supported(
             "destack.audio.stream.open",
             "OpenSL ES loopback direction is not implemented",
@@ -227,7 +228,7 @@ pub(super) fn open_stream(
     }
 
     // reject unsupported share modes
-    if share_mode == audio_core::AudioShareMode::Exclusive {
+    if share_mode == audio_types::AudioShareMode::Exclusive {
         return Err(opensles_not_supported(
             "destack.audio.stream.open",
             "OpenSL ES does not support exclusive mode",
@@ -257,11 +258,11 @@ pub(super) fn open_stream(
 
     let needs_playback = matches!(
         device_info.direction,
-        audio_core::AudioDeviceDirection::Playback | audio_core::AudioDeviceDirection::Duplex
+        audio_types::AudioDeviceDirection::Playback | audio_types::AudioDeviceDirection::Duplex
     );
     let needs_capture = matches!(
         device_info.direction,
-        audio_core::AudioDeviceDirection::Capture | audio_core::AudioDeviceDirection::Duplex
+        audio_types::AudioDeviceDirection::Capture | audio_types::AudioDeviceDirection::Duplex
     );
 
     let engine = Arc::new(create_engine("destack.audio.stream.open")?);
@@ -340,7 +341,7 @@ pub(super) fn open_stream(
         runtime: runtime.clone(),
     });
 
-    let stream_binding = Arc::new(audio_core::AudioStreamBinding {
+    let stream_state = Arc::new(audio_core::AudioStreamHostState {
         device: device_info.clone(),
         direction: device_info.direction,
         requested: config,
@@ -357,29 +358,29 @@ pub(super) fn open_stream(
             supports_mute: true,
             supports_hardware_timestamps: false,
         },
-        host_ops: audio_core::Mutex::new(Some(host_ops)),
-        name: audio_core::Mutex::new(String::new()),
+        host_ops: Mutex::new(Some(host_ops)),
+        name: Mutex::new(String::new()),
         sync: Arc::new(audio_core::AudioStreamSync {
-            state: audio_core::Mutex::new(audio_core::initial_stream_state()),
-            wake: audio_core::Condvar::new(),
+            state: Mutex::new(audio_core::initial_stream_state()),
+            wake: Condvar::new(),
         }),
         stream_handle_raw: std::sync::atomic::AtomicU64::new(0),
-        event_runtime_state: audio_core::Mutex::new(None),
-        null_worker: audio_core::Mutex::new(None),
+        runtime_state: Mutex::new(None),
+        worker_handle: Mutex::new(None),
     });
 
-    let worker = spawn_worker(stream_binding.clone(), runtime);
-    *stream_binding
-        .null_worker
+    let worker = spawn_worker(stream_state.clone(), runtime);
+    *stream_state
+        .worker_handle
         .lock()
         .unwrap_or_else(|error| error.into_inner()) = Some(worker);
 
-    Ok(stream_binding)
+    Ok(stream_state)
 }
 
 /// Validate one stream configuration against OpenSL ES backend limits.
 fn validate_stream_config(
-    config: audio_core::AudioStreamConfig,
+    config: audio_types::AudioStreamConfig,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     if config.channels == 0 || config.channels > OPENSLES_MAX_CHANNELS {
@@ -422,8 +423,8 @@ fn validate_stream_config(
 /// Open one playback lane with one stream configuration.
 fn open_playback_lane(
     engine: Arc<OpenSlEngine>,
-    config: audio_core::AudioStreamConfig,
-    format: audio_core::AudioSampleFormat,
+    config: audio_types::AudioStreamConfig,
+    format: audio_types::AudioSampleFormat,
 ) -> RuntimeResult<OpenedLane<OpenslesPlaybackLane>> {
     let mut queue_locator = SLDataLocator_AndroidSimpleBufferQueue {
         locatorType: SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE,
@@ -539,7 +540,7 @@ fn open_playback_lane(
         _player_object: player_object,
         play_interface,
         queue_interface,
-        queue: audio_core::Mutex::new(queue),
+        queue: Mutex::new(queue),
     });
 
     prime_playback_queue(&lane, "destack.audio.stream.open")?;
@@ -562,8 +563,8 @@ fn open_playback_lane(
 /// Open one capture lane with one stream configuration.
 fn open_capture_lane(
     engine: Arc<OpenSlEngine>,
-    config: audio_core::AudioStreamConfig,
-    format: audio_core::AudioSampleFormat,
+    config: audio_types::AudioStreamConfig,
+    format: audio_types::AudioSampleFormat,
 ) -> RuntimeResult<OpenedLane<OpenslesCaptureLane>> {
     let mut source_locator = SLDataLocator_IODevice {
         locatorType: SL_DATALOCATOR_IODEVICE,
@@ -683,7 +684,7 @@ fn open_capture_lane(
         _recorder_object: recorder_object,
         record_interface,
         queue_interface,
-        queue: audio_core::Mutex::new(queue),
+        queue: Mutex::new(queue),
     });
 
     prime_capture_queue(&lane, "destack.audio.stream.open")?;
@@ -705,7 +706,7 @@ fn open_capture_lane(
 
 /// Spawn one OpenSL ES transfer worker thread.
 fn spawn_worker(
-    binding: Arc<audio_core::AudioStreamBinding>,
+    binding: Arc<audio_core::AudioStreamHostState>,
     runtime: Arc<OpenslesStreamRuntime>,
 ) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
@@ -728,7 +729,7 @@ fn spawn_worker(
                 continue;
             }
 
-            state.status_flags = audio_core::AudioStreamStatusFlags(0);
+            state.status_flags = audio_types::AudioStreamStatusFlags(0);
             let callback_mono_ns = audio_core::host_monotonic_nanos();
             audio_core::record_stream_callback_timing(
                 &mut state,
@@ -841,7 +842,7 @@ fn spawn_worker(
 
 /// Build one playback packet from one stream state queue.
 fn build_playback_packet(
-    binding: &audio_core::AudioStreamBinding,
+    binding: &audio_core::AudioStreamHostState,
     runtime: &OpenslesStreamRuntime,
 ) -> Vec<u8> {
     let scalar_period = runtime
@@ -877,7 +878,7 @@ fn build_playback_packet(
     if underflow {
         state.xrun_count = state.xrun_count.saturating_add(1);
         state.output_underflow_count = state.output_underflow_count.saturating_add(1);
-        state.status_flags = audio_core::AudioStreamStatusFlags(
+        state.status_flags = audio_types::AudioStreamStatusFlags(
             state.status_flags.0 | audio_core::STREAM_STATUS_OUTPUT_UNDERFLOW.0,
         );
     }
@@ -886,7 +887,7 @@ fn build_playback_packet(
 }
 
 /// Push one capture packet into one shared stream queue.
-fn push_capture_packet(binding: &audio_core::AudioStreamBinding, packet: Vec<f32>) {
+fn push_capture_packet(binding: &audio_core::AudioStreamHostState, packet: Vec<f32>) {
     let mut state = binding
         .sync
         .state
@@ -906,14 +907,14 @@ fn push_capture_packet(binding: &audio_core::AudioStreamBinding, packet: Vec<f32
 
         state.xrun_count = state.xrun_count.saturating_add(1);
         state.input_overflow_count = state.input_overflow_count.saturating_add(1);
-        state.status_flags = audio_core::AudioStreamStatusFlags(
+        state.status_flags = audio_types::AudioStreamStatusFlags(
             state.status_flags.0 | audio_core::STREAM_STATUS_INPUT_OVERFLOW.0,
         );
     }
 }
 
 /// Mark one stream as backend-disconnected and wake blocked callers.
-fn mark_backend_disconnected(binding: &audio_core::AudioStreamBinding, message: String) {
+fn mark_backend_disconnected(binding: &audio_core::AudioStreamHostState, message: String) {
     audio_core::mark_stream_backend_disconnected(binding, message);
 }
 
@@ -1053,7 +1054,7 @@ fn clear_capture_queue(
 
 /// Clear one OpenSL ES queue and reset one queue tracker.
 fn clear_queue_and_reset(
-    queue_mutex: &audio_core::Mutex<QueueBuffers>,
+    queue_mutex: &Mutex<QueueBuffers>,
     queue_interface: SLAndroidSimpleBufferQueueItf,
     operation: &'static str,
 ) -> RuntimeResult<()> {
@@ -1069,7 +1070,7 @@ fn clear_queue_and_reset(
 
 /// Return queue slots completed since the previous poll.
 fn completed_queue_indices(
-    queue_mutex: &audio_core::Mutex<QueueBuffers>,
+    queue_mutex: &Mutex<QueueBuffers>,
     queue_interface: SLAndroidSimpleBufferQueueItf,
     operation: &'static str,
 ) -> RuntimeResult<Vec<usize>> {
@@ -1096,7 +1097,7 @@ fn completed_queue_indices(
 
 /// Enqueue one packet payload in one queue slot.
 fn enqueue_packet(
-    queue_mutex: &audio_core::Mutex<QueueBuffers>,
+    queue_mutex: &Mutex<QueueBuffers>,
     queue_interface: SLAndroidSimpleBufferQueueItf,
     index: usize,
     packet: &[u8],
@@ -1134,7 +1135,7 @@ fn enqueue_packet(
 
 /// Enqueue one silent packet in one queue slot.
 fn enqueue_zero_packet(
-    queue_mutex: &audio_core::Mutex<QueueBuffers>,
+    queue_mutex: &Mutex<QueueBuffers>,
     queue_interface: SLAndroidSimpleBufferQueueItf,
     index: usize,
     operation: &'static str,

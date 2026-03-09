@@ -2,7 +2,7 @@
 use std::sync::OnceLock;
 
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::host_monotonic_nanos;
 
 #[cfg(target_os = "macos")]
 use super::abi::AudioConvertHostTimeToNanos;
@@ -19,7 +19,7 @@ pub(super) fn coreaudio_host_time_to_mono_ns(host_time: u64) -> u64 {
 
     // resolve one stable offset from host-time to runtime monotonic
     let offset_ns = COREAUDIO_HOST_TIME_OFFSET_NS.get_or_init(|| {
-        let mono_now = audio_core::host_monotonic_nanos() as i128;
+        let mono_now = host_monotonic_nanos() as i128;
         mono_now - host_time_ns as i128
     });
 

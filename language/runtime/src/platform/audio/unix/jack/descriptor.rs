@@ -5,6 +5,7 @@ use crate::platform::core as core_platform;
 use super::core::{channel_layout, channel_mask};
 use super::host::{JackEndpointSnapshot, probe_jack_endpoints};
 use super::ids::{capture_stable_id, duplex_stable_id, playback_stable_id};
+use crate::platform::audio as audio_types;
 
 /// Enumerate JACK devices through one native endpoint probe.
 pub(super) fn enumerate_devices() -> RuntimeResult<Vec<audio_core::HostDeviceDescriptor>> {
@@ -45,7 +46,7 @@ pub(super) fn enumerate_devices() -> RuntimeResult<Vec<audio_core::HostDeviceDes
 }
 
 /// Build one baseline JACK capability mask.
-fn jack_capability_flags(is_duplex: bool) -> audio_core::AudioDeviceCapabilityFlags {
+fn jack_capability_flags(is_duplex: bool) -> audio_types::AudioDeviceCapabilityFlags {
     let mut flags = audio_core::DEVICE_CAPABILITY_SHARED_MODE.0
         | audio_core::DEVICE_CAPABILITY_STREAM_VOLUME.0
         | audio_core::DEVICE_CAPABILITY_STREAM_MUTE.0
@@ -55,7 +56,7 @@ fn jack_capability_flags(is_duplex: bool) -> audio_core::AudioDeviceCapabilityFl
         flags |= audio_core::DEVICE_CAPABILITY_FULL_DUPLEX.0;
     }
 
-    audio_core::AudioDeviceCapabilityFlags(flags)
+    audio_types::AudioDeviceCapabilityFlags(flags)
 }
 
 /// Build one JACK playback descriptor row.
@@ -71,8 +72,8 @@ fn playback_descriptor(
         group_id: String::from("jack-group:system"),
         name: String::from("JACK Playback"),
         transport: String::from("jack"),
-        backend: audio_core::AudioBackend::Jack,
-        direction: audio_core::AudioDeviceDirection::Playback,
+        backend: audio_types::AudioBackend::Jack,
+        direction: audio_types::AudioDeviceDirection::Playback,
         supported_directions: audio_core::DIRECTION_MASK_PLAYBACK,
         connected: true,
         is_raw: false,
@@ -91,7 +92,7 @@ fn playback_descriptor(
         supported_channel_mask: channel_mask(channels.max(1)),
         min_period_frames: snapshot.period_frames,
         max_period_frames: snapshot.period_frames,
-        format_mask: audio_core::sample_format_bit(audio_core::AudioSampleFormat::F32),
+        format_mask: audio_core::sample_format_bit(audio_types::AudioSampleFormat::F32),
         share_mode_mask: audio_core::SHARE_MODE_SHARED_BIT,
         is_null: false,
     }
@@ -110,8 +111,8 @@ fn capture_descriptor(
         group_id: String::from("jack-group:system"),
         name: String::from("JACK Capture"),
         transport: String::from("jack"),
-        backend: audio_core::AudioBackend::Jack,
-        direction: audio_core::AudioDeviceDirection::Capture,
+        backend: audio_types::AudioBackend::Jack,
+        direction: audio_types::AudioDeviceDirection::Capture,
         supported_directions: audio_core::DIRECTION_MASK_CAPTURE,
         connected: true,
         is_raw: false,
@@ -130,7 +131,7 @@ fn capture_descriptor(
         supported_channel_mask: channel_mask(channels.max(1)),
         min_period_frames: snapshot.period_frames,
         max_period_frames: snapshot.period_frames,
-        format_mask: audio_core::sample_format_bit(audio_core::AudioSampleFormat::F32),
+        format_mask: audio_core::sample_format_bit(audio_types::AudioSampleFormat::F32),
         share_mode_mask: audio_core::SHARE_MODE_SHARED_BIT,
         is_null: false,
     }
@@ -149,8 +150,8 @@ fn duplex_descriptor(
         group_id: String::from("jack-group:system"),
         name: String::from("JACK Duplex"),
         transport: String::from("jack"),
-        backend: audio_core::AudioBackend::Jack,
-        direction: audio_core::AudioDeviceDirection::Duplex,
+        backend: audio_types::AudioBackend::Jack,
+        direction: audio_types::AudioDeviceDirection::Duplex,
         supported_directions: audio_core::DIRECTION_MASK_PLAYBACK
             | audio_core::DIRECTION_MASK_CAPTURE
             | audio_core::DIRECTION_MASK_DUPLEX,
@@ -171,7 +172,7 @@ fn duplex_descriptor(
         supported_channel_mask: channel_mask(channels.max(1)),
         min_period_frames: snapshot.period_frames,
         max_period_frames: snapshot.period_frames,
-        format_mask: audio_core::sample_format_bit(audio_core::AudioSampleFormat::F32),
+        format_mask: audio_core::sample_format_bit(audio_types::AudioSampleFormat::F32),
         share_mode_mask: audio_core::SHARE_MODE_SHARED_BIT,
         is_null: false,
     }

@@ -17,6 +17,7 @@ use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
 use std::sync::Arc;
 
+use crate::platform::audio as audio_types;
 use windows_sys::Win32::Media::Audio::{
     AUDCLNT_SHAREMODE_EXCLUSIVE, AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
     AUDCLNT_STREAMFLAGS_LOOPBACK, IAudioClient, IMMDevice, IMMDeviceEnumerator,
@@ -24,9 +25,9 @@ use windows_sys::Win32::Media::Audio::{
 
 pub(super) fn open_stream(
     device_info: &audio_core::HostDeviceDescriptor,
-    config: audio_core::AudioStreamConfig,
-    share_mode: audio_core::AudioShareMode,
-) -> RuntimeResult<Arc<audio_core::AudioStreamBinding>> {
+    config: audio_types::AudioStreamConfig,
+    share_mode: audio_types::AudioShareMode,
+) -> RuntimeResult<Arc<audio_core::AudioStreamHostState>> {
     // open one initialized runtime payload from one host endpoint
     let runtime = open_runtime(&device_info.id, config, device_info.direction, share_mode)?;
 
@@ -42,13 +43,13 @@ pub(super) fn open_stream(
         clients: host_clients,
     });
 
-    // build one stream binding with one spawned worker thread
+    // build one stream host state with one spawned worker thread
     let supports_write_at = matches!(
         device_info.direction,
-        audio_core::AudioDeviceDirection::Playback | audio_core::AudioDeviceDirection::Duplex
+        audio_types::AudioDeviceDirection::Playback | audio_types::AudioDeviceDirection::Duplex
     );
 
-    let stream_binding = Arc::new(audio_core::AudioStreamBinding {
+    let stream_state = Arc::new(audio_core::AudioStreamHostState {
         device: device_info.clone(),
         direction: device_info.direction,
         requested: config,
@@ -65,38 +66,38 @@ pub(super) fn open_stream(
             supports_mute: true,
             supports_hardware_timestamps: true,
         },
-        host_ops: audio_core::Mutex::new(Some(host_ops)),
-        name: audio_core::Mutex::new(String::new()),
+        host_ops: Mutex::new(Some(host_ops)),
+        name: Mutex::new(String::new()),
         sync: Arc::new(audio_core::AudioStreamSync {
-            state: audio_core::Mutex::new(audio_core::initial_stream_state()),
-            wake: audio_core::Condvar::new(),
+            state: Mutex::new(audio_core::initial_stream_state()),
+            wake: Condvar::new(),
         }),
         stream_handle_raw: std::sync::atomic::AtomicU64::new(0),
-        event_runtime_state: audio_core::Mutex::new(None),
-        null_worker: audio_core::Mutex::new(None),
+        runtime_state: Mutex::new(None),
+        worker_handle: Mutex::new(None),
     });
 
-    let worker = spawn_worker(stream_binding.clone(), runtime);
-    *stream_binding
-        .null_worker
+    let worker = spawn_worker(stream_state.clone(), runtime);
+    *stream_state
+        .worker_handle
         .lock()
         .unwrap_or_else(|error| error.into_inner()) = Some(worker);
 
-    Ok(stream_binding)
+    Ok(stream_state)
 }
 
 /// Open one initialized WASAPI runtime payload.
 fn open_runtime(
     stable_id: &str,
-    config: audio_core::AudioStreamConfig,
-    direction: audio_core::AudioDeviceDirection,
-    share_mode: audio_core::AudioShareMode,
+    config: audio_types::AudioStreamConfig,
+    direction: audio_types::AudioDeviceDirection,
+    share_mode: audio_types::AudioShareMode,
 ) -> RuntimeResult<Arc<WasapiStreamRuntime>> {
     let _com = initialize_com()?;
 
     // require shared mode for loopback streams
-    if direction == audio_core::AudioDeviceDirection::Loopback
-        && share_mode == audio_core::AudioShareMode::Exclusive
+    if direction == audio_types::AudioDeviceDirection::Loopback
+        && share_mode == audio_types::AudioShareMode::Exclusive
     {
         return Err(RuntimeError::from(PlatformError::not_supported(
             "destack.audio.stream.open WASAPI loopback exclusive mode",
@@ -105,7 +106,7 @@ fn open_runtime(
     }
 
     // open one endpoint payload for one non-duplex lane
-    let opened = if direction != audio_core::AudioDeviceDirection::Duplex {
+    let opened = if direction != audio_types::AudioDeviceDirection::Duplex {
         let selected = parse_endpoint_stable_id(stable_id)?;
         validate_selected_endpoint(&selected, direction)?;
         let opened = open_endpoint_runtime(&selected.endpoint_id, direction, config, share_mode)?;
@@ -130,13 +131,13 @@ fn open_runtime(
             frame_bytes: audio_core::frame_bytes(config.format, config.channels)?,
             poll_period,
             playback_buffer_frames: opened.buffer_frames.max(1),
-            playback_client: if direction == audio_core::AudioDeviceDirection::Playback {
+            playback_client: if direction == audio_types::AudioDeviceDirection::Playback {
                 Some(opened.client.clone())
             } else {
                 None
             },
-            capture_client_owner: if direction == audio_core::AudioDeviceDirection::Capture
-                || direction == audio_core::AudioDeviceDirection::Loopback
+            capture_client_owner: if direction == audio_types::AudioDeviceDirection::Capture
+                || direction == audio_types::AudioDeviceDirection::Loopback
             {
                 Some(opened.client.clone())
             } else {
@@ -144,13 +145,13 @@ fn open_runtime(
             },
             render_client: opened.render_client,
             capture_client: opened.capture_client,
-            playback_event: if direction == audio_core::AudioDeviceDirection::Playback {
+            playback_event: if direction == audio_types::AudioDeviceDirection::Playback {
                 Some(opened.event_handle.clone())
             } else {
                 None
             },
-            capture_event: if direction == audio_core::AudioDeviceDirection::Capture
-                || direction == audio_core::AudioDeviceDirection::Loopback
+            capture_event: if direction == audio_types::AudioDeviceDirection::Capture
+                || direction == audio_types::AudioDeviceDirection::Loopback
             {
                 Some(opened.event_handle.clone())
             } else {
@@ -162,13 +163,13 @@ fn open_runtime(
         let (render_endpoint_id, capture_endpoint_id) = parse_duplex_stable_id(stable_id)?;
         let render_opened = open_endpoint_runtime(
             &render_endpoint_id,
-            audio_core::AudioDeviceDirection::Playback,
+            audio_types::AudioDeviceDirection::Playback,
             config,
             share_mode,
         )?;
         let capture_opened = open_endpoint_runtime(
             &capture_endpoint_id,
-            audio_core::AudioDeviceDirection::Capture,
+            audio_types::AudioDeviceDirection::Capture,
             config,
             share_mode,
         )?;
@@ -208,12 +209,12 @@ fn open_runtime(
 /// Validate one parsed endpoint id against one requested stream direction.
 fn validate_selected_endpoint(
     selected: &SelectedEndpoint,
-    direction: audio_core::AudioDeviceDirection,
+    direction: audio_types::AudioDeviceDirection,
 ) -> RuntimeResult<()> {
     match (selected.flow, direction) {
-        (EndpointFlow::Render, audio_core::AudioDeviceDirection::Playback)
-        | (EndpointFlow::Capture, audio_core::AudioDeviceDirection::Capture)
-        | (EndpointFlow::Loopback, audio_core::AudioDeviceDirection::Loopback) => Ok(()),
+        (EndpointFlow::Render, audio_types::AudioDeviceDirection::Playback)
+        | (EndpointFlow::Capture, audio_types::AudioDeviceDirection::Capture)
+        | (EndpointFlow::Loopback, audio_types::AudioDeviceDirection::Loopback) => Ok(()),
         (EndpointFlow::Render, _) | (EndpointFlow::Capture, _) | (EndpointFlow::Loopback, _) => {
             Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "id",
@@ -227,9 +228,9 @@ fn validate_selected_endpoint(
 /// Open one endpoint runtime payload for one concrete direction lane.
 fn open_endpoint_runtime(
     endpoint_id: &str,
-    direction: audio_core::AudioDeviceDirection,
-    config: audio_core::AudioStreamConfig,
-    share_mode: audio_core::AudioShareMode,
+    direction: audio_types::AudioDeviceDirection,
+    config: audio_types::AudioStreamConfig,
+    share_mode: audio_types::AudioShareMode,
 ) -> RuntimeResult<OpenedWasapiEndpoint> {
     let enumerator = create_device_enumerator()?;
     let endpoint = get_endpoint_by_id(enumerator.raw() as IMMDeviceEnumerator, endpoint_id)?;
@@ -237,12 +238,12 @@ fn open_endpoint_runtime(
 
     let format = build_wave_format(config)?;
     let native_share_mode = match share_mode {
-        audio_core::AudioShareMode::Shared => AUDCLNT_SHAREMODE_SHARED,
-        audio_core::AudioShareMode::Exclusive => AUDCLNT_SHAREMODE_EXCLUSIVE,
+        audio_types::AudioShareMode::Shared => AUDCLNT_SHAREMODE_SHARED,
+        audio_types::AudioShareMode::Exclusive => AUDCLNT_SHAREMODE_EXCLUSIVE,
     };
 
     let mut stream_flags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
-    if direction == audio_core::AudioDeviceDirection::Loopback {
+    if direction == audio_types::AudioDeviceDirection::Loopback {
         stream_flags |= AUDCLNT_STREAMFLAGS_LOOPBACK;
     }
 
@@ -251,7 +252,7 @@ fn open_endpoint_runtime(
         .checked_div(config.sample_rate.max(1) as u64)
         .unwrap_or(0)
         .max(1)) as i64;
-    let periodicity_hns = if share_mode == audio_core::AudioShareMode::Exclusive {
+    let periodicity_hns = if share_mode == audio_types::AudioShareMode::Exclusive {
         period_hns
     } else {
         0
@@ -299,15 +300,15 @@ fn open_endpoint_runtime(
         ));
     }
 
-    let render_client = if direction == audio_core::AudioDeviceDirection::Playback {
+    let render_client = if direction == audio_types::AudioDeviceDirection::Playback {
         Some(Arc::new(WasapiRenderClient {
             raw: get_render_client(audio_client.raw() as IAudioClient)?.into_raw(),
         }))
     } else {
         None
     };
-    let capture_client = if direction == audio_core::AudioDeviceDirection::Capture
-        || direction == audio_core::AudioDeviceDirection::Loopback
+    let capture_client = if direction == audio_types::AudioDeviceDirection::Capture
+        || direction == audio_types::AudioDeviceDirection::Loopback
     {
         Some(Arc::new(WasapiCaptureClient {
             raw: get_capture_client(audio_client.raw() as IAudioClient)?.into_raw(),

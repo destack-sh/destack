@@ -1,7 +1,4 @@
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core as audio_core;
-
-#[cfg(target_os = "macos")]
 use super::abi::{
     AudioObjectPropertyAddress, AudioObjectPropertyScope, AudioObjectPropertySelector,
 };
@@ -18,6 +15,8 @@ use super::constants::{
     K_AUDIO_DEVICE_TRANSPORT_TYPE_VIRTUAL, K_AUDIO_OBJECT_PROPERTY_ELEMENT_MAIN,
     K_AUDIO_OBJECT_PROPERTY_SCOPE_INPUT, K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT,
 };
+#[cfg(target_os = "macos")]
+use crate::platform::audio as audio_types;
 
 #[cfg(target_os = "macos")]
 pub(super) const fn fourcc(code: [u8; 4]) -> u32 {
@@ -62,16 +61,16 @@ pub(super) fn transport_name(transport_type: u32) -> &'static str {
 
 /// Return one canonical channel layout for one channel count.
 #[cfg(target_os = "macos")]
-pub(super) fn channel_layout(channels: u16) -> audio_core::AudioChannelLayout {
+pub(super) fn channel_layout(channels: u16) -> audio_types::AudioChannelLayout {
     match channels {
-        1 => audio_core::AudioChannelLayout::Mono,
-        2 => audio_core::AudioChannelLayout::Stereo,
-        4 => audio_core::AudioChannelLayout::Quad,
-        5 => audio_core::AudioChannelLayout::Surround41,
-        6 => audio_core::AudioChannelLayout::Surround51,
-        7 => audio_core::AudioChannelLayout::Surround61,
-        8 => audio_core::AudioChannelLayout::Surround71,
-        _ => audio_core::AudioChannelLayout::Unknown,
+        1 => audio_types::AudioChannelLayout::Mono,
+        2 => audio_types::AudioChannelLayout::Stereo,
+        4 => audio_types::AudioChannelLayout::Quad,
+        5 => audio_types::AudioChannelLayout::Surround41,
+        6 => audio_types::AudioChannelLayout::Surround51,
+        7 => audio_types::AudioChannelLayout::Surround61,
+        8 => audio_types::AudioChannelLayout::Surround71,
+        _ => audio_types::AudioChannelLayout::Unknown,
     }
 }
 
@@ -92,12 +91,12 @@ pub(super) fn channel_mask(channels: u16) -> u64 {
 /// Return one CoreAudio scope for one runtime audio direction.
 #[cfg(target_os = "macos")]
 pub(super) fn scope_for_direction(
-    direction: audio_core::AudioDeviceDirection,
+    direction: audio_types::AudioDeviceDirection,
 ) -> AudioObjectPropertyScope {
     match direction {
-        audio_core::AudioDeviceDirection::Capture => K_AUDIO_OBJECT_PROPERTY_SCOPE_INPUT,
-        audio_core::AudioDeviceDirection::Loopback => K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT,
-        audio_core::AudioDeviceDirection::Playback | audio_core::AudioDeviceDirection::Duplex => {
+        audio_types::AudioDeviceDirection::Capture => K_AUDIO_OBJECT_PROPERTY_SCOPE_INPUT,
+        audio_types::AudioDeviceDirection::Loopback => K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT,
+        audio_types::AudioDeviceDirection::Playback | audio_types::AudioDeviceDirection::Duplex => {
             K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT
         }
     }
@@ -108,17 +107,17 @@ pub(super) fn scope_for_direction(
 pub(super) fn direction_from_channels(
     playback_channels: u16,
     capture_channels: u16,
-) -> Option<audio_core::AudioDeviceDirection> {
+) -> Option<audio_types::AudioDeviceDirection> {
     if playback_channels > 0 && capture_channels > 0 {
-        return Some(audio_core::AudioDeviceDirection::Duplex);
+        return Some(audio_types::AudioDeviceDirection::Duplex);
     }
 
     if playback_channels > 0 {
-        return Some(audio_core::AudioDeviceDirection::Playback);
+        return Some(audio_types::AudioDeviceDirection::Playback);
     }
 
     if capture_channels > 0 {
-        return Some(audio_core::AudioDeviceDirection::Capture);
+        return Some(audio_types::AudioDeviceDirection::Capture);
     }
 
     None

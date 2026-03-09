@@ -11,9 +11,9 @@ use crate::platform::os::{
     CredentialWriteOptionsVm,
 };
 use crate::runtime::NativeStringRef;
-pub(super) use crate::tests::platform::{
-    assert_not_not_supported_error, assert_not_supported_error, assert_runtime_error_code,
-};
+#[cfg(any(target_vendor = "apple", target_os = "android", windows))]
+pub(super) use crate::tests::platform::assert_not_not_supported_error;
+pub(super) use crate::tests::platform::{assert_not_supported_error, assert_runtime_error_code};
 
 use super::super::{HarnessValue, OsHarnessContext};
 

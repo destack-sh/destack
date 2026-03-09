@@ -10,7 +10,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 #[cfg(target_os = "macos")]
 use crate::platform::PlatformError;
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::{AudioStreamHostState, MIN_STREAM_PERIOD_FRAMES, frame_bytes};
 #[cfg(target_os = "macos")]
 use crate::platform::diagnostic::PlatformErrorCode;
 
@@ -70,14 +70,14 @@ pub(super) fn bind_queue_device(
     Ok(())
 }
 
-/// Compute one stream buffer size in bytes for one binding period.
+/// Compute one stream buffer size in bytes for one stream period.
 #[cfg(target_os = "macos")]
-pub(super) fn buffer_bytes(binding: &Arc<audio_core::AudioStreamBinding>) -> RuntimeResult<u32> {
-    Ok(binding
+pub(super) fn buffer_bytes(stream: &Arc<AudioStreamHostState>) -> RuntimeResult<u32> {
+    Ok(stream
         .period_frames
-        .max(audio_core::MIN_STREAM_PERIOD_FRAMES)
-        .saturating_mul(audio_core::frame_bytes(binding.requested.format, binding.channels)? as u32)
-        .max(binding.channels as u32))
+        .max(MIN_STREAM_PERIOD_FRAMES)
+        .saturating_mul(frame_bytes(stream.requested.format, stream.channels)? as u32)
+        .max(stream.channels as u32))
 }
 
 /// Dispose one CoreAudio queue handle and release callback context ownership.

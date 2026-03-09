@@ -8,7 +8,7 @@ use super::host::jack_available;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::core as audio_core;
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::{PlatformError, core as core_platform};
+use crate::platform::{PlatformError, audio as audio_types, core as core_platform};
 
 /// Return whether JACK backend support is implemented for this build.
 pub(crate) fn is_backend_supported() -> bool {
@@ -35,16 +35,16 @@ pub(super) struct JackLibrary {
 }
 
 /// Return one contiguous channel layout enum from one channel count.
-pub(super) fn channel_layout(channel_count: u16) -> audio_core::AudioChannelLayout {
+pub(super) fn channel_layout(channel_count: u16) -> audio_types::AudioChannelLayout {
     match channel_count {
-        1 => audio_core::AudioChannelLayout::Mono,
-        2 => audio_core::AudioChannelLayout::Stereo,
-        4 => audio_core::AudioChannelLayout::Quad,
-        5 => audio_core::AudioChannelLayout::Surround41,
-        6 => audio_core::AudioChannelLayout::Surround51,
-        7 => audio_core::AudioChannelLayout::Surround61,
-        8 => audio_core::AudioChannelLayout::Surround71,
-        _ => audio_core::AudioChannelLayout::Unknown,
+        1 => audio_types::AudioChannelLayout::Mono,
+        2 => audio_types::AudioChannelLayout::Stereo,
+        4 => audio_types::AudioChannelLayout::Quad,
+        5 => audio_types::AudioChannelLayout::Surround41,
+        6 => audio_types::AudioChannelLayout::Surround51,
+        7 => audio_types::AudioChannelLayout::Surround61,
+        8 => audio_types::AudioChannelLayout::Surround71,
+        _ => audio_types::AudioChannelLayout::Unknown,
     }
 }
 

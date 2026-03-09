@@ -22,7 +22,8 @@ use crate::platform::display::{WindowPosition, WindowTheme};
 use crate::platform::{ResourceTable, core as core_platform, resource};
 use crate::runtime::world::World;
 use crate::runtime::{
-    BindingCallContext, RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry,
+    AgentId, BindingCallContext, ProcessSubscriberRegistry, RuntimeEventLog, RuntimeSnapshotCache,
+    RuntimeStreamRegistry,
 };
 
 /// Transient drag and drop state for one native AppKit window.
@@ -141,8 +142,9 @@ pub(crate) struct AppKitRuntimeState {
 }
 
 /// Shared runtime registry for process-global CoreGraphics display callbacks.
-static APPKIT_MONITOR_CALLBACK_RUNTIMES: OnceLock<Mutex<HashMap<u64, Weak<AppKitRuntimeState>>>> =
-    OnceLock::new();
+static APPKIT_MONITOR_CALLBACK_RUNTIMES: OnceLock<
+    Mutex<ProcessSubscriberRegistry<AgentId, AppKitRuntimeState>>,
+> = OnceLock::new();
 
 /// Guard that ensures the CoreGraphics display callback is registered once.
 static APPKIT_MONITOR_CALLBACK_REGISTRATION: OnceLock<()> = OnceLock::new();
@@ -296,8 +298,10 @@ impl AppKitRuntimeState {
 }
 
 /// Return the shared runtime registry for process-global monitor callbacks.
-fn monitor_callback_runtimes() -> &'static Mutex<HashMap<u64, Weak<AppKitRuntimeState>>> {
-    APPKIT_MONITOR_CALLBACK_RUNTIMES.get_or_init(|| Mutex::new(HashMap::new()))
+fn monitor_callback_runtimes()
+-> &'static Mutex<ProcessSubscriberRegistry<AgentId, AppKitRuntimeState>> {
+    APPKIT_MONITOR_CALLBACK_RUNTIMES
+        .get_or_init(|| Mutex::new(ProcessSubscriberRegistry::default()))
 }
 
 /// Register the process-global CoreGraphics display callback once.
@@ -319,14 +323,13 @@ fn ensure_monitor_callback_registered() {
 }
 
 /// Register one runtime for process-global monitor reconfiguration callbacks.
-fn register_monitor_runtime(runtime_id: u64, runtime_state: &Arc<AppKitRuntimeState>) {
+fn register_monitor_runtime(agent_id: AgentId, runtime_state: &Arc<AppKitRuntimeState>) {
     let mut registry = monitor_callback_runtimes()
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
-    // prune dead runtimes before updating the keyed registration
-    registry.retain(|_, weak| weak.strong_count() > 0);
-    registry.insert(runtime_id, Arc::downgrade(runtime_state));
+    // refresh the keyed process-global runtime subscription
+    registry.register(agent_id, runtime_state);
 
     ensure_monitor_callback_registered();
 }
@@ -346,12 +349,8 @@ unsafe extern "C-unwind" fn handle_display_reconfiguration(
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
-    // retain only live runtimes while broadcasting the topology refresh
-    registry.retain(|_, weak| {
-        let Some(runtime_state) = weak.upgrade() else {
-            return false;
-        };
-
+    // broadcast one topology refresh to every live runtime subscriber
+    for runtime_state in registry.snapshot() {
         if let Err(error) = appkit_event::publish_monitor_topology_deltas(&runtime_state) {
             super::core::warn_callback_error(
                 runtime_state.as_ref(),
@@ -359,9 +358,7 @@ unsafe extern "C-unwind" fn handle_display_reconfiguration(
                 error.as_ref(),
             );
         }
-
-        true
-    });
+    }
 }
 
 /// Return runtime-owned AppKit state for this binding call.
@@ -373,8 +370,8 @@ pub(crate) fn runtime_state(binding: &BindingCallContext) -> Arc<AppKitRuntimeSt
         .appkit_runtime_state(|| AppKitRuntimeState::from_context(binding));
 
     {
-        let runtime_id = binding.agent().runtime_id;
-        register_monitor_runtime(runtime_id.0, &runtime_state);
+        let agent_id = binding.agent().id;
+        register_monitor_runtime(agent_id, &runtime_state);
     }
     runtime_state.register_runtime_ingress(binding);
 

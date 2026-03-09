@@ -5,12 +5,12 @@ use crate::platform::audio::{
     AudioDeviceDirection, AudioDeviceListFlags, AudioDeviceListRequest, AudioDeviceOpenFlags,
     AudioDeviceOpenOptions, AudioShareMode, AudioSupportedEventSubscriptionFlags,
     AudioSupportedStreamClockDomains, AudioSupportedStreamFlags,
-    AudioSupportedStreamRequirementFlags, host,
+    AudioSupportedStreamRequirementFlags, backend as audio_backend,
 };
 use crate::runtime::BindingCallContext;
 
 use super::{
-    AudioDeviceBinding, BACKEND_OPEN_ALSA_NO_RESAMPLE, BACKEND_OPEN_JACK_NO_AUTOCONNECT,
+    AudioDeviceHostState, BACKEND_OPEN_ALSA_NO_RESAMPLE, BACKEND_OPEN_JACK_NO_AUTOCONNECT,
     DEVICE_CAPABILITY_BACKEND_DISCONNECT_EVENTS, DEVICE_CAPABILITY_DEVICE_CLOCK,
     DEVICE_CAPABILITY_FULL_DUPLEX, DEVICE_CAPABILITY_INTERRUPTION_EVENTS,
     DEVICE_CAPABILITY_LOOPBACK, DEVICE_CAPABILITY_REROUTE_EVENTS,
@@ -360,7 +360,7 @@ pub(crate) fn enumerate_devices_for_request(
         .boxed());
     }
 
-    let backend = host::resolve_requested_backend(
+    let backend = audio_backend::resolve_requested_backend(
         request.backend,
         request.backend_policy,
         "destack.audio.device.list",
@@ -385,7 +385,7 @@ pub(crate) fn enumerate_devices_for_request(
         devices.push(null_device(AudioDeviceDirection::Duplex));
         devices.push(null_device(AudioDeviceDirection::Loopback));
     } else {
-        devices.extend(host::enumerate_host_devices(backend)?);
+        devices.extend(audio_backend::enumerate_host_devices(backend)?);
     }
 
     let include_direction = |device: &HostDeviceDescriptor| -> bool {
@@ -451,14 +451,14 @@ pub(crate) fn supports_device_open_direction(
 
 /// Return one descriptor snapshot for one open device handle.
 pub(crate) fn descriptor_from_info(
-    binding: &BindingCallContext,
+    ctx: &BindingCallContext,
     info: &HostDeviceDescriptor,
 ) -> AudioDeviceDescriptor {
     AudioDeviceDescriptor {
-        id: binding.store_string(&info.id),
-        group_id: binding.store_string(&info.group_id),
-        name: binding.store_string(&info.name),
-        transport: binding.store_string(&info.transport),
+        id: ctx.store_string(&info.id),
+        group_id: ctx.store_string(&info.group_id),
+        name: ctx.store_string(&info.name),
+        transport: ctx.store_string(&info.transport),
         backend: info.backend,
         direction: info.direction,
         connected: info.connected,
@@ -492,19 +492,21 @@ pub(crate) fn descriptor_from_info(
     }
 }
 
-/// Return one descriptor snapshot for one open device handle.
-pub(crate) fn descriptor_from_binding(
+/// Return one descriptor snapshot for one open device host state.
+pub(crate) fn descriptor_from_device_state(
     ctx: &BindingCallContext,
-    binding: &AudioDeviceBinding,
+    device_state: &AudioDeviceHostState,
 ) -> AudioDeviceDescriptor {
-    let mut info = binding.info.clone();
-    info.direction = binding.opened_direction;
+    let mut info = device_state.info.clone();
+    info.direction = device_state.opened_direction;
     descriptor_from_info(ctx, &info)
 }
 
-/// Build one stream-device descriptor using the handle open direction.
-pub(crate) fn stream_device_from_binding(binding: &AudioDeviceBinding) -> HostDeviceDescriptor {
-    let mut device = binding.info.clone();
-    device.direction = binding.opened_direction;
+/// Build one stream-device descriptor using the opened device direction.
+pub(crate) fn stream_device_from_state(
+    device_state: &AudioDeviceHostState,
+) -> HostDeviceDescriptor {
+    let mut device = device_state.info.clone();
+    device.direction = device_state.opened_direction;
     device
 }

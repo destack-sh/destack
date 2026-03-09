@@ -1,6 +1,6 @@
 use std::ffi::{c_int, c_ulong, c_void};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, Condvar, Mutex, Weak};
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
@@ -14,14 +14,15 @@ use super::core::{
 };
 use super::host::{close_jack_client, list_ports, open_jack_client};
 use super::ids::{parse_jack_stable_id, validate_jack_stable_id_direction};
+use crate::platform::audio as audio_types;
 
 /// One JACK callback context payload.
 #[derive(Debug)]
 struct JackCallbackContext {
     /// Loaded JACK dynamic library table.
     library: Arc<JackLibrary>,
-    /// Weak link to one stream binding.
-    binding: audio_core::Mutex<Weak<audio_core::AudioStreamBinding>>,
+    /// Weak link to one stream host state.
+    stream_state: Mutex<Weak<audio_core::AudioStreamHostState>>,
     /// Registered client output ports.
     output_ports: Vec<*mut JackPort>,
     /// Registered client input ports.
@@ -57,7 +58,7 @@ impl Drop for JackStreamRuntime {
     }
 }
 
-/// One host-operations payload for one JACK stream binding.
+/// One host-operations payload for one JACK stream host state.
 #[derive(Debug)]
 struct JackHostStreamOps {
     /// Shared JACK runtime payload.
@@ -123,26 +124,26 @@ fn deactivate_runtime(runtime: &JackStreamRuntime, operation: &'static str) -> R
     ))
 }
 
-/// Open one JACK stream binding.
+/// Open one JACK stream host state.
 pub(super) fn open_stream(
     device_info: &audio_core::HostDeviceDescriptor,
-    config: audio_core::AudioStreamConfig,
-    share_mode: audio_core::AudioShareMode,
+    config: audio_types::AudioStreamConfig,
+    share_mode: audio_types::AudioShareMode,
     backend_flags: audio_core::AudioBackendOpenFlags,
-) -> RuntimeResult<Arc<audio_core::AudioStreamBinding>> {
+) -> RuntimeResult<Arc<audio_core::AudioStreamHostState>> {
     // keep ports disconnected when no-autoconnect is explicitly requested
     let request_no_autoconnect =
         (backend_flags.0 & audio_core::BACKEND_OPEN_JACK_NO_AUTOCONNECT.0) != 0;
 
     // reject unsupported direction and share-mode requests
-    if device_info.direction == audio_core::AudioDeviceDirection::Loopback {
+    if device_info.direction == audio_types::AudioDeviceDirection::Loopback {
         return Err(jack_not_supported(
             "destack.audio.stream.open",
             "JACK loopback direction is not implemented",
         ));
     }
 
-    if share_mode != audio_core::AudioShareMode::Shared {
+    if share_mode != audio_types::AudioShareMode::Shared {
         return Err(jack_not_supported(
             "destack.audio.stream.open",
             "JACK exclusive mode is not supported",
@@ -178,11 +179,11 @@ pub(super) fn open_stream(
     let requested_channels = config.channels.max(1) as usize;
     let needs_playback = matches!(
         device_info.direction,
-        audio_core::AudioDeviceDirection::Playback | audio_core::AudioDeviceDirection::Duplex
+        audio_types::AudioDeviceDirection::Playback | audio_types::AudioDeviceDirection::Duplex
     );
     let needs_capture = matches!(
         device_info.direction,
-        audio_core::AudioDeviceDirection::Capture | audio_core::AudioDeviceDirection::Duplex
+        audio_types::AudioDeviceDirection::Capture | audio_types::AudioDeviceDirection::Duplex
     );
 
     // negotiate channel counts from host endpoint availability
@@ -213,7 +214,7 @@ pub(super) fn open_stream(
         ));
     }
 
-    if device_info.direction == audio_core::AudioDeviceDirection::Duplex {
+    if device_info.direction == audio_types::AudioDeviceDirection::Duplex {
         let duplex_channels = playback_channels.min(capture_channels);
         if duplex_channels == 0 {
             close_jack_client(&library, client);
@@ -253,7 +254,7 @@ pub(super) fn open_stream(
 
     let callback_context = Box::new(JackCallbackContext {
         library: library.clone(),
-        binding: audio_core::Mutex::new(Weak::new()),
+        stream_state: Mutex::new(Weak::new()),
         output_ports,
         input_ports,
         sample_rate,
@@ -294,8 +295,8 @@ pub(super) fn open_stream(
 
     let negotiated_channels = playback_channels.max(capture_channels).max(1) as u16;
 
-    // build one stream binding before activating JACK callbacks
-    let stream_binding = Arc::new(audio_core::AudioStreamBinding {
+    // build one stream host state before activating JACK callbacks
+    let stream_state = Arc::new(audio_core::AudioStreamHostState {
         device: device_info.clone(),
         direction: device_info.direction,
         requested: config,
@@ -312,24 +313,24 @@ pub(super) fn open_stream(
             supports_mute: true,
             supports_hardware_timestamps: false,
         },
-        host_ops: audio_core::Mutex::new(Some(host_ops)),
-        name: audio_core::Mutex::new(String::new()),
+        host_ops: Mutex::new(Some(host_ops)),
+        name: Mutex::new(String::new()),
         sync: Arc::new(audio_core::AudioStreamSync {
-            state: audio_core::Mutex::new(audio_core::initial_stream_state()),
-            wake: audio_core::Condvar::new(),
+            state: Mutex::new(audio_core::initial_stream_state()),
+            wake: Condvar::new(),
         }),
         stream_handle_raw: std::sync::atomic::AtomicU64::new(0),
-        event_runtime_state: audio_core::Mutex::new(None),
-        null_worker: audio_core::Mutex::new(None),
+        runtime_state: Mutex::new(None),
+        worker_handle: Mutex::new(None),
     });
 
     // publish one weak binding handle for callback-side queue access
     {
         let context = unsafe { &*callback_context };
         *context
-            .binding
+            .stream_state
             .lock()
-            .unwrap_or_else(|error| error.into_inner()) = Arc::downgrade(&stream_binding);
+            .unwrap_or_else(|error| error.into_inner()) = Arc::downgrade(&stream_state);
     }
 
     // activate once so this client can be wired into the live graph
@@ -357,7 +358,7 @@ pub(super) fn open_stream(
     // leave the stream deactivated until one explicit start request
     deactivate_runtime(&runtime, "destack.audio.stream.open")?;
 
-    Ok(stream_binding)
+    Ok(stream_state)
 }
 
 /// Close one JACK stream runtime payload once.
@@ -549,21 +550,21 @@ unsafe extern "C" fn jack_process_callback(nframes: u32, argument: *mut c_void) 
 
     let context = unsafe { &*(argument.cast::<JackCallbackContext>()) };
 
-    // resolve one live stream binding from callback context
-    let stream_binding = {
-        let binding_guard = context
-            .binding
+    // resolve one live stream host state from callback context
+    let stream_state = {
+        let stream_state_guard = context
+            .stream_state
             .lock()
             .unwrap_or_else(|error| error.into_inner());
-        binding_guard.upgrade()
+        stream_state_guard.upgrade()
     };
 
-    let Some(stream_binding) = stream_binding else {
+    let Some(stream_state) = stream_state else {
         silence_output_ports(context, nframes);
         return 0;
     };
 
-    let mut state = stream_binding
+    let mut state = stream_state
         .sync
         .state
         .lock()
@@ -576,13 +577,13 @@ unsafe extern "C" fn jack_process_callback(nframes: u32, argument: *mut c_void) 
     }
 
     // clear per-callback status bits before one new transfer cycle
-    state.status_flags = audio_core::AudioStreamStatusFlags(0);
+    state.status_flags = audio_types::AudioStreamStatusFlags(0);
 
     // move queued playback samples into runtime output buffers
-    process_playback_callback(context, &stream_binding, &mut state, nframes);
+    process_playback_callback(context, &stream_state, &mut state, nframes);
 
     // collect runtime input buffers into queued capture samples
-    process_capture_callback(context, &stream_binding, &mut state, nframes);
+    process_capture_callback(context, &stream_state, &mut state, nframes);
 
     // publish one callback timing sample
     let callback_mono_ns = audio_core::host_monotonic_nanos();
@@ -596,7 +597,7 @@ unsafe extern "C" fn jack_process_callback(nframes: u32, argument: *mut c_void) 
     );
 
     drop(state);
-    stream_binding.sync.wake.notify_all();
+    stream_state.sync.wake.notify_all();
 
     0
 }
@@ -618,7 +619,7 @@ fn silence_output_ports(context: &JackCallbackContext, nframes: u32) {
 /// Process one callback-side playback transfer cycle.
 fn process_playback_callback(
     context: &JackCallbackContext,
-    binding: &audio_core::AudioStreamBinding,
+    binding: &audio_core::AudioStreamHostState,
     state: &mut audio_core::AudioStreamStateInner,
     nframes: u32,
 ) {
@@ -655,7 +656,7 @@ fn process_playback_callback(
     if underflow {
         state.xrun_count = state.xrun_count.saturating_add(1);
         state.output_underflow_count = state.output_underflow_count.saturating_add(1);
-        state.status_flags = audio_core::AudioStreamStatusFlags(
+        state.status_flags = audio_types::AudioStreamStatusFlags(
             state.status_flags.0 | audio_core::STREAM_STATUS_OUTPUT_UNDERFLOW.0,
         );
     }
@@ -685,7 +686,7 @@ fn process_playback_callback(
 /// Process one callback-side capture transfer cycle.
 fn process_capture_callback(
     context: &JackCallbackContext,
-    binding: &audio_core::AudioStreamBinding,
+    binding: &audio_core::AudioStreamHostState,
     state: &mut audio_core::AudioStreamStateInner,
     nframes: u32,
 ) {
@@ -727,7 +728,7 @@ fn process_capture_callback(
 
         state.xrun_count = state.xrun_count.saturating_add(1);
         state.input_overflow_count = state.input_overflow_count.saturating_add(1);
-        state.status_flags = audio_core::AudioStreamStatusFlags(
+        state.status_flags = audio_types::AudioStreamStatusFlags(
             state.status_flags.0 | audio_core::STREAM_STATUS_INPUT_OVERFLOW.0,
         );
     }

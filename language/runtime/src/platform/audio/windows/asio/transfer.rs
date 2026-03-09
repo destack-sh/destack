@@ -9,7 +9,9 @@ use super::constants::{
     K_ASIO_SUPPORTS_TIME_INFO,
 };
 use super::core::{AsioBufferLane, AsioSampleEncoding, AsioStreamRuntime};
-use crate::platform::audio::core as audio_core;
+use crate::platform::audio as audio_types;
+use crate::platform::audio::core::codec::clamp_audio_scalar;
+use crate::platform::audio::{AudioStreamStateKind, core as audio_core};
 
 /// Handle one ASIO buffer-switch callback.
 pub(super) extern "system" fn asio_buffer_switch(buffer_index: i32, _direct_process: i32) {
@@ -88,13 +90,16 @@ pub(super) extern "system" fn asio_message(
 
 /// Process one callback transfer cycle for one active ASIO runtime.
 fn process_callback_transfer(runtime: &Arc<AsioStreamRuntime>, buffer_index: usize) {
-    let stream_binding = runtime.binding.get().and_then(std::sync::Weak::upgrade);
-    let Some(stream_binding) = stream_binding else {
-        mark_device_lost(runtime, "ASIO stream binding is no longer available");
+    let stream_state = runtime
+        .stream_state
+        .get()
+        .and_then(std::sync::Weak::upgrade);
+    let Some(stream_state) = stream_state else {
+        mark_device_lost(runtime, "ASIO stream host state is no longer available");
         return;
     };
 
-    let mut state = stream_binding
+    let mut state = stream_state
         .sync
         .state
         .lock()
@@ -129,7 +134,7 @@ fn process_callback_transfer(runtime: &Arc<AsioStreamRuntime>, buffer_index: usi
     if !runtime.input_lanes.is_empty() {
         if let Some(encoding) = runtime.input_encoding {
             transfer_capture_block(
-                &stream_binding,
+                &stream_state,
                 runtime,
                 &mut state,
                 &runtime.input_lanes,
@@ -157,7 +162,7 @@ fn process_callback_transfer(runtime: &Arc<AsioStreamRuntime>, buffer_index: usi
     }
 
     drop(state);
-    stream_binding.sync.wake.notify_all();
+    stream_state.sync.wake.notify_all();
 
     // issue one output-ready hint for drivers that use explicit host signaling
     let output_ready_status = unsafe { asio_driver_output_ready(runtime.session.driver.raw) };
@@ -198,7 +203,7 @@ fn transfer_playback_block(
                         state.xrun_count = state.xrun_count.saturating_add(1);
                         state.output_underflow_count =
                             state.output_underflow_count.saturating_add(1);
-                        state.status_flags = audio_core::AudioStreamStatusFlags(
+                        state.status_flags = audio_types::AudioStreamStatusFlags(
                             state.status_flags.0 | audio_core::STREAM_STATUS_OUTPUT_UNDERFLOW.0,
                         );
                         0.0
@@ -219,7 +224,7 @@ fn transfer_playback_block(
 
 /// Transfer one capture callback block from ASIO input lane buffers.
 fn transfer_capture_block(
-    binding: &Arc<audio_core::AudioStreamBinding>,
+    binding: &Arc<audio_core::AudioStreamHostState>,
     runtime: &Arc<AsioStreamRuntime>,
     state: &mut audio_core::AudioStreamStateInner,
     input_lanes: &[AsioBufferLane],
@@ -254,7 +259,7 @@ fn transfer_capture_block(
                 state.capture_samples.pop_front();
                 state.xrun_count = state.xrun_count.saturating_add(1);
                 state.input_overflow_count = state.input_overflow_count.saturating_add(1);
-                state.status_flags = audio_core::AudioStreamStatusFlags(
+                state.status_flags = audio_types::AudioStreamStatusFlags(
                     state.status_flags.0 | audio_core::STREAM_STATUS_INPUT_OVERFLOW.0,
                 );
             }
@@ -284,7 +289,7 @@ fn decode_asio_sample(encoding: AsioSampleEncoding, bytes: &[u8]) -> Option<f32>
     }
 
     match encoding.format {
-        audio_core::AudioSampleFormat::S16 => {
+        audio_types::AudioSampleFormat::S16 => {
             let raw = if encoding.is_big_endian {
                 i16::from_be_bytes([bytes[0], bytes[1]])
             } else {
@@ -292,7 +297,7 @@ fn decode_asio_sample(encoding: AsioSampleEncoding, bytes: &[u8]) -> Option<f32>
             };
             Some(raw as f32 / 32_768.0)
         }
-        audio_core::AudioSampleFormat::S24 => {
+        audio_types::AudioSampleFormat::S24 => {
             if encoding.is_packed_24 {
                 let raw = if encoding.is_big_endian {
                     (((bytes[0] as i32) << 24)
@@ -315,7 +320,7 @@ fn decode_asio_sample(encoding: AsioSampleEncoding, bytes: &[u8]) -> Option<f32>
                 Some(raw as f32 / 8_388_608.0)
             }
         }
-        audio_core::AudioSampleFormat::S32 => {
+        audio_types::AudioSampleFormat::S32 => {
             let raw = if encoding.is_big_endian {
                 i32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
             } else {
@@ -323,15 +328,15 @@ fn decode_asio_sample(encoding: AsioSampleEncoding, bytes: &[u8]) -> Option<f32>
             };
             Some(raw as f32 / 2_147_483_648.0)
         }
-        audio_core::AudioSampleFormat::F32 => {
+        audio_types::AudioSampleFormat::F32 => {
             let raw = if encoding.is_big_endian {
                 f32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
             } else {
                 f32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
             };
-            Some(audio_core::clamp_audio_scalar(raw))
+            Some(clamp_audio_scalar(raw))
         }
-        audio_core::AudioSampleFormat::F64 => {
+        audio_types::AudioSampleFormat::F64 => {
             let raw = if encoding.is_big_endian {
                 f64::from_be_bytes([
                     bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
@@ -341,18 +346,18 @@ fn decode_asio_sample(encoding: AsioSampleEncoding, bytes: &[u8]) -> Option<f32>
                     bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
                 ])
             };
-            Some(audio_core::clamp_audio_scalar(raw as f32))
+            Some(clamp_audio_scalar(raw as f32))
         }
-        audio_core::AudioSampleFormat::U8 => None,
+        audio_types::AudioSampleFormat::U8 => None,
     }
 }
 
 /// Encode one normalized scalar into one ASIO lane sample.
 fn encode_asio_sample(encoding: AsioSampleEncoding, sample: f32, output: &mut [u8]) {
-    let sample = audio_core::clamp_audio_scalar(sample);
+    let sample = clamp_audio_scalar(sample);
 
     match encoding.format {
-        audio_core::AudioSampleFormat::S16 => {
+        audio_types::AudioSampleFormat::S16 => {
             let value = (sample * 32_767.0).round() as i16;
             let bytes = if encoding.is_big_endian {
                 value.to_be_bytes()
@@ -361,7 +366,7 @@ fn encode_asio_sample(encoding: AsioSampleEncoding, sample: f32, output: &mut [u
             };
             output[..2].copy_from_slice(&bytes);
         }
-        audio_core::AudioSampleFormat::S24 => {
+        audio_types::AudioSampleFormat::S24 => {
             if encoding.is_packed_24 {
                 let value = ((sample * 8_388_607.0).round() as i32).clamp(-8_388_608, 8_388_607);
                 if encoding.is_big_endian {
@@ -383,7 +388,7 @@ fn encode_asio_sample(encoding: AsioSampleEncoding, sample: f32, output: &mut [u
                 output[..4].copy_from_slice(&bytes);
             }
         }
-        audio_core::AudioSampleFormat::S32 => {
+        audio_types::AudioSampleFormat::S32 => {
             let value = (sample * 2_147_483_647.0).round() as i32;
             let bytes = if encoding.is_big_endian {
                 value.to_be_bytes()
@@ -392,7 +397,7 @@ fn encode_asio_sample(encoding: AsioSampleEncoding, sample: f32, output: &mut [u
             };
             output[..4].copy_from_slice(&bytes);
         }
-        audio_core::AudioSampleFormat::F32 => {
+        audio_types::AudioSampleFormat::F32 => {
             let bytes = if encoding.is_big_endian {
                 sample.to_be_bytes()
             } else {
@@ -400,7 +405,7 @@ fn encode_asio_sample(encoding: AsioSampleEncoding, sample: f32, output: &mut [u
             };
             output[..4].copy_from_slice(&bytes);
         }
-        audio_core::AudioSampleFormat::F64 => {
+        audio_types::AudioSampleFormat::F64 => {
             let value = sample as f64;
             let bytes = if encoding.is_big_endian {
                 value.to_be_bytes()
@@ -409,18 +414,21 @@ fn encode_asio_sample(encoding: AsioSampleEncoding, sample: f32, output: &mut [u
             };
             output[..8].copy_from_slice(&bytes);
         }
-        audio_core::AudioSampleFormat::U8 => {}
+        audio_types::AudioSampleFormat::U8 => {}
     }
 }
 
-/// Mark one stream binding as device-lost from callback paths.
+/// Mark one stream host state as device-lost from callback paths.
 fn mark_device_lost(runtime: &Arc<AsioStreamRuntime>, message: &'static str) {
-    let stream_binding = runtime.binding.get().and_then(std::sync::Weak::upgrade);
-    let Some(stream_binding) = stream_binding else {
+    let stream_state = runtime
+        .stream_state
+        .get()
+        .and_then(std::sync::Weak::upgrade);
+    let Some(stream_state) = stream_state else {
         return;
     };
 
-    let mut state = stream_binding
+    let mut state = stream_state
         .sync
         .state
         .lock()
@@ -428,7 +436,7 @@ fn mark_device_lost(runtime: &Arc<AsioStreamRuntime>, message: &'static str) {
     mark_runtime_state_device_lost(&mut state, message);
     drop(state);
 
-    stream_binding.sync.wake.notify_all();
+    stream_state.sync.wake.notify_all();
 }
 
 /// Mark one mutable stream state payload as device-lost.
@@ -438,6 +446,6 @@ fn mark_runtime_state_device_lost(
 ) {
     state.running = false;
     state.paused = false;
-    state.state = audio_core::AudioStreamStateKind::DeviceLost;
+    state.state_kind = AudioStreamStateKind::DeviceLost;
     state.last_backend_message = Some(message.to_string());
 }

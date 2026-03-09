@@ -17,23 +17,23 @@ use super::host::{
 use super::ids::parse_stable_id;
 use super::transfer::{asio_buffer_switch, asio_message, asio_sample_rate_did_change};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
+use crate::platform::{PlatformError, audio as audio_types};
 
-/// Open one ASIO stream binding.
+/// Open one ASIO stream host state.
 pub(super) fn open_stream(
     device_info: &audio_core::HostDeviceDescriptor,
-    config: audio_core::AudioStreamConfig,
-    share_mode: audio_core::AudioShareMode,
-) -> RuntimeResult<Arc<audio_core::AudioStreamBinding>> {
+    config: audio_types::AudioStreamConfig,
+    share_mode: audio_types::AudioShareMode,
+) -> RuntimeResult<Arc<audio_core::AudioStreamHostState>> {
     // open one initialized runtime payload from one ASIO endpoint id
     let runtime = open_runtime(&device_info.id, device_info.direction, config, share_mode)?;
 
-    // build one stream binding with one ASIO host-ops payload
+    // build one stream host state with one ASIO host-ops payload
     let host_ops: Arc<dyn audio_core::AudioHostStreamOps> = Arc::new(AsioHostStreamOps {
         runtime: runtime.clone(),
     });
-    let stream_binding = Arc::new(audio_core::AudioStreamBinding {
+    let stream_state = Arc::new(audio_core::AudioStreamHostState {
         device: device_info.clone(),
         direction: device_info.direction,
         requested: config,
@@ -50,23 +50,23 @@ pub(super) fn open_stream(
             supports_mute: true,
             supports_hardware_timestamps: false,
         },
-        host_ops: audio_core::Mutex::new(Some(host_ops)),
-        name: audio_core::Mutex::new(String::new()),
+        host_ops: Mutex::new(Some(host_ops)),
+        name: Mutex::new(String::new()),
         sync: Arc::new(audio_core::AudioStreamSync {
-            state: audio_core::Mutex::new(audio_core::initial_stream_state()),
-            wake: audio_core::Condvar::new(),
+            state: Mutex::new(audio_core::initial_stream_state()),
+            wake: Condvar::new(),
         }),
         stream_handle_raw: std::sync::atomic::AtomicU64::new(0),
-        event_runtime_state: audio_core::Mutex::new(None),
-        null_worker: audio_core::Mutex::new(None),
+        runtime_state: Mutex::new(None),
+        worker_handle: Mutex::new(None),
     });
 
-    // install one weak binding pointer for callback-side queue access
-    let set_binding = runtime.binding.set(Arc::downgrade(&stream_binding));
-    if set_binding.is_err() {
+    // install one weak host-state pointer for callback-side queue access
+    let set_stream = runtime.stream_state.set(Arc::downgrade(&stream_state));
+    if set_stream.is_err() {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "id",
-            "ASIO runtime binding was already initialized",
+            "ASIO runtime state was already initialized",
         ))
         .boxed());
     }
@@ -74,18 +74,18 @@ pub(super) fn open_stream(
     // publish one active ASIO runtime for callback dispatch
     install_active_runtime(&runtime)?;
 
-    Ok(stream_binding)
+    Ok(stream_state)
 }
 
 /// Open one ASIO runtime payload for one parsed stable id.
 fn open_runtime(
     stable_id: &str,
-    direction: audio_core::AudioDeviceDirection,
-    config: audio_core::AudioStreamConfig,
-    share_mode: audio_core::AudioShareMode,
+    direction: audio_types::AudioDeviceDirection,
+    config: audio_types::AudioStreamConfig,
+    share_mode: audio_types::AudioShareMode,
 ) -> RuntimeResult<Arc<AsioStreamRuntime>> {
     // require ASIO exclusive mode to avoid shared-mode surprises
-    if share_mode != audio_core::AudioShareMode::Exclusive {
+    if share_mode != audio_types::AudioShareMode::Exclusive {
         return Err(RuntimeError::from(PlatformError::not_supported(
             "destack.audio.stream.open ASIO requires exclusive mode",
         ))
@@ -124,11 +124,10 @@ fn open_runtime(
 
     // resolve one requested lane channel budget from direction and config
     let (output_channels, input_channels) = match direction {
-        audio_core::AudioDeviceDirection::Playback => (config.channels, 0),
-        audio_core::AudioDeviceDirection::Capture | audio_core::AudioDeviceDirection::Loopback => {
-            (0, config.channels)
-        }
-        audio_core::AudioDeviceDirection::Duplex => (config.channels, config.channels),
+        audio_types::AudioDeviceDirection::Playback => (config.channels, 0),
+        audio_types::AudioDeviceDirection::Capture
+        | audio_types::AudioDeviceDirection::Loopback => (0, config.channels),
+        audio_types::AudioDeviceDirection::Duplex => (config.channels, config.channels),
     };
 
     // validate output channel count against driver limits
@@ -339,19 +338,19 @@ fn open_runtime(
         output_lanes,
         input_lanes,
         session,
-        binding: std::sync::OnceLock::new(),
+        stream_state: std::sync::OnceLock::new(),
     }))
 }
 
 /// Validate one parsed stable-id lane against one requested stream direction.
 fn validate_lane(
     lane: AsioDirectionLane,
-    direction: audio_core::AudioDeviceDirection,
+    direction: audio_types::AudioDeviceDirection,
 ) -> RuntimeResult<()> {
     match (lane, direction) {
-        (AsioDirectionLane::Playback, audio_core::AudioDeviceDirection::Playback)
-        | (AsioDirectionLane::Capture, audio_core::AudioDeviceDirection::Capture)
-        | (AsioDirectionLane::Duplex, audio_core::AudioDeviceDirection::Duplex) => Ok(()),
+        (AsioDirectionLane::Playback, audio_types::AudioDeviceDirection::Playback)
+        | (AsioDirectionLane::Capture, audio_types::AudioDeviceDirection::Capture)
+        | (AsioDirectionLane::Duplex, audio_types::AudioDeviceDirection::Duplex) => Ok(()),
         _ => Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "id",
             "asio stable id lane does not match requested stream direction",

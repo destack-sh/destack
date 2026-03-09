@@ -1,80 +1,66 @@
-use std::sync::Arc;
-
 use crate::diagnostic::RuntimeResult;
-use crate::platform::audio::core as audio_core;
-use crate::runtime::BindingCallContext;
+use crate::platform::audio::core::{
+    AudioBackendOpenFlags, AudioMonitorHandle, AudioStreamHostState, HostDeviceDescriptor,
+};
+use crate::platform::audio::{AudioBackend, AudioShareMode, AudioStreamConfig};
 
 use super::backend;
 
-const WINDOWS_BACKEND_PRIORITY: &[audio_core::AudioBackend] = &[
-    audio_core::AudioBackend::Wasapi,
-    audio_core::AudioBackend::Asio,
-];
+const WINDOWS_BACKEND_PRIORITY: &[AudioBackend] = &[AudioBackend::Wasapi, AudioBackend::Asio];
 
 /// Return windows backend priority order for auto-selection.
-pub(crate) fn preferred_host_backends() -> &'static [audio_core::AudioBackend] {
+pub(crate) fn preferred_host_backends() -> &'static [AudioBackend] {
     WINDOWS_BACKEND_PRIORITY
 }
 
 /// Return whether one windows backend is available for this build.
-pub(crate) fn backend_supported(backend: audio_core::AudioBackend) -> bool {
+pub(crate) fn backend_supported(backend: AudioBackend) -> bool {
     backend::backend_supported(backend)
 }
 
 /// Return whether one windows backend supports stream creation.
-pub(crate) fn backend_stream_supported(backend: audio_core::AudioBackend) -> bool {
+pub(crate) fn backend_stream_supported(backend: AudioBackend) -> bool {
     backend::backend_stream_supported(backend)
+}
+
+/// Return whether one windows backend supports a native device monitor.
+pub(crate) fn backend_supports_native_device_monitor(backend: AudioBackend) -> bool {
+    backend::backend_supports_native_device_monitor(backend)
 }
 
 /// Enumerate host devices for one selected windows backend.
 pub(crate) fn enumerate_host_devices(
-    backend: audio_core::AudioBackend,
-) -> RuntimeResult<Vec<audio_core::HostDeviceDescriptor>> {
+    backend: AudioBackend,
+) -> RuntimeResult<Vec<HostDeviceDescriptor>> {
     backend::enumerate_host_devices(backend)
 }
 
 /// Open one host stream for one windows backend device.
 pub(crate) fn open_host_stream(
-    device_info: &audio_core::HostDeviceDescriptor,
-    config: audio_core::AudioStreamConfig,
-    share_mode: audio_core::AudioShareMode,
-    backend_flags: audio_core::AudioBackendOpenFlags,
-) -> RuntimeResult<Arc<audio_core::AudioStreamBinding>> {
+    device_info: &HostDeviceDescriptor,
+    config: AudioStreamConfig,
+    share_mode: AudioShareMode,
+    backend_flags: AudioBackendOpenFlags,
+) -> RuntimeResult<std::sync::Arc<AudioStreamHostState>> {
     backend::open_host_stream(device_info, config, share_mode, backend_flags)
 }
 
 /// Trigger one windows backend device rescan.
-pub(crate) fn rescan_host_backend(backend: audio_core::AudioBackend) -> RuntimeResult<()> {
+pub(crate) fn rescan_host_backend(backend: AudioBackend) -> RuntimeResult<()> {
     backend::rescan_host_backend(backend)
 }
 
 /// Resolve one windows host device by stable identifier.
 pub(crate) fn resolve_host_device_by_id(
-    backend: audio_core::AudioBackend,
+    backend: AudioBackend,
     id: &str,
-) -> RuntimeResult<audio_core::HostDeviceDescriptor> {
+) -> RuntimeResult<HostDeviceDescriptor> {
     backend::resolve_host_device_by_id(backend, id)
-}
-
-/// Return whether one windows backend exposes native device-event subscriptions.
-pub(crate) fn backend_native_device_events_supported_impl(
-    backend: audio_core::AudioBackend,
-) -> bool {
-    backend::backend_native_device_events_supported(backend)
 }
 
 /// Start one windows backend native device-event monitor.
 pub(crate) fn start_backend_native_device_events_impl(
-    binding: &BindingCallContext,
-    backend: audio_core::AudioBackend,
-) -> RuntimeResult<()> {
-    backend::start_backend_native_device_events(binding, backend)
-}
-
-/// Stop one windows backend native device-event monitor.
-pub(crate) fn stop_backend_native_device_events_impl(
-    binding: &BindingCallContext,
-    backend: audio_core::AudioBackend,
-) {
-    backend::stop_backend_native_device_events(binding, backend);
+    backend: AudioBackend,
+) -> RuntimeResult<Box<dyn AudioMonitorHandle>> {
+    backend::start_backend_native_device_events(backend)
 }

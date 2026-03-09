@@ -482,7 +482,10 @@ pub(crate) fn reset_drop_state(
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_file_uri, parse_uri_list_payload, preferred_drop_mime_type};
+    use super::{
+        ParsedDropPayload, parse_drop_payload, parse_file_uri, parse_uri_list_payload,
+        position_from_fixed, preferred_drop_mime_type,
+    };
 
     /// Parse local file URIs and decode percent-encoded bytes.
     #[test]

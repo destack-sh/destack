@@ -12,6 +12,8 @@ use crate::platform::process::{
     GroupId, ProcessFdAction, ProcessFdActionVm, ProcessSpawnOptions, ProcessSpawnOptionsVm,
     ProcessStdio, ProcessStdioVm, ProcessWaitStatus, ProcessWaitStatusVm, Signal,
 };
+#[cfg(target_os = "linux")]
+use crate::platform::process::{ProcessCpuSet, ProcessCpuSetVm};
 use crate::platform::resource::ResourceId;
 use crate::platform::{NativeArray, VmArray, VmSlice, fs, process as process_platform, resource};
 use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
@@ -180,24 +182,6 @@ impl<'call> ProcessHarnessContext<'call> {
             None => {
                 let groups = self.call_context.store_slice(groups.to_vec());
                 Ok(self.harness_value(groups))
-            }
-        }
-    }
-
-    /// Build one backend-specific process-id slice value.
-    #[cfg(target_os = "linux")]
-    pub(crate) fn process_id_slice_value(
-        &self,
-        pids: &[ProcessId],
-    ) -> RuntimeResult<HarnessValue<NativeSlice<ProcessId>, VmSlice<ProcessId>>> {
-        match self.vm_context_mut() {
-            Some(context) => {
-                let pids = VmSlice::from_values(context, pids)?;
-                Ok(self.harness_value_vm(pids))
-            }
-            None => {
-                let pids = self.call_context.store_slice(pids.to_vec());
-                Ok(self.harness_value(pids))
             }
         }
     }

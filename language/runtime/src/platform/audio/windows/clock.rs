@@ -72,7 +72,7 @@ pub(crate) unsafe fn destack_audio_stream_clock(
     }
 
     let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.clock.stream")?;
+        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.clock.stream")?;
     let snapshot = audio_core::stream_clock_snapshot(binding, &resolved_binding, domain)?;
     unsafe {
         *out = snapshot;

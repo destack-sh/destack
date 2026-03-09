@@ -8,7 +8,7 @@ use super::constants::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::core as audio_core;
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::{PlatformError, core as core_platform};
+use crate::platform::{PlatformError, audio as audio_types, core as core_platform};
 
 /// Return whether PipeWire backend support is implemented for this build.
 pub(crate) fn is_backend_supported() -> bool {
@@ -34,16 +34,16 @@ pub(super) struct PipeWireLibrary {
 }
 
 /// Return one normalized channel layout from one channel count.
-pub(super) fn channel_layout(channel_count: u16) -> audio_core::AudioChannelLayout {
+pub(super) fn channel_layout(channel_count: u16) -> audio_types::AudioChannelLayout {
     match channel_count {
-        1 => audio_core::AudioChannelLayout::Mono,
-        2 => audio_core::AudioChannelLayout::Stereo,
-        4 => audio_core::AudioChannelLayout::Quad,
-        5 => audio_core::AudioChannelLayout::Surround41,
-        6 => audio_core::AudioChannelLayout::Surround51,
-        7 => audio_core::AudioChannelLayout::Surround61,
-        8 => audio_core::AudioChannelLayout::Surround71,
-        _ => audio_core::AudioChannelLayout::Unknown,
+        1 => audio_types::AudioChannelLayout::Mono,
+        2 => audio_types::AudioChannelLayout::Stereo,
+        4 => audio_types::AudioChannelLayout::Quad,
+        5 => audio_types::AudioChannelLayout::Surround41,
+        6 => audio_types::AudioChannelLayout::Surround51,
+        7 => audio_types::AudioChannelLayout::Surround61,
+        8 => audio_types::AudioChannelLayout::Surround71,
+        _ => audio_types::AudioChannelLayout::Unknown,
     }
 }
 
@@ -123,40 +123,40 @@ pub(super) fn require_pipewire_library(
 }
 
 /// Return one PipeWire sample format selector for one runtime sample format.
-pub(super) fn pipewire_sample_format(format: audio_core::AudioSampleFormat) -> Option<c_int> {
+pub(super) fn pipewire_sample_format(format: audio_types::AudioSampleFormat) -> Option<c_int> {
     match format {
-        audio_core::AudioSampleFormat::U8 => Some(PIPEWIRE_SAMPLE_U8),
-        audio_core::AudioSampleFormat::S16 => Some(if cfg!(target_endian = "little") {
+        audio_types::AudioSampleFormat::U8 => Some(PIPEWIRE_SAMPLE_U8),
+        audio_types::AudioSampleFormat::S16 => Some(if cfg!(target_endian = "little") {
             PIPEWIRE_SAMPLE_S16LE
         } else {
             PIPEWIRE_SAMPLE_S16BE
         }),
-        audio_core::AudioSampleFormat::S24 => Some(if cfg!(target_endian = "little") {
+        audio_types::AudioSampleFormat::S24 => Some(if cfg!(target_endian = "little") {
             PIPEWIRE_SAMPLE_S24_32LE
         } else {
             PIPEWIRE_SAMPLE_S24_32BE
         }),
-        audio_core::AudioSampleFormat::S32 => Some(if cfg!(target_endian = "little") {
+        audio_types::AudioSampleFormat::S32 => Some(if cfg!(target_endian = "little") {
             PIPEWIRE_SAMPLE_S32LE
         } else {
             PIPEWIRE_SAMPLE_S32BE
         }),
-        audio_core::AudioSampleFormat::F32 => Some(if cfg!(target_endian = "little") {
+        audio_types::AudioSampleFormat::F32 => Some(if cfg!(target_endian = "little") {
             PIPEWIRE_SAMPLE_F32LE
         } else {
             PIPEWIRE_SAMPLE_F32BE
         }),
-        audio_core::AudioSampleFormat::F64 => None,
+        audio_types::AudioSampleFormat::F64 => None,
     }
 }
 
 /// Return one conservative PipeWire sample-format mask.
 pub(super) fn pipewire_format_mask() -> u32 {
-    audio_core::sample_format_bit(audio_core::AudioSampleFormat::U8)
-        | audio_core::sample_format_bit(audio_core::AudioSampleFormat::S16)
-        | audio_core::sample_format_bit(audio_core::AudioSampleFormat::S24)
-        | audio_core::sample_format_bit(audio_core::AudioSampleFormat::S32)
-        | audio_core::sample_format_bit(audio_core::AudioSampleFormat::F32)
+    audio_core::sample_format_bit(audio_types::AudioSampleFormat::U8)
+        | audio_core::sample_format_bit(audio_types::AudioSampleFormat::S16)
+        | audio_core::sample_format_bit(audio_types::AudioSampleFormat::S24)
+        | audio_core::sample_format_bit(audio_types::AudioSampleFormat::S32)
+        | audio_core::sample_format_bit(audio_types::AudioSampleFormat::F32)
 }
 
 /// Load one PipeWire dynamic library and required symbol table.

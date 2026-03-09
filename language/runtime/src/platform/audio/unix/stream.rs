@@ -85,8 +85,11 @@ pub(crate) unsafe fn destack_audio_stream_availability(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.stream.availability")?;
+    let resolved_binding = audio_core::resolve_stream_host_state(
+        binding,
+        handle,
+        "destack.audio.stream.availability",
+    )?;
     unsafe {
         *out = audio_core::stream_availability_snapshot(binding, &resolved_binding);
     }
@@ -115,9 +118,9 @@ pub(crate) unsafe fn destack_audio_stream_close(
     binding: &BindingCallContext,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
-    let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.stream.close")?;
-    audio_core::unregister_stream_binding_handle(&resolved_binding);
+    let stream =
+        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.close")?;
+    stream.unbind_runtime();
 
     let removed =
         binding
@@ -157,7 +160,7 @@ pub(crate) unsafe fn destack_audio_stream_drain(
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.stream.drain")?;
+        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.drain")?;
     audio_core::ensure_playback_direction(
         resolved_binding.direction,
         "destack.audio.stream.drain",
@@ -216,7 +219,7 @@ pub(crate) unsafe fn destack_audio_stream_flush(
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.stream.flush")?;
+        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.flush")?;
     audio_core::host_stream_flush(&resolved_binding)?;
 
     let mut state = resolved_binding
@@ -259,7 +262,7 @@ pub(crate) unsafe fn destack_audio_stream_descriptor(
     }
 
     let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.stream.descriptor")?;
+        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.descriptor")?;
     unsafe {
         *out = audio_core::stream_descriptor(binding, &resolved_binding);
     }
@@ -301,8 +304,8 @@ pub(crate) unsafe fn destack_audio_stream_open(
     audio_core::validate_stream_open_options(options, "destack.audio.stream.open")?;
 
     let device_binding =
-        audio_core::resolve_device_binding(binding, device, "destack.audio.stream.open")?;
-    let stream_device = audio_core::stream_device_from_binding(&device_binding);
+        audio_core::resolve_device_host_state(binding, device, "destack.audio.stream.open")?;
+    let stream_device = audio_core::stream_device_from_state(&device_binding);
     audio_core::validate_stream_open_options_for_backend(
         options,
         stream_device.backend,
@@ -340,7 +343,10 @@ pub(crate) unsafe fn destack_audio_stream_open(
         Some(binding.engine()),
     );
     let stream_handle = resource::AudioStreamHandle(resource_id);
-    audio_core::register_stream_binding_handle(binding, &stream, stream_handle);
+
+    // bind the stream handle into runtime-owned event publishing state
+    let runtime_state = audio_core::runtime_state(binding);
+    stream.bind_runtime(&runtime_state, stream_handle);
 
     unsafe {
         *out = stream_handle;
@@ -381,8 +387,8 @@ pub(crate) unsafe fn destack_audio_stream_support(
     audio_core::validate_stream_open_options(options, "destack.audio.stream.support")?;
 
     let device_binding =
-        audio_core::resolve_device_binding(binding, device, "destack.audio.stream.support")?;
-    let stream_device = audio_core::stream_device_from_binding(&device_binding);
+        audio_core::resolve_device_host_state(binding, device, "destack.audio.stream.support")?;
+    let stream_device = audio_core::stream_device_from_state(&device_binding);
     audio_core::validate_stream_open_options_for_backend(
         options,
         stream_device.backend,
@@ -472,7 +478,7 @@ pub(crate) unsafe fn destack_audio_stream_read(
     }
 
     let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.stream.read")?;
+        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.read")?;
     audio_core::ensure_capture_direction(resolved_binding.direction, "destack.audio.stream.read")?;
 
     let frame_size =
@@ -605,7 +611,7 @@ pub(crate) unsafe fn destack_audio_stream_set_mute(
     muted: bool,
 ) -> RuntimeResult<()> {
     let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.stream.setMute")?;
+        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.setMute")?;
     audio_core::ensure_stream_capability(
         resolved_binding.runtime_capabilities.supports_mute,
         "destack.audio.stream.setMute",
@@ -644,7 +650,7 @@ pub(crate) unsafe fn destack_audio_stream_set_name(
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.stream.setName")?;
+        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.setName")?;
     let name = audio_core::read_utf8(name, "name")?;
     let mut stream_name = resolved_binding
         .name
@@ -686,7 +692,7 @@ pub(crate) unsafe fn destack_audio_stream_set_volume(
     }
 
     let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.stream.setVolume")?;
+        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.setVolume")?;
     audio_core::ensure_stream_capability(
         resolved_binding.runtime_capabilities.supports_volume,
         "destack.audio.stream.setVolume",
@@ -724,7 +730,7 @@ pub(crate) unsafe fn destack_audio_stream_start(
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.stream.start")?;
+        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.start")?;
 
     // reject control transitions for terminal streams
     {
@@ -747,7 +753,7 @@ pub(crate) unsafe fn destack_audio_stream_start(
             .state
             .lock()
             .unwrap_or_else(|error| error.into_inner());
-        state.state = AudioStreamStateKind::Starting;
+        state.state_kind = AudioStreamStateKind::Starting;
         state.running = false;
     }
 
@@ -760,7 +766,7 @@ pub(crate) unsafe fn destack_audio_stream_start(
             .unwrap_or_else(|inner| inner.into_inner());
         state.running = false;
         state.paused = false;
-        state.state = AudioStreamStateKind::Stopped;
+        state.state_kind = AudioStreamStateKind::Stopped;
         let status_flags = state.status_flags;
         drop(state);
         resolved_binding.sync.wake.notify_all();
@@ -782,7 +788,7 @@ pub(crate) unsafe fn destack_audio_stream_start(
         .unwrap_or_else(|error| error.into_inner());
     state.running = true;
     state.paused = false;
-    state.state = AudioStreamStateKind::Running;
+    state.state_kind = AudioStreamStateKind::Running;
     state.last_backend_message = None;
     let status_flags = state.status_flags;
     drop(state);
@@ -821,7 +827,7 @@ pub(crate) unsafe fn destack_audio_stream_pause(
     pause: bool,
 ) -> RuntimeResult<()> {
     let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.stream.pause")?;
+        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.pause")?;
 
     // reject control transitions for terminal streams
     {
@@ -851,7 +857,7 @@ pub(crate) unsafe fn destack_audio_stream_pause(
         .unwrap_or_else(|error| error.into_inner());
     state.paused = pause;
     state.running = !pause;
-    state.state = if pause {
+    state.state_kind = if pause {
         AudioStreamStateKind::Paused
     } else {
         AudioStreamStateKind::Running
@@ -892,7 +898,7 @@ pub(crate) unsafe fn destack_audio_stream_abort(
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.stream.abort")?;
+        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.abort")?;
 
     // reject control transitions for terminal streams
     {
@@ -918,7 +924,7 @@ pub(crate) unsafe fn destack_audio_stream_abort(
         .unwrap_or_else(|error| error.into_inner());
     state.running = false;
     state.paused = false;
-    state.state = AudioStreamStateKind::Stopped;
+    state.state_kind = AudioStreamStateKind::Stopped;
     state.playback_samples.clear();
     state.capture_samples.clear();
     let status_flags = state.status_flags;
@@ -962,7 +968,7 @@ pub(crate) unsafe fn destack_audio_stream_state(
     }
 
     let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.stream.state")?;
+        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.state")?;
     unsafe {
         *out = audio_core::stream_state_snapshot(&resolved_binding);
     }
@@ -992,7 +998,7 @@ pub(crate) unsafe fn destack_audio_stream_stop(
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.stream.stop")?;
+        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.stop")?;
 
     // reject control transitions for terminal streams
     {
@@ -1017,7 +1023,7 @@ pub(crate) unsafe fn destack_audio_stream_stop(
             .state
             .lock()
             .unwrap_or_else(|error| error.into_inner());
-        state.state = AudioStreamStateKind::Stopping;
+        state.state_kind = AudioStreamStateKind::Stopping;
         state.running = false;
     }
 
@@ -1030,7 +1036,7 @@ pub(crate) unsafe fn destack_audio_stream_stop(
         .unwrap_or_else(|error| error.into_inner());
     state.running = false;
     state.paused = false;
-    state.state = AudioStreamStateKind::Stopped;
+    state.state_kind = AudioStreamStateKind::Stopped;
     let status_flags = state.status_flags;
     drop(state);
     resolved_binding.sync.wake.notify_all();
@@ -1073,7 +1079,7 @@ pub(crate) unsafe fn destack_audio_stream_timing(
     }
 
     let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.stream.timing")?;
+        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.timing")?;
     unsafe {
         *out = audio_core::stream_timing_snapshot(binding, &resolved_binding);
     }
@@ -1117,7 +1123,7 @@ pub(crate) unsafe fn destack_audio_stream_try_read(
     }
 
     let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.stream.tryRead")?;
+        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.tryRead")?;
     audio_core::ensure_capture_direction(
         resolved_binding.direction,
         "destack.audio.stream.tryRead",
@@ -1261,7 +1267,7 @@ pub(crate) unsafe fn destack_audio_stream_try_write(
     }
 
     let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.stream.tryWrite")?;
+        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.tryWrite")?;
     audio_core::ensure_playback_direction(
         resolved_binding.direction,
         "destack.audio.stream.tryWrite",
@@ -1370,7 +1376,7 @@ pub(crate) unsafe fn destack_audio_stream_write(
     }
 
     let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.stream.write")?;
+        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.write")?;
     audio_core::ensure_playback_direction(
         resolved_binding.direction,
         "destack.audio.stream.write",
@@ -1495,7 +1501,7 @@ pub(crate) unsafe fn destack_audio_stream_write_at(
     }
 
     let resolved_binding =
-        audio_core::resolve_stream_binding(binding, handle, "destack.audio.stream.writeAt")?;
+        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.writeAt")?;
     audio_core::ensure_playback_direction(
         resolved_binding.direction,
         "destack.audio.stream.writeAt",

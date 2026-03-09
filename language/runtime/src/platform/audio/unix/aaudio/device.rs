@@ -1,10 +1,10 @@
-#[cfg(not(target_os = "android"))]
-use super::super::backend::backend_not_supported;
 #[cfg(target_os = "android")]
 use super::core::is_backend_supported as host_backend_supported;
 #[cfg(target_os = "android")]
 use super::descriptor::enumerate_devices;
 use crate::diagnostic::RuntimeResult;
+#[cfg(not(target_os = "android"))]
+use crate::platform::audio::backend::backend_not_supported;
 use crate::platform::audio::core as audio_core;
 
 /// Return whether AAudio backend support is implemented for this build.

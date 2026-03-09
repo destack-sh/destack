@@ -19,6 +19,7 @@ use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
 use crate::platform::diagnostic::PlatformErrorCode;
 
+use crate::platform::audio as audio_types;
 use windows_sys::Win32::Foundation::RPC_E_CHANGED_MODE;
 use windows_sys::Win32::System::Com::{COINIT_APARTMENTTHREADED, CoInitializeEx, CoUninitialize};
 use windows_sys::core::{GUID, HRESULT};
@@ -119,7 +120,7 @@ impl AsioDeviceProfile {
             preferred_period_frames: ASIO_FALLBACK_PREFERRED_PERIOD_FRAMES,
             min_period_frames: ASIO_FALLBACK_MIN_PERIOD_FRAMES,
             max_period_frames: ASIO_FALLBACK_MAX_PERIOD_FRAMES,
-            format_mask: audio_core::sample_format_bit(audio_core::AudioSampleFormat::F32),
+            format_mask: audio_types::sample_format_bit(audio_types::AudioSampleFormat::F32),
         }
     }
 }
@@ -128,7 +129,7 @@ impl AsioDeviceProfile {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct AsioSampleEncoding {
     /// Runtime sample format family.
-    pub(super) format: audio_core::AudioSampleFormat,
+    pub(super) format: audio_types::AudioSampleFormat,
     /// Bytes used per scalar sample in driver buffers.
     pub(super) bytes_per_sample: usize,
     /// Whether sample byte order is big-endian.
@@ -239,8 +240,8 @@ pub(super) struct AsioStreamRuntime {
     pub(super) input_lanes: Vec<AsioBufferLane>,
     /// Owned ASIO driver session.
     pub(super) session: Arc<AsioSession>,
-    /// Weak link to the stream binding state.
-    pub(super) binding: OnceLock<Weak<audio_core::AudioStreamBinding>>,
+    /// Weak link to the stream host state.
+    pub(super) stream_state: OnceLock<Weak<audio_core::AudioStreamHostState>>,
 }
 
 unsafe impl Send for AsioStreamRuntime {}

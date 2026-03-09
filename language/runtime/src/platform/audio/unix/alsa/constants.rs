@@ -1,8 +1,7 @@
 use std::ffi::c_int;
 
-use crate::platform::audio::core as audio_core;
-
 use super::core::AlsaFormatCandidate;
+use crate::platform::audio as audio_types;
 
 /// Prefix for one ALSA playback stable id.
 pub(super) const ALSA_PLAYBACK_STABLE_ID_PREFIX: &str = "alsa:playback:";
@@ -61,27 +60,27 @@ pub(super) const ALSA_PROBED_SAMPLE_RATES: [u32; 13] = [
 /// One stable sample-format candidate for ALSA format probing.
 pub(super) const ALSA_FORMAT_CANDIDATES: [AlsaFormatCandidate; 6] = [
     AlsaFormatCandidate {
-        runtime_format: audio_core::AudioSampleFormat::U8,
+        runtime_format: audio_types::AudioSampleFormat::U8,
         alsa_name: "U8",
     },
     AlsaFormatCandidate {
-        runtime_format: audio_core::AudioSampleFormat::S16,
+        runtime_format: audio_types::AudioSampleFormat::S16,
         alsa_name: "S16_LE",
     },
     AlsaFormatCandidate {
-        runtime_format: audio_core::AudioSampleFormat::S24,
+        runtime_format: audio_types::AudioSampleFormat::S24,
         alsa_name: "S24_LE",
     },
     AlsaFormatCandidate {
-        runtime_format: audio_core::AudioSampleFormat::S32,
+        runtime_format: audio_types::AudioSampleFormat::S32,
         alsa_name: "S32_LE",
     },
     AlsaFormatCandidate {
-        runtime_format: audio_core::AudioSampleFormat::F32,
+        runtime_format: audio_types::AudioSampleFormat::F32,
         alsa_name: "FLOAT_LE",
     },
     AlsaFormatCandidate {
-        runtime_format: audio_core::AudioSampleFormat::F64,
+        runtime_format: audio_types::AudioSampleFormat::F64,
         alsa_name: "FLOAT64_LE",
     },
 ];

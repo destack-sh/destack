@@ -1,5 +1,3 @@
-#[cfg(not(target_os = "macos"))]
-use super::super::backend::backend_not_supported;
 #[cfg(target_os = "macos")]
 use super::constants::{
     K_AUDIO_DEVICE_PROPERTY_BUFFER_FRAME_SIZE, K_AUDIO_DEVICE_PROPERTY_DEVICE_IS_ALIVE,
@@ -24,13 +22,26 @@ use super::property::{
     rate_to_u32,
 };
 use crate::diagnostic::RuntimeResult;
-use crate::platform::audio::core as audio_core;
+#[cfg(not(target_os = "macos"))]
+use crate::platform::audio::backend::backend_not_supported;
+use crate::platform::audio::core::HostDeviceDescriptor;
+#[cfg(target_os = "macos")]
+use crate::platform::audio::core::{
+    DEVICE_CAPABILITY_DEVICE_CLOCK, DEVICE_CAPABILITY_EXCLUSIVE_MODE,
+    DEVICE_CAPABILITY_FULL_DUPLEX, DEVICE_CAPABILITY_LOOPBACK, DEVICE_CAPABILITY_REROUTE_EVENTS,
+    DEVICE_CAPABILITY_SCHEDULED_WRITE, DEVICE_CAPABILITY_SHARED_MODE,
+    DEVICE_CAPABILITY_STREAM_MUTE, DEVICE_CAPABILITY_STREAM_VOLUME, DIRECTION_MASK_CAPTURE,
+    DIRECTION_MASK_DUPLEX, DIRECTION_MASK_LOOPBACK, DIRECTION_MASK_PLAYBACK,
+    SHARE_MODE_EXCLUSIVE_BIT, SHARE_MODE_SHARED_BIT, all_sample_format_mask,
+};
+#[cfg(target_os = "macos")]
+use crate::platform::audio::{AudioBackend, AudioDeviceCapabilityFlags, AudioDeviceDirection};
 #[cfg(target_os = "macos")]
 use crate::platform::core as core_platform;
 
 /// Enumerate one normalized CoreAudio device list on macOS.
 #[cfg(target_os = "macos")]
-fn enumerate_host_devices_macos() -> RuntimeResult<Vec<audio_core::HostDeviceDescriptor>> {
+fn enumerate_host_devices_macos() -> RuntimeResult<Vec<HostDeviceDescriptor>> {
     // load the current system device list
     let device_ids = device_ids()?;
     if device_ids.is_empty() {
@@ -129,40 +140,40 @@ fn enumerate_host_devices_macos() -> RuntimeResult<Vec<audio_core::HostDeviceDes
         let preferred_mask = channel_mask(channel_cap);
 
         // start with common runtime capabilities
-        let mut capability_flags = audio_core::DEVICE_CAPABILITY_SHARED_MODE.0
-            | audio_core::DEVICE_CAPABILITY_STREAM_VOLUME.0
-            | audio_core::DEVICE_CAPABILITY_STREAM_MUTE.0
-            | audio_core::DEVICE_CAPABILITY_DEVICE_CLOCK.0
-            | audio_core::DEVICE_CAPABILITY_REROUTE_EVENTS.0;
+        let mut capability_flags = DEVICE_CAPABILITY_SHARED_MODE.0
+            | DEVICE_CAPABILITY_STREAM_VOLUME.0
+            | DEVICE_CAPABILITY_STREAM_MUTE.0
+            | DEVICE_CAPABILITY_DEVICE_CLOCK.0
+            | DEVICE_CAPABILITY_REROUTE_EVENTS.0;
         if supports_hog_mode {
-            capability_flags |= audio_core::DEVICE_CAPABILITY_EXCLUSIVE_MODE.0;
+            capability_flags |= DEVICE_CAPABILITY_EXCLUSIVE_MODE.0;
         }
 
         // encode supported directions and direction-specific capabilities
         let mut supported_directions = 0u32;
         if playback_channels > 0 {
-            supported_directions |= audio_core::DIRECTION_MASK_PLAYBACK;
-            capability_flags |= audio_core::DEVICE_CAPABILITY_SCHEDULED_WRITE.0;
+            supported_directions |= DIRECTION_MASK_PLAYBACK;
+            capability_flags |= DEVICE_CAPABILITY_SCHEDULED_WRITE.0;
             if supports_loopback {
-                supported_directions |= audio_core::DIRECTION_MASK_LOOPBACK;
-                capability_flags |= audio_core::DEVICE_CAPABILITY_LOOPBACK.0;
+                supported_directions |= DIRECTION_MASK_LOOPBACK;
+                capability_flags |= DEVICE_CAPABILITY_LOOPBACK.0;
             }
         }
         if capture_channels > 0 {
-            supported_directions |= audio_core::DIRECTION_MASK_CAPTURE;
+            supported_directions |= DIRECTION_MASK_CAPTURE;
         }
-        if direction == audio_core::AudioDeviceDirection::Duplex {
-            capability_flags |= audio_core::DEVICE_CAPABILITY_FULL_DUPLEX.0;
-            supported_directions |= audio_core::DIRECTION_MASK_DUPLEX;
+        if direction == AudioDeviceDirection::Duplex {
+            capability_flags |= DEVICE_CAPABILITY_FULL_DUPLEX.0;
+            supported_directions |= DIRECTION_MASK_DUPLEX;
         }
 
         // emit one normalized descriptor row
-        descriptors.push(audio_core::HostDeviceDescriptor {
+        descriptors.push(HostDeviceDescriptor {
             id: stable_id,
             group_id: stable_group_id,
             name,
             transport: transport_name(transport_type).to_string(),
-            backend: audio_core::AudioBackend::CoreAudio,
+            backend: AudioBackend::CoreAudio,
             direction,
             supported_directions,
             connected: is_alive,
@@ -170,7 +181,7 @@ fn enumerate_host_devices_macos() -> RuntimeResult<Vec<audio_core::HostDeviceDes
             is_default_playback,
             is_default_capture,
             is_default_loopback,
-            capability_flags: audio_core::AudioDeviceCapabilityFlags(capability_flags),
+            capability_flags: AudioDeviceCapabilityFlags(capability_flags),
             preferred_sample_rate: nominal_rate,
             min_sample_rate,
             max_sample_rate,
@@ -182,11 +193,11 @@ fn enumerate_host_devices_macos() -> RuntimeResult<Vec<audio_core::HostDeviceDes
             supported_channel_mask: preferred_mask,
             min_period_frames,
             max_period_frames,
-            format_mask: audio_core::all_sample_format_mask(),
+            format_mask: all_sample_format_mask(),
             share_mode_mask: if supports_hog_mode {
-                audio_core::SHARE_MODE_SHARED_BIT | audio_core::SHARE_MODE_EXCLUSIVE_BIT
+                SHARE_MODE_SHARED_BIT | SHARE_MODE_EXCLUSIVE_BIT
             } else {
-                audio_core::SHARE_MODE_SHARED_BIT
+                SHARE_MODE_SHARED_BIT
             },
             is_null: false,
         });
@@ -204,7 +215,7 @@ fn enumerate_host_devices_macos() -> RuntimeResult<Vec<audio_core::HostDeviceDes
 }
 
 /// Enumerate CoreAudio devices.
-pub(crate) fn enumerate_host_devices() -> RuntimeResult<Vec<audio_core::HostDeviceDescriptor>> {
+pub(crate) fn enumerate_host_devices() -> RuntimeResult<Vec<HostDeviceDescriptor>> {
     #[cfg(target_os = "macos")]
     {
         enumerate_host_devices_macos()

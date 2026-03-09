@@ -21,6 +21,6 @@ mod runtime;
 mod sample;
 mod stream;
 
-pub(crate) use device::*;
-pub(crate) use event::*;
-pub(crate) use stream::*;
+pub(crate) use device::enumerate_host_devices;
+pub(crate) use event::start_native_device_event_monitor;
+pub(crate) use stream::{is_backend_supported, is_stream_supported, open_host_stream};

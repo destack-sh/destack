@@ -1,5 +1,3 @@
-#[cfg(not(target_os = "macos"))]
-use super::super::backend::backend_not_supported;
 #[cfg(target_os = "macos")]
 use super::abi::{
     AudioObjectAddPropertyListener, AudioObjectID, AudioObjectPropertyAddress,
@@ -14,15 +12,21 @@ use super::constants::{
 };
 #[cfg(target_os = "macos")]
 use super::format::property_address;
-#[cfg(target_os = "macos")]
-use super::property::error;
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core as audio_core;
-use crate::runtime::BindingCallContext;
+use crate::platform::PlatformError;
+#[cfg(target_os = "macos")]
+use crate::platform::audio::AudioBackend;
+#[cfg(not(target_os = "macos"))]
+use crate::platform::audio::backend::backend_not_supported;
+use crate::platform::audio::core::AudioMonitorHandle;
+#[cfg(target_os = "macos")]
+use crate::platform::audio::core::publish_device_snapshot_native;
+#[cfg(target_os = "macos")]
+use crate::platform::diagnostic::PlatformErrorCode;
 
 #[cfg(target_os = "macos")]
-use std::sync::atomic::{AtomicBool, Ordering};
+static COREAUDIO_MONITOR_TOKEN: u8 = 0;
 
 /// Return the CoreAudio system selectors used for backend-wide device notifications.
 #[cfg(target_os = "macos")]
@@ -33,6 +37,24 @@ const fn monitor_selectors() -> [AudioObjectPropertySelector; 4] {
         K_AUDIO_HARDWARE_PROPERTY_DEFAULT_INPUT_DEVICE,
         K_AUDIO_HARDWARE_PROPERTY_DEFAULT_SYSTEM_OUTPUT_DEVICE,
     ]
+}
+
+/// Build one backend-unavailable error for CoreAudio monitor registration.
+#[cfg(target_os = "macos")]
+fn monitor_registration_error(
+    operation: &'static str,
+    status: i32,
+    message: impl Into<String>,
+) -> Box<crate::diagnostic::RuntimeError> {
+    crate::diagnostic::RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::AudioUnavailable),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        format!("{} (osstatus {status})", message.into()),
+    ))
+    .boxed()
 }
 
 /// Register one CoreAudio property listener for one selector.
@@ -54,7 +76,7 @@ fn add_property_listener_with_user_data(
         return Ok(());
     }
 
-    Err(error(
+    Err(monitor_registration_error(
         "destack.audio.event.open",
         status,
         "failed to register CoreAudio device property listener",
@@ -90,130 +112,50 @@ unsafe extern "C" fn coreaudio_device_property_listener(
         return K_NO_ERR;
     }
 
-    let runtime_state = unsafe { &*(in_client_data as *const audio_core::AudioEventRuntimeState) };
+    let _ = in_client_data;
     let _ = std::panic::catch_unwind(|| {
-        audio_core::publish_device_snapshot_native(
-            runtime_state,
-            audio_core::AudioBackend::CoreAudio,
-        );
+        publish_device_snapshot_native(AudioBackend::CoreAudio);
     });
 
     K_NO_ERR
 }
 
-/// Runtime-owned mutable state for CoreAudio monitor registration.
 #[cfg(target_os = "macos")]
-#[derive(Debug, Default)]
-pub(crate) struct CoreAudioMonitorRuntimeState {
-    /// Whether listeners are currently registered.
-    started: AtomicBool,
-    /// Whether teardown finalizer was registered.
-    shutdown_registered: AtomicBool,
-}
+struct CoreAudioDeviceMonitor;
 
-/// Return runtime-owned monitor state for CoreAudio listeners.
 #[cfg(target_os = "macos")]
-fn coreaudio_monitor_runtime_state(
-    binding: &BindingCallContext,
-) -> std::sync::Arc<CoreAudioMonitorRuntimeState> {
-    let runtime_state = binding
-        .agent()
-        .platform_state
-        .audio
-        .coreaudio_monitor_runtime_state(CoreAudioMonitorRuntimeState::default);
-    register_runtime_finalizer(binding, &runtime_state);
-
-    runtime_state
-}
-
-/// Register one runtime finalizer for CoreAudio monitor teardown.
-#[cfg(target_os = "macos")]
-fn register_runtime_finalizer(
-    binding: &BindingCallContext,
-    runtime_state: &std::sync::Arc<CoreAudioMonitorRuntimeState>,
-) {
-    if runtime_state
-        .shutdown_registered
-        .swap(true, Ordering::AcqRel)
-    {
-        return;
-    }
-
-    let runtime_state = std::sync::Arc::clone(runtime_state);
-    let audio_runtime_state = audio_core::audio_event_runtime_state(binding);
-    binding.agent().finalizers.register(move || {
-        if !runtime_state.started.swap(false, Ordering::AcqRel) {
-            return;
-        }
-
-        let user_data = std::sync::Arc::as_ptr(&audio_runtime_state) as *mut std::ffi::c_void;
+impl AudioMonitorHandle for CoreAudioDeviceMonitor {
+    fn stop(self: Box<Self>) {
+        let user_data = (&COREAUDIO_MONITOR_TOKEN as *const u8).cast_mut().cast();
         for selector in monitor_selectors() {
             remove_property_listener_with_user_data(selector, user_data);
         }
-
-        drop(audio_runtime_state);
-    });
-}
-
-/// Return whether CoreAudio native device-event monitoring is available.
-pub(crate) fn native_device_events_supported() -> bool {
-    cfg!(target_os = "macos")
+    }
 }
 
 /// Start CoreAudio native device-event monitoring.
-pub(crate) fn start_native_device_event_monitor(binding: &BindingCallContext) -> RuntimeResult<()> {
+pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<Box<dyn AudioMonitorHandle>> {
     #[cfg(target_os = "macos")]
     {
-        let runtime_state = coreaudio_monitor_runtime_state(binding);
-        if runtime_state.started.swap(true, Ordering::AcqRel) {
-            return Ok(());
-        }
-
-        let audio_runtime_state = audio_core::audio_event_runtime_state(binding);
-        let user_data = std::sync::Arc::as_ptr(&audio_runtime_state) as *mut std::ffi::c_void;
+        let user_data = (&COREAUDIO_MONITOR_TOKEN as *const u8).cast_mut().cast();
         let selectors = monitor_selectors();
         for (index, selector) in selectors.iter().copied().enumerate() {
             if let Err(error) = add_property_listener_with_user_data(selector, user_data) {
                 for registered_selector in selectors.iter().take(index).copied() {
                     remove_property_listener_with_user_data(registered_selector, user_data);
                 }
-                runtime_state.started.store(false, Ordering::Release);
                 return Err(error);
             }
         }
 
-        Ok(())
+        Ok(Box::new(CoreAudioDeviceMonitor))
     }
 
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = binding;
-
         Err(backend_not_supported(
             "destack.audio.event.open",
             "coreaudio",
         ))
-    }
-}
-
-/// Stop CoreAudio native device-event monitoring.
-pub(crate) fn stop_native_device_event_monitor(binding: &BindingCallContext) {
-    #[cfg(target_os = "macos")]
-    {
-        let runtime_state = coreaudio_monitor_runtime_state(binding);
-        if !runtime_state.started.swap(false, Ordering::AcqRel) {
-            return;
-        }
-
-        let audio_runtime_state = audio_core::audio_event_runtime_state(binding);
-        let user_data = std::sync::Arc::as_ptr(&audio_runtime_state) as *mut std::ffi::c_void;
-        for selector in monitor_selectors() {
-            remove_property_listener_with_user_data(selector, user_data);
-        }
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        let _ = binding;
     }
 }

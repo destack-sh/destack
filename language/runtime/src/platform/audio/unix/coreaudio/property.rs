@@ -3,7 +3,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 #[cfg(target_os = "macos")]
 use crate::platform::PlatformError;
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::{audio_would_block, frame_bytes};
 #[cfg(target_os = "macos")]
 use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(target_os = "macos")]
@@ -32,6 +32,7 @@ use super::constants::{
 };
 #[cfg(target_os = "macos")]
 use super::format::property_address;
+use crate::platform::audio as audio_types;
 
 #[cfg(target_os = "macos")]
 pub(super) fn error(
@@ -359,8 +360,8 @@ pub(super) fn merge_intersected_range(
 #[cfg(target_os = "macos")]
 pub(super) fn validate_open_stream_config(
     device_id: AudioDeviceID,
-    direction: audio_core::AudioDeviceDirection,
-    config: audio_core::AudioStreamConfig,
+    direction: audio_types::AudioDeviceDirection,
+    config: audio_types::AudioStreamConfig,
 ) -> RuntimeResult<()> {
     // resolve directional channel limits for the requested direction
     let playback_channels =
@@ -368,10 +369,10 @@ pub(super) fn validate_open_stream_config(
     let capture_channels =
         get_stream_channel_count(device_id, K_AUDIO_OBJECT_PROPERTY_SCOPE_INPUT).unwrap_or(0);
     let max_channels = match direction {
-        audio_core::AudioDeviceDirection::Playback => playback_channels,
-        audio_core::AudioDeviceDirection::Capture => capture_channels,
-        audio_core::AudioDeviceDirection::Duplex => playback_channels.min(capture_channels),
-        audio_core::AudioDeviceDirection::Loopback => playback_channels,
+        audio_types::AudioDeviceDirection::Playback => playback_channels,
+        audio_types::AudioDeviceDirection::Capture => capture_channels,
+        audio_types::AudioDeviceDirection::Duplex => playback_channels.min(capture_channels),
+        audio_types::AudioDeviceDirection::Loopback => playback_channels,
     };
 
     // reject directions with no usable lane on this device
@@ -395,17 +396,17 @@ pub(super) fn validate_open_stream_config(
 
     // resolve the valid sample-rate range for the requested direction
     let sample_rate_range = match direction {
-        audio_core::AudioDeviceDirection::Playback => {
+        audio_types::AudioDeviceDirection::Playback => {
             get_sample_rate_range(device_id, K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT)
         }
-        audio_core::AudioDeviceDirection::Capture => {
+        audio_types::AudioDeviceDirection::Capture => {
             get_sample_rate_range(device_id, K_AUDIO_OBJECT_PROPERTY_SCOPE_INPUT)
         }
-        audio_core::AudioDeviceDirection::Duplex => merge_intersected_range(
+        audio_types::AudioDeviceDirection::Duplex => merge_intersected_range(
             get_sample_rate_range(device_id, K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT),
             get_sample_rate_range(device_id, K_AUDIO_OBJECT_PROPERTY_SCOPE_INPUT),
         ),
-        audio_core::AudioDeviceDirection::Loopback => {
+        audio_types::AudioDeviceDirection::Loopback => {
             get_sample_rate_range(device_id, K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT)
         }
     };
@@ -423,17 +424,17 @@ pub(super) fn validate_open_stream_config(
 
     // resolve the valid period range for the requested direction
     let period_range = match direction {
-        audio_core::AudioDeviceDirection::Playback => {
+        audio_types::AudioDeviceDirection::Playback => {
             get_buffer_frame_size_range(device_id, K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT)
         }
-        audio_core::AudioDeviceDirection::Capture => {
+        audio_types::AudioDeviceDirection::Capture => {
             get_buffer_frame_size_range(device_id, K_AUDIO_OBJECT_PROPERTY_SCOPE_INPUT)
         }
-        audio_core::AudioDeviceDirection::Duplex => merge_intersected_range(
+        audio_types::AudioDeviceDirection::Duplex => merge_intersected_range(
             get_buffer_frame_size_range(device_id, K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT),
             get_buffer_frame_size_range(device_id, K_AUDIO_OBJECT_PROPERTY_SCOPE_INPUT),
         ),
-        audio_core::AudioDeviceDirection::Loopback => {
+        audio_types::AudioDeviceDirection::Loopback => {
             get_buffer_frame_size_range(device_id, K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT)
         }
     };
@@ -523,7 +524,7 @@ pub(super) fn enable_hog_mode(device_id: AudioDeviceID) -> RuntimeResult<bool> {
 
     // return a would-block error when another process owns the device
     if current_owner != -1 {
-        return Err(audio_core::audio_would_block(
+        return Err(audio_would_block(
             "destack.audio.stream.open",
             format!("audio device is already hogged by pid {current_owner}"),
         ));
@@ -532,7 +533,7 @@ pub(super) fn enable_hog_mode(device_id: AudioDeviceID) -> RuntimeResult<bool> {
     // claim ownership and verify this process became the owner
     let owner_after_toggle = toggle_hog_mode(device_id, "destack.audio.stream.open")?;
     if owner_after_toggle != process_id {
-        return Err(audio_core::audio_would_block(
+        return Err(audio_would_block(
             "destack.audio.stream.open",
             "audio device could not be acquired in exclusive mode",
         ));
@@ -646,27 +647,27 @@ pub(super) fn device_ids() -> RuntimeResult<Vec<AudioDeviceID>> {
 
 /// Return bits-per-channel for one runtime sample format.
 #[cfg(target_os = "macos")]
-pub(super) fn bits_per_channel(format: audio_core::AudioSampleFormat) -> Option<u32> {
+pub(super) fn bits_per_channel(format: audio_types::AudioSampleFormat) -> Option<u32> {
     match format {
-        audio_core::AudioSampleFormat::U8 => Some(8),
-        audio_core::AudioSampleFormat::S16 => Some(16),
-        audio_core::AudioSampleFormat::S24 => Some(32),
-        audio_core::AudioSampleFormat::S32 => Some(32),
-        audio_core::AudioSampleFormat::F32 => Some(32),
-        audio_core::AudioSampleFormat::F64 => Some(64),
+        audio_types::AudioSampleFormat::U8 => Some(8),
+        audio_types::AudioSampleFormat::S16 => Some(16),
+        audio_types::AudioSampleFormat::S24 => Some(32),
+        audio_types::AudioSampleFormat::S32 => Some(32),
+        audio_types::AudioSampleFormat::F32 => Some(32),
+        audio_types::AudioSampleFormat::F64 => Some(64),
     }
 }
 
 /// Return CoreAudio PCM format flags for one runtime sample format.
 #[cfg(target_os = "macos")]
-pub(super) fn format_flags(format: audio_core::AudioSampleFormat) -> Option<u32> {
+pub(super) fn format_flags(format: audio_types::AudioSampleFormat) -> Option<u32> {
     let base = K_AUDIO_FORMAT_FLAG_IS_PACKED;
     match format {
-        audio_core::AudioSampleFormat::U8 => Some(base),
-        audio_core::AudioSampleFormat::S16
-        | audio_core::AudioSampleFormat::S24
-        | audio_core::AudioSampleFormat::S32 => Some(base | K_AUDIO_FORMAT_FLAG_IS_SIGNED_INTEGER),
-        audio_core::AudioSampleFormat::F32 | audio_core::AudioSampleFormat::F64 => {
+        audio_types::AudioSampleFormat::U8 => Some(base),
+        audio_types::AudioSampleFormat::S16
+        | audio_types::AudioSampleFormat::S24
+        | audio_types::AudioSampleFormat::S32 => Some(base | K_AUDIO_FORMAT_FLAG_IS_SIGNED_INTEGER),
+        audio_types::AudioSampleFormat::F32 | audio_types::AudioSampleFormat::F64 => {
             Some(base | K_AUDIO_FORMAT_FLAG_IS_FLOAT)
         }
     }
@@ -675,7 +676,7 @@ pub(super) fn format_flags(format: audio_core::AudioSampleFormat) -> Option<u32>
 /// Build one CoreAudio stream description from one runtime stream config.
 #[cfg(target_os = "macos")]
 pub(super) fn stream_description(
-    config: audio_core::AudioStreamConfig,
+    config: audio_types::AudioStreamConfig,
 ) -> RuntimeResult<AudioStreamBasicDescription> {
     let bits_per_channel = bits_per_channel(config.format).ok_or_else(|| {
         RuntimeError::from(PlatformError::not_supported(
@@ -689,7 +690,7 @@ pub(super) fn stream_description(
         ))
         .boxed()
     })?;
-    let bytes_per_frame = audio_core::frame_bytes(config.format, config.channels)? as u32;
+    let bytes_per_frame = frame_bytes(config.format, config.channels)? as u32;
 
     Ok(AudioStreamBasicDescription {
         sample_rate: config.sample_rate as f64,

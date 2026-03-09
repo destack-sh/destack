@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{
@@ -12,7 +12,7 @@ use crate::runtime::{BindingCallContext, NativeStringRef};
 
 use super::{
     AUDIO_DEVICE_RESOURCE_LABEL, AUDIO_EVENT_RESOURCE_LABEL, AUDIO_STREAM_RESOURCE_LABEL,
-    AudioDeviceBinding, AudioEventBinding, AudioStreamBinding, AudioStreamStateInner,
+    AudioDeviceHostState, AudioEventStream, AudioStreamHostState, AudioStreamStateInner,
     KNOWN_STREAM_FLAGS_MASK, KNOWN_STREAM_REQUIREMENT_FLAGS_MASK, STREAM_FLAG_NON_INTERLEAVED,
 };
 
@@ -99,7 +99,7 @@ pub(crate) fn stream_shutdown_error(
     operation: &'static str,
     state: &AudioStreamStateInner,
 ) -> Box<RuntimeError> {
-    if state.state == AudioStreamStateKind::BackendDisconnected {
+    if state.state_kind == AudioStreamStateKind::BackendDisconnected {
         let message = state
             .last_backend_message
             .as_deref()
@@ -107,7 +107,7 @@ pub(crate) fn stream_shutdown_error(
         return audio_broken_pipe(operation, message.to_string());
     }
 
-    if state.state == AudioStreamStateKind::DeviceLost {
+    if state.state_kind == AudioStreamStateKind::DeviceLost {
         let message = state
             .last_backend_message
             .as_deref()
@@ -125,19 +125,19 @@ pub(crate) fn stream_state_is_terminal(state: &AudioStreamStateInner) -> bool {
     }
 
     matches!(
-        state.state,
+        state.state_kind,
         AudioStreamStateKind::DeviceLost | AudioStreamStateKind::BackendDisconnected
     )
 }
 
 /// Resolve one typed resource payload by kind and label.
 fn resolve_resource_payload<T: Clone + 'static>(
-    binding: &BindingCallContext,
+    ctx: &BindingCallContext,
     resource_id: resource::ResourceId,
     resource_kind: ResourceKind,
     resource_label: &'static str,
 ) -> Option<T> {
-    let resolved = binding.agent().resources.with_entry(resource_id, |entry| {
+    let resolved = ctx.agent().resources.with_entry(resource_id, |entry| {
         if entry.kind != resource_kind {
             return None;
         }
@@ -157,13 +157,13 @@ fn resolve_resource_payload<T: Clone + 'static>(
 }
 
 /// Resolve one opened device handle.
-pub(crate) fn resolve_device_binding(
-    binding: &BindingCallContext,
+pub(crate) fn resolve_device_host_state(
+    ctx: &BindingCallContext,
     handle: resource::AudioDeviceHandle,
     operation: &'static str,
-) -> RuntimeResult<Arc<AudioDeviceBinding>> {
-    resolve_resource_payload::<Arc<AudioDeviceBinding>>(
-        binding,
+) -> RuntimeResult<Arc<AudioDeviceHostState>> {
+    resolve_resource_payload::<Arc<AudioDeviceHostState>>(
+        ctx,
         handle.0,
         ResourceKind::AudioDevice,
         AUDIO_DEVICE_RESOURCE_LABEL,
@@ -177,13 +177,13 @@ pub(crate) fn resolve_device_binding(
 }
 
 /// Resolve one opened stream handle.
-pub(crate) fn resolve_stream_binding(
-    binding: &BindingCallContext,
+pub(crate) fn resolve_stream_host_state(
+    ctx: &BindingCallContext,
     handle: resource::AudioStreamHandle,
     operation: &'static str,
-) -> RuntimeResult<Arc<AudioStreamBinding>> {
-    resolve_resource_payload::<Arc<AudioStreamBinding>>(
-        binding,
+) -> RuntimeResult<Arc<AudioStreamHostState>> {
+    resolve_resource_payload::<Arc<AudioStreamHostState>>(
+        ctx,
         handle.0,
         ResourceKind::AudioStream,
         AUDIO_STREAM_RESOURCE_LABEL,
@@ -197,13 +197,13 @@ pub(crate) fn resolve_stream_binding(
 }
 
 /// Resolve one opened event handle.
-pub(crate) fn resolve_event_binding(
-    binding: &BindingCallContext,
+pub(crate) fn resolve_event_stream(
+    ctx: &BindingCallContext,
     handle: resource::AudioEventHandle,
     operation: &'static str,
-) -> RuntimeResult<Arc<Mutex<AudioEventBinding>>> {
-    resolve_resource_payload::<Arc<Mutex<AudioEventBinding>>>(
-        binding,
+) -> RuntimeResult<Arc<AudioEventStream>> {
+    resolve_resource_payload::<Arc<AudioEventStream>>(
+        ctx,
         handle.0,
         ResourceKind::AudioEvent,
         AUDIO_EVENT_RESOURCE_LABEL,
@@ -361,7 +361,7 @@ mod tests {
     fn test_stream_shutdown_error_uses_broken_pipe_for_backend_disconnect() {
         let mut state = initial_stream_state();
         state.shutdown = true;
-        state.state = AudioStreamStateKind::BackendDisconnected;
+        state.state_kind = AudioStreamStateKind::BackendDisconnected;
         state.last_backend_message = Some("backend transport dropped".to_string());
 
         let error = stream_shutdown_error("destack.audio.stream.read", &state);
@@ -385,7 +385,7 @@ mod tests {
     #[test]
     fn test_stream_shutdown_error_uses_not_found_for_device_lost() {
         let mut state = initial_stream_state();
-        state.state = AudioStreamStateKind::DeviceLost;
+        state.state_kind = AudioStreamStateKind::DeviceLost;
 
         let error = stream_shutdown_error("destack.audio.stream.read", &state);
         let code = platform_error_code(error.as_ref());
@@ -395,7 +395,7 @@ mod tests {
     #[test]
     fn test_stream_shutdown_error_keeps_device_lost_backend_message() {
         let mut state = initial_stream_state();
-        state.state = AudioStreamStateKind::DeviceLost;
+        state.state_kind = AudioStreamStateKind::DeviceLost;
         state.last_backend_message = Some("ASIO driver requested reset".to_string());
 
         let error = stream_shutdown_error("destack.audio.stream.read", &state);
@@ -406,7 +406,7 @@ mod tests {
     #[test]
     fn test_stream_state_is_terminal_for_device_lost_without_shutdown() {
         let mut state = initial_stream_state();
-        state.state = AudioStreamStateKind::DeviceLost;
+        state.state_kind = AudioStreamStateKind::DeviceLost;
         assert!(stream_state_is_terminal(&state));
     }
 }

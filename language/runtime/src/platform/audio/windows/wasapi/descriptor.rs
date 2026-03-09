@@ -14,6 +14,7 @@ use super::host::{
 };
 use super::ids::{duplex_stable_id, endpoint_stable_id};
 
+use crate::platform::audio as audio_types;
 use windows_sys::Win32::Media::Audio::{
     IMMDevice, IMMDeviceCollection, IMMDeviceEnumerator, eCapture, eRender,
 };
@@ -136,7 +137,7 @@ fn capability_flags(
     profile: &WasapiEndpointProfile,
     supports_loopback: bool,
     supports_duplex: bool,
-) -> audio_core::AudioDeviceCapabilityFlags {
+) -> audio_types::AudioDeviceCapabilityFlags {
     let mut flags = audio_core::DEVICE_CAPABILITY_SHARED_MODE.0
         | audio_core::DEVICE_CAPABILITY_STREAM_VOLUME.0
         | audio_core::DEVICE_CAPABILITY_STREAM_MUTE.0
@@ -155,7 +156,7 @@ fn capability_flags(
         flags |= audio_core::DEVICE_CAPABILITY_FULL_DUPLEX.0;
     }
 
-    audio_core::AudioDeviceCapabilityFlags(flags)
+    audio_types::AudioDeviceCapabilityFlags(flags)
 }
 
 /// Build one share-mode mask for one endpoint profile.
@@ -180,15 +181,15 @@ fn playback_descriptor_from_endpoint_id(
         group_id: format!("wasapi-group:{endpoint_id}"),
         name: endpoint_name.to_string(),
         transport: profile.transport.to_string(),
-        backend: audio_core::AudioBackend::Wasapi,
-        direction: audio_core::AudioDeviceDirection::Playback,
+        backend: audio_types::AudioBackend::Wasapi,
+        direction: audio_types::AudioDeviceDirection::Playback,
         supported_directions: audio_core::DIRECTION_MASK_PLAYBACK,
         connected: true,
         is_raw: false,
         is_default_playback: is_default,
         is_default_capture: false,
         is_default_loopback: false,
-        capability_flags: audio_core::AudioDeviceCapabilityFlags(
+        capability_flags: audio_types::AudioDeviceCapabilityFlags(
             capability_flags(profile, false, false).0
                 | audio_core::DEVICE_CAPABILITY_DEVICE_CLOCK.0
                 | audio_core::DEVICE_CAPABILITY_SCHEDULED_WRITE.0,
@@ -222,15 +223,15 @@ fn capture_descriptor_from_endpoint_id(
         group_id: format!("wasapi-group:{endpoint_id}"),
         name: endpoint_name.to_string(),
         transport: profile.transport.to_string(),
-        backend: audio_core::AudioBackend::Wasapi,
-        direction: audio_core::AudioDeviceDirection::Capture,
+        backend: audio_types::AudioBackend::Wasapi,
+        direction: audio_types::AudioDeviceDirection::Capture,
         supported_directions: audio_core::DIRECTION_MASK_CAPTURE,
         connected: true,
         is_raw: false,
         is_default_playback: false,
         is_default_capture: is_default,
         is_default_loopback: false,
-        capability_flags: audio_core::AudioDeviceCapabilityFlags(
+        capability_flags: audio_types::AudioDeviceCapabilityFlags(
             capability_flags(profile, false, false).0
                 | audio_core::DEVICE_CAPABILITY_DEVICE_CLOCK.0,
         ),
@@ -263,15 +264,15 @@ fn loopback_descriptor_from_endpoint_id(
         group_id: format!("wasapi-group:{endpoint_id}"),
         name: format!("{endpoint_name} (loopback)"),
         transport: profile.transport.to_string(),
-        backend: audio_core::AudioBackend::Wasapi,
-        direction: audio_core::AudioDeviceDirection::Loopback,
+        backend: audio_types::AudioBackend::Wasapi,
+        direction: audio_types::AudioDeviceDirection::Loopback,
         supported_directions: audio_core::DIRECTION_MASK_LOOPBACK,
         connected: true,
         is_raw: false,
         is_default_playback: false,
         is_default_capture: false,
         is_default_loopback: is_default,
-        capability_flags: audio_core::AudioDeviceCapabilityFlags(
+        capability_flags: audio_types::AudioDeviceCapabilityFlags(
             capability_flags(profile, true, false).0 | audio_core::DEVICE_CAPABILITY_DEVICE_CLOCK.0,
         ),
         preferred_sample_rate: profile.preferred_sample_rate,
@@ -346,7 +347,7 @@ fn duplex_descriptor_from_endpoint_ids(
 
     let preferred_layout = playback_descriptor
         .map(|descriptor| descriptor.preferred_layout)
-        .unwrap_or(audio_core::AudioChannelLayout::Stereo);
+        .unwrap_or(audio_types::AudioChannelLayout::Stereo);
     let preferred_channel_mask = playback_descriptor
         .map(|descriptor| descriptor.preferred_channel_mask)
         .zip(capture_descriptor.map(|descriptor| descriptor.preferred_channel_mask))
@@ -390,15 +391,15 @@ fn duplex_descriptor_from_endpoint_ids(
         group_id: format!("wasapi-group:duplex:{render_endpoint_id}:{capture_endpoint_id}"),
         name: "WASAPI duplex pair".to_string(),
         transport: "wasapi".to_string(),
-        backend: audio_core::AudioBackend::Wasapi,
-        direction: audio_core::AudioDeviceDirection::Duplex,
+        backend: audio_types::AudioBackend::Wasapi,
+        direction: audio_types::AudioDeviceDirection::Duplex,
         supported_directions: audio_core::DIRECTION_MASK_DUPLEX,
         connected: true,
         is_raw: false,
         is_default_playback: true,
         is_default_capture: true,
         is_default_loopback: false,
-        capability_flags: audio_core::AudioDeviceCapabilityFlags(capability_flags),
+        capability_flags: audio_types::AudioDeviceCapabilityFlags(capability_flags),
         preferred_sample_rate,
         min_sample_rate: minimum_sample_rate,
         max_sample_rate: maximum_sample_rate,

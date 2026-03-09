@@ -25,6 +25,7 @@ use crate::platform::audio::core as audio_core;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{PlatformError, core as core_platform};
 
+use crate::platform::audio as audio_types;
 use windows_sys::Win32::Foundation::HWND;
 use windows_sys::Win32::System::Com::CLSIDFromString;
 use windows_sys::Win32::System::Registry::{
@@ -339,14 +340,14 @@ pub(super) fn probe_device_profile(row: &AsioDriverRow) -> AsioDeviceProfile {
     if output_channels > 0
         && let Ok(channel) = query_channel_descriptor(&session, false, 0)
     {
-        format_mask |= audio_core::sample_format_bit(channel.encoding.format);
+        format_mask |= audio_types::sample_format_bit(channel.encoding.format);
     }
 
     // probe one representative input lane sample type
     if input_channels > 0
         && let Ok(channel) = query_channel_descriptor(&session, true, 0)
     {
-        format_mask |= audio_core::sample_format_bit(channel.encoding.format);
+        format_mask |= audio_types::sample_format_bit(channel.encoding.format);
     }
 
     if format_mask == 0 {
@@ -407,61 +408,61 @@ pub(super) fn query_channel_descriptor(
 fn map_sample_encoding(sample_type: i32) -> Option<AsioSampleEncoding> {
     match sample_type {
         ASIO_ST_INT16_LSB => Some(AsioSampleEncoding {
-            format: audio_core::AudioSampleFormat::S16,
+            format: audio_types::AudioSampleFormat::S16,
             bytes_per_sample: 2,
             is_big_endian: false,
             is_packed_24: false,
         }),
         ASIO_ST_INT16_MSB => Some(AsioSampleEncoding {
-            format: audio_core::AudioSampleFormat::S16,
+            format: audio_types::AudioSampleFormat::S16,
             bytes_per_sample: 2,
             is_big_endian: true,
             is_packed_24: false,
         }),
         ASIO_ST_INT24_LSB => Some(AsioSampleEncoding {
-            format: audio_core::AudioSampleFormat::S24,
+            format: audio_types::AudioSampleFormat::S24,
             bytes_per_sample: 3,
             is_big_endian: false,
             is_packed_24: true,
         }),
         ASIO_ST_INT24_MSB => Some(AsioSampleEncoding {
-            format: audio_core::AudioSampleFormat::S24,
+            format: audio_types::AudioSampleFormat::S24,
             bytes_per_sample: 3,
             is_big_endian: true,
             is_packed_24: true,
         }),
         ASIO_ST_INT32_LSB | ASIO_ST_INT32_LSB24 => Some(AsioSampleEncoding {
-            format: audio_core::AudioSampleFormat::S32,
+            format: audio_types::AudioSampleFormat::S32,
             bytes_per_sample: 4,
             is_big_endian: false,
             is_packed_24: false,
         }),
         ASIO_ST_INT32_MSB | ASIO_ST_INT32_MSB24 => Some(AsioSampleEncoding {
-            format: audio_core::AudioSampleFormat::S32,
+            format: audio_types::AudioSampleFormat::S32,
             bytes_per_sample: 4,
             is_big_endian: true,
             is_packed_24: false,
         }),
         ASIO_ST_FLOAT32_LSB => Some(AsioSampleEncoding {
-            format: audio_core::AudioSampleFormat::F32,
+            format: audio_types::AudioSampleFormat::F32,
             bytes_per_sample: 4,
             is_big_endian: false,
             is_packed_24: false,
         }),
         ASIO_ST_FLOAT32_MSB => Some(AsioSampleEncoding {
-            format: audio_core::AudioSampleFormat::F32,
+            format: audio_types::AudioSampleFormat::F32,
             bytes_per_sample: 4,
             is_big_endian: true,
             is_packed_24: false,
         }),
         ASIO_ST_FLOAT64_LSB => Some(AsioSampleEncoding {
-            format: audio_core::AudioSampleFormat::F64,
+            format: audio_types::AudioSampleFormat::F64,
             bytes_per_sample: 8,
             is_big_endian: false,
             is_packed_24: false,
         }),
         ASIO_ST_FLOAT64_MSB => Some(AsioSampleEncoding {
-            format: audio_core::AudioSampleFormat::F64,
+            format: audio_types::AudioSampleFormat::F64,
             bytes_per_sample: 8,
             is_big_endian: true,
             is_packed_24: false,
@@ -488,16 +489,16 @@ fn c_string_lossy(bytes: &[i8]) -> Option<String> {
 }
 
 /// Return one canonical layout for one channel count.
-pub(super) fn channel_layout(channels: u16) -> audio_core::AudioChannelLayout {
+pub(super) fn channel_layout(channels: u16) -> audio_types::AudioChannelLayout {
     match channels {
-        1 => audio_core::AudioChannelLayout::Mono,
-        2 => audio_core::AudioChannelLayout::Stereo,
-        4 => audio_core::AudioChannelLayout::Quad,
-        5 => audio_core::AudioChannelLayout::Surround41,
-        6 => audio_core::AudioChannelLayout::Surround51,
-        7 => audio_core::AudioChannelLayout::Surround61,
-        8 => audio_core::AudioChannelLayout::Surround71,
-        _ => audio_core::AudioChannelLayout::Unknown,
+        1 => audio_types::AudioChannelLayout::Mono,
+        2 => audio_types::AudioChannelLayout::Stereo,
+        4 => audio_types::AudioChannelLayout::Quad,
+        5 => audio_types::AudioChannelLayout::Surround41,
+        6 => audio_types::AudioChannelLayout::Surround51,
+        7 => audio_types::AudioChannelLayout::Surround61,
+        8 => audio_types::AudioChannelLayout::Surround71,
+        _ => audio_types::AudioChannelLayout::Unknown,
     }
 }
 

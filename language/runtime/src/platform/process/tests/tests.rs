@@ -27,8 +27,6 @@ use process_platform::{
     GroupId, ProcessFdActionVm, ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource,
     ProcessStdioVm, ProcessUserIds, Signal, UserId,
 };
-#[cfg(target_os = "linux")]
-use process_platform::{ProcessCpuSet, ProcessCpuSetVm};
 
 /// Spawn options used by process harness helpers.
 #[derive(Debug, Clone)]
