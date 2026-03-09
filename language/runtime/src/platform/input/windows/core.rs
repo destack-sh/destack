@@ -12,7 +12,6 @@ use windows_sys::Win32::System::Console::{
     ENABLE_ECHO_INPUT, ENABLE_LINE_INPUT, ENABLE_PROCESSED_INPUT, GetConsoleMode, GetStdHandle,
     INPUT_RECORD, STD_INPUT_HANDLE, SetConsoleMode,
 };
-use windows_sys::Win32::System::Performance::{QueryPerformanceCounter, QueryPerformanceFrequency};
 use windows_sys::Win32::System::Threading::GetCurrentProcess;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     GetAsyncKeyState, GetKeyState, VK_CAPITAL, VK_CONTROL, VK_LBUTTON, VK_MBUTTON, VK_MENU,
@@ -803,34 +802,9 @@ pub(super) fn next_sequence(
     }
 }
 
-/// Return the host performance-counter frequency.
-fn performance_counter_frequency() -> u64 {
-    static PERFORMANCE_COUNTER_FREQUENCY: OnceLock<u64> = OnceLock::new();
-    *PERFORMANCE_COUNTER_FREQUENCY.get_or_init(|| {
-        let mut frequency = 0i64;
-        let status = unsafe { QueryPerformanceFrequency(&mut frequency) };
-        if status == 0 || frequency <= 0 {
-            return 0;
-        }
-
-        frequency as u64
-    })
-}
-
-/// Read one monotonic timestamp from QueryPerformanceCounter.
+/// Read one monotonic timestamp from the shared runtime clock domain.
 pub(super) fn now_timestamp_ns() -> u64 {
-    let frequency = performance_counter_frequency();
-    if frequency == 0 {
-        return 0;
-    }
-
-    let mut counter = 0i64;
-    let status = unsafe { QueryPerformanceCounter(&mut counter) };
-    if status == 0 || counter < 0 {
-        return 0;
-    }
-
-    ((counter as u128).saturating_mul(1_000_000_000u128) / u128::from(frequency)) as u64
+    core_platform::monotonic_now_ns()
 }
 
 /// Return the configured raw-input queue capacity.

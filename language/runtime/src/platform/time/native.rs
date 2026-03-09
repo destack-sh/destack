@@ -38,7 +38,7 @@ pub(crate) unsafe fn destack_time_clock_metadata(
 ///
 /// # Platform
 /// Runtime-integrated clock available on Unix and Windows targets.
-/// Uses clock_gettime(CLOCK_MONOTONIC) on Unix and QueryPerformanceCounter on Windows.
+/// Uses Mach absolute time on Apple, CLOCK_MONOTONIC on other Unix targets, and QueryPerformanceCounter on Windows.
 ///
 /// # Errors
 /// Returns timeUnavailable, ioInterrupted, invalidArgument, notSupported.

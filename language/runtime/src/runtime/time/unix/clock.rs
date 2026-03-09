@@ -283,7 +283,7 @@ fn wall_nanos() -> RuntimeResult<u64> {
 
 /// Resolve one host monotonic clock sample in nanoseconds.
 fn mono_nanos() -> RuntimeResult<u64> {
-    clock_gettime_nanos(libc::CLOCK_MONOTONIC, "clock_gettime")
+    Ok(core_platform::monotonic_now_ns())
 }
 
 /// Query one host clock metadata snapshot.
@@ -300,7 +300,12 @@ pub(crate) fn host_clock_metadata(clock: ClockId) -> RuntimeResult<ClockMetadata
             })
         }
         ClockId::Monotonic => {
+            #[cfg(target_vendor = "apple")]
+            let resolution = core_platform::apple_host_time_resolution_nanos();
+
+            #[cfg(not(target_vendor = "apple"))]
             let resolution = clock_getres_nanos(libc::CLOCK_MONOTONIC, "clock_getres")?;
+
             Ok(ClockMetadata {
                 id: ClockId::Monotonic,
                 source: ClockSource::Monotonic,

@@ -229,7 +229,7 @@ pub(crate) fn host_now_nanos(clock: ClockId) -> RuntimeResult<u64> {
     // route the selected clock id
     match clock {
         ClockId::Wall => Ok(wall_nanos()),
-        ClockId::Monotonic => performance_counter_nanos(),
+        ClockId::Monotonic => Ok(core_platform::monotonic_now_ns()),
         ClockId::ProcessCpu => process_cpu_nanos(),
         ClockId::ThreadCpu => thread_cpu_nanos(),
         ClockId::Boot => Ok(boot_nanos()),

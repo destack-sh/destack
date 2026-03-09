@@ -3,6 +3,9 @@ use std::os::windows::ffi::OsStringExt;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
+/// Process-relative epoch for QPC monotonic normalization.
+static QPC_MONOTONIC_EPOCH_TICKS: OnceLock<u64> = OnceLock::new();
+
 use windows_sys::Win32::Foundation::{
     GetLastError, WAIT_ABANDONED, WAIT_FAILED, WAIT_OBJECT_0, WAIT_TIMEOUT,
 };
@@ -162,6 +165,26 @@ pub(crate) fn qpc_ticks_to_ns(counter: u64) -> Option<u64> {
 pub(crate) fn qpc_now_ns() -> Option<u64> {
     let counter = qpc_now_ticks()?;
     qpc_ticks_to_ns(counter)
+}
+
+/// Read one process-relative monotonic timestamp from QueryPerformanceCounter.
+pub(crate) fn qpc_process_monotonic_nanos() -> Option<u64> {
+    // reuse the established process epoch when it already exists
+    let epoch_ticks = if let Some(epoch_ticks) = QPC_MONOTONIC_EPOCH_TICKS.get().copied() {
+        epoch_ticks
+    }
+    // otherwise capture and publish one fresh epoch sample
+    else {
+        let epoch_ticks = qpc_now_ticks()?;
+        let _ = QPC_MONOTONIC_EPOCH_TICKS.set(epoch_ticks);
+        *QPC_MONOTONIC_EPOCH_TICKS.get().unwrap_or(&epoch_ticks)
+    };
+
+    // convert the process-relative delta into nanoseconds
+    let now_ticks = qpc_now_ticks()?;
+    let delta_ticks = now_ticks.saturating_sub(epoch_ticks);
+
+    qpc_ticks_to_ns(delta_ticks)
 }
 
 /// Convert a utf-8 byte slice into a nul-terminated wide string.

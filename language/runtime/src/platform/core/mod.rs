@@ -12,9 +12,6 @@ mod unix;
 #[cfg(windows)]
 mod windows;
 
-use std::sync::OnceLock;
-use std::time::Instant;
-
 #[allow(unused_imports, unreachable_pub)]
 pub use abi_generated::*;
 pub(crate) use backend::{aggregate_backend_support, backend_support_error};
@@ -47,6 +44,13 @@ pub(crate) use error::{
 pub(crate) use unix::io_error_with_errno;
 #[cfg(target_os = "linux")]
 pub(crate) use unix::load_dynamic_symbol_named;
+#[cfg(all(unix, not(target_vendor = "apple")))]
+pub(crate) use unix::unix_process_monotonic_nanos;
+#[cfg(target_vendor = "apple")]
+pub(crate) use unix::{
+    apple_host_time_resolution_nanos, apple_host_time_to_process_nanos,
+    apple_process_monotonic_nanos,
+};
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub(crate) use unix::{close_dynamic_library, load_dynamic_symbol, open_dynamic_library};
 #[cfg(unix)]
@@ -59,16 +63,30 @@ pub(crate) use windows::{
     define_com_iunknown_methods, ensure_winsock, error_message, io_error, io_error_with_code,
     io_error_with_platform_code, last_error_code, last_wsa_error_code, net_error,
     net_error_with_code, pathbuf_from_utf8, pathbuf_from_utf16, qpc_frequency_hz, qpc_now_ns,
-    qpc_now_ticks, qpc_ticks_to_ns, string_from_utf8, string_from_wide, wide_from_str,
-    wide_from_utf8, wide_from_utf16, wide_with_nul,
+    qpc_now_ticks, qpc_process_monotonic_nanos, qpc_ticks_to_ns, string_from_utf8,
+    string_from_wide, wide_from_str, wide_from_utf8, wide_from_utf16, wide_with_nul,
 };
 
 /// Return one process-monotonic timestamp in nanoseconds.
 #[cfg(any(unix, windows))]
 #[allow(dead_code)]
 pub(crate) fn monotonic_now_ns() -> u64 {
-    static MONO_EPOCH: OnceLock<Instant> = OnceLock::new();
+    // use the native Apple host-time domain
+    #[cfg(target_vendor = "apple")]
+    {
+        return apple_process_monotonic_nanos();
+    }
 
-    let elapsed = MONO_EPOCH.get_or_init(Instant::now).elapsed();
-    elapsed.as_nanos().min(u64::MAX as u128) as u64
+    // use process-relative CLOCK_MONOTONIC on non-Apple Unix hosts
+    #[cfg(all(unix, not(target_vendor = "apple")))]
+    {
+        unix_process_monotonic_nanos()
+    }
+
+    // use process-relative QPC on Windows hosts
+    #[cfg(windows)]
+    {
+        return qpc_process_monotonic_nanos()
+            .unwrap_or_else(|| panic!("QueryPerformanceCounter monotonic clock unavailable"));
+    }
 }

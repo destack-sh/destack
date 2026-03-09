@@ -70,7 +70,7 @@ pub(super) fn keyboard_state(
 
     // emit one full keyboard-state payload
     Ok(InputKeyboardState {
-        timestamp_ns: core_platform::qpc_now_ns().unwrap_or(0),
+        timestamp_ns: input_core::now_timestamp_ns(),
         sequence,
         device_id: binding.store_string(&device_id),
         modifiers,

@@ -28,7 +28,6 @@ pub(crate) fn option_u64_to_usize_or_min(value: Option<u64>, default: usize, min
 }
 
 /// Convert one non-zero u32 value into one host usize.
-#[cfg(unix)]
 #[allow(dead_code)]
 pub(crate) fn u32_to_nonzero_usize(field: &'static str, value: u32) -> RuntimeResult<usize> {
     if value == 0 {

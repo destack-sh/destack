@@ -35,9 +35,9 @@ const XINPUT_STANDARD_AXIS_COUNT: u16 = 4;
 /// Standardized gamepad button count in this runtime contract.
 const XINPUT_STANDARD_BUTTON_COUNT: u16 = 17;
 
-/// Read one monotonic timestamp from QueryPerformanceCounter.
+/// Read one monotonic timestamp from the shared runtime clock domain.
 fn now_timestamp_ns() -> u64 {
-    core_platform::qpc_now_ns().unwrap_or(0)
+    core_platform::monotonic_now_ns()
 }
 
 /// Return one stable runtime xinput device identifier for one user index.
