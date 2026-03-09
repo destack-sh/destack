@@ -8,9 +8,9 @@ use crate::value::{RawPointer, Value};
 
 const FIRST_ALLOCATED_SLOT_ID: u64 = 1;
 
-/// Immutable raw heap snapshot.
+/// Immutable raw heap image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RawHeapSnapshot {
+pub struct RawHeapImage {
     /// Captured raw pages.
     pub pages: Arc<[Arc<PageImage<RawCell>>]>,
     /// The next slot id to allocate.
@@ -118,8 +118,8 @@ impl RawHeap {
         }
     }
 
-    /// Capture one immutable raw heap snapshot.
-    pub fn snapshot(&mut self) -> RawHeapSnapshot {
+    /// Capture one immutable raw heap image.
+    pub fn image(&mut self) -> RawHeapImage {
         // capture page contents
         let pages = self
             .pages
@@ -131,7 +131,7 @@ impl RawHeap {
         // capture allocator state
         let free_list = self.free_list.clone().into();
 
-        RawHeapSnapshot {
+        RawHeapImage {
             pages,
             next_unused_id: self.next_unused_id,
             free_list,
@@ -139,10 +139,10 @@ impl RawHeap {
         }
     }
 
-    /// Restore one raw heap from an immutable snapshot.
-    pub fn restore(snapshot: &RawHeapSnapshot) -> Self {
+    /// Create one raw heap from an immutable image.
+    pub fn from_image(image: &RawHeapImage) -> Self {
         // rebuild page storage from the immutable images
-        let pages = snapshot
+        let pages = image
             .pages
             .iter()
             .cloned()
@@ -150,13 +150,13 @@ impl RawHeap {
             .collect::<Vec<_>>();
 
         // restore allocator state
-        let free_list = snapshot.free_list.iter().copied().collect();
+        let free_list = image.free_list.iter().copied().collect();
 
         Self {
             pages,
             free_list,
-            next_unused_id: snapshot.next_unused_id,
-            allocated_cells: snapshot.allocated_cells,
+            next_unused_id: image.next_unused_id,
+            allocated_cells: image.allocated_cells,
         }
     }
 

@@ -4,16 +4,16 @@ use serde::{Deserialize, Serialize};
 
 use super::page::{PageImage, PageKind, PageReference};
 use super::slot::{HeapCell, SlotStorage};
-use super::{GcPhase, GcState, GcStats};
+use super::{GcPhase, GcState, GcStats, HeapCaptureError};
 use crate::value::{ManagedPointer, Value};
 
 const CELL_HEADER_BYTES: u64 = 24;
 const VALUE_BYTES: u64 = std::mem::size_of::<Value>() as u64;
 const FIRST_ALLOCATED_SLOT_ID: u64 = 1;
 
-/// Immutable managed heap snapshot.
+/// Immutable managed heap image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ManagedHeapSnapshot {
+pub struct ManagedHeapImage {
     /// Captured managed pages.
     pub pages: Arc<[Arc<PageImage<HeapCell>>]>,
     /// The next slot id to allocate.
@@ -67,12 +67,12 @@ impl ManagedHeap {
         }
     }
 
-    /// Capture one immutable managed heap snapshot.
-    pub fn snapshot(&mut self) -> ManagedHeapSnapshot {
-        debug_assert!(
-            self.is_checkpoint_ready(),
-            "managed heap snapshot requires idle gc state"
-        );
+    /// Capture one immutable managed heap image.
+    pub fn image(&mut self) -> Result<ManagedHeapImage, HeapCaptureError> {
+        // capture barrier: gc work must not be in flight
+        if self.gc_state.phase != GcPhase::Idle || !self.mark_queue.is_empty() {
+            return Err(HeapCaptureError::GcActive);
+        }
 
         // capture page contents
         let pages = self
@@ -85,20 +85,20 @@ impl ManagedHeap {
         // capture allocator and gc state
         let free_list = self.free_list.clone().into();
 
-        ManagedHeapSnapshot {
+        Ok(ManagedHeapImage {
             pages,
             next_unused_id: self.next_unused_id,
             free_list,
             allocated_cells: self.allocated_cells,
             allocated_bytes: self.allocated_bytes,
             gc_state: self.gc_state.clone(),
-        }
+        })
     }
 
-    /// Restore one managed heap from an immutable snapshot.
-    pub fn restore(snapshot: &ManagedHeapSnapshot) -> Self {
+    /// Create one managed heap from an immutable image.
+    pub fn from_image(image: &ManagedHeapImage) -> Self {
         // rebuild page storage from the immutable images
-        let pages = snapshot
+        let pages = image
             .pages
             .iter()
             .cloned()
@@ -106,15 +106,15 @@ impl ManagedHeap {
             .collect::<Vec<_>>();
 
         // restore allocator and gc state
-        let free_list = snapshot.free_list.iter().copied().collect();
+        let free_list = image.free_list.iter().copied().collect();
 
         Self {
             pages,
             free_list,
-            next_unused_id: snapshot.next_unused_id,
-            allocated_cells: snapshot.allocated_cells,
-            allocated_bytes: snapshot.allocated_bytes,
-            gc_state: snapshot.gc_state.clone(),
+            next_unused_id: image.next_unused_id,
+            allocated_cells: image.allocated_cells,
+            allocated_bytes: image.allocated_bytes,
+            gc_state: image.gc_state.clone(),
             mark_queue: Vec::new(),
         }
     }
@@ -122,11 +122,6 @@ impl ManagedHeap {
     /// Return the GC state.
     pub fn gc_state(&self) -> &GcState {
         &self.gc_state
-    }
-
-    /// Report whether this heap is ready for checkpoint capture.
-    pub fn is_checkpoint_ready(&self) -> bool {
-        self.gc_state.phase == GcPhase::Idle && self.mark_queue.is_empty()
     }
 
     /// Return a mutable reference to the GC state.
