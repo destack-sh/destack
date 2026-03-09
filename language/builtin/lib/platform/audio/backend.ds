@@ -1,4 +1,5 @@
 import { Slice } from "native";
+import type { BackendSupport } from "../core/index.ds";
 import type { PlatformError } from "../error/index.ds";
 
 /// Audio backend selector.
@@ -62,9 +63,9 @@ export struct AudioBackendDescriptor {
     backend: AudioBackend;
     /// Stable backend name.
     name: string;
-    /// Whether this backend is currently available on this host.
-    available: boolean;
-    /// Priority in default auto-selection order.
+    /// Host backend support state for this selector.
+    support: BackendSupport;
+    /// Priority in default auto-selection order, or zero when auto does not consider this selector.
     priority: uint16;
     /// Backend-level capability flags.
     /// These are coarse feature categories.
@@ -88,7 +89,7 @@ export struct AudioBackendDescriptor {
 declare namespace audio {
     /// List host audio backends.
     ///
-    /// Enumerate available backend implementations and backend-level feature flags.
+    /// Enumerate backend selectors, support state, and backend-level feature flags.
     ///
     /// # Platform
     /// Unix and Windows.
