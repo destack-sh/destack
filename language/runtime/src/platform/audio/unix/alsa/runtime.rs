@@ -1,7 +1,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Condvar, Mutex, Weak};
 
 use super::abi::AlsaPcm;
 use super::constants::{ALSA_FALSE, ALSA_STREAM_CAPTURE, ALSA_STREAM_PLAYBACK, ALSA_TRUE};
@@ -11,14 +11,15 @@ use super::core::{
 use super::host::{open_configured_pcm, recover_pcm, require_alsa_library};
 use super::ids::{parse_stable_id, validate_stable_id_direction};
 use super::transfer::spawn_worker;
+use crate::platform::audio as audio_types;
 
-/// Open one ALSA stream binding.
+/// Open one ALSA stream host state.
 pub(super) fn open_stream(
     device_info: &audio_core::HostDeviceDescriptor,
-    config: audio_core::AudioStreamConfig,
-    share_mode: audio_core::AudioShareMode,
+    config: audio_types::AudioStreamConfig,
+    share_mode: audio_types::AudioShareMode,
     backend_flags: audio_core::AudioBackendOpenFlags,
-) -> RuntimeResult<Arc<audio_core::AudioStreamBinding>> {
+) -> RuntimeResult<Arc<audio_core::AudioStreamHostState>> {
     // open one initialized ALSA runtime payload from one stable id
     let runtime = open_runtime(
         &device_info.id,
@@ -33,8 +34,8 @@ pub(super) fn open_stream(
         runtime: runtime.clone(),
     });
 
-    // build one stream binding and spawn one transfer worker
-    let stream_binding = Arc::new(audio_core::AudioStreamBinding {
+    // build one stream host state and spawn one transfer worker
+    let stream_state = Arc::new(audio_core::AudioStreamHostState {
         device: device_info.clone(),
         direction: device_info.direction,
         requested: config,
@@ -51,42 +52,42 @@ pub(super) fn open_stream(
             supports_mute: true,
             supports_hardware_timestamps: false,
         },
-        host_ops: audio_core::Mutex::new(Some(host_ops)),
-        name: audio_core::Mutex::new(String::new()),
+        host_ops: Mutex::new(Some(host_ops)),
+        name: Mutex::new(String::new()),
         sync: Arc::new(audio_core::AudioStreamSync {
-            state: audio_core::Mutex::new(audio_core::initial_stream_state()),
-            wake: audio_core::Condvar::new(),
+            state: Mutex::new(audio_core::initial_stream_state()),
+            wake: Condvar::new(),
         }),
         stream_handle_raw: std::sync::atomic::AtomicU64::new(0),
-        event_runtime_state: audio_core::Mutex::new(None),
-        null_worker: audio_core::Mutex::new(None),
+        runtime_state: Mutex::new(None),
+        worker_handle: Mutex::new(None),
     });
 
-    // publish one weak binding handle for worker-side queue access
+    // publish one weak host-state handle for worker-side queue access
     *runtime
-        .binding
+        .stream_state
         .lock()
-        .unwrap_or_else(|error| error.into_inner()) = Arc::downgrade(&stream_binding);
+        .unwrap_or_else(|error| error.into_inner()) = Arc::downgrade(&stream_state);
 
-    let worker = spawn_worker(stream_binding.clone(), runtime);
-    *stream_binding
-        .null_worker
+    let worker = spawn_worker(stream_state.clone(), runtime);
+    *stream_state
+        .worker_handle
         .lock()
         .unwrap_or_else(|error| error.into_inner()) = Some(worker);
 
-    Ok(stream_binding)
+    Ok(stream_state)
 }
 
 /// Open one ALSA runtime payload from one parsed stable id.
 fn open_runtime(
     stable_id: &str,
-    direction: audio_core::AudioDeviceDirection,
-    config: audio_core::AudioStreamConfig,
-    share_mode: audio_core::AudioShareMode,
+    direction: audio_types::AudioDeviceDirection,
+    config: audio_types::AudioStreamConfig,
+    share_mode: audio_types::AudioShareMode,
     backend_flags: audio_core::AudioBackendOpenFlags,
 ) -> RuntimeResult<Arc<AlsaStreamRuntime>> {
     // reject ALSA loopback direction since plain ALSA has no generic host loopback lane
-    if direction == audio_core::AudioDeviceDirection::Loopback {
+    if direction == audio_types::AudioDeviceDirection::Loopback {
         return Err(RuntimeError::from(PlatformError::not_supported(
             "destack.audio.stream.open ALSA loopback",
         ))
@@ -134,7 +135,7 @@ fn open_runtime(
     };
 
     // reject exclusive mode when one opened lane does not expose hardware endpoint semantics
-    if share_mode == audio_core::AudioShareMode::Exclusive {
+    if share_mode == audio_types::AudioShareMode::Exclusive {
         let playback_exclusive = playback_lane
             .as_ref()
             .map(|lane| lane.supports_exclusive)
@@ -199,7 +200,7 @@ fn open_runtime(
         supports_pause,
         playback_pcm: playback_lane.map(|lane| lane.pcm),
         capture_pcm: capture_lane.map(|lane| lane.pcm),
-        binding: Mutex::new(Weak::new()),
+        stream_state: Mutex::new(Weak::new()),
     }))
 }
 

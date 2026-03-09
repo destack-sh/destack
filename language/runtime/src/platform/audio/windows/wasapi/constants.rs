@@ -1,5 +1,6 @@
 use crate::platform::audio::core as audio_core;
 
+use crate::platform::audio as audio_types;
 use windows_sys::Win32::UI::Shell::PropertiesSystem::PROPERTYKEY;
 use windows_sys::core::{GUID, HRESULT};
 
@@ -58,12 +59,12 @@ pub(super) const PROBED_SAMPLE_RATES: [u32; 13] = [
     192_000,
 ];
 /// The shared sample-format probe set used for descriptor capability discovery.
-pub(super) const PROBED_SAMPLE_FORMATS: [audio_core::AudioSampleFormat; 5] = [
-    audio_core::AudioSampleFormat::U8,
-    audio_core::AudioSampleFormat::S16,
-    audio_core::AudioSampleFormat::S24,
-    audio_core::AudioSampleFormat::S32,
-    audio_core::AudioSampleFormat::F32,
+pub(super) const PROBED_SAMPLE_FORMATS: [audio_types::AudioSampleFormat; 5] = [
+    audio_types::AudioSampleFormat::U8,
+    audio_types::AudioSampleFormat::S16,
+    audio_types::AudioSampleFormat::S24,
+    audio_types::AudioSampleFormat::S32,
+    audio_types::AudioSampleFormat::F32,
 ];
 /// The QPC scale denominator for 100ns timestamps.
 pub(super) const HUNDRED_NANOS_PER_SECOND: u128 = 10_000_000;

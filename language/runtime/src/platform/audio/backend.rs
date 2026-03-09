@@ -1,39 +1,22 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{NativeArray, PlatformError, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
-
-use super::{
+use crate::platform::audio::{
     AudioBackend, AudioBackendCapabilityFlags, AudioBackendDescriptor, AudioBackendSelectionPolicy,
     AudioDeviceListFlags, AudioDeviceOpenFlags, AudioSupportedEventSubscriptionFlags,
     AudioSupportedStreamClockDomains, AudioSupportedStreamFlags,
     AudioSupportedStreamRequirementFlags, MidiMessage, MidiPortDescriptor, MidiPortDirection,
     core as audio_core,
 };
+use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError, resource};
+use crate::runtime::BindingCallContext;
 
-#[cfg(unix)]
-#[path = "unix/mod.rs"]
-mod unix;
-#[cfg(unix)]
-pub(crate) use unix::*;
-
-#[cfg(windows)]
-#[path = "windows/mod.rs"]
-mod windows;
-#[cfg(windows)]
-pub(crate) use windows::*;
-
-#[cfg(not(any(unix, windows)))]
-#[path = "unsupported.rs"]
-mod unsupported;
-#[cfg(not(any(unix, windows)))]
-pub(crate) use unsupported::*;
+use super::native as native_audio;
 
 /// Return the first available host backend on this target.
 fn active_host_backend() -> Option<AudioBackend> {
-    preferred_host_backends()
+    native_audio::preferred_host_backends()
         .iter()
         .copied()
-        .find(|backend| backend_supported(*backend))
+        .find(|backend| native_audio::backend_supported(*backend))
 }
 
 /// Return one stable backend name for diagnostics and descriptor rows.
@@ -51,6 +34,17 @@ pub(crate) fn backend_name(backend: AudioBackend) -> &'static str {
         AudioBackend::Asio => "asio",
         AudioBackend::Null => "null",
     }
+}
+
+/// Return one not-supported error for one backend operation.
+pub(crate) fn backend_not_supported(
+    operation: &'static str,
+    backend_name: &str,
+) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::not_supported(format!(
+        "{operation}: backend {backend_name} is not available on this host",
+    )))
+    .boxed()
 }
 
 /// Return one backend capability mask for one descriptor row.
@@ -73,7 +67,7 @@ fn backend_capability_flags(backend: AudioBackend, available: bool) -> AudioBack
     }
 
     // unavailable stream backends only expose availability and route events
-    if !backend_stream_supported(backend) {
+    if !native_audio::backend_stream_supported(backend) {
         return AudioBackendCapabilityFlags(flags);
     }
 
@@ -195,7 +189,7 @@ pub(crate) fn backend_descriptors(binding: &BindingCallContext) -> Vec<AudioBack
         let available = match backend {
             AudioBackend::Auto => active_backend.is_some(),
             AudioBackend::Null => true,
-            _ => backend_supported(*backend),
+            _ => native_audio::backend_supported(*backend),
         };
         let capability_backend = if *backend == AudioBackend::Auto {
             active_backend.unwrap_or(AudioBackend::Auto)
@@ -244,7 +238,7 @@ pub(crate) fn resolve_requested_backend(
         return Ok(backend);
     }
 
-    if backend_supported(backend) {
+    if native_audio::backend_supported(backend) {
         return Ok(backend);
     }
 
@@ -254,32 +248,33 @@ pub(crate) fn resolve_requested_backend(
         return Ok(active_backend);
     }
 
-    Err(RuntimeError::from(PlatformError::not_supported(format!(
-        "{operation}: backend {} is not available on this host",
-        backend_name(backend),
-    )))
-    .boxed())
+    Err(backend_not_supported(operation, backend_name(backend)))
 }
 
-/// Return whether one backend exposes native device-event subscriptions.
-pub(crate) fn backend_native_device_events_supported(backend: AudioBackend) -> bool {
-    backend_native_device_events_supported_impl(backend)
+/// Return whether one backend supports native device-event monitoring.
+pub(crate) fn backend_supports_native_device_monitor(backend: AudioBackend) -> bool {
+    native_audio::backend_supports_native_device_monitor(backend)
 }
 
 /// Start one backend native device-event monitor.
 pub(crate) fn start_backend_native_device_events(
-    binding: &BindingCallContext,
     backend: AudioBackend,
-) -> RuntimeResult<()> {
-    start_backend_native_device_events_impl(binding, backend)
+) -> RuntimeResult<Box<dyn audio_core::AudioMonitorHandle>> {
+    if !backend_supports_native_device_monitor(backend) {
+        return Err(backend_not_supported(
+            "destack.audio.event.open",
+            backend_name(backend),
+        ));
+    }
+
+    native_audio::start_backend_native_device_events_impl(backend)
 }
 
-/// Stop one backend native device-event monitor.
-pub(crate) fn stop_backend_native_device_events(
-    binding: &BindingCallContext,
+/// Enumerate host devices for one resolved backend.
+pub(crate) fn enumerate_host_devices(
     backend: AudioBackend,
-) {
-    stop_backend_native_device_events_impl(binding, backend)
+) -> RuntimeResult<Vec<audio_core::HostDeviceDescriptor>> {
+    native_audio::enumerate_host_devices(backend)
 }
 
 /// Return one standardized unsupported error for host MIDI lanes.
@@ -288,23 +283,8 @@ fn unsupported(operation: &'static str) -> Box<RuntimeError> {
 }
 
 /// Flush queued MIDI output.
-///
-/// Request immediate flush of queued outbound MIDI messages for one opened output endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific MIDI flush operations where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `audio.midi`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_flush(
-    _binding: &BindingCallContext,
+    _ctx: &BindingCallContext,
     handle: resource::MidiPortHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -313,23 +293,8 @@ pub(crate) unsafe fn destack_audio_midi_flush(
 }
 
 /// Close one MIDI endpoint.
-///
-/// Close one opened MIDI endpoint and release host resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific MIDI close operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `audio.midi`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_port_close(
-    _binding: &BindingCallContext,
+    _ctx: &BindingCallContext,
     handle: resource::MidiPortHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -338,24 +303,8 @@ pub(crate) unsafe fn destack_audio_midi_port_close(
 }
 
 /// List available MIDI endpoints.
-///
-/// Enumerate host MIDI endpoints for one selected direction.
-/// Endpoint visibility and ordering follow host MIDI subsystem behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses CoreMIDI or ALSA sequencer or WinMM or UWP MIDI APIs depending on backend availability.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `audio.midi`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_port_list(
-    _binding: &BindingCallContext,
+    _ctx: &BindingCallContext,
     out: *mut NativeSlice<MidiPortDescriptor>,
     direction: MidiPortDirection,
 ) -> RuntimeResult<()> {
@@ -365,24 +314,8 @@ pub(crate) unsafe fn destack_audio_midi_port_list(
 }
 
 /// Open one MIDI endpoint.
-///
-/// Open one host MIDI endpoint for input or output operations.
-/// Endpoint open behavior follows host MIDI session policy and sharing semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific MIDI endpoint open operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `audio.midi`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_port_open(
-    _binding: &BindingCallContext,
+    _ctx: &BindingCallContext,
     out: *mut resource::MidiPortHandle,
     id: NativeStringRef,
     direction: MidiPortDirection,
@@ -393,78 +326,33 @@ pub(crate) unsafe fn destack_audio_midi_port_open(
 }
 
 /// Read MIDI messages.
-///
-/// Read up to `maxMessages` queued MIDI messages from one opened input endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend MIDI queue receive operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `audio.midi`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_read(
-    _binding: &BindingCallContext,
+    _ctx: &BindingCallContext,
     out: *mut NativeArray<MidiMessage>,
     handle: resource::MidiPortHandle,
-    maxmessages: u32,
-    timeoutns: u64,
+    max_messages: u32,
+    timeout_ns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (out, handle, maxmessages, timeoutns);
+    let _ = (out, handle, max_messages, timeout_ns);
 
     Err(unsupported("destack.audio.midi.read"))
 }
 
 /// Poll MIDI messages without blocking.
-///
-/// Read up to `maxMessages` queued MIDI messages from one opened input endpoint without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend nonblocking MIDI queue receive operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `audio.midi`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_try_read(
-    _binding: &BindingCallContext,
+    _ctx: &BindingCallContext,
     out: *mut NativeArray<MidiMessage>,
     handle: resource::MidiPortHandle,
-    maxmessages: u32,
+    max_messages: u32,
 ) -> RuntimeResult<()> {
-    let _ = (out, handle, maxmessages);
+    let _ = (out, handle, max_messages);
 
     Err(unsupported("destack.audio.midi.tryRead"))
 }
 
 /// Write MIDI messages.
-///
-/// Submit one batch of MIDI messages to one opened output endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend MIDI queue send operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `audio.midi`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_write(
-    _binding: &BindingCallContext,
+    _ctx: &BindingCallContext,
     out: *mut u32,
     handle: resource::MidiPortHandle,
     messages: NativeArray<MidiMessage>,

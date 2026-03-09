@@ -198,12 +198,11 @@ pub(crate) fn display_event_record(kind: DisplayEventRecordKind) -> DisplayEvent
 
 #[cfg(test)]
 mod tests {
-    use crate::platform::display::DisplayMode;
+    use crate::platform::display::unix::x11::event::codec::monitor_topology_records;
+    use crate::platform::display::unix::x11::model::MonitorSnapshot;
+    use crate::platform::display::{DisplayMode, DisplayOrientation, DisplaySupportStatus};
 
-    use super::{
-        DisplayDescriptorSnapshot, DisplayEventRecordKind, MonitorSnapshot,
-        monitor_topology_records, x11_core,
-    };
+    use super::{DisplayDescriptorSnapshot, DisplayEventRecordKind, x11_core};
 
     /// Build one descriptor payload for monitor topology tests.
     fn descriptor(

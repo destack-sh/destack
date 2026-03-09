@@ -1,10 +1,6 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
-#![allow(clippy::missing_safety_doc)]
-
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::audio::{AudioBackend, core as audio_core};
+use crate::platform::{PlatformError, audio as audio_types};
 
 pub(crate) use crate::platform::audio::simulation::native::*;
 
@@ -23,18 +19,17 @@ pub(crate) fn backend_stream_supported(_backend: AudioBackend) -> bool {
     false
 }
 
-/// Return whether one host backend exposes native device-event subscriptions on unsupported targets.
-pub(crate) fn backend_native_device_events_supported_impl(_backend: AudioBackend) -> bool {
+/// Return whether one host backend supports a native device monitor.
+pub(crate) fn backend_supports_native_device_monitor(_backend: AudioBackend) -> bool {
     false
 }
 
 /// Start one host backend native device-event monitor on unsupported targets.
-pub(crate) fn start_backend_native_device_events_impl(_backend: AudioBackend) -> RuntimeResult<()> {
-    Ok(())
+pub(crate) fn start_backend_native_device_events_impl(
+    _backend: AudioBackend,
+) -> RuntimeResult<Box<dyn audio_core::AudioMonitorHandle>> {
+    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.event.open")).boxed())
 }
-
-/// Stop one host backend native device-event monitor on unsupported targets.
-pub(crate) fn stop_backend_native_device_events_impl(_backend: AudioBackend) {}
 
 /// Enumerate host devices for unsupported targets.
 pub(crate) fn enumerate_host_devices(

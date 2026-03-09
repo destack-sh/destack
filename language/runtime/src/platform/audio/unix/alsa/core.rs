@@ -7,7 +7,7 @@ use super::ffi::alsa_library;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::core as audio_core;
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::{PlatformError, core as core_platform};
+use crate::platform::{PlatformError, audio as audio_types, core as core_platform};
 
 /// Return whether ALSA backend support is implemented for this build.
 pub(crate) fn is_backend_supported() -> bool {
@@ -69,7 +69,7 @@ pub(super) struct ParsedAlsaStableId {
 #[derive(Debug, Clone, Copy)]
 pub(super) struct AlsaFormatCandidate {
     /// Runtime sample format.
-    pub(super) runtime_format: audio_core::AudioSampleFormat,
+    pub(super) runtime_format: audio_types::AudioSampleFormat,
     /// ALSA format token passed to `snd_pcm_format_value`.
     pub(super) alsa_name: &'static str,
 }
@@ -140,7 +140,7 @@ pub(super) struct AlsaStreamRuntime {
     /// Bytes per interleaved frame.
     pub(super) frame_bytes: usize,
     /// Effective runtime sample format.
-    pub(super) format: audio_core::AudioSampleFormat,
+    pub(super) format: audio_types::AudioSampleFormat,
     /// Period pacing duration for idle sleeps.
     pub(super) poll_period: Duration,
     /// Whether pause and resume is supported by all opened PCM lanes.
@@ -149,14 +149,14 @@ pub(super) struct AlsaStreamRuntime {
     pub(super) playback_pcm: Option<Arc<AlsaPcmHandle>>,
     /// Capture lane handle when opened.
     pub(super) capture_pcm: Option<Arc<AlsaPcmHandle>>,
-    /// Weak link to stream binding state for callback workers.
-    pub(super) binding: Mutex<Weak<audio_core::AudioStreamBinding>>,
+    /// Weak link to stream host state for callback workers.
+    pub(super) stream_state: Mutex<Weak<audio_core::AudioStreamHostState>>,
 }
 
 unsafe impl Send for AlsaStreamRuntime {}
 unsafe impl Sync for AlsaStreamRuntime {}
 
-/// One host-operations payload for one ALSA stream binding.
+/// One host-operations payload for one ALSA stream host state.
 #[derive(Debug)]
 pub(super) struct AlsaHostStreamOps {
     /// Shared ALSA runtime payload.
@@ -221,16 +221,16 @@ pub(super) fn transport_from_device_name(device_name: &str) -> &'static str {
 }
 
 /// Return one channel layout enum from one channel count.
-pub(super) fn channel_layout(channel_count: u16) -> audio_core::AudioChannelLayout {
+pub(super) fn channel_layout(channel_count: u16) -> audio_types::AudioChannelLayout {
     match channel_count {
-        1 => audio_core::AudioChannelLayout::Mono,
-        2 => audio_core::AudioChannelLayout::Stereo,
-        4 => audio_core::AudioChannelLayout::Quad,
-        5 => audio_core::AudioChannelLayout::Surround41,
-        6 => audio_core::AudioChannelLayout::Surround51,
-        7 => audio_core::AudioChannelLayout::Surround61,
-        8 => audio_core::AudioChannelLayout::Surround71,
-        _ => audio_core::AudioChannelLayout::Unknown,
+        1 => audio_types::AudioChannelLayout::Mono,
+        2 => audio_types::AudioChannelLayout::Stereo,
+        4 => audio_types::AudioChannelLayout::Quad,
+        5 => audio_types::AudioChannelLayout::Surround41,
+        6 => audio_types::AudioChannelLayout::Surround51,
+        7 => audio_types::AudioChannelLayout::Surround61,
+        8 => audio_types::AudioChannelLayout::Surround71,
+        _ => audio_types::AudioChannelLayout::Unknown,
     }
 }
 

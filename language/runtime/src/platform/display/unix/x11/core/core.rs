@@ -1,4 +1,9 @@
+#[cfg(test)]
+use std::collections::VecDeque;
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+#[cfg(test)]
+use crate::platform::display::DisplayEventOverflowPolicy;
 use crate::platform::display::{DisplayBackend, DisplayMonitorEventKindMask, WindowEventKindMask};
 use crate::platform::{PlatformError, core as core_platform, resource};
 

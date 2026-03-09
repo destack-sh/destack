@@ -8,6 +8,7 @@ mod execute;
 mod finalizers;
 mod poller;
 mod runtime;
+mod service;
 
 pub use abi::*;
 pub use agent::*;
@@ -17,3 +18,4 @@ pub use drop::*;
 pub use event::*;
 pub use finalizers::*;
 pub use runtime::*;
+pub use service::*;

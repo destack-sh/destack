@@ -1,17 +1,15 @@
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
-use crate::platform::audio::core as audio_core;
-
 use super::constants::{
     PIPEWIRE_CAPTURE_STABLE_ID_PREFIX, PIPEWIRE_DUPLEX_STABLE_ID_PREFIX,
     PIPEWIRE_LOOPBACK_STABLE_ID_PREFIX, PIPEWIRE_PLAYBACK_STABLE_ID_PREFIX,
 };
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::{PlatformError, audio as audio_types};
 
 /// One parsed PipeWire stable-id payload.
 #[derive(Debug, Clone)]
 pub(super) struct ParsedPipewireStableId {
     /// Requested direction lane encoded by the stable-id prefix.
-    pub(super) lane: audio_core::AudioDeviceDirection,
+    pub(super) lane: audio_types::AudioDeviceDirection,
     /// Playback endpoint token.
     pub(super) playback_name: String,
     /// Capture endpoint token for duplex rows.
@@ -50,7 +48,7 @@ pub(super) fn parse_pipewire_stable_id(stable_id: &str) -> RuntimeResult<ParsedP
         }
 
         return Ok(ParsedPipewireStableId {
-            lane: audio_core::AudioDeviceDirection::Playback,
+            lane: audio_types::AudioDeviceDirection::Playback,
             playback_name: device_name.to_string(),
             capture_name: None,
         });
@@ -66,7 +64,7 @@ pub(super) fn parse_pipewire_stable_id(stable_id: &str) -> RuntimeResult<ParsedP
         }
 
         return Ok(ParsedPipewireStableId {
-            lane: audio_core::AudioDeviceDirection::Capture,
+            lane: audio_types::AudioDeviceDirection::Capture,
             playback_name: device_name.to_string(),
             capture_name: None,
         });
@@ -90,7 +88,7 @@ pub(super) fn parse_pipewire_stable_id(stable_id: &str) -> RuntimeResult<ParsedP
         }
 
         return Ok(ParsedPipewireStableId {
-            lane: audio_core::AudioDeviceDirection::Duplex,
+            lane: audio_types::AudioDeviceDirection::Duplex,
             playback_name: playback_name.to_string(),
             capture_name: Some(capture_name.to_string()),
         });
@@ -106,7 +104,7 @@ pub(super) fn parse_pipewire_stable_id(stable_id: &str) -> RuntimeResult<ParsedP
         }
 
         return Ok(ParsedPipewireStableId {
-            lane: audio_core::AudioDeviceDirection::Loopback,
+            lane: audio_types::AudioDeviceDirection::Loopback,
             playback_name: device_name.to_string(),
             capture_name: None,
         });
@@ -122,7 +120,7 @@ pub(super) fn parse_pipewire_stable_id(stable_id: &str) -> RuntimeResult<ParsedP
 /// Validate one PipeWire stable-id lane against one requested stream direction.
 pub(super) fn validate_pipewire_stable_id_direction(
     parsed: &ParsedPipewireStableId,
-    direction: audio_core::AudioDeviceDirection,
+    direction: audio_types::AudioDeviceDirection,
 ) -> RuntimeResult<()> {
     if parsed.lane != direction {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(

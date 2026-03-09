@@ -5,9 +5,9 @@ use std::sync::OnceLock;
 use super::abi::*;
 use super::constants::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
 use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::{PlatformError, audio as audio_types};
 
 /// Return whether OpenSL ES backend support is implemented for this build.
 pub(crate) fn is_backend_supported() -> bool {
@@ -71,11 +71,11 @@ fn probe_backend_available() -> RuntimeResult<()> {
 }
 
 /// Return one normalized channel layout from one channel count.
-pub(super) fn channel_layout(channel_count: u16) -> audio_core::AudioChannelLayout {
+pub(super) fn channel_layout(channel_count: u16) -> audio_types::AudioChannelLayout {
     match channel_count {
-        1 => audio_core::AudioChannelLayout::Mono,
-        2 => audio_core::AudioChannelLayout::Stereo,
-        _ => audio_core::AudioChannelLayout::Unknown,
+        1 => audio_types::AudioChannelLayout::Mono,
+        2 => audio_types::AudioChannelLayout::Stereo,
+        _ => audio_types::AudioChannelLayout::Unknown,
     }
 }
 
@@ -94,7 +94,7 @@ pub(super) fn channel_mask(channel_count: u16) -> u64 {
 
 /// Return one conservative OpenSL ES sample-format mask.
 pub(super) fn opensles_format_mask() -> u32 {
-    audio_core::sample_format_bit(audio_core::AudioSampleFormat::S16)
+    audio_core::sample_format_bit(audio_types::AudioSampleFormat::S16)
 }
 
 /// Return one OpenSL ES PCM channel mask from one channel count.
@@ -212,10 +212,10 @@ fn opensles_status_text(status: SLresult) -> &'static str {
 
 /// Return one OpenSL ES sample format for one runtime format.
 pub(super) fn opensles_sample_format(
-    format: audio_core::AudioSampleFormat,
-) -> Option<audio_core::AudioSampleFormat> {
+    format: audio_types::AudioSampleFormat,
+) -> Option<audio_types::AudioSampleFormat> {
     match format {
-        audio_core::AudioSampleFormat::S16 => Some(audio_core::AudioSampleFormat::S16),
+        audio_types::AudioSampleFormat::S16 => Some(audio_types::AudioSampleFormat::S16),
         _ => None,
     }
 }

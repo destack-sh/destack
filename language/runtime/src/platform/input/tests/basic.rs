@@ -22,11 +22,13 @@ use crate::platform::input::{
 #[cfg(target_os = "linux")]
 use crate::platform::input::{
     InputHapticEffectParameters, InputHapticEffectType, InputHapticsResult, InputSensorConfig,
-    InputSensorKind, InputTextInputType,
+    InputTextInputType,
 };
 use crate::platform::resource::{
     InputDeviceHandle, InputMonitorHandle, ResourceEntry, ResourceId, ResourceKind, WindowHandle,
 };
+#[cfg(target_os = "linux")]
+use crate::tests::platform::assert_not_supported_result;
 
 const ERR_PERMISSION_OR_NOT_SUPPORTED: [PlatformErrorCode; 2] = [
     PlatformErrorCode::IoPermissionDenied,

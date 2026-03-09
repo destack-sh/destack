@@ -6,7 +6,7 @@ use super::constants::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::core as audio_core;
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::{PlatformError, core as core_platform};
+use crate::platform::{PlatformError, audio as audio_types, core as core_platform};
 
 /// Return whether AAudio backend support is implemented for this build.
 pub(crate) fn is_backend_supported() -> bool {
@@ -23,16 +23,16 @@ pub(super) struct AAudioLibrary {
 }
 
 /// Return one normalized channel layout from one channel count.
-pub(super) fn channel_layout(channel_count: u16) -> audio_core::AudioChannelLayout {
+pub(super) fn channel_layout(channel_count: u16) -> audio_types::AudioChannelLayout {
     match channel_count {
-        1 => audio_core::AudioChannelLayout::Mono,
-        2 => audio_core::AudioChannelLayout::Stereo,
-        4 => audio_core::AudioChannelLayout::Quad,
-        5 => audio_core::AudioChannelLayout::Surround41,
-        6 => audio_core::AudioChannelLayout::Surround51,
-        7 => audio_core::AudioChannelLayout::Surround61,
-        8 => audio_core::AudioChannelLayout::Surround71,
-        _ => audio_core::AudioChannelLayout::Unknown,
+        1 => audio_types::AudioChannelLayout::Mono,
+        2 => audio_types::AudioChannelLayout::Stereo,
+        4 => audio_types::AudioChannelLayout::Quad,
+        5 => audio_types::AudioChannelLayout::Surround41,
+        6 => audio_types::AudioChannelLayout::Surround51,
+        7 => audio_types::AudioChannelLayout::Surround61,
+        8 => audio_types::AudioChannelLayout::Surround71,
+        _ => audio_types::AudioChannelLayout::Unknown,
     }
 }
 
@@ -99,23 +99,25 @@ pub(super) fn require_aaudio_library(operation: &'static str) -> RuntimeResult<A
 }
 
 /// Return one AAudio sample format for one runtime format.
-pub(super) fn aaudio_sample_format(format: audio_core::AudioSampleFormat) -> Option<c_int> {
+pub(super) fn aaudio_sample_format(format: audio_types::AudioSampleFormat) -> Option<c_int> {
     match format {
-        audio_core::AudioSampleFormat::S16 => Some(AAUDIO_FORMAT_PCM_I16),
-        audio_core::AudioSampleFormat::S24 => Some(AAUDIO_FORMAT_PCM_I24_PACKED),
-        audio_core::AudioSampleFormat::S32 => Some(AAUDIO_FORMAT_PCM_I32),
-        audio_core::AudioSampleFormat::F32 => Some(AAUDIO_FORMAT_PCM_FLOAT),
-        audio_core::AudioSampleFormat::U8 | audio_core::AudioSampleFormat::F64 => None,
+        audio_types::AudioSampleFormat::S16 => Some(AAUDIO_FORMAT_PCM_I16),
+        audio_types::AudioSampleFormat::S24 => Some(AAUDIO_FORMAT_PCM_I24_PACKED),
+        audio_types::AudioSampleFormat::S32 => Some(AAUDIO_FORMAT_PCM_I32),
+        audio_types::AudioSampleFormat::F32 => Some(AAUDIO_FORMAT_PCM_FLOAT),
+        audio_types::AudioSampleFormat::U8 | audio_types::AudioSampleFormat::F64 => None,
     }
 }
 
 /// Return one runtime sample format for one AAudio format selector.
-pub(super) fn runtime_sample_format(aaudio_format: c_int) -> Option<audio_core::AudioSampleFormat> {
+pub(super) fn runtime_sample_format(
+    aaudio_format: c_int,
+) -> Option<audio_types::AudioSampleFormat> {
     match aaudio_format {
-        AAUDIO_FORMAT_PCM_I16 => Some(audio_core::AudioSampleFormat::S16),
-        AAUDIO_FORMAT_PCM_I24_PACKED => Some(audio_core::AudioSampleFormat::S24),
-        AAUDIO_FORMAT_PCM_I32 => Some(audio_core::AudioSampleFormat::S32),
-        AAUDIO_FORMAT_PCM_FLOAT => Some(audio_core::AudioSampleFormat::F32),
+        AAUDIO_FORMAT_PCM_I16 => Some(audio_types::AudioSampleFormat::S16),
+        AAUDIO_FORMAT_PCM_I24_PACKED => Some(audio_types::AudioSampleFormat::S24),
+        AAUDIO_FORMAT_PCM_I32 => Some(audio_types::AudioSampleFormat::S32),
+        AAUDIO_FORMAT_PCM_FLOAT => Some(audio_types::AudioSampleFormat::F32),
         AAUDIO_FORMAT_UNSPECIFIED => None,
         _ => None,
     }
@@ -123,17 +125,17 @@ pub(super) fn runtime_sample_format(aaudio_format: c_int) -> Option<audio_core::
 
 /// Return one conservative AAudio sample-format mask.
 pub(super) fn aaudio_format_mask() -> u32 {
-    audio_core::sample_format_bit(audio_core::AudioSampleFormat::S16)
-        | audio_core::sample_format_bit(audio_core::AudioSampleFormat::S24)
-        | audio_core::sample_format_bit(audio_core::AudioSampleFormat::S32)
-        | audio_core::sample_format_bit(audio_core::AudioSampleFormat::F32)
+    audio_core::sample_format_bit(audio_types::AudioSampleFormat::S16)
+        | audio_core::sample_format_bit(audio_types::AudioSampleFormat::S24)
+        | audio_core::sample_format_bit(audio_types::AudioSampleFormat::S32)
+        | audio_core::sample_format_bit(audio_types::AudioSampleFormat::F32)
 }
 
 /// Return one AAudio sharing-mode selector for one runtime share mode.
-pub(super) fn aaudio_sharing_mode(mode: audio_core::AudioShareMode) -> c_int {
+pub(super) fn aaudio_sharing_mode(mode: audio_types::AudioShareMode) -> c_int {
     match mode {
-        audio_core::AudioShareMode::Shared => AAUDIO_SHARING_MODE_SHARED,
-        audio_core::AudioShareMode::Exclusive => AAUDIO_SHARING_MODE_EXCLUSIVE,
+        audio_types::AudioShareMode::Shared => AAUDIO_SHARING_MODE_SHARED,
+        audio_types::AudioShareMode::Exclusive => AAUDIO_SHARING_MODE_EXCLUSIVE,
     }
 }
 

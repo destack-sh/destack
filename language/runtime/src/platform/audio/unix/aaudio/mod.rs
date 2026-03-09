@@ -13,5 +13,5 @@ mod ids;
 mod runtime;
 mod stream;
 
-pub(crate) use device::*;
-pub(crate) use stream::*;
+pub(crate) use device::{enumerate_host_devices, is_backend_supported};
+pub(crate) use stream::open_host_stream;

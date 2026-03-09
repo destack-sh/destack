@@ -15,9 +15,10 @@ use super::core::{
 use super::host::{failed, hresult_error, initialize_com};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
-use crate::platform::audio::core as audio_core;
+use crate::platform::audio::{AudioStreamStateKind, core as audio_core};
 use crate::platform::diagnostic::PlatformErrorCode;
 
+use crate::platform::audio as audio_types;
 use windows_sys::Win32::Foundation::{
     GetLastError, HANDLE, WAIT_FAILED, WAIT_OBJECT_0, WAIT_TIMEOUT,
 };
@@ -29,7 +30,7 @@ use windows_sys::Win32::System::Threading::{WaitForMultipleObjects, WaitForSingl
 
 /// Spawn one worker loop that transfers stream data between runtime queues and WASAPI clients.
 pub(super) fn spawn_worker(
-    binding: Arc<audio_core::AudioStreamBinding>,
+    binding: Arc<audio_core::AudioStreamHostState>,
     runtime: Arc<WasapiStreamRuntime>,
 ) -> thread::JoinHandle<()> {
     thread::spawn(move || {
@@ -64,7 +65,7 @@ pub(super) fn spawn_worker(
                         .unwrap_or_else(|error| error.into_inner());
                     state.running = false;
                     state.paused = false;
-                    state.state = audio_core::AudioStreamStateKind::DeviceLost;
+                    state.state_kind = AudioStreamStateKind::DeviceLost;
                     state.last_backend_message = Some(backend_message);
                     drop(state);
 
@@ -73,22 +74,22 @@ pub(super) fn spawn_worker(
                 }
 
                 let transfer_error = match runtime.direction {
-                    audio_core::AudioDeviceDirection::Playback => runtime
+                    audio_types::AudioDeviceDirection::Playback => runtime
                         .render_client
                         .as_ref()
                         .map(|render_client| {
                             process_playback_transfer(&binding, &runtime, render_client)
                         })
                         .transpose(),
-                    audio_core::AudioDeviceDirection::Capture
-                    | audio_core::AudioDeviceDirection::Loopback => runtime
+                    audio_types::AudioDeviceDirection::Capture
+                    | audio_types::AudioDeviceDirection::Loopback => runtime
                         .capture_client
                         .as_ref()
                         .map(|capture_client| {
                             process_capture_transfer(&binding, &runtime, capture_client)
                         })
                         .transpose(),
-                    audio_core::AudioDeviceDirection::Duplex => {
+                    audio_types::AudioDeviceDirection::Duplex => {
                         let playback_result = runtime
                             .render_client
                             .as_ref()
@@ -123,7 +124,7 @@ pub(super) fn spawn_worker(
                         .unwrap_or_else(|error| error.into_inner());
                     state.running = false;
                     state.paused = false;
-                    state.state = audio_core::AudioStreamStateKind::DeviceLost;
+                    state.state_kind = AudioStreamStateKind::DeviceLost;
                     state.last_backend_message = Some(backend_message);
                 }
             }
@@ -219,7 +220,7 @@ fn wait_timeout_milliseconds(duration: Duration) -> u32 {
 
 /// Process one WASAPI playback transfer cycle.
 fn process_playback_transfer(
-    binding: &Arc<audio_core::AudioStreamBinding>,
+    binding: &Arc<audio_core::AudioStreamHostState>,
     runtime: &Arc<WasapiStreamRuntime>,
     render_client: &Arc<WasapiRenderClient>,
 ) -> RuntimeResult<()> {
@@ -300,7 +301,7 @@ fn process_playback_transfer(
 
 /// Process one WASAPI capture transfer cycle.
 fn process_capture_transfer(
-    binding: &Arc<audio_core::AudioStreamBinding>,
+    binding: &Arc<audio_core::AudioStreamHostState>,
     runtime: &Arc<WasapiStreamRuntime>,
     capture_client: &Arc<WasapiCaptureClient>,
 ) -> RuntimeResult<()> {
@@ -409,7 +410,7 @@ fn process_capture_transfer(
 
 /// Fill one WASAPI render packet from queued playback samples.
 fn write_playback_bytes(
-    binding: &Arc<audio_core::AudioStreamBinding>,
+    binding: &Arc<audio_core::AudioStreamHostState>,
     runtime: &Arc<WasapiStreamRuntime>,
     output: &mut [u8],
     frame_count: usize,
@@ -441,7 +442,7 @@ fn write_playback_bytes(
                 None => {
                     state.xrun_count = state.xrun_count.saturating_add(1);
                     state.output_underflow_count = state.output_underflow_count.saturating_add(1);
-                    state.status_flags = audio_core::AudioStreamStatusFlags(
+                    state.status_flags = audio_types::AudioStreamStatusFlags(
                         state.status_flags.0 | audio_core::STREAM_STATUS_OUTPUT_UNDERFLOW.0,
                     );
                     0.0
@@ -474,7 +475,7 @@ fn write_playback_bytes(
 
 /// Push one silent capture packet into the runtime queue.
 fn push_capture_silent_frames(
-    binding: &Arc<audio_core::AudioStreamBinding>,
+    binding: &Arc<audio_core::AudioStreamHostState>,
     runtime: &Arc<WasapiStreamRuntime>,
     frame_count: usize,
     capture_timestamp_ns: Option<u64>,
@@ -506,7 +507,7 @@ fn push_capture_silent_frames(
         }
         state.xrun_count = state.xrun_count.saturating_add(1);
         state.input_overflow_count = state.input_overflow_count.saturating_add(1);
-        state.status_flags = audio_core::AudioStreamStatusFlags(
+        state.status_flags = audio_types::AudioStreamStatusFlags(
             state.status_flags.0 | audio_core::STREAM_STATUS_INPUT_OVERFLOW.0,
         );
     }
@@ -514,7 +515,7 @@ fn push_capture_silent_frames(
     if has_data_discontinuity {
         state.xrun_count = state.xrun_count.saturating_add(1);
         state.input_overflow_count = state.input_overflow_count.saturating_add(1);
-        state.status_flags = audio_core::AudioStreamStatusFlags(
+        state.status_flags = audio_types::AudioStreamStatusFlags(
             state.status_flags.0 | audio_core::STREAM_STATUS_INPUT_OVERFLOW.0,
         );
     }
@@ -540,7 +541,7 @@ fn push_capture_silent_frames(
 
 /// Decode one capture packet and push it into the runtime queue.
 fn push_capture_bytes(
-    binding: &Arc<audio_core::AudioStreamBinding>,
+    binding: &Arc<audio_core::AudioStreamHostState>,
     runtime: &Arc<WasapiStreamRuntime>,
     input: &[u8],
     frame_count: usize,
@@ -580,7 +581,7 @@ fn push_capture_bytes(
         }
         state.xrun_count = state.xrun_count.saturating_add(1);
         state.input_overflow_count = state.input_overflow_count.saturating_add(1);
-        state.status_flags = audio_core::AudioStreamStatusFlags(
+        state.status_flags = audio_types::AudioStreamStatusFlags(
             state.status_flags.0 | audio_core::STREAM_STATUS_INPUT_OVERFLOW.0,
         );
     }
@@ -588,7 +589,7 @@ fn push_capture_bytes(
     if has_data_discontinuity {
         state.xrun_count = state.xrun_count.saturating_add(1);
         state.input_overflow_count = state.input_overflow_count.saturating_add(1);
-        state.status_flags = audio_core::AudioStreamStatusFlags(
+        state.status_flags = audio_types::AudioStreamStatusFlags(
             state.status_flags.0 | audio_core::STREAM_STATUS_INPUT_OVERFLOW.0,
         );
     }

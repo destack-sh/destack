@@ -8,6 +8,7 @@ use super::constants::{
 };
 use super::core::{aaudio_format_mask, channel_layout, channel_mask, require_aaudio_library};
 use super::ids::{capture_stable_id, duplex_stable_id, playback_stable_id};
+use crate::platform::audio as audio_types;
 
 /// Enumerate AAudio devices from one default endpoint profile.
 pub(super) fn enumerate_devices() -> RuntimeResult<Vec<audio_core::HostDeviceDescriptor>> {
@@ -32,15 +33,15 @@ pub(super) fn enumerate_devices() -> RuntimeResult<Vec<audio_core::HostDeviceDes
         group_id: String::from("aaudio-group:default"),
         name: String::from("AAudio Playback"),
         transport: String::from("aaudio"),
-        backend: audio_core::AudioBackend::AAudio,
-        direction: audio_core::AudioDeviceDirection::Playback,
+        backend: audio_types::AudioBackend::AAudio,
+        direction: audio_types::AudioDeviceDirection::Playback,
         supported_directions: audio_core::DIRECTION_MASK_PLAYBACK,
         connected: true,
         is_raw: false,
         is_default_playback: true,
         is_default_capture: false,
         is_default_loopback: false,
-        capability_flags: audio_core::AudioDeviceCapabilityFlags(base_flags),
+        capability_flags: audio_types::AudioDeviceCapabilityFlags(base_flags),
         preferred_sample_rate: AAUDIO_PREFERRED_SAMPLE_RATE,
         min_sample_rate: AAUDIO_MIN_SAMPLE_RATE,
         max_sample_rate: AAUDIO_MAX_SAMPLE_RATE,
@@ -62,15 +63,15 @@ pub(super) fn enumerate_devices() -> RuntimeResult<Vec<audio_core::HostDeviceDes
         group_id: String::from("aaudio-group:default"),
         name: String::from("AAudio Capture"),
         transport: String::from("aaudio"),
-        backend: audio_core::AudioBackend::AAudio,
-        direction: audio_core::AudioDeviceDirection::Capture,
+        backend: audio_types::AudioBackend::AAudio,
+        direction: audio_types::AudioDeviceDirection::Capture,
         supported_directions: audio_core::DIRECTION_MASK_CAPTURE,
         connected: true,
         is_raw: false,
         is_default_playback: false,
         is_default_capture: true,
         is_default_loopback: false,
-        capability_flags: audio_core::AudioDeviceCapabilityFlags(base_flags),
+        capability_flags: audio_types::AudioDeviceCapabilityFlags(base_flags),
         preferred_sample_rate: AAUDIO_PREFERRED_SAMPLE_RATE,
         min_sample_rate: AAUDIO_MIN_SAMPLE_RATE,
         max_sample_rate: AAUDIO_MAX_SAMPLE_RATE,
@@ -92,8 +93,8 @@ pub(super) fn enumerate_devices() -> RuntimeResult<Vec<audio_core::HostDeviceDes
         group_id: String::from("aaudio-group:default"),
         name: String::from("AAudio Duplex"),
         transport: String::from("aaudio"),
-        backend: audio_core::AudioBackend::AAudio,
-        direction: audio_core::AudioDeviceDirection::Duplex,
+        backend: audio_types::AudioBackend::AAudio,
+        direction: audio_types::AudioDeviceDirection::Duplex,
         supported_directions: audio_core::DIRECTION_MASK_PLAYBACK
             | audio_core::DIRECTION_MASK_CAPTURE
             | audio_core::DIRECTION_MASK_DUPLEX,
@@ -102,7 +103,7 @@ pub(super) fn enumerate_devices() -> RuntimeResult<Vec<audio_core::HostDeviceDes
         is_default_playback: true,
         is_default_capture: true,
         is_default_loopback: false,
-        capability_flags: audio_core::AudioDeviceCapabilityFlags(
+        capability_flags: audio_types::AudioDeviceCapabilityFlags(
             base_flags | audio_core::DEVICE_CAPABILITY_FULL_DUPLEX.0,
         ),
         preferred_sample_rate: AAUDIO_PREFERRED_SAMPLE_RATE,

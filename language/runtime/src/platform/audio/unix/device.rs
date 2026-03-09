@@ -221,9 +221,9 @@ pub(crate) unsafe fn destack_audio_device_descriptor(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let resolved_binding =
-        audio_core::resolve_device_binding(binding, handle, "destack.audio.device.descriptor")?;
-    let descriptor = audio_core::descriptor_from_binding(binding, &resolved_binding);
+    let device_state =
+        audio_core::resolve_device_host_state(binding, handle, "destack.audio.device.descriptor")?;
+    let descriptor = audio_core::descriptor_from_device_state(binding, &device_state);
     unsafe {
         *out = descriptor;
     }
@@ -362,7 +362,7 @@ pub(crate) unsafe fn destack_audio_device_open(
     let mut options = options;
     options.backend = backend;
 
-    let payload = Arc::new(audio_core::AudioDeviceBinding {
+    let payload = Arc::new(audio_core::AudioDeviceHostState {
         info,
         opened_direction: options.direction,
         options,

@@ -1,10 +1,10 @@
 #[cfg(target_os = "macos")]
 use std::ffi::c_void;
 #[cfg(target_os = "macos")]
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::AudioStreamHostState;
 
 /// CoreAudio type alias `AudioObjectID`.
 #[cfg(target_os = "macos")]
@@ -197,8 +197,8 @@ pub(super) struct AudioQueueBuffer {
 #[cfg(target_os = "macos")]
 #[derive(Debug)]
 pub(super) struct CoreAudioStreamContext {
-    /// Shared stream binding payload.
-    pub(super) binding: Arc<audio_core::AudioStreamBinding>,
+    /// Shared stream host state payload.
+    pub(super) stream: Arc<AudioStreamHostState>,
 }
 
 /// CoreAudio struct `CoreAudioQueueHandle`.
@@ -221,7 +221,7 @@ unsafe impl Send for CoreAudioQueueHandle {}
 #[derive(Debug)]
 pub(super) struct CoreAudioStreamRuntime {
     /// Active queue handles for this stream.
-    pub(super) queue_handles: audio_core::Mutex<Vec<CoreAudioQueueHandle>>,
+    pub(super) queue_handles: Mutex<Vec<CoreAudioQueueHandle>>,
     /// Device identifier used for optional hog-mode release.
     pub(super) device_id: AudioDeviceID,
     /// Whether this stream acquired hog mode and must release it.

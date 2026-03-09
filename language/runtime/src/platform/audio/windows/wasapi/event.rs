@@ -13,10 +13,11 @@ use super::constants::{HRESULT_OK, IID_IMM_NOTIFICATION_CLIENT};
 use super::host::{create_device_enumerator, failed, hresult_error, initialize_com};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::AudioMonitorHandle;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{PlatformError, core as core_platform};
-use crate::runtime::BindingCallContext;
 
+use crate::platform::audio as audio_types;
 use windows_sys::Win32::Media::Audio::{EDataFlow, ERole, IMMDeviceEnumerator};
 use windows_sys::Win32::UI::Shell::PropertiesSystem::PROPERTYKEY;
 use windows_sys::core::{GUID, HRESULT, PCWSTR};
@@ -28,57 +29,13 @@ struct WasapiDeviceMonitor {
     stop: Arc<AtomicBool>,
     /// Running monitor thread.
     handle: JoinHandle<()>,
-    /// Active reference count for subscriptions using this monitor.
-    reference_count: usize,
 }
 
-/// Runtime-owned WASAPI monitor slot.
-#[derive(Debug, Default)]
-pub(crate) struct WasapiMonitorRuntimeState {
-    /// Runtime-owned monitor slot.
-    monitor: Mutex<Option<WasapiDeviceMonitor>>,
-    /// Whether teardown finalizer was registered.
-    shutdown_registered: AtomicBool,
-}
-
-/// Return runtime-owned WASAPI monitor state.
-fn wasapi_monitor_runtime_state(binding: &BindingCallContext) -> Arc<WasapiMonitorRuntimeState> {
-    let runtime_state = binding
-        .agent()
-        .platform_state
-        .audio
-        .wasapi_monitor_runtime_state(WasapiMonitorRuntimeState::default);
-    register_runtime_finalizer(binding, &runtime_state);
-
-    runtime_state
-}
-
-/// Register one runtime finalizer for WASAPI monitor teardown.
-fn register_runtime_finalizer(
-    binding: &BindingCallContext,
-    runtime_state: &Arc<WasapiMonitorRuntimeState>,
-) {
-    if runtime_state
-        .shutdown_registered
-        .swap(true, Ordering::AcqRel)
-    {
-        return;
+impl AudioMonitorHandle for WasapiDeviceMonitor {
+    fn stop(self: Box<Self>) {
+        self.stop.store(true, Ordering::Relaxed);
+        let _ = self.handle.join();
     }
-
-    let runtime_state = Arc::clone(runtime_state);
-    binding.agent().finalizers.register(move || {
-        let monitor = runtime_state
-            .monitor
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .take();
-        let Some(monitor) = monitor else {
-            return;
-        };
-
-        monitor.stop.store(true, Ordering::Relaxed);
-        let _ = monitor.handle.join();
-    });
 }
 
 /// Return one startup error payload for WASAPI native monitor initialization.
@@ -94,38 +51,15 @@ fn startup_error(message: impl Into<String>) -> Box<RuntimeError> {
     .boxed()
 }
 
-/// Return whether WASAPI native device-event monitoring is available.
-pub(crate) fn native_device_events_supported() -> bool {
-    true
-}
-
 /// Start one WASAPI native device-event monitor.
-pub(crate) fn start_native_device_event_monitor(binding: &BindingCallContext) -> RuntimeResult<()> {
-    let runtime_state = wasapi_monitor_runtime_state(binding);
-    let mut monitor_slot = runtime_state
-        .monitor
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    if let Some(monitor) = monitor_slot.as_mut() {
-        monitor.reference_count += 1;
-        return Ok(());
-    }
-
+pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<Box<dyn AudioMonitorHandle>> {
     let stop = Arc::new(AtomicBool::new(false));
-    let runtime_state = audio_core::audio_event_runtime_state(binding);
     let stop_signal = Arc::clone(&stop);
-    let callback_runtime_state = Arc::clone(&runtime_state);
     let poll_interval_ns = audio_core::resolved_event_monitor_poll_interval_ns(50_000_000);
     let sleep_interval = Duration::from_nanos(poll_interval_ns);
     let (ready_sender, ready_receiver) = mpsc::sync_channel(1);
-    let handle = thread::spawn(move || {
-        run_device_monitor_thread(
-            callback_runtime_state,
-            stop_signal,
-            ready_sender,
-            sleep_interval,
-        )
-    });
+    let handle =
+        thread::spawn(move || run_device_monitor_thread(stop_signal, ready_sender, sleep_interval));
 
     let ready_result = ready_receiver.recv().map_err(|_| {
         startup_error("WASAPI native event monitor exited before startup completed")
@@ -136,46 +70,11 @@ pub(crate) fn start_native_device_event_monitor(binding: &BindingCallContext) ->
         return Err(error);
     }
 
-    *monitor_slot = Some(WasapiDeviceMonitor {
-        stop,
-        handle,
-        reference_count: 1,
-    });
-
-    Ok(())
-}
-
-/// Stop one WASAPI native device-event monitor.
-pub(crate) fn stop_native_device_event_monitor(binding: &BindingCallContext) {
-    let runtime_state = wasapi_monitor_runtime_state(binding);
-    let monitor = {
-        let mut monitor_slot = runtime_state
-            .monitor
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
-        let Some(monitor) = monitor_slot.as_mut() else {
-            return;
-        };
-
-        if monitor.reference_count > 1 {
-            monitor.reference_count -= 1;
-            return;
-        }
-
-        monitor_slot.take()
-    };
-
-    let Some(monitor) = monitor else {
-        return;
-    };
-
-    monitor.stop.store(true, Ordering::Relaxed);
-    let _ = monitor.handle.join();
+    Ok(Box::new(WasapiDeviceMonitor { stop, handle }))
 }
 
 /// Run one WASAPI native device-event monitor thread.
 fn run_device_monitor_thread(
-    runtime_state: Arc<audio_core::AudioEventRuntimeState>,
     stop: Arc<AtomicBool>,
     ready_sender: SyncSender<RuntimeResult<()>>,
     sleep_interval: Duration,
@@ -198,7 +97,7 @@ fn run_device_monitor_thread(
     };
     let enumerator_raw = enumerator.raw() as IMMDeviceEnumerator;
 
-    let callback_pointer = create_notification_client(runtime_state);
+    let callback_pointer = create_notification_client();
     let register_status = unsafe {
         imm_device_enumerator_register_endpoint_notification_callback(
             enumerator_raw,
@@ -241,8 +140,6 @@ struct WasapiNotificationClient {
     vtable: *const WasapiNotificationClientVTable,
     /// Manual COM reference count.
     reference_count: AtomicU32,
-    /// Runtime-owned event state for callback-side snapshot publishing.
-    runtime_state: Arc<audio_core::AudioEventRuntimeState>,
 }
 
 /// Vtable layout for IMMNotificationClient callback object.
@@ -287,13 +184,10 @@ core_platform::define_com_callback_vtable!(
 );
 
 /// Create one COM callback object for WASAPI endpoint notifications.
-fn create_notification_client(
-    runtime_state: Arc<audio_core::AudioEventRuntimeState>,
-) -> *mut c_void {
+fn create_notification_client() -> *mut c_void {
     let callback = Box::new(WasapiNotificationClient {
         vtable: &WASAPI_NOTIFICATION_CLIENT_VTABLE,
         reference_count: AtomicU32::new(1),
-        runtime_state,
     });
 
     Box::into_raw(callback) as *mut c_void
@@ -319,11 +213,8 @@ core_platform::define_com_iunknown_methods!(
 fn publish_notification_snapshot(this: *mut c_void) {
     let callback = unsafe { callback_from_raw(this) };
     core_platform::callback_boundary(|| {
-        let runtime_state = unsafe { callback.as_ref() };
-        audio_core::publish_device_snapshot_native(
-            &runtime_state.runtime_state,
-            audio_core::AudioBackend::Wasapi,
-        );
+        let _ = unsafe { callback.as_ref() };
+        audio_core::publish_device_snapshot_native(audio_types::AudioBackend::Wasapi);
     });
 }
 

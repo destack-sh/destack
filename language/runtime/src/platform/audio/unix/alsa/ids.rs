@@ -1,11 +1,9 @@
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
-use crate::platform::audio::core as audio_core;
-
 use super::constants::{
     ALSA_CAPTURE_STABLE_ID_PREFIX, ALSA_DUPLEX_STABLE_ID_PREFIX, ALSA_PLAYBACK_STABLE_ID_PREFIX,
 };
 use super::core::{AlsaDirectionLane, ParsedAlsaStableId};
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::{PlatformError, audio as audio_types};
 
 /// Build one normalized ALSA playback stable id.
 pub(super) fn playback_stable_id(device_name: &str) -> String {
@@ -90,12 +88,12 @@ pub(super) fn parse_stable_id(stable_id: &str) -> RuntimeResult<ParsedAlsaStable
 /// Validate one parsed stable-id lane against one requested stream direction.
 pub(super) fn validate_stable_id_direction(
     parsed: &ParsedAlsaStableId,
-    direction: audio_core::AudioDeviceDirection,
+    direction: audio_types::AudioDeviceDirection,
 ) -> RuntimeResult<()> {
     match (parsed.lane, direction) {
-        (AlsaDirectionLane::Playback, audio_core::AudioDeviceDirection::Playback)
-        | (AlsaDirectionLane::Capture, audio_core::AudioDeviceDirection::Capture)
-        | (AlsaDirectionLane::Duplex, audio_core::AudioDeviceDirection::Duplex) => Ok(()),
+        (AlsaDirectionLane::Playback, audio_types::AudioDeviceDirection::Playback)
+        | (AlsaDirectionLane::Capture, audio_types::AudioDeviceDirection::Capture)
+        | (AlsaDirectionLane::Duplex, audio_types::AudioDeviceDirection::Duplex) => Ok(()),
         _ => Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "id",
             "alsa stable-id lane does not match requested stream direction",

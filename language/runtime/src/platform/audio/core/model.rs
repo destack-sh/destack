@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::thread::JoinHandle;
@@ -6,12 +6,13 @@ use std::thread::JoinHandle;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::{
     AudioBackend, AudioChannelLayout, AudioDeviceCapabilityFlags, AudioDeviceDirection,
-    AudioDeviceOpenOptions, AudioEventKind, AudioEventSource, AudioEventSubscriptionOptions,
-    AudioShareMode, AudioStreamConfig, AudioStreamStateKind, AudioStreamStatusFlags,
+    AudioDeviceOpenOptions, AudioEventKind, AudioEventOverflowPolicy, AudioEventSource,
+    AudioEventSubscriptionOptions, AudioShareMode, AudioStreamConfig, AudioStreamStateKind,
+    AudioStreamStatusFlags,
 };
 use crate::platform::resource;
 
-use super::{AudioEventRuntimeState, DEFAULT_STREAM_VOLUME, host_monotonic_nanos};
+use super::{AudioRuntimeState, DEFAULT_STREAM_VOLUME, host_monotonic_nanos};
 
 /// One normalized host device descriptor.
 #[derive(Debug, Clone)]
@@ -74,7 +75,7 @@ pub(crate) struct HostDeviceDescriptor {
 
 /// Opened audio device payload.
 #[derive(Debug, Clone)]
-pub(crate) struct AudioDeviceBinding {
+pub(crate) struct AudioDeviceHostState {
     /// Device metadata snapshot.
     pub(crate) info: HostDeviceDescriptor,
     /// Open-time direction for this handle.
@@ -128,7 +129,7 @@ pub(crate) struct AudioStreamSync {
 #[derive(Debug)]
 pub(crate) struct AudioStreamStateInner {
     /// Current stream state kind.
-    pub(crate) state: AudioStreamStateKind,
+    pub(crate) state_kind: AudioStreamStateKind,
     /// Running flag.
     pub(crate) running: bool,
     /// Paused flag.
@@ -176,7 +177,7 @@ pub(crate) struct AudioStreamStateInner {
 }
 
 /// Stream runtime payload.
-pub(crate) struct AudioStreamBinding {
+pub(crate) struct AudioStreamHostState {
     /// Device metadata snapshot.
     pub(crate) device: HostDeviceDescriptor,
     /// Open-time direction lane.
@@ -201,17 +202,17 @@ pub(crate) struct AudioStreamBinding {
     pub(crate) name: Mutex<String>,
     /// Shared runtime state.
     pub(crate) sync: Arc<AudioStreamSync>,
-    /// Bound stream handle once this binding is inserted into the resource table.
+    /// Bound stream handle once this host state is inserted into the resource table.
     pub(crate) stream_handle_raw: AtomicU64,
     /// Event-runtime owner used by cross-thread native event publishing.
-    pub(crate) event_runtime_state: Mutex<Option<Weak<AudioEventRuntimeState>>>,
-    /// Optional null backend worker thread.
-    pub(crate) null_worker: Mutex<Option<JoinHandle<()>>>,
+    pub(crate) runtime_state: Mutex<Option<Weak<AudioRuntimeState>>>,
+    /// Optional backend worker thread for this stream.
+    pub(crate) worker_handle: Mutex<Option<JoinHandle<()>>>,
 }
 
-impl std::fmt::Debug for AudioStreamBinding {
+impl std::fmt::Debug for AudioStreamHostState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AudioStreamBinding")
+        f.debug_struct("AudioStreamHostState")
             .field("device_id", &self.device.id)
             .field("direction", &self.direction)
             .field("sample_rate", &self.sample_rate)
@@ -223,7 +224,33 @@ impl std::fmt::Debug for AudioStreamBinding {
     }
 }
 
-impl AudioStreamBinding {
+impl AudioStreamHostState {
+    /// Bind one stream handle and runtime owner to this host state.
+    pub(crate) fn bind_runtime(
+        self: &Arc<Self>,
+        runtime_state: &Arc<AudioRuntimeState>,
+        handle: resource::AudioStreamHandle,
+    ) {
+        self.stream_handle_raw.store(handle.0.0, Ordering::Release);
+
+        let mut owner = self
+            .runtime_state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        *owner = Some(Arc::downgrade(runtime_state));
+    }
+
+    /// Unbind the stream handle and runtime owner from this host state.
+    pub(crate) fn unbind_runtime(&self) {
+        self.stream_handle_raw.store(0, Ordering::Release);
+
+        let mut owner = self
+            .runtime_state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        *owner = None;
+    }
+
     /// Return queued playback samples capacity.
     pub(crate) fn playback_capacity_samples(&self) -> usize {
         self.max_queued_frames
@@ -236,7 +263,7 @@ impl AudioStreamBinding {
             .saturating_mul(self.channels as usize)
     }
 
-    /// Return the bound stream handle when this binding has been registered.
+    /// Return the bound stream handle when this host state has been registered.
     pub(crate) fn stream_handle(&self) -> Option<resource::AudioStreamHandle> {
         let raw = self.stream_handle_raw.load(Ordering::Acquire);
         if raw == 0 {
@@ -265,12 +292,12 @@ impl AudioStreamBinding {
             .unwrap_or_else(|error| error.into_inner());
         state.shutdown = true;
         state.running = false;
-        state.state = AudioStreamStateKind::Stopped;
+        state.state_kind = AudioStreamStateKind::Stopped;
         drop(state);
         self.sync.wake.notify_all();
 
         if let Some(worker) = self
-            .null_worker
+            .worker_handle
             .lock()
             .unwrap_or_else(|error| error.into_inner())
             .take()
@@ -280,44 +307,43 @@ impl AudioStreamBinding {
     }
 }
 
-impl Drop for AudioStreamBinding {
+impl Drop for AudioStreamHostState {
     fn drop(&mut self) {
         self.shutdown();
     }
 }
 
-/// Event monitor payload.
+/// Opened audio event stream payload.
 #[derive(Debug)]
-pub(crate) struct AudioEventBinding {
-    /// Subscription options for this monitor.
+pub(crate) struct AudioEventStream {
+    /// Stable runtime stream identifier.
+    pub(crate) stream_id: u64,
+    /// Subscription options for this stream.
     pub(crate) options: AudioEventSubscriptionOptions,
-    /// Previous device signatures keyed by id.
-    pub(crate) previous_signatures: HashMap<String, u64>,
-    /// Previous default playback id.
-    pub(crate) previous_default_playback: Option<String>,
-    /// Previous default capture id.
-    pub(crate) previous_default_capture: Option<String>,
-    /// Previous default loopback id.
-    pub(crate) previous_default_loopback: Option<String>,
-    /// Previous stream state for optional stream tracking.
-    pub(crate) previous_stream_state: Option<AudioStreamStateKind>,
-    /// Previous stream device id for optional stream tracking.
-    pub(crate) previous_stream_device_id: Option<String>,
-    /// Previous stream xrun counter for optional stream tracking.
-    pub(crate) previous_stream_xrun_count: u64,
-    /// Last poll refresh timestamp in nanoseconds.
-    pub(crate) last_refresh_ns: u64,
-    /// Next sequence number for queued events.
-    pub(crate) next_sequence: u64,
-    /// Total dropped event count.
-    pub(crate) dropped_count: u64,
-    /// Pending overflow error flag for error overflow policy.
-    pub(crate) overflow_error_pending: bool,
-    /// Pending events.
-    pub(crate) pending: VecDeque<AudioEventRecord>,
+    /// Mutable delivery frontier and overflow state.
+    pub(crate) state: Mutex<AudioEventStreamState>,
 }
 
-/// Stored event record payload.
+/// Mutable audio event stream state.
+#[derive(Debug)]
+pub(crate) struct AudioEventStreamState {
+    /// Queue capacity for unread live events.
+    pub(crate) queue_capacity: usize,
+    /// Overflow policy for unread live events.
+    pub(crate) overflow_policy: AudioEventOverflowPolicy,
+    /// Pending overflow error flag for error overflow policy.
+    pub(crate) overflow_error_pending: bool,
+    /// Next output sequence number for this stream.
+    pub(crate) next_output_sequence: u64,
+    /// Next live sequence to scan in the shared runtime event log.
+    pub(crate) next_live_sequence: u64,
+    /// Number of unread live records visible to this stream.
+    pub(crate) unread_live_count: usize,
+    /// Total dropped event count for this stream.
+    pub(crate) dropped_count: u64,
+}
+
+/// Stored audio event record payload.
 #[derive(Debug, Clone)]
 pub(crate) struct AudioEventRecord {
     /// Event kind selector.
@@ -344,10 +370,87 @@ pub(crate) struct AudioEventRecord {
     pub(crate) stream: Option<resource::AudioStreamHandle>,
 }
 
+/// Runtime-owned device-monitor baseline for one backend.
+#[derive(Debug)]
+pub(crate) struct AudioDeviceMonitorBaseline {
+    /// Subscription options for this monitor.
+    pub(crate) previous_signatures: std::collections::HashMap<String, u64>,
+    /// Previous default playback id.
+    pub(crate) previous_default_playback: Option<String>,
+    /// Previous default capture id.
+    pub(crate) previous_default_capture: Option<String>,
+    /// Previous default loopback id.
+    pub(crate) previous_default_loopback: Option<String>,
+    /// Last poll refresh timestamp in nanoseconds.
+    pub(crate) last_refresh_ns: u64,
+}
+
+/// Runtime-owned stream-monitor baseline for one audio stream.
+#[derive(Debug)]
+pub(crate) struct AudioStreamMonitorBaseline {
+    /// Previous stream state for optional stream tracking.
+    pub(crate) previous_stream_state: Option<AudioStreamStateKind>,
+    /// Previous stream device id for optional stream tracking.
+    pub(crate) previous_stream_device_id: Option<String>,
+    /// Previous stream xrun counter for optional stream tracking.
+    pub(crate) previous_stream_xrun_count: u64,
+    /// Last poll refresh timestamp in nanoseconds.
+    pub(crate) last_refresh_ns: u64,
+}
+
+/// Build one stream event monitor state.
+pub(crate) fn initial_audio_event_stream_state(
+    queue_capacity: usize,
+    overflow_policy: AudioEventOverflowPolicy,
+    next_live_sequence: u64,
+) -> AudioEventStreamState {
+    AudioEventStreamState {
+        queue_capacity,
+        overflow_policy,
+        overflow_error_pending: false,
+        next_output_sequence: 1,
+        next_live_sequence,
+        unread_live_count: 0,
+        dropped_count: 0,
+    }
+}
+
+/// Build one backend device-monitor baseline from one snapshot.
+pub(crate) fn audio_device_monitor_baseline(
+    previous_signatures: std::collections::HashMap<String, u64>,
+    previous_default_playback: Option<String>,
+    previous_default_capture: Option<String>,
+    previous_default_loopback: Option<String>,
+    last_refresh_ns: u64,
+) -> AudioDeviceMonitorBaseline {
+    AudioDeviceMonitorBaseline {
+        previous_signatures,
+        previous_default_playback,
+        previous_default_capture,
+        previous_default_loopback,
+        last_refresh_ns,
+    }
+}
+
+/// Build one stream-monitor baseline from one captured stream state.
+pub(crate) fn audio_stream_monitor_baseline(
+    previous_stream_state: AudioStreamStateKind,
+    previous_stream_device_id: String,
+    previous_stream_xrun_count: u64,
+    last_refresh_ns: u64,
+) -> AudioStreamMonitorBaseline {
+    AudioStreamMonitorBaseline {
+        previous_stream_state: Some(previous_stream_state),
+        previous_stream_device_id: Some(previous_stream_device_id),
+        previous_stream_xrun_count,
+        last_refresh_ns,
+    }
+}
+
 /// Build one initial stream state payload for newly opened streams.
 pub(crate) fn initial_stream_state() -> AudioStreamStateInner {
     AudioStreamStateInner {
-        state: AudioStreamStateKind::Stopped,
+        state_kind: AudioStreamStateKind::Stopped,
         running: false,
         paused: false,
         shutdown: false,

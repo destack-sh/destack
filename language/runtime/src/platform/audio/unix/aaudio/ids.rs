@@ -1,17 +1,17 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
-use crate::platform::audio::core as audio_core;
 
 use super::constants::{
     AAUDIO_CAPTURE_STABLE_ID_PREFIX, AAUDIO_DUPLEX_STABLE_ID_PREFIX,
     AAUDIO_PLAYBACK_STABLE_ID_PREFIX,
 };
+use crate::platform::audio as audio_types;
 
 /// One parsed AAudio stable-id payload.
 #[derive(Debug, Clone)]
 pub(super) struct ParsedAaudioStableId {
     /// Requested direction lane encoded by the stable-id prefix.
-    pub(super) lane: audio_core::AudioDeviceDirection,
+    pub(super) lane: audio_types::AudioDeviceDirection,
     /// Playback endpoint token.
     pub(super) playback_name: String,
     /// Capture endpoint token for duplex rows.
@@ -45,7 +45,7 @@ pub(super) fn parse_aaudio_stable_id(stable_id: &str) -> RuntimeResult<ParsedAau
         }
 
         return Ok(ParsedAaudioStableId {
-            lane: audio_core::AudioDeviceDirection::Playback,
+            lane: audio_types::AudioDeviceDirection::Playback,
             playback_name: device_name.to_string(),
             capture_name: None,
         });
@@ -61,7 +61,7 @@ pub(super) fn parse_aaudio_stable_id(stable_id: &str) -> RuntimeResult<ParsedAau
         }
 
         return Ok(ParsedAaudioStableId {
-            lane: audio_core::AudioDeviceDirection::Capture,
+            lane: audio_types::AudioDeviceDirection::Capture,
             playback_name: device_name.to_string(),
             capture_name: None,
         });
@@ -85,7 +85,7 @@ pub(super) fn parse_aaudio_stable_id(stable_id: &str) -> RuntimeResult<ParsedAau
         }
 
         return Ok(ParsedAaudioStableId {
-            lane: audio_core::AudioDeviceDirection::Duplex,
+            lane: audio_types::AudioDeviceDirection::Duplex,
             playback_name: playback_name.to_string(),
             capture_name: Some(capture_name.to_string()),
         });
@@ -101,7 +101,7 @@ pub(super) fn parse_aaudio_stable_id(stable_id: &str) -> RuntimeResult<ParsedAau
 /// Validate one AAudio stable-id lane against one requested stream direction.
 pub(super) fn validate_aaudio_stable_id_direction(
     parsed: &ParsedAaudioStableId,
-    direction: audio_core::AudioDeviceDirection,
+    direction: audio_types::AudioDeviceDirection,
 ) -> RuntimeResult<()> {
     if parsed.lane != direction {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(

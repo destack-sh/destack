@@ -17,6 +17,8 @@ use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(any(unix, windows))]
 use crate::platform::display as display_platform;
+#[cfg(target_os = "linux")]
+use crate::platform::resource;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use display_platform::WindowOcclusionState;
 #[cfg(any(target_os = "linux", target_os = "windows"))]

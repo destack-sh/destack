@@ -3,15 +3,22 @@ use std::thread;
 use std::thread::JoinHandle;
 
 use crate::diagnostic::RuntimeResult;
+#[cfg(any(
+    all(target_os = "android", feature = "audio-aaudio"),
+    all(target_os = "android", feature = "audio-opensles"),
+    all(target_os = "linux", feature = "audio-pipewire"),
+    all(target_os = "linux", feature = "audio-pulseaudio"),
+))]
+use crate::platform::audio::AudioStreamStateKind;
 use crate::platform::audio::{
     AudioDeviceDirection, AudioEventKind, AudioShareMode, AudioStreamAvailability,
     AudioStreamConfig, AudioStreamDescriptor, AudioStreamFlags, AudioStreamRequirementFlags,
-    AudioStreamState, AudioStreamStateKind, AudioStreamStatusFlags, AudioStreamTiming, host,
+    AudioStreamState, AudioStreamStatusFlags, AudioStreamTiming, backend as audio_backend,
 };
 use crate::runtime::BindingCallContext;
 
 use super::{
-    AudioStreamBinding, AudioStreamRuntimeCapabilities, AudioStreamStateInner, AudioStreamSync,
+    AudioStreamHostState, AudioStreamRuntimeCapabilities, AudioStreamStateInner, AudioStreamSync,
     DEVICE_CAPABILITY_BIT_EXACT_PCM, HostDeviceDescriptor, MIN_STREAM_PERIOD_FRAMES,
     STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT, STREAM_FLAG_MINIMIZE_LATENCY, STREAM_FLAG_NEVER_DROP_INPUT,
     STREAM_FLAG_NO_AUTO_CONVERT, STREAM_FLAG_NON_INTERLEAVED, STREAM_FLAG_PRIME_OUTPUT_BUFFERS,
@@ -19,7 +26,7 @@ use super::{
     STREAM_REQUIRE_HARDWARE_TIMESTAMPS, STREAM_REQUIRE_NON_INTERLEAVED, STREAM_REQUIRE_PAUSE,
     STREAM_REQUIRE_SCHEDULED_WRITE, STREAM_STATUS_INPUT_OVERFLOW, STREAM_STATUS_OUTPUT_UNDERFLOW,
     host_monotonic_nanos, initial_stream_state, publish_stream_event_native,
-    resolved_max_queued_frames, resolved_worker_poll_period, stream_handle_for_binding,
+    resolved_max_queued_frames, resolved_worker_poll_period,
 };
 
 /// Convert one frame count into nanoseconds for one sample rate.
@@ -102,27 +109,27 @@ pub(crate) fn record_stream_callback_timing(
 }
 
 /// Build one stream state snapshot.
-pub(crate) fn stream_state_snapshot(binding: &AudioStreamBinding) -> AudioStreamState {
-    let state = binding
+pub(crate) fn stream_state_snapshot(stream: &AudioStreamHostState) -> AudioStreamState {
+    let state = stream
         .sync
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    let buffered_frames = if binding.direction == AudioDeviceDirection::Capture
-        || binding.direction == AudioDeviceDirection::Loopback
+    let buffered_frames = if stream.direction == AudioDeviceDirection::Capture
+        || stream.direction == AudioDeviceDirection::Loopback
     {
-        binding.buffered_capture_frames(&state)
+        stream.buffered_capture_frames(&state)
     } else {
-        binding.buffered_playback_frames(&state)
+        stream.buffered_playback_frames(&state)
     };
 
-    let latency_ns = (binding.period_frames as u64)
+    let latency_ns = (stream.period_frames as u64)
         .saturating_mul(1_000_000_000u64)
-        .checked_div(binding.sample_rate.max(1) as u64)
+        .checked_div(stream.sample_rate.max(1) as u64)
         .unwrap_or(0);
 
     AudioStreamState {
-        state: state.state,
+        state: state.state_kind,
         running: state.running,
         paused: state.paused,
         buffered_frames,
@@ -142,9 +149,9 @@ pub(crate) fn stream_state_snapshot(binding: &AudioStreamBinding) -> AudioStream
 /// Build one stream timing snapshot.
 pub(crate) fn stream_timing_snapshot(
     ctx: &BindingCallContext,
-    binding: &AudioStreamBinding,
+    stream: &AudioStreamHostState,
 ) -> AudioStreamTiming {
-    let state = binding
+    let state = stream
         .sync
         .state
         .lock()
@@ -177,7 +184,7 @@ pub(crate) fn stream_timing_snapshot(
         } else {
             None
         },
-        device_clock_ns: if binding.runtime_capabilities.supports_hardware_timestamps
+        device_clock_ns: if stream.runtime_capabilities.supports_hardware_timestamps
             && device_clock_ns > 0
         {
             Some(device_clock_ns)
@@ -185,13 +192,13 @@ pub(crate) fn stream_timing_snapshot(
             None
         },
         monotonic_clock_ns: ctx.world().mono_nanos(),
-        drift_ppm: estimate_drift_ppm(&state, binding.sample_rate),
+        drift_ppm: estimate_drift_ppm(&state, stream.sample_rate),
         callback_cpu_load: state.last_callback_cpu_load,
     }
 }
 
 /// Build one stream-option mask from stream runtime capabilities.
-pub(crate) fn effective_stream_flags(binding: &AudioStreamBinding) -> AudioStreamFlags {
+pub(crate) fn effective_stream_flags(stream: &AudioStreamHostState) -> AudioStreamFlags {
     let mut flags = STREAM_FLAG_REPORT_XRUN.0;
     flags |= STREAM_FLAG_MINIMIZE_LATENCY.0;
     flags |= STREAM_FLAG_SCHEDULE_REALTIME.0;
@@ -200,7 +207,7 @@ pub(crate) fn effective_stream_flags(binding: &AudioStreamBinding) -> AudioStrea
     flags |= STREAM_FLAG_NEVER_DROP_INPUT.0;
     flags |= STREAM_FLAG_PRIME_OUTPUT_BUFFERS.0;
 
-    if binding.runtime_capabilities.supports_non_interleaved {
+    if stream.runtime_capabilities.supports_non_interleaved {
         flags |= STREAM_FLAG_NON_INTERLEAVED.0;
     }
 
@@ -209,22 +216,22 @@ pub(crate) fn effective_stream_flags(binding: &AudioStreamBinding) -> AudioStrea
 
 /// Build one stream-requirement mask satisfied by this stream.
 pub(crate) fn satisfied_stream_requirements(
-    binding: &AudioStreamBinding,
+    stream: &AudioStreamHostState,
 ) -> AudioStreamRequirementFlags {
     let mut requirements = 0u32;
-    if binding.runtime_capabilities.supports_non_interleaved {
+    if stream.runtime_capabilities.supports_non_interleaved {
         requirements |= STREAM_REQUIRE_NON_INTERLEAVED.0;
     }
-    if binding.runtime_capabilities.supports_write_at {
+    if stream.runtime_capabilities.supports_write_at {
         requirements |= STREAM_REQUIRE_SCHEDULED_WRITE.0;
     }
-    if binding.runtime_capabilities.supports_pause {
+    if stream.runtime_capabilities.supports_pause {
         requirements |= STREAM_REQUIRE_PAUSE.0;
     }
-    if binding.runtime_capabilities.supports_hardware_timestamps {
+    if stream.runtime_capabilities.supports_hardware_timestamps {
         requirements |= STREAM_REQUIRE_HARDWARE_TIMESTAMPS.0;
     }
-    if (binding.device.capability_flags.0 & DEVICE_CAPABILITY_BIT_EXACT_PCM.0) != 0 {
+    if (stream.device.capability_flags.0 & DEVICE_CAPABILITY_BIT_EXACT_PCM.0) != 0 {
         requirements |= STREAM_REQUIRE_BIT_EXACT_PCM.0;
     }
 
@@ -234,26 +241,26 @@ pub(crate) fn satisfied_stream_requirements(
 /// Build one stream availability snapshot.
 pub(crate) fn stream_availability_snapshot(
     ctx: &BindingCallContext,
-    binding: &AudioStreamBinding,
+    stream: &AudioStreamHostState,
 ) -> AudioStreamAvailability {
-    let state = binding
+    let state = stream
         .sync
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
-    let readable_frames = binding.buffered_capture_frames(&state);
-    let writable_frames = binding
+    let readable_frames = stream.buffered_capture_frames(&state);
+    let writable_frames = stream
         .playback_capacity_samples()
         .saturating_sub(state.playback_samples.len())
-        .checked_div(binding.channels as usize)
+        .checked_div(stream.channels as usize)
         .unwrap_or(0) as u64;
 
     AudioStreamAvailability {
         readable_frames,
         writable_frames,
-        min_transfer_frames: binding.period_frames,
-        max_transfer_frames: binding.period_frames,
+        min_transfer_frames: stream.period_frames,
+        max_transfer_frames: stream.period_frames,
         timestamp_ns: ctx.world().mono_nanos(),
     }
 }
@@ -261,50 +268,50 @@ pub(crate) fn stream_availability_snapshot(
 /// Build one stream snapshot payload.
 pub(crate) fn stream_descriptor(
     ctx: &BindingCallContext,
-    binding: &AudioStreamBinding,
+    stream: &AudioStreamHostState,
 ) -> AudioStreamDescriptor {
-    let state = binding
+    let state = stream
         .sync
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
     AudioStreamDescriptor {
-        backend: binding.device.backend,
-        backend_id: ctx.store_string(host::backend_name(binding.device.backend)),
-        device_id: ctx.store_string(&binding.device.id),
-        sample_rate: binding.sample_rate,
-        channels: binding.channels,
-        channel_layout: binding.requested.channel_layout,
-        channel_mask: binding.requested.channel_mask,
-        format: binding.requested.format,
-        period_frames: binding.period_frames,
-        transfer_mode: binding.requested.transfer_mode,
-        share_mode: binding.share_mode,
+        backend: stream.device.backend,
+        backend_id: ctx.store_string(audio_backend::backend_name(stream.device.backend)),
+        device_id: ctx.store_string(&stream.device.id),
+        sample_rate: stream.sample_rate,
+        channels: stream.channels,
+        channel_layout: stream.requested.channel_layout,
+        channel_mask: stream.requested.channel_mask,
+        format: stream.requested.format,
+        period_frames: stream.period_frames,
+        transfer_mode: stream.requested.transfer_mode,
+        share_mode: stream.share_mode,
         requested_flags: AudioStreamFlags(0),
         requested_requirements: AudioStreamRequirementFlags(0),
-        effective_flags: effective_stream_flags(binding),
-        effective_requirements: satisfied_stream_requirements(binding),
+        effective_flags: effective_stream_flags(stream),
+        effective_requirements: satisfied_stream_requirements(stream),
         period_jitter_ns: state.last_period_jitter_ns,
-        non_interleaved: binding.runtime_capabilities.supports_non_interleaved,
-        supports_write_at: binding.runtime_capabilities.supports_write_at,
-        supports_pause: binding.runtime_capabilities.supports_pause,
-        supports_non_interleaved: binding.runtime_capabilities.supports_non_interleaved,
-        supports_volume: binding.runtime_capabilities.supports_volume,
-        supports_mute: binding.runtime_capabilities.supports_mute,
-        supports_hardware_timestamps: binding.runtime_capabilities.supports_hardware_timestamps,
+        non_interleaved: stream.runtime_capabilities.supports_non_interleaved,
+        supports_write_at: stream.runtime_capabilities.supports_write_at,
+        supports_pause: stream.runtime_capabilities.supports_pause,
+        supports_non_interleaved: stream.runtime_capabilities.supports_non_interleaved,
+        supports_volume: stream.runtime_capabilities.supports_volume,
+        supports_mute: stream.runtime_capabilities.supports_mute,
+        supports_hardware_timestamps: stream.runtime_capabilities.supports_hardware_timestamps,
     }
 }
 
-/// Build one null backend worker thread.
-pub(crate) fn build_null_worker(binding: Arc<AudioStreamBinding>) -> JoinHandle<()> {
+/// Build one synthetic stream worker thread.
+pub(crate) fn build_synthetic_stream_worker(stream: Arc<AudioStreamHostState>) -> JoinHandle<()> {
     thread::spawn(move || {
-        let period_frames_u32 = binding.period_frames.max(MIN_STREAM_PERIOD_FRAMES);
+        let period_frames_u32 = stream.period_frames.max(MIN_STREAM_PERIOD_FRAMES);
         let period_frames = period_frames_u32 as usize;
-        let period_duration = resolved_worker_poll_period(period_frames_u32, binding.sample_rate);
+        let period_duration = resolved_worker_poll_period(period_frames_u32, stream.sample_rate);
 
         loop {
-            let mut state = binding
+            let mut state = stream
                 .sync
                 .state
                 .lock()
@@ -317,12 +324,12 @@ pub(crate) fn build_null_worker(binding: Arc<AudioStreamBinding>) -> JoinHandle<
 
             if state.running {
                 let previous_xrun_count = state.xrun_count;
-                let scalar_period = period_frames.saturating_mul(binding.channels as usize);
+                let scalar_period = period_frames.saturating_mul(stream.channels as usize);
                 state.status_flags = AudioStreamStatusFlags(0);
 
                 if !state.paused
-                    && (binding.direction == AudioDeviceDirection::Playback
-                        || binding.direction == AudioDeviceDirection::Duplex)
+                    && (stream.direction == AudioDeviceDirection::Playback
+                        || stream.direction == AudioDeviceDirection::Duplex)
                 {
                     for _ in 0..scalar_period {
                         if state.playback_samples.pop_front().is_none() {
@@ -337,14 +344,14 @@ pub(crate) fn build_null_worker(binding: Arc<AudioStreamBinding>) -> JoinHandle<
                 }
 
                 if !state.paused
-                    && (binding.direction == AudioDeviceDirection::Capture
-                        || binding.direction == AudioDeviceDirection::Duplex
-                        || binding.direction == AudioDeviceDirection::Loopback)
+                    && (stream.direction == AudioDeviceDirection::Capture
+                        || stream.direction == AudioDeviceDirection::Duplex
+                        || stream.direction == AudioDeviceDirection::Loopback)
                 {
                     for _ in 0..scalar_period {
                         state.capture_samples.push_back(0.0);
                     }
-                    let max_capture = binding.capture_capacity_samples();
+                    let max_capture = stream.capture_capacity_samples();
                     if state.capture_samples.len() > max_capture {
                         let extra = state.capture_samples.len() - max_capture;
                         for _ in 0..extra {
@@ -361,7 +368,7 @@ pub(crate) fn build_null_worker(binding: Arc<AudioStreamBinding>) -> JoinHandle<
                 let callback_mono_ns = host_monotonic_nanos();
                 record_stream_callback_timing(
                     &mut state,
-                    binding.sample_rate,
+                    stream.sample_rate,
                     period_frames as u32,
                     callback_mono_ns,
                     Some(callback_mono_ns),
@@ -375,14 +382,14 @@ pub(crate) fn build_null_worker(binding: Arc<AudioStreamBinding>) -> JoinHandle<
             }
 
             drop(state);
-            binding.sync.wake.notify_all();
+            stream.sync.wake.notify_all();
 
             if let Some((status_flags, xrun_count_delta)) = xrun_event
-                && let Some(stream_handle) = stream_handle_for_binding(&binding)
+                && let Some(stream_handle) = stream.stream_handle()
             {
                 publish_stream_event_native(
                     stream_handle,
-                    &binding,
+                    &stream,
                     AudioEventKind::StreamXRun,
                     status_flags,
                     xrun_count_delta,
@@ -402,10 +409,10 @@ pub(crate) fn build_null_worker(binding: Arc<AudioStreamBinding>) -> JoinHandle<
     all(target_os = "linux", feature = "audio-pulseaudio"),
 ))]
 pub(crate) fn mark_stream_backend_disconnected(
-    binding: &AudioStreamBinding,
+    stream: &AudioStreamHostState,
     message: impl Into<String>,
 ) {
-    let mut state = binding
+    let mut state = stream
         .sync
         .state
         .lock()
@@ -413,25 +420,25 @@ pub(crate) fn mark_stream_backend_disconnected(
     state.running = false;
     state.paused = false;
     state.shutdown = true;
-    state.state = AudioStreamStateKind::BackendDisconnected;
+    state.state_kind = AudioStreamStateKind::BackendDisconnected;
     state.status_flags =
         AudioStreamStatusFlags(state.status_flags.0 | STREAM_STATUS_OUTPUT_UNDERFLOW.0);
     state.last_backend_message = Some(message.into());
     let status_flags = state.status_flags;
     drop(state);
-    binding.sync.wake.notify_all();
+    stream.sync.wake.notify_all();
 
-    if let Some(stream_handle) = stream_handle_for_binding(binding) {
+    if let Some(stream_handle) = stream.stream_handle() {
         publish_stream_event_native(
             stream_handle,
-            binding,
+            stream,
             AudioEventKind::BackendDisconnected,
             status_flags,
             0,
         );
         publish_stream_event_native(
             stream_handle,
-            binding,
+            stream,
             AudioEventKind::StreamStateChanged,
             status_flags,
             0,
@@ -440,8 +447,8 @@ pub(crate) fn mark_stream_backend_disconnected(
 }
 
 /// Run one backend stream start hook when available.
-pub(crate) fn host_stream_start(binding: &AudioStreamBinding) -> RuntimeResult<()> {
-    let host_ops = binding
+pub(crate) fn host_stream_start(stream: &AudioStreamHostState) -> RuntimeResult<()> {
+    let host_ops = stream
         .host_ops
         .lock()
         .unwrap_or_else(|error| error.into_inner())
@@ -454,8 +461,8 @@ pub(crate) fn host_stream_start(binding: &AudioStreamBinding) -> RuntimeResult<(
 }
 
 /// Run one backend stream pause hook when available.
-pub(crate) fn host_stream_pause(binding: &AudioStreamBinding, pause: bool) -> RuntimeResult<()> {
-    let host_ops = binding
+pub(crate) fn host_stream_pause(stream: &AudioStreamHostState, pause: bool) -> RuntimeResult<()> {
+    let host_ops = stream
         .host_ops
         .lock()
         .unwrap_or_else(|error| error.into_inner())
@@ -468,8 +475,8 @@ pub(crate) fn host_stream_pause(binding: &AudioStreamBinding, pause: bool) -> Ru
 }
 
 /// Run one backend stream stop hook when available.
-pub(crate) fn host_stream_stop(binding: &AudioStreamBinding) -> RuntimeResult<()> {
-    let host_ops = binding
+pub(crate) fn host_stream_stop(stream: &AudioStreamHostState) -> RuntimeResult<()> {
+    let host_ops = stream
         .host_ops
         .lock()
         .unwrap_or_else(|error| error.into_inner())
@@ -482,8 +489,8 @@ pub(crate) fn host_stream_stop(binding: &AudioStreamBinding) -> RuntimeResult<()
 }
 
 /// Run one backend stream flush hook when available.
-pub(crate) fn host_stream_flush(binding: &AudioStreamBinding) -> RuntimeResult<()> {
-    let host_ops = binding
+pub(crate) fn host_stream_flush(stream: &AudioStreamHostState) -> RuntimeResult<()> {
+    let host_ops = stream
         .host_ops
         .lock()
         .unwrap_or_else(|error| error.into_inner())
@@ -495,19 +502,19 @@ pub(crate) fn host_stream_flush(binding: &AudioStreamBinding) -> RuntimeResult<(
     Ok(())
 }
 
-/// Build one stream binding for the null backend.
+/// Build one stream host state for the null backend.
 pub(crate) fn open_null_stream(
     device: &HostDeviceDescriptor,
     opened_direction: AudioDeviceDirection,
     config: AudioStreamConfig,
     share_mode: AudioShareMode,
-) -> Arc<AudioStreamBinding> {
+) -> Arc<AudioStreamHostState> {
     let sync = Arc::new(AudioStreamSync {
         state: Mutex::new(initial_stream_state()),
         wake: Condvar::new(),
     });
 
-    let stream_binding = Arc::new(AudioStreamBinding {
+    let stream = Arc::new(AudioStreamHostState {
         device: device.clone(),
         direction: opened_direction,
         requested: config,
@@ -529,15 +536,15 @@ pub(crate) fn open_null_stream(
         name: Mutex::new(String::new()),
         sync: sync.clone(),
         stream_handle_raw: std::sync::atomic::AtomicU64::new(0),
-        event_runtime_state: Mutex::new(None),
-        null_worker: Mutex::new(None),
+        runtime_state: Mutex::new(None),
+        worker_handle: Mutex::new(None),
     });
 
-    let worker = build_null_worker(stream_binding.clone());
-    *stream_binding
-        .null_worker
+    let worker = build_synthetic_stream_worker(stream.clone());
+    *stream
+        .worker_handle
         .lock()
         .unwrap_or_else(|error| error.into_inner()) = Some(worker);
 
-    stream_binding
+    stream
 }

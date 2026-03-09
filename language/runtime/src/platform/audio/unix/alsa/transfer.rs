@@ -2,7 +2,7 @@ use std::ffi::{c_int, c_void};
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::audio::core as audio_core;
+use crate::platform::audio::{AudioStreamStateKind, AudioStreamStatusFlags, core as audio_core};
 
 use super::abi::{AlsaPcm, AlsaSignedFrames, AlsaUnsignedFrames};
 use super::core::{AlsaLibrary, AlsaStreamRuntime};
@@ -11,7 +11,7 @@ use super::host::{recover_pcm, wait_for_pcm_ready};
 
 /// Spawn one ALSA transfer worker thread.
 pub(super) fn spawn_worker(
-    binding: Arc<audio_core::AudioStreamBinding>,
+    binding: Arc<audio_core::AudioStreamHostState>,
     runtime: Arc<AlsaStreamRuntime>,
 ) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
@@ -48,7 +48,7 @@ pub(super) fn spawn_worker(
                     .unwrap_or_else(|error| error.into_inner());
                 state.running = false;
                 state.paused = false;
-                state.state = audio_core::AudioStreamStateKind::DeviceLost;
+                state.state_kind = AudioStreamStateKind::DeviceLost;
                 state.last_backend_message = Some(backend_message);
                 drop(state);
                 binding.sync.wake.notify_all();
@@ -64,7 +64,7 @@ pub(super) fn spawn_worker(
 /// Process one ALSA transfer cycle.
 fn process_transfer_cycle(
     library: &AlsaLibrary,
-    binding: &Arc<audio_core::AudioStreamBinding>,
+    binding: &Arc<audio_core::AudioStreamHostState>,
     runtime: &Arc<AlsaStreamRuntime>,
 ) -> RuntimeResult<()> {
     if let Some(playback_pcm) = runtime.playback_pcm.as_ref() {
@@ -81,7 +81,7 @@ fn process_transfer_cycle(
 /// Process one ALSA playback transfer cycle.
 fn process_playback_transfer(
     library: &AlsaLibrary,
-    binding: &Arc<audio_core::AudioStreamBinding>,
+    binding: &Arc<audio_core::AudioStreamHostState>,
     runtime: &Arc<AlsaStreamRuntime>,
     pcm: *mut AlsaPcm,
 ) -> RuntimeResult<()> {
@@ -104,7 +104,7 @@ fn process_playback_transfer(
             .unwrap_or_else(|error| error.into_inner());
         state.xrun_count = state.xrun_count.saturating_add(1);
         state.output_underflow_count = state.output_underflow_count.saturating_add(1);
-        state.status_flags = audio_core::AudioStreamStatusFlags(
+        state.status_flags = AudioStreamStatusFlags(
             state.status_flags.0 | audio_core::STREAM_STATUS_OUTPUT_UNDERFLOW.0,
         );
 
@@ -127,7 +127,7 @@ fn process_playback_transfer(
             .unwrap_or_else(|error| error.into_inner());
 
         // clear stream status bits before producing this transfer packet
-        state.status_flags = audio_core::AudioStreamStatusFlags(0);
+        state.status_flags = AudioStreamStatusFlags(0);
 
         for _ in 0..scalar_frames {
             if let Some(sample) = state.playback_samples.pop_front() {
@@ -143,7 +143,7 @@ fn process_playback_transfer(
             if missing > 0 {
                 state.xrun_count = state.xrun_count.saturating_add(1);
                 state.output_underflow_count = state.output_underflow_count.saturating_add(1);
-                state.status_flags = audio_core::AudioStreamStatusFlags(
+                state.status_flags = AudioStreamStatusFlags(
                     state.status_flags.0 | audio_core::STREAM_STATUS_OUTPUT_UNDERFLOW.0,
                 );
             }
@@ -191,7 +191,7 @@ fn process_playback_transfer(
                 .unwrap_or_else(|error| error.into_inner());
             state.xrun_count = state.xrun_count.saturating_add(1);
             state.output_underflow_count = state.output_underflow_count.saturating_add(1);
-            state.status_flags = audio_core::AudioStreamStatusFlags(
+            state.status_flags = AudioStreamStatusFlags(
                 state.status_flags.0 | audio_core::STREAM_STATUS_OUTPUT_UNDERFLOW.0,
             );
 
@@ -246,7 +246,7 @@ fn process_playback_transfer(
 /// Process one ALSA capture transfer cycle.
 fn process_capture_transfer(
     library: &AlsaLibrary,
-    binding: &Arc<audio_core::AudioStreamBinding>,
+    binding: &Arc<audio_core::AudioStreamHostState>,
     runtime: &Arc<AlsaStreamRuntime>,
     pcm: *mut AlsaPcm,
 ) -> RuntimeResult<()> {
@@ -269,7 +269,7 @@ fn process_capture_transfer(
             .unwrap_or_else(|error| error.into_inner());
         state.xrun_count = state.xrun_count.saturating_add(1);
         state.input_overflow_count = state.input_overflow_count.saturating_add(1);
-        state.status_flags = audio_core::AudioStreamStatusFlags(
+        state.status_flags = AudioStreamStatusFlags(
             state.status_flags.0 | audio_core::STREAM_STATUS_INPUT_OVERFLOW.0,
         );
 
@@ -312,7 +312,7 @@ fn process_capture_transfer(
                 .unwrap_or_else(|error| error.into_inner());
             state.xrun_count = state.xrun_count.saturating_add(1);
             state.input_overflow_count = state.input_overflow_count.saturating_add(1);
-            state.status_flags = audio_core::AudioStreamStatusFlags(
+            state.status_flags = AudioStreamStatusFlags(
                 state.status_flags.0 | audio_core::STREAM_STATUS_INPUT_OVERFLOW.0,
             );
 
@@ -357,7 +357,7 @@ fn process_capture_transfer(
 
         state.xrun_count = state.xrun_count.saturating_add(1);
         state.input_overflow_count = state.input_overflow_count.saturating_add(1);
-        state.status_flags = audio_core::AudioStreamStatusFlags(
+        state.status_flags = AudioStreamStatusFlags(
             state.status_flags.0 | audio_core::STREAM_STATUS_INPUT_OVERFLOW.0,
         );
     }

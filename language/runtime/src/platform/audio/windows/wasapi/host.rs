@@ -22,6 +22,7 @@ use crate::platform::audio::core as audio_core;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{PlatformError, core as core_platform};
 
+use crate::platform::audio as audio_types;
 use windows_sys::Win32::Foundation::{GetLastError, RPC_E_CHANGED_MODE};
 use windows_sys::Win32::Media::Audio::{
     AUDCLNT_SHAREMODE_EXCLUSIVE, AUDCLNT_SHAREMODE_SHARED, DigitalAudioDisplayDevice, EDataFlow,
@@ -253,7 +254,7 @@ pub(super) fn probe_endpoint_profile(endpoint: IMMDevice) -> WasapiEndpointProfi
             .clamp(1, WASAPI_MAX_PROBED_CHANNELS)
     };
     let preferred_format = sample_format_from_wave_format(mix_format_pointer)
-        .unwrap_or(audio_core::AudioSampleFormat::F32);
+        .unwrap_or(audio_types::AudioSampleFormat::F32);
     let preferred_channel_mask = wave_channel_mask(mix_format_pointer, preferred_channels);
     let preferred_layout = channel_layout(preferred_channels);
 
@@ -314,7 +315,7 @@ pub(super) fn probe_endpoint_profile(endpoint: IMMDevice) -> WasapiEndpointProfi
     }
 
     if profile.format_mask == 0 {
-        profile.format_mask = audio_core::sample_format_bit(preferred_format);
+        profile.format_mask = audio_types::sample_format_bit(preferred_format);
     }
 
     profile
@@ -356,28 +357,28 @@ fn endpoint_transport(endpoint_form_factor: Option<u32>) -> &'static str {
 
 /// Build one native WAVEFORMATEX from one stream config.
 pub(super) fn build_wave_format(
-    config: audio_core::AudioStreamConfig,
+    config: audio_types::AudioStreamConfig,
 ) -> RuntimeResult<WAVEFORMATEX> {
     // map one runtime sample format to one native tag and bits-per-sample
     let (format_tag, bits_per_sample) = match config.format {
-        audio_core::AudioSampleFormat::U8 => (
+        audio_types::AudioSampleFormat::U8 => (
             windows_sys::Win32::Media::Audio::WAVE_FORMAT_PCM as u16,
             8u16,
         ),
-        audio_core::AudioSampleFormat::S16 => (
+        audio_types::AudioSampleFormat::S16 => (
             windows_sys::Win32::Media::Audio::WAVE_FORMAT_PCM as u16,
             16u16,
         ),
-        audio_core::AudioSampleFormat::S24 => (
+        audio_types::AudioSampleFormat::S24 => (
             windows_sys::Win32::Media::Audio::WAVE_FORMAT_PCM as u16,
             24u16,
         ),
-        audio_core::AudioSampleFormat::S32 => (
+        audio_types::AudioSampleFormat::S32 => (
             windows_sys::Win32::Media::Audio::WAVE_FORMAT_PCM as u16,
             32u16,
         ),
-        audio_core::AudioSampleFormat::F32 => (WAVE_FORMAT_IEEE_FLOAT as u16, 32u16),
-        audio_core::AudioSampleFormat::F64 => {
+        audio_types::AudioSampleFormat::F32 => (WAVE_FORMAT_IEEE_FLOAT as u16, 32u16),
+        audio_types::AudioSampleFormat::F64 => {
             return Err(RuntimeError::from(PlatformError::not_supported(
                 "destack.audio.stream.open sample format f64 on wasapi",
             ))
@@ -668,7 +669,7 @@ fn is_exact_format_supported(
 /// Probe one sample-rate capability range for one endpoint profile.
 fn probe_sample_rate_range(
     audio_client: IAudioClient,
-    format: audio_core::AudioSampleFormat,
+    format: audio_types::AudioSampleFormat,
     channels: u16,
     preferred_sample_rate: u32,
 ) -> (u32, u32) {
@@ -706,7 +707,7 @@ fn probe_sample_rate_range(
 /// Probe one channel-count range for one endpoint profile.
 fn probe_channel_range(
     audio_client: IAudioClient,
-    format: audio_core::AudioSampleFormat,
+    format: audio_types::AudioSampleFormat,
     preferred_sample_rate: u32,
 ) -> (u16, u16) {
     let mut supported_channels = Vec::new();
@@ -739,7 +740,7 @@ fn probe_channel_range(
 /// Probe one sample-format mask for one endpoint profile.
 fn probe_format_mask(
     audio_client: IAudioClient,
-    preferred_format: audio_core::AudioSampleFormat,
+    preferred_format: audio_types::AudioSampleFormat,
     preferred_channels: u16,
     preferred_sample_rate: u32,
 ) -> u32 {
@@ -754,12 +755,12 @@ fn probe_format_mask(
         };
 
         if is_exact_format_supported(audio_client, AUDCLNT_SHAREMODE_SHARED, &wave_format) {
-            format_mask |= audio_core::sample_format_bit(format);
+            format_mask |= audio_types::sample_format_bit(format);
         }
     }
 
     if format_mask == 0 {
-        return audio_core::sample_format_bit(preferred_format);
+        return audio_types::sample_format_bit(preferred_format);
     }
 
     format_mask
@@ -768,7 +769,7 @@ fn probe_format_mask(
 /// Probe whether exclusive mode appears supported for one endpoint profile.
 fn probe_exclusive_mode_support(
     audio_client: IAudioClient,
-    preferred_format: audio_core::AudioSampleFormat,
+    preferred_format: audio_types::AudioSampleFormat,
     preferred_channels: u16,
     preferred_sample_rate: u32,
 ) -> bool {
@@ -803,7 +804,7 @@ fn probe_exclusive_mode_support(
 
 /// Build one probe wave format for one sample format and endpoint lane shape.
 fn probe_wave_format(
-    format: audio_core::AudioSampleFormat,
+    format: audio_types::AudioSampleFormat,
     channels: u16,
     sample_rate: u32,
 ) -> Option<WAVEFORMATEX> {
@@ -813,12 +814,12 @@ fn probe_wave_format(
 
     // map one runtime sample format into one native probe waveform shape
     let (format_tag, bits_per_sample) = match format {
-        audio_core::AudioSampleFormat::U8 => (WAVE_FORMAT_PCM as u16, 8u16),
-        audio_core::AudioSampleFormat::S16 => (WAVE_FORMAT_PCM as u16, 16u16),
-        audio_core::AudioSampleFormat::S24 => (WAVE_FORMAT_PCM as u16, 24u16),
-        audio_core::AudioSampleFormat::S32 => (WAVE_FORMAT_PCM as u16, 32u16),
-        audio_core::AudioSampleFormat::F32 => (WAVE_FORMAT_IEEE_FLOAT as u16, 32u16),
-        audio_core::AudioSampleFormat::F64 => (WAVE_FORMAT_IEEE_FLOAT as u16, 64u16),
+        audio_types::AudioSampleFormat::U8 => (WAVE_FORMAT_PCM as u16, 8u16),
+        audio_types::AudioSampleFormat::S16 => (WAVE_FORMAT_PCM as u16, 16u16),
+        audio_types::AudioSampleFormat::S24 => (WAVE_FORMAT_PCM as u16, 24u16),
+        audio_types::AudioSampleFormat::S32 => (WAVE_FORMAT_PCM as u16, 32u16),
+        audio_types::AudioSampleFormat::F32 => (WAVE_FORMAT_IEEE_FLOAT as u16, 32u16),
+        audio_types::AudioSampleFormat::F64 => (WAVE_FORMAT_IEEE_FLOAT as u16, 64u16),
     };
 
     let bytes_per_sample = (bits_per_sample / 8).max(1);
@@ -839,7 +840,7 @@ fn probe_wave_format(
 /// Derive one runtime sample format from one WAVEFORMATEX payload.
 fn sample_format_from_wave_format(
     wave_format: *const WAVEFORMATEX,
-) -> Option<audio_core::AudioSampleFormat> {
+) -> Option<audio_types::AudioSampleFormat> {
     if wave_format.is_null() {
         return None;
     }
@@ -850,18 +851,18 @@ fn sample_format_from_wave_format(
 
     if wave_format.wFormatTag == WAVE_FORMAT_PCM as u16 {
         return match bits_per_sample {
-            8 => Some(audio_core::AudioSampleFormat::U8),
-            16 => Some(audio_core::AudioSampleFormat::S16),
-            24 => Some(audio_core::AudioSampleFormat::S24),
-            32 => Some(audio_core::AudioSampleFormat::S32),
+            8 => Some(audio_types::AudioSampleFormat::U8),
+            16 => Some(audio_types::AudioSampleFormat::S16),
+            24 => Some(audio_types::AudioSampleFormat::S24),
+            32 => Some(audio_types::AudioSampleFormat::S32),
             _ => None,
         };
     }
 
     if wave_format.wFormatTag == WAVE_FORMAT_IEEE_FLOAT as u16 {
         return match bits_per_sample {
-            32 => Some(audio_core::AudioSampleFormat::F32),
-            64 => Some(audio_core::AudioSampleFormat::F64),
+            32 => Some(audio_types::AudioSampleFormat::F32),
+            64 => Some(audio_types::AudioSampleFormat::F64),
             _ => None,
         };
     }
@@ -874,18 +875,18 @@ fn sample_format_from_wave_format(
             unsafe { ptr::addr_of!((*wave_format_extensible_pointer).SubFormat).read_unaligned() };
         if core_platform::com_guid_equals(&sub_format, &WAVE_SUBTYPE_PCM) {
             return match bits_per_sample {
-                8 => Some(audio_core::AudioSampleFormat::U8),
-                16 => Some(audio_core::AudioSampleFormat::S16),
-                24 => Some(audio_core::AudioSampleFormat::S24),
-                32 => Some(audio_core::AudioSampleFormat::S32),
+                8 => Some(audio_types::AudioSampleFormat::U8),
+                16 => Some(audio_types::AudioSampleFormat::S16),
+                24 => Some(audio_types::AudioSampleFormat::S24),
+                32 => Some(audio_types::AudioSampleFormat::S32),
                 _ => None,
             };
         }
 
         if core_platform::com_guid_equals(&sub_format, &WAVE_SUBTYPE_IEEE_FLOAT) {
             return match bits_per_sample {
-                32 => Some(audio_core::AudioSampleFormat::F32),
-                64 => Some(audio_core::AudioSampleFormat::F64),
+                32 => Some(audio_types::AudioSampleFormat::F32),
+                64 => Some(audio_types::AudioSampleFormat::F64),
                 _ => None,
             };
         }
@@ -967,16 +968,16 @@ fn frames_from_hns(period_hns: i64, sample_rate: u32) -> u32 {
 }
 
 /// Return one canonical channel layout for one channel count.
-pub(super) fn channel_layout(channels: u16) -> audio_core::AudioChannelLayout {
+pub(super) fn channel_layout(channels: u16) -> audio_types::AudioChannelLayout {
     match channels {
-        1 => audio_core::AudioChannelLayout::Mono,
-        2 => audio_core::AudioChannelLayout::Stereo,
-        4 => audio_core::AudioChannelLayout::Quad,
-        5 => audio_core::AudioChannelLayout::Surround41,
-        6 => audio_core::AudioChannelLayout::Surround51,
-        7 => audio_core::AudioChannelLayout::Surround61,
-        8 => audio_core::AudioChannelLayout::Surround71,
-        _ => audio_core::AudioChannelLayout::Unknown,
+        1 => audio_types::AudioChannelLayout::Mono,
+        2 => audio_types::AudioChannelLayout::Stereo,
+        4 => audio_types::AudioChannelLayout::Quad,
+        5 => audio_types::AudioChannelLayout::Surround41,
+        6 => audio_types::AudioChannelLayout::Surround51,
+        7 => audio_types::AudioChannelLayout::Surround61,
+        8 => audio_types::AudioChannelLayout::Surround71,
+        _ => audio_types::AudioChannelLayout::Unknown,
     }
 }
 

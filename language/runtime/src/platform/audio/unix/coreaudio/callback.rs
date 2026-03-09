@@ -6,7 +6,11 @@ use std::ptr;
 use std::sync::Arc;
 
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::{
+    AudioStreamHostState, STREAM_STATUS_INPUT_OVERFLOW, STREAM_STATUS_OUTPUT_UNDERFLOW,
+    decode_scalar_sample, encode_scalar_sample, host_monotonic_nanos,
+    record_stream_callback_timing, sample_bytes,
+};
 
 #[cfg(target_os = "macos")]
 use super::abi::{
@@ -17,22 +21,23 @@ use super::abi::{
 use super::constants::K_AUDIO_TIME_STAMP_HOST_TIME_VALID;
 #[cfg(target_os = "macos")]
 use super::core::coreaudio_host_time_to_mono_ns;
+use crate::platform::audio as audio_types;
 
 #[cfg(target_os = "macos")]
 pub(super) fn fill_playback_bytes(
-    binding: &Arc<audio_core::AudioStreamBinding>,
+    stream: &Arc<AudioStreamHostState>,
     output: &mut [u8],
     callback_timestamp_ns: Option<u64>,
 ) {
-    let scalar_width = audio_core::sample_bytes(binding.requested.format);
+    let scalar_width = sample_bytes(stream.requested.format);
     if scalar_width == 0 || output.len() < scalar_width {
         return;
     }
 
     let scalar_count = output.len() / scalar_width;
-    let frame_count = scalar_count / binding.channels.max(1) as usize;
+    let frame_count = scalar_count / stream.channels.max(1) as usize;
 
-    let mut state = binding
+    let mut state = stream
         .sync
         .state
         .lock()
@@ -49,8 +54,8 @@ pub(super) fn fill_playback_bytes(
                 None => {
                     state.xrun_count = state.xrun_count.saturating_add(1);
                     state.output_underflow_count = state.output_underflow_count.saturating_add(1);
-                    state.status_flags = audio_core::AudioStreamStatusFlags(
-                        state.status_flags.0 | audio_core::STREAM_STATUS_OUTPUT_UNDERFLOW.0,
+                    state.status_flags = audio_types::AudioStreamStatusFlags(
+                        state.status_flags.0 | STREAM_STATUS_OUTPUT_UNDERFLOW.0,
                     );
                     0.0
                 }
@@ -58,7 +63,7 @@ pub(super) fn fill_playback_bytes(
         } else {
             0.0
         };
-        wrote += audio_core::encode_scalar_sample(binding.requested.format, sample, chunk);
+        wrote += encode_scalar_sample(stream.requested.format, sample, chunk);
     }
 
     if wrote < output.len() {
@@ -67,11 +72,10 @@ pub(super) fn fill_playback_bytes(
 
     if is_active {
         // use host callback timing when provided, otherwise fall back to runtime monotonic
-        let callback_mono_ns =
-            callback_timestamp_ns.unwrap_or_else(audio_core::host_monotonic_nanos);
-        audio_core::record_stream_callback_timing(
+        let callback_mono_ns = callback_timestamp_ns.unwrap_or_else(host_monotonic_nanos);
+        record_stream_callback_timing(
             &mut state,
-            binding.sample_rate,
+            stream.sample_rate,
             frame_count as u32,
             callback_mono_ns,
             None,
@@ -80,25 +84,25 @@ pub(super) fn fill_playback_bytes(
     }
 
     drop(state);
-    binding.sync.wake.notify_all();
+    stream.sync.wake.notify_all();
 }
 
 /// Ingest one input byte buffer into queued capture samples.
 #[cfg(target_os = "macos")]
 pub(super) fn ingest_capture_bytes(
-    binding: &Arc<audio_core::AudioStreamBinding>,
+    stream: &Arc<AudioStreamHostState>,
     input: &[u8],
     capture_timestamp_ns: Option<u64>,
 ) {
-    let scalar_width = audio_core::sample_bytes(binding.requested.format);
+    let scalar_width = sample_bytes(stream.requested.format);
     if scalar_width == 0 || input.len() < scalar_width {
         return;
     }
 
     let scalar_count = input.len() / scalar_width;
-    let frame_count = scalar_count / binding.channels.max(1) as usize;
+    let frame_count = scalar_count / stream.channels.max(1) as usize;
 
-    let mut state = binding
+    let mut state = stream
         .sync
         .state
         .lock()
@@ -107,15 +111,13 @@ pub(super) fn ingest_capture_bytes(
     let is_active = state.running && !state.paused && !state.shutdown;
     if is_active {
         for sample_bytes in input.chunks_exact(scalar_width).take(scalar_count) {
-            let Some(sample) =
-                audio_core::decode_scalar_sample(binding.requested.format, sample_bytes)
-            else {
+            let Some(sample) = decode_scalar_sample(stream.requested.format, sample_bytes) else {
                 continue;
             };
             state.capture_samples.push_back(sample);
         }
 
-        let max_capture = binding.capture_capacity_samples();
+        let max_capture = stream.capture_capacity_samples();
         if state.capture_samples.len() > max_capture {
             let extra = state.capture_samples.len() - max_capture;
             for _ in 0..extra {
@@ -123,22 +125,21 @@ pub(super) fn ingest_capture_bytes(
             }
             state.xrun_count = state.xrun_count.saturating_add(1);
             state.input_overflow_count = state.input_overflow_count.saturating_add(1);
-            state.status_flags = audio_core::AudioStreamStatusFlags(
-                state.status_flags.0 | audio_core::STREAM_STATUS_INPUT_OVERFLOW.0,
+            state.status_flags = audio_types::AudioStreamStatusFlags(
+                state.status_flags.0 | STREAM_STATUS_INPUT_OVERFLOW.0,
             );
         }
 
         // use host callback timing when provided, otherwise fall back to runtime monotonic
-        let callback_mono_ns =
-            capture_timestamp_ns.unwrap_or_else(audio_core::host_monotonic_nanos);
-        let frames_advanced = if binding.direction == audio_core::AudioDeviceDirection::Capture {
+        let callback_mono_ns = capture_timestamp_ns.unwrap_or_else(host_monotonic_nanos);
+        let frames_advanced = if stream.direction == audio_types::AudioDeviceDirection::Capture {
             frame_count as u32
         } else {
             0
         };
-        audio_core::record_stream_callback_timing(
+        record_stream_callback_timing(
             &mut state,
-            binding.sample_rate,
+            stream.sample_rate,
             frames_advanced,
             callback_mono_ns,
             Some(callback_mono_ns),
@@ -147,13 +148,13 @@ pub(super) fn ingest_capture_bytes(
     }
 
     drop(state);
-    binding.sync.wake.notify_all();
+    stream.sync.wake.notify_all();
 }
 
-/// Return whether one stream binding has entered shutdown state.
+/// Return whether one stream host state has entered shutdown state.
 #[cfg(target_os = "macos")]
-pub(super) fn stream_shutdown(binding: &Arc<audio_core::AudioStreamBinding>) -> bool {
-    let state = binding
+pub(super) fn stream_shutdown(stream: &Arc<AudioStreamHostState>) -> bool {
+    let state = stream
         .sync
         .state
         .lock()
@@ -208,13 +209,13 @@ pub(super) unsafe extern "C" fn output_callback(
                 buffer.audio_data_bytes_capacity as usize,
             )
         };
-        fill_playback_bytes(&context.binding, output, Some(callback_mono_ns));
+        fill_playback_bytes(&context.stream, output, Some(callback_mono_ns));
         buffer.audio_data_byte_size = buffer.audio_data_bytes_capacity;
     } else {
         buffer.audio_data_byte_size = 0;
     }
 
-    if stream_shutdown(&context.binding) {
+    if stream_shutdown(&context.stream) {
         return;
     }
 
@@ -258,10 +259,10 @@ pub(super) unsafe extern "C" fn input_callback(
                 buffer.audio_data_byte_size as usize,
             )
         };
-        ingest_capture_bytes(&context.binding, input, capture_timestamp_ns);
+        ingest_capture_bytes(&context.stream, input, capture_timestamp_ns);
     }
 
-    if stream_shutdown(&context.binding) {
+    if stream_shutdown(&context.stream) {
         return;
     }
 

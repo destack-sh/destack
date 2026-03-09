@@ -4,13 +4,11 @@ use std::ffi::c_void;
 use std::ptr;
 #[cfg(target_os = "macos")]
 use std::sync::Arc;
-#[cfg(target_os = "macos")]
-use std::thread;
 
 #[cfg(target_os = "macos")]
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core as audio_core;
+use crate::platform::audio::core::{AudioHostStreamOps, AudioStreamHostState};
 
 #[cfg(target_os = "macos")]
 use super::abi::{
@@ -56,6 +54,13 @@ pub(super) fn dispose_runtime_handles(runtime: &CoreAudioStreamRuntime) {
     release_hog_mode(runtime);
 }
 
+#[cfg(target_os = "macos")]
+impl Drop for CoreAudioStreamRuntime {
+    fn drop(&mut self) {
+        dispose_runtime_handles(self);
+    }
+}
+
 /// Apply one queue operation to all active queue handles.
 #[cfg(target_os = "macos")]
 pub(super) fn apply_queue_operation(
@@ -80,7 +85,7 @@ pub(super) fn apply_queue_operation(
 }
 
 #[cfg(target_os = "macos")]
-impl audio_core::AudioHostStreamOps for CoreAudioHostStreamOps {
+impl AudioHostStreamOps for CoreAudioHostStreamOps {
     fn start(&self) -> RuntimeResult<()> {
         apply_queue_operation(
             &self.runtime,
@@ -130,10 +135,10 @@ impl audio_core::AudioHostStreamOps for CoreAudioHostStreamOps {
 /// Create and prime one CoreAudio playback queue.
 #[cfg(target_os = "macos")]
 fn build_queue_context(
-    binding: &Arc<audio_core::AudioStreamBinding>,
+    stream: &Arc<AudioStreamHostState>,
 ) -> (Arc<CoreAudioStreamContext>, *const CoreAudioStreamContext) {
     let context_owner = Arc::new(CoreAudioStreamContext {
-        binding: binding.clone(),
+        stream: stream.clone(),
     });
     let context_raw = Arc::into_raw(context_owner.clone());
     (context_owner, context_raw)
@@ -156,7 +161,7 @@ fn build_queue_handle(
 /// Allocate and enqueue one initial queue-buffer set for one stream.
 #[cfg(target_os = "macos")]
 fn initialize_queue_buffers(
-    binding: &Arc<audio_core::AudioStreamBinding>,
+    stream: &Arc<AudioStreamHostState>,
     queue: AudioQueueRef,
     context_owner: &Arc<CoreAudioStreamContext>,
     context_raw: *const CoreAudioStreamContext,
@@ -164,7 +169,7 @@ fn initialize_queue_buffers(
     allocate_error_message: &'static str,
     enqueue_error_message: &'static str,
 ) -> RuntimeResult<()> {
-    let buffer_bytes = buffer_bytes(binding)?;
+    let buffer_bytes = buffer_bytes(stream)?;
 
     for _ in 0..COREAUDIO_PLAYBACK_BUFFER_COUNT {
         let mut buffer = ptr::null_mut();
@@ -188,7 +193,7 @@ fn initialize_queue_buffers(
                         buffer_mut.audio_data_bytes_capacity as usize,
                     )
                 };
-                fill_playback_bytes(binding, output, None);
+                fill_playback_bytes(stream, output, None);
                 buffer_mut.audio_data_byte_size = buffer_mut.audio_data_bytes_capacity;
             } else {
                 buffer_mut.audio_data_byte_size = 0;
@@ -215,7 +220,7 @@ fn initialize_queue_buffers(
 /// Create one CoreAudio queue, bind it to one device, and prime initial buffers.
 #[cfg(target_os = "macos")]
 fn create_queue(
-    binding: &Arc<audio_core::AudioStreamBinding>,
+    stream: &Arc<AudioStreamHostState>,
     device_id: AudioDeviceID,
     create_queue: impl FnOnce(
         &AudioStreamBasicDescription,
@@ -227,9 +232,9 @@ fn create_queue(
     enqueue_error_message: &'static str,
     prefill_playback: bool,
 ) -> RuntimeResult<CoreAudioQueueHandle> {
-    let stream_description = stream_description(binding.requested)?;
+    let stream_description = stream_description(stream.requested)?;
     let mut queue = ptr::null_mut();
-    let (context_owner, context_raw) = build_queue_context(binding);
+    let (context_owner, context_raw) = build_queue_context(stream);
 
     let create_status = create_queue(&stream_description, context_raw, &mut queue);
     if create_status != K_NO_ERR {
@@ -249,7 +254,7 @@ fn create_queue(
     }
 
     initialize_queue_buffers(
-        binding,
+        stream,
         queue,
         &context_owner,
         context_raw,
@@ -264,11 +269,11 @@ fn create_queue(
 /// Create and prime one CoreAudio playback queue.
 #[cfg(target_os = "macos")]
 pub(super) fn create_playback_queue(
-    binding: &Arc<audio_core::AudioStreamBinding>,
+    stream: &Arc<AudioStreamHostState>,
     device_id: AudioDeviceID,
 ) -> RuntimeResult<CoreAudioQueueHandle> {
     create_queue(
-        binding,
+        stream,
         device_id,
         |stream_description, context_raw, queue| unsafe {
             AudioQueueNewOutput(
@@ -291,11 +296,11 @@ pub(super) fn create_playback_queue(
 /// Create and prime one CoreAudio capture queue.
 #[cfg(target_os = "macos")]
 pub(super) fn create_capture_queue(
-    binding: &Arc<audio_core::AudioStreamBinding>,
+    stream: &Arc<AudioStreamHostState>,
     device_id: AudioDeviceID,
 ) -> RuntimeResult<CoreAudioQueueHandle> {
     create_queue(
-        binding,
+        stream,
         device_id,
         |stream_description, context_raw, queue| unsafe {
             AudioQueueNewInput(
@@ -313,33 +318,4 @@ pub(super) fn create_capture_queue(
         "failed to enqueue CoreAudio input buffer",
         false,
     )
-}
-
-/// Spawn one cleanup worker that disposes runtime handles after shutdown.
-#[cfg(target_os = "macos")]
-pub(super) fn spawn_cleanup_thread(
-    binding: Arc<audio_core::AudioStreamBinding>,
-    runtime: Arc<CoreAudioStreamRuntime>,
-) -> std::thread::JoinHandle<()> {
-    let wait_interval =
-        audio_core::resolved_worker_poll_period(binding.period_frames, binding.sample_rate);
-
-    thread::spawn(move || {
-        let mut state = binding
-            .sync
-            .state
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
-        while !state.shutdown {
-            let wait = binding
-                .sync
-                .wake
-                .wait_timeout(state, wait_interval)
-                .unwrap_or_else(|error| error.into_inner());
-            state = wait.0;
-        }
-        drop(state);
-
-        dispose_runtime_handles(&runtime);
-    })
 }

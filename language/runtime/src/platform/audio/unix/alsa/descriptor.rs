@@ -6,6 +6,7 @@ use super::core::{
 };
 use super::host::{enumerate_hint_rows, probe_row_profiles};
 use super::ids::{capture_stable_id, duplex_stable_id, playback_stable_id};
+use crate::platform::audio as audio_types;
 
 /// Enumerate ALSA devices and normalize them into runtime descriptors.
 pub(super) fn enumerate_devices() -> RuntimeResult<Vec<audio_core::HostDeviceDescriptor>> {
@@ -70,7 +71,7 @@ pub(super) fn enumerate_devices() -> RuntimeResult<Vec<audio_core::HostDeviceDes
 fn capability_flags(
     profile: &AlsaDeviceProfile,
     supports_full_duplex: bool,
-) -> audio_core::AudioDeviceCapabilityFlags {
+) -> audio_types::AudioDeviceCapabilityFlags {
     let mut flags = audio_core::DEVICE_CAPABILITY_SHARED_MODE.0
         | audio_core::DEVICE_CAPABILITY_STREAM_VOLUME.0
         | audio_core::DEVICE_CAPABILITY_STREAM_MUTE.0
@@ -85,7 +86,7 @@ fn capability_flags(
         flags |= audio_core::DEVICE_CAPABILITY_FULL_DUPLEX.0;
     }
 
-    audio_core::AudioDeviceCapabilityFlags(flags)
+    audio_types::AudioDeviceCapabilityFlags(flags)
 }
 
 /// Build one share-mode mask for one ALSA profile.
@@ -113,8 +114,8 @@ fn playback_descriptor_from_row(
         group_id: format!("alsa-group:{}", row.name),
         name: row.description.clone(),
         transport: transport_from_device_name(&row.name).to_string(),
-        backend: audio_core::AudioBackend::Alsa,
-        direction: audio_core::AudioDeviceDirection::Playback,
+        backend: audio_types::AudioBackend::Alsa,
+        direction: audio_types::AudioDeviceDirection::Playback,
         supported_directions: audio_core::DIRECTION_MASK_PLAYBACK,
         connected: true,
         is_raw: row.name.starts_with("hw:"),
@@ -154,8 +155,8 @@ fn capture_descriptor_from_row(
         group_id: format!("alsa-group:{}", row.name),
         name: row.description.clone(),
         transport: transport_from_device_name(&row.name).to_string(),
-        backend: audio_core::AudioBackend::Alsa,
-        direction: audio_core::AudioDeviceDirection::Capture,
+        backend: audio_types::AudioBackend::Alsa,
+        direction: audio_types::AudioDeviceDirection::Capture,
         supported_directions: audio_core::DIRECTION_MASK_CAPTURE,
         connected: true,
         is_raw: row.name.starts_with("hw:"),
@@ -265,8 +266,8 @@ fn duplex_descriptor_from_row(
         group_id: format!("alsa-group:{}", row.name),
         name: format!("{} (duplex)", row.description),
         transport: transport_from_device_name(&row.name).to_string(),
-        backend: audio_core::AudioBackend::Alsa,
-        direction: audio_core::AudioDeviceDirection::Duplex,
+        backend: audio_types::AudioBackend::Alsa,
+        direction: audio_types::AudioDeviceDirection::Duplex,
         supported_directions: audio_core::DIRECTION_MASK_PLAYBACK
             | audio_core::DIRECTION_MASK_CAPTURE
             | audio_core::DIRECTION_MASK_DUPLEX,

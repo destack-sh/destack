@@ -8,7 +8,7 @@ use super::{
     AudioStreamAvailabilityVm, AudioStreamClockDomain, AudioStreamConfigVm, AudioStreamDescriptor,
     AudioStreamDescriptorVm, AudioStreamOpenOptionsVm, AudioStreamStateVm, AudioStreamSupportVm,
     AudioStreamTimingVm, MidiMessageVm, MidiPortDescriptorVm, MidiPortDirection,
-    host as host_audio,
+    native as native_audio,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{PlatformError, VmArray, VmSlice, audio as audio_platform, resource};
@@ -498,7 +498,7 @@ pub(crate) fn destack_audio_clock_now(
     _context: &mut vm::ExternalCallContext<'_>,
     domain: AudioClockDomain,
 ) -> RuntimeResult<u64> {
-    call_out(|out| unsafe { host_audio::destack_audio_clock_now(binding, out, domain) })
+    call_out(|out| unsafe { native_audio::destack_audio_clock_now(binding, out, domain) })
 }
 
 /// List host audio backends.
@@ -522,7 +522,7 @@ pub(crate) fn destack_audio_backend_list(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<AudioBackendDescriptorVm>> {
-    let values = call_out(|out| unsafe { host_audio::destack_audio_backend_list(binding, out) })?;
+    let values = call_out(|out| unsafe { native_audio::destack_audio_backend_list(binding, out) })?;
     backend_slice_to_vm(context, values)
 }
 
@@ -555,7 +555,7 @@ pub(crate) fn destack_audio_stream_clock(
     domain: AudioStreamClockDomain,
 ) -> RuntimeResult<AudioClockSnapshotVm> {
     let value = call_out(|out| unsafe {
-        host_audio::destack_audio_stream_clock(binding, out, handle, domain)
+        native_audio::destack_audio_stream_clock(binding, out, handle, domain)
     })?;
     Ok(AudioClockSnapshotVm {
         stream_frames: value.stream_frames,
@@ -595,7 +595,7 @@ pub(crate) fn destack_audio_device_close(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_audio::destack_audio_device_close(binding, handle) }
+    unsafe { native_audio::destack_audio_device_close(binding, handle) }
 }
 
 /// Read one default device identifier for the selected direction.
@@ -624,7 +624,7 @@ pub(crate) fn destack_audio_device_default(
     backend_policy: AudioBackendSelectionPolicy,
 ) -> RuntimeResult<vm::StringHandle> {
     let value = call_out(|out| unsafe {
-        host_audio::destack_audio_device_default(binding, out, direction, backend, backend_policy)
+        native_audio::destack_audio_device_default(binding, out, direction, backend, backend_policy)
     })?;
     string_to_vm(context, value)
 }
@@ -652,7 +652,7 @@ pub(crate) fn destack_audio_device_descriptor(
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<AudioDeviceDescriptorVm> {
     let value = call_out(|out| unsafe {
-        host_audio::destack_audio_device_descriptor(binding, out, handle)
+        native_audio::destack_audio_device_descriptor(binding, out, handle)
     })?;
     device_descriptor_to_vm(context, value)
 }
@@ -680,7 +680,7 @@ pub(crate) fn destack_audio_device_list(
     request: AudioDeviceListRequestVm,
 ) -> RuntimeResult<VmSlice<AudioDeviceDescriptorVm>> {
     let values =
-        call_out(|out| unsafe { host_audio::destack_audio_device_list(binding, out, request) })?;
+        call_out(|out| unsafe { native_audio::destack_audio_device_list(binding, out, request) })?;
 
     descriptor_slice_to_vm(context, values)
 }
@@ -708,7 +708,7 @@ pub(crate) fn destack_audio_device_rescan(
     backend: AudioBackend,
     backend_policy: AudioBackendSelectionPolicy,
 ) -> RuntimeResult<()> {
-    unsafe { host_audio::destack_audio_device_rescan(binding, backend, backend_policy) }
+    unsafe { native_audio::destack_audio_device_rescan(binding, backend, backend_policy) }
 }
 
 /// Open one audio device endpoint.
@@ -736,7 +736,7 @@ pub(crate) fn destack_audio_device_open(
 ) -> RuntimeResult<resource::AudioDeviceHandle> {
     let id = string_from_vm(binding, context, id)?;
     let options = device_open_options_from_vm(options)?;
-    call_out(|out| unsafe { host_audio::destack_audio_device_open(binding, out, id, options) })
+    call_out(|out| unsafe { native_audio::destack_audio_device_open(binding, out, id, options) })
 }
 
 /// Close one audio event subscription.
@@ -761,7 +761,7 @@ pub(crate) fn destack_audio_event_close(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_audio::destack_audio_event_close(binding, handle) }
+    unsafe { native_audio::destack_audio_event_close(binding, handle) }
 }
 
 /// Open one audio event subscription.
@@ -788,7 +788,7 @@ pub(crate) fn destack_audio_event_open(
     _context: &mut vm::ExternalCallContext<'_>,
     options: AudioEventSubscriptionOptionsVm,
 ) -> RuntimeResult<resource::AudioEventHandle> {
-    call_out(|out| unsafe { host_audio::destack_audio_event_open(binding, out, options) })
+    call_out(|out| unsafe { native_audio::destack_audio_event_open(binding, out, options) })
 }
 
 /// Wait for one audio event.
@@ -815,7 +815,7 @@ pub(crate) fn destack_audio_event_read(
     timeoutns: u64,
 ) -> RuntimeResult<AudioEventVm> {
     let value = call_out(|out| unsafe {
-        host_audio::destack_audio_event_read(binding, out, handle, timeoutns)
+        native_audio::destack_audio_event_read(binding, out, handle, timeoutns)
     })?;
 
     event_to_vm(context, value)
@@ -847,7 +847,7 @@ pub(crate) fn destack_audio_event_read_batch(
     timeoutns: u64,
 ) -> RuntimeResult<VmSlice<AudioEventVm>> {
     let values = call_out(|out| unsafe {
-        host_audio::destack_audio_event_read_batch(binding, out, handle, maxevents, timeoutns)
+        native_audio::destack_audio_event_read_batch(binding, out, handle, maxevents, timeoutns)
     })?;
 
     event_slice_to_vm(context, values)
@@ -875,8 +875,9 @@ pub(crate) fn destack_audio_event_try_read(
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<AudioEventVm> {
-    let value =
-        call_out(|out| unsafe { host_audio::destack_audio_event_try_read(binding, out, handle) })?;
+    let value = call_out(|out| unsafe {
+        native_audio::destack_audio_event_try_read(binding, out, handle)
+    })?;
 
     event_to_vm(context, value)
 }
@@ -905,7 +906,7 @@ pub(crate) fn destack_audio_event_try_read_batch(
     maxevents: u32,
 ) -> RuntimeResult<VmSlice<AudioEventVm>> {
     let values = call_out(|out| unsafe {
-        host_audio::destack_audio_event_try_read_batch(binding, out, handle, maxevents)
+        native_audio::destack_audio_event_try_read_batch(binding, out, handle, maxevents)
     })?;
 
     event_slice_to_vm(context, values)
@@ -933,7 +934,7 @@ pub(crate) fn destack_audio_stream_availability(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<AudioStreamAvailabilityVm> {
-    call_out(|out| unsafe { host_audio::destack_audio_stream_availability(binding, out, handle) })
+    call_out(|out| unsafe { native_audio::destack_audio_stream_availability(binding, out, handle) })
 }
 
 /// Close one audio stream.
@@ -958,7 +959,7 @@ pub(crate) fn destack_audio_stream_close(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_audio::destack_audio_stream_close(binding, handle) }
+    unsafe { native_audio::destack_audio_stream_close(binding, handle) }
 }
 
 /// Drain one playback stream.
@@ -984,7 +985,7 @@ pub(crate) fn destack_audio_stream_drain(
     handle: resource::AudioStreamHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    unsafe { host_audio::destack_audio_stream_drain(binding, handle, timeoutns) }
+    unsafe { native_audio::destack_audio_stream_drain(binding, handle, timeoutns) }
 }
 
 /// Flush buffered stream data.
@@ -1009,7 +1010,7 @@ pub(crate) fn destack_audio_stream_flush(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_audio::destack_audio_stream_flush(binding, handle) }
+    unsafe { native_audio::destack_audio_stream_flush(binding, handle) }
 }
 
 /// Read one stream negotiated configuration descriptor.
@@ -1035,7 +1036,7 @@ pub(crate) fn destack_audio_stream_descriptor(
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<AudioStreamDescriptorVm> {
     let value = call_out(|out| unsafe {
-        host_audio::destack_audio_stream_descriptor(binding, out, handle)
+        native_audio::destack_audio_stream_descriptor(binding, out, handle)
     })?;
 
     stream_descriptor_to_vm(context, value)
@@ -1068,7 +1069,7 @@ pub(crate) fn destack_audio_stream_open(
     options: AudioStreamOpenOptionsVm,
 ) -> RuntimeResult<resource::AudioStreamHandle> {
     call_out(|out| unsafe {
-        host_audio::destack_audio_stream_open(binding, out, device, config, options)
+        native_audio::destack_audio_stream_open(binding, out, device, config, options)
     })
 }
 
@@ -1097,7 +1098,7 @@ pub(crate) fn destack_audio_stream_support(
     options: AudioStreamOpenOptionsVm,
 ) -> RuntimeResult<AudioStreamSupportVm> {
     let value = call_out(|out| unsafe {
-        host_audio::destack_audio_stream_support(binding, out, device, config, options)
+        native_audio::destack_audio_stream_support(binding, out, device, config, options)
     })?;
 
     let descriptor = stream_descriptor_to_vm(context, value.descriptor)?;
@@ -1133,7 +1134,7 @@ pub(crate) fn destack_audio_stream_read(
     maxbytes: u32,
 ) -> RuntimeResult<VmSlice<u8>> {
     let value = call_out(|out| unsafe {
-        host_audio::destack_audio_stream_read(binding, out, handle, maxbytes)
+        native_audio::destack_audio_stream_read(binding, out, handle, maxbytes)
     })?;
     bytes_to_vm(context, value)
 }
@@ -1163,7 +1164,7 @@ pub(crate) fn destack_audio_stream_readv(
 ) -> RuntimeResult<u64> {
     let (vm_buffers, native_buffers) = writable_byte_vectors_from_vm(binding, context, buffers)?;
     let written = call_out(|out| unsafe {
-        host_audio::destack_audio_stream_readv(binding, out, handle, native_buffers)
+        native_audio::destack_audio_stream_readv(binding, out, handle, native_buffers)
     })?;
     copy_written_vectors_to_vm(context, &vm_buffers, native_buffers, written)?;
 
@@ -1193,7 +1194,7 @@ pub(crate) fn destack_audio_stream_set_mute(
     handle: resource::AudioStreamHandle,
     muted: bool,
 ) -> RuntimeResult<()> {
-    unsafe { host_audio::destack_audio_stream_set_mute(binding, handle, muted) }
+    unsafe { native_audio::destack_audio_stream_set_mute(binding, handle, muted) }
 }
 
 /// Set one stream name.
@@ -1220,7 +1221,7 @@ pub(crate) fn destack_audio_stream_set_name(
     name: vm::StringHandle,
 ) -> RuntimeResult<()> {
     let name = string_from_vm(binding, context, name)?;
-    unsafe { host_audio::destack_audio_stream_set_name(binding, handle, name) }
+    unsafe { native_audio::destack_audio_stream_set_name(binding, handle, name) }
 }
 
 /// Set one stream gain multiplier.
@@ -1246,7 +1247,7 @@ pub(crate) fn destack_audio_stream_set_volume(
     handle: resource::AudioStreamHandle,
     lineargain: f64,
 ) -> RuntimeResult<()> {
-    unsafe { host_audio::destack_audio_stream_set_volume(binding, handle, lineargain) }
+    unsafe { native_audio::destack_audio_stream_set_volume(binding, handle, lineargain) }
 }
 
 /// Start one audio stream.
@@ -1271,7 +1272,7 @@ pub(crate) fn destack_audio_stream_start(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_audio::destack_audio_stream_start(binding, handle) }
+    unsafe { native_audio::destack_audio_stream_start(binding, handle) }
 }
 
 /// Pause or resume one audio stream.
@@ -1297,7 +1298,7 @@ pub(crate) fn destack_audio_stream_pause(
     handle: resource::AudioStreamHandle,
     pause: bool,
 ) -> RuntimeResult<()> {
-    unsafe { host_audio::destack_audio_stream_pause(binding, handle, pause) }
+    unsafe { native_audio::destack_audio_stream_pause(binding, handle, pause) }
 }
 
 /// Abort one audio stream immediately.
@@ -1322,7 +1323,7 @@ pub(crate) fn destack_audio_stream_abort(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_audio::destack_audio_stream_abort(binding, handle) }
+    unsafe { native_audio::destack_audio_stream_abort(binding, handle) }
 }
 
 /// Read one stream state.
@@ -1347,7 +1348,7 @@ pub(crate) fn destack_audio_stream_state(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<AudioStreamStateVm> {
-    call_out(|out| unsafe { host_audio::destack_audio_stream_state(binding, out, handle) })
+    call_out(|out| unsafe { native_audio::destack_audio_stream_state(binding, out, handle) })
 }
 
 /// Stop one audio stream.
@@ -1372,7 +1373,7 @@ pub(crate) fn destack_audio_stream_stop(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_audio::destack_audio_stream_stop(binding, handle) }
+    unsafe { native_audio::destack_audio_stream_stop(binding, handle) }
 }
 
 /// Read one stream timing sample.
@@ -1398,7 +1399,7 @@ pub(crate) fn destack_audio_stream_timing(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<AudioStreamTimingVm> {
-    call_out(|out| unsafe { host_audio::destack_audio_stream_timing(binding, out, handle) })
+    call_out(|out| unsafe { native_audio::destack_audio_stream_timing(binding, out, handle) })
 }
 
 /// Try to read one packet of captured audio frames without blocking.
@@ -1425,7 +1426,7 @@ pub(crate) fn destack_audio_stream_try_read(
     maxbytes: u32,
 ) -> RuntimeResult<VmSlice<u8>> {
     let value = call_out(|out| unsafe {
-        host_audio::destack_audio_stream_try_read(binding, out, handle, maxbytes)
+        native_audio::destack_audio_stream_try_read(binding, out, handle, maxbytes)
     })?;
     bytes_to_vm(context, value)
 }
@@ -1455,7 +1456,7 @@ pub(crate) fn destack_audio_stream_try_readv(
 ) -> RuntimeResult<u64> {
     let (vm_buffers, native_buffers) = writable_byte_vectors_from_vm(binding, context, buffers)?;
     let written = call_out(|out| unsafe {
-        host_audio::destack_audio_stream_try_readv(binding, out, handle, native_buffers)
+        native_audio::destack_audio_stream_try_readv(binding, out, handle, native_buffers)
     })?;
     copy_written_vectors_to_vm(context, &vm_buffers, native_buffers, written)?;
 
@@ -1487,7 +1488,7 @@ pub(crate) fn destack_audio_stream_try_write(
 ) -> RuntimeResult<u64> {
     let data = bytes_from_vm(binding, context, data)?;
     call_out(|out| unsafe {
-        host_audio::destack_audio_stream_try_write(binding, out, handle, data)
+        native_audio::destack_audio_stream_try_write(binding, out, handle, data)
     })
 }
 
@@ -1516,7 +1517,7 @@ pub(crate) fn destack_audio_stream_try_writev(
 ) -> RuntimeResult<u64> {
     let buffers = byte_vectors_from_vm(binding, context, buffers)?;
     call_out(|out| unsafe {
-        host_audio::destack_audio_stream_try_writev(binding, out, handle, buffers)
+        native_audio::destack_audio_stream_try_writev(binding, out, handle, buffers)
     })
 }
 
@@ -1544,7 +1545,7 @@ pub(crate) fn destack_audio_stream_write(
     data: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
     let data = bytes_from_vm(binding, context, data)?;
-    call_out(|out| unsafe { host_audio::destack_audio_stream_write(binding, out, handle, data) })
+    call_out(|out| unsafe { native_audio::destack_audio_stream_write(binding, out, handle, data) })
 }
 
 /// Write one packet from vectorized buffers.
@@ -1572,7 +1573,7 @@ pub(crate) fn destack_audio_stream_writev(
 ) -> RuntimeResult<u64> {
     let buffers = byte_vectors_from_vm(binding, context, buffers)?;
     call_out(|out| unsafe {
-        host_audio::destack_audio_stream_writev(binding, out, handle, buffers)
+        native_audio::destack_audio_stream_writev(binding, out, handle, buffers)
     })
 }
 
@@ -1603,7 +1604,7 @@ pub(crate) fn destack_audio_stream_write_at(
 ) -> RuntimeResult<u64> {
     let data = bytes_from_vm(binding, context, data)?;
     call_out(|out| unsafe {
-        host_audio::destack_audio_stream_write_at(binding, out, handle, data, presentationtimens)
+        native_audio::destack_audio_stream_write_at(binding, out, handle, data, presentationtimens)
     })
 }
 
@@ -1634,7 +1635,7 @@ pub(crate) fn destack_audio_stream_write_atv(
 ) -> RuntimeResult<u64> {
     let buffers = byte_vectors_from_vm(binding, context, buffers)?;
     call_out(|out| unsafe {
-        host_audio::destack_audio_stream_write_atv(
+        native_audio::destack_audio_stream_write_atv(
             binding,
             out,
             handle,

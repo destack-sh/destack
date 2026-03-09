@@ -15,6 +15,7 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
 use crate::platform::core as core_platform;
 
+use crate::platform::audio as audio_types;
 use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
 use windows_sys::Win32::Media::Audio::{EDataFlow, IAudioClient, eCapture, eRender};
 use windows_sys::Win32::System::Com::CoUninitialize;
@@ -140,7 +141,7 @@ pub(super) struct WasapiEndpointProfile {
     /// Maximum supported channel count.
     pub(super) max_channels: u16,
     /// Preferred channel layout.
-    pub(super) preferred_layout: audio_core::AudioChannelLayout,
+    pub(super) preferred_layout: audio_types::AudioChannelLayout,
     /// Preferred channel mask.
     pub(super) preferred_channel_mask: u64,
     /// Supported channel mask.
@@ -171,7 +172,7 @@ impl WasapiEndpointProfile {
             preferred_layout: channel_layout(preferred_channel_count),
             preferred_channel_mask,
             supported_channel_mask: channel_mask(WASAPI_MAX_PROBED_CHANNELS),
-            format_mask: audio_core::sample_format_bit(audio_core::AudioSampleFormat::F32),
+            format_mask: audio_types::sample_format_bit(audio_types::AudioSampleFormat::F32),
             supports_exclusive_mode: false,
             transport: "wasapi",
         }
@@ -332,9 +333,9 @@ unsafe impl Sync for WasapiEventHandle {}
 #[derive(Debug)]
 pub(super) struct WasapiStreamRuntime {
     /// Opened stream direction.
-    pub(super) direction: audio_core::AudioDeviceDirection,
+    pub(super) direction: audio_types::AudioDeviceDirection,
     /// Opened stream sample format.
-    pub(super) format: audio_core::AudioSampleFormat,
+    pub(super) format: audio_types::AudioSampleFormat,
     /// Opened stream sample rate in hertz.
     pub(super) sample_rate: u32,
     /// Opened stream channel count.

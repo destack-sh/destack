@@ -6,30 +6,30 @@ use crate::platform::audio::{
 };
 use crate::runtime::BindingCallContext;
 
-use super::AudioStreamBinding;
+use super::AudioStreamHostState;
 
 /// Return whether one stream exposes one requested clock domain.
 fn stream_supports_clock_domain(
-    binding: &AudioStreamBinding,
+    stream: &AudioStreamHostState,
     domain: AudioStreamClockDomain,
 ) -> bool {
     match domain {
         AudioStreamClockDomain::Monotonic | AudioStreamClockDomain::Wall => true,
-        AudioStreamClockDomain::Device => binding.runtime_capabilities.supports_hardware_timestamps,
+        AudioStreamClockDomain::Device => stream.runtime_capabilities.supports_hardware_timestamps,
         AudioStreamClockDomain::Callback => true,
         AudioStreamClockDomain::InputAdc => {
-            binding.runtime_capabilities.supports_hardware_timestamps
+            stream.runtime_capabilities.supports_hardware_timestamps
                 && matches!(
-                    binding.direction,
+                    stream.direction,
                     AudioDeviceDirection::Capture
                         | AudioDeviceDirection::Duplex
                         | AudioDeviceDirection::Loopback
                 )
         }
         AudioStreamClockDomain::OutputDac => {
-            binding.runtime_capabilities.supports_hardware_timestamps
+            stream.runtime_capabilities.supports_hardware_timestamps
                 && matches!(
-                    binding.direction,
+                    stream.direction,
                     AudioDeviceDirection::Playback
                         | AudioDeviceDirection::Duplex
                         | AudioDeviceDirection::Loopback
@@ -40,28 +40,28 @@ fn stream_supports_clock_domain(
 
 /// Return one operation timestamp for one requested domain.
 pub(crate) fn clock_now_for_domain(
-    binding: &BindingCallContext,
+    ctx: &BindingCallContext,
     domain: AudioClockDomain,
 ) -> RuntimeResult<u64> {
     match domain {
-        AudioClockDomain::Monotonic => Ok(binding.world().mono_nanos()),
-        AudioClockDomain::Wall => Ok(binding.world().wall_nanos()),
+        AudioClockDomain::Monotonic => Ok(ctx.world().mono_nanos()),
+        AudioClockDomain::Wall => Ok(ctx.world().wall_nanos()),
     }
 }
 
 /// Write one clock snapshot for one stream.
 pub(crate) fn stream_clock_snapshot(
     ctx: &BindingCallContext,
-    binding: &AudioStreamBinding,
+    stream: &AudioStreamHostState,
     domain: AudioStreamClockDomain,
 ) -> RuntimeResult<AudioClockSnapshot> {
-    if !stream_supports_clock_domain(binding, domain) {
+    if !stream_supports_clock_domain(stream, domain) {
         return Err(
             RuntimeError::from(PlatformError::not_supported("destack.audio.clock.stream")).boxed(),
         );
     }
 
-    let state = binding
+    let state = stream
         .sync
         .state
         .lock()
