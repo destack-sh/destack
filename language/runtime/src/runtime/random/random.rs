@@ -1,10 +1,26 @@
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeResult;
+use destack_base::{Capture, CaptureMode};
 use destack_workspace::RandomOptions;
 
 use super::HostRandom;
 use super::r#virtual::{StreamStateDecodeError, VirtualRandom};
+
+/// Materialized random state captured in one world image.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RandomImage {
+    /// Captured deterministic root seed.
+    pub root_seed: u64,
+    /// Captured deterministic default stream state.
+    pub default_stream: Vec<u8>,
+    /// Captured deterministic next stream identifier.
+    pub next_stream_id: u64,
+    /// Captured deterministic user stream states.
+    pub streams: std::collections::BTreeMap<RandomStreamId, Vec<u8>>,
+    /// Captured scoped stream bindings.
+    pub scoped_streams: std::collections::BTreeMap<ScopedRandomStreamKey, RandomStreamId>,
+}
 
 /// Runtime randomness and entropy providers.
 #[derive(Debug)]
@@ -186,6 +202,65 @@ impl Random {
     /// Fill a buffer with deterministic random bytes from a stream.
     pub fn fill_stream_deterministic_bytes(&self, stream_id: RandomStreamId, buffer: &mut [u8]) {
         self.virtual_random.fill_stream_bytes(stream_id, buffer);
+    }
+
+    /// Capture one materialized random image.
+    pub(crate) fn snapshot(&self) -> RandomImage {
+        let (root_seed, default_stream, next_stream_id, streams, scoped_streams) =
+            self.virtual_random.snapshot();
+
+        RandomImage {
+            root_seed,
+            default_stream,
+            next_stream_id,
+            streams,
+            scoped_streams,
+        }
+    }
+
+    /// Restore one materialized random image.
+    pub(crate) fn restore_snapshot(&self, snapshot: &RandomImage) -> RuntimeResult<()> {
+        self.virtual_random
+            .restore_snapshot(
+                snapshot.root_seed,
+                &snapshot.default_stream,
+                snapshot.next_stream_id,
+                &snapshot.streams,
+                &snapshot.scoped_streams,
+            )
+            .map_err(|error| {
+                crate::diagnostic::RuntimeError::Internal {
+                    message: format!("random snapshot restore failed: {error:?}"),
+                }
+                .boxed()
+            })?;
+
+        Ok(())
+    }
+}
+
+impl Capture for Random {
+    type Image = RandomImage;
+    type Error = Box<crate::diagnostic::RuntimeError>;
+    type CaptureContext<'a> = ();
+    type RestoreContext<'a> = ();
+
+    /// Capture one random image.
+    fn capture_image(
+        &mut self,
+        _mode: CaptureMode,
+        _context: Self::CaptureContext<'_>,
+    ) -> Result<Self::Image, Self::Error> {
+        Ok(self.snapshot())
+    }
+
+    /// Restore one random image.
+    fn restore_image(
+        &mut self,
+        image: &Self::Image,
+        _context: Self::RestoreContext<'_>,
+    ) -> Result<(), Self::Error> {
+        self.restore_snapshot(image)
     }
 }
 

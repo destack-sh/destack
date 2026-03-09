@@ -2,7 +2,9 @@ use std::any::Any;
 
 use destack_heap as heap;
 
-use super::{EngineContinuation, EngineSnapshot, EngineStats, Entry};
+use super::{
+    EngineContinuation, EngineContinuationImage, EngineImage, EngineSnapshot, EngineStats, Entry,
+};
 use crate::diagnostic::RuntimeResult;
 
 /// Engine output produced when execution completes.
@@ -33,18 +35,46 @@ pub enum EngineOutcome {
 /// Execution engine used by one agent event loop.
 pub trait Engine: Any {
     /// Run the entrypoint function.
-    fn run(&mut self, entry: &Entry, args: &[heap::Value]) -> RuntimeResult<EngineOutcome>;
+    fn run(
+        &mut self,
+        heap: &mut heap::Heap,
+        entry: &Entry,
+        args: &[heap::Value],
+    ) -> RuntimeResult<EngineOutcome>;
 
     /// Resume execution from a continuation.
     fn resume(
         &mut self,
+        heap: &mut heap::Heap,
         continuation: EngineContinuation,
         value: heap::Value,
     ) -> RuntimeResult<EngineOutcome>;
 
-    /// Capture one durable engine snapshot while the world is checkpoint-ready.
+    /// Capture one immutable engine image while the world is checkpoint-ready.
+    fn image(&mut self) -> RuntimeResult<EngineImage>;
+
+    /// Restore one immutable engine image while the world is checkpoint-ready.
+    fn restore_image(&mut self, heap: &mut heap::Heap, image: &EngineImage) -> RuntimeResult<()>;
+
+    /// Capture one continuation as one immutable continuation image.
+    fn continuation_image(
+        &mut self,
+        continuation: &EngineContinuation,
+    ) -> RuntimeResult<EngineContinuationImage>;
+
+    /// Restore one continuation from one immutable continuation image.
+    fn restore_continuation_image(
+        &mut self,
+        image: &EngineContinuationImage,
+    ) -> RuntimeResult<EngineContinuation>;
+
+    /// Capture one serialized engine snapshot while the world is checkpoint-ready.
     fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot>;
 
-    /// Restore one durable engine snapshot while the world is checkpoint-ready.
-    fn restore(&mut self, snapshot: &EngineSnapshot) -> RuntimeResult<()>;
+    /// Restore one serialized engine snapshot while the world is checkpoint-ready.
+    fn restore_snapshot(
+        &mut self,
+        heap: &mut heap::Heap,
+        snapshot: &EngineSnapshot,
+    ) -> RuntimeResult<()>;
 }

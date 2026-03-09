@@ -33,6 +33,26 @@ impl std::fmt::Debug for PlatformDisplayState {
 }
 
 impl PlatformDisplayState {
+    /// Return whether any runtime-owned display state was initialized.
+    pub(crate) fn is_initialized(&self) -> bool {
+        #[cfg(windows)]
+        if self.win32_runtime_state.get().is_some() {
+            return true;
+        }
+
+        #[cfg(target_os = "linux")]
+        if self.x11_runtime_state.get().is_some() || self.wayland_runtime_state.get().is_some() {
+            return true;
+        }
+
+        #[cfg(target_os = "macos")]
+        if self.appkit_runtime_state.get().is_some() {
+            return true;
+        }
+
+        false
+    }
+
     /// Return runtime-owned Win32 display state.
     #[cfg(windows)]
     pub(crate) fn win32_runtime_state(

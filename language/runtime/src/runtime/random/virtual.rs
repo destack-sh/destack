@@ -285,6 +285,77 @@ impl VirtualRandom {
 
         streams.remove(&stream_id);
     }
+
+    /// Capture one durable deterministic random snapshot.
+    pub(crate) fn snapshot(
+        &self,
+    ) -> (
+        u64,
+        Vec<u8>,
+        u64,
+        std::collections::BTreeMap<RandomStreamId, Vec<u8>>,
+        std::collections::BTreeMap<ScopedRandomStreamKey, RandomStreamId>,
+    ) {
+        // capture default stream state
+        let default_stream = self.export_stream_state_bytes(RandomStreamId::DEFAULT);
+
+        // capture explicit stream states in stable order
+        let mut streams = std::collections::BTreeMap::new();
+        let locked_streams = self.streams.lock();
+        for stream_id in locked_streams.keys().copied() {
+            let bytes = self.export_stream_state_bytes(stream_id);
+            streams.insert(stream_id, bytes);
+        }
+        drop(locked_streams);
+
+        // capture scoped stream bindings in stable order
+        let scoped_streams = self
+            .scoped_streams
+            .lock()
+            .iter()
+            .map(|(key, stream_id)| (*key, *stream_id))
+            .collect();
+
+        (
+            self.root_seed,
+            default_stream,
+            self.next_stream_id.load(Ordering::Relaxed),
+            streams,
+            scoped_streams,
+        )
+    }
+
+    /// Restore one durable deterministic random snapshot.
+    pub(crate) fn restore_snapshot(
+        &self,
+        root_seed: u64,
+        default_stream: &[u8],
+        next_stream_id: u64,
+        streams: &std::collections::BTreeMap<RandomStreamId, Vec<u8>>,
+        scoped_streams: &std::collections::BTreeMap<ScopedRandomStreamKey, RandomStreamId>,
+    ) -> Result<(), StreamStateDecodeError> {
+        // reset deterministic state
+        self.state.store(root_seed, Ordering::Relaxed);
+        self.next_stream_id.store(next_stream_id, Ordering::Relaxed);
+        self.streams.lock().clear();
+        self.scoped_streams.lock().clear();
+
+        // restore default stream state
+        self.import_stream_state_bytes(RandomStreamId::DEFAULT, default_stream)?;
+
+        // restore materialized stream states
+        for (stream_id, bytes) in streams {
+            self.import_stream_state_bytes(*stream_id, bytes)?;
+        }
+
+        // restore scoped stream bindings
+        let mut locked_scoped_streams = self.scoped_streams.lock();
+        for (key, stream_id) in scoped_streams {
+            locked_scoped_streams.insert(*key, *stream_id);
+        }
+
+        Ok(())
+    }
 }
 
 /// Mix a 64-bit value using splitmix64.

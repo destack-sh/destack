@@ -1,8 +1,10 @@
 # Runtime
 
 The runtime is how Destack actually does anything interesting beyond pure computation.
-The Destack runtime wraps VM and/or native execution with scheduling, bindings, host integration, record/replay, telemetry, and all the other "runtime stuff".
+The Destack runtime wraps VM and/or native execution with scheduling, bindings, host integration, trace, telemetry, and all the other "runtime stuff".
 Essentially, the runtime is where we integrate Node/Bun/Deno-level semantics with V8/JSC-runtime features .. and a bunch more stuff; it's really more like a universal game engine than a regular JS/TS runtime.
+
+## Runtime
 
 Runtime behavior is modeled along the three basic dimensions of engine ("where?"), execution ("how?") and world ("what?"):
 
@@ -12,23 +14,50 @@ Runtime behavior is modeled along the three basic dimensions of engine ("where?"
 | execution | `fast`, `deterministic`, `record`, `replay` | chooses determinism and replay behavior |
 | world | `host`, `simulation` | chooses host-backed or simulation-backed bindings |
 
-Component-wise, the runtime is organized into a few main areas:
+The runtime is organized around core `runtime`, `platform` bindings, and `host` integration:
  - `runtime/`: all the core runtime scaffolding and orchestration (poller, scheduler/loop, etc.)
  - `platform/`: host implementations for the modules defined in the builtin ["platform"](language/builtin/lib/platform) lib
  - `host/`: host adapters, host event bridges, host ffi entrypoints, and host state integration
+ 
+## World
 
-## Modules
+The Runtime lives in a main `World`, which owns the root clocks, topology, simulation state, policy / rules, trace / replay, and lineage ("history").
+One `World` contains 1-n `Runtime`s, one `Runtime` contains 1-n `Agent`s (roughly aligned with WHATWG / ECMAScript).
+Each `Agent` has its own execution lane with one `EventLoop`, one `Heap`, one execution `Engine`, one platform resource table, etc..
+Lineage owns the authoritative `Trace` images for each `Revision`.
+One `Image` only materializes world, runtime, and agent state for fast restore.
 
-The platform module scope matrix is listed below.
-Counts come from `bindings.generated.rs` and represent unique binding descriptors per module.
-Scope is declared per binding descriptor in builtin metadata.
-Generator validation enforces one effective scope per module.
+| Noun | Meaning |
+|-----------|--------|
+| `World` | The live deterministic root and global coordination boundary. |
+| `Runtime` | Process-like container inside one world. |
+| `Agent` | Execution lane inside one runtime. |
+| `Branch` | Named mutable lineage head. |
+| `Revision` | World-global lineage coordinate over one branch and one trace position. |
+| `Checkpoint` | Durable named or indexed anchor to one revision. |
+| `Image` | Immutable in-memory materialized world, runtime, and agent state at one revision. |
+| `Snapshot` | Serialized export of one image plus lineage metadata. |
+| `Trace` | World-global causal history. |
+| `Instant` | Time coordinate only, never a branch or checkpoint concept. |
+
+## Host
+
+The `Host`s are the operating systems and deployment targets, like Linux, iOS, macOS, Android, Windows, and so on; they're basically the foundation of our platform, the last one/two words of the triplet.
+
+Each host has its own capabilities (and idiosyncrasies) around when and how you get what state, which threads require what affinity, and a bunch more fun stuff.
+The basic bridge is the `HostBackend` that is implemented by each host to provide the platform-specific functionality needed by the runtime.
+
+## Platform
+
+The `platform` bindings implement the "platform" builtin library bindings defined in `language/builtin/lib/platform`, the corresponding bindings and ABI stuff is automatically generated in `language/runtime/src/generate` (see all the `*.generated.rs` files).
+
+The low-level `platform` bindings are not meant to be used by general userland - though they are accessible to advanced users - but instead through the higher-level `destack:*` library, which is essentially a `node:*` shaped higher level API with all the same functionality.
 
 | Module | Description |
 |-----------|--------|
 | [`audio`](./src/platform/audio) | Audio clocks, devices, streams, events, and MIDI I/O. |
 | [`crypto`](./src/platform/crypto) | Cryptographic algorithms, keys, stores, certificates, and randomness. |
-| [`debug`](./src/platform/debug) | Runtime tracing, profiling, inspector, and debug control hooks. |
+| [`debug`](./src/platform/debug) | Low-level debugger transport, profiling, trace sinks, and debug control hooks. |
 | [`device`](./src/platform/device) | Host peripheral buses and device classes: serial, USB, Bluetooth, and camera. |
 | [`display`](./src/platform/display) | Monitor discovery, display topology, and native window integration. |
 | [`error`](./src/platform/error) | Runtime error bridge and structured host error conversion helpers. |
@@ -44,6 +73,7 @@ Generator validation enforces one effective scope per module.
 | [`process`](./src/platform/process) | Process lifecycle, environment, identity, scheduling, limits, signals, and wait operations. |
 | [`random`](./src/platform/random) | Secure entropy and deterministic random stream generation. |
 | [`resource`](./src/platform/resource) | Runtime resource identifiers and handle lifecycle operations. |
+| [`runtime`](../builtin/lib/platform/runtime) | Low-level world control, lineage, pinned views, causal trace, observation streams, and snapshot export or restore. |
 | [`security`](./src/platform/security) | Capability checks, policy state, sandbox controls, and enforcement hooks. |
 | [`thread`](./src/platform/thread) | Thread creation, synchronization, local storage, affinity, and priority controls. |
 | [`time`](./src/platform/time) | Clock reads, sleep primitives, and timer scheduling operations. |

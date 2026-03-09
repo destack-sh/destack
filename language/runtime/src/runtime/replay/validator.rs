@@ -1,22 +1,23 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::replay::{EntropyEvent, ReplayEvent};
+use crate::runtime::replay::{EntropyEvent, TraceEvent};
+use serde::{Deserialize, Serialize};
 
-/// Validation state for replay event ordering.
-#[derive(Debug, Default)]
-pub(super) struct ReplayValidator {
+/// Validation state for trace event ordering.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub(crate) struct TraceValidator {
     /// Last observed monotonic time sample.
     last_monotonic_nanos: Option<u64>,
 }
 
-impl ReplayValidator {
-    /// Validate a replay event against ordering invariants.
-    pub(super) fn validate(&mut self, event: &ReplayEvent) -> RuntimeResult<()> {
+impl TraceValidator {
+    /// Validate a trace event against ordering invariants.
+    pub(super) fn validate(&mut self, event: &TraceEvent) -> RuntimeResult<()> {
         match event {
-            ReplayEvent::Tick(deadline) => {
+            TraceEvent::Tick(deadline) => {
                 if let Some(last) = self.last_monotonic_nanos
                     && deadline.get() < last
                 {
-                    return Err(RuntimeError::ReplayMismatch {
+                    return Err(RuntimeError::TraceMismatch {
                         name: "tick".to_string(),
                     }
                     .boxed());
@@ -24,13 +25,13 @@ impl ReplayValidator {
 
                 self.last_monotonic_nanos = Some(deadline.get());
             }
-            ReplayEvent::Entropy(event) => match event {
+            TraceEvent::Entropy(event) => match event {
                 EntropyEvent::TimeReadMonotonic { outcome, .. } => {
                     if let Ok(time_nanos) = outcome {
                         if let Some(last) = self.last_monotonic_nanos
                             && *time_nanos < last
                         {
-                            return Err(RuntimeError::ReplayMismatch {
+                            return Err(RuntimeError::TraceMismatch {
                                 name: "entropy".to_string(),
                             }
                             .boxed());
@@ -44,7 +45,7 @@ impl ReplayValidator {
                     ..
                 } => {
                     if bytes.len() != *len as usize {
-                        return Err(RuntimeError::ReplayMismatch {
+                        return Err(RuntimeError::TraceMismatch {
                             name: "entropy".to_string(),
                         }
                         .boxed());

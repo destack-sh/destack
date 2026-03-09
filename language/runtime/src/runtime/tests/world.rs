@@ -2,23 +2,79 @@
 
 use std::sync::Arc;
 
+use destack_base::LocalStringPool;
+use destack_mir::NodeTree;
 use destack_workspace::{
     ExecutionMode, RandomMode, RuntimeAccess, RuntimeIdentitySelector, RuntimeOptions,
     RuntimeSelector, RuntimeWorld, TimeMode,
 };
+use {destack_heap as heap, destack_vm as vm};
 
 use super::tests::TestEngine;
 use crate::host::Host;
-use crate::platform::{ResourceEntry, ResourceKind};
+use crate::platform::{ResourceEntry, ResourceId, ResourceKind};
 use crate::runtime::bindings::BindingDescriptor;
 use crate::runtime::policy::{
     Effect, Fault, FaultTarget, FaultType, Hook, Policy, Rule, RuleId, Trigger,
 };
+use crate::runtime::poller::{
+    PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
+    PollerToken,
+};
+use crate::runtime::scheduler::Runnable;
 use crate::runtime::time::WorldInstant;
 use crate::runtime::{
-    Agent, BindingCallContext, BranchId, CheckpointId, World, WorldCommand, WorldEdge,
-    WorldEdgeKindDefinition, WorldEntity, WorldEntityKindDefinition,
+    Agent, BindingCallContext, BranchId, ObserveEvent, World, WorldEdge, WorldEdgeKindDefinition,
+    WorldEntity, WorldEntityKindDefinition,
 };
+
+/// Build one empty VM engine for checkpoint tests.
+fn vm_engine() -> vm::Isolate {
+    let tree = NodeTree::new();
+    let strings = LocalStringPool::new().into_immutable();
+
+    vm::Isolate::build(tree, strings).expect("vm engine should build")
+}
+
+/// Allocate one managed heap cell in the primary agent VM engine.
+fn allocate_vm_heap_cell(world: &Arc<World>, runtime_id: crate::runtime::RuntimeId) {
+    // mutate the primary agent engine directly
+    world
+        .with_runtime_mut(runtime_id, |runtime| {
+            let agent_id = runtime.primary_agent_id();
+            let agent = runtime
+                .agent_mut(agent_id)
+                .expect("runtime should keep its primary agent");
+            let engine = &mut *agent.engine as &mut dyn std::any::Any;
+            let isolate = engine
+                .downcast_mut::<vm::Isolate>()
+                .expect("agent should use a vm engine");
+            let _ = isolate.allocate_single(&mut agent.heap, heap::Value::int32(7));
+
+            Ok(())
+        })
+        .expect("vm heap mutation should succeed");
+}
+
+/// Return the managed heap cell count for the primary agent VM engine.
+fn vm_heap_cell_count(world: &Arc<World>, runtime_id: crate::runtime::RuntimeId) -> usize {
+    // inspect the primary agent engine directly
+    world
+        .with_runtime_mut(runtime_id, |runtime| {
+            let agent_id = runtime.primary_agent_id();
+            let agent = runtime
+                .agent_mut(agent_id)
+                .expect("runtime should keep its primary agent");
+            let engine = &mut *agent.engine as &mut dyn std::any::Any;
+            let isolate = engine
+                .downcast_mut::<vm::Isolate>()
+                .expect("agent should use a vm engine");
+            let _ = isolate;
+
+            Ok(agent.heap.managed().cell_count())
+        })
+        .expect("vm heap inspection should succeed")
+}
 
 /// Ensures new worlds start on one real root branch.
 #[test]
@@ -33,28 +89,308 @@ fn test_world_starts_on_root_branch() {
     assert_eq!(world.branch_ids(), vec![BranchId::new(0)]);
 }
 
-/// Ensures checkpoint verbs fail loudly until snapshot capture lands.
+/// Ensures empty worlds can checkpoint, rewind, and fork exactly.
 #[test]
-fn test_world_checkpoint_shape_fails_loudly() {
+fn test_world_checkpoint_and_fork_empty_world() {
     // create one new world
     let world = Arc::new(World::default());
 
-    // placeholder checkpoint and fork methods should reject use
-    let checkpoint_error = world
+    // capture one empty-world checkpoint
+    let checkpoint_id = world
         .checkpoint("steady")
-        .expect_err("checkpoint should fail loudly");
-    assert_eq!(
-        checkpoint_error.message(),
-        "internal error: world checkpointing is not implemented yet on branch 0: next checkpoint 1, next snapshot 1, capture path failed with internal error: world snapshot capture is not implemented yet"
-    );
+        .expect("checkpoint should succeed");
+    let checkpoint = world
+        .checkpoint_info(checkpoint_id)
+        .expect("checkpoint metadata should exist");
+    let checkpoint_revision = world
+        .revision_info(checkpoint.revision_id)
+        .expect("checkpoint revision should exist");
+    assert_eq!(checkpoint_revision.branch_id, BranchId::new(0));
+    assert_eq!(checkpoint.name, "steady");
 
-    let fork_error = world
-        .fork(CheckpointId::new(1), "child")
-        .expect_err("fork should fail loudly");
-    assert_eq!(
-        fork_error.message(),
-        "internal error: world fork is not implemented yet from branch 0: next branch 1"
+    // rewind should restore the same empty state
+    world
+        .rewind(checkpoint_id)
+        .expect("rewind should restore the checkpoint");
+
+    // forking should create one child world on one child branch
+    let child = world
+        .fork(checkpoint_id, "child")
+        .expect("fork should succeed");
+    assert_eq!(child.branch().name, "child");
+    assert_eq!(child.branch_ids(), vec![BranchId::new(0), BranchId::new(1)]);
+    assert_eq!(world.branch_ids(), vec![BranchId::new(0), BranchId::new(1)]);
+}
+
+/// Ensures checkpoints restore VM-backed runtime and heap state exactly.
+#[test]
+fn test_world_rewind_restores_vm_runtime_state() {
+    // build one vm-backed runtime
+    let options = RuntimeOptions::default();
+    let world = Arc::new(World::default());
+    let runtime_id = world
+        .spawn_runtime(Vec::new(), &options, vm_engine())
+        .expect("runtime should spawn in world");
+
+    // create one baseline managed allocation before the checkpoint
+    allocate_vm_heap_cell(&world, runtime_id);
+    assert_eq!(vm_heap_cell_count(&world, runtime_id), 1);
+
+    // capture one checkpoint at the baseline state
+    let checkpoint_id = world
+        .checkpoint("vm-steady")
+        .expect("checkpoint should succeed");
+
+    // mutate both world topology and vm heap after the checkpoint
+    world
+        .spawn_runtime(Vec::new(), &options, vm_engine())
+        .expect("second runtime should spawn in world");
+    allocate_vm_heap_cell(&world, runtime_id);
+    assert_eq!(world.runtime_ids().len(), 2);
+    assert_eq!(vm_heap_cell_count(&world, runtime_id), 2);
+
+    // rewind back to the captured point
+    world
+        .rewind(checkpoint_id)
+        .expect("rewind should restore the checkpoint");
+
+    // the world and vm heap should both return to the checkpoint state
+    assert_eq!(world.runtime_ids(), vec![runtime_id]);
+    assert_eq!(vm_heap_cell_count(&world, runtime_id), 1);
+}
+
+/// Ensures attached resources remain an explicit checkpoint barrier.
+#[test]
+fn test_world_checkpoint_rejects_attached_resources() {
+    // build one runtime and attach one resource to its primary agent
+    let options = RuntimeOptions::default();
+    let world = Arc::new(World::default());
+    let runtime_id = world
+        .spawn_runtime(Vec::new(), &options, vm_engine())
+        .expect("runtime should spawn in world");
+
+    world
+        .with_runtime_mut(runtime_id, |runtime| {
+            let agent_id = runtime.primary_agent_id();
+            let agent = runtime
+                .agent_mut(agent_id)
+                .expect("runtime should keep its primary agent");
+
+            let _ = agent
+                .resources
+                .insert(&world, ResourceEntry::new(ResourceKind::Timer), None);
+
+            Ok(())
+        })
+        .expect("resource should attach");
+
+    // checkpointing should fail loudly for resources without capture support
+    let error = world
+        .checkpoint("blocked")
+        .expect_err("checkpoint should fail");
+    let message = error.to_string();
+    assert!(
+        message.contains("does not support capture"),
+        "unexpected checkpoint error: {message}"
     );
+}
+
+/// Ensures high-volume observation stays separate from causal trace.
+#[test]
+fn test_world_observe_records_control_and_resource_events() {
+    let options = RuntimeOptions::default();
+    let world = Arc::new(World::default());
+    let runtime_id = world
+        .spawn_runtime(Vec::new(), &options, vm_engine())
+        .expect("runtime should spawn in world");
+
+    world
+        .with_runtime_mut(runtime_id, |runtime| {
+            let agent_id = runtime.primary_agent_id();
+            let agent = runtime
+                .agent_mut(agent_id)
+                .expect("runtime should keep its primary agent");
+            let resource_id =
+                agent
+                    .resources
+                    .insert(&world, ResourceEntry::new(ResourceKind::Timer), None);
+            let _ = agent.resources.remove(&world, resource_id, None);
+
+            Ok(())
+        })
+        .expect("resource lifecycle should succeed");
+
+    let records = world.observe().records_after(None);
+    assert!(
+        records
+            .iter()
+            .any(|record| matches!(record.event, ObserveEvent::Control { .. })),
+        "expected one control observation event"
+    );
+    assert!(
+        records.iter().any(|record| {
+            matches!(
+                record.event,
+                ObserveEvent::Resource {
+                    is_attach: true,
+                    ..
+                }
+            )
+        }),
+        "expected one resource attach observation event"
+    );
+    assert!(
+        records.iter().any(|record| {
+            matches!(
+                record.event,
+                ObserveEvent::Resource {
+                    is_attach: false,
+                    ..
+                }
+            )
+        }),
+        "expected one resource detach observation event"
+    );
+}
+
+/// Ensures forked worlds restore from the checkpoint and diverge independently.
+#[test]
+fn test_world_fork_isolates_vm_runtime_state() {
+    // build one vm-backed runtime and capture a baseline checkpoint
+    let options = RuntimeOptions::default();
+    let world = Arc::new(World::default());
+    let runtime_id = world
+        .spawn_runtime(Vec::new(), &options, vm_engine())
+        .expect("runtime should spawn in world");
+
+    allocate_vm_heap_cell(&world, runtime_id);
+    let checkpoint_id = world
+        .checkpoint("baseline")
+        .expect("checkpoint should succeed");
+
+    // fork one child world from that baseline
+    let child = world
+        .fork(checkpoint_id, "child")
+        .expect("fork should succeed");
+
+    // parent and child should start from the same captured heap state
+    assert_eq!(vm_heap_cell_count(&world, runtime_id), 1);
+    assert_eq!(vm_heap_cell_count(&child, runtime_id), 1);
+
+    // mutate parent and child independently after the fork
+    allocate_vm_heap_cell(&world, runtime_id);
+    allocate_vm_heap_cell(&world, runtime_id);
+    allocate_vm_heap_cell(&child, runtime_id);
+
+    // both worlds should diverge without affecting each other
+    assert_eq!(vm_heap_cell_count(&world, runtime_id), 3);
+    assert_eq!(vm_heap_cell_count(&child, runtime_id), 2);
+}
+
+/// Ensures serialized world snapshots preserve lineage metadata and restore state.
+#[test]
+fn test_world_snapshot_roundtrip_restores_lineage_and_state() {
+    // build one vm-backed runtime and capture one checkpoint
+    let options = RuntimeOptions::default();
+    let world = Arc::new(World::default());
+    let runtime_id = world
+        .spawn_runtime(Vec::new(), &options, vm_engine())
+        .expect("runtime should spawn in world");
+
+    allocate_vm_heap_cell(&world, runtime_id);
+    let checkpoint_id = world
+        .checkpoint("baseline")
+        .expect("checkpoint should succeed");
+    let checkpoint = world
+        .checkpoint_info(checkpoint_id)
+        .expect("checkpoint metadata should exist");
+    let revision = world
+        .revision_info(checkpoint.revision_id)
+        .expect("checkpoint revision should exist");
+    let image_id = revision.image_id;
+
+    // encode one serialized snapshot from that checkpoint image
+    let snapshot = world.snapshot(image_id).expect("snapshot should build");
+    let bytes = snapshot.encode().expect("snapshot should encode");
+    let snapshot = crate::runtime::Snapshot::decode(&bytes).expect("snapshot should decode");
+
+    // mutate the world after the snapshot
+    allocate_vm_heap_cell(&world, runtime_id);
+    world
+        .spawn_runtime(Vec::new(), &options, vm_engine())
+        .expect("second runtime should spawn in world");
+    assert_eq!(world.runtime_ids().len(), 2);
+    assert_eq!(vm_heap_cell_count(&world, runtime_id), 2);
+
+    // restore from the serialized snapshot
+    world
+        .restore_snapshot(&snapshot, None)
+        .expect("snapshot should restore");
+
+    // the snapshot should restore both runtime state and lineage metadata
+    assert_eq!(world.runtime_ids(), vec![runtime_id]);
+    assert_eq!(vm_heap_cell_count(&world, runtime_id), 1);
+    assert_eq!(world.checkpoint_ids(), vec![checkpoint_id]);
+    assert_eq!(world.revision_id(), checkpoint.revision_id);
+
+    // rebuilding one fresh world from the same snapshot should preserve the same lineage
+    let restored_world =
+        World::from_snapshot(&snapshot, None).expect("snapshot should rebuild world");
+    assert_eq!(restored_world.branch_id(), world.branch_id());
+    assert_eq!(restored_world.runtime_ids(), vec![runtime_id]);
+    assert_eq!(vm_heap_cell_count(&restored_world, runtime_id), 1);
+    assert_eq!(restored_world.checkpoint_ids(), vec![checkpoint_id]);
+    assert_eq!(restored_world.revision_id(), checkpoint.revision_id);
+}
+
+/// Ensures hibernation snapshots preserve pending suspendable runtime state.
+#[test]
+fn test_world_hibernate_snapshot_roundtrip_preserves_pending_state() {
+    // build one runtime with pending ingress but no suspended continuations
+    let options = RuntimeOptions::default();
+    let world = Arc::new(World::default());
+    let runtime_id = world
+        .spawn_runtime(Vec::new(), &options, vm_engine())
+        .expect("runtime should spawn in world");
+    world
+        .with_runtime_mut(runtime_id, |runtime| {
+            let agent_id = runtime.primary_agent_id();
+            let agent = runtime
+                .agent_mut(agent_id)
+                .expect("primary agent should exist");
+            agent.event_loop.enqueue_events(vec![PollerEvent {
+                resource_id: ResourceId(71),
+                source: PollerEventSource::Io,
+                mask: PollerEventMask::READABLE,
+                flags: PollerEventFlags::NONE,
+                token: PollerToken(811),
+                payload: PollerEventPayload::Io { data: 3 },
+            }]);
+
+            Ok(())
+        })
+        .expect("event enqueue should succeed");
+
+    let snapshot = world
+        .hibernate_snapshot()
+        .expect("hibernate snapshot should succeed");
+
+    // rebuilding one world from that snapshot should preserve the queued event
+    let restored_world =
+        World::from_snapshot(&snapshot, None).expect("snapshot should rebuild world");
+    let runtime_id = restored_world.runtime_ids()[0];
+    let next = restored_world
+        .with_runtime_mut(runtime_id, |runtime| {
+            let agent_id = runtime.primary_agent_id();
+            let agent = runtime
+                .agent_mut(agent_id)
+                .expect("primary agent should exist");
+
+            agent.event_loop.next_runnable(0, 0)
+        })
+        .expect("queued state should be inspectable");
+
+    assert!(matches!(next, Some(Runnable::PollerEvent(_))));
 }
 
 /// Ensures worlds track unique runtime identities for explicitly spawned runtimes.
@@ -409,7 +745,6 @@ fn test_world_topology_control_mutates_graph() {
 fn test_world_topology_command_failure_does_not_revert_prior_commands() {
     // create one world
     let world = Arc::new(World::default());
-    let revision_before = world.revision();
 
     // apply one valid command first
     world
@@ -431,39 +766,8 @@ fn test_world_topology_command_failure_does_not_revert_prior_commands() {
     let entity_kinds = world.entity_kinds();
     let entities = world.entities();
     assert!(result.is_err());
-    assert!(world.revision() > revision_before);
     assert!(entity_kinds.contains_key("app.atomic.node"));
     assert!(!entities.contains_key("bad-node"));
-}
-
-/// Ensures world control exposes CAS revision semantics.
-#[test]
-fn test_world_control_cas_mismatch_fails() {
-    // create one world with default state
-    let world = Arc::new(World::default());
-    let current_revision = world.revision();
-
-    // apply one command with a stale expected revision
-    let result = world.apply_control_command_at_revision(
-        Some(current_revision.saturating_add(1)),
-        WorldCommand::InstallRule {
-            rule: Rule {
-                id: RuleId("test.runtime.policy.cas".to_string()),
-                enabled: true,
-                when: Some(RuntimeSelector {
-                    binding: Some("destack.test.policy.cas".to_string()),
-                    ..RuntimeSelector::default()
-                }),
-                action: Effect::SetAccess {
-                    access: RuntimeAccess::Deny,
-                },
-                trigger: None,
-            },
-        },
-    );
-
-    // stale revisions should fail deterministically
-    assert!(result.is_err());
 }
 
 /// Ensures resource attach and detach operations synchronize into world topology and resource state.
@@ -564,7 +868,7 @@ fn test_world_apply_record_failure_does_not_append_replay_events() {
             supported_faults: Default::default(),
         })
         .expect("define entity kind should succeed");
-    let sequence_after_success = world.replay().log().next_sequence().get();
+    let sequence_after_success = world.trace().log().next_sequence().get();
     assert_eq!(sequence_after_success, 1);
 
     // apply one failing command after that
@@ -576,61 +880,8 @@ fn test_world_apply_record_failure_does_not_append_replay_events() {
     assert!(result.is_err());
 
     // replay log should not advance after failure
-    let next_sequence = world.replay().log().next_sequence().get();
+    let next_sequence = world.trace().log().next_sequence().get();
     assert_eq!(next_sequence, sequence_after_success);
-}
-
-/// Ensures world revisions advance for runtime and resource lifecycle mutations.
-#[test]
-fn test_world_revision_advances_for_runtime_lifecycle_mutations() {
-    // create one world and one runtime in that world
-    let options = RuntimeOptions::default();
-    let world = Arc::new(World::default());
-    let runtime_id = world
-        .spawn_runtime(Vec::new(), &options, TestEngine::default())
-        .expect("runtime should construct in world");
-
-    // runtime bootstrap should advance world revision
-    let revision_after_runtime = world.revision();
-    assert!(revision_after_runtime > 1);
-
-    // spawning one agent should advance revision
-    let spawned_agent_id = world
-        .spawn_agent(runtime_id, TestEngine::default())
-        .expect("agent spawn should succeed");
-    let revision_after_spawn = world.revision();
-    assert!(revision_after_spawn > revision_after_runtime);
-
-    // attaching and detaching resources should advance revision
-    let resource_id = world
-        .with_runtime_mut(runtime_id, |runtime| {
-            let agent = runtime
-                .agent(spawned_agent_id)
-                .expect("spawned agent should exist");
-            let resource_id = agent.resources.insert(
-                &world,
-                ResourceEntry::new(ResourceKind::Timer).with_label("revision-test"),
-                None,
-            );
-
-            Ok(resource_id)
-        })
-        .expect("runtime should exist");
-    let revision_after_attach = world.revision();
-    assert!(revision_after_attach > revision_after_spawn);
-
-    let removed = world
-        .with_runtime_mut(runtime_id, |runtime| {
-            let agent = runtime
-                .agent(spawned_agent_id)
-                .expect("spawned agent should exist");
-
-            Ok(agent.resources.remove(&world, resource_id, None))
-        })
-        .expect("runtime should exist");
-    assert!(removed.is_some());
-    let revision_after_detach = world.revision();
-    assert!(revision_after_detach > revision_after_attach);
 }
 
 /// Ensures spawned agents inherit world-scoped runtime options.

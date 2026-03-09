@@ -21,6 +21,16 @@ impl std::fmt::Debug for PlatformOsState {
 }
 
 impl PlatformOsState {
+    /// Return whether any runtime-owned OS state was initialized.
+    pub(crate) fn is_initialized(&self) -> bool {
+        #[cfg(any(target_os = "linux", target_os = "windows"))]
+        if self.no_replace_write_runtime_state.get().is_some() {
+            return true;
+        }
+
+        false
+    }
+
     /// Return runtime-owned no-replace write guard state.
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     pub(crate) fn no_replace_write_runtime_state(

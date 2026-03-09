@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use destack_base::CaptureMode;
 use parking_lot::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -9,21 +10,21 @@ use crate::platform::PlatformError;
 use crate::runtime::bindings::BindingReplayPayload;
 use crate::runtime::policy::{Policy, PolicyState};
 use crate::runtime::random::{Random, RandomStreamId};
-use crate::runtime::replay::{Replay, ReplayHeader};
+use crate::runtime::replay::{Trace, TraceHeader};
 use crate::runtime::time::{Clock, HostClockSource, Nanos};
 use crate::runtime::{AgentId, Runtime};
 use crate::simulation::Simulation;
 use destack_workspace::{ExecutionMode, RandomMode, ReplayPayloadMode, RuntimeOptions, TimeMode};
 
-use super::lineage::{Lineage, ROOT_BRANCH_ID};
+use super::lineage::{Lineage, ROOT_BRANCH_ID, ROOT_IMAGE_ID};
 use super::topology::Topology;
 pub use super::topology::{
     RuntimeId, WorldEdge, WorldEdgeId, WorldEdgeKind, WorldEdgeKindDefinition, WorldEntity,
     WorldEntityId, WorldEntityKind, WorldEntityKindDefinition,
 };
 use super::{
-    BranchId, CheckpointState, INITIAL_AGENT_ID, INITIAL_CONTROL_REVISION, INITIAL_RUNTIME_ID,
-    WorldResource, WorldResourceId,
+    AccessState, BranchId, INITIAL_AGENT_ID, INITIAL_RUNTIME_ID, Observe, WorldResource,
+    WorldResourceId,
 };
 
 /// Number of bytes in a megabyte for replay chunk sizing.
@@ -47,8 +48,10 @@ pub struct World {
     pub(super) clock: Clock,
     /// Shared world randomness state.
     pub(super) random: Random,
-    /// Replay controller for deterministic world event history.
-    pub(super) replay: Replay,
+    /// Trace controller for deterministic world event history.
+    pub(super) trace: Trace,
+    /// High-volume observation stream kept separate from causal trace.
+    pub(super) observe: Observe,
     /// Active policy state.
     pub(super) policy: RwLock<PolicyState>,
     /// One global mutation gate for replayable world control changes.
@@ -57,12 +60,10 @@ pub struct World {
     pub(super) next_runtime_id: AtomicU64,
     /// The next agent id to allocate.
     pub(super) next_agent_id: AtomicU64,
-    /// The current world command revision.
-    pub(super) revision: AtomicU64,
     /// World-owned lineage and durable restore metadata.
     pub(super) lineage: Arc<RwLock<Lineage>>,
-    /// World-owned checkpoint readiness state.
-    pub(super) checkpoint_state: RwLock<CheckpointState>,
+    /// World-owned shared and exclusive access coordinator state.
+    pub(super) access_state: RwLock<AccessState>,
     /// Topology registry for world metadata.
     pub(super) topology: RwLock<Topology>,
     /// Logical resource records keyed by world resource identifier.
@@ -79,6 +80,16 @@ impl World {
     /// Create one world from runtime options and optional host clock source.
     #[allow(clippy::arc_with_non_send_sync)]
     pub(crate) fn new(
+        options: &RuntimeOptions,
+        host_clock_source: Option<Arc<dyn HostClockSource>>,
+    ) -> RuntimeResult<Arc<Self>> {
+        Self::build_with_branch(ROOT_BRANCH_ID, options, host_clock_source)
+    }
+
+    /// Create one world for one explicit active branch.
+    #[allow(clippy::arc_with_non_send_sync)]
+    pub(crate) fn build_with_branch(
+        branch_id: BranchId,
         options: &RuntimeOptions,
         host_clock_source: Option<Arc<dyn HostClockSource>>,
     ) -> RuntimeResult<Arc<Self>> {
@@ -100,16 +111,18 @@ impl World {
         };
 
         // replay header: options with chunk-size override
-        let mut replay_header = ReplayHeader {
+        let mut trace_header = TraceHeader {
             execution_mode: options.execution,
-            branch_id: ROOT_BRANCH_ID,
+            time_mode,
+            random_mode,
+            branch_id,
             replay_payload,
-            ..ReplayHeader::default()
+            ..TraceHeader::default()
         };
         if let Some(chunk_size_mb) = options.replay.chunk_size_mb {
             let chunk_bytes = chunk_size_mb.saturating_mul(BYTES_PER_MB);
             if chunk_bytes > 0 {
-                replay_header.max_chunk_bytes = chunk_bytes;
+                trace_header.max_chunk_bytes = chunk_bytes;
             }
         }
 
@@ -121,30 +134,40 @@ impl World {
         };
         let random = Random::new(options.random.seed.unwrap_or(0));
         let policy = Policy::from_workspace_rules(&options.rules);
-        let replay = Replay::new(options.execution, replay_header);
+        let trace = Trace::new(options.execution, trace_header);
         let topology = Topology::new();
         policy.validate_with_kind_catalog(&topology)?;
 
         // final world state
-        Ok(Arc::new(Self {
-            branch_id: ROOT_BRANCH_ID,
+        let world = Arc::new(Self {
+            branch_id,
             runtimes: RwLock::new(BTreeMap::new()),
             simulation: RwLock::new(Simulation::default()),
             time_mode,
             random_mode,
             clock,
             random,
-            replay,
+            trace,
+            observe: Observe::default(),
             policy: RwLock::new(PolicyState::new(policy)),
             mutation_lock: Mutex::new(()),
             next_runtime_id: AtomicU64::new(INITIAL_RUNTIME_ID),
             next_agent_id: AtomicU64::new(INITIAL_AGENT_ID),
-            revision: AtomicU64::new(INITIAL_CONTROL_REVISION),
-            lineage: Arc::new(RwLock::new(Lineage::default())),
-            checkpoint_state: RwLock::new(CheckpointState::Ready),
+            lineage: Arc::new(RwLock::new(Lineage::bootstrap())),
+            access_state: RwLock::new(AccessState::Shared {
+                active_operations: 0,
+            }),
             topology: RwLock::new(topology),
             resources: RwLock::new(BTreeMap::new()),
-        }))
+        });
+
+        // root lineage backing
+        let mut root_image = world.capture_image(CaptureMode::Fork)?;
+        root_image.id = ROOT_IMAGE_ID;
+        let root_trace_image = Arc::new(world.trace.capture_image());
+        *world.lineage.write() = Lineage::bootstrap_root(Arc::new(root_image), root_trace_image);
+
+        Ok(world)
     }
 
     /// Borrow one read guard for simulation.
@@ -187,11 +210,6 @@ impl World {
         self.resources.read().clone()
     }
 
-    /// Return the current world command revision.
-    pub fn revision(&self) -> u64 {
-        self.revision.load(Ordering::SeqCst)
-    }
-
     /// Allocate one runtime identifier.
     pub(crate) fn allocate_runtime_id(&self) -> RuntimeId {
         let runtime_id = self.next_runtime_id.fetch_add(1, Ordering::SeqCst);
@@ -219,6 +237,11 @@ impl World {
     /// Return the effective world random mode.
     pub fn random_mode(&self) -> RandomMode {
         self.random_mode
+    }
+
+    /// Return the high-volume observation stream for this world.
+    pub fn observe(&self) -> &Observe {
+        &self.observe
     }
 
     /// Return the current world wall time.
@@ -301,9 +324,9 @@ impl World {
         }
     }
 
-    /// Borrow the shared replay controller.
-    pub fn replay(&self) -> &Replay {
-        &self.replay
+    /// Borrow the shared trace controller.
+    pub fn trace(&self) -> &Trace {
+        &self.trace
     }
 }
 

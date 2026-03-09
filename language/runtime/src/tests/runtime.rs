@@ -1,7 +1,7 @@
 use destack_base::LocalStringPool;
 use destack_mir::NodeTree;
+use destack_vm as vm;
 use destack_workspace::{ExecutionMode, RandomMode, RandomOptions, RuntimeOptions};
-use {destack_heap as heap, destack_vm as vm};
 
 #[cfg(test)]
 use crate::diagnostic::{DiagnosticId, RuntimeStatus};
@@ -17,53 +17,9 @@ use crate::platform::random::{
 };
 #[cfg(test)]
 use crate::platform::resource::{ListenerHandle, ResourceKind};
-use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineOutcome, EngineOutput, EngineSnapshot, Entry,
-};
 use crate::runtime::{
     Agent, BindingCallContext, World, enter_binding_call_context, enter_current_agent_context,
 };
-
-/// Minimal engine used by runtime helper tests.
-#[derive(Debug, Default)]
-struct TestRuntimeEngine;
-
-impl Engine for TestRuntimeEngine {
-    /// Complete immediately with one void output.
-    fn run(&mut self, _entry: &Entry, _args: &[heap::Value]) -> RuntimeResult<EngineOutcome> {
-        Ok(EngineOutcome::Completed {
-            output: EngineOutput::default(),
-        })
-    }
-
-    /// Reject resume because these helpers never yield.
-    fn resume(
-        &mut self,
-        _continuation: EngineContinuation,
-        _value: heap::Value,
-    ) -> RuntimeResult<EngineOutcome> {
-        Err(RuntimeError::Internal {
-            message: "runtime test engine resume is not implemented".to_string(),
-        }
-        .boxed())
-    }
-
-    /// Reject snapshot because these helpers never checkpoint engine state.
-    fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot> {
-        Err(RuntimeError::Internal {
-            message: "runtime test engine snapshot is not implemented".to_string(),
-        }
-        .boxed())
-    }
-
-    /// Reject restore because these helpers never checkpoint engine state.
-    fn restore(&mut self, _snapshot: &EngineSnapshot) -> RuntimeResult<()> {
-        Err(RuntimeError::Internal {
-            message: "runtime test engine restore is not implemented".to_string(),
-        }
-        .boxed())
-    }
-}
 
 /// Runtime harness for runtime tests.
 pub(crate) struct TestRuntime {
@@ -75,6 +31,8 @@ pub(crate) struct TestRuntime {
     host: Host,
     /// VM isolate backing VM bindings in tests.
     vm_isolate: std::cell::RefCell<vm::Isolate>,
+    /// Heap backing the VM isolate in tests.
+    vm_heap: std::cell::RefCell<vm::Heap>,
 }
 
 impl TestRuntime {
@@ -122,19 +80,29 @@ impl TestRuntime {
     fn from_runtime_options(options: RuntimeOptions) -> Self {
         // build runtime state from explicit options
         let world = World::from_options(&options).expect("runtime test world should build");
-        let agent = Agent::new_in_world(Vec::new(), &options, &world, Box::new(TestRuntimeEngine))
+
+        // agent execution isolate
+        let agent_tree = NodeTree::new();
+        let agent_strings = LocalStringPool::new().into_immutable();
+        let agent_engine =
+            vm::Isolate::build(agent_tree, agent_strings).expect("agent engine should build");
+
+        let agent = Agent::new_in_world(Vec::new(), &options, &world, Box::new(agent_engine))
             .expect("runtime test agent should build");
         let host = Host::from_runtime_options(&options, agent.runtime_id);
 
+        // vm binding isolate
         let tree = NodeTree::new();
         let strings = LocalStringPool::new().into_immutable();
-        let vm_isolate = vm::Isolate::new(tree, strings).expect("test vm isolate should build");
+        let vm_isolate = vm::Isolate::build(tree, strings).expect("test vm isolate should build");
+        let vm_heap = vm::Heap::default();
 
         Self {
             world,
             agent: Box::new(agent),
             host,
             vm_isolate: std::cell::RefCell::new(vm_isolate),
+            vm_heap: std::cell::RefCell::new(vm_heap),
         }
     }
 
@@ -195,7 +163,8 @@ impl TestRuntime {
 
         // run the VM call with a fresh runtime call context
         let mut isolate = self.vm_isolate.borrow_mut();
-        isolate.with_runtime_context(|context| {
+        let mut heap = self.vm_heap.borrow_mut();
+        isolate.with_runtime_context(&mut heap, |context| {
             let call_context = BindingCallContext::new(
                 &self.agent,
                 self.agent.event_loop.as_ref(),

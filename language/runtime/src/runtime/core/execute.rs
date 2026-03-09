@@ -50,7 +50,7 @@ impl Agent {
 
         // execute the entrypoint with yielding enabled
         let _guard = enter_event_loop_scope(EventLoopScope::empty());
-        let outcome = self.engine.run(entry, args)?;
+        let outcome = self.engine.run(&mut self.heap, entry, args)?;
 
         // handle the entry outcome
         match outcome {
@@ -188,8 +188,8 @@ impl Agent {
         let (mut progressed, _) = self.tick_loop(world, host, None)?;
 
         // run one gc cycle when pacing says a cycle is due
-        if self.heap.should_collect() {
-            let _stats = self.heap.collect();
+        if self.should_collect() {
+            let _stats = self.collect();
             progressed = true;
         }
 
@@ -323,12 +323,12 @@ impl Agent {
 
             // one-shot timers no longer need a dispatch watch after firing
             if timer.interval.is_none() {
-                let _ = self.event_loop.unwatch_timer(timer.handle);
+                self.event_loop.unwatch_timer(timer.handle);
             }
         }
         // stale and inactive timer fires must not dispatch callbacks
         else {
-            let _ = self.event_loop.unwatch_timer(timer.handle);
+            self.event_loop.unwatch_timer(timer.handle);
         }
 
         Ok(())
@@ -394,7 +394,7 @@ impl Agent {
             }
         }
 
-        let _ = self.drain_microtasks(world)?;
+        self.drain_microtasks(world)?;
 
         Ok(None)
     }
@@ -483,7 +483,7 @@ impl Agent {
         runnable: EngineContinuation,
         resume_value: heap::Value,
     ) -> RuntimeResult<EngineOutcome> {
-        self.engine.resume(runnable, resume_value)
+        self.engine.resume(&mut self.heap, runnable, resume_value)
     }
 
     /// Wait for one scheduler wakeup when the loop has pending but not-ready work.

@@ -1,12 +1,14 @@
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 
+use serde::{Deserialize, Serialize};
+
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
 use crate::runtime::time::Nanos;
 
 /// Timer deadline in one explicit clock domain.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TimerDeadline {
     /// Clock domain used for this deadline.
     pub clock: TimerClock,
@@ -15,7 +17,7 @@ pub struct TimerDeadline {
 }
 
 /// Scheduled timer entry.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Timer {
     /// Handle for this timer.
     pub handle: ResourceId,
@@ -118,11 +120,63 @@ impl TimerQueue {
         !self.generations.is_empty()
     }
 
+    /// Capture all currently active timers in deterministic order.
+    pub fn image(&self) -> Vec<Timer> {
+        // collect active timers from both heaps
+        let mut active = Vec::new();
+        self.collect_active_timers(&self.wall_timers, &mut active);
+        self.collect_active_timers(&self.mono_timers, &mut active);
+
+        // return them in the same stable order as dispatch
+        active.sort_by_key(|timer| {
+            (
+                timer_clock_order(timer.deadline.clock),
+                timer.deadline.at,
+                timer.handle.0,
+            )
+        });
+
+        active
+    }
+
+    /// Restore active timers from one immutable timer image.
+    pub fn restore_image(&mut self, timers: &[Timer]) {
+        // reset queue state before rebuilding
+        self.wall_timers.clear();
+        self.mono_timers.clear();
+        self.generations.clear();
+        self.next_generation = 0;
+
+        // reschedule active timers
+        for timer in timers {
+            self.schedule(*timer);
+        }
+    }
+
     /// Return the active heap for one clock domain.
     fn heap_for_clock(&mut self, clock: TimerClock) -> &mut BinaryHeap<TimerEntry> {
         match clock {
             TimerClock::Wall => &mut self.wall_timers,
             TimerClock::Monotonic => &mut self.mono_timers,
+        }
+    }
+
+    /// Collect active timers from one heap.
+    fn collect_active_timers(&self, heap: &BinaryHeap<TimerEntry>, output: &mut Vec<Timer>) {
+        // collect only the latest active generation for each handle
+        for entry in heap {
+            let Some(current_generation) = self.generations.get(&entry.handle) else {
+                continue;
+            };
+            if *current_generation != entry.generation {
+                continue;
+            }
+
+            output.push(Timer {
+                handle: entry.handle,
+                deadline: entry.deadline,
+                interval: entry.interval,
+            });
         }
     }
 
@@ -193,11 +247,11 @@ impl TimerQueue {
         loop {
             let entry = self.heap_for_clock(clock).peek().copied()?;
             let Some(current_generation) = self.generations.get(&entry.handle) else {
-                let _ = self.heap_for_clock(clock).pop();
+                self.heap_for_clock(clock).pop();
                 continue;
             };
             if *current_generation != entry.generation {
-                let _ = self.heap_for_clock(clock).pop();
+                self.heap_for_clock(clock).pop();
                 continue;
             }
 

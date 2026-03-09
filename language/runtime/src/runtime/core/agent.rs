@@ -1,21 +1,25 @@
-use std::sync::Arc;
-
-use destack_base::fnv1a_64;
+use destack_base::{Capture, CaptureMode, fnv1a_64};
 use destack_heap as heap;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
-use crate::diagnostic::{DiagnosticStore, RuntimeError, RuntimeResult};
+use crate::diagnostic::{DiagnosticSnapshot, DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::HostEventKind;
-use crate::platform::state::PlatformState;
+use crate::platform::resource::ResourceTableSnapshot;
+use crate::platform::state::{PlatformState, PlatformStateImage};
 use crate::platform::{ResourceId, ResourceTable};
 use crate::runtime::bindings::{BindingPolicy, BindingRegistry};
 use crate::runtime::capability::resolve_capability_profile;
-use crate::runtime::engine::{Engine, EngineContinuation};
-use crate::runtime::memory::Heap;
+use crate::runtime::engine::{Engine, EngineContinuation, EngineImage};
+use crate::runtime::memory::{Gc, RootSet, RootVisitor};
+use crate::runtime::policy::HookSnapshot;
 use crate::runtime::poller::PollerToken;
-use crate::runtime::scheduler::{EventLoop, EventLoopWatch};
-use crate::runtime::world::{RuntimeId, World, WorldCommand};
-use crate::runtime::{DropCounts, DropReason, ExecutionContextId, Hooks, RuntimeFinalizers};
+use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, EventLoopWatch};
+use crate::runtime::world::{RebindContext, RuntimeId, World, WorldCommand};
+use crate::runtime::{
+    DropCounts, DropReason, ExecutionContextId, Hooks, RuntimeFinalizers, RuntimeFinalizersImage,
+};
+use destack_vm as vm;
 use destack_workspace::RuntimeOptions;
 
 /// Stable identifier for one world-managed agent.
@@ -49,12 +53,48 @@ pub struct Agent {
     pub(crate) drop_counts: DropCounts,
     /// External binding registry and policy enforcement.
     pub(crate) bindings: BindingRegistry,
-    /// Managed heap and GC coordination.
-    pub(crate) heap: Heap,
+
+    /// Runtime GC controller for this agent heap.
+    pub(crate) gc: Gc,
+    /// Root visitors contributing GC roots.
+    pub(crate) root_visitors: Vec<Box<dyn RootVisitor>>,
+    /// Authoritative agent heap.
+    pub(crate) heap: heap::Heap,
     /// Agent-owned execution engine.
     pub(crate) engine: Box<dyn Engine>,
     /// Event loop for tasks, microtasks, and timers.
     pub(crate) event_loop: Box<EventLoop>,
+}
+
+/// Materialized agent metadata captured in one world image.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentImage {
+    /// Agent identifier in the world.
+    pub agent_id: AgentId,
+    /// Owning runtime identifier.
+    pub runtime_id: RuntimeId,
+    /// Agent display name.
+    pub name: String,
+    /// Agent options captured for reconstruction.
+    pub options: RuntimeOptions,
+    /// Agent drop counts.
+    pub drop_counts: DropCounts,
+    /// Captured diagnostics store state.
+    pub diagnostics: DiagnosticSnapshot,
+    /// Captured hook state.
+    pub hooks: HookSnapshot,
+    /// Captured resource table state.
+    pub resources: ResourceTableSnapshot,
+    /// Captured finalizer lifecycle state.
+    pub finalizers: RuntimeFinalizersImage,
+    /// Captured platform-state lifecycle state.
+    pub platform_state: PlatformStateImage,
+    /// Captured event-loop state.
+    pub event_loop: EventLoopSnapshot,
+    /// Captured authoritative heap image.
+    pub heap_image: heap::HeapImage,
+    /// Captured agent-owned execution image.
+    pub engine_image: EngineImage,
 }
 
 impl std::fmt::Debug for Agent {
@@ -71,6 +111,8 @@ impl std::fmt::Debug for Agent {
             .field("platform_state", &self.platform_state)
             .field("diagnostics", &self.diagnostics)
             .field("bindings", &self.bindings)
+            .field("gc", &self.gc)
+            .field("root_visitors", &self.root_visitors.len())
             .field("heap", &self.heap)
             .field("engine", &"<agent execution engine>")
             .field("event_loop", &self.event_loop)
@@ -146,25 +188,26 @@ impl Agent {
         engine: Box<dyn Engine>,
     ) -> RuntimeResult<Self> {
         // hooks and resources
-        let hooks = Arc::new(Hooks::new(runtime_id, agent_id, world.replay().mode()));
+        let hooks = Arc::new(Hooks::new(runtime_id, agent_id, world.trace().mode()));
         let resources = ResourceTable::default();
         resources.set_hooks(hooks.clone());
 
         // bindings, heap, event loop
         let mut bindings = BindingRegistry::new();
-        bindings.set_policy(BindingPolicy::new(world.replay().mode()));
+        bindings.set_policy(BindingPolicy::new(world.trace().mode()));
         bindings.install_native_defaults();
         bindings.apply_runtime_defaults(options);
         Self::apply_capability_profile(&mut bindings, options)?;
 
-        let mut heap = Heap::default();
-        heap.configure_gc(options.gc.clone());
+        let mut gc = Gc::default();
+        gc.configure(options.gc.clone());
+        let heap = heap::Heap::default();
 
         let mut event_loop = Box::new(EventLoop::default());
         event_loop.configure(options.scheduler.clone())?;
 
         let execution_context_id = Self::event_loop_execution_context_id(runtime_id, agent_id);
-        let _ = event_loop.initialize_execution_context(execution_context_id);
+        event_loop.initialize_execution_context(execution_context_id);
 
         // agent state
         Ok(Self {
@@ -180,6 +223,8 @@ impl Agent {
             diagnostics: Arc::new(DiagnosticStore::from_options(&options.diagnostic)),
             drop_counts: DropCounts::default(),
             bindings,
+            gc,
+            root_visitors: Vec::new(),
             heap,
             engine,
             event_loop,
@@ -243,7 +288,7 @@ impl Agent {
         let agent_labels = options.primary_agent.labels.clone();
 
         // register runtime and agent in one world command
-        let _ = world.apply_control_command(WorldCommand::CreateRuntime {
+        world.apply_control_command(WorldCommand::CreateRuntime {
             runtime_id,
             runtime_name: runtime_name.clone(),
             runtime_labels,
@@ -271,7 +316,7 @@ impl Agent {
         let agent_labels = options.primary_agent.labels.clone();
 
         // register one agent in one existing runtime
-        let _ = world.apply_control_command(WorldCommand::CreateAgent {
+        world.apply_control_command(WorldCommand::CreateAgent {
             runtime_id,
             agent_id,
             agent_name: agent_name.clone(),
@@ -377,5 +422,176 @@ impl Agent {
     /// Record one coordinator-owned drop in standalone agent flows.
     pub(crate) fn record_drop(&mut self, reason: DropReason, count: u64) {
         self.drop_counts.record(reason, count);
+    }
+
+    /// Register a root visitor for GC coordination.
+    pub fn register_root_visitor(&mut self, visitor: Box<dyn RootVisitor>) {
+        self.root_visitors.push(visitor);
+    }
+
+    /// Collect roots from all registered providers.
+    pub fn collect_roots(&self) -> RootSet {
+        let mut roots = RootSet::new();
+        for visitor in &self.root_visitors {
+            visitor.collect_roots(&mut roots);
+        }
+
+        roots
+    }
+
+    /// Return a snapshot of the GC state.
+    pub fn gc_state(&self) -> heap::GcState {
+        self.heap.managed().gc_state().clone()
+    }
+
+    /// Check whether the heap should trigger a GC cycle.
+    pub fn should_collect(&mut self) -> bool {
+        // read the current heap size
+        let heap_bytes = self.heap.managed().heap_bytes();
+
+        // evaluate runtime gc pacing policy
+        self.gc.should_collect(heap_bytes)
+    }
+
+    /// Run garbage collection using the current root set.
+    pub fn collect(&mut self) -> heap::GcStats {
+        // skip collection when gc is disabled
+        if !self.gc.is_enabled() {
+            return heap::GcStats::default();
+        }
+
+        // gather managed pointers from root visitors
+        let roots = self.collect_roots();
+        let handles = roots.managed_pointers();
+
+        // run collection
+        let stats = self
+            .heap
+            .managed_mut()
+            .collect_handles(handles.iter().copied());
+
+        // update runtime gc pacing from cycle results
+        self.gc.on_cycle_complete(stats);
+
+        stats
+    }
+
+    /// Capture one materialized agent image.
+    pub(crate) fn capture_image(&mut self, mode: CaptureMode) -> RuntimeResult<AgentImage> {
+        // local scheduler and external state
+        let event_loop = self.event_loop.capture_image(mode, self.engine.as_mut())?;
+        let resources = self.resources.capture_image(mode, ())?;
+        let diagnostics = self.diagnostics.snapshot()?;
+        let hooks = self.hooks.snapshot()?;
+
+        // runtime-owned service state
+        let platform_state = self.platform_state.capture_image(mode, ())?;
+        let finalizers = self.finalizers.capture_image(mode, ())?;
+
+        // capture the agent-local image payload
+        Ok(AgentImage {
+            agent_id: self.id,
+            runtime_id: self.runtime_id,
+            name: self.name.clone(),
+            options: self.options.clone(),
+            drop_counts: self.drop_counts,
+            diagnostics,
+            hooks,
+            resources,
+            finalizers,
+            platform_state,
+            event_loop,
+            heap_image: self.heap.image().map_err(|error| {
+                RuntimeError::Internal {
+                    message: format!("runtime heap cannot capture for {mode:?}: {error}"),
+                }
+                .boxed()
+            })?,
+            engine_image: self.engine.image()?,
+        })
+    }
+
+    /// Restore one agent from one materialized image.
+    pub(crate) fn from_image(
+        world: &World,
+        platform_args: Arc<[String]>,
+        image: &AgentImage,
+        rebind_context: Option<&RebindContext>,
+    ) -> RuntimeResult<Self> {
+        // hooks and resources
+        let hooks = Arc::new(Hooks::new(
+            image.runtime_id,
+            image.agent_id,
+            world.trace().mode(),
+        ));
+        let resources = ResourceTable::default();
+        resources.set_hooks(hooks.clone());
+
+        // bindings
+        let mut bindings = BindingRegistry::new();
+        bindings.set_policy(BindingPolicy::new(world.trace().mode()));
+        bindings.install_native_defaults();
+        bindings.apply_runtime_defaults(&image.options);
+        Self::apply_capability_profile(&mut bindings, &image.options)?;
+
+        // diagnostics and event loop
+        let diagnostics = Arc::new(DiagnosticStore::from_options(&image.options.diagnostic));
+        let mut event_loop = Box::new(EventLoop::default());
+
+        // heap and engine
+        let mut heap = heap::Heap::from_image(&image.heap_image);
+        let mut gc = Gc::default();
+        gc.configure(image.options.gc.clone());
+        // rebuild the engine from the materialized agent image
+        let mut engine: Box<dyn Engine> = match &image.engine_image {
+            EngineImage::Vm(image) => {
+                let isolate = vm::Isolate::new(image.clone()).map_err(Box::<RuntimeError>::from)?;
+
+                Box::new(isolate)
+            }
+        };
+
+        // restore backend execution state over the restored heap
+        engine.restore_image(&mut heap, &image.engine_image)?;
+
+        // restore local state on fresh containers
+        let execution_context_id =
+            Self::event_loop_execution_context_id(image.runtime_id, image.agent_id);
+        event_loop.initialize_execution_context(execution_context_id);
+        event_loop.restore_snapshot(&image.event_loop, engine.as_mut())?;
+        diagnostics.restore_snapshot(&image.diagnostics)?;
+        hooks.restore_snapshot(&image.hooks)?;
+        resources.restore_snapshot(
+            &image.resources,
+            rebind_context.map(RebindContext::resources),
+        )?;
+
+        Ok(Self {
+            id: image.agent_id,
+            name: image.name.clone(),
+            runtime_id: image.runtime_id,
+            platform_args,
+            options: image.options.clone(),
+            resources,
+            hooks,
+            finalizers: {
+                let mut finalizers = RuntimeFinalizers::default();
+                finalizers.restore_image(&image.finalizers, ())?;
+                finalizers
+            },
+            platform_state: {
+                let mut platform_state = PlatformState::default();
+                platform_state.restore_image(&image.platform_state, ())?;
+                platform_state
+            },
+            diagnostics,
+            drop_counts: image.drop_counts,
+            bindings,
+            gc,
+            root_visitors: Vec::new(),
+            heap,
+            engine,
+            event_loop,
+        })
     }
 }

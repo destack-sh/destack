@@ -10,10 +10,10 @@ use crate::runtime::world::WorldCommand;
 use crate::runtime::{AgentId, RuntimeId};
 use destack_vm as vm;
 
-/// Event types recorded for deterministic replay.
-#[allow(clippy::large_enum_variant)] // NOTE #Performance #Cleanup: replay entropy payloads are intentionally inline for now
+/// Event types recorded for deterministic trace.
+#[allow(clippy::large_enum_variant)] // NOTE #Performance #Cleanup: trace entropy payloads are intentionally inline for now
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) enum ReplayEvent {
+pub(crate) enum TraceEvent {
     /// Virtual world deadline selected for one world-level time advance.
     Tick(WorldInstant),
     /// Entropy event for time and random nondeterminism.
@@ -24,7 +24,7 @@ pub(crate) enum ReplayEvent {
     WorldCommand(WorldCommand),
 }
 
-/// Replay key for entropy routing in bindings and replay handlers.
+/// Trace key for entropy routing in bindings and trace handlers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EntropyKind {
     /// Monotonic clock sample.
@@ -56,10 +56,10 @@ pub struct EntropySubject {
     pub microtask_id: Option<MicrotaskId>,
 }
 
-/// Encoded replay error payload for deterministic replay.
-#[allow(clippy::large_enum_variant)] // NOTE #Performance #Cleanup: keep replay errors simple until the payload model settles
+/// Encoded trace error payload for deterministic trace.
+#[allow(clippy::large_enum_variant)] // NOTE #Performance #Cleanup: keep trace errors simple until the payload model settles
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ReplayError {
+pub enum TraceError {
     /// VM runtime error payload.
     Vm(vm::Error),
     /// Platform runtime error payload.
@@ -100,30 +100,30 @@ pub enum ReplayError {
         /// Task identifier for the idle event.
         task_id: u64,
     },
-    /// Replay-log-exhausted runtime error payload.
-    ReplayLogExhausted {
+    /// Trace-exhausted runtime error payload.
+    TraceExhausted {
         /// Sequence number of the missing replay event.
         sequence: u64,
     },
-    /// Replay-mismatch runtime error payload.
-    ReplayMismatch {
+    /// Trace-mismatch runtime error payload.
+    TraceMismatch {
         /// Channel name that mismatched.
         name: String,
     },
-    /// Replay-payload-unsupported runtime error payload.
-    ReplayPayloadUnsupported {
+    /// Trace-payload-unsupported runtime error payload.
+    TracePayloadUnsupported {
         /// Binding name for this payload mismatch.
         name: String,
     },
     /// Missing binding-call-context runtime error payload.
     BindingCallContextMissing,
-    /// Replay-encode-failed runtime error payload.
-    ReplayEncodeFailed {
+    /// Trace-encode-failed runtime error payload.
+    TraceEncodeFailed {
         /// Binding name for this payload encode failure.
         name: String,
     },
-    /// Replay-decode-failed runtime error payload.
-    ReplayDecodeFailed {
+    /// Trace-decode-failed runtime error payload.
+    TraceDecodeFailed {
         /// Binding name for this payload decode failure.
         name: String,
     },
@@ -134,7 +134,7 @@ pub enum ReplayError {
     },
 }
 
-impl From<&RuntimeError> for ReplayError {
+impl From<&RuntimeError> for TraceError {
     fn from(error: &RuntimeError) -> Self {
         match error {
             RuntimeError::Vm(error) => Self::Vm(error.as_ref().clone()),
@@ -157,19 +157,19 @@ impl From<&RuntimeError> for ReplayError {
                 resource_kind: resource_kind.clone(),
             },
             RuntimeError::EventLoopIdle { task_id } => Self::EventLoopIdle { task_id: *task_id },
-            RuntimeError::ReplayLogExhausted { sequence } => Self::ReplayLogExhausted {
+            RuntimeError::TraceExhausted { sequence } => Self::TraceExhausted {
                 sequence: *sequence,
             },
-            RuntimeError::ReplayMismatch { name } => Self::ReplayMismatch { name: name.clone() },
-            RuntimeError::ReplayPayloadUnsupported { name } => {
-                Self::ReplayPayloadUnsupported { name: name.clone() }
+            RuntimeError::TraceMismatch { name } => Self::TraceMismatch { name: name.clone() },
+            RuntimeError::TracePayloadUnsupported { name } => {
+                Self::TracePayloadUnsupported { name: name.clone() }
             }
             RuntimeError::BindingCallContextMissing => Self::BindingCallContextMissing,
-            RuntimeError::ReplayEncodeFailed { name } => {
-                Self::ReplayEncodeFailed { name: name.clone() }
+            RuntimeError::TraceEncodeFailed { name } => {
+                Self::TraceEncodeFailed { name: name.clone() }
             }
-            RuntimeError::ReplayDecodeFailed { name } => {
-                Self::ReplayDecodeFailed { name: name.clone() }
+            RuntimeError::TraceDecodeFailed { name } => {
+                Self::TraceDecodeFailed { name: name.clone() }
             }
             RuntimeError::Internal { message } => Self::Internal {
                 message: message.clone(),
@@ -178,47 +178,45 @@ impl From<&RuntimeError> for ReplayError {
     }
 }
 
-impl From<ReplayError> for RuntimeError {
-    fn from(error: ReplayError) -> Self {
+impl From<TraceError> for RuntimeError {
+    fn from(error: TraceError) -> Self {
         match error {
-            ReplayError::Vm(error) => Self::Vm(Box::new(error)),
-            ReplayError::Platform(error) => Self::Platform(error.boxed()),
-            ReplayError::BindingNotFound { name } => Self::BindingNotFound { name },
-            ReplayError::PolicyViolation { name } => Self::PolicyViolation { name },
-            ReplayError::CapabilityViolation { name, capability } => {
+            TraceError::Vm(error) => Self::Vm(Box::new(error)),
+            TraceError::Platform(error) => Self::Platform(error.boxed()),
+            TraceError::BindingNotFound { name } => Self::BindingNotFound { name },
+            TraceError::PolicyViolation { name } => Self::PolicyViolation { name },
+            TraceError::CapabilityViolation { name, capability } => {
                 Self::CapabilityViolation { name, capability }
             }
-            ReplayError::AffinityViolation { name, affinity } => {
+            TraceError::AffinityViolation { name, affinity } => {
                 Self::AffinityViolation { name, affinity }
             }
-            ReplayError::ResourceNotFound {
+            TraceError::ResourceNotFound {
                 resource_id,
                 resource_kind,
             } => Self::ResourceNotFound {
                 resource_id,
                 resource_kind,
             },
-            ReplayError::EventLoopIdle { task_id } => Self::EventLoopIdle { task_id },
-            ReplayError::ReplayLogExhausted { sequence } => Self::ReplayLogExhausted { sequence },
-            ReplayError::ReplayMismatch { name } => Self::ReplayMismatch { name },
-            ReplayError::ReplayPayloadUnsupported { name } => {
-                Self::ReplayPayloadUnsupported { name }
-            }
-            ReplayError::BindingCallContextMissing => Self::BindingCallContextMissing,
-            ReplayError::ReplayEncodeFailed { name } => Self::ReplayEncodeFailed { name },
-            ReplayError::ReplayDecodeFailed { name } => Self::ReplayDecodeFailed { name },
-            ReplayError::Internal { message } => Self::Internal { message },
+            TraceError::EventLoopIdle { task_id } => Self::EventLoopIdle { task_id },
+            TraceError::TraceExhausted { sequence } => Self::TraceExhausted { sequence },
+            TraceError::TraceMismatch { name } => Self::TraceMismatch { name },
+            TraceError::TracePayloadUnsupported { name } => Self::TracePayloadUnsupported { name },
+            TraceError::BindingCallContextMissing => Self::BindingCallContextMissing,
+            TraceError::TraceEncodeFailed { name } => Self::TraceEncodeFailed { name },
+            TraceError::TraceDecodeFailed { name } => Self::TraceDecodeFailed { name },
+            TraceError::Internal { message } => Self::Internal { message },
         }
     }
 }
 
-impl From<ReplayError> for Box<RuntimeError> {
-    fn from(error: ReplayError) -> Self {
+impl From<TraceError> for Box<RuntimeError> {
+    fn from(error: TraceError) -> Self {
         RuntimeError::from(error).boxed()
     }
 }
 
-/// Entropy event captured for replay.
+/// Entropy event captured for trace.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EntropyEvent {
     /// Monotonic clock read event.
@@ -226,21 +224,21 @@ pub enum EntropyEvent {
         /// Runtime subject metadata for this entropy event.
         subject: EntropySubject,
         /// Monotonic clock read outcome in nanoseconds.
-        outcome: Result<u64, ReplayError>,
+        outcome: Result<u64, TraceError>,
     },
     /// Wall clock read event.
     TimeReadWall {
         /// Runtime subject metadata for this entropy event.
         subject: EntropySubject,
         /// Wall clock read outcome in nanoseconds.
-        outcome: Result<u64, ReplayError>,
+        outcome: Result<u64, TraceError>,
     },
     /// Deterministic stream allocation event.
     RandomStreamCreate {
         /// Runtime subject metadata for this entropy event.
         subject: EntropySubject,
         /// Allocated stream identifier outcome.
-        outcome: Result<RandomStreamId, ReplayError>,
+        outcome: Result<RandomStreamId, TraceError>,
     },
     /// Deterministic stream u64 sample event.
     RandomReadU64 {
@@ -249,7 +247,7 @@ pub enum EntropyEvent {
         /// Random stream identifier for this read.
         stream_id: RandomStreamId,
         /// Random u64 sample outcome.
-        outcome: Result<u64, ReplayError>,
+        outcome: Result<u64, TraceError>,
     },
     /// Deterministic stream bytes sample event.
     RandomReadBytes {
@@ -260,12 +258,12 @@ pub enum EntropyEvent {
         /// Requested byte count for this read.
         len: u32,
         /// Random bytes read outcome.
-        outcome: Result<Vec<u8>, ReplayError>,
+        outcome: Result<Vec<u8>, TraceError>,
     },
 }
 
 impl EntropyEvent {
-    /// Return the replay key for this entropy event.
+    /// Return the trace key for this entropy event.
     pub const fn kind(&self) -> EntropyKind {
         match self {
             Self::TimeReadMonotonic { .. } => EntropyKind::TimeReadMonotonic,
@@ -288,13 +286,13 @@ impl EntropyEvent {
     }
 }
 
-/// External binding call event captured for replay.
+/// External binding call event captured for trace.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BindingCallEvent {
     /// Binding identifier from the registry.
     pub binding_id: BindingId,
     /// Codec identifier for the payload.
     pub codec: CodecId,
-    /// Encoded payload for replay.
+    /// Encoded payload for trace.
     pub payload: Vec<u8>,
 }

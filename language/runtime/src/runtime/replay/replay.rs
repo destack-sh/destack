@@ -1,42 +1,70 @@
+use destack_base::{Capture, CaptureMode, SnapshotCodec};
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::bindings::{BindingDescriptor, BindingReplayKind, BindingReplayPayload};
 use crate::runtime::replay::{
-    BindingCallEvent, ReplayEvent, ReplayHeader, ReplayLog, ReplayLogReader,
+    BindingCallEvent, TraceCursor, TraceCursorImage, TraceEvent, TraceHeader, TraceLog,
 };
 use crate::runtime::time::WorldInstant;
-use crate::runtime::world::WorldCommand;
+use crate::runtime::world::{BranchId, WorldCommand};
 use destack_workspace::ExecutionMode;
 use parking_lot::Mutex;
 use postcard::experimental::serialized_size;
-use serde::Serialize;
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 
-use super::validator::ReplayValidator;
+use super::validator::TraceValidator;
 
-/// Replay state for record/replay pipelines.
+/// Materialized trace state captured in one world image.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TraceImage {
+    /// The active trace execution mode.
+    pub(crate) mode: ExecutionMode,
+    /// The captured branch identifier.
+    pub(crate) branch_id: BranchId,
+    /// The next sequence number after the captured image.
+    pub(crate) next_sequence: super::TraceSequence,
+    /// The captured trace-log image.
+    pub(crate) log: super::TraceLogImage,
+    /// The captured reader cursor when replay mode is active.
+    pub(crate) cursor: Option<TraceCursorImage>,
+    /// The captured trace validator state.
+    pub(crate) validator: TraceValidator,
+}
+
+/// Serialized snapshot for one trace image.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TraceSnapshot {
+    /// The trace snapshot format version.
+    pub format_version: u32,
+    /// The captured trace image.
+    pub(crate) image: TraceImage,
+}
+
+/// Trace controller for record and replay pipelines.
 #[derive(Debug)]
-pub struct Replay {
-    /// TODO #Incomplete: validate replay sequences and enforce log compatibility
+pub struct Trace {
+    /// TODO #Incomplete: validate trace sequences and enforce log compatibility
     /// Active execution mode.
     mode: ExecutionMode,
-    /// Replay log backing store.
-    log: ReplayLog,
-    /// Replay reader for log playback.
-    reader: Option<ReplayLogReader>,
-    /// Replay ordering validator.
-    validator: Mutex<ReplayValidator>,
-    /// Scratch buffer for replay payload encoding.
+    /// Trace log backing store.
+    log: TraceLog,
+    /// Trace cursor for log playback.
+    reader: Option<TraceCursor>,
+    /// Trace ordering validator.
+    validator: Mutex<TraceValidator>,
+    /// Scratch buffer for trace payload encoding.
     scratch: Mutex<Vec<u8>>,
 }
 
-impl Replay {
-    /// Create replay state with an explicit execution mode.
-    pub fn new(mode: ExecutionMode, header: ReplayHeader) -> Self {
-        Self::from_log(mode, ReplayLog::new(header))
+impl Trace {
+    /// Create trace state with an explicit execution mode.
+    pub fn new(mode: ExecutionMode, header: TraceHeader) -> Self {
+        Self::from_log(mode, TraceLog::new(header))
     }
 
-    /// Create replay state with one existing log and execution mode.
-    pub fn from_log(mode: ExecutionMode, log: ReplayLog) -> Self {
+    /// Create trace state with one existing log and execution mode.
+    pub fn from_log(mode: ExecutionMode, log: TraceLog) -> Self {
         let reader = match mode {
             ExecutionMode::Replay => Some(log.reader()),
             _ => None,
@@ -46,7 +74,7 @@ impl Replay {
             mode,
             log,
             reader,
-            validator: Mutex::new(ReplayValidator::default()),
+            validator: Mutex::new(TraceValidator::default()),
             scratch: Mutex::new(Vec::new()),
         }
     }
@@ -59,14 +87,95 @@ impl Replay {
         self.mode
     }
 
-    /// Return the backing replay log.
-    pub fn log(&self) -> &ReplayLog {
+    /// Return the backing trace log.
+    pub fn log(&self) -> &TraceLog {
         &self.log
     }
 
-    /// Return one replay mismatch error for one event channel.
-    fn replay_mismatch_error(name: &str) -> Box<RuntimeError> {
-        RuntimeError::ReplayMismatch {
+    /// Set the current trace branch identifier.
+    pub(crate) fn set_branch_id(&self, branch_id: BranchId) {
+        self.log.set_branch_id(branch_id);
+    }
+
+    /// Capture one materialized trace image.
+    pub(crate) fn capture_image(&self) -> TraceImage {
+        let cursor = self.reader.as_ref().map(TraceCursor::capture_image);
+        let validator = self.validator.lock().clone();
+
+        TraceImage {
+            mode: self.mode,
+            branch_id: self.log.branch_id(),
+            next_sequence: self.log.next_sequence(),
+            log: self.log.image(),
+            cursor,
+            validator,
+        }
+    }
+
+    /// Restore one materialized trace image.
+    pub(crate) fn restore_image(&self, image: &TraceImage) -> RuntimeResult<()> {
+        // require matching replay mode
+        if self.mode != image.mode {
+            return Err(RuntimeError::Internal {
+                message: "trace image mode does not match world execution mode".to_string(),
+            }
+            .boxed());
+        }
+
+        if image.log.branch_id() != image.branch_id {
+            return Err(RuntimeError::Internal {
+                message: "trace image branch metadata does not match trace log image".to_string(),
+            }
+            .boxed());
+        }
+
+        if image.log.next_sequence() != image.next_sequence {
+            return Err(RuntimeError::Internal {
+                message: "trace image sequence metadata does not match trace log image".to_string(),
+            }
+            .boxed());
+        }
+
+        // restore the shared log image first
+        self.log.restore_image(image.log.clone());
+
+        // restore the reader cursor when replay is active
+        match (&self.reader, image.cursor) {
+            (Some(reader), Some(cursor_image)) => {
+                reader.restore_image(cursor_image)?;
+            }
+            (None, None) => {}
+            _ => {
+                return Err(RuntimeError::Internal {
+                    message: "replay reader state does not match world replay mode".to_string(),
+                }
+                .boxed());
+            }
+        }
+
+        // restore validator state
+        let mut validator = self.validator.lock();
+        *validator = image.validator.clone();
+
+        Ok(())
+    }
+
+    /// Encode one trace image as one trace snapshot.
+    pub(crate) fn encode_snapshot(image: &TraceImage) -> TraceSnapshot {
+        TraceSnapshot {
+            format_version: 1,
+            image: image.clone(),
+        }
+    }
+
+    /// Decode one trace snapshot back into one trace image.
+    pub(crate) fn decode_snapshot(snapshot: &TraceSnapshot) -> TraceImage {
+        snapshot.image.clone()
+    }
+
+    /// Return one trace mismatch error for one event channel.
+    fn trace_mismatch_error(name: &str) -> Box<RuntimeError> {
+        RuntimeError::TraceMismatch {
             name: name.to_string(),
         }
         .boxed()
@@ -78,16 +187,16 @@ impl Replay {
             return Ok(());
         }
 
-        Err(Self::replay_mismatch_error(name))
+        Err(Self::trace_mismatch_error(name))
     }
 
     /// Read one required event from replay for one event channel.
-    fn next_required_event(&self, name: &str) -> RuntimeResult<ReplayEvent> {
+    fn next_required_event(&self, name: &str) -> RuntimeResult<TraceEvent> {
         self.ensure_replay_mode(name)?;
 
         let Some(event) = self.next_event()? else {
             let sequence = self.log.next_sequence().get();
-            return Err(RuntimeError::ReplayLogExhausted { sequence }.boxed());
+            return Err(RuntimeError::TraceExhausted { sequence }.boxed());
         };
 
         Ok(event)
@@ -104,7 +213,7 @@ impl Replay {
         if requested == BindingReplayPayload::ArgumentsAndResults
             && supported == BindingReplayPayload::Results
         {
-            return Err(RuntimeError::ReplayPayloadUnsupported {
+            return Err(RuntimeError::TracePayloadUnsupported {
                 name: spec.name.to_string(),
             }
             .boxed());
@@ -116,8 +225,8 @@ impl Replay {
         }
     }
 
-    /// Record an event when replay recording is enabled.
-    pub(crate) fn record_event(&self, event: ReplayEvent) -> RuntimeResult<()> {
+    /// Record an event when trace recording is enabled.
+    pub(crate) fn record_event(&self, event: TraceEvent) -> RuntimeResult<()> {
         // skip recording when disabled
         if self.mode() != ExecutionMode::Record {
             return Ok(());
@@ -129,7 +238,7 @@ impl Replay {
     }
 
     /// Read the next event when replay is enabled.
-    pub(crate) fn next_event(&self) -> RuntimeResult<Option<ReplayEvent>> {
+    pub(crate) fn next_event(&self) -> RuntimeResult<Option<TraceEvent>> {
         // skip replay when disabled
         if self.mode() != ExecutionMode::Replay {
             return Ok(None);
@@ -139,7 +248,7 @@ impl Replay {
         let reader = self
             .reader
             .as_ref()
-            .ok_or_else(|| Self::replay_mismatch_error("replay"))?;
+            .ok_or_else(|| Self::trace_mismatch_error("replay"))?;
         let Some(event) = reader.next_event()? else {
             return Ok(None);
         };
@@ -150,13 +259,33 @@ impl Replay {
         Ok(Some(event))
     }
 
+    /// Return the next trace sequence for the active reader cursor.
+    pub fn tell(&self) -> RuntimeResult<super::TraceSequence> {
+        let reader = self
+            .reader
+            .as_ref()
+            .ok_or_else(|| Self::trace_mismatch_error("replay"))?;
+
+        Ok(reader.tell())
+    }
+
+    /// Seek the active reader cursor to one sequence boundary.
+    pub fn seek_sequence(&self, sequence: super::TraceSequence) -> RuntimeResult<()> {
+        let reader = self
+            .reader
+            .as_ref()
+            .ok_or_else(|| Self::trace_mismatch_error("replay"))?;
+
+        reader.seek_sequence(sequence)
+    }
+
     /// Record a binding call payload for replay.
     pub fn record_binding_call(
         &self,
         spec: BindingDescriptor,
         payload: &[u8],
     ) -> RuntimeResult<()> {
-        self.record_event(ReplayEvent::BindingCall(BindingCallEvent {
+        self.record_event(TraceEvent::BindingCall(BindingCallEvent {
             binding_id: spec.id,
             codec: spec.codec,
             payload: payload.to_vec(),
@@ -169,18 +298,18 @@ impl Replay {
         let event = self.next_required_event(spec.name)?;
 
         // validate the binding event shape
-        let ReplayEvent::BindingCall(call) = event else {
-            return Err(Self::replay_mismatch_error(spec.name));
+        let TraceEvent::BindingCall(call) = event else {
+            return Err(Self::trace_mismatch_error(spec.name));
         };
 
         // validate binding id
         if call.binding_id != spec.id {
-            return Err(Self::replay_mismatch_error(spec.name));
+            return Err(Self::trace_mismatch_error(spec.name));
         }
 
         // validate codec id
         if call.codec != spec.codec {
-            return Err(Self::replay_mismatch_error(spec.name));
+            return Err(Self::trace_mismatch_error(spec.name));
         }
 
         Ok(call)
@@ -188,14 +317,14 @@ impl Replay {
 
     /// Record one world tick event for one virtual time advance.
     pub fn record_tick(&self, deadline: WorldInstant) -> RuntimeResult<()> {
-        self.record_event(ReplayEvent::Tick(deadline))
+        self.record_event(TraceEvent::Tick(deadline))
     }
 
     /// Read the next runtime tick event from replay.
     pub fn next_tick(&self) -> RuntimeResult<WorldInstant> {
         let event = self.next_required_event("tick")?;
-        let ReplayEvent::Tick(deadline) = event else {
-            return Err(Self::replay_mismatch_error("tick"));
+        let TraceEvent::Tick(deadline) = event else {
+            return Err(Self::trace_mismatch_error("tick"));
         };
         Ok(deadline)
     }
@@ -212,7 +341,7 @@ impl Replay {
             ExecutionMode::Replay => {
                 let deadline = self.next_tick()?;
                 if deadline != requested_deadline {
-                    return Err(Self::replay_mismatch_error("tick"));
+                    return Err(Self::trace_mismatch_error("tick"));
                 }
 
                 Ok(deadline)
@@ -223,7 +352,7 @@ impl Replay {
     /// Record one runtime world command for replay.
     pub(crate) fn record_world_command(&self, command: &WorldCommand) -> RuntimeResult<()> {
         // record one world command event
-        self.record_event(ReplayEvent::WorldCommand(command.clone()))
+        self.record_event(TraceEvent::WorldCommand(command.clone()))
     }
 
     /// Read the next runtime world command from replay.
@@ -232,8 +361,8 @@ impl Replay {
         let event = self.next_required_event("world")?;
 
         // validate the world command event shape
-        let ReplayEvent::WorldCommand(command) = event else {
-            return Err(Self::replay_mismatch_error("world"));
+        let TraceEvent::WorldCommand(command) = event else {
+            return Err(Self::trace_mismatch_error("world"));
         };
 
         Ok(command)
@@ -251,7 +380,7 @@ impl Replay {
             ExecutionMode::Replay => {
                 let replayed_command = self.next_world_command()?;
                 if replayed_command != requested_command {
-                    return Err(Self::replay_mismatch_error("world"));
+                    return Err(Self::trace_mismatch_error("world"));
                 }
 
                 Ok(replayed_command)
@@ -261,7 +390,7 @@ impl Replay {
         }
     }
 
-    /// Record a typed replay payload for a binding.
+    /// Record a typed trace payload for a binding.
     pub fn record_binding_payload<T: Serialize>(
         &self,
         spec: BindingDescriptor,
@@ -274,7 +403,7 @@ impl Replay {
 
         // encode the payload with the configured codec
         let payload_size = serialized_size(payload).map_err(|_| {
-            RuntimeError::ReplayEncodeFailed {
+            RuntimeError::TraceEncodeFailed {
                 name: spec.name.to_string(),
             }
             .boxed()
@@ -282,7 +411,7 @@ impl Replay {
         let mut scratch = self.scratch.lock();
         scratch.resize(payload_size, 0);
         let payload_bytes = postcard::to_slice(payload, &mut scratch).map_err(|_| {
-            RuntimeError::ReplayEncodeFailed {
+            RuntimeError::TraceEncodeFailed {
                 name: spec.name.to_string(),
             }
             .boxed()
@@ -302,7 +431,7 @@ impl Replay {
 
         // decode the payload bytes
         let payload = postcard::from_bytes(&call.payload).map_err(|_| {
-            RuntimeError::ReplayDecodeFailed {
+            RuntimeError::TraceDecodeFailed {
                 name: spec.name.to_string(),
             }
             .boxed()
@@ -328,7 +457,7 @@ impl Replay {
         Decode: FnOnce(&mut Context, Payload) -> RuntimeResult<Value>,
     {
         if spec.replay_kind != BindingReplayKind::BindingCall {
-            return Err(RuntimeError::ReplayMismatch {
+            return Err(RuntimeError::TraceMismatch {
                 name: spec.name.to_string(),
             }
             .boxed());
@@ -346,13 +475,13 @@ impl Replay {
             }
             // deterministic mode validates payload policy, then runs without recording
             ExecutionMode::Deterministic => {
-                let _ = self.payload_policy_for_requested(spec, requested_payload)?;
+                self.payload_policy_for_requested(spec, requested_payload)?;
                 call(context)
             }
 
             // record mode validates payload policy, executes, then stores payload
             ExecutionMode::Record => {
-                let _ = self.payload_policy_for_requested(spec, requested_payload)?;
+                self.payload_policy_for_requested(spec, requested_payload)?;
                 let result = call(context);
 
                 let payload = encode(context, &result)?;
@@ -393,8 +522,47 @@ impl Replay {
     }
 }
 
-impl Default for Replay {
+impl Default for Trace {
     fn default() -> Self {
-        Self::new(ExecutionMode::Fast, ReplayHeader::default())
+        Self::new(ExecutionMode::Fast, TraceHeader::default())
+    }
+}
+
+impl Capture for Trace {
+    type Image = TraceImage;
+    type Error = Box<RuntimeError>;
+    type CaptureContext<'a> = ();
+    type RestoreContext<'a> = ();
+
+    /// Capture one trace image.
+    fn capture_image(
+        &mut self,
+        _mode: CaptureMode,
+        _context: Self::CaptureContext<'_>,
+    ) -> Result<Self::Image, Self::Error> {
+        Ok(Trace::capture_image(self))
+    }
+
+    /// Restore one trace image.
+    fn restore_image(
+        &mut self,
+        image: &Self::Image,
+        _context: Self::RestoreContext<'_>,
+    ) -> Result<(), Self::Error> {
+        Trace::restore_image(self, image)
+    }
+}
+
+impl SnapshotCodec for Trace {
+    type Snapshot = TraceSnapshot;
+
+    /// Encode one trace image as one trace snapshot.
+    fn encode_snapshot(image: &Self::Image) -> Result<Self::Snapshot, Self::Error> {
+        Ok(Trace::encode_snapshot(image))
+    }
+
+    /// Decode one trace snapshot back into one trace image.
+    fn decode_snapshot(snapshot: &Self::Snapshot) -> Result<Self::Image, Self::Error> {
+        Ok(Trace::decode_snapshot(snapshot))
     }
 }

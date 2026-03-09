@@ -6,14 +6,27 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{ResourceId, ResourceKind};
+use crate::platform::{
+    ResourceBacking, ResourceCapture, ResourceId, ResourceKind, ResourcePortability,
+};
 use crate::runtime::AgentId;
 use crate::runtime::bindings::{BindingDescriptor, BindingEngine};
-use crate::runtime::world::{RuntimeId, World, WorldEntityKind, WorldResource, WorldResourceId};
+use crate::runtime::world::{
+    ObserveEvent, RuntimeId, World, WorldEntityKind, WorldResource, WorldResourceId,
+};
 use destack_source::matches as glob_matches;
 use destack_workspace::ExecutionMode;
 
 use super::{Effect, FaultTarget, PolicyDecision};
+
+/// Durable hook state captured at one checkpoint.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HookSnapshot {
+    /// The next policy call identifier to allocate.
+    pub next_call_id: u64,
+    /// The number of unapplied policy decisions.
+    pub unapplied_policy_decisions: u64,
+}
 
 /// Hook for runtime effect rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -471,6 +484,57 @@ impl Hooks {
         self.mode
     }
 
+    // capture barrier
+    fn capture_barrier(&self) -> RuntimeResult<()> {
+        // require no registered callbacks
+        if !self.registry.read().callbacks.is_empty() {
+            return Err(RuntimeError::Internal {
+                message: "hooks cannot capture: callbacks are still registered".to_string(),
+            }
+            .boxed());
+        }
+
+        // require no registered custom effect handlers
+        if !self.custom_effect_handlers.read().is_empty() {
+            return Err(RuntimeError::Internal {
+                message: "hooks cannot capture: custom effect handlers are still registered"
+                    .to_string(),
+            }
+            .boxed());
+        }
+
+        // require no unapplied policy decisions
+        if self.unapplied_policy_decisions.load(Ordering::Relaxed) != 0 {
+            return Err(RuntimeError::Internal {
+                message: "hooks cannot capture: policy decisions are still pending".to_string(),
+            }
+            .boxed());
+        }
+
+        Ok(())
+    }
+
+    /// Capture one durable hook snapshot.
+    pub(crate) fn snapshot(&self) -> RuntimeResult<HookSnapshot> {
+        self.capture_barrier()?;
+
+        Ok(HookSnapshot {
+            next_call_id: self.next_call_id.load(Ordering::Relaxed),
+            unapplied_policy_decisions: self.unapplied_policy_decisions.load(Ordering::Relaxed),
+        })
+    }
+
+    /// Restore one durable hook snapshot.
+    pub(crate) fn restore_snapshot(&self, snapshot: &HookSnapshot) -> RuntimeResult<()> {
+        self.capture_barrier()?;
+        self.next_call_id
+            .store(snapshot.next_call_id, Ordering::Relaxed);
+        self.unapplied_policy_decisions
+            .store(snapshot.unapplied_policy_decisions, Ordering::Relaxed);
+
+        Ok(())
+    }
+
     /// Register one callback for one hook point.
     pub fn on(&self, hook: Hook, selector: HookSelector, callback: HookCallback) -> HookCallbackId {
         let mut registry = self.registry.write();
@@ -653,14 +717,29 @@ impl Hooks {
         resource_id: ResourceId,
         resource_kind: ResourceKind,
         resource_label: Option<&str>,
+        resource_backing: ResourceBacking,
+        resource_capture: ResourceCapture,
+        resource_portability: ResourcePortability,
         _engine: Option<BindingEngine>,
     ) -> RuntimeResult<()> {
         let resource = WorldResource::new(
             WorldResourceId::new(self.agent_id, resource_id),
             WorldEntityKind::from(resource_kind.kind_id()),
             resource_label.map(ToString::to_string),
+            resource_backing,
+            resource_capture,
+            resource_portability,
         );
-        let _ = world.create_resource(resource)?;
+        world.create_resource(resource)?;
+        world.observe().record(ObserveEvent::Resource {
+            branch_id: world.branch_id(),
+            agent_id: self.agent_id,
+            resource_id: WorldResourceId::new(self.agent_id, resource_id),
+            is_attach: true,
+            backing: resource_backing,
+            capture: resource_capture,
+            portability: resource_portability,
+        });
 
         self.on_policy_event(
             world,
@@ -682,8 +761,18 @@ impl Hooks {
         resource_label: Option<&str>,
         _engine: Option<BindingEngine>,
     ) -> RuntimeResult<()> {
-        let _ = resource_label;
-        let _ = world.destroy_resource(WorldResourceId::new(self.agent_id, resource_id));
+        let _resource_label = resource_label;
+        let world_resource_id = WorldResourceId::new(self.agent_id, resource_id);
+        world.destroy_resource(WorldResourceId::new(self.agent_id, resource_id))?;
+        world.observe().record(ObserveEvent::Resource {
+            branch_id: world.branch_id(),
+            agent_id: self.agent_id,
+            resource_id: world_resource_id,
+            is_attach: false,
+            backing: ResourceBacking::Host,
+            capture: ResourceCapture::None,
+            portability: ResourcePortability::Local,
+        });
 
         self.on_policy_event(
             world,

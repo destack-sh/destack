@@ -3,13 +3,19 @@ use {destack_heap as heap, destack_vm as vm};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineOutcome, EngineOutput, EngineSnapshot, EngineStats, Entry,
+    Engine, EngineContinuation, EngineContinuationImage, EngineImage, EngineOutcome, EngineOutput,
+    EngineSnapshot, EngineStats, Entry,
 };
 
 /// VM engine implementation for one agent.
 impl Engine for Isolate {
     /// Run a VM entrypoint by name.
-    fn run(&mut self, entry: &Entry, args: &[heap::Value]) -> RuntimeResult<EngineOutcome> {
+    fn run(
+        &mut self,
+        heap: &mut heap::Heap,
+        entry: &Entry,
+        args: &[heap::Value],
+    ) -> RuntimeResult<EngineOutcome> {
         let Entry::Vm { name } = entry else {
             return Err(RuntimeError::Internal {
                 message: format!("vm engine cannot run non-vm entry '{}'", entry.name()),
@@ -17,7 +23,7 @@ impl Engine for Isolate {
             .boxed());
         };
         let outcome = self
-            .run_function_by_name_yielding(name, args)
+            .run_function_by_name_yielding(heap, name, args)
             .map_err(Box::<RuntimeError>::from)?;
         Ok(map_vm_outcome(outcome))
     }
@@ -25,6 +31,7 @@ impl Engine for Isolate {
     /// Resume a VM continuation.
     fn resume(
         &mut self,
+        heap: &mut heap::Heap,
         continuation: EngineContinuation,
         value: heap::Value,
     ) -> RuntimeResult<EngineOutcome> {
@@ -35,27 +42,77 @@ impl Engine for Isolate {
             .boxed());
         };
         let outcome = self
-            .resume(continuation, value)
+            .resume(heap, continuation, value)
             .map_err(Box::<RuntimeError>::from)?;
         Ok(map_vm_outcome(outcome))
     }
 
-    /// Capture one durable VM snapshot.
-    fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot> {
-        Err(RuntimeError::Internal {
-            message: "vm engine snapshots are not implemented yet".to_string(),
-        }
-        .boxed())
+    /// Capture one immutable VM image.
+    fn image(&mut self) -> RuntimeResult<EngineImage> {
+        let image = Isolate::image(self).map_err(Box::<RuntimeError>::from)?;
+
+        Ok(EngineImage::Vm(std::sync::Arc::new(image)))
     }
 
-    /// Restore one durable VM snapshot.
-    fn restore(&mut self, snapshot: &EngineSnapshot) -> RuntimeResult<()> {
-        let _ = snapshot;
+    /// Restore one immutable VM image.
+    fn restore_image(&mut self, heap: &mut heap::Heap, image: &EngineImage) -> RuntimeResult<()> {
+        let EngineImage::Vm(image) = image;
 
-        Err(RuntimeError::Internal {
-            message: "vm engine snapshot restore is not implemented yet".to_string(),
-        }
-        .boxed())
+        Isolate::restore_image(self, heap, image).map_err(Box::<RuntimeError>::from)
+    }
+
+    /// Capture one continuation as one immutable VM continuation image.
+    fn continuation_image(
+        &mut self,
+        continuation: &EngineContinuation,
+    ) -> RuntimeResult<EngineContinuationImage> {
+        let EngineContinuation::Vm(continuation) = continuation else {
+            return Err(RuntimeError::Internal {
+                message: "vm engine cannot capture native continuation images".to_string(),
+            }
+            .boxed());
+        };
+
+        Ok(EngineContinuationImage::Vm(Isolate::continuation_image(
+            self,
+            continuation,
+        )))
+    }
+
+    /// Restore one continuation from one immutable VM continuation image.
+    fn restore_continuation_image(
+        &mut self,
+        image: &EngineContinuationImage,
+    ) -> RuntimeResult<EngineContinuation> {
+        let EngineContinuationImage::Vm(image) = image else {
+            return Err(RuntimeError::Internal {
+                message: "vm engine cannot restore native continuation images".to_string(),
+            }
+            .boxed());
+        };
+
+        let continuation =
+            Isolate::restore_continuation_image(self, image).map_err(Box::<RuntimeError>::from)?;
+
+        Ok(EngineContinuation::Vm(continuation))
+    }
+
+    /// Capture one serialized VM snapshot.
+    fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot> {
+        let snapshot = Isolate::snapshot(self).map_err(Box::<RuntimeError>::from)?;
+
+        Ok(EngineSnapshot::Vm(snapshot))
+    }
+
+    /// Restore one serialized VM snapshot.
+    fn restore_snapshot(
+        &mut self,
+        heap: &mut heap::Heap,
+        snapshot: &EngineSnapshot,
+    ) -> RuntimeResult<()> {
+        let EngineSnapshot::Vm(snapshot) = snapshot;
+
+        Isolate::restore_snapshot(self, heap, snapshot).map_err(Box::<RuntimeError>::from)
     }
 }
 

@@ -76,7 +76,7 @@ getrandom = { workspace = true }
 libc = { workspace = true }
 postcard = { workspace = true }
 parking_lot = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive", "rc"] }
 serde_json = { workspace = true }
 rustc-hash = { workspace = true }
 tracing = { workspace = true }

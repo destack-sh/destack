@@ -323,7 +323,7 @@ impl Policy {
 }
 
 /// Runtime counters and gate state for one rule in one scope.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub(crate) struct RuleState {
     /// Total accepted trigger firings for this state.
     pub fires: u64,
@@ -340,7 +340,7 @@ pub(crate) struct RuleState {
 }
 
 /// Active policy and runtime trigger state.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct PolicyState {
     /// Active policy specification.
     pub spec: Policy,

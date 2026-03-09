@@ -1,10 +1,10 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::replay::{
-    EntropyEvent, EntropyKind, EntropySubject, Replay, ReplayError, ReplayEvent,
+    EntropyEvent, EntropyKind, EntropySubject, Trace, TraceError, TraceEvent,
 };
 use destack_workspace::ExecutionMode;
 
-impl Replay {
+impl Trace {
     /// Run one clock read binding through the entropy replay channel.
     pub fn run_time_read<Hook, Call>(
         &self,
@@ -41,7 +41,7 @@ impl Replay {
                 let outcome = result
                     .as_ref()
                     .map(|value| *value)
-                    .map_err(|error| ReplayError::from(error.as_ref()));
+                    .map_err(|error| TraceError::from(error.as_ref()));
                 let event = match kind {
                     EntropyKind::TimeReadMonotonic => {
                         EntropyEvent::TimeReadMonotonic { subject, outcome }
@@ -49,7 +49,7 @@ impl Replay {
                     EntropyKind::TimeReadWall => EntropyEvent::TimeReadWall { subject, outcome },
                     _ => return Err(self.entropy_mismatch_error()),
                 };
-                self.record_event(ReplayEvent::Entropy(event))?;
+                self.record_event(TraceEvent::Entropy(event))?;
 
                 result
             }

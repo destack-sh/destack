@@ -1,6 +1,10 @@
 use std::mem;
 
+use destack_base::{Capture, CaptureMode};
 use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
+
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 
 /// Finalizer callback for runtime-level teardown.
 pub trait RuntimeFinalizer: Send {
@@ -29,6 +33,13 @@ impl Default for RuntimeFinalizerState {
     fn default() -> Self {
         Self::Active(Vec::new())
     }
+}
+
+/// Materialized runtime-finalizer image.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeFinalizersImage {
+    /// Whether teardown already completed before capture.
+    pub is_finalized: bool,
 }
 
 /// Runtime-owned finalizer registry.
@@ -77,6 +88,47 @@ impl RuntimeFinalizers {
         for finalizer in finalizers.into_iter().rev() {
             finalizer.finalize();
         }
+    }
+
+    // capture image
+    fn image(&self, _mode: CaptureMode) -> RuntimeResult<RuntimeFinalizersImage> {
+        let state = self.state.lock();
+
+        Ok(RuntimeFinalizersImage {
+            is_finalized: matches!(&*state, RuntimeFinalizerState::Finalized),
+        })
+    }
+}
+
+impl Capture for RuntimeFinalizers {
+    type Image = RuntimeFinalizersImage;
+    type Error = Box<RuntimeError>;
+    type CaptureContext<'a> = ();
+    type RestoreContext<'a> = ();
+
+    /// Capture one finalizer image.
+    fn capture_image(
+        &mut self,
+        mode: CaptureMode,
+        _context: Self::CaptureContext<'_>,
+    ) -> Result<Self::Image, Self::Error> {
+        self.image(mode)
+    }
+
+    /// Restore one finalizer image.
+    fn restore_image(
+        &mut self,
+        image: &Self::Image,
+        _context: Self::RestoreContext<'_>,
+    ) -> Result<(), Self::Error> {
+        let mut state = self.state.lock();
+        *state = if image.is_finalized {
+            RuntimeFinalizerState::Finalized
+        } else {
+            RuntimeFinalizerState::Active(Vec::new())
+        };
+
+        Ok(())
     }
 }
 

@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use crate::platform::ResourceId;
+use crate::platform::{ResourceBacking, ResourceCapture, ResourceId, ResourcePortability};
 use crate::runtime::AgentId;
 use serde::{Deserialize, Serialize};
 
@@ -62,6 +62,12 @@ pub struct WorldResource {
     pub kind: WorldEntityKind,
     /// Optional resource label.
     pub label: Option<String>,
+    /// Backing model for this resource.
+    pub backing: ResourceBacking,
+    /// Capture model for this resource.
+    pub capture: ResourceCapture,
+    /// Portability model for this resource.
+    pub portability: ResourcePortability,
 }
 
 impl WorldResource {
@@ -70,11 +76,17 @@ impl WorldResource {
         id: WorldResourceId,
         kind: impl Into<WorldEntityKind>,
         label: Option<String>,
+        backing: ResourceBacking,
+        capture: ResourceCapture,
+        portability: ResourcePortability,
     ) -> Self {
         Self {
             id,
             kind: kind.into(),
             label,
+            backing,
+            capture,
+            portability,
         }
     }
 }

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use destack_base::{Capture, CaptureMode};
 use destack_heap as heap;
 use destack_workspace::{RuntimeOptions, SchedulerOptions, TimeMode, TimeOptions};
 
@@ -8,8 +9,8 @@ use crate::host::{Host, HostEventKind, HostLifecycleState};
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
 use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineOutcome, EngineOutput, EngineSnapshot, Entry,
-    NativeContinuation,
+    Engine, EngineContinuation, EngineContinuationImage, EngineImage, EngineOutcome, EngineOutput,
+    EngineSnapshot, Entry, NativeContinuation,
 };
 use crate::runtime::poller::{
     PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
@@ -36,7 +37,12 @@ struct CompleteEngine {
 
 impl Engine for CompleteEngine {
     /// Run one entrypoint without yielding.
-    fn run(&mut self, _entry: &Entry, _args: &[heap::Value]) -> RuntimeResult<EngineOutcome> {
+    fn run(
+        &mut self,
+        _heap: &mut heap::Heap,
+        _entry: &Entry,
+        _args: &[heap::Value],
+    ) -> RuntimeResult<EngineOutcome> {
         Ok(EngineOutcome::Completed {
             output: EngineOutput {
                 value: heap::Value::VOID,
@@ -50,6 +56,7 @@ impl Engine for CompleteEngine {
     /// Resume one continuation and complete immediately.
     fn resume(
         &mut self,
+        _heap: &mut heap::Heap,
         continuation: EngineContinuation,
         _value: heap::Value,
     ) -> RuntimeResult<EngineOutcome> {
@@ -69,7 +76,59 @@ impl Engine for CompleteEngine {
         })
     }
 
-    /// Capture one durable engine snapshot for scheduler tests.
+    /// Capture one immutable engine image for scheduler tests.
+    fn image(&mut self) -> RuntimeResult<EngineImage> {
+        Err(crate::diagnostic::RuntimeError::Internal {
+            message: "scheduler test engine images are not implemented".to_string(),
+        }
+        .boxed())
+    }
+
+    /// Restore one immutable engine image for scheduler tests.
+    fn restore_image(&mut self, _heap: &mut heap::Heap, image: &EngineImage) -> RuntimeResult<()> {
+        let _ = image;
+
+        Err(crate::diagnostic::RuntimeError::Internal {
+            message: "scheduler test engine image restore is not implemented".to_string(),
+        }
+        .boxed())
+    }
+
+    /// Capture one continuation image for scheduler tests.
+    fn continuation_image(
+        &mut self,
+        continuation: &EngineContinuation,
+    ) -> RuntimeResult<EngineContinuationImage> {
+        match continuation {
+            EngineContinuation::Native(continuation) => {
+                Ok(EngineContinuationImage::Native(*continuation))
+            }
+            EngineContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
+                message: "scheduler test engine vm continuation images are not implemented"
+                    .to_string(),
+            }
+            .boxed()),
+        }
+    }
+
+    /// Restore one continuation image for scheduler tests.
+    fn restore_continuation_image(
+        &mut self,
+        image: &EngineContinuationImage,
+    ) -> RuntimeResult<EngineContinuation> {
+        match image {
+            EngineContinuationImage::Native(continuation) => {
+                Ok(EngineContinuation::Native(*continuation))
+            }
+            EngineContinuationImage::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
+                message: "scheduler test engine vm continuation restore is not implemented"
+                    .to_string(),
+            }
+            .boxed()),
+        }
+    }
+
+    /// Capture one serialized engine snapshot for scheduler tests.
     fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot> {
         Err(crate::diagnostic::RuntimeError::Internal {
             message: "scheduler test engine snapshots are not implemented".to_string(),
@@ -77,8 +136,12 @@ impl Engine for CompleteEngine {
         .boxed())
     }
 
-    /// Restore one durable engine snapshot for scheduler tests.
-    fn restore(&mut self, snapshot: &EngineSnapshot) -> RuntimeResult<()> {
+    /// Restore one serialized engine snapshot for scheduler tests.
+    fn restore_snapshot(
+        &mut self,
+        _heap: &mut heap::Heap,
+        snapshot: &EngineSnapshot,
+    ) -> RuntimeResult<()> {
         let _ = snapshot;
 
         Err(crate::diagnostic::RuntimeError::Internal {
@@ -302,7 +365,7 @@ fn test_runtime_tick_records_unmatched_poller_ingress() {
     let outcome = runtime.tick();
 
     assert_eq!(outcome, TickOutcome::Progressed);
-    runtime.with_engine::<CompleteEngine, _>(|engine| {
+    runtime.with_primary_engine::<CompleteEngine, _>(|engine| {
         assert_eq!(
             engine.resume_calls, 0,
             "unmatched ingress must not resume work"
@@ -433,6 +496,75 @@ fn test_event_loop_next_runnable_prioritizes_higher_task_priority() {
         panic!("expected one task runnable");
     };
     assert_eq!(task.id.get(), 504);
+}
+
+/// Rejects suspend images for native continuations that cannot be restored honestly.
+#[test]
+fn test_event_loop_suspend_rejects_native_continuations() {
+    // one queued native task
+    let mut event_loop = EventLoop::default();
+    event_loop.enqueue_task(Task {
+        id: TaskId::new(601),
+        runnable: EngineContinuation::Native(NativeContinuation::new(701)),
+        resume_value: heap::Value::VOID,
+        status: TaskStatus::Ready,
+        priority: 0,
+    });
+
+    // suspend capture should fail loudly
+    let mut engine = CompleteEngine::default();
+    let result = event_loop.capture_image(CaptureMode::Suspend, &mut engine);
+
+    assert!(result.is_err(), "native suspend capture should fail loudly");
+}
+
+/// Roundtrips queued scheduler state through one suspend image.
+#[test]
+fn test_event_loop_suspend_roundtrip_preserves_pending_state() {
+    // one queued poller event and one ready timer
+    let mut event_loop = EventLoop::default();
+    event_loop.enqueue_events(vec![PollerEvent {
+        resource_id: ResourceId(61),
+        source: PollerEventSource::Io,
+        mask: PollerEventMask::READABLE,
+        flags: PollerEventFlags::NONE,
+        token: PollerToken(991),
+        payload: PollerEventPayload::Io { data: 7 },
+    }]);
+    event_loop
+        .schedule_timer(Timer {
+            handle: ResourceId(62),
+            deadline: TimerDeadline {
+                clock: TimerClock::Wall,
+                at: Nanos::new(0),
+            },
+            interval: None,
+        })
+        .expect("schedule timer");
+    event_loop
+        .enqueue_due_timers(Nanos::new(0), Nanos::new(0))
+        .expect("enqueue ready timers");
+
+    // capture and restore one suspend image
+    let mut engine = CompleteEngine::default();
+    let image = event_loop
+        .capture_image(CaptureMode::Suspend, &mut engine)
+        .expect("capture suspend image");
+    let mut restored = EventLoop::default();
+    restored
+        .restore_image(&image, &mut engine)
+        .expect("restore suspend image");
+
+    // ready timer stays ahead of queued poller events
+    let first = restored
+        .next_runnable(0, 0)
+        .expect("dequeue first runnable");
+    assert!(matches!(first, Some(Runnable::Timer(_))));
+
+    let second = restored
+        .next_runnable(0, 0)
+        .expect("dequeue second runnable");
+    assert!(matches!(second, Some(Runnable::PollerEvent(_))));
 }
 
 /// Rejects non-fifo scheduler policies.
@@ -699,7 +831,7 @@ fn test_runtime_tick_advances_virtual_time_before_dispatch() {
     // the first tick should only advance time
     let outcome = runtime.tick();
     assert_eq!(outcome, TickOutcome::AdvancedTime);
-    runtime.with_engine::<CompleteEngine, _>(|engine| {
+    runtime.with_primary_engine::<CompleteEngine, _>(|engine| {
         assert_eq!(
             engine.resume_calls, 0,
             "deadline jump must not run work yet"
@@ -719,7 +851,7 @@ fn test_runtime_tick_advances_virtual_time_before_dispatch() {
     // the next tick should dispatch the newly ready timer task
     let outcome = runtime.tick();
     assert_eq!(outcome, TickOutcome::Progressed);
-    runtime.with_engine::<CompleteEngine, _>(|engine| {
+    runtime.with_primary_engine::<CompleteEngine, _>(|engine| {
         assert_eq!(
             engine.resume_calls, 1,
             "timer watch should run after the jump"
@@ -762,11 +894,8 @@ fn test_world_tick_drives_runtime() {
     assert_eq!(world.tick().expect("world tick"), TickOutcome::Progressed);
     world
         .with_runtime(runtime_id, |runtime| {
-            let engine = runtime
-                .agent(primary_agent_id)
-                .expect("primary agent")
-                .engine
-                .as_ref() as &dyn std::any::Any;
+            let agent = runtime.agent(primary_agent_id).expect("primary agent");
+            let engine = agent.engine.as_ref() as &dyn std::any::Any;
             let engine = engine
                 .downcast_ref::<CompleteEngine>()
                 .expect("runtime engine should exist");
@@ -847,7 +976,7 @@ fn test_runtime_tick_advances_to_simulation_deadline() {
     let simulation = world.read_simulation();
     assert_eq!(simulation.ready_events().len(), 1);
     assert_eq!(simulation.ready_events()[0].at(), WorldInstant::new(7_500));
-    runtime.with_engine::<CompleteEngine, _>(|engine| {
+    runtime.with_primary_engine::<CompleteEngine, _>(|engine| {
         assert_eq!(
             engine.resume_calls, 0,
             "simulation deadline should not run agent work"

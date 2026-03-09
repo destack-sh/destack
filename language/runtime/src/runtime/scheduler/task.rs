@@ -20,7 +20,7 @@ impl TaskId {
 }
 
 /// Scheduling status for a task or job.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TaskStatus {
     /// Ready to run.
     Ready,

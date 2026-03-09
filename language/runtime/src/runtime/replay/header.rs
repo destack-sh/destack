@@ -1,33 +1,31 @@
 use serde::{Deserialize, Serialize};
 
 use crate::runtime::bindings::BindingReplayPayload;
-use crate::runtime::replay::LogSequence;
-use crate::runtime::world::{BranchId, CheckpointId};
-use destack_workspace::ExecutionMode;
+use crate::runtime::replay::TraceSequence;
+use crate::runtime::world::{BranchId, CheckpointId, RevisionId};
+use destack_workspace::{ExecutionMode, RandomMode, TimeMode};
 
-/// Replay log header describing the execution environment.
+/// Trace header describing the execution environment.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ReplayHeader {
-    /// Replay format version.
+pub struct TraceHeader {
+    /// Trace format version.
     pub format_version: u32,
     /// Build hash for runtime compatibility.
     pub build_hash: u128,
     /// Target triple or platform descriptor.
     pub target: String,
-    /// Profile key used to resolve configuration.
-    pub profile_key: Option<String>,
-    /// Hash of the resolved profile configuration.
-    pub profile_hash: u128,
     /// Execution mode used while running.
     pub execution_mode: ExecutionMode,
+    /// Time mode used while running.
+    pub time_mode: TimeMode,
+    /// Random mode used while running.
+    pub random_mode: RandomMode,
     /// Branch identifier for this replay stream.
     pub branch_id: BranchId,
-    /// Replay payload selection for the log.
+    /// Trace payload selection for the log.
     pub replay_payload: BindingReplayPayload,
     /// Hash of the binding registry.
     pub binding_registry_hash: u128,
-    /// Hash of the effect registry.
-    pub effect_registry_hash: u128,
     /// Maximum number of events per chunk.
     pub max_events_per_chunk: u32,
     /// Maximum chunk size in bytes.
@@ -36,20 +34,19 @@ pub struct ReplayHeader {
     pub environment: EnvironmentConfig,
 }
 
-impl ReplayHeader {
-    /// Create a replay header with explicit configuration.
+impl TraceHeader {
+    /// Create a trace header with explicit configuration.
     pub fn new(environment: EnvironmentConfig) -> Self {
         Self {
             format_version: 1,
             build_hash: 0,
             target: String::new(),
-            profile_key: None,
-            profile_hash: 0,
             execution_mode: ExecutionMode::Fast,
+            time_mode: TimeMode::Host,
+            random_mode: RandomMode::Host,
             branch_id: BranchId::new(0),
             replay_payload: BindingReplayPayload::Results,
             binding_registry_hash: 0,
-            effect_registry_hash: 0,
             max_events_per_chunk: 1024,
             max_chunk_bytes: 4 * 1024 * 1024,
             environment,
@@ -57,13 +54,13 @@ impl ReplayHeader {
     }
 }
 
-impl Default for ReplayHeader {
+impl Default for TraceHeader {
     fn default() -> Self {
         Self::new(EnvironmentConfig::default())
     }
 }
 
-/// Environment configuration captured for replay.
+/// Environment configuration captured for trace.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct EnvironmentConfig {
     /// Process arguments.
@@ -78,56 +75,56 @@ pub struct EnvironmentConfig {
     pub locale: Option<String>,
 }
 
-/// Header metadata for a replay log chunk.
+/// Header metadata for one trace segment.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ReplayChunkHeader {
-    /// Chunk index in the stream.
+pub struct TraceSegmentHeader {
+    /// Segment index in the stream.
     pub index: u32,
-    /// First sequence number in the chunk.
-    pub sequence_start: LogSequence,
-    /// Last sequence number in the chunk.
-    pub sequence_end: LogSequence,
-    /// Number of events stored in the chunk.
+    /// First sequence number in the segment.
+    pub sequence_start: TraceSequence,
+    /// Last sequence number in the segment.
+    pub sequence_end: TraceSequence,
+    /// Number of events stored in the segment.
     pub event_count: u32,
-    /// Byte length of the chunk payload.
+    /// Byte length of the segment payload.
     pub byte_length: u64,
-    /// Checksum for the chunk payload.
+    /// Checksum for the segment payload.
     pub checksum: u64,
 }
 
-/// Chunk metadata for random access.
+/// Segment metadata for random access.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ReplayChunkIndex {
-    /// Chunk index in the stream.
+pub struct TraceSegmentIndex {
+    /// Segment index in the stream.
     pub index: u32,
-    /// Byte offset of the chunk in the log.
+    /// Byte offset of the segment in the log.
     pub offset: u64,
-    /// Byte length of the chunk payload.
+    /// Byte length of the segment payload.
     pub length: u64,
-    /// Chunk checksum.
+    /// Segment checksum.
     pub checksum: u64,
 }
 
-/// Trailer metadata for a replay log.
+/// Trailer metadata for a trace log.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ReplayTrailer {
-    /// Index entries for chunks in the log.
-    pub chunks: Vec<ReplayChunkIndex>,
+pub struct TraceTrailer {
+    /// Index entries for segments in the log.
+    pub segments: Vec<TraceSegmentIndex>,
     /// Index entries for external checkpoints.
-    pub checkpoints: Vec<ReplayCheckpointIndex>,
+    pub checkpoints: Vec<TraceCheckpointIndex>,
     /// Hash of the entire log stream.
     pub log_hash: u128,
 }
 
 /// Index entry referencing an external checkpoint.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ReplayCheckpointIndex {
+pub struct TraceCheckpointIndex {
     /// Checkpoint identifier.
     pub checkpoint_id: CheckpointId,
-    /// Branch identifier for this checkpoint.
-    pub branch_id: BranchId,
+    /// Revision identifier anchored by this checkpoint.
+    pub revision_id: RevisionId,
     /// Sequence number associated with the checkpoint.
-    pub sequence: LogSequence,
+    pub sequence: TraceSequence,
     /// Path to the checkpoint file.
     pub path: String,
     /// Hash of the checkpoint payload.

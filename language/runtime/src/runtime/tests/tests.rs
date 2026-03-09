@@ -9,8 +9,8 @@ use crate::host::{Host, HostEvent, HostEventKind, HostLifecycleEvent, HostLifecy
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
 use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineOutcome, EngineOutput, EngineSnapshot, Entry,
-    NativeContinuation,
+    Engine, EngineContinuation, EngineContinuationImage, EngineImage, EngineOutcome, EngineOutput,
+    EngineSnapshot, Entry, NativeContinuation,
 };
 use crate::runtime::poller::{
     HostPoller, HostPollerFlags, PlatformHandle, PlatformInterest, PollerEvent, PollerEventFlags,
@@ -95,7 +95,12 @@ pub(super) struct TestEngine {
 
 impl Engine for TestEngine {
     /// Run one entrypoint without yielding.
-    fn run(&mut self, _entry: &Entry, _args: &[heap::Value]) -> RuntimeResult<EngineOutcome> {
+    fn run(
+        &mut self,
+        _heap: &mut heap::Heap,
+        _entry: &Entry,
+        _args: &[heap::Value],
+    ) -> RuntimeResult<EngineOutcome> {
         Ok(EngineOutcome::Completed {
             output: void_output(),
         })
@@ -104,6 +109,7 @@ impl Engine for TestEngine {
     /// Resume one continuation and yield once before completion.
     fn resume(
         &mut self,
+        _heap: &mut heap::Heap,
         _continuation: EngineContinuation,
         _value: heap::Value,
     ) -> RuntimeResult<EngineOutcome> {
@@ -123,7 +129,57 @@ impl Engine for TestEngine {
         })
     }
 
-    /// Capture one durable engine snapshot for tests.
+    /// Capture one immutable engine image for tests.
+    fn image(&mut self) -> RuntimeResult<EngineImage> {
+        Err(crate::diagnostic::RuntimeError::Internal {
+            message: "test engine images are not implemented".to_string(),
+        }
+        .boxed())
+    }
+
+    /// Restore one immutable engine image for tests.
+    fn restore_image(&mut self, _heap: &mut heap::Heap, image: &EngineImage) -> RuntimeResult<()> {
+        let _ = image;
+
+        Err(crate::diagnostic::RuntimeError::Internal {
+            message: "test engine image restore is not implemented".to_string(),
+        }
+        .boxed())
+    }
+
+    /// Capture one continuation image for tests.
+    fn continuation_image(
+        &mut self,
+        continuation: &EngineContinuation,
+    ) -> RuntimeResult<EngineContinuationImage> {
+        match continuation {
+            EngineContinuation::Native(continuation) => {
+                Ok(EngineContinuationImage::Native(*continuation))
+            }
+            EngineContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
+                message: "test engine vm continuation images are not implemented".to_string(),
+            }
+            .boxed()),
+        }
+    }
+
+    /// Restore one continuation image for tests.
+    fn restore_continuation_image(
+        &mut self,
+        image: &EngineContinuationImage,
+    ) -> RuntimeResult<EngineContinuation> {
+        match image {
+            EngineContinuationImage::Native(continuation) => {
+                Ok(EngineContinuation::Native(*continuation))
+            }
+            EngineContinuationImage::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
+                message: "test engine vm continuation restore is not implemented".to_string(),
+            }
+            .boxed()),
+        }
+    }
+
+    /// Capture one serialized engine snapshot for tests.
     fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot> {
         Err(crate::diagnostic::RuntimeError::Internal {
             message: "test engine snapshots are not implemented".to_string(),
@@ -131,8 +187,12 @@ impl Engine for TestEngine {
         .boxed())
     }
 
-    /// Restore one durable engine snapshot for tests.
-    fn restore(&mut self, snapshot: &EngineSnapshot) -> RuntimeResult<()> {
+    /// Restore one serialized engine snapshot for tests.
+    fn restore_snapshot(
+        &mut self,
+        _heap: &mut heap::Heap,
+        snapshot: &EngineSnapshot,
+    ) -> RuntimeResult<()> {
         let _ = snapshot;
 
         Err(crate::diagnostic::RuntimeError::Internal {
@@ -567,11 +627,12 @@ impl TestMultiAgentRuntime {
     }
 
     /// Borrow the shared world.
-    pub(super) fn world(&self) -> Arc<World> {
+    pub(crate) fn world(&self) -> Arc<World> {
         self.world.clone()
     }
 
     /// Run one closure with one stored primary-agent engine by explicit type.
+    #[allow(dead_code)]
     pub(super) fn with_engine<T: Engine, R>(&self, callback: impl FnOnce(&T) -> R) -> R {
         self.with_primary_engine(callback)
     }

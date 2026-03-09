@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 /// Host lifecycle state.
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum HostLifecycleState {
     /// Runtime has not received start events yet.
     Initializing,
@@ -16,7 +18,7 @@ pub enum HostLifecycleState {
 
 /// Host memory pressure state.
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum HostMemoryPressureLevel {
     /// Memory pressure is normal.
     Normal,
@@ -28,7 +30,7 @@ pub enum HostMemoryPressureLevel {
 
 /// Host thermal state.
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum HostThermalState {
     /// Thermal state is nominal.
     Nominal,
@@ -42,7 +44,7 @@ pub enum HostThermalState {
 
 /// Host power mode state.
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum HostPowerMode {
     /// Normal power mode.
     Normal,
@@ -51,7 +53,7 @@ pub enum HostPowerMode {
 }
 
 /// Host semantic event kind key for scheduler watches.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum HostEventKind {
     /// Lifecycle transitions.
     Lifecycle,
@@ -70,7 +72,7 @@ pub enum HostEventKind {
 }
 
 /// Runtime-visible host event payload.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HostEvent {
     /// Host lifecycle transition event.
     Lifecycle(HostLifecycleEvent),
@@ -104,14 +106,14 @@ impl HostEvent {
 }
 
 /// Host lifecycle state change payload.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HostLifecycleEvent {
     /// Next lifecycle state after this transition.
     pub state: HostLifecycleState,
 }
 
 /// Host permission flow payload.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HostPermissionEvent {
     /// Permission name associated with this result.
     pub permission: String,
@@ -120,33 +122,33 @@ pub struct HostPermissionEvent {
 }
 
 /// Host interruption payload.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HostInterruptionEvent {
     /// Whether the host is currently interrupted.
     pub interrupted: bool,
 }
 
 /// Host memory pressure payload.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HostMemoryPressureEvent {
     /// Memory pressure level reported by the host.
     pub level: HostMemoryPressureLevel,
 }
 
 /// Host thermal payload.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HostThermalEvent {
     /// Thermal state reported by the host.
     pub state: HostThermalState,
 }
 
 /// Host power mode payload.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HostPowerModeEvent {
     /// Power mode reported by the host.
     pub mode: HostPowerMode,
 }
 
 /// Host wall clock payload.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HostWallClockEvent;
