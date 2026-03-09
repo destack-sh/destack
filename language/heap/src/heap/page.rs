@@ -79,7 +79,7 @@ pub struct Page<T> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum PageReference<T> {
     /// One live page owned by this heap.
-    Page(Page<T>),
+    Page(Box<Page<T>>),
     /// One immutable page image shared with snapshots or forked heaps.
     Image(Arc<PageImage<T>>),
 }
@@ -125,7 +125,7 @@ impl<T: Clone + Default> Page<T> {
 impl<T: Clone + Default> PageReference<T> {
     /// Create one empty page reference.
     pub(super) fn new(kind: PageKind) -> Self {
-        Self::Page(Page::new(kind))
+        Self::Page(Box::new(Page::new(kind)))
     }
 
     /// Restore one page reference from one immutable image.
@@ -138,7 +138,7 @@ impl<T: Clone + Default> PageReference<T> {
         // freeze one owned page into a shared page image
         if matches!(self, Self::Page(_)) {
             let replacement = match self {
-                Self::Page(page) => Self::Page(Page::new(page.kind())),
+                Self::Page(page) => Self::Page(Box::new(Page::new(page.kind()))),
                 Self::Image(_) => unreachable!(),
             };
 
@@ -162,7 +162,7 @@ impl<T: Clone + Default> PageReference<T> {
     // promote one shared image on first write
     fn page_mut(&mut self) -> &mut Page<T> {
         if let Self::Image(image) = self {
-            *self = Self::Page(Page::from_image(image));
+            *self = Self::Page(Box::new(Page::from_image(image)));
         }
 
         match self {

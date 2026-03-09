@@ -295,11 +295,8 @@ mod tests {
 !keep.log
 # comment
 ";
-        fs.write_bytes(
-            "project/.gitignore",
-            ignore_file.as_bytes(),
-        )
-        .expect("write ignore file");
+        fs.write_bytes("project/.gitignore", ignore_file.as_bytes())
+            .expect("write ignore file");
 
         let mut ignore_set = IgnoreSet::new();
         ignore_set.load_dir(&fs.path_for("project"));
@@ -335,11 +332,8 @@ generated/keep.c -linguist-generated
 vendor.txt linguist-vendored
 archive.tar export-ignore
 ";
-        fs.write_bytes(
-            "project/.gitattributes",
-            attributes_file.as_bytes(),
-        )
-        .expect("write attributes file");
+        fs.write_bytes("project/.gitattributes", attributes_file.as_bytes())
+            .expect("write attributes file");
 
         let mut ignore_set = IgnoreSet::new();
         ignore_set.load_dir(&fs.path_for("project"));
