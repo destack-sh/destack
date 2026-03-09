@@ -1,3 +1,5 @@
+export { BackendSupport } from "./core/index.ds";
+export { core } from "./core/index.ds";
 export type { PlatformError } from "./error/index.ds";
 export { audio } from "./audio/index.ds";
 export { debug } from "./debug/index.ds";

@@ -1,4 +1,5 @@
 import { Slice } from "native";
+import type { BackendSupport } from "../core/index.ds";
 import type { PlatformError } from "../error/index.ds";
 
 /// Display backend selector.
@@ -58,9 +59,9 @@ export struct DisplayBackendDescriptor {
     backend: DisplayBackend;
     /// Stable backend name.
     name: string;
-    /// Whether this backend is implemented in this runtime build and currently usable on this host.
-    available: boolean;
-    /// Priority in default auto-selection order.
+    /// Host backend support state for this selector.
+    support: BackendSupport;
+    /// Priority in default auto-selection order, or zero when auto does not consider this selector.
     priority: uint16;
     /// Backend-level capability flags.
     capabilityFlags: DisplayBackendCapabilityFlags;
@@ -145,7 +146,7 @@ export const DISPLAY_BACKEND_CAP_WINDOW_ROLE_OVERLAY: DisplayBackendCapabilityFl
 declare namespace display {
     /// List host display backends.
     ///
-    /// Enumerate backend kinds known to the API and report runtime availability and feature flags.
+    /// Enumerate backend kinds known to the API and report support state and feature flags.
     ///
     /// # Platform
     /// Unix and Windows.

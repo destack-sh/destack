@@ -62,6 +62,18 @@ builtin_lib_sources_targeted!(
             "stream.ds"
         ),
         (
+            LIB_PLATFORM_CORE_BACKEND_DS,
+            "lib",
+            "platform/core",
+            "backend.ds"
+        ),
+        (
+            LIB_PLATFORM_CORE_INDEX_DS,
+            "lib",
+            "platform/core",
+            "index.ds"
+        ),
+        (
             LIB_PLATFORM_CRYPTO_AGREEMENT_DS,
             "lib",
             "platform/crypto",
@@ -720,6 +732,54 @@ builtin_lib_sources_targeted!(
             "index.ds"
         ),
         (
+            LIB_PLATFORM_RUNTIME_CORE_DS,
+            "lib",
+            "platform/runtime",
+            "core.ds"
+        ),
+        (
+            LIB_PLATFORM_RUNTIME_INDEX_DS,
+            "lib",
+            "platform/runtime",
+            "index.ds"
+        ),
+        (
+            LIB_PLATFORM_RUNTIME_INSPECT_DS,
+            "lib",
+            "platform/runtime",
+            "inspect.ds"
+        ),
+        (
+            LIB_PLATFORM_RUNTIME_LINEAGE_DS,
+            "lib",
+            "platform/runtime",
+            "lineage.ds"
+        ),
+        (
+            LIB_PLATFORM_RUNTIME_OBSERVE_DS,
+            "lib",
+            "platform/runtime",
+            "observe.ds"
+        ),
+        (
+            LIB_PLATFORM_RUNTIME_SNAPSHOT_DS,
+            "lib",
+            "platform/runtime",
+            "snapshot.ds"
+        ),
+        (
+            LIB_PLATFORM_RUNTIME_TRACE_DS,
+            "lib",
+            "platform/runtime",
+            "trace.ds"
+        ),
+        (
+            LIB_PLATFORM_RUNTIME_TYPES_DS,
+            "lib",
+            "platform/runtime",
+            "types.ds"
+        ),
+        (
             LIB_PLATFORM_SECURITY_CAPABILITY_DS,
             "lib",
             "platform/security",
@@ -846,6 +906,8 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_AUDIO_INDEX_DS,
         LIB_PLATFORM_AUDIO_MIDI_DS,
         LIB_PLATFORM_AUDIO_STREAM_DS,
+        LIB_PLATFORM_CORE_BACKEND_DS,
+        LIB_PLATFORM_CORE_INDEX_DS,
         LIB_PLATFORM_CRYPTO_AGREEMENT_DS,
         LIB_PLATFORM_CRYPTO_ALGORITHM_DS,
         LIB_PLATFORM_CRYPTO_CERTIFICATE_DS,
@@ -989,6 +1051,14 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_RESOURCE_HANDLES_DS,
         LIB_PLATFORM_RESOURCE_ID_DS,
         LIB_PLATFORM_RESOURCE_INDEX_DS,
+        LIB_PLATFORM_RUNTIME_CORE_DS,
+        LIB_PLATFORM_RUNTIME_INDEX_DS,
+        LIB_PLATFORM_RUNTIME_INSPECT_DS,
+        LIB_PLATFORM_RUNTIME_LINEAGE_DS,
+        LIB_PLATFORM_RUNTIME_OBSERVE_DS,
+        LIB_PLATFORM_RUNTIME_SNAPSHOT_DS,
+        LIB_PLATFORM_RUNTIME_TRACE_DS,
+        LIB_PLATFORM_RUNTIME_TYPES_DS,
         LIB_PLATFORM_SECURITY_CAPABILITY_DS,
         LIB_PLATFORM_SECURITY_ENFORCE_DS,
         LIB_PLATFORM_SECURITY_INDEX_DS,
