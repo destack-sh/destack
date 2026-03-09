@@ -35,7 +35,11 @@ macro_rules! dispatch_backend {
             DisplayBackend::Android => unsafe { android::$function($binding $(, $arg)*) },
             #[cfg(target_os = "ios")]
             DisplayBackend::UIKit => unsafe { ios::$function($binding $(, $arg)*) },
-            _ => Err(core::backend_not_supported($operation, $backend)),
+            _ => Err(core_platform::backend_support_error(
+                $operation,
+                core::backend_name($backend),
+                core::backend_support($backend),
+            )),
         }
     }};
 }

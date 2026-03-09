@@ -1,5 +1,6 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{AudioBackend, core as audio_core};
+use crate::platform::core::BackendSupport;
 use crate::platform::{PlatformError, audio as audio_types};
 
 pub(crate) use crate::platform::audio::simulation::native::*;
@@ -9,9 +10,13 @@ pub(crate) fn preferred_host_backends() -> &'static [AudioBackend] {
     &[]
 }
 
-/// Return whether one host backend is available for unsupported targets.
-pub(crate) fn backend_supported(_backend: AudioBackend) -> bool {
-    false
+/// Return host backend support for unsupported targets.
+pub(crate) fn backend_support(backend: AudioBackend) -> BackendSupport {
+    if backend == AudioBackend::Null {
+        return BackendSupport::Available;
+    }
+
+    BackendSupport::UnsupportedTarget
 }
 
 /// Return whether one host backend supports stream creation on unsupported targets.

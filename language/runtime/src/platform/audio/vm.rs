@@ -107,7 +107,7 @@ fn backend_descriptor_to_vm(
     Ok(AudioBackendDescriptorVm {
         backend: value.backend,
         name: vm::StringHandle::new(context.intern_string(unsafe { value.name.as_str()? })),
-        available: value.available,
+        support: value.support,
         priority: value.priority,
         capability_flags: value.capability_flags,
         supported_device_list_flags: value.supported_device_list_flags,

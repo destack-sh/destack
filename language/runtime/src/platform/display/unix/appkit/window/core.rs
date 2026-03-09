@@ -163,6 +163,16 @@ pub(crate) fn frame_origin_from_desktop_position(
     objc2_foundation::NSPoint::new(position.x as f64, origin_y)
 }
 
+/// Convert one runtime desktop position into one AppKit frame top-left point.
+pub(crate) fn frame_top_left_point_from_desktop_position(
+    position: WindowPosition,
+) -> objc2_foundation::NSPoint {
+    let main_display_height = main_display_height();
+    let top_left_y = main_display_height - (position.y as f64);
+
+    objc2_foundation::NSPoint::new(position.x as f64, top_left_y)
+}
+
 /// Convert one AppKit frame rect into one runtime desktop position.
 pub(crate) fn desktop_position_from_frame(frame: objc2_foundation::NSRect) -> WindowPosition {
     let main_display_height = main_display_height();
@@ -179,6 +189,23 @@ pub(crate) fn refresh_host_state_geometry(
     host_state: &mut AppKitWindowHostState,
     window: &NSWindow,
 ) {
+    if window.screen().is_none() {
+        host_state.focused = window.isKeyWindow();
+        host_state.visibility = if window.isMiniaturized() {
+            WindowVisibility::Minimized
+        } else if !window.isVisible() {
+            WindowVisibility::Hidden
+        } else if window.styleMask().contains(NSWindowStyleMask::FullScreen) || window.isZoomed() {
+            WindowVisibility::Maximized
+        } else {
+            WindowVisibility::Visible
+        };
+        host_state.occlusion = occlusion_from_window(window);
+        host_state.safe_area_insets = safe_area_insets_from_window(window);
+        host_state.theme = current_window_theme();
+        return;
+    }
+
     let frame = window.frame();
     let content_rect = window.contentRectForFrameRect(frame);
     let scale_factor_milli = (window.backingScaleFactor() * 1000.0).round() as u32;

@@ -72,7 +72,7 @@ use crate::platform::display::{
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
-    VmSlice, fs, resource,
+    VmSlice, core, fs, resource,
 };
 use destack_vm as vm;
 
@@ -96,7 +96,7 @@ impl<'call> DisplayHarnessContext<'call> {
 
     /// List host display backends.
     ///
-    /// Enumerate backend kinds known to the API and report runtime availability and feature flags.
+    /// Enumerate backend kinds known to the API and report support state and feature flags.
     ///
     /// # Platform
     /// Unix and Windows.

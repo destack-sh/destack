@@ -1,4 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::core::BackendSupport;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::display::{
     self as display_platform, DisplayBackend, DisplayBackendCapabilityFlags,
@@ -121,10 +122,10 @@ pub(crate) fn overflow_error(operation: &'static str) -> Box<RuntimeError> {
     )
 }
 
-/// Return backend descriptor availability and capability flags for AppKit.
+/// Return backend descriptor support and capability flags for AppKit.
 pub(crate) fn backend_descriptor_state(
     _binding: &crate::runtime::BindingCallContext,
-) -> (bool, DisplayBackendCapabilityFlags) {
+) -> (BackendSupport, DisplayBackendCapabilityFlags) {
     let capability_flags = display_platform::DISPLAY_BACKEND_CAP_WINDOW.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_STATE.0
         | display_platform::DISPLAY_BACKEND_CAP_MONITOR.0
@@ -157,7 +158,11 @@ pub(crate) fn backend_descriptor_state(
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ROLE_OVERLAY.0;
 
     (
-        backend_available(),
+        if backend_available() {
+            BackendSupport::Available
+        } else {
+            BackendSupport::HostUnavailable
+        },
         DisplayBackendCapabilityFlags(capability_flags),
     )
 }

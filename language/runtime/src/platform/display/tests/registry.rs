@@ -19,8 +19,14 @@ macro_rules! display_affinity_case {
 macro_rules! display_affinity_cases {
     () => {
         &[
-            display_affinity_case!(basic, test_display_monitor_surface_works_end_to_end),
-            display_affinity_case!(basic, test_display_window_surface_works_end_to_end),
+            display_affinity_case!(
+                basic,
+                test_display_monitor_surface_lists_opens_and_observes_primary_monitor
+            ),
+            display_affinity_case!(
+                basic,
+                test_display_window_surface_open_mutate_and_observe_roundtrip
+            ),
             #[cfg(windows)]
             display_affinity_case!(
                 basic,
@@ -33,6 +39,10 @@ macro_rules! display_affinity_cases {
             display_affinity_case!(
                 backend,
                 test_display_window_surface_supports_strict_backend_selection
+            ),
+            display_affinity_case!(
+                backend,
+                test_display_backend_list_support_contract_matches_advertised_capabilities
             ),
             display_affinity_case!(
                 backend,

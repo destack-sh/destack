@@ -1,4 +1,4 @@
-use objc2_foundation::NSSize;
+use objc2_foundation::{NSPoint, NSRect, NSSize};
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
@@ -8,11 +8,9 @@ use crate::platform::display::{
 use crate::platform::resource::WindowHandle;
 use crate::runtime::BindingCallContext;
 
-use super::core::frame_origin_from_desktop_position;
+use super::core::frame_top_left_point_from_desktop_position;
 use super::reconcile;
-use crate::platform::display::unix::appkit::event::{
-    publish_state_deltas, publish_window_position_changed,
-};
+use crate::platform::display::unix::appkit::event::publish_state_deltas;
 use crate::platform::display::unix::appkit::{core as appkit_core, resource as display_resource};
 
 const UNBOUNDED_WINDOW_SIZE: f64 = 10_000_000.0;
@@ -60,7 +58,6 @@ pub(crate) unsafe fn window_set_position(
         "destack.display.window.setPosition",
     )?;
     let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
-    let previous_position = host_state.position;
     host_state.position = position;
     drop(host_state);
 
@@ -69,15 +66,13 @@ pub(crate) unsafe fn window_set_position(
         window_handle,
         "destack.display.window.setPosition",
         |host| {
-            let frame_height = host.window.frame().size.height.max(1.0);
-            let origin = frame_origin_from_desktop_position(position, frame_height);
-            host.window.setFrameOrigin(origin);
+            let top_left = frame_top_left_point_from_desktop_position(position);
+            host.window.setFrameTopLeftPoint(top_left);
             Ok(())
         },
     )?;
 
-    publish_window_position_changed(&runtime_state, window_handle, previous_position, position);
-    Ok(())
+    reconcile::reconcile_host_window_state(&runtime_state, window_handle)
 }
 
 /// Set logical size constraints.
@@ -151,7 +146,13 @@ pub(crate) unsafe fn window_set_size_logical(
         window_handle,
         "destack.display.window.setSizeLogical",
     )?;
-    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let scale_factor = (host_state.scale_factor_milli as f64 / 1000.0).max(1.0);
+    host_state.size_logical = size;
+    host_state.size_physical = crate::platform::display::WindowPhysicalSize {
+        width: (size.width * scale_factor).round().max(1.0) as u32,
+        height: (size.height * scale_factor).round().max(1.0) as u32,
+    };
     drop(host_state);
 
     appkit_core::with_window_host(
@@ -159,8 +160,20 @@ pub(crate) unsafe fn window_set_size_logical(
         window_handle,
         "destack.display.window.setSizeLogical",
         |host| {
-            host.window
-                .setContentSize(NSSize::new(size.width, size.height));
+            let current_frame = host.window.frame();
+            let current_top_left = NSPoint::new(
+                current_frame.origin.x,
+                current_frame.origin.y + current_frame.size.height,
+            );
+            let desired_content =
+                NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(size.width, size.height));
+            let mut desired_frame = host.window.frameRectForContentRect(desired_content);
+            desired_frame.origin = NSPoint::new(
+                current_top_left.x,
+                current_top_left.y - desired_frame.size.height,
+            );
+
+            host.window.setFrame_display(desired_frame, true);
             Ok(())
         },
     )?;

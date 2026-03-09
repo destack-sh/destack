@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use destack_base::{StringPool, fnv1a_64};
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    self as dir, Annotation, Argument, Declaration, Expression, GlobalSymbolId, PrimitiveType,
-    StaticArgument, StaticExpression, TypeLiteral, WellKnownSymbol,
+    self as dir, Annotation, Argument, Declaration, DependencyItem, Expression, GlobalSymbolId,
+    PrimitiveType, StaticArgument, StaticExpression, TypeLiteral, WellKnownSymbol,
 };
 use destack_source::ModuleId;
 use destack_workspace::format::{format_local_type, format_type_literal};
@@ -383,6 +383,30 @@ pub(crate) fn binding_type_from_type_id(
         } => binding_type_from_tuple(
             type_id, elements, types, modules, strings, profile_id, symbols, domain,
         ),
+        dir::Type::Unevaluated(expression_id) => {
+            let module = modules.get(types.module_id);
+            let module = module.read();
+            let dir = module.dir(profile_id);
+            let tree = dir.tree.read();
+
+            binding_type_from_alias_expression(
+                type_text.as_str(),
+                *expression_id,
+                &tree,
+                types,
+                modules,
+                strings,
+                profile_id,
+                symbols,
+                domain,
+            )
+            .unwrap_or_else(|| {
+                unsupported_binding_type(
+                    type_text.as_str(),
+                    "unsupported unevaluated type in platform bindings",
+                )
+            })
+        }
         dir::Type::Reference {
             symbol,
             static_arguments,
@@ -625,6 +649,25 @@ fn binding_type_from_symbol(
     let symbol_table = dir.symbols.read();
 
     let symbol = symbol_table.get_symbol(symbol_id.local_id);
+    if let Some(target_symbol) = symbol.canonical_symbol.or(symbol.target_symbol)
+        && target_symbol != symbol_id
+    {
+        return binding_type_from_symbol(target_symbol, modules, strings, profile_id, symbols);
+    }
+    if let Some(primary_declaration) = symbol.primary_declaration
+        && primary_declaration.local_id.ty == dir::NodeType::DependencyItem
+    {
+        let dependency_id = primary_declaration
+            .try_into_typed::<DependencyItem>()
+            .unwrap_or_else(|error| unsupported_binding_type("<dependency item>", &error));
+        let dependency = tree.get::<DependencyItem>(dependency_id.local_id);
+        if let Some(target_symbol) = dependency.target_symbol()
+            && target_symbol != symbol_id
+        {
+            return binding_type_from_symbol(target_symbol, modules, strings, profile_id, symbols);
+        }
+    }
+
     let name = symbol
         .name()
         .map(|name| strings.get(name).to_string())

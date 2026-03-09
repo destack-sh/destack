@@ -4,23 +4,56 @@ use super::super::{
     AudioBackend, AudioBackendCapabilityFlags, AudioBackendDescriptor, AudioBackendDescriptorVm,
     AudioBackendSelectionPolicy, AudioChannelLayout, AudioClockSnapshot, AudioClockSnapshotVm,
     AudioDeviceCapabilityFlags, AudioDeviceDescriptor, AudioDeviceDescriptorVm,
-    AudioDeviceDirection, AudioDeviceListRequest, AudioDeviceListRequestVm, AudioDeviceOpenFlags,
-    AudioDeviceOpenOptions, AudioDeviceOpenOptionsVm, AudioEvent, AudioEventKind, AudioEventSource,
-    AudioEventSubscriptionOptions, AudioEventSubscriptionOptionsVm, AudioEventVm,
-    AudioSampleFormat, AudioShareMode, AudioStreamConfig, AudioStreamConfigVm,
-    AudioStreamDescriptor, AudioStreamDescriptorVm, AudioStreamFlags, AudioStreamOpenOptions,
-    AudioStreamOpenOptionsVm, AudioStreamRequirementFlags, AudioStreamState, AudioStreamStateVm,
-    AudioStreamSupport, AudioStreamSupportVm, AudioStreamTransferMode,
-    AudioSupportedEventSubscriptionFlags, AudioSupportedStreamClockDomains,
+    AudioDeviceDirection, AudioDeviceListFlags, AudioDeviceListRequest, AudioDeviceListRequestVm,
+    AudioDeviceOpenFlags, AudioDeviceOpenOptions, AudioDeviceOpenOptionsVm, AudioEvent,
+    AudioEventKind, AudioEventSource, AudioEventSubscriptionOptions,
+    AudioEventSubscriptionOptionsVm, AudioEventVm, AudioSampleFormat, AudioShareMode,
+    AudioStreamConfig, AudioStreamConfigVm, AudioStreamDescriptor, AudioStreamDescriptorVm,
+    AudioStreamFlags, AudioStreamOpenOptions, AudioStreamOpenOptionsVm,
+    AudioStreamRequirementFlags, AudioStreamState, AudioStreamStateVm, AudioStreamSupport,
+    AudioStreamSupportVm, AudioStreamTransferMode, AudioSupportedEventSubscriptionFlags,
+    AudioSupportedStreamClockDomains, AudioSupportedStreamFlags,
+    AudioSupportedStreamRequirementFlags,
 };
 use super::{AudioHarnessContext, HarnessValue};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::core::BackendSupport;
 use crate::platform::{VmSlice, resource};
 use crate::runtime::{NativeSlice, NativeStringRef};
 
 type NativeByteVectors = NativeSlice<NativeSlice<u8>>;
 type VmByteVectors = VmSlice<VmSlice<u8>>;
 type ByteVectorsHarnessValue = HarnessValue<NativeByteVectors, VmByteVectors>;
+
+/// Return whether one backend support state is available.
+fn backend_is_available(support: BackendSupport) -> bool {
+    matches!(support, BackendSupport::Available)
+}
+
+/// One decoded backend descriptor summary used by backend-list tests.
+#[derive(Clone, Copy)]
+pub(super) struct AudioBackendDescriptorSummary {
+    /// Backend selector.
+    pub(super) backend: AudioBackend,
+    /// Host support state for the selector.
+    pub(super) support: BackendSupport,
+    /// Auto-selection priority for the selector.
+    pub(super) priority: u16,
+    /// Backend capability flags for the selector.
+    pub(super) capability_flags: AudioBackendCapabilityFlags,
+    /// Supported device-list flags for the selector.
+    pub(super) supported_device_list_flags: AudioDeviceListFlags,
+    /// Supported device-open flags for the selector.
+    pub(super) supported_device_open_flags: AudioDeviceOpenFlags,
+    /// Supported stream flags for the selector.
+    pub(super) supported_stream_flags: AudioSupportedStreamFlags,
+    /// Supported stream requirement flags for the selector.
+    pub(super) supported_stream_requirement_flags: AudioSupportedStreamRequirementFlags,
+    /// Supported event-subscription flags for the selector.
+    pub(super) supported_event_subscription_flags: AudioSupportedEventSubscriptionFlags,
+    /// Supported stream-clock domains for the selector.
+    pub(super) supported_stream_clock_domains: AudioSupportedStreamClockDomains,
+}
 
 /// Deterministic pseudo-random sequence used by stress tests.
 pub(super) struct DeterministicSequence {
@@ -310,17 +343,28 @@ pub(super) fn byte_len(
 }
 
 /// Decode one backend descriptor list into backend availability rows.
-pub(super) fn backend_availability_rows(
+pub(super) fn backend_descriptor_summaries(
     context: &mut AudioHarnessContext<'_>,
     value: HarnessValue<NativeSlice<AudioBackendDescriptor>, VmSlice<AudioBackendDescriptorVm>>,
-) -> RuntimeResult<Vec<(AudioBackend, bool)>> {
+) -> RuntimeResult<Vec<AudioBackendDescriptorSummary>> {
     match value {
         HarnessValue::Native(value) => {
             let values = unsafe { value.as_slice()? };
             Ok(values
                 .iter()
-                .map(|value| (value.backend, value.available))
-                .collect::<Vec<_>>())
+                .map(|value| AudioBackendDescriptorSummary {
+                    backend: value.backend,
+                    support: value.support,
+                    priority: value.priority,
+                    capability_flags: value.capability_flags,
+                    supported_device_list_flags: value.supported_device_list_flags,
+                    supported_device_open_flags: value.supported_device_open_flags,
+                    supported_stream_flags: value.supported_stream_flags,
+                    supported_stream_requirement_flags: value.supported_stream_requirement_flags,
+                    supported_event_subscription_flags: value.supported_event_subscription_flags,
+                    supported_stream_clock_domains: value.supported_stream_clock_domains,
+                })
+                .collect())
         }
         HarnessValue::Vm(value) => {
             let vm_context = vm_context_mut(context)
@@ -328,10 +372,33 @@ pub(super) fn backend_availability_rows(
             let values = value.read_values(vm_context)?;
             Ok(values
                 .iter()
-                .map(|value| (value.backend, value.available))
-                .collect::<Vec<_>>())
+                .map(|value| AudioBackendDescriptorSummary {
+                    backend: value.backend,
+                    support: value.support,
+                    priority: value.priority,
+                    capability_flags: value.capability_flags,
+                    supported_device_list_flags: value.supported_device_list_flags,
+                    supported_device_open_flags: value.supported_device_open_flags,
+                    supported_stream_flags: value.supported_stream_flags,
+                    supported_stream_requirement_flags: value.supported_stream_requirement_flags,
+                    supported_event_subscription_flags: value.supported_event_subscription_flags,
+                    supported_stream_clock_domains: value.supported_stream_clock_domains,
+                })
+                .collect())
         }
     }
+}
+
+/// Decode one backend descriptor list into backend availability rows.
+pub(super) fn backend_availability_rows(
+    context: &mut AudioHarnessContext<'_>,
+    value: HarnessValue<NativeSlice<AudioBackendDescriptor>, VmSlice<AudioBackendDescriptorVm>>,
+) -> RuntimeResult<Vec<(AudioBackend, bool)>> {
+    let rows = backend_descriptor_summaries(context, value)?;
+    Ok(rows
+        .into_iter()
+        .map(|value| (value.backend, backend_is_available(value.support)))
+        .collect())
 }
 
 /// Decode one backend descriptor list into backend availability and capability rows.
@@ -339,24 +406,17 @@ pub(super) fn backend_availability_rows_with_capabilities(
     context: &mut AudioHarnessContext<'_>,
     value: HarnessValue<NativeSlice<AudioBackendDescriptor>, VmSlice<AudioBackendDescriptorVm>>,
 ) -> RuntimeResult<Vec<(AudioBackend, bool, AudioBackendCapabilityFlags)>> {
-    match value {
-        HarnessValue::Native(value) => {
-            let values = unsafe { value.as_slice()? };
-            Ok(values
-                .iter()
-                .map(|value| (value.backend, value.available, value.capability_flags))
-                .collect::<Vec<_>>())
-        }
-        HarnessValue::Vm(value) => {
-            let vm_context = vm_context_mut(context)
-                .expect("vm payload requires vm context to decode backend descriptor slice");
-            let values = value.read_values(vm_context)?;
-            Ok(values
-                .iter()
-                .map(|value| (value.backend, value.available, value.capability_flags))
-                .collect::<Vec<_>>())
-        }
-    }
+    let rows = backend_descriptor_summaries(context, value)?;
+    Ok(rows
+        .into_iter()
+        .map(|value| {
+            (
+                value.backend,
+                backend_is_available(value.support),
+                value.capability_flags,
+            )
+        })
+        .collect())
 }
 
 /// Decode one backend descriptor list into availability and event-support rows.
@@ -364,36 +424,17 @@ pub(super) fn backend_event_support_rows(
     context: &mut AudioHarnessContext<'_>,
     value: HarnessValue<NativeSlice<AudioBackendDescriptor>, VmSlice<AudioBackendDescriptorVm>>,
 ) -> RuntimeResult<Vec<(AudioBackend, bool, AudioSupportedEventSubscriptionFlags)>> {
-    match value {
-        HarnessValue::Native(value) => {
-            let values = unsafe { value.as_slice()? };
-            Ok(values
-                .iter()
-                .map(|value| {
-                    (
-                        value.backend,
-                        value.available,
-                        value.supported_event_subscription_flags,
-                    )
-                })
-                .collect::<Vec<_>>())
-        }
-        HarnessValue::Vm(value) => {
-            let vm_context = vm_context_mut(context)
-                .expect("vm payload requires vm context to decode backend descriptor slice");
-            let values = value.read_values(vm_context)?;
-            Ok(values
-                .iter()
-                .map(|value| {
-                    (
-                        value.backend,
-                        value.available,
-                        value.supported_event_subscription_flags,
-                    )
-                })
-                .collect::<Vec<_>>())
-        }
-    }
+    let rows = backend_descriptor_summaries(context, value)?;
+    Ok(rows
+        .into_iter()
+        .map(|value| {
+            (
+                value.backend,
+                backend_is_available(value.support),
+                value.supported_event_subscription_flags,
+            )
+        })
+        .collect())
 }
 
 /// Decode one native or VM string payload into one rust string.

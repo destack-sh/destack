@@ -213,7 +213,7 @@ fn display_backend_descriptor_to_vm(
     Ok(DisplayBackendDescriptorVm {
         backend: value.backend,
         name: vm::StringHandle::new(context.intern_string(name)),
-        available: value.available,
+        support: value.support,
         priority: value.priority,
         capability_flags: value.capability_flags,
     })

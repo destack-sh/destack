@@ -8,7 +8,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, VmValueCodec,
-    audio as platform_audio, resource, resource as platform_resource,
+    audio as platform_audio, core, core as platform_core, resource, resource as platform_resource,
 };
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
@@ -1143,9 +1143,9 @@ pub struct AudioBackendDescriptorAbi<A: BindingAbi> {
     pub backend: AudioBackend,
     /// Stable backend name.
     pub name: A::String,
-    /// Whether this backend is currently available on this host.
-    pub available: bool,
-    /// Priority in default auto-selection order.
+    /// Host backend support state for this selector.
+    pub support: core::BackendSupport,
+    /// Priority in default auto-selection order, or zero when auto does not consider this selector.
     pub priority: u16,
     /// Backend-level capability flags.
     /// These are coarse feature categories.
@@ -1215,7 +1215,8 @@ impl VmAggregateCodec for AudioBackendDescriptorAbi<VmAbi> {
             <AudioBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_name =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_available = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_support =
+            <core::BackendSupport as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_priority = <u16 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_capability_flags =
             <AudioBackendCapabilityFlags as VmAggregateCodec>::decode_with_context(
@@ -1244,7 +1245,7 @@ impl VmAggregateCodec for AudioBackendDescriptorAbi<VmAbi> {
         Ok(Self {
             backend: field_backend,
             name: field_name,
-            available: field_available,
+            support: field_support,
             priority: field_priority,
             capability_flags: field_capability_flags,
             supported_device_list_flags: field_supported_device_list_flags,
@@ -1263,7 +1264,7 @@ impl VmAggregateCodec for AudioBackendDescriptorAbi<VmAbi> {
         let slots = vec![
             <AudioBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.available, context)?,
+            <core::BackendSupport as VmAggregateCodec>::encode_with_context(self.support, context)?,
             <u16 as VmAggregateCodec>::encode_with_context(self.priority, context)?,
             <AudioBackendCapabilityFlags as VmAggregateCodec>::encode_with_context(
                 self.capability_flags,
@@ -5297,9 +5298,9 @@ pub struct AudioBackendDescriptorReplayRecord {
     pub backend: AudioBackend,
     /// Stable backend name.
     pub name: String,
-    /// Whether this backend is currently available on this host.
-    pub available: bool,
-    /// Priority in default auto-selection order.
+    /// Host backend support state for this selector.
+    pub support: core::BackendSupport,
+    /// Priority in default auto-selection order, or zero when auto does not consider this selector.
     pub priority: u16,
     /// Backend-level capability flags.
     /// These are coarse feature categories.

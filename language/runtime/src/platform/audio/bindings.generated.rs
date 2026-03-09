@@ -82,7 +82,9 @@ use crate::platform::audio::simulation::{
     native as platform_simulation_native, vm as platform_simulation_vm,
 };
 use crate::platform::audio::{native as platform_native, vm as platform_vm};
-use crate::platform::{audio as platform_audio, resource as platform_resource, resource};
+use crate::platform::{
+    audio as platform_audio, core as platform_core, core, resource as platform_resource, resource,
+};
 
 /// Read a positional argument value.
 #[allow(dead_code)]
@@ -4415,7 +4417,7 @@ fn destack_audio_backend_list_replay(
                     let result_recorded_item_recorded_backend = result_recorded_item.backend;
                     let result_recorded_item_recorded_name =
                         unsafe { result_recorded_item.name.as_str()? }.to_string();
-                    let result_recorded_item_recorded_available = result_recorded_item.available;
+                    let result_recorded_item_recorded_support = result_recorded_item.support;
                     let result_recorded_item_recorded_priority = result_recorded_item.priority;
                     let result_recorded_item_recorded_capability_flags =
                         result_recorded_item.capability_flags;
@@ -4434,7 +4436,7 @@ fn destack_audio_backend_list_replay(
                     let result_recorded_item_recorded = AudioBackendDescriptorReplayRecord {
                         backend: result_recorded_item_recorded_backend,
                         name: result_recorded_item_recorded_name,
-                        available: result_recorded_item_recorded_available,
+                        support: result_recorded_item_recorded_support,
                         priority: result_recorded_item_recorded_priority,
                         capability_flags: result_recorded_item_recorded_capability_flags,
                         supported_device_list_flags:
@@ -4477,7 +4479,7 @@ fn destack_audio_backend_list_replay(
                         let value_native_item_native_backend = value_native_item.backend;
                         let value_native_item_native_name =
                             binding.store_string(&value_native_item.name);
-                        let value_native_item_native_available = value_native_item.available;
+                        let value_native_item_native_support = value_native_item.support;
                         let value_native_item_native_priority = value_native_item.priority;
                         let value_native_item_native_capability_flags =
                             value_native_item.capability_flags;
@@ -4496,7 +4498,7 @@ fn destack_audio_backend_list_replay(
                         let value_native_item_native = AudioBackendDescriptor {
                             backend: value_native_item_native_backend,
                             name: value_native_item_native_name,
-                            available: value_native_item_native_available,
+                            support: value_native_item_native_support,
                             priority: value_native_item_native_priority,
                             capability_flags: value_native_item_native_capability_flags,
                             supported_device_list_flags:
@@ -12936,8 +12938,23 @@ fn destack_audio_backend_list_vm_replay(
                         };
                         let result_recorded_item_name =
                             decode_string(slots[1], "result_recorded_item_name", "name")?;
-                        let result_recorded_item_available =
-                            decode_bool(slots[2], "result_recorded_item_available", "available")?;
+                        let result_recorded_item_support_raw =
+                            decode_uint8(slots[2], "result_recorded_item_support_raw", "support")?;
+                        let result_recorded_item_support = match result_recorded_item_support_raw {
+                            0u8 => core::BackendSupport::Available,
+                            1u8 => core::BackendSupport::UnsupportedTarget,
+                            2u8 => core::BackendSupport::DisabledByBuild,
+                            3u8 => core::BackendSupport::HostUnavailable,
+                            _ => {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_item_support",
+                                        "unknown core::BackendSupport value",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                        };
                         let result_recorded_item_priority =
                             decode_uint16(slots[3], "result_recorded_item_priority", "priority")?;
                         let result_recorded_item_capability_flags_inner = decode_uint64(
@@ -13005,7 +13022,7 @@ fn destack_audio_backend_list_vm_replay(
                         AudioBackendDescriptorVm {
                             backend: result_recorded_item_backend,
                             name: result_recorded_item_name,
-                            available: result_recorded_item_available,
+                            support: result_recorded_item_support,
                             priority: result_recorded_item_priority,
                             capability_flags: result_recorded_item_capability_flags,
                             supported_device_list_flags:
@@ -13028,7 +13045,7 @@ fn destack_audio_backend_list_vm_replay(
                             .map_err(|error| RuntimeError::from(error).boxed())?;
                         result_recorded_item_recorded_name_ref.as_str().to_string()
                     };
-                    let result_recorded_item_recorded_available = result_recorded_item.available;
+                    let result_recorded_item_recorded_support = result_recorded_item.support;
                     let result_recorded_item_recorded_priority = result_recorded_item.priority;
                     let result_recorded_item_recorded_capability_flags =
                         result_recorded_item.capability_flags;
@@ -13047,7 +13064,7 @@ fn destack_audio_backend_list_vm_replay(
                     let result_recorded_item_recorded = AudioBackendDescriptorReplayRecord {
                         backend: result_recorded_item_recorded_backend,
                         name: result_recorded_item_recorded_name,
-                        available: result_recorded_item_recorded_available,
+                        support: result_recorded_item_recorded_support,
                         priority: result_recorded_item_recorded_priority,
                         capability_flags: result_recorded_item_recorded_capability_flags,
                         supported_device_list_flags:
@@ -13094,7 +13111,7 @@ fn destack_audio_backend_list_vm_replay(
                             context.intern_string(vm_result_item.name.as_str());
                         let vm_result_item_value_name =
                             vm::StringHandle::new(vm_result_item_value_name_value);
-                        let vm_result_item_value_available = vm_result_item.available;
+                        let vm_result_item_value_support = vm_result_item.support;
                         let vm_result_item_value_priority = vm_result_item.priority;
                         let vm_result_item_value_capability_flags = vm_result_item.capability_flags;
                         let vm_result_item_value_supported_device_list_flags =
@@ -13112,7 +13129,7 @@ fn destack_audio_backend_list_vm_replay(
                         let vm_result_item_value = AudioBackendDescriptorVm {
                             backend: vm_result_item_value_backend,
                             name: vm_result_item_value_name,
-                            available: vm_result_item_value_available,
+                            support: vm_result_item_value_support,
                             priority: vm_result_item_value_priority,
                             capability_flags: vm_result_item_value_capability_flags,
                             supported_device_list_flags:
@@ -13131,7 +13148,8 @@ fn destack_audio_backend_list_vm_replay(
                             let field_0 =
                                 vm::Value::uint(vm_result_item_value.backend as u8 as u64, 8);
                             let field_1 = vm_result_item_value.name.value();
-                            let field_2 = vm::Value::bool(vm_result_item_value.available);
+                            let field_2 =
+                                vm::Value::uint(vm_result_item_value.support as u8 as u64, 8);
                             let field_3 = vm::Value::uint(vm_result_item_value.priority as u64, 16);
                             let field_4 =
                                 vm::Value::uint(vm_result_item_value.capability_flags.0, 64);
