@@ -3,10 +3,10 @@ set -euo pipefail
 
 script_directory="$(cd "$(dirname "$0")" && pwd)"
 
-# shellcheck source=./scripts/toolchain/versions.sh
+# shellcheck source=./toolchain/versions.sh
 source "${script_directory}/versions.sh"
 
-# shellcheck source=./scripts/toolchain/lib/runtime-common.sh
+# shellcheck source=./toolchain/lib/runtime-common.sh
 source "${script_directory}/lib/runtime-common.sh"
 has_error="0"
 host_kernel="$(runtime_host_kernel)"

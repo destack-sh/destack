@@ -48,7 +48,7 @@ set -o pipefail
 	"platforms;android-${api_level}" \
 	"ndk;${ndk_version}" >/dev/null
 
-toolchain_bin="$("$(dirname "$0")/../../scripts/toolchain/android-ndk-toolchain-bin.sh" "${sdk_root}/ndk/${ndk_version}")"
+toolchain_bin="$("$(dirname "$0")/../../toolchain/android-ndk-toolchain-bin.sh" "${sdk_root}/ndk/${ndk_version}")"
 
 if [ ! -x "${toolchain_bin}/aarch64-linux-android${api_level}-clang" ]; then
 	echo "missing android clang toolchain wrapper in ${toolchain_bin}" >&2

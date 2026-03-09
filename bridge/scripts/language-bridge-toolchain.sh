@@ -7,7 +7,7 @@ repository_root="$(cd "${script_directory}/../.." && pwd)"
 host_kernel="$(uname -s)"
 
 # shellcheck disable=SC1091
-source "${repository_root}/scripts/toolchain/versions.sh"
+source "${repository_root}/toolchain/versions.sh"
 
 command_path() {
 	command -v "$1" 2>/dev/null || true

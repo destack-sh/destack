@@ -2,7 +2,7 @@
 set -euo pipefail
 
 script_directory="$(cd "$(dirname "$0")" && pwd)"
-repository_root="$(cd "${script_directory}/../.." && pwd)"
+repository_root="$(cd "${script_directory}/.." && pwd)"
 
 resolve_existing_directory() {
 	path="$1"
