@@ -1,7 +1,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::audio::{
-    AudioClockDomain, AudioClockSnapshot, AudioStreamClockDomain, core as audio_core,
+use crate::platform::audio::core::{
+    clock_now_for_domain, resolve_stream_host_state, stream_clock_snapshot,
 };
+use crate::platform::audio::{AudioClockDomain, AudioClockSnapshot, AudioStreamClockDomain};
 use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
@@ -31,7 +32,7 @@ pub(crate) unsafe fn destack_audio_clock_now(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let value = audio_core::clock_now_for_domain(binding, domain)?;
+    let value = clock_now_for_domain(binding, domain)?;
     unsafe {
         *out = value;
     }
@@ -72,8 +73,8 @@ pub(crate) unsafe fn destack_audio_stream_clock(
     }
 
     let resolved_binding =
-        audio_core::resolve_stream_host_state(binding, handle, "destack.audio.clock.stream")?;
-    let snapshot = audio_core::stream_clock_snapshot(binding, &resolved_binding, domain)?;
+        resolve_stream_host_state(binding, handle, "destack.audio.clock.stream")?;
+    let snapshot = stream_clock_snapshot(binding, &resolved_binding, domain)?;
     unsafe {
         *out = snapshot;
     }
