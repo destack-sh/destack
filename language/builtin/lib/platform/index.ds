@@ -15,6 +15,7 @@ export { os } from "./os/index.ds";
 export { process } from "./process/index.ds";
 export { random } from "./random/index.ds";
 export { resource } from "./resource/index.ds";
+export { runtime } from "./runtime/index.ds";
 export { security } from "./security/index.ds";
 export { thread } from "./thread/index.ds";
 export { tty } from "./tty/index.ds";

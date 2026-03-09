@@ -1,11 +1,12 @@
 import type { PlatformError } from "../error/index.ds";
 
-/// Core debug control bindings.
+/// Low-level debug control bindings.
 declare namespace debug {
     /// Mark a debug timeline point.
     ///
-    /// Record one runtime debug marker with a user-provided label.
-    /// Marker ordering follows the active runtime scheduler and trace clock.
+    /// Record one low-level debug or instrumentation marker with a user-provided label.
+    /// Marker ordering follows the active runtime scheduler and may be mirrored into debug trace sinks.
+    /// This is not the full causal runtime trace API.
     ///
     /// # Platform
     /// Runtime-managed on all targets.
@@ -36,6 +37,7 @@ declare namespace debug {
     ///
     /// Trigger one debugger stop request for the current runtime execution context.
     /// Break behavior depends on whether a debugger session is attached.
+    /// This is one low-level debugger hook rather than one general world control operation.
     ///
     /// # Platform
     /// Runtime-managed on all targets.
