@@ -24,3 +24,8 @@ jobs:
 
       - name: Check Runtime (macOS)
         run: just language/check-runtime-macos
+
+      - name: Show sccache Stats
+        if: always()
+        shell: bash
+        run: sccache --show-stats || true

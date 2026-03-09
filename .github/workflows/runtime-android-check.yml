@@ -65,3 +65,8 @@ jobs:
         env:
           ANDROID_API_LEVEL: ${{ env.ANDROID_API_LEVEL }}
           ANDROID_NDK_ROOT: ${{ runner.temp }}/android-sdk/ndk/${{ env.ANDROID_NDK_VERSION }}
+
+      - name: Show sccache Stats
+        if: always()
+        shell: bash
+        run: sccache --show-stats || true

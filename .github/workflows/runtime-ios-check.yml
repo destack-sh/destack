@@ -35,3 +35,8 @@ jobs:
         run: just language/check-runtime-ios
         env:
           IOS_DEPLOYMENT_TARGET: ${{ env.IOS_DEPLOYMENT_TARGET }}
+
+      - name: Show sccache Stats
+        if: always()
+        shell: bash
+        run: sccache --show-stats || true
