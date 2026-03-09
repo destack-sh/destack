@@ -44,6 +44,8 @@ pub mod process;
 pub mod random;
 /// External resource table and finalizers.
 pub mod resource;
+/// Low-level runtime control and inspection bindings.
+pub mod runtime;
 /// Security bindings.
 pub mod security;
 /// Runtime-owned platform module state.
